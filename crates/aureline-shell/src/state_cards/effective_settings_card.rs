@@ -22,8 +22,8 @@
 //!   can quote the same record the shell renders.
 
 use aureline_settings::{
-    EffectiveSettingsResolver, EffectiveValue, ShadowChainEntry, ShadowRelation, SettingScope,
-    SettingValue, WriteAttemptOutcome, WriteDenialReason, WriteIntent,
+    EffectiveSettingsResolver, EffectiveValue, SettingScope, SettingValue, ShadowChainEntry,
+    ShadowRelation, WriteAttemptOutcome, WriteDenialReason, WriteIntent,
 };
 use serde::{Deserialize, Serialize};
 
@@ -150,11 +150,11 @@ impl LockedWriteReviewRecord {
             target_scope: outcome.target_scope.as_str().to_owned(),
             proposed_value_preview: outcome.proposed_value.preview(),
             verdict: outcome.verdict.as_str().to_owned(),
-            denial_reason_code: outcome.denial_reason.as_ref().map(|r| r.code_token().to_owned()),
-            denial_reason_message: outcome
+            denial_reason_code: outcome
                 .denial_reason
                 .as_ref()
-                .map(format_denial_message),
+                .map(|r| r.code_token().to_owned()),
+            denial_reason_message: outcome.denial_reason.as_ref().map(format_denial_message),
             effective_after: outcome
                 .effective_after
                 .as_ref()
@@ -275,8 +275,10 @@ mod tests {
         assert_eq!(card.lock_reason, "policy_locked");
         assert!(card.policy_ceiling_active);
         assert!(card.summary_line.contains("policy ceiling active"));
-        assert!(card.shadow_chain.iter().any(|row| row.relation == "winner"
-            && row.scope == "admin_policy_narrowing"));
+        assert!(card
+            .shadow_chain
+            .iter()
+            .any(|row| row.relation == "winner" && row.scope == "admin_policy_narrowing"));
     }
 
     #[test]

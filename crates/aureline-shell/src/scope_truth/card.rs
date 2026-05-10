@@ -277,7 +277,10 @@ pub fn render_scope_truth_chip_lines(card: &ScopeTruthChipCard) -> Vec<String> {
         lines.push(format!("hidden: {value} ({class})"));
     }
     if !card.offered_action_tokens.is_empty() {
-        lines.push(format!("actions: {}", card.offered_action_tokens.join(", ")));
+        lines.push(format!(
+            "actions: {}",
+            card.offered_action_tokens.join(", ")
+        ));
     }
     if card.outside_current_scope_marker_visible {
         lines.push("marker: outside_current_scope".to_string());
@@ -704,7 +707,10 @@ mod tests {
             Some("partial_index")
         );
         assert_eq!(card.hidden_result_count, Some(17_412));
-        assert_eq!(card.partial_index_note.as_deref(), Some("Backend folders excluded."));
+        assert_eq!(
+            card.partial_index_note.as_deref(),
+            Some("Backend folders excluded.")
+        );
         assert_eq!(card.counts.counts_class_token, "partial_truth");
         assert!(card
             .offered_action_tokens

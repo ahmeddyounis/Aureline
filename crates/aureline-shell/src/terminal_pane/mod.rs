@@ -337,8 +337,8 @@ mod tests {
         // working.
         use aureline_auth::{
             AccountBoundaryClass, BrowserCallbackHandoff, IdentityModeAlias, PreservedLocalWork,
-            PreservedLocalWorkPostureClass, ReturnModeClass, ReturnOriginValidationClass,
-            ReturnTenantOrWorkspaceMatchRule, RetryPathClass, ShellAuthVocabulary,
+            PreservedLocalWorkPostureClass, RetryPathClass, ReturnModeClass,
+            ReturnOriginValidationClass, ReturnTenantOrWorkspaceMatchRule, ShellAuthVocabulary,
             StageSystemBrowserHandoffRequest, TrustState as AuthTrustState,
         };
 

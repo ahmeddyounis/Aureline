@@ -124,11 +124,10 @@ pub fn reveal(
     let matches_filter = match (filter_query.as_deref(), tree.node(id)) {
         (None, _) => true,
         (Some(q), _) if q.is_empty() => true,
-        (Some(q), Some(node)) => {
-            node.display_label
-                .to_ascii_lowercase()
-                .contains(&q.to_ascii_lowercase())
-        }
+        (Some(q), Some(node)) => node
+            .display_label
+            .to_ascii_lowercase()
+            .contains(&q.to_ascii_lowercase()),
         (Some(_), None) => false,
     };
 
@@ -152,7 +151,9 @@ pub fn ancestry_chain(tree: &ExplorerTree, id: &ExplorerNodeId) -> Vec<ExplorerN
     let mut current = tree.node(id).and_then(|node| node.parent_id.clone());
     while let Some(parent_id) = current {
         chain.push(parent_id.clone());
-        current = tree.node(&parent_id).and_then(|node| node.parent_id.clone());
+        current = tree
+            .node(&parent_id)
+            .and_then(|node| node.parent_id.clone());
     }
     chain.reverse();
     chain
@@ -211,7 +212,8 @@ mod tests {
 
         let nested_logical = format!("{root_logical}src/payments/charge.rs");
         let nested_dir_logical = format!("{root_logical}src/payments");
-        let nested_dir_id = ExplorerNodeId::from_logical(workspace_id, root_id, &nested_dir_logical);
+        let nested_dir_id =
+            ExplorerNodeId::from_logical(workspace_id, root_id, &nested_dir_logical);
         tree.insert(ExplorerNode {
             node_id: nested_dir_id.clone(),
             workspace_id: workspace_id.to_string(),
@@ -314,8 +316,7 @@ mod tests {
     #[test]
     fn reveal_unknown_node_returns_typed_error() {
         let (mut tree, _root_id, _dir_id, _leaf_id) = build_tree();
-        let bogus =
-            ExplorerNodeId::from_logical("wksp:filter", "root:filter", "logical://missing");
+        let bogus = ExplorerNodeId::from_logical("wksp:filter", "root:filter", "logical://missing");
         let err = reveal(&mut tree, &bogus).expect_err("unknown node must error");
         assert!(matches!(err, ExplorerTreeError::UnknownNode(_)));
     }

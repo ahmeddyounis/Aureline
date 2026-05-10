@@ -9,8 +9,8 @@ use aureline_search::{
     WorkspaceSearchScopeMetadata,
 };
 use aureline_workspace::{
-    ScopeClass as WorkspaceScopeClass, WorkspaceLifecycleMachine, WorkspaceReadinessInputs,
-    WorksetArtifactRecord,
+    ScopeClass as WorkspaceScopeClass, WorksetArtifactRecord, WorkspaceLifecycleMachine,
+    WorkspaceReadinessInputs,
 };
 
 use crate::scope_truth::{
@@ -50,7 +50,12 @@ impl WorkspaceSearchSurfaceState {
         let observed_at = inputs.observed_at.clone();
         let workspace_scope =
             project_default_scope(&inputs.workspace_id, scope_class, workset_name);
-        let index = build_index(inputs, readiness_label, files, Some(workspace_scope.clone()));
+        let index = build_index(
+            inputs,
+            readiness_label,
+            files,
+            Some(workspace_scope.clone()),
+        );
         let shell = LexicalShell::with_empty_query(scope, label, index);
         Self {
             inner: shell,
@@ -78,7 +83,12 @@ impl WorkspaceSearchSurfaceState {
         let scope_class = workspace_scope.scope_class();
         let label = workspace_scope.chip_label().to_string();
         let workset_name = workspace_scope.workset_name().map(|s| s.to_string());
-        let index = build_index(inputs, readiness_label, files, Some(workspace_scope.clone()));
+        let index = build_index(
+            inputs,
+            readiness_label,
+            files,
+            Some(workspace_scope.clone()),
+        );
         let shell = LexicalShell::with_empty_query(scope_class, label, index);
         Self {
             inner: shell,
@@ -110,11 +120,7 @@ impl WorkspaceSearchSurfaceState {
         let label = project_scope_label(scope, workset_name);
         self.inner.set_scope(scope, label);
         self.workset_name = workset_name.map(|s| s.to_string());
-        self.scope = project_default_scope(
-            self.inner.workspace_id(),
-            scope_class,
-            workset_name,
-        );
+        self.scope = project_default_scope(self.inner.workspace_id(), scope_class, workset_name);
     }
 
     /// Replace the active workset/slice scope with one projected from a
@@ -246,7 +252,10 @@ impl WorkspaceSearchSurfaceState {
             // The card carries the source-class taxonomy explicitly so the
             // chrome cannot relabel a lexical row as semantic just because
             // a future surface renders alongside it.
-            available_source_classes: vec!["lexical_filename".to_string(), "lexical_path".to_string()],
+            available_source_classes: vec![
+                "lexical_filename".to_string(),
+                "lexical_path".to_string(),
+            ],
         }
     }
 
@@ -281,9 +290,7 @@ fn project_default_scope(
         WorkspaceScopeClass::FullWorkspace => {
             WorkspaceSearchScope::for_full_workspace(workspace_id)
         }
-        WorkspaceScopeClass::CurrentRepo => {
-            WorkspaceSearchScope::for_current_repo(workspace_id)
-        }
+        WorkspaceScopeClass::CurrentRepo => WorkspaceSearchScope::for_current_repo(workspace_id),
         WorkspaceScopeClass::SelectedWorkset
         | WorkspaceScopeClass::SparseSlice
         | WorkspaceScopeClass::PolicyLimitedView => WorkspaceSearchScope::for_workset_stub(
@@ -312,14 +319,14 @@ pub fn project_scope_label(scope: ScopeClass, workset_name: Option<&str>) -> Str
         ScopeClass::CurrentRepo | ScopeClass::FullWorkspace => {
             scope.chip_label_family().to_string()
         }
-        ScopeClass::SelectedWorkset
-        | ScopeClass::SparseSlice
-        | ScopeClass::PolicyLimitedView => match workset_name {
-            Some(name) if !name.trim().is_empty() => {
-                format!("{} · {}", scope.chip_label_family(), name)
+        ScopeClass::SelectedWorkset | ScopeClass::SparseSlice | ScopeClass::PolicyLimitedView => {
+            match workset_name {
+                Some(name) if !name.trim().is_empty() => {
+                    format!("{} · {}", scope.chip_label_family(), name)
+                }
+                _ => scope.chip_label_family().to_string(),
             }
-            _ => scope.chip_label_family().to_string(),
-        },
+        }
     }
 }
 

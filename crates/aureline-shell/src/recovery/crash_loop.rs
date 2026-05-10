@@ -18,9 +18,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use super::ladder::{RecoveryLadderRung, RecoveryLadderRungProjection};
-use super::safe_mode::{
-    materialize_safe_mode_profile, SafeModeEntryReason, SafeModeProfileRecord,
-};
+use super::safe_mode::{materialize_safe_mode_profile, SafeModeEntryReason, SafeModeProfileRecord};
 
 /// Schema version for [`CrashLoopContainmentRecord`].
 pub const CRASH_LOOP_RECORD_SCHEMA_VERSION: u32 = 1;
@@ -174,7 +172,9 @@ impl CrashLoopContainmentRecord {
 /// first-class offers. The cache/index repair candidate is offered as a
 /// gated escalation because it requires user review of preserved indexes
 /// before running.
-pub fn materialize_crash_loop_containment(reason: CrashLoopReasonClass) -> CrashLoopContainmentRecord {
+pub fn materialize_crash_loop_containment(
+    reason: CrashLoopReasonClass,
+) -> CrashLoopContainmentRecord {
     let safe_mode_profile = materialize_safe_mode_profile(SafeModeEntryReason::CrashLoopDetected);
 
     let offers = vec![
@@ -224,8 +224,7 @@ pub fn write_crash_loop_containment_log(
     let path = recovery_root.join("crash_loop_containment_latest.json");
     let json = serde_json::to_string_pretty(record)
         .map_err(|err| format!("serialize crash-loop containment failed: {err}"))?;
-    std::fs::write(&path, json)
-        .map_err(|err| format!("write {} failed: {err}", path.display()))?;
+    std::fs::write(&path, json).map_err(|err| format!("write {} failed: {err}", path.display()))?;
     Ok(())
 }
 
@@ -258,7 +257,10 @@ mod tests {
         assert!(record.never_deletes_state);
         assert!(record.summary_line.contains("auto_rerun_forbidden=true"));
         assert!(record.summary_line.contains("never_deletes_state=true"));
-        assert_eq!(record.safe_mode_profile.entry_reason_class, "crash_loop_detected");
+        assert_eq!(
+            record.safe_mode_profile.entry_reason_class,
+            "crash_loop_detected"
+        );
     }
 
     #[test]
@@ -270,13 +272,10 @@ mod tests {
     #[test]
     fn write_log_round_trips_via_serde() {
         let dir = tempfile::tempdir().unwrap();
-        let record =
-            materialize_crash_loop_containment(CrashLoopReasonClass::StartSequenceUnsafe);
+        let record = materialize_crash_loop_containment(CrashLoopReasonClass::StartSequenceUnsafe);
         write_crash_loop_containment_log(dir.path(), &record).expect("write");
-        let read = std::fs::read_to_string(
-            dir.path().join("crash_loop_containment_latest.json"),
-        )
-        .unwrap();
+        let read =
+            std::fs::read_to_string(dir.path().join("crash_loop_containment_latest.json")).unwrap();
         let back: CrashLoopContainmentRecord = serde_json::from_str(&read).unwrap();
         assert_eq!(back, record);
     }

@@ -32,6 +32,7 @@
 //! the same canonical object — preventing split-brain state across surfaces.
 
 pub mod envelope;
+pub mod quiet_hours;
 pub mod router;
 pub mod routes;
 
@@ -41,6 +42,10 @@ pub use envelope::{
     ReopenTarget, ReopenTargetKind, SeverityClass, SourceSubsystem, StableAction,
     StaleOrUndeliveredReason, StaleOrUndeliveredReasonClass, SuppressionReason, SuppressionState,
     FANOUT_RECEIPT_SCHEMA_VERSION, NOTIFICATION_ENVELOPE_SCHEMA_VERSION,
+};
+pub use quiet_hours::{
+    BadgeSeverityCounts, DurableBadgeProjection, QuietHoursPosture,
+    DURABLE_BADGE_PROJECTION_RECORD_KIND, DURABLE_BADGE_PROJECTION_SCHEMA_VERSION,
 };
 pub use router::{
     NotificationRouter, NotificationRoutingError, RoutedNotification, SurfaceRoute,

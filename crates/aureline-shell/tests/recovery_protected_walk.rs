@@ -14,13 +14,13 @@
 //! representation-labeled copy/export paths and the recovery offers stay
 //! honest end-to-end.
 
+use aureline_shell::recovery::crash_loop::{
+    materialize_crash_loop_containment, write_crash_loop_containment_log,
+};
 use aureline_shell::recovery::{
     annotate_save_review_with_suspicious_content, materialize_safe_mode_profile,
     write_safe_mode_profile_log, CrashLoopOfferKey, CrashLoopReasonClass, RecoveryLadderRung,
     SafeModeEntryReason,
-};
-use aureline_shell::recovery::crash_loop::{
-    materialize_crash_loop_containment, write_crash_loop_containment_log,
 };
 
 #[test]
@@ -59,7 +59,10 @@ fn suspicious_save_payload_offers_safe_mode_and_representation_labels() {
         .expect("copy_escaped must be offered");
     assert!(copy_raw.must_offer_also.iter().any(|s| s == "copy_escaped"));
     assert!(copy_escaped.must_offer_also.iter().any(|s| s == "copy_raw"));
-    assert!(copy_raw.required_disclosure_fields.iter().any(|d| d == "warning_state"));
+    assert!(copy_raw
+        .required_disclosure_fields
+        .iter()
+        .any(|d| d == "warning_state"));
 
     // Escaped preview escapes the bidi codepoint instead of replaying it.
     assert!(annotation
@@ -109,8 +112,7 @@ fn safe_mode_profile_preserves_state_and_disables_extensions() {
 #[test]
 fn crash_loop_containment_exposes_first_class_offers_and_safe_mode_profile() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let record =
-        materialize_crash_loop_containment(CrashLoopReasonClass::StrikeBudgetExceeded);
+    let record = materialize_crash_loop_containment(CrashLoopReasonClass::StrikeBudgetExceeded);
 
     for required in [
         CrashLoopOfferKey::OpenSafeMode,
@@ -131,7 +133,10 @@ fn crash_loop_containment_exposes_first_class_offers_and_safe_mode_profile() {
 
     // Containment record carries the safe-mode profile so the surface and
     // the diagnostics packet share one truth.
-    assert_eq!(record.safe_mode_profile.entry_reason_class, "crash_loop_detected");
+    assert_eq!(
+        record.safe_mode_profile.entry_reason_class,
+        "crash_loop_detected"
+    );
     assert!(record.never_deletes_state);
     assert!(record.auto_rerun_forbidden);
 

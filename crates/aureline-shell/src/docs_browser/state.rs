@@ -257,10 +257,7 @@ impl DocsBrowserBrowserHandoffRow {
             .unwrap_or("missing");
         format!(
             "Handoff: {}  [posture: {}, target: {}, packet: {}]",
-            self.action_label,
-            self.posture_class_token,
-            self.fallback_target_class_token,
-            packet
+            self.action_label, self.posture_class_token, self.fallback_target_class_token, packet
         )
     }
 }
@@ -366,9 +363,7 @@ fn serialize_token<T: Serialize + std::fmt::Debug>(value: &T) -> String {
 /// handoff, and return its packet ref. The docs/help skeleton must never
 /// surface a non-product-owned-handoff partition role as the open-in-browser
 /// row, so the helper rejects anything else.
-pub fn docs_browser_open_in_browser_packet_ref(
-    card: &EmbeddedBoundaryCardRecord,
-) -> Option<&str> {
+pub fn docs_browser_open_in_browser_packet_ref(card: &EmbeddedBoundaryCardRecord) -> Option<&str> {
     let action = card.open_in_browser_action()?;
     if action.action_id != BoundaryActionId::OpenInSystemBrowser {
         return None;
@@ -451,10 +446,7 @@ mod tests {
             row_card.version_row.state_token,
             "incompatible_drift_detected"
         );
-        assert_eq!(
-            row_card.version_row.label,
-            "Incompatible drift detected"
-        );
+        assert_eq!(row_card.version_row.label, "Incompatible drift detected");
         assert_eq!(row_card.freshness_row.class_token, "stale");
         assert!(row_card.freshness_row.degraded);
         assert_eq!(
@@ -466,7 +458,9 @@ mod tests {
         );
         let lines = row_card.render_lines();
         assert!(
-            lines.iter().any(|l| l.contains("Snapshot age: 8 days behind upstream")),
+            lines
+                .iter()
+                .any(|l| l.contains("Snapshot age: 8 days behind upstream")),
             "snapshot age row must render: {lines:#?}"
         );
         assert!(

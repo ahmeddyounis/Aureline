@@ -402,10 +402,7 @@ fn project_target(target: &TargetSnapshot<'_>) -> StatusBarItemRecord {
         "policy_blocked" => Some(DegradedStateToken::PolicyBlocked),
         _ => Some(DegradedStateToken::Limited),
     };
-    let class = if matches!(
-        target.reachability_token,
-        "unreachable" | "policy_blocked"
-    ) {
+    let class = if matches!(target.reachability_token, "unreachable" | "policy_blocked") {
         StatusItemClass::RecoveryCritical
     } else {
         StatusBarItemKind::Target.default_item_class()
@@ -443,9 +440,7 @@ fn project_profile(profile: &ProfileSnapshot<'_>) -> StatusBarItemRecord {
     };
     let explanation = format!(
         "Deployment: {}. Identity: {}. Profile mode: {}.",
-        profile.deployment_profile_token,
-        profile.identity_mode_token,
-        profile.profile_mode_token,
+        profile.deployment_profile_token, profile.identity_mode_token, profile.profile_mode_token,
     );
     build_item(
         StatusBarItemKind::Profile,
@@ -539,18 +534,12 @@ fn project_background(background: &BackgroundStateSnapshot<'_>) -> StatusBarItem
     let active = background.active_owners.len();
     let degraded = background.aggregate_degraded;
     let (class, current_value) = match (active, degraded) {
-        (0, None) => (
-            StatusItemClass::AmbientMetadata,
-            "Idle".to_owned(),
-        ),
+        (0, None) => (StatusItemClass::AmbientMetadata, "Idle".to_owned()),
         (0, Some(token)) => (
             StatusItemClass::OngoingWork,
             format!("Idle · {}", token.label()),
         ),
-        (n, None) => (
-            StatusItemClass::OngoingWork,
-            format!("{n} running"),
-        ),
+        (n, None) => (StatusItemClass::OngoingWork, format!("{n} running")),
         (n, Some(token)) => (
             StatusItemClass::OngoingWork,
             format!("{n} running · {}", token.label()),
@@ -699,7 +688,9 @@ mod tests {
         assert_eq!(trust.current_value_label, "Trusted");
         assert!(trust.degraded_token.is_none());
 
-        let target = snapshot.item(StatusBarItemKind::Target).expect("target row");
+        let target = snapshot
+            .item(StatusBarItemKind::Target)
+            .expect("target row");
         assert_eq!(target.current_value_label, "Local");
         assert_eq!(target.stable_slot_key, "status.slot.context.execution");
 
@@ -771,7 +762,9 @@ mod tests {
             has_degraded_field: true,
         };
         let snapshot = StatusBarSnapshot::project(&inputs);
-        let target = snapshot.item(StatusBarItemKind::Target).expect("target row");
+        let target = snapshot
+            .item(StatusBarItemKind::Target)
+            .expect("target row");
         assert!(target.is_recovery_critical);
         assert_eq!(target.degraded_token.as_deref(), Some("Offline"));
         assert!(target.explanation.contains("ssh_remote"));

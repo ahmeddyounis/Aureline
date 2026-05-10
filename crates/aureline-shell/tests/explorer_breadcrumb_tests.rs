@@ -163,7 +163,12 @@ fn parse_readiness(value: &str) -> NodeReadinessClass {
     }
 }
 
-fn id_for(workspace_id: &str, root_id: &str, root_logical: &str, logical_path: &str) -> ExplorerNodeId {
+fn id_for(
+    workspace_id: &str,
+    root_id: &str,
+    root_logical: &str,
+    logical_path: &str,
+) -> ExplorerNodeId {
     let logical_uri = if logical_path.is_empty() {
         root_logical.to_string()
     } else {
@@ -236,13 +241,11 @@ fn build_tree(fixture: &BreadcrumbFixture) -> ExplorerTree {
 
 #[test]
 fn breadcrumb_fixture_corpus_drives_protected_walk_and_failure_drill() {
-    let root_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/explorer/breadcrumb_cases");
+    let root_dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/explorer/breadcrumb_cases");
 
     let mut count = 0usize;
-    for entry in
-        std::fs::read_dir(&root_dir).expect("breadcrumb_cases directory must exist")
-    {
+    for entry in std::fs::read_dir(&root_dir).expect("breadcrumb_cases directory must exist") {
         let entry = entry.expect("breadcrumb_cases directory entry must read");
         let path = entry.path();
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
@@ -250,9 +253,8 @@ fn breadcrumb_fixture_corpus_drives_protected_walk_and_failure_drill() {
         }
 
         let payload = std::fs::read_to_string(&path).expect("breadcrumb fixture must read");
-        let fixture: BreadcrumbFixture = serde_json::from_str(&payload).unwrap_or_else(|e| {
-            panic!("breadcrumb fixture must parse: {} : {e}", path.display())
-        });
+        let fixture: BreadcrumbFixture = serde_json::from_str(&payload)
+            .unwrap_or_else(|e| panic!("breadcrumb fixture must parse: {} : {e}", path.display()));
 
         let mut tree = build_tree(&fixture);
         let workspace_id = fixture.workspace.workspace_id.clone();

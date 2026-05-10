@@ -24,8 +24,8 @@ use std::path::Path;
 use serde::Deserialize;
 
 use aureline_shell::explorer::{
-    dispatch, ExplorerAction, ExplorerNode, ExplorerNodeId, ExplorerNodeKind,
-    ExplorerTree, GeneratedArtifactHint, NodeReadinessClass, SpecialFileHint,
+    dispatch, ExplorerAction, ExplorerNode, ExplorerNodeId, ExplorerNodeKind, ExplorerTree,
+    GeneratedArtifactHint, NodeReadinessClass, SpecialFileHint,
 };
 use aureline_workspace::{RootPartialTruth, WorkspaceRootKind};
 
@@ -210,8 +210,8 @@ fn build_tree(fixture: &FileTreeFixture) -> ExplorerTree {
 
 #[test]
 fn fixture_corpus_drives_protected_walk_and_failure_drill() {
-    let root_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/explorer/file_tree_cases");
+    let root_dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/explorer/file_tree_cases");
 
     let mut count = 0usize;
     for entry in std::fs::read_dir(&root_dir).expect("file_tree_cases directory must exist") {
@@ -272,8 +272,13 @@ fn fixture_corpus_drives_protected_walk_and_failure_drill() {
         // Materialize the entire visible row set; total_visible_rows must
         // match and the rows must line up with the expected projection in
         // document order (depth + node id + kind + flags).
-        let viewport =
-            tree.viewport(0, fixture.expected_viewport.total_visible_rows.saturating_add(8));
+        let viewport = tree.viewport(
+            0,
+            fixture
+                .expected_viewport
+                .total_visible_rows
+                .saturating_add(8),
+        );
         assert_eq!(
             viewport.total_visible_rows, fixture.expected_viewport.total_visible_rows,
             "case {}: total_visible_rows mismatch",
@@ -377,9 +382,7 @@ fn node_ids_survive_filter_and_expansion_churn() {
 
     let mut tracked_ids: Vec<ExplorerNodeId> = Vec::new();
     for i in 0..50 {
-        let logical_uri = format!(
-            "aureline-ws://{workspace_id}/{root_id}/file_{i:03}.rs",
-        );
+        let logical_uri = format!("aureline-ws://{workspace_id}/{root_id}/file_{i:03}.rs",);
         let node = ExplorerNode {
             node_id: ExplorerNodeId::from_logical(workspace_id, root_id, &logical_uri),
             workspace_id: workspace_id.to_string(),
@@ -424,7 +427,10 @@ fn node_ids_survive_filter_and_expansion_churn() {
         .unwrap();
         let viewport_filtered = tree.viewport(0, 100);
         // Selection survives even when filtered out.
-        assert_eq!(viewport_filtered.selection_node_id.as_ref(), Some(&selected));
+        assert_eq!(
+            viewport_filtered.selection_node_id.as_ref(),
+            Some(&selected)
+        );
 
         dispatch(&mut tree, &ExplorerAction::SetFilter { query: None }).unwrap();
         let viewport_clear = tree.viewport(0, 100);
@@ -472,7 +478,10 @@ fn placeholder_lifecycle_creates_and_removes_without_touching_canonical_files() 
         .expect("placeholder must produce a new node id");
     assert!(tree.node(&new_id).is_some());
     assert!(tree.node(&new_id).unwrap().special_file_hint.is_some());
-    assert_eq!(create_record.command_id, "cmd:workspace.explorer_create_placeholder");
+    assert_eq!(
+        create_record.command_id,
+        "cmd:workspace.explorer_create_placeholder"
+    );
 
     let remove_record = dispatch(
         &mut tree,
@@ -548,7 +557,10 @@ fn refresh_records_new_readiness_class() {
     )
     .unwrap();
     assert_eq!(record.outcome, "applied");
-    assert_eq!(tree.node(&root_id).unwrap().readiness, NodeReadinessClass::Loaded);
+    assert_eq!(
+        tree.node(&root_id).unwrap().readiness,
+        NodeReadinessClass::Loaded
+    );
 }
 
 #[test]

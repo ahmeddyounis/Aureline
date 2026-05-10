@@ -188,8 +188,7 @@ pub fn write_safe_mode_profile_log(
     let path = recovery_root.join("safe_mode_profile_latest.json");
     let json = serde_json::to_string_pretty(record)
         .map_err(|err| format!("serialize safe-mode profile failed: {err}"))?;
-    std::fs::write(&path, json)
-        .map_err(|err| format!("write {} failed: {err}", path.display()))?;
+    std::fs::write(&path, json).map_err(|err| format!("write {} failed: {err}", path.display()))?;
     Ok(())
 }
 
@@ -216,7 +215,10 @@ mod tests {
             .iter()
             .any(|c| c == "user_authored_files"));
         assert!(record.offers("export_escalation_packet"));
-        assert_eq!(record.safe_mode_enter_command_id, SAFE_MODE_ENTER_COMMAND_ID);
+        assert_eq!(
+            record.safe_mode_enter_command_id,
+            SAFE_MODE_ENTER_COMMAND_ID
+        );
     }
 
     #[test]

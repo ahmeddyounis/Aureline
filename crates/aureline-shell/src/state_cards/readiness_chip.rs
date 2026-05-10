@@ -129,9 +129,7 @@ pub fn materialize_workspace_readiness_chip(
         producer_id: projection.producer_id.clone(),
         producer_version: projection.producer_version.clone(),
         observed_at: projection.observed_at.clone(),
-        not_ready_reason: projection
-            .not_ready_reason
-            .map(|r| r.as_str().to_owned()),
+        not_ready_reason: projection.not_ready_reason.map(|r| r.as_str().to_owned()),
         degraded_token: degraded.map(|t| t.token().to_owned()),
         summary,
     }
@@ -178,8 +176,7 @@ impl WorkspaceReadinessChipMount {
         subscription_id: u64,
         workspace_id: impl Into<String>,
     ) -> Result<Self, StoreError> {
-        let latest: Rc<RefCell<Option<WorkspaceReadinessChipRecord>>> =
-            Rc::new(RefCell::new(None));
+        let latest: Rc<RefCell<Option<WorkspaceReadinessChipRecord>>> = Rc::new(RefCell::new(None));
         let latest_inner = Rc::clone(&latest);
         let token = store.subscribe(
             subscription_id,

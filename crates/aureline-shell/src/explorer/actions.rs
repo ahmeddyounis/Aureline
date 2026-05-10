@@ -291,10 +291,7 @@ pub fn dispatch(
             tree.select(&new_id)?;
             record.created_node_id = Some(new_id.clone());
             record.selection_node_id = Some(new_id);
-            record.explainer = format!(
-                "created placeholder {} under {}",
-                display_label, parent_id
-            );
+            record.explainer = format!("created placeholder {} under {}", display_label, parent_id);
         }
         ExplorerAction::RemovePlaceholder { node_id } => {
             record.primary_node_id = Some(node_id.clone());
@@ -328,8 +325,7 @@ pub fn dispatch(
             };
             if !kind.may_have_children() {
                 record.outcome = ExplorerActionOutcome::NoOp.as_str().to_string();
-                record.explainer =
-                    format!("{} is a {} and cannot expand", label, kind.as_str());
+                record.explainer = format!("{} is a {} and cannot expand", label, kind.as_str());
             } else {
                 let was_expanded = tree.is_expanded(node_id);
                 tree.expand(node_id)?;

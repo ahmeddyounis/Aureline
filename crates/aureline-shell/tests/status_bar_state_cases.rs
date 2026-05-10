@@ -337,8 +337,7 @@ fn run_fixture(path: &Path, fixture: &StatusBarFixture) {
 fn load_fixture(path: &Path) -> StatusBarFixture {
     let raw = std::fs::read_to_string(path)
         .unwrap_or_else(|err| panic!("failed to read {path:?}: {err}"));
-    serde_json::from_str(&raw)
-        .unwrap_or_else(|err| panic!("failed to deserialize {path:?}: {err}"))
+    serde_json::from_str(&raw).unwrap_or_else(|err| panic!("failed to deserialize {path:?}: {err}"))
 }
 
 #[test]

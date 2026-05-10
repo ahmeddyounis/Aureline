@@ -451,11 +451,8 @@ impl QuickOpenQuerySession {
     pub fn set_scope(&mut self, scope_class: WorkspaceScopeClass, workset_name: Option<String>) {
         self.scope_class = scope_class;
         self.workset_name = workset_name.clone();
-        self.scope = project_default_scope(
-            &self.workspace_id,
-            scope_class,
-            workset_name.as_deref(),
-        );
+        self.scope =
+            project_default_scope(&self.workspace_id, scope_class, workset_name.as_deref());
         self.rebuild();
     }
 
@@ -868,9 +865,7 @@ fn project_default_scope(
         WorkspaceScopeClass::FullWorkspace => {
             WorkspaceSearchScope::for_full_workspace(workspace_id)
         }
-        WorkspaceScopeClass::CurrentRepo => {
-            WorkspaceSearchScope::for_current_repo(workspace_id)
-        }
+        WorkspaceScopeClass::CurrentRepo => WorkspaceSearchScope::for_current_repo(workspace_id),
         WorkspaceScopeClass::SelectedWorkset
         | WorkspaceScopeClass::SparseSlice
         | WorkspaceScopeClass::PolicyLimitedView => WorkspaceSearchScope::for_workset_stub(

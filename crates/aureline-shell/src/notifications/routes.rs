@@ -146,8 +146,8 @@ impl NotificationSurfaceSnapshot {
 mod tests {
     use super::*;
     use crate::notifications::envelope::{
-        DedupeKeyScheme, NotificationEnvelope, PrivacyPayloadClass, QuietHoursMode,
-        RedactionClass, ReopenTargetKind, SourceSubsystem, SuppressionState,
+        DedupeKeyScheme, NotificationEnvelope, PrivacyPayloadClass, QuietHoursMode, RedactionClass,
+        ReopenTargetKind, SourceSubsystem, SuppressionState,
     };
     use crate::notifications::router::NotificationRouter;
 

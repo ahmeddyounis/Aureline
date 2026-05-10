@@ -20,9 +20,9 @@
 //! pairs a synthetic-root scenario with the expected projections.
 
 use aureline_vfs::identity::{
-    AliasInspectionEntry, AliasInspectionRecord as VfsAliasInspectionRecord, AliasKind,
-    PathTruthChip, PermissionSummary, SaveTargetReviewRecord as VfsSaveTargetReviewRecord,
-    derive_path_truth_chip, inspect_aliases, review_save_target,
+    derive_path_truth_chip, inspect_aliases, review_save_target, AliasInspectionEntry,
+    AliasInspectionRecord as VfsAliasInspectionRecord, AliasKind, PathTruthChip, PermissionSummary,
+    SaveTargetReviewRecord as VfsSaveTargetReviewRecord,
 };
 use aureline_vfs::{IdentityRecord, SaveTargetToken, TrustState};
 use serde::{Deserialize, Serialize};
@@ -181,7 +181,11 @@ fn alias_inspector_record_from(record: &VfsAliasInspectionRecord) -> AliasInspec
         logical_uri: record.logical_uri.as_str().to_string(),
         display_label: record.display_label.clone(),
         root_badge: record.root_badge.clone(),
-        entries: record.entries.iter().map(alias_inspector_entry_from).collect(),
+        entries: record
+            .entries
+            .iter()
+            .map(alias_inspector_entry_from)
+            .collect(),
         distinct_alias_kinds: record
             .distinct_alias_kinds
             .iter()
@@ -282,7 +286,15 @@ pub fn alias_inspector_lines(record: &AliasInspectorRecord) -> Vec<String> {
     if record.entries.is_empty() {
         lines.push("(no aliases recorded)".to_string());
     } else {
-        lines.push(format!("{} alias entr{}:", record.entries.len(), if record.entries.len() == 1 { "y" } else { "ies" }));
+        lines.push(format!(
+            "{} alias entr{}:",
+            record.entries.len(),
+            if record.entries.len() == 1 {
+                "y"
+            } else {
+                "ies"
+            }
+        ));
         for entry in &record.entries {
             let mut markers: Vec<&str> = Vec::new();
             if entry.is_presentation {
@@ -349,8 +361,16 @@ pub fn save_target_review_lines(record: &SaveTargetReviewRecord) -> Vec<String> 
         "permission: writable={w} mode={m} owner={o} group={g}",
         w = record.permission_summary.writable,
         m = record.permission_summary.mode,
-        o = record.permission_summary.owner.clone().unwrap_or_else(|| "?".to_string()),
-        g = record.permission_summary.group.clone().unwrap_or_else(|| "?".to_string())
+        o = record
+            .permission_summary
+            .owner
+            .clone()
+            .unwrap_or_else(|| "?".to_string()),
+        g = record
+            .permission_summary
+            .group
+            .clone()
+            .unwrap_or_else(|| "?".to_string())
     ));
     lines.push(format!(
         "compare-before-write: kind={k} value={v}",
@@ -389,10 +409,7 @@ pub fn write_path_truth_projection_log(record: &PathTruthProjection, label: &str
     if std::fs::create_dir_all(&root).is_err() {
         return;
     }
-    let filename = format!(
-        "{}.path_truth_projection.json",
-        sanitize_filename(label),
-    );
+    let filename = format!("{}.path_truth_projection.json", sanitize_filename(label),);
     let Ok(json) = serde_json::to_string_pretty(record) else {
         return;
     };
@@ -578,7 +595,10 @@ mod tests {
             input.presentation_uri.clone(),
             input.display_label.clone(),
             input.canonical_uri.clone(),
-            input.presentation_alias_kind.as_deref().map(parse_alias_kind),
+            input
+                .presentation_alias_kind
+                .as_deref()
+                .map(parse_alias_kind),
             input.presentation_resolution_chain.clone(),
         );
 
@@ -595,17 +615,21 @@ mod tests {
         let root = root.build();
         let presentation_uri = VfsUri::parse(input.presentation_uri.clone()).unwrap();
         let mut counters = HookCounters::default();
-        let mut token =
-            open_save_target(&root, &presentation_uri, input.observed_at.clone(), &mut counters)
-                .expect("open_save_target must succeed for path_truth fixture");
+        let mut token = open_save_target(
+            &root,
+            &presentation_uri,
+            input.observed_at.clone(),
+            &mut counters,
+        )
+        .expect("open_save_target must succeed for path_truth fixture");
         token.identity.presentation_path.root_badge = input.root_badge.clone();
         token
     }
 
     #[test]
     fn materialize_path_truth_projection_matches_fixtures() {
-        let root_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../fixtures/vfs/path_truth_cases");
+        let root_dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/vfs/path_truth_cases");
 
         let mut count = 0usize;
         for entry in std::fs::read_dir(&root_dir).expect("path_truth_cases directory must exist") {

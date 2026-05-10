@@ -361,7 +361,9 @@ impl ExecutionContextInspectorSnapshot {
 
     /// Locate one section by id.
     pub fn section(&self, id: InspectorSectionId) -> Option<&InspectorSection> {
-        self.sections.iter().find(|section| section.section_id == id)
+        self.sections
+            .iter()
+            .find(|section| section.section_id == id)
     }
 
     /// Iterator over the snapshot's stable actions.
@@ -430,11 +432,7 @@ fn project_invocation_section(subject: &InvocationSubject) -> InspectorSection {
             actor_label(subject.actor_class).to_owned(),
             subject.actor_class.as_str(),
         ),
-        value_row(
-            "workspace_id",
-            "Workspace id",
-            subject.workspace_id.clone(),
-        ),
+        value_row("workspace_id", "Workspace id", subject.workspace_id.clone()),
     ];
     rows.push(match &subject.profile_id {
         Some(profile) => value_row("profile_id", "Profile", profile.clone()),
@@ -524,7 +522,11 @@ fn project_toolchain_section(
 
     let mut rows = vec![
         class_row,
-        value_row("toolchain_id", "Toolchain id", toolchain.toolchain_id.clone()),
+        value_row(
+            "toolchain_id",
+            "Toolchain id",
+            toolchain.toolchain_id.clone(),
+        ),
         value_row(
             "resolved_version",
             "Resolved version",
@@ -625,11 +627,7 @@ fn project_provenance_section(provenance: &Provenance) -> InspectorSection {
             "Resolver version",
             provenance.resolver_version.clone(),
         ),
-        value_row(
-            "recorded_at",
-            "Recorded at",
-            provenance.recorded_at.clone(),
-        ),
+        value_row("recorded_at", "Recorded at", provenance.recorded_at.clone()),
         token_row(
             "confidence_level",
             "Confidence",
@@ -843,9 +841,7 @@ const fn degraded_reason_label(reason: DegradedFieldReason) -> &'static str {
         DegradedFieldReason::ToolchainFallback => "Toolchain fell back to a less-preferred lane",
         DegradedFieldReason::ActivatorBlockedByTrust => "Activator blocked by trust policy",
         DegradedFieldReason::ActivatorBlockedByPolicy => "Activator blocked by org policy",
-        DegradedFieldReason::ActivatorUnsupportedOnTarget => {
-            "Activator unsupported on this target"
-        }
+        DegradedFieldReason::ActivatorUnsupportedOnTarget => "Activator unsupported on this target",
         DegradedFieldReason::CapsuleUnresolved => "Environment capsule did not resolve",
         DegradedFieldReason::CapsuleDriftDetected => "Environment capsule drifted",
         DegradedFieldReason::TargetUnreachable => "Target is unreachable",

@@ -577,11 +577,13 @@ fn stale_reason_for(
         },
         FanoutReceiptState::SuppressedPolicy => StaleOrUndeliveredReason {
             reason_class: StaleOrUndeliveredReasonClass::SuppressedByPolicy,
-            reason_label: Some(if surface_is_lock_screen_denied_by_payload_class(surface, payload) {
-                "Lock-screen render forbidden by privacy class.".to_owned()
-            } else {
-                "Suppressed by policy.".to_owned()
-            }),
+            reason_label: Some(
+                if surface_is_lock_screen_denied_by_payload_class(surface, payload) {
+                    "Lock-screen render forbidden by privacy class.".to_owned()
+                } else {
+                    "Suppressed by policy.".to_owned()
+                },
+            ),
         },
         FanoutReceiptState::NotAttemptedNoRoute => StaleOrUndeliveredReason {
             reason_class: StaleOrUndeliveredReasonClass::NoRouteForSurfaceOrTier,
@@ -682,7 +684,9 @@ mod tests {
     #[test]
     fn first_emission_delivers_every_recommended_surface() {
         let mut router = NotificationRouter::new();
-        let routed = router.route(&base_envelope()).expect("routing should succeed");
+        let routed = router
+            .route(&base_envelope())
+            .expect("routing should succeed");
         assert_eq!(routed.occurrence_count, 1);
         assert!(!routed.is_dedupe_repeat);
         assert_eq!(routed.surface_routes.len(), 3);
@@ -819,7 +823,9 @@ mod tests {
         env.reopen_target.exact_target_identity_ref = None;
         env.reopen_target.placeholder_announcement_label =
             Some("Recovery target announced.".to_owned());
-        let routed = router.route(&env).expect("placeholder routing should succeed");
+        let routed = router
+            .route(&env)
+            .expect("placeholder routing should succeed");
         assert!(routed.has_visible_surface());
     }
 

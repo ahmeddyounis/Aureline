@@ -125,10 +125,7 @@ pub fn write_save_review_sheet_log(record: &SaveReviewSheetRecord) {
 }
 
 /// Builds the human-readable lines used by the shell to render a save-review sheet.
-pub fn save_review_sheet_lines(
-    record: &SaveReviewSheetRecord,
-    selection: usize,
-) -> Vec<String> {
+pub fn save_review_sheet_lines(record: &SaveReviewSheetRecord, selection: usize) -> Vec<String> {
     let mut lines = Vec::new();
     lines.push(format!("Save review — {}", record.outcome));
     lines.push("Esc: cancel   ↑/↓: select   Enter: apply".to_string());
@@ -166,7 +163,11 @@ pub fn save_review_sheet_lines(
     lines.push("Choices:".to_string());
     for (idx, choice) in record.offered_choices.iter().enumerate() {
         let marker = if idx == selection { ">" } else { " " };
-        let enabled = if choice.enabled { "enabled" } else { "disabled" };
+        let enabled = if choice.enabled {
+            "enabled"
+        } else {
+            "disabled"
+        };
         let suffix = if choice.enabled {
             String::new()
         } else {
@@ -192,9 +193,7 @@ pub fn save_review_sheet_lines(
             suffix = suffix,
             hint = hint,
             journal = choice.journal_implication.as_str(),
-            result = choice
-                .resulting_authoritative_state_if_selected
-                .as_str()
+            result = choice.resulting_authoritative_state_if_selected.as_str()
         ));
     }
 
@@ -259,8 +258,7 @@ pub fn materialize_save_review_sheet_record(
 
     let external_bytes = root.read_bytes(canonical_uri).ok();
     let diff = materialize_diff_record(source_fidelity, local_content, external_bytes.as_deref());
-    let offered_choices =
-        offered_choices_for_state(outcome, &diff, reviewed_external_state, token);
+    let offered_choices = offered_choices_for_state(outcome, &diff, reviewed_external_state, token);
 
     SaveReviewSheetRecord {
         record_kind: "save_review_sheet_record".to_string(),
@@ -359,7 +357,11 @@ fn offered_choices_for_state(
         base_overwrite_block_reason
     };
 
-    let compare_forbidden_reason = if compare_enabled { "none" } else { "no_diff_basis" };
+    let compare_forbidden_reason = if compare_enabled {
+        "none"
+    } else {
+        "no_diff_basis"
+    };
 
     vec![
         SaveReviewChoiceOffer {
@@ -416,7 +418,8 @@ fn offered_choices_for_state(
             requires_diff_metadata: false,
             requires_checkpoint: false,
             journal_implication: "revalidation_attempt".to_string(),
-            resulting_authoritative_state_if_selected: "authoritative_remote_revalidated".to_string(),
+            resulting_authoritative_state_if_selected: "authoritative_remote_revalidated"
+                .to_string(),
         },
         SaveReviewChoiceOffer {
             choice: SaveReviewChoiceKey::SaveAs.as_str().to_string(),
@@ -426,7 +429,8 @@ fn offered_choices_for_state(
             requires_diff_metadata: false,
             requires_checkpoint: true,
             journal_implication: "local_buffer_checkpoint".to_string(),
-            resulting_authoritative_state_if_selected: "authoritative_exported_to_new_target".to_string(),
+            resulting_authoritative_state_if_selected: "authoritative_exported_to_new_target"
+                .to_string(),
         },
         SaveReviewChoiceOffer {
             choice: SaveReviewChoiceKey::Cancel.as_str().to_string(),
@@ -479,7 +483,11 @@ fn line_diff_preview(
     };
 
     let summary = SaveReviewDiffSummary {
-        changed_hunk_count: if external_changed == 0 && local_changed == 0 { 0 } else { 1 },
+        changed_hunk_count: if external_changed == 0 && local_changed == 0 {
+            0
+        } else {
+            1
+        },
         external_line_change_count: external_changed as u32,
         local_line_change_count: local_changed as u32,
         metadata_only: false,
@@ -489,8 +497,8 @@ fn line_diff_preview(
     let mut lines = Vec::new();
     let context = 2usize;
     let start_external = prefix.saturating_sub(context);
-    let end_external = (external_lines.len().saturating_sub(suffix) + context)
-        .min(external_lines.len());
+    let end_external =
+        (external_lines.len().saturating_sub(suffix) + context).min(external_lines.len());
     let end_local = (local_lines.len().saturating_sub(suffix) + context).min(local_lines.len());
 
     for idx in start_external..prefix {
@@ -647,8 +655,8 @@ mod tests {
 
     #[test]
     fn materializes_save_review_sheet_cases_from_fixtures() {
-        let root_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../fixtures/save/save_review_cases");
+        let root_dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/save/save_review_cases");
 
         for entry in std::fs::read_dir(&root_dir).expect("fixture directory must exist") {
             let entry = entry.expect("fixture directory entry must read");
@@ -664,27 +672,28 @@ mod tests {
             let presentation_uri = VfsUri::parse(fixture.input.presentation_uri.clone())
                 .expect("fixture presentation_uri must parse");
 
-            let mut root = SyntheticRootBuilder::new("root-1", RootClass::LocalPosixLike, fixture_flags())
-                .with_workspace_id("ws-save-review")
-                .add_canonical_object(
-                    fixture.input.canonical_uri.clone(),
-                    fixture.input.logical_uri.clone(),
-                    NormalizationForm::Nfc,
-                    fixture.input.strongest_token_base.clone(),
-                    fixture.input.initial_generation,
-                    vec![],
-                    PermissionSnapshot::writable_default(),
-                    vec![],
-                    fixture.input.initial_external_content.clone().into_bytes(),
-                )
-                .add_presentation(
-                    fixture.input.presentation_uri.clone(),
-                    fixture.input.display_label.clone(),
-                    fixture.input.canonical_uri.clone(),
-                    None,
-                    vec!["presentation -> canonical".to_owned()],
-                )
-                .build();
+            let mut root =
+                SyntheticRootBuilder::new("root-1", RootClass::LocalPosixLike, fixture_flags())
+                    .with_workspace_id("ws-save-review")
+                    .add_canonical_object(
+                        fixture.input.canonical_uri.clone(),
+                        fixture.input.logical_uri.clone(),
+                        NormalizationForm::Nfc,
+                        fixture.input.strongest_token_base.clone(),
+                        fixture.input.initial_generation,
+                        vec![],
+                        PermissionSnapshot::writable_default(),
+                        vec![],
+                        fixture.input.initial_external_content.clone().into_bytes(),
+                    )
+                    .add_presentation(
+                        fixture.input.presentation_uri.clone(),
+                        fixture.input.display_label.clone(),
+                        fixture.input.canonical_uri.clone(),
+                        None,
+                        vec!["presentation -> canonical".to_owned()],
+                    )
+                    .build();
 
             let mut counters = HookCounters::default();
             let token =
@@ -693,7 +702,11 @@ mod tests {
 
             root.apply_commit(
                 &fixture.input.canonical_uri,
-                fixture.input.external_content_after_change.clone().into_bytes(),
+                fixture
+                    .input
+                    .external_content_after_change
+                    .clone()
+                    .into_bytes(),
             )
             .expect("fixture canonical object must exist for external change simulation");
 
@@ -748,9 +761,8 @@ mod tests {
             .build();
 
         let mut counters = HookCounters::default();
-        let token =
-            open_save_target(&root, &presentation_uri, "mono:fixture:open", &mut counters)
-                .expect("open_save_target must succeed");
+        let token = open_save_target(&root, &presentation_uri, "mono:fixture:open", &mut counters)
+            .expect("open_save_target must succeed");
 
         let record = materialize_save_review_sheet_record(
             &root,
@@ -822,9 +834,8 @@ mod tests {
             .build();
 
         let mut counters = HookCounters::default();
-        let token =
-            open_save_target(&root, &presentation_uri, "mono:alias:open", &mut counters)
-                .expect("open_save_target must succeed");
+        let token = open_save_target(&root, &presentation_uri, "mono:alias:open", &mut counters)
+            .expect("open_save_target must succeed");
 
         let record = materialize_save_review_sheet_record(
             &root,

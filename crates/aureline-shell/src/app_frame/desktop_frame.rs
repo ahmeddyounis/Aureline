@@ -201,7 +201,10 @@ impl DesktopFrame {
 
     /// Opens a new tab in `group` and returns its stable id.
     pub fn open_tab_in_group(&mut self, group: PaneId) -> Option<EditorTabId> {
-        let state = self.editor_groups.iter_mut().find(|g| g.group_id == group)?;
+        let state = self
+            .editor_groups
+            .iter_mut()
+            .find(|g| g.group_id == group)?;
         let id = EditorTabId(self.next_tab_id);
         self.next_tab_id = self.next_tab_id.saturating_add(1);
         state.tabs.push(id);
@@ -240,7 +243,10 @@ impl DesktopFrame {
 
     /// Closes the active tab for `group` and returns the closed tab id.
     pub fn close_active_tab(&mut self, group: PaneId) -> Option<EditorTabId> {
-        let state = self.editor_groups.iter_mut().find(|g| g.group_id == group)?;
+        let state = self
+            .editor_groups
+            .iter_mut()
+            .find(|g| g.group_id == group)?;
         let active = state.active_tab?;
         let idx = state.tabs.iter().position(|id| *id == active)?;
         state.tabs.remove(idx);

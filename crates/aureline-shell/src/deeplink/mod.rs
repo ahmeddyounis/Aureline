@@ -260,7 +260,9 @@ pub fn validate_deep_link_intent(intent: &DeepLinkIntent) -> DeepLinkValidationO
     if intent.target_class == DeepLinkTargetClass::UnknownTarget {
         return DeepLinkValidationOutcome::Denied(DeepLinkDenial {
             denial_class: DeepLinkDenialClass::TargetUnresolved,
-            summary: "deep-link target_class is unknown_target; reopen disambiguation before execution".to_string(),
+            summary:
+                "deep-link target_class is unknown_target; reopen disambiguation before execution"
+                    .to_string(),
         });
     }
 
@@ -274,7 +276,8 @@ pub fn validate_deep_link_intent(intent: &DeepLinkIntent) -> DeepLinkValidationO
     if !intent.handler_ownership_verified {
         return DeepLinkValidationOutcome::Denied(DeepLinkDenial {
             denial_class: DeepLinkDenialClass::HandlerOwnershipLost,
-            summary: "handler ownership for this deep-link route is no longer held by the shell".to_string(),
+            summary: "handler ownership for this deep-link route is no longer held by the shell"
+                .to_string(),
         });
     }
 
@@ -328,9 +331,7 @@ pub fn validate_deep_link_intent(intent: &DeepLinkIntent) -> DeepLinkValidationO
 }
 
 /// Builds a [`DeepLinkValidationRecord`] from an intent.
-pub fn materialize_deep_link_validation_record(
-    intent: DeepLinkIntent,
-) -> DeepLinkValidationRecord {
+pub fn materialize_deep_link_validation_record(intent: DeepLinkIntent) -> DeepLinkValidationRecord {
     let outcome = validate_deep_link_intent(&intent);
     DeepLinkValidationRecord {
         record_kind: "deep_link_validation_record".to_string(),
@@ -351,8 +352,7 @@ pub fn write_deep_link_validation_log(
     let path = recovery_root.join("deep_link_validation_latest.json");
     let json = serde_json::to_string_pretty(record)
         .map_err(|err| format!("serialize deep link validation failed: {err}"))?;
-    std::fs::write(&path, json)
-        .map_err(|err| format!("write {} failed: {err}", path.display()))?;
+    std::fs::write(&path, json).map_err(|err| format!("write {} failed: {err}", path.display()))?;
     Ok(())
 }
 
@@ -436,7 +436,10 @@ mod tests {
         let outcome = validate_deep_link_intent(&intent);
         match outcome {
             DeepLinkValidationOutcome::Denied(denial) => {
-                assert_eq!(denial.denial_class, DeepLinkDenialClass::HandlerOwnershipLost);
+                assert_eq!(
+                    denial.denial_class,
+                    DeepLinkDenialClass::HandlerOwnershipLost
+                );
             }
             other => panic!("expected denied, got {other:?}"),
         }

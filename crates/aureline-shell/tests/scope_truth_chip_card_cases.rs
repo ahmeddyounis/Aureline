@@ -13,12 +13,12 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+use aureline_shell::scope_truth::counts::ScopeCountsInputs;
 use aureline_shell::scope_truth::{
     project_outside_scope_truth_chip_card, project_scope_truth_chip_card,
     project_scope_truth_chip_card_for_artifact, ScopeCountsRecord, ScopeTruthChipCard,
     ScopeTruthSurfaceClass,
 };
-use aureline_shell::scope_truth::counts::ScopeCountsInputs;
 use aureline_workspace::{ScopeClass as WorkspaceScopeClass, WorksetArtifactRecord};
 
 #[derive(Debug, Clone, Deserialize)]

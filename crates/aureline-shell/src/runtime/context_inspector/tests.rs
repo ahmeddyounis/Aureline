@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use aureline_runtime::{
-    ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldRecord,
-    DegradedFieldReason, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
+    ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
+    DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
     ExecutionContextResolverConfig, IdentityMode, ResolverInputField, ResolverInputSource,
     ScopeClass, SurfaceClass, TargetClass, ToolchainClass, TrustState,
     EXECUTION_CONTEXT_RECORD_KIND,
@@ -42,7 +42,10 @@ fn terminal_seed_projection_quotes_resolver_truth_without_honesty_marker() {
     ));
 
     let snapshot = ExecutionContextInspectorSnapshot::project(&context);
-    assert_eq!(snapshot.record_kind, EXECUTION_CONTEXT_INSPECTOR_RECORD_KIND);
+    assert_eq!(
+        snapshot.record_kind,
+        EXECUTION_CONTEXT_INSPECTOR_RECORD_KIND
+    );
     assert_eq!(
         snapshot.schema_version,
         EXECUTION_CONTEXT_INSPECTOR_SCHEMA_VERSION

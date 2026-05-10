@@ -175,7 +175,11 @@ mod tests {
     fn offered_rung_never_deletes_state() {
         for rung in RecoveryLadderRung::ordered_all() {
             let row = RecoveryLadderRungProjection::offered(rung, true);
-            assert!(row.never_deletes_state, "{} must not delete state", rung.as_str());
+            assert!(
+                row.never_deletes_state,
+                "{} must not delete state",
+                rung.as_str()
+            );
         }
     }
 

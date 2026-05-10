@@ -142,14 +142,14 @@ use winit::event::{ElementState, Event, Ime, KeyEvent, MouseScrollDelta, WindowE
 use winit::event_loop::{ControlFlow, EventLoop};
 
 use aureline_recovery::crash_journal::{CrashJournalStore, CrashMarkerGuard};
-use aureline_recovery::session_restore::{
-    RestoreProposal, SessionRestoreCaptureInput, SessionRestoreStore, TabGroupCaptureInput,
-    TabItemCaptureInput,
-};
 use aureline_recovery::session_restore::records::{
     DirtyBufferJournalIdentity, DowngradeTriggerRecord, ExcludedLiveAuthorityClass,
     ProducerBuildStamp, RestoreClass, SurfaceClass as RestoreSurfaceClass, SurfaceRole,
     TrustedRootRecord, WindowRole,
+};
+use aureline_recovery::session_restore::{
+    RestoreProposal, SessionRestoreCaptureInput, SessionRestoreStore, TabGroupCaptureInput,
+    TabItemCaptureInput,
 };
 use winit::keyboard::{KeyCode, PhysicalKey};
 
@@ -654,9 +654,8 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         match CrashMarkerGuard::begin(&recovery_root, &mono_timestamp_now()) {
             Ok((guard, outcome)) => (Some(guard), outcome.prior_run_abnormal),
             Err(err) => {
-                command_runtime.note_non_command_action(format!(
-                    "crash marker unavailable — {err}"
-                ));
+                command_runtime
+                    .note_non_command_action(format!("crash marker unavailable — {err}"));
                 (None, false)
             }
         };
@@ -677,13 +676,11 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 let prompt = materialize_restore_prompt(&proposal);
                 if let Err(err) = write_restore_prompt_log(&recovery_root, &prompt) {
-                    command_runtime.note_non_command_action(format!(
-                        "restore prompt log unavailable — {err}"
-                    ));
+                    command_runtime
+                        .note_non_command_action(format!("restore prompt log unavailable — {err}"));
                 }
                 if prior_run_abnormal && !prompt.is_empty() {
-                    command_runtime
-                        .note_non_command_action(restore_prompt_status_line(&prompt));
+                    command_runtime.note_non_command_action(restore_prompt_status_line(&prompt));
                 } else if prior_run_abnormal {
                     command_runtime.note_non_command_action(
                         "prior run terminated abnormally; nothing to restore",
@@ -691,9 +688,8 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Err(err) => {
-                command_runtime.note_non_command_action(format!(
-                    "restore proposal unavailable — {err}"
-                ));
+                command_runtime
+                    .note_non_command_action(format!("restore proposal unavailable — {err}"));
             }
         }
     }
@@ -1117,12 +1113,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
 
                 if let Some(normalized) = normalized {
                     let action = editor_action_from_text_input(normalized);
-                    if let Some(damage) = editor_runtime.apply_action(
-                        focused,
-                        active_tab,
-                        &action,
-                        viewport_rect,
-                    ) {
+                    if let Some(damage) =
+                        editor_runtime.apply_action(focused, active_tab, &action, viewport_rect)
+                    {
                         if damage.hook == Hook::ReflowLineRange {
                             hot_path_metrics.note_keystroke_to_paint_admitted(clock.now().0);
                         }
@@ -2703,31 +2696,30 @@ impl EditorWorkspaceRuntimeState {
         }
         authority.last_recorded_crash_journal_revision = Some(revision);
 
-        let (logical_document_id, object_ref, object_class) = if let Some(token) =
-            authority.save_target_token.as_ref()
-        {
-            (
-                aureline_history::checkpoints::logical_document_id(&token.identity),
-                token
-                    .identity
-                    .logical_workspace_identity
-                    .logical_uri
-                    .to_string(),
-                aureline_recovery::crash_journal::ObjectClass::CanonicalFile,
-            )
-        } else if let Some(identity) = authority.vfs_identity.as_ref() {
-            (
-                aureline_history::checkpoints::logical_document_id(identity),
-                identity.logical_workspace_identity.logical_uri.to_string(),
-                aureline_recovery::crash_journal::ObjectClass::VirtualBuffer,
-            )
-        } else {
-            (
-                format!("ld:buffer:{}", snapshot.view_id),
-                format!("buffer:{}", snapshot.view_id),
-                aureline_recovery::crash_journal::ObjectClass::VirtualBuffer,
-            )
-        };
+        let (logical_document_id, object_ref, object_class) =
+            if let Some(token) = authority.save_target_token.as_ref() {
+                (
+                    aureline_history::checkpoints::logical_document_id(&token.identity),
+                    token
+                        .identity
+                        .logical_workspace_identity
+                        .logical_uri
+                        .to_string(),
+                    aureline_recovery::crash_journal::ObjectClass::CanonicalFile,
+                )
+            } else if let Some(identity) = authority.vfs_identity.as_ref() {
+                (
+                    aureline_history::checkpoints::logical_document_id(identity),
+                    identity.logical_workspace_identity.logical_uri.to_string(),
+                    aureline_recovery::crash_journal::ObjectClass::VirtualBuffer,
+                )
+            } else {
+                (
+                    format!("ld:buffer:{}", snapshot.view_id),
+                    format!("buffer:{}", snapshot.view_id),
+                    aureline_recovery::crash_journal::ObjectClass::VirtualBuffer,
+                )
+            };
 
         let journal_id = format!("journal:{}", self.crash_journal_workspace_ref);
         let input = aureline_recovery::crash_journal::CrashJournalCaptureInput {
@@ -3645,8 +3637,7 @@ fn write_restore_proposal_log(
     let path = recovery_root.join("restore_proposal_latest.json");
     let json = serde_json::to_string_pretty(proposal)
         .map_err(|err| format!("serialize restore proposal failed: {err}"))?;
-    std::fs::write(&path, json)
-        .map_err(|err| format!("write {} failed: {err}", path.display()))?;
+    std::fs::write(&path, json).map_err(|err| format!("write {} failed: {err}", path.display()))?;
     Ok(())
 }
 
@@ -4521,7 +4512,8 @@ fn finalize_command_overlay_decision(
         CommandOverlayDecision::PreviewApproved { entry, session } => {
             match entry.descriptor.command_id.as_str() {
                 "cmd:workspace.import_profile" => {
-                    command_runtime.record(invocation_and_result_import_profile_succeeded(&session));
+                    command_runtime
+                        .record(invocation_and_result_import_profile_succeeded(&session));
                 }
                 "cmd:workspace.clone_repository" => {
                     command_runtime.record(invocation_and_result_unimplemented(&session));
@@ -4545,8 +4537,9 @@ fn finalize_command_overlay_decision(
                         &session,
                     );
                     if !changed {
-                        command_runtime
-                            .note_non_command_action("restore approved (no restorable state found)");
+                        command_runtime.note_non_command_action(
+                            "restore approved (no restorable state found)",
+                        );
                     }
                 }
                 _ => {
@@ -10505,7 +10498,10 @@ fn draw_docs_help_boundary_card(
             "Origin: {} ({})",
             row_card.origin_label, row_card.host_or_domain_label
         ),
-        format!("Boundary: {}", row_card.client_scope_row.data_boundary_label),
+        format!(
+            "Boundary: {}",
+            row_card.client_scope_row.data_boundary_label
+        ),
         format!("State: {}", row_card.client_scope_row.boundary_state_label),
         format!("Permission: {}", card.permission_state.permission_label),
         format!("Source: {}", row_card.source_row.label),
@@ -10521,8 +10517,7 @@ fn draw_docs_help_boundary_card(
     lines.push(format!("Freshness: {}", row_card.freshness_row.label));
     lines.push(format!(
         "Client scope: identity {}, trust {}",
-        row_card.client_scope_row.identity_mode_token,
-        row_card.client_scope_row.trust_state_token
+        row_card.client_scope_row.identity_mode_token, row_card.client_scope_row.trust_state_token
     ));
     lines.push(format!("Action: {}  [{}]", action_label, shortcuts));
     lines.push(format!("Handoff packet: {}", packet_ref));

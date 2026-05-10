@@ -14,8 +14,7 @@ use serde::Deserialize;
 
 use aureline_shell::terminal_pane::TerminalPaneSnapshot;
 use aureline_terminal::{
-    HostClass, OpenSessionRequest, PtyHost, PtySessionId, SessionLifecycleState,
-    TerminalTrustState,
+    HostClass, OpenSessionRequest, PtyHost, PtySessionId, SessionLifecycleState, TerminalTrustState,
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -229,12 +228,8 @@ fn run_fixture(path: &Path, fixture: &TerminalPaneFixture) {
                 cwd_hint,
                 observed_at,
             } => {
-                host.update_cwd_hint(
-                    &sessions[*session_index],
-                    cwd_hint.as_deref(),
-                    observed_at,
-                )
-                .expect("update_cwd_hint must succeed");
+                host.update_cwd_hint(&sessions[*session_index], cwd_hint.as_deref(), observed_at)
+                    .expect("update_cwd_hint must succeed");
             }
         }
         for frame in host.drain_transitions() {

@@ -46,10 +46,7 @@ fn child_node(
     kind: ExplorerNodeKind,
     readiness: NodeReadinessClass,
 ) -> ExplorerNode {
-    let logical_uri = format!(
-        "{}{relative_path}",
-        root_logical_uri(WORKSPACE_ID, ROOT_ID)
-    );
+    let logical_uri = format!("{}{relative_path}", root_logical_uri(WORKSPACE_ID, ROOT_ID));
     let canonical_uri = logical_uri.clone();
     let presentation_uri = logical_uri.clone();
     let depth = (relative_path.matches('/').count() as u32) + 1;
@@ -184,7 +181,10 @@ fn explorer_and_search_shell_jointly_label_generated_lockfile() {
         lockfile_hint.source_canonical_relative_path.as_deref(),
         Some("Cargo.toml")
     );
-    assert_eq!(lockfile_hint.freshness_class_token, "derived_from_canonical");
+    assert_eq!(
+        lockfile_hint.freshness_class_token,
+        "derived_from_canonical"
+    );
     assert_eq!(lockfile_hint.rule_id, "lockfile.cargo");
 
     let manifest_item = card

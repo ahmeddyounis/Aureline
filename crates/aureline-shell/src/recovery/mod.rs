@@ -30,8 +30,8 @@ pub mod safe_mode;
 pub mod suspicious_save;
 
 pub use crash_loop::{
-    CrashLoopContainmentOffer, CrashLoopContainmentRecord, CrashLoopOfferKey,
-    CrashLoopReasonClass, CRASH_LOOP_RECORD_SCHEMA_VERSION,
+    CrashLoopContainmentOffer, CrashLoopContainmentRecord, CrashLoopOfferKey, CrashLoopReasonClass,
+    CRASH_LOOP_RECORD_SCHEMA_VERSION,
 };
 pub use ladder::{
     RecoveryLadderRung, RecoveryLadderRungProjection, RecoveryLadderRungState,

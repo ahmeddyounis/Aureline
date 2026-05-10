@@ -158,9 +158,7 @@ impl GeneratedArtifactHint {
             workspace_id,
             root_id,
         ) {
-            (Some(rel), Some(wid), Some(rid)) => {
-                Some(format!("aureline-ws://{wid}/{rid}/{rel}"))
-            }
+            (Some(rel), Some(wid), Some(rid)) => Some(format!("aureline-ws://{wid}/{rid}/{rel}")),
             (Some(rel), _, _) => Some(rel.to_string()),
             _ => None,
         };
@@ -261,10 +259,7 @@ impl NodeReadinessClass {
     pub const fn is_partial(self) -> bool {
         matches!(
             self,
-            Self::PartiallyEnumerated
-                | Self::ManifestKnown
-                | Self::Cached
-                | Self::Unavailable
+            Self::PartiallyEnumerated | Self::ManifestKnown | Self::Cached | Self::Unavailable
         )
     }
 }
@@ -352,12 +347,9 @@ mod tests {
 
     #[test]
     fn detect_for_lockfile_returns_hint_with_workspace_uri() {
-        let hint = GeneratedArtifactHint::detect_for(
-            "Cargo.lock",
-            Some("wksp:test"),
-            Some("root:repo"),
-        )
-        .expect("Cargo.lock must produce a hint");
+        let hint =
+            GeneratedArtifactHint::detect_for("Cargo.lock", Some("wksp:test"), Some("root:repo"))
+                .expect("Cargo.lock must produce a hint");
         assert_eq!(
             hint.generated_class.as_deref(),
             Some(GeneratedArtifactClass::Lockfile.as_str())

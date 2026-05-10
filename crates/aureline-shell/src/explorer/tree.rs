@@ -154,10 +154,7 @@ impl ExplorerTree {
 
         let id = node.node_id.clone();
         if let Some(parent_id) = node.parent_id.clone() {
-            self.children
-                .entry(parent_id)
-                .or_default()
-                .push(id.clone());
+            self.children.entry(parent_id).or_default().push(id.clone());
         } else {
             self.root_ids.push(id.clone());
         }
@@ -185,10 +182,7 @@ impl ExplorerTree {
 
     /// Returns the children of the given parent in insertion order.
     pub fn children_of(&self, id: &ExplorerNodeId) -> &[ExplorerNodeId] {
-        self.children
-            .get(id)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
+        self.children.get(id).map(Vec::as_slice).unwrap_or(&[])
     }
 
     /// Returns the root mount node ids.
@@ -276,7 +270,10 @@ impl ExplorerTree {
 
     /// Reveal the path to a node by expanding all ancestors. Selection is
     /// updated to the revealed node.
-    pub fn reveal(&mut self, id: &ExplorerNodeId) -> Result<Vec<ExplorerNodeId>, ExplorerTreeError> {
+    pub fn reveal(
+        &mut self,
+        id: &ExplorerNodeId,
+    ) -> Result<Vec<ExplorerNodeId>, ExplorerTreeError> {
         if !self.nodes.contains_key(id) {
             return Err(ExplorerTreeError::UnknownNode(id.clone()));
         }
@@ -337,7 +334,8 @@ impl ExplorerTree {
             self.children.remove(node_id);
             self.expansion.remove(node_id);
         }
-        self.insertion_order.retain(|id| self.nodes.contains_key(id));
+        self.insertion_order
+            .retain(|id| self.nodes.contains_key(id));
         if let Some(selected) = self.selection.clone() {
             if !self.nodes.contains_key(&selected) {
                 self.selection = None;

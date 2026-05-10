@@ -219,7 +219,8 @@ pub fn materialize_restore_prompt(proposal: &RestoreProposal) -> RestorePromptRe
         .filter(|trigger| is_missing_dependency_trigger(**trigger))
         .count();
 
-    let counts = RestorePromptCounts::from_proposal_counts(&proposal.counts, missing_dependency_count);
+    let counts =
+        RestorePromptCounts::from_proposal_counts(&proposal.counts, missing_dependency_count);
     let restore_class = restore_class_label(proposal.restore_class).to_string();
     let summary_line = proposal.summary_line();
     let downgrade_triggers = proposal
@@ -230,18 +231,20 @@ pub fn materialize_restore_prompt(proposal: &RestoreProposal) -> RestorePromptRe
 
     let has_layout_or_drafts = !proposal.is_empty();
     let has_dirty_buffers = proposal.has_dirty_buffers();
-    let has_journal = proposal.counts.dirty_buffer_journals > 0
-        || proposal.counts.recovery_packets > 0;
+    let has_journal =
+        proposal.counts.dirty_buffer_journals > 0 || proposal.counts.recovery_packets > 0;
     let has_evidence = proposal.counts.evidence_packets > 0
         || matches!(proposal.restore_class, RestoreClass::EvidenceOnly);
     let has_compare_target = proposal
         .dirty_buffer_entries
         .iter()
         .any(|entry| entry.presentation_hint.is_some());
-    let has_terminals_or_tasks = proposal
-        .pane_plans
-        .iter()
-        .any(|plan| matches!(plan.plan_kind, RestoreProposalPlanKind::BlockedSideEffectful));
+    let has_terminals_or_tasks = proposal.pane_plans.iter().any(|plan| {
+        matches!(
+            plan.plan_kind,
+            RestoreProposalPlanKind::BlockedSideEffectful
+        )
+    });
 
     let choices = vec![
         RestorePromptChoice {
@@ -364,8 +367,7 @@ pub fn write_restore_prompt_log(
     let path = recovery_root.join("restore_prompt_latest.json");
     let json = serde_json::to_string_pretty(record)
         .map_err(|err| format!("serialize restore prompt failed: {err}"))?;
-    std::fs::write(&path, json)
-        .map_err(|err| format!("write {} failed: {err}", path.display()))?;
+    std::fs::write(&path, json).map_err(|err| format!("write {} failed: {err}", path.display()))?;
     Ok(())
 }
 
@@ -409,7 +411,9 @@ const fn downgrade_trigger_label(trigger: DowngradeTriggerClass) -> &'static str
         DowngradeTriggerClass::WorkspaceManifestConflict => "workspace_manifest_conflict",
         DowngradeTriggerClass::PolicyNarrowing => "policy_narrowing",
         DowngradeTriggerClass::ManualRepairRequired => "manual_repair_required",
-        DowngradeTriggerClass::ProducerSchemaDowngradeRefused => "producer_schema_downgrade_refused",
+        DowngradeTriggerClass::ProducerSchemaDowngradeRefused => {
+            "producer_schema_downgrade_refused"
+        }
     }
 }
 
@@ -437,8 +441,7 @@ mod tests {
         ProducerBuildStamp, SurfaceClass, SurfaceRole, WindowRole,
     };
     use aureline_recovery::session_restore::{
-        SessionRestoreCaptureInput, SessionRestoreStore, TabGroupCaptureInput,
-        TabItemCaptureInput,
+        SessionRestoreCaptureInput, SessionRestoreStore, TabGroupCaptureInput, TabItemCaptureInput,
     };
 
     fn producer() -> ProducerBuildStamp {
@@ -603,13 +606,13 @@ mod tests {
         assert_eq!(record.record_kind, "restore_prompt_record");
         assert!(record.auto_rerun_forbidden);
         assert_eq!(record.restore_class, "recovered_drafts");
-        assert!(record.choices.iter().any(|c| matches!(
-            c.choice_key,
-            RestorePromptChoiceKey::SafeMode
-        )));
-        assert!(record.choices.iter().any(|c| matches!(
-            c.choice_key,
-            RestorePromptChoiceKey::ClearJournal
-        )));
+        assert!(record
+            .choices
+            .iter()
+            .any(|c| matches!(c.choice_key, RestorePromptChoiceKey::SafeMode)));
+        assert!(record
+            .choices
+            .iter()
+            .any(|c| matches!(c.choice_key, RestorePromptChoiceKey::ClearJournal)));
     }
 }
