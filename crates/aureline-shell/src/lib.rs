@@ -73,6 +73,16 @@ pub mod help_about;
 /// admit an extension whose rollback posture is "not yet admitted".
 pub mod install_review_fact_grid;
 pub mod layout;
+/// Bounded managed-workspace lifecycle-labels wedge on one certified
+/// prototype path. Mints typed lifecycle steps (authenticating /
+/// connecting / warming / ready / reconnecting / read-only degraded /
+/// suspended / reprovisioning / snapshot-only view / closed) that
+/// distinguish live environment, snapshot, suspended workspace, and
+/// fresh reprovisioned copy. Reuses the shared
+/// [`crate::state_cards::DegradedStateToken`] vocabulary and mirrors
+/// the upstream locality/tenancy/key-mode tokens on the per-step
+/// authority lineage rather than forking them.
+pub mod managed_workspace_labels;
 /// Notification routing: toast, banner, status, and durable-activity row
 /// projections derived from the typed notification envelope contract.
 pub mod notifications;

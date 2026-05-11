@@ -1,0 +1,49 @@
+{
+  "__fixture__": {
+    "name": "failure_drill_reconnect_then_reprovision",
+    "scenario": "Failure drill for the managed-workspace lifecycle wedge. After a successful authenticate -> connect -> warm -> ready walk, transport drops and the wedge reconnects, falls back to read_only_degraded, the user suspends the workspace, the managed tenant reprovisions a fresh copy, and the wedge re-warms and lands ready on the new copy class. Each degraded label carries a non-empty recovery action; the four workspace-copy classes (live_environment, snapshot_only_view, suspended_workspace, fresh_reprovisioned_copy) remain visibly distinct; no invariant violations fire.",
+    "owning_lane": "managed_workspace_lifecycle_seed",
+    "owning_packet": "artifacts/milestones/m1/proof_packets/managed_workspace_lifecycle_seed.md"
+  },
+  "workspace_id": "ws-managed-acme",
+  "lineage": {
+    "workspace_id": "ws-managed-acme",
+    "managed_tenant_ref": "tenant:acme-org",
+    "identity_mode_token": "managed_org_tenant",
+    "locality_class_token": "managed_control_plane_bearing"
+  },
+  "steps": [
+    { "kind": "open_authenticating", "observed_at": "mono:1" },
+    { "kind": "record_connecting", "observed_at": "mono:2" },
+    { "kind": "record_warming", "observed_at": "mono:3" },
+    { "kind": "record_ready", "observed_at": "mono:4" },
+    { "kind": "record_reconnecting", "observed_at": "mono:5", "reason_code": "transport_dropped" },
+    { "kind": "record_read_only_degraded", "observed_at": "mono:6", "reason_code": "snapshot_fallback" },
+    { "kind": "record_suspended", "observed_at": "mono:7", "reason_code": "user_paused" },
+    { "kind": "record_reprovisioning", "observed_at": "mono:8", "reason_code": "tenant_reprovisioned" },
+    { "kind": "record_connecting", "observed_at": "mono:9" },
+    { "kind": "record_warming", "observed_at": "mono:10" },
+    { "kind": "record_ready", "observed_at": "mono:11" }
+  ],
+  "expect": {
+    "current_label": "ready",
+    "current_copy_class": "live_environment",
+    "current_recovery_action": "none",
+    "current_degraded_token": null,
+    "current_admits_writes": true,
+    "has_invariant_violations": false,
+    "steps": [
+      { "label": "authenticating", "copy_class": "not_yet_admitted_copy_class", "recovery_action": "reauthenticate_via_system_browser", "degraded_token": "Warming", "admits_writes": false },
+      { "label": "connecting", "copy_class": "not_yet_admitted_copy_class", "recovery_action": "retry_connection", "degraded_token": "Warming", "admits_writes": false },
+      { "label": "warming", "copy_class": "not_yet_admitted_copy_class", "recovery_action": "wait_for_warm", "degraded_token": "Warming", "admits_writes": false },
+      { "label": "ready", "copy_class": "live_environment", "recovery_action": "none", "degraded_token": null, "admits_writes": true },
+      { "label": "reconnecting", "copy_class": "live_environment", "recovery_action": "retry_connection", "degraded_token": "Offline", "admits_writes": false },
+      { "label": "read_only_degraded", "copy_class": "snapshot_only_view", "recovery_action": "continue_in_snapshot_view", "degraded_token": "Limited", "admits_writes": false },
+      { "label": "suspended", "copy_class": "suspended_workspace", "recovery_action": "resume_from_suspension", "degraded_token": "Limited", "admits_writes": false },
+      { "label": "reprovisioning", "copy_class": "fresh_reprovisioned_copy", "recovery_action": "accept_reprovisioned_state", "degraded_token": "Warming", "admits_writes": false },
+      { "label": "connecting", "copy_class": "fresh_reprovisioned_copy", "recovery_action": "retry_connection", "degraded_token": "Warming", "admits_writes": false },
+      { "label": "warming", "copy_class": "fresh_reprovisioned_copy", "recovery_action": "wait_for_warm", "degraded_token": "Warming", "admits_writes": false },
+      { "label": "ready", "copy_class": "live_environment", "recovery_action": "none", "degraded_token": null, "admits_writes": true }
+    ]
+  }
+}
