@@ -1,0 +1,259 @@
+# M1 operator-truth acceptance checklist.
+#
+# Canonical YAML that the operator-truth demo smoke
+# (tests/ux/operator_truth_demo_smoke/run_operator_truth_demo_smoke.py)
+# walks during M1 exit review.
+#
+# This file is an acceptance harness, NOT a new product surface or a
+# fork of any wedge's vocabulary. Each row only quotes the closed
+# tokens already owned by the bound upstream wedge and points reviewers
+# at:
+#
+#   - the wedge's reviewer-facing landing page;
+#   - the wedge's owning proof packet;
+#   - the named protected-walk fixture the smoke replays;
+#   - a named failure drill (drill_id + expected check_id) so the lane
+#     fails loudly if vocabulary drifts.
+#
+# Adding a new row is additive. Rewriting a row's expected_tokens must
+# be matched by the bound fixture and the bound proof packet — the
+# smoke refuses to silently accept a vocabulary drift.
+
+schema_version: 1
+as_of: "2026-05-11"
+owner: "@ahmeddyounis"
+
+checklist_id: m1_operator_truth_acceptance_checklist
+reviewer_entrypoint_ref: docs/milestones/m1/operator_truth_demo_path.md
+proof_packet_ref: artifacts/milestones/m1/proof_packets/operator_truth_demo_path.md
+smoke_runner_ref: tests/ux/operator_truth_demo_smoke/run_operator_truth_demo_smoke.py
+latest_capture_ref: artifacts/milestones/m1/captures/operator_truth_demo_smoke_validation_capture.json
+exact_build_identity_ref: artifacts/build/build_identity.json
+
+# Closed lane-level claim limits the smoke quotes back verbatim so
+# downstream review cannot infer hidden depth from the harness.
+claim_limits:
+  - single_bounded_acceptance_harness_only
+  - no_new_product_surface_invention
+  - no_replacement_for_per_wedge_proof_packets
+  - no_market_facing_claims_beyond_bounded_wedges
+
+# Demo path steps, in walk order. Each row binds one upstream wedge.
+acceptance_rows:
+  - row_id: entry_preview_apply_revert
+    step_label: "Entry / edit / save / preview / apply / validate / revert on the destructive core wedge."
+    wedge_id: preview_apply_revert_core_path
+    reviewer_doc_ref: docs/ux/m1_preview_apply_revert_core_path.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/preview_apply_revert_core_path.md
+    validation_command: "cargo test -p aureline-shell --lib review_preview && cargo test -p aureline-shell --test destructive_core_preview"
+    protected_walk_fixture_ref: fixtures/ux/preview_apply_cases/destructive_core_path/protected_walk.json
+    expected_tokens:
+      - field_path: "expected_protected_walk.expected_apply_admissibility_token"
+        expected_value: "admitted"
+      - field_path: "expected_protected_walk.expected_realized_revert_class_token"
+        expected_value: "restore_from_checkpoint"
+      - field_path: "expected_protected_walk.expected_group_resolution_token"
+        expected_value: "reverted"
+    failure_drill:
+      drill_id: preview_apply_revert_core_path.revert_class_drift
+      forced_mutation: "Override the expected_realized_revert_class_token on this row to compensating_action without re-aligning the fixture."
+      forced_value_path: "expected_protected_walk.expected_realized_revert_class_token"
+      forced_value: "compensating_action"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: permission_review_typed_prompt
+    step_label: "Typed permission prompt on the ecosystem-bearing install-review path answers the six required questions."
+    wedge_id: typed_permission_prompts_seed
+    reviewer_doc_ref: docs/ux/m1_typed_permission_prompt.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/typed_permission_prompts_seed.md
+    validation_command: "cargo test -p aureline-shell --lib permission_prompts"
+    protected_walk_fixture_ref: fixtures/permissions/publish_or_ecosystem_cases/protected_walk_verified_publisher_approve.json
+    expected_tokens:
+      - field_path: "decision_state"
+        expected_value: "approved"
+      - field_path: "requester.requester_class"
+        expected_value: "extension"
+      - field_path: "authority_owner.issuer_class"
+        expected_value: "shell"
+      - field_path: "grant_scope_class"
+        expected_value: "workspace"
+    failure_drill:
+      drill_id: typed_permission_prompts_seed.decision_state_drift
+      forced_mutation: "Flip the bound fixture's decision_state expectation to a state that contradicts the verified-publisher approve protected walk."
+      forced_value_path: "decision_state"
+      forced_value: "denied"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: install_review_fact_grid
+    step_label: "Install-review fact grid bound to the same install path renders publisher facts, declared permissions with rationales, and an admit decision."
+    wedge_id: install_review_fact_grid_seed
+    reviewer_doc_ref: docs/ux/m1_install_review_fact_grid_seed.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/install_review_fact_grid_seed.md
+    validation_command: "cargo test -p aureline-shell --lib install_review_fact_grid"
+    protected_walk_fixture_ref: fixtures/install/m1_fact_grid_cases/protected_walk_verified_publisher_admit.json
+    expected_tokens:
+      - field_path: "manifest_baseline.publisher_trust_tier_class"
+        expected_value: "verified_publisher"
+      - field_path: "manifest_baseline.manifest_origin_source_class"
+        expected_value: "public_registry"
+      - field_path: "activation_budget_class"
+        expected_value: "lazy_on_demand_only"
+      - field_path: "rollback_posture_class"
+        expected_value: "clean_uninstall_and_state_purge"
+    failure_drill:
+      drill_id: install_review_fact_grid_seed.activation_budget_drift
+      forced_mutation: "Override the activation_budget_class expectation to a value the fixture does not actually carry."
+      forced_value_path: "activation_budget_class"
+      forced_value: "eager_within_workspace_only"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: safe_preview_representation_labels
+    step_label: "Safe preview / copy-export surface representation labels (raw / sanitized / escaped / blocked_metadata_only)."
+    wedge_id: safe_preview_and_copy_export
+    reviewer_doc_ref: docs/ux/m1_safe_preview_and_copy_export.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/safe_preview_and_copy_export.md
+    validation_command: "cargo test -p aureline-preview && cargo test -p aureline-shell --lib safe_preview_card && cargo test -p aureline-shell --test safe_preview_card_cases"
+    protected_walk_fixture_ref: fixtures/preview/representation_cases/01_risky_text_bidi_identifier.json
+    expected_tokens:
+      - field_path: "expected_record.prototype_label_token"
+        expected_value: "m1_prototype_safe_preview_and_copy_export"
+      - field_path: "expected_record.content_class_token"
+        expected_value: "risky_text"
+      - field_path: "expected_record.currently_visible_representation_token"
+        expected_value: "escaped"
+    failure_drill:
+      drill_id: safe_preview_and_copy_export.representation_drift
+      forced_mutation: "Override the currently_visible_representation_token expectation to a value that contradicts the risky-text protected walk."
+      forced_value_path: "expected_record.currently_visible_representation_token"
+      forced_value: "raw"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: ai_evidence_and_spend_truth_strip
+    step_label: "AI evidence packet + route/spend truth strip on the launch AI wedge surfaces the eight canonical strip rows."
+    wedge_id: evidence_and_spend_seed
+    reviewer_doc_ref: docs/ai/m1_evidence_and_spend_seed.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/evidence_and_spend_seed.md
+    validation_command: "cargo test -p aureline-shell --lib ai_truth_strip"
+    protected_walk_fixture_ref: fixtures/ai/m1_evidence_and_spend_seed_cases/protected_walk_local_no_dispatch.json
+    expected_tokens:
+      - field_path: "expect.run_state_class"
+        expected_value: "dispatch_disabled_in_m1_seed"
+      - field_path: "expect.provider_class"
+        expected_value: "disabled_no_provider_in_m1_seed"
+      - field_path: "expect.route_path_class"
+        expected_value: "denied_by_policy_in_m1_seed"
+      - field_path: "expect.spend_posture_class"
+        expected_value: "no_spend_in_m1_seed"
+    failure_drill:
+      drill_id: evidence_and_spend_seed.run_state_drift
+      forced_mutation: "Override the run_state_class expectation to a value that contradicts the dispatch-disabled protected walk."
+      forced_value_path: "expect.run_state_class"
+      forced_value: "post_run_completed_mocked"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: target_graph_state_card
+    step_label: "Target graph state card surfaces readiness and authoritative-producer truth on one bounded wedge."
+    wedge_id: graph_state_card_seed
+    reviewer_doc_ref: docs/ux/m1_graph_state_card_seed.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/graph_state_card_seed.md
+    validation_command: "cargo test -p aureline-shell --lib graph_state_card"
+    protected_walk_fixture_ref: fixtures/graph/m1_readiness_cases/01_live_workspace_authoritative.json
+    expected_tokens:
+      - field_path: "expect.readiness_label"
+        expected_value: "exact"
+      - field_path: "expect.basis_class"
+        expected_value: "live_workspace_authoritative"
+      - field_path: "input.subject.provenance_class"
+        expected_value: "authoritative_producer"
+    failure_drill:
+      drill_id: graph_state_card_seed.readiness_drift
+      forced_mutation: "Override the readiness_label expectation to a value that contradicts the live-workspace authoritative protected walk."
+      forced_value_path: "expect.readiness_label"
+      forced_value: "stale"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: host_boundary_cues
+    step_label: "Host-boundary cues and target-identity handoff on the certified terminal-pane wedge."
+    wedge_id: host_boundary_cues_seed
+    reviewer_doc_ref: docs/ux/m1_host_boundary_cues_seed.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/host_boundary_cues_seed.md
+    validation_command: "cargo test -p aureline-shell --lib host_boundary_cues"
+    protected_walk_fixture_ref: fixtures/targets/m1_target_identity_cases/protected_walk_local_terminal.json
+    expected_tokens:
+      - field_path: "expect.current_boundary_cue"
+        expected_value: "hidden"
+      - field_path: "steps.0.host_class"
+        expected_value: "host_desktop"
+      - field_path: "steps.0.target_class"
+        expected_value: "local_host"
+    failure_drill:
+      drill_id: host_boundary_cues_seed.boundary_cue_drift
+      forced_mutation: "Override the current_boundary_cue expectation to a value that contradicts the local-desktop protected walk."
+      forced_value_path: "expect.current_boundary_cue"
+      forced_value: "remote_host_active"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: managed_workspace_lifecycle
+    step_label: "Managed-workspace lifecycle labels on one bounded certified wedge surface visibly distinct workspace-copy classes."
+    wedge_id: managed_workspace_lifecycle_seed
+    reviewer_doc_ref: docs/ux/m1_managed_workspace_lifecycle_seed.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/managed_workspace_lifecycle_seed.md
+    validation_command: "cargo test -p aureline-shell --lib managed_workspace_labels"
+    protected_walk_fixture_ref: fixtures/managed_workspace/m1_lifecycle_cases/protected_walk_managed_lifecycle.json
+    expected_tokens:
+      - field_path: "expect.current_label"
+        expected_value: "ready"
+      - field_path: "expect.current_copy_class"
+        expected_value: "live_environment"
+      - field_path: "lineage.identity_mode_token"
+        expected_value: "managed_org_tenant"
+      - field_path: "lineage.locality_class_token"
+        expected_value: "managed_control_plane_bearing"
+    failure_drill:
+      drill_id: managed_workspace_lifecycle_seed.copy_class_drift
+      forced_mutation: "Override the current_copy_class expectation to a value that contradicts the ready / live-environment protected walk."
+      forced_value_path: "expect.current_copy_class"
+      forced_value: "suspended_workspace"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: notebook_trust_badges
+    step_label: "Notebook trust badges keep the four trust axes visibly distinct on one bounded certified wedge."
+    wedge_id: notebook_trust_badges_seed
+    reviewer_doc_ref: docs/ux/m1_notebook_trust_badges_seed.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/notebook_trust_badges_seed.md
+    validation_command: "cargo test -p aureline-shell --lib notebook_trust_badges"
+    protected_walk_fixture_ref: fixtures/notebooks/m1_trust_badge_cases/protected_walk_fully_trusted_local.json
+    expected_tokens:
+      - field_path: "trust_axes.workspace_trust_state"
+        expected_value: "trusted_workspace"
+      - field_path: "trust_axes.notebook_trust_rung"
+        expected_value: "fully_trusted_user"
+      - field_path: "trust_axes.kernel_availability"
+        expected_value: "local_managed_available"
+      - field_path: "trust_axes.output_trust_state"
+        expected_value: "live_from_current_session"
+    failure_drill:
+      drill_id: notebook_trust_badges_seed.trust_rung_drift
+      forced_mutation: "Override the notebook_trust_rung expectation to a value that contradicts the fully-trusted-local protected walk."
+      forced_value_path: "trust_axes.notebook_trust_rung"
+      forced_value: "untrusted_tainted"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
+
+  - row_id: composer_and_context_inspector_seed
+    step_label: "AI composer + context inspector seed surfaces tainted-attachment block reasons rather than silently treating pasted bytes as instruction authority."
+    wedge_id: composer_and_context_inspector_seed
+    reviewer_doc_ref: docs/ai/m1_composer_and_context_inspector_seed.md
+    proof_packet_ref: artifacts/milestones/m1/proof_packets/composer_and_context_inspector_seed.md
+    validation_command: "cargo test -p aureline-shell --lib ai_context_inspector"
+    protected_walk_fixture_ref: fixtures/ai/m1_composer_and_context_inspector_seed_cases/tainted_attachment_outside_fence.json
+    expected_tokens:
+      - field_path: "input.attachments.0.trust_posture"
+        expected_value: "untrusted_user_supplied"
+      - field_path: "input.attachments.0.source_class"
+        expected_value: "user_supplied_text"
+    failure_drill:
+      drill_id: composer_and_context_inspector_seed.trust_posture_drift
+      forced_mutation: "Override the attachment trust_posture expectation to a posture that would silently treat pasted bytes as instruction authority."
+      forced_value_path: "input.attachments.0.trust_posture"
+      forced_value: "trusted_workspace_authored"
+      expected_check_id: operator_truth_demo_smoke.acceptance_row.expected_token_mismatch
