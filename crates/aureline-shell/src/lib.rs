@@ -38,6 +38,10 @@ pub mod docs_browser;
 pub mod embedded;
 /// Virtualized file-tree model with stable node ids and explorer actions.
 pub mod explorer;
+/// Target graph state card: graph-readiness truth on one bounded prototype
+/// wedge. Reuses the workspace-graph and readiness vocabularies; live
+/// surface, not a mock.
+pub mod graph_state_card;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
 /// Help / About / provenance / service-health seed surface with client-scope
