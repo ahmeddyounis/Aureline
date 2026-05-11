@@ -1,0 +1,566 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/browser_handoff_packet.schema.json",
+  "title": "Aureline provider-entry browser-handoff packet seed: provider-side typed packet, return summary, and packet audit-event vocabulary",
+  "description": "Provider-side boundary schema for the typed browser-handoff packet seed minted by an entry on the connected-account / provider registry. The packet pins origin, target, expected actor scope, destination class, reason code, freshness window, mutation disposition, and (when applicable) the publish-later object seed the handoff defers to, so a provider-linked entry path never reduces to a generic 'Open in browser' affordance. This schema composes with — and never forks — the canonical /schemas/integration/browser_handoff_packet.schema.json packet record and the canonical /schemas/providers/browser_handoff_sheet.schema.json sheet record; it adds the registry-side wrapper the M1 entry path mints. Three record kinds are exported: provider_entry_browser_handoff_packet_record (the minted packet seed), provider_entry_browser_handoff_return_record (the typed return summary after a callback resolves), and provider_entry_browser_handoff_audit_event_record (an observable event on the provider_handoff stream the packet seed generates). Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, and raw provider payloads never cross this boundary; records carry opaque refs and structured fields only. Adding a new packet_audit_event_id, packet_state_class, or return_outcome_class is additive-minor and requires a provider_entry_browser_handoff_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provider_entry_browser_handoff_packet_record" },
+    { "$ref": "#/$defs/provider_entry_browser_handoff_return_record" },
+    { "$ref": "#/$defs/provider_entry_browser_handoff_audit_event_record" }
+  ],
+  "$defs": {
+    "provider_entry_browser_handoff_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this provider-entry browser-handoff packet seed export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "provider_entry_browser_handoff_packet_record",
+        "provider_entry_browser_handoff_return_record",
+        "provider_entry_browser_handoff_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on desktop, CLI, notifications, provider-linked headers, docs/help, support exports, and audit rollups. Raw URLs, raw tokens, raw callback bodies, and raw provider payloads never appear here."
+    },
+
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "code_host_web",
+        "issue_tracker_web",
+        "ci_provider_web",
+        "docs_or_portal_web",
+        "identity_provider_web",
+        "package_registry_web",
+        "release_publisher_web",
+        "ai_provider_web",
+        "managed_admin_web",
+        "external_generic_web"
+      ],
+      "description": "Frozen destination-class vocabulary reused verbatim from /schemas/integration/browser_handoff_packet.schema.json. external_generic_web is repair-only and MUST pin reason_code = external_docs_or_runbook on this seed."
+    },
+
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "mutation_not_supported_in_product",
+        "publish_requires_browser_auth",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "step_up_required"
+      ],
+      "description": "Frozen reason-for-handoff vocabulary reused verbatim from /schemas/integration/browser_handoff_packet.schema.json. Every packet seed names exactly one; a generic 'Open in browser' affordance without a typed reason is forbidden."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Frozen provider-actor class vocabulary reused verbatim from /schemas/integration/browser_handoff_packet.schema.json. A generic 'Connected' state is forbidden; 'unknown_actor_class' is repair-only."
+    },
+
+    "mutation_disposition_class": {
+      "type": "string",
+      "enum": [
+        "immediate_mutation_in_product",
+        "browser_handoff_required",
+        "publish_later_required",
+        "inspect_only_no_mutation"
+      ],
+      "description": "Frozen mutation disposition reused verbatim from /schemas/providers/connected_account_registry.schema.json. A packet seed minted on a provider-linked entry path MUST carry browser_handoff_required or publish_later_required; immediate_mutation_in_product and inspect_only_no_mutation entries do not mint a browser-handoff packet seed."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "never_observed",
+        "fresh",
+        "stale_within_window",
+        "expired_beyond_window"
+      ],
+      "description": "Frozen freshness class reused verbatim from /schemas/providers/connected_account_registry.schema.json."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the packet seed was minted under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 and ADR-0010 redaction posture."
+    },
+
+    "packet_state_class": {
+      "type": "string",
+      "enum": [
+        "ready_for_user_confirmation",
+        "user_confirmed_pending_launch",
+        "launched_awaiting_callback",
+        "callback_validated",
+        "callback_rejected",
+        "user_cancelled",
+        "expired_unused",
+        "revoked_before_launch"
+      ],
+      "description": "Frozen packet-state vocabulary. ready_for_user_confirmation is the initial state. launched_awaiting_callback is the in-flight state. callback_validated and callback_rejected mirror the underlying integration packet's outcome. Silent transition between states is forbidden."
+    },
+
+    "return_outcome_class": {
+      "type": "string",
+      "enum": [
+        "completed_immediate_publish",
+        "completed_publish_later_admitted",
+        "completed_browser_only_inspection",
+        "denied_unknown_actor",
+        "denied_callback_invalid",
+        "denied_policy_or_trust_mismatch",
+        "user_cancelled",
+        "expired_unused"
+      ],
+      "description": "Frozen return-outcome class. The return record names exactly one; silent collapse into a generic 'closed' state is forbidden."
+    },
+
+    "packet_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "provider_entry_browser_handoff_packet_minted",
+        "provider_entry_browser_handoff_packet_user_confirmed",
+        "provider_entry_browser_handoff_packet_launched",
+        "provider_entry_browser_handoff_packet_callback_validated",
+        "provider_entry_browser_handoff_packet_callback_rejected",
+        "provider_entry_browser_handoff_packet_user_cancelled",
+        "provider_entry_browser_handoff_packet_expired",
+        "provider_entry_browser_handoff_packet_revoked"
+      ],
+      "description": "Frozen audit-event ids the provider-entry browser-handoff packet seed fires on the ADR-0010 provider_handoff stream. Mirrors the underlying integration-level browser-handoff-packet audit events; the provider-entry layer carries the registry-side intent the integration packet does not (which connected-account registry entry minted the packet)."
+    },
+
+    "object_class": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "issue_or_work_item",
+        "check_run",
+        "release_artifact",
+        "docs_page",
+        "audit_entry",
+        "admin_surface",
+        "consent_flow",
+        "package_version",
+        "registry_entry",
+        "principal_subject",
+        "install_target",
+        "tenant_or_org",
+        "other"
+      ],
+      "description": "Provider-side object class the packet seed targets. Aligned with the connected-account registry and publish-later seed vocabularies."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "execution_context_id"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the packet seed was minted under. An inbound callback whose origin does not match is denied with callback_rejected."
+    },
+
+    "target_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination_class",
+        "canonical_host",
+        "object_class",
+        "provider_side_id"
+      ],
+      "properties": {
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "canonical_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" },
+        "object_class": { "$ref": "#/$defs/object_class" },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical target the packet seed routes to. Names destination_class, canonical_host, tenant_or_org_scope, object_class, and provider_side_id; raw URLs and raw query strings are forbidden."
+    },
+
+    "return_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_kind",
+        "anchor_ref",
+        "reentry_summary"
+      ],
+      "properties": {
+        "anchor_kind": {
+          "type": "string",
+          "enum": [
+            "review_anchor",
+            "issue_draft_anchor",
+            "selected_diff_anchor",
+            "docs_citation_anchor",
+            "object_link_anchor",
+            "header_anchor",
+            "other"
+          ],
+          "description": "Frozen return-anchor kind reused verbatim from /schemas/providers/browser_handoff_sheet.schema.json."
+        },
+        "anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reentry_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining why the user is re-entering product scope and where they land. A generic 'returned' summary is forbidden."
+        }
+      },
+      "description": "Stable anchor plus a reviewable sentence so the return into product scope is itself explicit. Round-trips independently of whether the remote system preserves query strings."
+    },
+
+    "freshness_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness_class"],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "last_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "freshness_horizon_seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Freshness window the packet seed was observed under. Surfaces MUST render the freshness class; never_observed packet seeds MUST NOT claim a healthy observation."
+    },
+
+    "provider_entry_browser_handoff_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_entry_browser_handoff_schema_version",
+        "packet_seed_id",
+        "connected_account_registry_entry_ref",
+        "provider_descriptor_ref",
+        "origin",
+        "target",
+        "expected_authority_on_destination",
+        "mutation_disposition_class",
+        "reason_code",
+        "reason_summary",
+        "departure_disclosure_summary",
+        "return_summary",
+        "freshness",
+        "packet_state_class",
+        "minted_at",
+        "replay_expires_at",
+        "trust_posture",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_entry_browser_handoff_packet_record" },
+        "provider_entry_browser_handoff_schema_version": {
+          "$ref": "#/$defs/provider_entry_browser_handoff_schema_version"
+        },
+        "packet_seed_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_account_registry_entry_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the connected_account_registry_entry_record that minted this packet seed. Required so the registry side of the handoff is inspectable from the packet."
+        },
+        "provider_descriptor_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the provider_descriptor_record the entry points at. The descriptor's supported_capabilities MUST include supports_browser_handoff or supports_publish_later; otherwise the seed is refused at mint."
+        },
+        "integration_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the underlying browser_handoff_packet_record exported by /schemas/integration/browser_handoff_packet.schema.json once one has been minted. Empty string only on seeds that have not yet bound to a live integration packet (state ready_for_user_confirmation before user confirm)."
+        },
+        "publish_later_object_seed_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish_later_object_seed_record this handoff defers to. Required when mutation_disposition_class is publish_later_required; empty string when mutation_disposition_class is browser_handoff_required and the action is not deferred."
+        },
+        "origin": { "$ref": "#/$defs/origin_disclosure" },
+        "target": { "$ref": "#/$defs/target_disclosure" },
+        "expected_authority_on_destination": {
+          "$ref": "#/$defs/provider_actor_class"
+        },
+        "mutation_disposition_class": {
+          "$ref": "#/$defs/mutation_disposition_class"
+        },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence quoting the reason code in human-legible form. Surfaces render this verbatim; flattening it into a generic 'External link' is forbidden."
+        },
+        "departure_disclosure_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining why the user is leaving product scope and what privacy / data-loss consequence applies. A packet seed without a departure disclosure is refused at mint."
+        },
+        "return_summary": { "$ref": "#/$defs/return_summary" },
+        "freshness": { "$ref": "#/$defs/freshness_window" },
+        "packet_state_class": { "$ref": "#/$defs/packet_state_class" },
+        "approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the approval-ticket record admitting the mutation. Required when reason_code is mutation-class (every reason except provider_consent_flow); empty string for provider_consent_flow."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "replay_expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp after which the packet seed is no longer admissible. The seed's user-confirm action MUST refuse after this time and re-mint a fresh seed."
+        },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "A packet seed minted on a provider-linked entry path MUST carry browser_handoff_required or publish_later_required.",
+          "properties": {
+            "mutation_disposition_class": {
+              "enum": [
+                "browser_handoff_required",
+                "publish_later_required"
+              ]
+            }
+          }
+        },
+        {
+          "description": "publish_later_required seeds MUST cite a publish_later_object_seed_ref.",
+          "if": {
+            "properties": {
+              "mutation_disposition_class": {
+                "const": "publish_later_required"
+              }
+            },
+            "required": ["mutation_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_later_object_seed_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["publish_later_object_seed_ref"]
+          }
+        },
+        {
+          "description": "external_generic_web destinations MUST pin reason_code = external_docs_or_runbook.",
+          "if": {
+            "properties": {
+              "target": {
+                "properties": {
+                  "destination_class": { "const": "external_generic_web" }
+                },
+                "required": ["destination_class"]
+              }
+            },
+            "required": ["target"]
+          },
+          "then": {
+            "properties": {
+              "reason_code": { "const": "external_docs_or_runbook" }
+            }
+          }
+        },
+        {
+          "description": "Mutation-class reason codes MUST cite an approval_ticket_ref; provider_consent_flow MAY omit one.",
+          "if": {
+            "properties": {
+              "reason_code": {
+                "enum": [
+                  "mutation_not_supported_in_product",
+                  "publish_requires_browser_auth",
+                  "license_or_portal_acceptance",
+                  "admin_only_surface",
+                  "external_docs_or_runbook",
+                  "provider_admin_delegation",
+                  "step_up_required"
+                ]
+              }
+            },
+            "required": ["reason_code"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "expected_authority_on_destination unknown_actor_class MUST NOT advance past ready_for_user_confirmation.",
+          "if": {
+            "properties": {
+              "expected_authority_on_destination": {
+                "const": "unknown_actor_class"
+              }
+            },
+            "required": ["expected_authority_on_destination"]
+          },
+          "then": {
+            "properties": {
+              "packet_state_class": {
+                "enum": [
+                  "ready_for_user_confirmation",
+                  "user_cancelled",
+                  "expired_unused",
+                  "revoked_before_launch",
+                  "callback_rejected"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Provider-entry browser-handoff packet seed minted by a connected_account_registry_entry. Names origin, target, expected actor scope, freshness, departure disclosure, return summary, and (when applicable) the publish-later object seed the handoff defers to. Composes with — does not redefine — the canonical /schemas/integration/browser_handoff_packet.schema.json packet record."
+    },
+
+    "provider_entry_browser_handoff_return_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_entry_browser_handoff_schema_version",
+        "return_record_id",
+        "packet_seed_ref",
+        "return_outcome_class",
+        "return_summary",
+        "observed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_entry_browser_handoff_return_record" },
+        "provider_entry_browser_handoff_schema_version": {
+          "$ref": "#/$defs/provider_entry_browser_handoff_schema_version"
+        },
+        "return_record_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_seed_ref": { "$ref": "#/$defs/opaque_id" },
+        "connected_account_registry_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the registry entry the return resolves against. Empty string only for synthetic return records from a repair path."
+        },
+        "return_outcome_class": { "$ref": "#/$defs/return_outcome_class" },
+        "return_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence naming what was completed (or denied) and where the user re-enters product scope. A generic 'returned' summary is forbidden."
+        },
+        "completed_publish_later_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish_later_queue_item_record admitted on completed_publish_later_admitted; empty string otherwise."
+        },
+        "denial_reason_summary": {
+          "type": "string",
+          "description": "Optional sentence on denied_* outcomes naming the denial cause without raw provider payloads."
+        },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "completed_publish_later_admitted MUST cite a completed_publish_later_queue_item_ref.",
+          "if": {
+            "properties": {
+              "return_outcome_class": {
+                "const": "completed_publish_later_admitted"
+              }
+            },
+            "required": ["return_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "completed_publish_later_queue_item_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["completed_publish_later_queue_item_ref"]
+          }
+        }
+      ],
+      "description": "Typed return summary for a provider-entry browser-handoff packet seed once the user has returned to product scope. Names the outcome class explicitly so the return is never rendered as a generic 'closed' state on docs/help, support exports, or audit rollups."
+    },
+
+    "provider_entry_browser_handoff_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_entry_browser_handoff_schema_version",
+        "audit_event_id",
+        "event_time",
+        "packet_seed_ref",
+        "actor_class",
+        "actor_subject",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_entry_browser_handoff_audit_event_record" },
+        "provider_entry_browser_handoff_schema_version": {
+          "$ref": "#/$defs/provider_entry_browser_handoff_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/packet_audit_event_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_seed_ref": { "$ref": "#/$defs/opaque_id" },
+        "connected_account_registry_entry_ref": {
+          "type": "string",
+          "description": "Opaque ref to the registry entry the packet seed was minted from."
+        },
+        "integration_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the underlying /schemas/integration/browser_handoff_packet.schema.json record once minted."
+        },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "type": "string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "An observable event on the ADR-0010 provider_handoff audit stream that captures registry-side intent the integration-level browser-handoff-packet audit events cannot (which registry entry minted the packet seed, which descriptor it pointed at). Raw URLs, raw tokens, and raw callback bodies are forbidden on every audit-event record."
+    }
+  }
+}

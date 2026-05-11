@@ -1,0 +1,587 @@
+# Connected-account / provider registry seed rows for the M1 lane.
+#
+# This matrix is the canonical M1 truth source for the connected-account
+# registry, provider descriptor, browser-handoff packet seed, and
+# publish-later object-seed shapes. Each row exercises one protected
+# provider-linked entry path and pins:
+#
+#   - a connected_account_registry_entry_record,
+#   - the provider_descriptor_record it points at,
+#   - the publish_later_object_seed_record set it may mint (zero or more),
+#   - optionally a provider_entry_browser_handoff_packet_record (when the
+#     entry's mutation_disposition_class is browser_handoff_required or
+#     publish_later_required),
+#   - a named failure drill with a typed expected_check_id.
+#
+# Conformance.
+#   - Every entry conforms to
+#     schemas/providers/connected_account_registry.schema.json.
+#   - Every packet seed conforms to
+#     schemas/providers/browser_handoff_packet.schema.json.
+#   - Closed vocabularies are reused verbatim from the schemas; this
+#     matrix does not fork the vocabulary.
+#   - The mutation_disposition_class on the entry MUST resolve against
+#     the descriptor's supported_capabilities (browser_handoff_required
+#     requires supports_browser_handoff; publish_later_required requires
+#     supports_publish_later; etc.).
+#   - publish_later_required and browser_handoff_required entries MUST
+#     cite at least one publish_later_object_seed; inspect_only entries
+#     MUST cite none.
+#   - The matrix covers every mutation_disposition_class plus the
+#     unknown_actor_class repair-only path.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_connected_provider_seed_rows
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/providers/m1_connected_provider_seed.md
+registry_schema_ref: schemas/providers/connected_account_registry.schema.json
+packet_schema_ref: schemas/providers/browser_handoff_packet.schema.json
+connected_account_record_schema_ref: schemas/providers/connected_account_record.schema.json
+publish_later_record_schema_ref: schemas/providers/publish_later_record.schema.json
+integration_browser_handoff_packet_schema_ref: schemas/integration/browser_handoff_packet.schema.json
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+mutation_disposition_class_vocabulary:
+  - immediate_mutation_in_product
+  - browser_handoff_required
+  - publish_later_required
+  - inspect_only_no_mutation
+
+freshness_class_vocabulary:
+  - never_observed
+  - fresh
+  - stale_within_window
+  - expired_beyond_window
+
+registry_entry_status_vocabulary:
+  - seeded
+  - live_observed
+  - degraded_observed
+  - unobserved_pending
+  - revoked_or_disconnected
+
+publish_later_object_class_vocabulary:
+  - local_draft_only
+  - queued_publish_pending
+  - browser_handoff_pending
+  - deferred_publish_in_queue
+  - imported_read_only_snapshot
+
+provider_actor_class_vocabulary:
+  - human_account
+  - installation_or_app_grant
+  - delegated_user_token
+  - project_scoped_grant
+  - policy_injected_service_identity
+  - unknown_actor_class
+
+provider_capability_class_vocabulary:
+  - supports_immediate_mutation
+  - supports_browser_handoff
+  - supports_publish_later
+  - supports_inspect_only
+  - supports_account_switch
+  - supports_step_up_authenticator
+
+failure_drill_id_vocabulary:
+  - human_account_drill.disposition_not_in_descriptor_capabilities
+  - install_grant_drill.publish_later_seed_missing_for_publish_later
+  - delegated_credential_drill.browser_handoff_summary_missing
+  - project_scoped_drill.inspect_only_seed_present
+  - policy_injected_drill.publish_later_queue_item_missing
+  - unknown_actor_drill.live_observed_under_unknown_actor
+
+required_mutation_disposition_coverage:
+  - immediate_mutation_in_product
+  - browser_handoff_required
+  - publish_later_required
+  - inspect_only_no_mutation
+
+required_actor_coverage:
+  - human_account
+  - installation_or_app_grant
+  - delegated_user_token
+  - project_scoped_grant
+  - policy_injected_service_identity
+  - unknown_actor_class
+
+consumer_bindings:
+  named_runtime_consumer:
+    consumer_ref: docs/providers/m1_connected_provider_seed.md
+    consumed_fields:
+      - connected_account_registry_entry_record.mutation_disposition_class
+      - connected_account_registry_entry_record.actor_scope.primary_actor_class
+      - connected_account_registry_entry_record.freshness.freshness_class
+      - connected_account_registry_entry_record.registry_entry_status
+      - provider_descriptor_record.supported_capabilities
+      - provider_entry_browser_handoff_packet_record.reason_code
+      - provider_entry_browser_handoff_packet_record.expected_authority_on_destination
+      - publish_later_object_seed_record.publish_later_object_class
+
+rows:
+  # 1. Human account on a code host — immediate mutation in product.
+  - row_id: provider_entry:human_account_review_publish_in_product
+    descriptor:
+      entry_kind: provider_descriptor_record
+      connected_account_registry_schema_version: 1
+      descriptor_id: provider_descriptor:code_host:github.com
+      provider_class: review_or_code_host
+      canonical_host: github.com
+      tenant_or_org_scope: aureline
+      display_label: "GitHub code-host provider (github.com / aureline)"
+      supported_actor_classes:
+        - human_account
+        - installation_or_app_grant
+        - delegated_user_token
+      supported_capabilities:
+        - supports_immediate_mutation
+        - supports_browser_handoff
+        - supports_publish_later
+        - supports_inspect_only
+        - supports_account_switch
+      default_mutation_disposition_class: immediate_mutation_in_product
+      freshness_horizon_seconds: 1800
+      descriptor_owner_summary: "Owned by the local user under the aureline org overlay."
+      redaction_class: metadata_safe_default
+    entry:
+      entry_kind: connected_account_registry_entry_record
+      connected_account_registry_schema_version: 1
+      entry_id: registry_entry:github.com:human_account:ahmedyounis:review_publish
+      connected_provider_record_ref: conn_prov:github.com:ahmedyounis:primary
+      provider_descriptor_ref: provider_descriptor:code_host:github.com
+      display_label: "Publish review on github.com as ahmedyounis"
+      origin:
+        host_identity: shell.aureline.local
+        workspace_id: workspace:local:aureline-monorepo
+        execution_context_id: execution_context:editor:review.publish
+      target:
+        provider_class: review_or_code_host
+        canonical_host: github.com
+        tenant_or_org_scope: aureline
+      actor_scope:
+        primary_actor_class: human_account
+        additional_actor_classes: []
+        scope_summary: "Acting as you (ahmedyounis@github.com); publishes a pull-request review."
+      freshness:
+        freshness_class: fresh
+        last_observed_at: "2026-05-11T07:35:00Z"
+        freshness_horizon_seconds: 1800
+      registry_entry_status: live_observed
+      mutation_disposition_class: immediate_mutation_in_product
+      browser_handoff_routing_summary_ref: ""
+      publish_later_object_seed_refs: []
+      trust_posture: trusted
+      minted_at: "2026-05-11T07:35:00Z"
+      redaction_class: metadata_safe_default
+    publish_later_seeds: []
+    packet_seed: null
+    expected_coverage:
+      mutation_disposition_class: immediate_mutation_in_product
+      actor_class: human_account
+    failure_drill:
+      drill_id: human_account_drill.disposition_not_in_descriptor_capabilities
+      expected_check_id: connected_provider_seed.mutation_disposition_not_supported_by_descriptor
+      forced_input:
+        strip_capability: supports_immediate_mutation
+      next_action: "Re-add supports_immediate_mutation to the descriptor or change the entry's mutation_disposition_class."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 2. Install grant on a CI provider — publish-later required for check-run write.
+  - row_id: provider_entry:install_grant_ci_check_publish_later
+    descriptor:
+      entry_kind: provider_descriptor_record
+      connected_account_registry_schema_version: 1
+      descriptor_id: provider_descriptor:ci_check:github.com:aureline-ci-bot
+      provider_class: ci_or_check_provider
+      canonical_host: github.com
+      tenant_or_org_scope: aureline
+      display_label: "Aureline CI check provider (install: aureline-ci-bot)"
+      supported_actor_classes:
+        - installation_or_app_grant
+      supported_capabilities:
+        - supports_browser_handoff
+        - supports_publish_later
+        - supports_inspect_only
+      default_mutation_disposition_class: publish_later_required
+      freshness_horizon_seconds: 600
+      descriptor_owner_summary: "Org-managed install grant; org policy admin owns the bundle."
+      redaction_class: metadata_safe_default
+    entry:
+      entry_kind: connected_account_registry_entry_record
+      connected_account_registry_schema_version: 1
+      entry_id: registry_entry:github.com:install:aureline-ci-bot:check_publish
+      connected_provider_record_ref: conn_prov:github.com:aureline:install:aureline-ci-bot
+      provider_descriptor_ref: provider_descriptor:ci_check:github.com:aureline-ci-bot
+      display_label: "Queue check-run publish via install aureline-ci-bot"
+      origin:
+        host_identity: shell.aureline.local
+        workspace_id: workspace:local:aureline-monorepo
+        execution_context_id: execution_context:ci:check.publish
+      target:
+        provider_class: ci_or_check_provider
+        canonical_host: github.com
+        tenant_or_org_scope: aureline
+      actor_scope:
+        primary_actor_class: installation_or_app_grant
+        additional_actor_classes: []
+        scope_summary: "Acting as install aureline-ci-bot under org aureline."
+      freshness:
+        freshness_class: stale_within_window
+        last_observed_at: "2026-05-11T06:15:00Z"
+        freshness_horizon_seconds: 600
+      registry_entry_status: degraded_observed
+      mutation_disposition_class: publish_later_required
+      browser_handoff_routing_summary_ref: ""
+      publish_later_object_seed_refs:
+        - publish_later_seed:github.com:install:aureline-ci-bot:check_run:queue
+      trust_posture: trusted
+      minted_at: "2026-05-11T07:35:01Z"
+      redaction_class: metadata_safe_default
+    publish_later_seeds:
+      - entry_kind: publish_later_object_seed_record
+        connected_account_registry_schema_version: 1
+        seed_id: publish_later_seed:github.com:install:aureline-ci-bot:check_run:queue
+        publish_later_object_class: queued_publish_pending
+        connected_account_registry_entry_ref: registry_entry:github.com:install:aureline-ci-bot:check_publish
+        target_object_class: check_run
+        target_object_provider_side_id: check_run:github.com:aureline:42
+        mutation_disposition_class: publish_later_required
+        expected_authority_on_publish: installation_or_app_grant
+        publish_later_queue_item_ref: queue_item:github.com:install:check_run:42:pending
+        freshness:
+          freshness_class: stale_within_window
+          last_observed_at: "2026-05-11T06:15:00Z"
+          freshness_horizon_seconds: 600
+        redaction_class: metadata_safe_default
+    packet_seed: null
+    expected_coverage:
+      mutation_disposition_class: publish_later_required
+      actor_class: installation_or_app_grant
+    failure_drill:
+      drill_id: install_grant_drill.publish_later_seed_missing_for_publish_later
+      expected_check_id: connected_provider_seed.publish_later_seed_required
+      forced_input:
+        clear_publish_later_object_seed_refs: true
+      next_action: "Re-seed the publish_later_object_seed_record or change the entry's mutation_disposition_class."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 3. Delegated user token on a release publisher — browser-handoff required.
+  - row_id: provider_entry:delegated_credential_release_publish_browser_only
+    descriptor:
+      entry_kind: provider_descriptor_record
+      connected_account_registry_schema_version: 1
+      descriptor_id: provider_descriptor:release_publisher:github.com
+      provider_class: release_publisher_provider
+      canonical_host: github.com
+      tenant_or_org_scope: aureline
+      display_label: "GitHub release publisher (delegated)"
+      supported_actor_classes:
+        - delegated_user_token
+        - installation_or_app_grant
+      supported_capabilities:
+        - supports_browser_handoff
+        - supports_inspect_only
+        - supports_step_up_authenticator
+      default_mutation_disposition_class: browser_handoff_required
+      freshness_horizon_seconds: 900
+      descriptor_owner_summary: "Org-managed; release publish always routes through system browser."
+      redaction_class: metadata_safe_default
+    entry:
+      entry_kind: connected_account_registry_entry_record
+      connected_account_registry_schema_version: 1
+      entry_id: registry_entry:github.com:delegated:release_publish:1.4.0
+      connected_provider_record_ref: conn_prov:github.com:ahmedyounis:delegated
+      provider_descriptor_ref: provider_descriptor:release_publisher:github.com
+      display_label: "Publish release 1.4.0 via system browser"
+      origin:
+        host_identity: shell.aureline.local
+        workspace_id: workspace:local:aureline-monorepo
+        execution_context_id: execution_context:release:publish
+      target:
+        provider_class: release_publisher_provider
+        canonical_host: github.com
+        tenant_or_org_scope: aureline
+      actor_scope:
+        primary_actor_class: delegated_user_token
+        additional_actor_classes: []
+        scope_summary: "Delegated for ahmedyounis@github.com; release publish requires browser auth."
+      freshness:
+        freshness_class: fresh
+        last_observed_at: "2026-05-11T07:30:00Z"
+        freshness_horizon_seconds: 900
+      registry_entry_status: live_observed
+      mutation_disposition_class: browser_handoff_required
+      browser_handoff_routing_summary_ref: packet_seed:github.com:release_publish:1.4.0
+      publish_later_object_seed_refs:
+        - publish_later_seed:github.com:release_publish:1.4.0:browser_handoff
+      trust_posture: trusted
+      minted_at: "2026-05-11T07:35:02Z"
+      redaction_class: metadata_safe_default
+    publish_later_seeds:
+      - entry_kind: publish_later_object_seed_record
+        connected_account_registry_schema_version: 1
+        seed_id: publish_later_seed:github.com:release_publish:1.4.0:browser_handoff
+        publish_later_object_class: browser_handoff_pending
+        connected_account_registry_entry_ref: registry_entry:github.com:delegated:release_publish:1.4.0
+        target_object_class: release_artifact
+        target_object_provider_side_id: release:github.com:aureline:1.4.0
+        mutation_disposition_class: browser_handoff_required
+        expected_authority_on_publish: delegated_user_token
+        publish_later_queue_item_ref: ""
+        freshness:
+          freshness_class: fresh
+          last_observed_at: "2026-05-11T07:30:00Z"
+          freshness_horizon_seconds: 900
+        redaction_class: metadata_safe_default
+    packet_seed:
+      record_kind: provider_entry_browser_handoff_packet_record
+      provider_entry_browser_handoff_schema_version: 1
+      packet_seed_id: packet_seed:github.com:release_publish:1.4.0
+      connected_account_registry_entry_ref: registry_entry:github.com:delegated:release_publish:1.4.0
+      provider_descriptor_ref: provider_descriptor:release_publisher:github.com
+      integration_browser_handoff_packet_ref: ""
+      publish_later_object_seed_ref: ""
+      origin:
+        host_identity: shell.aureline.local
+        workspace_id: workspace:local:aureline-monorepo
+        execution_context_id: execution_context:release:publish
+      target:
+        destination_class: release_publisher_web
+        canonical_host: github.com
+        tenant_or_org_scope: aureline
+        object_class: release_artifact
+        provider_side_id: release:github.com:aureline:1.4.0
+      expected_authority_on_destination: delegated_user_token
+      mutation_disposition_class: browser_handoff_required
+      reason_code: publish_requires_browser_auth
+      reason_summary: "GitHub release publish requires browser-based authentication."
+      departure_disclosure_summary: "You will leave Aureline scope; the release publish completes on github.com under the delegated token for ahmedyounis@github.com."
+      return_summary:
+        anchor_kind: object_link_anchor
+        anchor_ref: release_artifact:release:github.com:aureline:1.4.0
+        reentry_summary: "Returns to the release pane with the published release pinned."
+      freshness:
+        freshness_class: fresh
+        last_observed_at: "2026-05-11T07:30:00Z"
+        freshness_horizon_seconds: 900
+      packet_state_class: ready_for_user_confirmation
+      approval_ticket_ref: approval_ticket:release_publish:1.4.0
+      minted_at: "2026-05-11T07:35:02Z"
+      replay_expires_at: "2026-05-11T08:05:02Z"
+      trust_posture: trusted
+      redaction_class: metadata_safe_default
+    expected_coverage:
+      mutation_disposition_class: browser_handoff_required
+      actor_class: delegated_user_token
+    failure_drill:
+      drill_id: delegated_credential_drill.browser_handoff_summary_missing
+      expected_check_id: connected_provider_seed.browser_handoff_routing_summary_required
+      forced_input:
+        clear_browser_handoff_routing_summary_ref: true
+      next_action: "Re-seed the browser_handoff_routing_summary_ref or change the entry's mutation_disposition_class."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 4. Project-scoped grant on docs — inspect-only imported snapshot.
+  - row_id: provider_entry:project_scoped_grant_inspect_only_snapshot
+    descriptor:
+      entry_kind: provider_descriptor_record
+      connected_account_registry_schema_version: 1
+      descriptor_id: provider_descriptor:docs:github.com:aureline-docs
+      provider_class: docs_or_portal_provider
+      canonical_host: github.com
+      tenant_or_org_scope: aureline
+      display_label: "Project-scoped docs grant (read-only)"
+      supported_actor_classes:
+        - project_scoped_grant
+      supported_capabilities:
+        - supports_inspect_only
+        - supports_browser_handoff
+      default_mutation_disposition_class: inspect_only_no_mutation
+      freshness_horizon_seconds: 3600
+      descriptor_owner_summary: "Tenant-managed; project-scoped to aureline-docs only."
+      redaction_class: metadata_safe_default
+    entry:
+      entry_kind: connected_account_registry_entry_record
+      connected_account_registry_schema_version: 1
+      entry_id: registry_entry:github.com:project_scoped:aureline-docs:inspect
+      connected_provider_record_ref: conn_prov:github.com:aureline-docs:project_scoped
+      provider_descriptor_ref: provider_descriptor:docs:github.com:aureline-docs
+      display_label: "Inspect aureline-docs via project-scoped grant"
+      origin:
+        host_identity: shell.aureline.local
+        workspace_id: workspace:local:aureline-monorepo
+        execution_context_id: execution_context:docs:browse
+      target:
+        provider_class: docs_or_portal_provider
+        canonical_host: github.com
+        tenant_or_org_scope: aureline
+      actor_scope:
+        primary_actor_class: project_scoped_grant
+        additional_actor_classes: []
+        scope_summary: "Project-scoped read on aureline-docs; inspect-only."
+      freshness:
+        freshness_class: fresh
+        last_observed_at: "2026-05-11T07:00:00Z"
+        freshness_horizon_seconds: 3600
+      registry_entry_status: live_observed
+      mutation_disposition_class: inspect_only_no_mutation
+      browser_handoff_routing_summary_ref: ""
+      publish_later_object_seed_refs: []
+      trust_posture: trusted
+      minted_at: "2026-05-11T07:35:03Z"
+      redaction_class: metadata_safe_default
+    publish_later_seeds: []
+    packet_seed: null
+    expected_coverage:
+      mutation_disposition_class: inspect_only_no_mutation
+      actor_class: project_scoped_grant
+    failure_drill:
+      drill_id: project_scoped_drill.inspect_only_seed_present
+      expected_check_id: connected_provider_seed.inspect_only_must_have_no_publish_later_seed
+      forced_input:
+        inject_publish_later_object_seed_ref: publish_later_seed:github.com:project_scoped:fake
+      next_action: "Remove the publish_later_object_seed_ref or change the entry's mutation_disposition_class."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 5. Policy-injected service identity — publish-later in admin-approval queue.
+  - row_id: provider_entry:policy_injected_service_publish_later_admin_approval
+    descriptor:
+      entry_kind: provider_descriptor_record
+      connected_account_registry_schema_version: 1
+      descriptor_id: provider_descriptor:release_publisher:internal-publisher
+      provider_class: release_publisher_provider
+      canonical_host: release.aureline.internal
+      tenant_or_org_scope: aureline
+      display_label: "Internal release publisher (policy-injected)"
+      supported_actor_classes:
+        - policy_injected_service_identity
+      supported_capabilities:
+        - supports_publish_later
+        - supports_inspect_only
+      default_mutation_disposition_class: publish_later_required
+      freshness_horizon_seconds: 1200
+      descriptor_owner_summary: "Policy-injector-managed; epoch-bounded service identity."
+      redaction_class: metadata_safe_default
+    entry:
+      entry_kind: connected_account_registry_entry_record
+      connected_account_registry_schema_version: 1
+      entry_id: registry_entry:internal-publisher:policy_injected:release_publish:42
+      connected_provider_record_ref: conn_prov:internal-publisher:policy_injected:42
+      provider_descriptor_ref: provider_descriptor:release_publisher:internal-publisher
+      display_label: "Defer release publish to admin-approval queue"
+      origin:
+        host_identity: shell.aureline.local
+        workspace_id: workspace:local:aureline-monorepo
+        execution_context_id: execution_context:release:publish.deferred
+      target:
+        provider_class: release_publisher_provider
+        canonical_host: release.aureline.internal
+        tenant_or_org_scope: aureline
+      actor_scope:
+        primary_actor_class: policy_injected_service_identity
+        additional_actor_classes: []
+        scope_summary: "Policy-injected release-publisher; deferred until admin approves."
+      freshness:
+        freshness_class: fresh
+        last_observed_at: "2026-05-11T07:20:00Z"
+        freshness_horizon_seconds: 1200
+      registry_entry_status: live_observed
+      mutation_disposition_class: publish_later_required
+      browser_handoff_routing_summary_ref: ""
+      publish_later_object_seed_refs:
+        - publish_later_seed:internal-publisher:policy_injected:release_publish:42:deferred
+      trust_posture: trusted
+      minted_at: "2026-05-11T07:35:04Z"
+      redaction_class: metadata_safe_default
+    publish_later_seeds:
+      - entry_kind: publish_later_object_seed_record
+        connected_account_registry_schema_version: 1
+        seed_id: publish_later_seed:internal-publisher:policy_injected:release_publish:42:deferred
+        publish_later_object_class: deferred_publish_in_queue
+        connected_account_registry_entry_ref: registry_entry:internal-publisher:policy_injected:release_publish:42
+        target_object_class: release_artifact
+        target_object_provider_side_id: release:internal-publisher:aureline:42
+        mutation_disposition_class: publish_later_required
+        expected_authority_on_publish: policy_injected_service_identity
+        publish_later_queue_item_ref: queue_item:internal-publisher:release_publish:42:deferred
+        freshness:
+          freshness_class: fresh
+          last_observed_at: "2026-05-11T07:20:00Z"
+          freshness_horizon_seconds: 1200
+        redaction_class: metadata_safe_default
+    packet_seed: null
+    expected_coverage:
+      mutation_disposition_class: publish_later_required
+      actor_class: policy_injected_service_identity
+    failure_drill:
+      drill_id: policy_injected_drill.publish_later_queue_item_missing
+      expected_check_id: connected_provider_seed.publish_later_queue_item_required
+      forced_input:
+        clear_publish_later_queue_item_ref: true
+      next_action: "Re-seed the publish_later_queue_item_ref or change the seed's publish_later_object_class."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 6. Unknown actor class — repair-only, never_observed, seeded entry only.
+  - row_id: provider_entry:unknown_actor_class_repair_required
+    descriptor:
+      entry_kind: provider_descriptor_record
+      connected_account_registry_schema_version: 1
+      descriptor_id: provider_descriptor:repair_only:unknown_actor
+      provider_class: identity_or_enterprise_provider
+      canonical_host: unknown.local
+      tenant_or_org_scope: ""
+      display_label: "Repair-only descriptor for unknown actor entries"
+      supported_actor_classes:
+        - unknown_actor_class
+      supported_capabilities:
+        - supports_inspect_only
+      default_mutation_disposition_class: inspect_only_no_mutation
+      freshness_horizon_seconds: 0
+      descriptor_owner_summary: "Repair-only; routes to actor-resolution flow."
+      redaction_class: metadata_safe_default
+    entry:
+      entry_kind: connected_account_registry_entry_record
+      connected_account_registry_schema_version: 1
+      entry_id: registry_entry:repair_only:unknown_actor:pending_observation
+      connected_provider_record_ref: conn_prov:repair_only:unknown_actor
+      provider_descriptor_ref: provider_descriptor:repair_only:unknown_actor
+      display_label: "Unknown actor — repair required"
+      origin:
+        host_identity: shell.aureline.local
+        workspace_id: workspace:local:aureline-monorepo
+        execution_context_id: execution_context:auth:repair
+      target:
+        provider_class: identity_or_enterprise_provider
+        canonical_host: unknown.local
+        tenant_or_org_scope: ""
+      actor_scope:
+        primary_actor_class: unknown_actor_class
+        additional_actor_classes: []
+        scope_summary: "Actor class cannot be resolved; routes to repair."
+      freshness:
+        freshness_class: never_observed
+        freshness_horizon_seconds: 0
+      registry_entry_status: seeded
+      mutation_disposition_class: inspect_only_no_mutation
+      browser_handoff_routing_summary_ref: ""
+      publish_later_object_seed_refs: []
+      trust_posture: restricted
+      minted_at: "2026-05-11T07:35:05Z"
+      redaction_class: metadata_safe_default
+    publish_later_seeds: []
+    packet_seed: null
+    expected_coverage:
+      mutation_disposition_class: inspect_only_no_mutation
+      actor_class: unknown_actor_class
+    failure_drill:
+      drill_id: unknown_actor_drill.live_observed_under_unknown_actor
+      expected_check_id: connected_provider_seed.live_observed_must_not_carry_unknown_actor
+      forced_input:
+        rewrite_registry_entry_status: live_observed
+      next_action: "Keep registry_entry_status as seeded/unobserved_pending until the actor class is resolved."
+      actionable_owner_ref: "@ahmeddyounis"

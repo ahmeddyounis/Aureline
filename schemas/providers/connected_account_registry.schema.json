@@ -1,0 +1,609 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/connected_account_registry.schema.json",
+  "title": "Aureline connected-account registry seed: registry entry, provider descriptor, and publish-later object-seed vocabulary",
+  "description": "Seed-level boundary schema for the connected-account / provider registry the early entry-path surfaces read. One registry entry binds a connected-provider record, a provider descriptor, the registry-side origin and target identity, the actor-scope class, the freshness window, and the publish-later object seeds the entry can mint. The schema is intentionally a thin seed that composes with — and never forks — the canonical record set in /schemas/providers/connected_account_record.schema.json, /schemas/providers/publish_later_record.schema.json, and /schemas/integration/browser_handoff_packet.schema.json. It exists so the early provider-linked entry paths can render origin, target, actor scope, freshness, and publish-later object identity through one typed shape rather than re-inventing per-surface badges. Three entry kinds are exported: connected_account_registry_entry_record (one row in the registry), provider_descriptor_record (the descriptor a registry entry points at, separate from the diagnostic connected_provider_record), and publish_later_object_seed_record (an explicitly distinguishable publish-later or immediate-mutation seed the entry mints). Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, and raw provider payloads never cross this boundary; entries carry opaque refs and structured fields only. Adding a new mutation_disposition_class, freshness_class, publish_later_object_class, registry_entry_status, or provider_capability_class is additive-minor and requires a connected_account_registry_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/connected_account_registry_entry_record" },
+    { "$ref": "#/$defs/provider_descriptor_record" },
+    { "$ref": "#/$defs/publish_later_object_seed_record" }
+  ],
+  "$defs": {
+    "connected_account_registry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this connected-account-registry seed export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "entry_kind": {
+      "type": "string",
+      "enum": [
+        "connected_account_registry_entry_record",
+        "provider_descriptor_record",
+        "publish_later_object_seed_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on desktop, CLI, notifications, provider-linked headers, docs/help, support exports, and audit rollups. Raw URLs, raw tokens, raw callback bodies, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Frozen provider-actor class vocabulary reused verbatim from /schemas/integration/browser_handoff_packet.schema.json. A generic 'Connected' state is forbidden on every product, CLI, notification, provider-linked header, docs/help, support-export, queue-review, and audit surface; 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "review_or_code_host",
+        "issue_or_planning_tracker",
+        "ci_or_check_provider",
+        "docs_or_portal_provider",
+        "identity_or_enterprise_provider",
+        "callback_or_event_provider",
+        "ai_provider",
+        "package_registry_provider",
+        "release_publisher_provider",
+        "managed_admin_provider"
+      ],
+      "description": "Frozen provider-class vocabulary reused verbatim from /schemas/integration/browser_handoff_packet.schema.json."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the registry entry was observed under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 and ADR-0010 redaction posture. Raw tokens, raw URLs, raw callback bodies, raw delegated-token bodies, and raw provider payloads never cross this boundary regardless of class."
+    },
+
+    "mutation_disposition_class": {
+      "type": "string",
+      "enum": [
+        "immediate_mutation_in_product",
+        "browser_handoff_required",
+        "publish_later_required",
+        "inspect_only_no_mutation"
+      ],
+      "description": "Frozen disposition class the registry entry assigns to an attempted action. The disposition is rendered at the point of intent on every provider-linked entry path; publish_later_required and immediate_mutation_in_product MUST NOT collapse into one control. publish_later_required and browser_handoff_required entries MUST cite a publish_later_object_seed_record so the deferred object identity is explicit; inspect_only_no_mutation entries MUST NOT cite one."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "never_observed",
+        "fresh",
+        "stale_within_window",
+        "expired_beyond_window"
+      ],
+      "description": "Frozen freshness class the registry entry renders. never_observed means the registry has not yet observed the underlying connected provider; expired_beyond_window means the freshness horizon has elapsed and the entry MUST route to a re-observe path rather than claim a current state."
+    },
+
+    "registry_entry_status": {
+      "type": "string",
+      "enum": [
+        "seeded",
+        "live_observed",
+        "degraded_observed",
+        "unobserved_pending",
+        "revoked_or_disconnected"
+      ],
+      "description": "Frozen status class for the registry entry itself. seeded entries exist only to anchor future observation; live_observed entries have at least one healthy observation; degraded_observed entries name a non-healthy observation and route to repair; unobserved_pending entries are awaiting their first observation; revoked_or_disconnected entries route to reconnect or disconnect paths."
+    },
+
+    "publish_later_object_class": {
+      "type": "string",
+      "enum": [
+        "local_draft_only",
+        "queued_publish_pending",
+        "browser_handoff_pending",
+        "deferred_publish_in_queue",
+        "imported_read_only_snapshot"
+      ],
+      "description": "Frozen seed-level publish-later object class. local_draft_only is reversible-by-default; queued_publish_pending and deferred_publish_in_queue are publish-later objects awaiting drain; browser_handoff_pending names an object whose mutation will be completed in the system browser; imported_read_only_snapshot is inspect-only. Surfaces MUST render exactly one class; inventing a per-surface class is forbidden."
+    },
+
+    "provider_capability_class": {
+      "type": "string",
+      "enum": [
+        "supports_immediate_mutation",
+        "supports_browser_handoff",
+        "supports_publish_later",
+        "supports_inspect_only",
+        "supports_account_switch",
+        "supports_step_up_authenticator"
+      ],
+      "description": "Frozen descriptor capability class. A provider descriptor names the set of capabilities its registry entries may legitimately request. Entries MUST NOT request a disposition the descriptor does not declare; the request is refused at registry mint."
+    },
+
+    "object_class": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "issue_or_work_item",
+        "check_run",
+        "release_artifact",
+        "docs_page",
+        "audit_entry",
+        "admin_surface",
+        "consent_flow",
+        "package_version",
+        "registry_entry",
+        "principal_subject",
+        "install_target",
+        "tenant_or_org",
+        "other"
+      ],
+      "description": "Provider-side object class the publish-later seed targets. Aligned with the connected_account_record and publish_later_record object_class vocabularies so seeds, sub-records, and queue rows project onto the same axis."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "execution_context_id"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the registry entry was minted under. Mirrors the ADR-0009 origin shape; raw provider URLs and raw tokens never appear here."
+    },
+
+    "target_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "canonical_host"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Canonical host the registry entry targets. Self-hosted and mirrored deployments substitute the host without changing the local object vocabulary."
+        },
+        "tenant_or_org_scope": {
+          "type": "string",
+          "description": "Tenant / org / project scope the target is bound under. Empty string only when the provider class is genuinely tenantless."
+        }
+      },
+      "description": "Canonical provider-side target the registry entry routes to. Raw URLs are forbidden; canonical_host plus tenant_or_org_scope are the only identifiers the registry surfaces."
+    },
+
+    "actor_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_actor_class"
+      ],
+      "properties": {
+        "primary_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "additional_actor_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_actor_class" },
+          "description": "Additional actor classes the registry entry recognizes when more than one is live (for example, a human account plus a project-scoped grant on the same provider)."
+        },
+        "scope_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence naming what the actor is allowed to do under this scope on this entry. Surfaces MUST render this rather than a generic 'connected' label."
+        }
+      },
+      "description": "Actor scope the registry entry is acting under. primary_actor_class MUST NOT be unknown_actor_class on a live_observed entry; an unknown actor MUST be rendered as a repair-only entry instead."
+    },
+
+    "freshness_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "last_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Most recent observation timestamp. Required when freshness_class is fresh, stale_within_window, or expired_beyond_window; omitted only when freshness_class is never_observed."
+        },
+        "freshness_horizon_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Window after which a fresh observation is downgraded to stale_within_window. 0 is allowed only when freshness_class is never_observed."
+        }
+      },
+      "description": "Freshness window the registry entry was observed under. Surfaces MUST render the freshness class verbatim; never_observed entries MUST NOT claim a healthy observation."
+    },
+
+    "connected_account_registry_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_kind",
+        "connected_account_registry_schema_version",
+        "entry_id",
+        "connected_provider_record_ref",
+        "provider_descriptor_ref",
+        "display_label",
+        "origin",
+        "target",
+        "actor_scope",
+        "freshness",
+        "registry_entry_status",
+        "mutation_disposition_class",
+        "publish_later_object_seed_refs",
+        "trust_posture",
+        "minted_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "entry_kind": { "const": "connected_account_registry_entry_record" },
+        "connected_account_registry_schema_version": {
+          "$ref": "#/$defs/connected_account_registry_schema_version"
+        },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the connected_provider_record exported by /schemas/integration/browser_handoff_packet.schema.json. The registry entry composes with that record; it does not redefine it."
+        },
+        "provider_descriptor_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the provider_descriptor_record this entry points at. Required so the entry's mutation_disposition_class can be checked against the descriptor's declared capabilities."
+        },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "origin": { "$ref": "#/$defs/origin_disclosure" },
+        "target": { "$ref": "#/$defs/target_disclosure" },
+        "actor_scope": { "$ref": "#/$defs/actor_scope" },
+        "freshness": { "$ref": "#/$defs/freshness_window" },
+        "registry_entry_status": { "$ref": "#/$defs/registry_entry_status" },
+        "mutation_disposition_class": {
+          "$ref": "#/$defs/mutation_disposition_class"
+        },
+        "browser_handoff_routing_summary_ref": {
+          "type": "string",
+          "description": "Opaque ref to a provider-side browser-handoff packet (provider_entry_browser_handoff_packet_record from /schemas/providers/browser_handoff_packet.schema.json) when the disposition requires one. Empty string when mutation_disposition_class is immediate_mutation_in_product or inspect_only_no_mutation."
+        },
+        "publish_later_object_seed_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to publish_later_object_seed_record entries this registry entry can mint. publish_later_required and browser_handoff_required entries MUST list at least one ref; inspect_only_no_mutation entries MUST list none."
+        },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "publish_later_required and browser_handoff_required dispositions MUST list at least one publish_later_object_seed_ref.",
+          "if": {
+            "properties": {
+              "mutation_disposition_class": {
+                "enum": ["publish_later_required", "browser_handoff_required"]
+              }
+            },
+            "required": ["mutation_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_later_object_seed_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "description": "inspect_only_no_mutation entries MUST NOT list publish_later_object_seed_refs.",
+          "if": {
+            "properties": {
+              "mutation_disposition_class": {
+                "const": "inspect_only_no_mutation"
+              }
+            },
+            "required": ["mutation_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_later_object_seed_refs": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "live_observed entries MUST NOT claim primary_actor_class unknown_actor_class.",
+          "if": {
+            "properties": {
+              "registry_entry_status": { "const": "live_observed" }
+            },
+            "required": ["registry_entry_status"]
+          },
+          "then": {
+            "properties": {
+              "actor_scope": {
+                "properties": {
+                  "primary_actor_class": {
+                    "not": { "const": "unknown_actor_class" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "browser_handoff_required dispositions MUST cite a browser_handoff_routing_summary_ref.",
+          "if": {
+            "properties": {
+              "mutation_disposition_class": {
+                "const": "browser_handoff_required"
+              }
+            },
+            "required": ["mutation_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_routing_summary_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["browser_handoff_routing_summary_ref"]
+          }
+        },
+        {
+          "description": "never_observed entries MUST carry registry_entry_status unobserved_pending or seeded.",
+          "if": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "freshness_class": { "const": "never_observed" }
+                },
+                "required": ["freshness_class"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": {
+            "properties": {
+              "registry_entry_status": {
+                "enum": ["seeded", "unobserved_pending"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One row in the connected-account / provider registry. Names the connected_provider_record the entry runs against, the provider_descriptor it points at, its origin and target, the actor-scope it is acting under, its freshness window, its declared mutation disposition, and the publish-later object seeds it can mint. The entry composes with the canonical sub-records exported by /schemas/providers/connected_account_record.schema.json and /schemas/providers/publish_later_record.schema.json; it does not redefine them."
+    },
+
+    "provider_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_kind",
+        "connected_account_registry_schema_version",
+        "descriptor_id",
+        "provider_class",
+        "canonical_host",
+        "display_label",
+        "supported_actor_classes",
+        "supported_capabilities",
+        "default_mutation_disposition_class",
+        "freshness_horizon_seconds",
+        "descriptor_owner_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "entry_kind": { "const": "provider_descriptor_record" },
+        "connected_account_registry_schema_version": {
+          "$ref": "#/$defs/connected_account_registry_schema_version"
+        },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": {
+          "type": "string",
+          "description": "Tenant / org / project scope the descriptor is bound under. Empty string only when the provider class is genuinely tenantless."
+        },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "supported_actor_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_actor_class" },
+          "description": "Set of actor classes this descriptor admits. A registry entry whose actor_scope.primary_actor_class is not in this set is refused at mint."
+        },
+        "supported_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_capability_class" },
+          "description": "Set of capabilities this descriptor declares. The registry entry's mutation_disposition_class MUST resolve against this set; for example, publish_later_required requires supports_publish_later."
+        },
+        "default_mutation_disposition_class": {
+          "$ref": "#/$defs/mutation_disposition_class",
+          "description": "Disposition the descriptor presents when an entry has not yet selected one. MUST resolve against supported_capabilities."
+        },
+        "freshness_horizon_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Window after which a fresh observation against this descriptor is downgraded to stale_within_window."
+        },
+        "descriptor_owner_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence naming who owns the descriptor (user, org-managed, tenant-managed, policy-injector-managed). Used by docs/help and support exports so 'who owns this' never collapses into a generic 'Connected' state."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "Descriptor for one provider the registry recognizes. Separate from the diagnostic connected_provider_record so that the seed can describe a provider without yet observing one (for example, in docs/help corpora or onboarding rows)."
+    },
+
+    "publish_later_object_seed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_kind",
+        "connected_account_registry_schema_version",
+        "seed_id",
+        "publish_later_object_class",
+        "connected_account_registry_entry_ref",
+        "target_object_class",
+        "target_object_provider_side_id",
+        "mutation_disposition_class",
+        "expected_authority_on_publish",
+        "freshness",
+        "redaction_class"
+      ],
+      "properties": {
+        "entry_kind": { "const": "publish_later_object_seed_record" },
+        "connected_account_registry_schema_version": {
+          "$ref": "#/$defs/connected_account_registry_schema_version"
+        },
+        "seed_id": { "$ref": "#/$defs/opaque_id" },
+        "publish_later_object_class": {
+          "$ref": "#/$defs/publish_later_object_class"
+        },
+        "connected_account_registry_entry_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "target_object_class": { "$ref": "#/$defs/object_class" },
+        "target_object_provider_side_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "mutation_disposition_class": {
+          "$ref": "#/$defs/mutation_disposition_class"
+        },
+        "expected_authority_on_publish": {
+          "$ref": "#/$defs/provider_actor_class"
+        },
+        "publish_later_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish_later_queue_item_record in /schemas/providers/publish_later_record.schema.json when one exists. Required when publish_later_object_class is queued_publish_pending or deferred_publish_in_queue; empty string otherwise."
+        },
+        "freshness": { "$ref": "#/$defs/freshness_window" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "local_draft_only seeds MUST carry mutation_disposition_class immediate_mutation_in_product or inspect_only_no_mutation; they MUST NOT be marked as browser_handoff_required.",
+          "if": {
+            "properties": {
+              "publish_later_object_class": { "const": "local_draft_only" }
+            },
+            "required": ["publish_later_object_class"]
+          },
+          "then": {
+            "properties": {
+              "mutation_disposition_class": {
+                "enum": [
+                  "immediate_mutation_in_product",
+                  "inspect_only_no_mutation"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_read_only_snapshot seeds MUST carry mutation_disposition_class inspect_only_no_mutation.",
+          "if": {
+            "properties": {
+              "publish_later_object_class": {
+                "const": "imported_read_only_snapshot"
+              }
+            },
+            "required": ["publish_later_object_class"]
+          },
+          "then": {
+            "properties": {
+              "mutation_disposition_class": {
+                "const": "inspect_only_no_mutation"
+              }
+            }
+          }
+        },
+        {
+          "description": "queued_publish_pending and deferred_publish_in_queue seeds MUST cite a publish_later_queue_item_ref.",
+          "if": {
+            "properties": {
+              "publish_later_object_class": {
+                "enum": [
+                  "queued_publish_pending",
+                  "deferred_publish_in_queue"
+                ]
+              }
+            },
+            "required": ["publish_later_object_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_later_queue_item_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["publish_later_queue_item_ref"]
+          }
+        },
+        {
+          "description": "browser_handoff_pending seeds MUST carry mutation_disposition_class browser_handoff_required.",
+          "if": {
+            "properties": {
+              "publish_later_object_class": {
+                "const": "browser_handoff_pending"
+              }
+            },
+            "required": ["publish_later_object_class"]
+          },
+          "then": {
+            "properties": {
+              "mutation_disposition_class": {
+                "const": "browser_handoff_required"
+              }
+            }
+          }
+        }
+      ],
+      "description": "Explicitly distinguishable publish-later or immediate-mutation seed minted by a registry entry. Surfaces MUST render the publish_later_object_class verbatim; a publish-later object MUST NOT collapse into an immediate-mutation control on any provider-linked surface."
+    }
+  }
+}
