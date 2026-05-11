@@ -12,6 +12,9 @@ pub(crate) mod a11y;
 /// notification envelope plus a per-lifecycle observation, with file-backed
 /// persistence so completed and failed rows survive a process restart.
 pub mod activity_center;
+/// AI composer / context-inspector projection over the bounded
+/// [`aureline_ai`] composer seed. Read-only for mutation; no model dispatch.
+pub mod ai_context_inspector;
 pub mod app_frame;
 /// Shared badge projections (target/origin chips, boundary cues) consumed by
 /// terminal, task, debug-prep, and provider/auth entry points.
