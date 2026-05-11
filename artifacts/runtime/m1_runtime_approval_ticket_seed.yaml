@@ -1,0 +1,412 @@
+# Runtime approval-ticket seed (M1 authority model for local mutation,
+# external mutation, credential projection, and privileged attach).
+#
+# Machine-readable register of typed approval-ticket profile rows.
+# The seed exists so target identity, scope, expiry, actor lineage,
+# policy epoch, and revocation posture are first-class across:
+#   - the shell prompt that mints local-mutation / privileged-attach
+#     tickets,
+#   - the policy service that mints credential-projection tickets,
+#   - the supervisor that admits provider-plane approval tickets
+#     under external-mutation tickets,
+#   - the mutation-journal renderer,
+#   - the support-bundle exporter, and
+#   - any later admin or runtime-authority service (M1: not built;
+#     only the contract).
+#
+# Reviewer-facing landing page:
+#   docs/runtime/m1_authority_model.md
+#
+# Upstream sources the seed projects against (canonical contracts):
+#   docs/governance/runtime_authority_contract.md
+#   schemas/governance/authority_ticket.schema.json
+#   schemas/integration/approval_ticket.schema.json
+#
+# Row schema:
+#   schemas/runtime/approval_ticket.schema.json
+#
+# Envelope schema:
+#   schemas/runtime/m1_runtime_approval_ticket_seed.schema.json
+#
+# Conformance:
+#   - Every example_payload_ref resolves on disk and validates against
+#     the row schema.
+#   - approval_ticket_profile_id is unique. Adding a row is
+#     additive-minor. Removing a row is breaking; narrow by editing
+#     the row, not by deletion.
+#   - Every row MUST declare exactly one authority_class drawn from
+#     the closed M1 set (local_mutation, external_mutation,
+#     credential_projection, privileged_attach). The union of the
+#     seed's rows MUST cover all four.
+#   - external_mutation rows MUST carry at least one inner
+#     provider-plane approval_ticket ref on the underlying example
+#     payload.
+#   - credential_projection rows MUST carry a non-empty
+#     projection_mode_ref on the underlying example payload.
+#   - privileged_attach rows MUST carry step_up_required_flag = true
+#     and a non-empty attach_target_ref on the underlying example
+#     payload.
+#   - Milestone slugs and task ids MUST NOT appear in any id, ref,
+#     label, or note field. Describe what the profile is, not which
+#     planning item it came from.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_runtime_approval_ticket_seed
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/runtime/m1_authority_model.md
+upstream_authority_contract_ref: docs/governance/runtime_authority_contract.md
+upstream_integration_approval_ticket_schema_ref: schemas/integration/approval_ticket.schema.json
+
+row_schema_ref: schemas/runtime/approval_ticket.schema.json
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies. Closed; agreement with the row schema $defs is
+# asserted by the validation lane.
+# ---------------------------------------------------------------------------
+
+authority_class_vocabulary:
+  - local_mutation
+  - external_mutation
+  - credential_projection
+  - privileged_attach
+
+side_effect_class_vocabulary:
+  - local_reversible_edit
+  - local_destructive_edit
+  - external_reversible_comment
+  - external_irreversible_publish
+  - credential_handle_projection
+  - privileged_inspection_attach
+
+issuer_class_vocabulary:
+  - shell
+  - policy_service
+  - supervisor
+
+request_origin_class_vocabulary:
+  - user_shell_prompt
+  - policy_decision
+  - supervisor_control_path
+  - ai_conversation_request
+  - extension_request
+  - recipe_request
+  - cli_script_request
+  - browser_helper_request
+  - remote_helper_request
+  - automation_scheduler_request
+
+actor_class_vocabulary:
+  - human_account
+  - installation_or_app_grant
+  - delegated_user_token
+  - project_scoped_grant
+  - policy_injected_service_identity
+  - unknown_actor_class
+
+use_posture_class_vocabulary:
+  - single_use
+  - bounded_reuse
+  - session_scoped
+
+revocation_posture_class_vocabulary:
+  - pending_issue
+  - live_unrevoked
+  - expired
+  - revoked_by_user
+  - revoked_by_admin
+  - revoked_by_drift
+  - revoked_by_rotation
+  - revoked_by_emergency_action
+  - lineage_broken
+
+redaction_class_vocabulary:
+  - metadata_safe_default
+  - operator_only_restricted
+  - internal_support_restricted
+  - signing_evidence_only
+
+high_risk_flag_vocabulary:
+  - irreversible_external_effect
+  - publishes_release_artifact
+  - grants_admin_authority
+  - widens_egress_posture
+  - reveals_secret_material
+  - mutates_shared_infrastructure
+  - destructive_local_action
+  - cross_tenant_effect
+  - widens_capability_surface
+  - rotates_trust_root
+  - attaches_privileged_debugger
+
+denial_reason_vocabulary:
+  - authority_ticket_missing
+  - authority_ticket_expired
+  - authority_ticket_revoked
+  - authority_ticket_invalidated
+  - authority_ticket_step_up_required
+  - authority_ticket_widening_forbidden
+  - authority_ticket_lineage_broken
+  - high_risk_gating_missing
+  - ai_initiated_mutation_without_ticket
+  - extension_request_without_ticket
+  - recipe_request_without_ticket
+  - cli_script_request_without_ticket
+  - remote_helper_mutation_without_ticket
+  - browser_helper_request_without_ticket
+  - automation_admission_missing
+  - unknown_actor_class
+  - denied_scope_missing
+  - denied_policy_bundle
+  - denied_workspace_trust
+  - denied_target_drift
+  - denied_trust_drift
+  - denied_policy_epoch_drift
+  - denied_provider_scope_drift
+  - denied_sandbox_profile_drift
+  - denied_freshness_floor
+  - denied_step_up_required
+  - denied_unreachable
+  - denied_issuer_class_forbidden
+  - denied_origin_class_forbidden
+  - denied_side_effect_out_of_class
+
+invalidation_reason_vocabulary:
+  - target_identity_drift
+  - workspace_trust_drift
+  - policy_epoch_drift
+  - provider_scope_drift
+  - sandbox_profile_drift
+  - capability_envelope_drift
+  - actor_class_changed
+  - rotation
+  - admin_revoke
+  - user_revoke
+  - emergency_action_override
+  - ticket_lineage_broken
+
+audit_event_id_vocabulary:
+  - authority_ticket_issued
+  - authority_ticket_spent
+  - authority_ticket_denied
+  - authority_ticket_expired
+  - authority_ticket_revoked
+  - authority_ticket_invalidated
+  - authority_ticket_step_up_required
+  - authority_ticket_rolled_back
+
+failure_drill_id_vocabulary:
+  - runtime_approval_ticket_drill.local_destructive_preview_ref_dropped
+  - runtime_approval_ticket_drill.external_mutation_inner_provider_ticket_dropped
+  - runtime_approval_ticket_drill.credential_projection_projection_mode_ref_dropped
+  - runtime_approval_ticket_drill.privileged_attach_step_up_required_flag_dropped
+  - runtime_approval_ticket_drill.extension_request_missing_requesting_surface_ref
+
+# ---------------------------------------------------------------------------
+# Required coverage. Every member MUST appear at least once across the
+# rows below.
+# ---------------------------------------------------------------------------
+
+required_authority_class_coverage:
+  - local_mutation
+  - external_mutation
+  - credential_projection
+  - privileged_attach
+
+required_side_effect_class_coverage:
+  - local_destructive_edit
+  - external_irreversible_publish
+  - credential_handle_projection
+  - privileged_inspection_attach
+
+required_request_origin_class_coverage:
+  - user_shell_prompt
+  - policy_decision
+
+required_revocation_posture_class_coverage:
+  - live_unrevoked
+
+# ---------------------------------------------------------------------------
+# Named live consumers. The validation lane resolves consumer_ref on
+# disk and asserts consumed_fields is non-empty.
+# ---------------------------------------------------------------------------
+
+named_runtime_consumers:
+  - consumer_id: m1_authority_model_landing_page
+    consumer_class: review_docs_landing_page
+    consumer_ref: docs/runtime/m1_authority_model.md
+    consumed_fields:
+      - authority_class
+      - side_effect_class
+      - issuer_class
+      - request_origin_class
+      - use_posture
+      - revocation_posture
+      - inner_provider_approval_ticket_refs
+      - projection_mode_ref
+      - attach_target_ref
+      - preview_ref
+      - rollback_checkpoint_ref
+    notes: |
+      Reviewer-facing landing page. Quotes the seeded approval-ticket
+      profile rows verbatim so the shell, the policy service, the
+      supervisor, the mutation-journal renderer, and the
+      support-bundle exporter all read the same authority vocabulary.
+
+  - consumer_id: runtime_authority_contract_upstream
+    consumer_class: docs_or_help_surface
+    consumer_ref: docs/governance/runtime_authority_contract.md
+    consumed_fields:
+      - authority_class
+      - side_effect_class
+      - issuer_class
+      - request_origin_class
+      - revocation_posture_class
+    notes: |
+      Upstream governance authority-ticket contract. The runtime seed
+      projects against it without forking the closed vocabularies.
+
+  - consumer_id: runtime_approval_ticket_seed_validation_lane
+    consumer_class: ci_schema_validator
+    consumer_ref: tests/governance/m1_runtime_approval_ticket_seed_lane/run_m1_runtime_approval_ticket_seed_lane.py
+    consumed_fields:
+      - authority_class
+      - side_effect_class
+      - issuer_class
+      - request_origin_class
+      - use_posture
+      - revocation_posture_class
+      - example_payload_ref
+      - failure_drill
+    notes: |
+      Live CI/review consumer. Replays the seed against the envelope
+      schema, the row schema, the upstream contract, and the example
+      fixtures; reproduces every named failure drill loudly under
+      --force-drill.
+
+# ---------------------------------------------------------------------------
+# Approval-ticket profile rows. Every row pins the typed scenario,
+# names its example payload, and declares its named failure drill.
+# ---------------------------------------------------------------------------
+
+entries:
+  - approval_ticket_profile_id: local_mutation.project_wide_destructive_edit
+    authority_class: local_mutation
+    side_effect_class: local_destructive_edit
+    issuer_class: shell
+    request_origin_class: user_shell_prompt
+    use_posture: single_use
+    revocation_posture_class: live_unrevoked
+    example_payload_ref: fixtures/runtime/approval_ticket_examples/local_mutation_destructive.json
+    owner_dri: "@ahmeddyounis"
+    notes: |
+      User triggers a project-wide rename/replace. Single-use,
+      preview-pinned, rollback-checkpoint-pinned. Forbids
+      session_scoped use_posture.
+    failure_drill:
+      drill_id: runtime_approval_ticket_drill.local_destructive_preview_ref_dropped
+      forced_input:
+        clear_preview_ref: true
+      expected_check_id: runtime_approval_ticket.preview_ref_required_for_destructive_or_irreversible_side_effect
+      actionable_next_action: |
+        Restore preview_ref on the local destructive-edit ticket so
+        the user re-confirms the preview before the destructive
+        mutation is spendable.
+
+  - approval_ticket_profile_id: external_mutation.provider_review_comment_publish
+    authority_class: external_mutation
+    side_effect_class: external_irreversible_publish
+    issuer_class: shell
+    request_origin_class: user_shell_prompt
+    use_posture: single_use
+    revocation_posture_class: live_unrevoked
+    example_payload_ref: fixtures/runtime/approval_ticket_examples/external_mutation_provider_publish.json
+    owner_dri: "@ahmeddyounis"
+    notes: |
+      User publishes a review comment to a connected provider. The
+      shell admits the provider-plane approval ticket under this
+      runtime ticket and forbids rememberable_scope.
+    failure_drill:
+      drill_id: runtime_approval_ticket_drill.external_mutation_inner_provider_ticket_dropped
+      forced_input:
+        clear_inner_provider_approval_ticket_refs: true
+      expected_check_id: runtime_approval_ticket.inner_provider_approval_ticket_required_for_external_mutation
+      actionable_next_action: |
+        Restore at least one inner_provider_approval_ticket_refs entry
+        on the external-mutation ticket so the provider-plane
+        approval ticket is admitted under the runtime authority
+        ticket instead of riding on ambient credentials.
+
+  - approval_ticket_profile_id: credential_projection.build_sandbox_registry_read
+    authority_class: credential_projection
+    side_effect_class: credential_handle_projection
+    issuer_class: policy_service
+    request_origin_class: policy_decision
+    use_posture: bounded_reuse
+    revocation_posture_class: live_unrevoked
+    example_payload_ref: fixtures/runtime/approval_ticket_examples/credential_projection_build_sandbox.json
+    owner_dri: "@ahmeddyounis"
+    notes: |
+      Build task projects a private-registry credential handle into
+      the build sandbox. bounded_reuse with a counter caps the
+      projection.
+    failure_drill:
+      drill_id: runtime_approval_ticket_drill.credential_projection_projection_mode_ref_dropped
+      forced_input:
+        clear_projection_mode_ref: true
+      expected_check_id: runtime_approval_ticket.projection_mode_ref_required_for_credential_projection
+      actionable_next_action: |
+        Restore projection_mode_ref on the credential-projection
+        ticket so the projection mode is named, scoped, and auditable
+        instead of riding on a generic credential read.
+
+  - approval_ticket_profile_id: privileged_attach.local_language_server_debugger
+    authority_class: privileged_attach
+    side_effect_class: privileged_inspection_attach
+    issuer_class: shell
+    request_origin_class: user_shell_prompt
+    use_posture: session_scoped
+    revocation_posture_class: live_unrevoked
+    example_payload_ref: fixtures/runtime/approval_ticket_examples/privileged_attach_language_server.json
+    owner_dri: "@ahmeddyounis"
+    notes: |
+      Developer attaches a privileged debugger to a local language
+      server. step_up_required_flag = true forces a fresh
+      authenticator event before the attach is spendable.
+    failure_drill:
+      drill_id: runtime_approval_ticket_drill.privileged_attach_step_up_required_flag_dropped
+      forced_input:
+        rewrite_step_up_required_flag_to_false: true
+      expected_check_id: runtime_approval_ticket.step_up_required_flag_must_be_true_for_privileged_attach
+      actionable_next_action: |
+        Restore step_up_required_flag = true on the privileged-attach
+        ticket so a stale prompt cannot mint a debugger attach.
+
+  - approval_ticket_profile_id: local_mutation.extension_requested_apply
+    authority_class: local_mutation
+    side_effect_class: local_reversible_edit
+    issuer_class: shell
+    request_origin_class: extension_request
+    use_posture: single_use
+    revocation_posture_class: live_unrevoked
+    example_payload_ref: fixtures/runtime/approval_ticket_examples/local_mutation_extension_apply.json
+    owner_dri: "@ahmeddyounis"
+    notes: |
+      Extension requests a small local-reversible edit. The shell
+      mints the ticket and carries the requesting extension's id on
+      requesting_surface_ref so AI / extension / recipe / CLI / remote
+      helpers MAY NOT mint their own tickets.
+    failure_drill:
+      drill_id: runtime_approval_ticket_drill.extension_request_missing_requesting_surface_ref
+      forced_input:
+        clear_requesting_surface_ref: true
+      expected_check_id: runtime_approval_ticket.requesting_surface_ref_required_for_non_issuer_origin
+      actionable_next_action: |
+        Restore requesting_surface_ref on the ticket so the
+        extension's request lineage is named, scoped, and auditable
+        instead of riding under the shell with no requester.

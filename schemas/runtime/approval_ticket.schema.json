@@ -1,0 +1,598 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/approval_ticket.schema.json",
+  "title": "Aureline M1 runtime approval-ticket vocabulary",
+  "description": "Boundary schema for the runtime_approval_ticket_record used by every M1 mutating, credential-projecting, or privileged-attach surface to bind user intent, policy epoch, target identity, side-effect class, and revocation posture to a single typed authority object. This schema is the runtime-side projection of the governance authority-ticket contract in schemas/governance/authority_ticket.schema.json: vocabularies are kept in lock-step with that upstream contract, and the four M1 authority classes (local_mutation, external_mutation, credential_projection, privileged_attach) are a strict subset of the upstream six. External-provider mutations carry an inner provider-plane approval_ticket ref drawn from schemas/integration/approval_ticket.schema.json. The schema names which lanes MAY mint tickets (shell, policy service, supervisor) and which lanes MAY only request approval (AI conversation, extension, recipe, CLI script, browser helper, remote helper, automation scheduler); a request_origin_class that does not map to an issuer_class MUST carry a requesting_surface_ref. Raw secret bytes, raw URLs, raw delegated-token bodies, raw policy payloads, and raw evidence bodies never appear on a ticket body; opaque refs cross the boundary. Adding a new authority_class, side_effect_class, issuer_class, request_origin_class, use_posture, revocation_posture_class, denial_reason, invalidation_reason, high_risk_flag, or redaction_class is additive-minor and requires a runtime_approval_ticket_schema_version bump; repurposing an existing value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "runtime_approval_ticket_schema_version",
+    "approval_ticket_id",
+    "issuer_class",
+    "issuing_surface_ref",
+    "request_origin_class",
+    "actor_subject",
+    "actor_class",
+    "authority_class",
+    "side_effect_class",
+    "command_family_or_action_ref",
+    "workspace_or_workset_scope_ref",
+    "target_identity_ref",
+    "sandbox_profile_or_capability_hash",
+    "execution_context_id",
+    "policy_context",
+    "actor_lineage",
+    "issued_at",
+    "expires_at",
+    "use_posture",
+    "revocation_posture",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "runtime_approval_ticket_record",
+      "description": "Discriminator for the runtime approval-ticket boundary record."
+    },
+    "runtime_approval_ticket_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version pinned into every record so a replayed ticket is validated against the exact shape it was minted under."
+    },
+    "approval_ticket_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw secret material, raw URLs, and raw delegated-token bodies never appear here."
+    },
+    "issuer_class": { "$ref": "#/$defs/issuer_class" },
+    "issuing_surface_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where the ticket was issued from (shell prompt id, policy-decision id, supervisor path). Opaque reference; raw prompt bodies do not appear."
+    },
+    "request_origin_class": { "$ref": "#/$defs/request_origin_class" },
+    "requesting_surface_ref": {
+      "type": "string",
+      "description": "Opaque id of the requesting surface (AI conversation id, extension instance id, recipe id, CLI invocation id, browser-helper session id, remote-helper session id, automation-scheduler id). Required when request_origin_class is not one of user_shell_prompt, policy_decision, or supervisor_control_path."
+    },
+    "actor_subject": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Acting identity the ticket is spent as (user id, install id, delegated binding id, project-scoped grant id, or policy-injected service id). Raw secret material does not appear; this is an opaque subject id."
+    },
+    "actor_class": { "$ref": "#/$defs/actor_class" },
+    "authority_class": { "$ref": "#/$defs/authority_class" },
+    "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+    "original_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["human_summary", "machine_descriptor"],
+      "properties": {
+        "human_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible paragraph the user confirmed at approval time."
+        },
+        "machine_descriptor": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Machine-readable command / mutation / projection / attach descriptor. Authority-class-specific. MUST NOT contain raw secret bytes, raw URLs, raw delegated-token bodies, raw policy payloads, or raw evidence bodies; those cross the RPC boundary as opaque refs only."
+        }
+      }
+    },
+    "command_family_or_action_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable reference to the command family, provider action, credential-projection request, or privileged-attach target the ticket admits. A ticket admits the named action and nothing broader."
+    },
+    "workspace_or_workset_scope_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Workset / slice / workspace id the ticket applies inside."
+    },
+    "target_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Local target, connected-provider target, credential-handle subject, or privileged-attach target the ticket is bound to. Mismatch at spend time raises denied_target_drift."
+    },
+    "sandbox_profile_or_capability_hash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Capability envelope or sandbox profile the admitted action runs under. Mismatch at spend time raises denied_sandbox_profile_drift."
+    },
+    "projection_mode_ref": {
+      "type": "string",
+      "description": "Frozen credential-projection mode id. Required when authority_class is credential_projection; MUST be empty string otherwise."
+    },
+    "attach_target_ref": {
+      "type": "string",
+      "description": "Privileged-attach target id (process / debug session / inspection target). Required when authority_class is privileged_attach; MUST be empty string otherwise."
+    },
+    "inner_provider_approval_ticket_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Opaque refs to the inner provider-plane approval_ticket records this ticket admits. Required and non-empty when authority_class is external_mutation (the provider-plane approval ticket is admitted under this runtime ticket). Empty otherwise."
+    },
+    "execution_context_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Execution-context id the ticket runs inside."
+    },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "actor_lineage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Ordered list of predecessor ticket ids when the ticket derives its authority from another approval (e.g. a deferred publish drain inherits from the local-draft approval that queued it). May be empty when the ticket has no predecessor. A broken lineage (missing or revoked predecessor) MUST invalidate the ticket with authority_ticket_lineage_broken."
+    },
+    "issued_at": {
+      "$ref": "#/$defs/monotonic_timestamp",
+      "description": "Monotonic ISO 8601 UTC timestamp when the ticket was minted."
+    },
+    "expires_at": {
+      "$ref": "#/$defs/monotonic_timestamp",
+      "description": "Monotonic ISO 8601 UTC timestamp after which the ticket is unspendable. expires_at MUST be strictly later than issued_at."
+    },
+    "use_posture": { "$ref": "#/$defs/use_posture" },
+    "bounded_reuse_counter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["used_count", "max_uses", "window_expires_at"],
+      "properties": {
+        "used_count": { "type": "integer", "minimum": 0 },
+        "max_uses": { "type": "integer", "minimum": 1 },
+        "window_expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Bounded-reuse counter. Present only when use_posture is bounded_reuse."
+    },
+    "revocation_posture": { "$ref": "#/$defs/revocation_posture" },
+    "high_risk_flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/high_risk_flag" },
+      "description": "Set of high-risk flags on this ticket. Every flag has an approval-time AND a spend-time gating rule; a flag without its rule denies at issue with high_risk_gating_missing."
+    },
+    "step_up_required_flag": {
+      "type": "boolean",
+      "description": "When true, the ticket is not spendable until a fresh authenticator event clears it. MUST be true when authority_class is privileged_attach so a privileged debugger cannot ride a stale prompt."
+    },
+    "rollback_checkpoint_ref": {
+      "type": "string",
+      "description": "Optional rollback-checkpoint ref the ticket commits to restoring on denial or failure. Required when side_effect_class is local_destructive_edit or high_risk_flags contains destructive_local_action."
+    },
+    "preview_ref": {
+      "type": "string",
+      "description": "Optional preview-record id the user approved against. Required for side_effect_class in {local_destructive_edit, external_irreversible_publish}."
+    },
+    "denial_reason": {
+      "anyOf": [
+        { "$ref": "#/$defs/denial_reason" },
+        { "type": "string", "maxLength": 0 }
+      ],
+      "description": "Populated only when revocation_posture.posture_class is one of the denied/refused values; empty string for live or pending-issue tickets."
+    },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "audit_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audit_event_id", "issued_by_actor", "issued_at_monotonic"],
+      "properties": {
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "issued_by_actor": { "type": "string", "minLength": 1 },
+        "issued_at_monotonic": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Audit-stream metadata for the ticket. The ticket body MUST NOT be persisted in workspace files, profiles, sync exports, recipes, scaffolds, shell history, or support bundles; only opaque approval_ticket_id refs cross those surfaces."
+    }
+  },
+  "allOf": [
+    {
+      "description": "authority_class = local_mutation forces a local-edit side_effect_class and forbids cross-class fields.",
+      "if": {
+        "properties": { "authority_class": { "const": "local_mutation" } },
+        "required": ["authority_class"]
+      },
+      "then": {
+        "properties": {
+          "side_effect_class": {
+            "enum": ["local_reversible_edit", "local_destructive_edit"]
+          },
+          "projection_mode_ref": { "type": "string", "maxLength": 0 },
+          "attach_target_ref": { "type": "string", "maxLength": 0 },
+          "inner_provider_approval_ticket_refs": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "description": "authority_class = external_mutation forces an external-effect side_effect_class and requires at least one inner provider approval ticket.",
+      "if": {
+        "properties": { "authority_class": { "const": "external_mutation" } },
+        "required": ["authority_class"]
+      },
+      "then": {
+        "required": ["inner_provider_approval_ticket_refs"],
+        "properties": {
+          "side_effect_class": {
+            "enum": [
+              "external_reversible_comment",
+              "external_irreversible_publish"
+            ]
+          },
+          "inner_provider_approval_ticket_refs": { "minItems": 1 },
+          "projection_mode_ref": { "type": "string", "maxLength": 0 },
+          "attach_target_ref": { "type": "string", "maxLength": 0 }
+        }
+      }
+    },
+    {
+      "description": "authority_class = credential_projection forces credential_handle_projection side_effect_class and a non-empty projection_mode_ref.",
+      "if": {
+        "properties": {
+          "authority_class": { "const": "credential_projection" }
+        },
+        "required": ["authority_class"]
+      },
+      "then": {
+        "required": ["projection_mode_ref"],
+        "properties": {
+          "side_effect_class": { "const": "credential_handle_projection" },
+          "projection_mode_ref": { "type": "string", "minLength": 1 },
+          "attach_target_ref": { "type": "string", "maxLength": 0 },
+          "inner_provider_approval_ticket_refs": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "description": "authority_class = privileged_attach forces privileged_inspection_attach side_effect_class, a non-empty attach_target_ref, and step_up_required_flag = true.",
+      "if": {
+        "properties": {
+          "authority_class": { "const": "privileged_attach" }
+        },
+        "required": ["authority_class"]
+      },
+      "then": {
+        "required": ["attach_target_ref", "step_up_required_flag"],
+        "properties": {
+          "side_effect_class": { "const": "privileged_inspection_attach" },
+          "attach_target_ref": { "type": "string", "minLength": 1 },
+          "step_up_required_flag": { "const": true },
+          "projection_mode_ref": { "type": "string", "maxLength": 0 },
+          "inner_provider_approval_ticket_refs": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "description": "bounded_reuse_counter MUST be present when use_posture is bounded_reuse, and MUST be absent otherwise.",
+      "if": {
+        "properties": { "use_posture": { "const": "bounded_reuse" } },
+        "required": ["use_posture"]
+      },
+      "then": { "required": ["bounded_reuse_counter"] },
+      "else": {
+        "not": { "required": ["bounded_reuse_counter"] }
+      }
+    },
+    {
+      "description": "session_scoped use_posture is forbidden for the irreversible / destructive side-effect classes.",
+      "if": {
+        "properties": { "use_posture": { "const": "session_scoped" } },
+        "required": ["use_posture"]
+      },
+      "then": {
+        "properties": {
+          "side_effect_class": {
+            "not": {
+              "enum": [
+                "external_irreversible_publish",
+                "local_destructive_edit"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "preview_ref is required for local_destructive_edit and external_irreversible_publish.",
+      "if": {
+        "properties": {
+          "side_effect_class": {
+            "enum": [
+              "local_destructive_edit",
+              "external_irreversible_publish"
+            ]
+          }
+        },
+        "required": ["side_effect_class"]
+      },
+      "then": {
+        "required": ["preview_ref"],
+        "properties": {
+          "preview_ref": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "description": "rollback_checkpoint_ref is required when side_effect_class is local_destructive_edit.",
+      "if": {
+        "properties": {
+          "side_effect_class": { "const": "local_destructive_edit" }
+        },
+        "required": ["side_effect_class"]
+      },
+      "then": {
+        "required": ["rollback_checkpoint_ref"],
+        "properties": {
+          "rollback_checkpoint_ref": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "description": "request_origin_class outside the three issuer seats MUST carry a non-empty requesting_surface_ref.",
+      "if": {
+        "properties": {
+          "request_origin_class": {
+            "not": {
+              "enum": [
+                "user_shell_prompt",
+                "policy_decision",
+                "supervisor_control_path"
+              ]
+            }
+          }
+        },
+        "required": ["request_origin_class"]
+      },
+      "then": {
+        "required": ["requesting_surface_ref"],
+        "properties": {
+          "requesting_surface_ref": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "local_mutation",
+        "external_mutation",
+        "credential_projection",
+        "privileged_attach"
+      ],
+      "description": "M1 protected authority classes. local_mutation covers user-initiated, destructive or irreversible local edits (workspace write, rename, project-wide replace, apply AI edit, import profile). external_mutation covers provider-plane effects (publish, comment, merge, deferred publish drain); the inner provider approval ticket is carried on inner_provider_approval_ticket_refs. credential_projection covers projecting a credential handle into a build, terminal, tool invocation, or clipboard. privileged_attach covers debugger attach, privileged inspection, deep-capture, and privileged-snapshot access. These four are a strict subset of the upstream governance authority_ticket vocabulary; adding a fifth at the runtime boundary requires a coordinated schema bump."
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "credential_handle_projection",
+        "privileged_inspection_attach"
+      ],
+      "description": "Closed runtime side-effect classes. Every ticket declares exactly one; the spend path MUST refuse any effect outside the declared class."
+    },
+    "issuer_class": {
+      "type": "string",
+      "enum": [
+        "shell",
+        "policy_service",
+        "supervisor"
+      ],
+      "description": "Only the shell, the policy service, and the supervisor MAY mint runtime approval tickets. Any other issuer is forged and denied at spend. AI, extensions, recipes, CLI scripts, browser helpers, remote helpers, and automation schedulers MAY request approval through a shell prompt or policy decision but MAY NOT appear as issuer_class."
+    },
+    "request_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_shell_prompt",
+        "policy_decision",
+        "supervisor_control_path",
+        "ai_conversation_request",
+        "extension_request",
+        "recipe_request",
+        "cli_script_request",
+        "browser_helper_request",
+        "remote_helper_request",
+        "automation_scheduler_request"
+      ],
+      "description": "Frozen origin-of-request vocabulary. user_shell_prompt, policy_decision, and supervisor_control_path map directly to issuer_class. Any other origin requires a non-empty requesting_surface_ref, and the lane that mints the ticket MUST still be one of the three admissible issuers."
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class shared with the integration approval-ticket vocabulary. unknown_actor_class is repair-only; a surface that cannot resolve the actor routes to a repair hook rather than issuing a ticket under a generic Connected state."
+    },
+    "use_posture": {
+      "type": "string",
+      "enum": [
+        "single_use",
+        "bounded_reuse",
+        "session_scoped"
+      ],
+      "description": "single_use is the default. bounded_reuse requires an explicit counter and expiry. session_scoped is forbidden for external_irreversible_publish and local_destructive_edit; credential_projection of signing-class secrets and privileged_attach are expected to stay single_use or short bounded_reuse and never widen to session_scoped without an explicit decision row."
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "Workspace-trust state at issue."
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Policy epoch at issue. A ticket presented at a later policy epoch is re-evaluated; silent continued-use is forbidden."
+        },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "policy_bundle_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Policy bundles that contributed to the evaluation."
+        }
+      }
+    },
+    "revocation_posture_class": {
+      "type": "string",
+      "enum": [
+        "pending_issue",
+        "live_unrevoked",
+        "expired",
+        "revoked_by_user",
+        "revoked_by_admin",
+        "revoked_by_drift",
+        "revoked_by_rotation",
+        "revoked_by_emergency_action",
+        "lineage_broken"
+      ],
+      "description": "Closed revocation-posture vocabulary. Every ticket carries one; live_unrevoked is the only spendable posture. pending_issue is the brief window between mint and visibility on the audit stream; all other postures are terminal for the ticket."
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "target_identity_drift",
+        "workspace_trust_drift",
+        "policy_epoch_drift",
+        "provider_scope_drift",
+        "sandbox_profile_drift",
+        "capability_envelope_drift",
+        "actor_class_changed",
+        "rotation",
+        "admin_revoke",
+        "user_revoke",
+        "emergency_action_override",
+        "ticket_lineage_broken"
+      ],
+      "description": "Closed invalidation-reason vocabulary. target_identity_drift, workspace_trust_drift, policy_epoch_drift, provider_scope_drift, and sandbox_profile_drift are the five drift dimensions that MUST invalidate an in-flight ticket before spend; the surface MUST re-prompt rather than silently continue."
+    },
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "authority_ticket_missing",
+        "authority_ticket_expired",
+        "authority_ticket_revoked",
+        "authority_ticket_invalidated",
+        "authority_ticket_step_up_required",
+        "authority_ticket_widening_forbidden",
+        "authority_ticket_lineage_broken",
+        "high_risk_gating_missing",
+        "ai_initiated_mutation_without_ticket",
+        "extension_request_without_ticket",
+        "recipe_request_without_ticket",
+        "cli_script_request_without_ticket",
+        "remote_helper_mutation_without_ticket",
+        "browser_helper_request_without_ticket",
+        "automation_admission_missing",
+        "unknown_actor_class",
+        "denied_scope_missing",
+        "denied_policy_bundle",
+        "denied_workspace_trust",
+        "denied_target_drift",
+        "denied_trust_drift",
+        "denied_policy_epoch_drift",
+        "denied_provider_scope_drift",
+        "denied_sandbox_profile_drift",
+        "denied_freshness_floor",
+        "denied_step_up_required",
+        "denied_unreachable",
+        "denied_issuer_class_forbidden",
+        "denied_origin_class_forbidden",
+        "denied_side_effect_out_of_class"
+      ],
+      "description": "Frozen denial-reason set. Denials fail closed; they MUST NOT silently retry and MUST NOT downgrade the authority class or the declared side-effect class."
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "authority_ticket_issued",
+        "authority_ticket_spent",
+        "authority_ticket_denied",
+        "authority_ticket_expired",
+        "authority_ticket_revoked",
+        "authority_ticket_invalidated",
+        "authority_ticket_step_up_required",
+        "authority_ticket_rolled_back"
+      ],
+      "description": "Closed audit-event ids on the runtime approval-ticket side of the audit stream."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class used by logs, traces, support bundles, evidence packets, mutation-journal entries, replay captures, and clipboard projections."
+    },
+    "high_risk_flag": {
+      "type": "string",
+      "enum": [
+        "irreversible_external_effect",
+        "publishes_release_artifact",
+        "grants_admin_authority",
+        "widens_egress_posture",
+        "reveals_secret_material",
+        "mutates_shared_infrastructure",
+        "destructive_local_action",
+        "cross_tenant_effect",
+        "widens_capability_surface",
+        "rotates_trust_root",
+        "attaches_privileged_debugger"
+      ],
+      "description": "Closed high-risk flag vocabulary. Every flag has an approval-time AND a spend-time gating rule; a flag without its rule is denied at issue with high_risk_gating_missing."
+    },
+    "revocation_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture_class", "revoke_epoch"],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/revocation_posture_class" },
+        "revoke_epoch": {
+          "type": ["string", "null"],
+          "description": "Null while the ticket is live_unrevoked or pending_issue; populated with an opaque epoch id on revocation or invalidation. Paired with last_invalidation_reason on the revoked / invalidated postures."
+        },
+        "last_invalidation_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/invalidation_reason" },
+            { "type": "string", "maxLength": 0 }
+          ],
+          "description": "Frozen invalidation reason that drove the most recent posture transition. Empty string when posture_class is live_unrevoked or pending_issue."
+        },
+        "superseded_by_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to any replacement ticket the runtime minted in response to invalidation. Empty string when no replacement exists."
+        }
+      },
+      "description": "Revocation posture packet. Every ticket snapshots its posture at issue and every audit-event amendment refreshes it; consumers MUST treat any posture other than live_unrevoked as unspendable."
+    }
+  }
+}
