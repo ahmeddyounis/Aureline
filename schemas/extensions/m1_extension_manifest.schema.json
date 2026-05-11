@@ -1,0 +1,435 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/m1_extension_manifest.schema.json",
+  "title": "Aureline extension manifest, effective-permission, and publisher-identity baseline (first ecosystem-bearing lane)",
+  "description": "Versioned cross-tool boundary for the extension-manifest baseline, the effective-permission baseline summary, and the install / review decision record on the first ecosystem-bearing lane. The eventual extension-manifest crate's Rust types are the source of truth (see crates/aureline-extensions/src/manifest_baseline/); this schema is the typed boundary every non-owning surface (install / review docs, support exports, runtime truth badges, CI / schema validation) reads. Adding a new member to any enumerated set, or an additive optional field, is additive-minor with an extension_manifest_baseline_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Anonymous or ambient publisher privilege is not acceptable on any record; a publisher_identity_ref MUST be present on every manifest baseline row. Raw artifact bytes, raw signing-key material, raw policy-bundle bytes, and raw publisher-private data MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/extension_manifest_baseline_record" },
+    { "$ref": "#/$defs/effective_permission_baseline_record" },
+    { "$ref": "#/$defs/manifest_install_decision_record" }
+  ],
+  "$defs": {
+    "extension_manifest_baseline_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this extension-manifest baseline export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "extension_manifest_baseline_record",
+        "effective_permission_baseline_record",
+        "manifest_install_decision_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "publisher_trust_tier_class": {
+      "type": "string",
+      "enum": [
+        "verified_publisher",
+        "community_publisher",
+        "organisational_publisher",
+        "unverified_publisher",
+        "quarantined_publisher",
+        "anonymous_publisher_class"
+      ],
+      "description": "Frozen publisher-trust-tier vocabulary on the M1 lane. 'anonymous_publisher_class' is a typed terminal class so a row that fails to attribute a publisher cannot pretend to be unverified; it is admitted only for the explicit denial drill and MUST be paired with install_decision_class = denied and install_decision_reason_class = publisher_anonymous."
+    },
+
+    "publisher_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "preview",
+        "deprecated",
+        "retired",
+        "quarantined"
+      ],
+      "description": "Frozen publisher-lifecycle-state vocabulary on the M1 lane. A retired or quarantined publisher MUST NOT carry install_decision_class admit / admit_with_step_up."
+    },
+
+    "extension_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "published",
+        "preview",
+        "deprecated",
+        "retired",
+        "quarantined"
+      ],
+      "description": "Frozen extension-lifecycle-state vocabulary on the M1 lane. A retired or quarantined extension MUST NOT carry install_decision_class admit / admit_with_step_up."
+    },
+
+    "manifest_origin_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "private_registry",
+        "mirror",
+        "offline_bundle",
+        "vendored_local",
+        "unknown_source_class"
+      ],
+      "description": "Frozen manifest-origin-source vocabulary. 'unknown_source_class' is a terminal class so a row whose origin cannot be attributed cannot quietly impersonate the public registry; it is admitted only for the explicit denial drill and MUST be paired with install_decision_class = denied."
+    },
+
+    "host_contract_family_class": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ],
+      "description": "Frozen host-contract-family vocabulary on the M1 lane. Mirrors the broader ADR-0012 host-contract vocabulary so the M1 baseline does not fork it."
+    },
+
+    "permission_scope_class": {
+      "type": "string",
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "shell_execute",
+        "network_egress",
+        "ai_provider_access",
+        "connected_provider_access",
+        "secret_handle_use",
+        "workspace_settings_read",
+        "workspace_settings_write",
+        "execution_context_bind",
+        "subscription_subscribe",
+        "ui_command_contribute",
+        "capability_inherit"
+      ],
+      "description": "Minimum permission-scope vocabulary recognised on the M1 lane. Mirrors the ADR-0012 permission-scope vocabulary so the M1 baseline does not fork it. Adding a new scope is additive-minor with an extension_manifest_baseline_schema_version bump; repurposing a scope is breaking."
+    },
+
+    "permission_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_target", "rationale_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/permission_scope_class" },
+        "scope_target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Typed target for the scope. Mirrors the ADR-0012 scope_target shape (path prefix, provider id, setting id, capability ref, host-contract ref, subscription selector, command id, or credential-handle alias class)."
+        },
+        "scope_constraint": {
+          "type": "string",
+          "description": "Optional narrowing detail. Examples: 'read-only', 'egress to declared hosts only', 'requires step-up', 'bounded to declared setting scope'. Free-form but never raw secret material."
+        },
+        "rationale_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible intent for the scope. The user / admin install / review surface MUST render this rationale; rows that ship a permission with no rationale_label MUST be denied with install_decision_reason_class = declared_permission_rationale_required."
+        }
+      }
+    },
+
+    "effective_permission_diff_class": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "narrowed",
+        "denied",
+        "step_up_required",
+        "widening_attempted_blocked"
+      ],
+      "description": "Typed diff class per scope entry between the declared and effective permission sets. 'unchanged' means the declared entry survived; 'narrowed' means the entry was reduced (e.g. a path prefix trimmed); 'denied' means the entry was dropped; 'step_up_required' means the entry survives only behind step-up approval; 'widening_attempted_blocked' means the row attempted to claim a permission not in the declared manifest set and the effective-permission truth blocked it. The install / review surface MUST surface widening_attempted_blocked as a denial."
+    },
+
+    "effective_permission_diff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_target", "diff_class", "narrowing_reason_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/permission_scope_class" },
+        "scope_target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "diff_class": { "$ref": "#/$defs/effective_permission_diff_class" },
+        "narrowing_reason_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible reason the effective entry differs from the declared entry. Examples: 'unchanged', 'policy floor narrows write to step-up', 'policy pack denied egress', 'declared scope did not include this scope; widening blocked'. Free-form but never raw bundle bytes."
+        }
+      }
+    },
+
+    "manifest_scope_completeness_class": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "incomplete_publisher_missing",
+        "incomplete_origin_missing",
+        "incomplete_permission_rationale_missing",
+        "incomplete_lifecycle_unknown"
+      ],
+      "description": "Self-declared completeness class for the manifest-baseline row. 'complete' is the only class that may be paired with install_decision_class admit; every other class MUST be paired with a denial install decision so install / review never silently runs on an incomplete manifest."
+    },
+
+    "install_decision_class": {
+      "type": "string",
+      "enum": [
+        "admit",
+        "admit_with_step_up",
+        "review_only",
+        "denied"
+      ],
+      "description": "Typed install / review decision the install surface emits for the manifest baseline row. 'admit' is the only class that may run the extension immediately; 'admit_with_step_up' admits only after a typed step-up approval; 'review_only' lands the manifest for review without enabling it; 'denied' refuses install and is the required outcome for incomplete manifests, anonymous publishers, quarantined publishers, and effective-permission widening attempts."
+    },
+
+    "install_decision_reason_class": {
+      "type": "string",
+      "enum": [
+        "admitted_no_violation",
+        "step_up_required_by_policy_pack",
+        "review_only_unverified_publisher",
+        "publisher_identity_required",
+        "publisher_anonymous",
+        "publisher_quarantined",
+        "publisher_lifecycle_retired",
+        "extension_lifecycle_retired",
+        "manifest_scope_incomplete",
+        "manifest_origin_unknown",
+        "declared_permission_rationale_required",
+        "effective_permission_widening_attempted",
+        "lifecycle_state_unknown_class"
+      ],
+      "description": "Frozen denial / admit reason vocabulary on the M1 install / review decision. The install surface MUST emit a typed reason for every decision; a generic 'unavailable' affordance is forbidden."
+    },
+
+    "summary_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Mirrors the ADR-0011 freshness-class vocabulary. A summary whose canonical owner could not be contacted within its refresh window MUST NOT render authoritative_live."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "traces_local",
+        "support_bundle",
+        "evidence_packet",
+        "ai_context_capture",
+        "recipe_manifest",
+        "profile_export",
+        "sync",
+        "crash_dump",
+        "mutation_journal_entry",
+        "save_manifest",
+        "claim_manifest",
+        "terminal_transcript",
+        "metadata_safe_default"
+      ],
+      "description": "Declared redaction class for the record when emitted to an observable sink. Mirrors the ADR-0007 redaction defaults plus 'metadata_safe_default' for surfaces that only export typed enum tokens and opaque refs."
+    },
+
+    "extension_manifest_baseline_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_manifest_baseline_schema_version",
+        "manifest_baseline_id",
+        "extension_identity",
+        "extension_version",
+        "extension_lifecycle_state_class",
+        "host_contract_family_class",
+        "manifest_origin_source_class",
+        "origin_source_label",
+        "publisher_identity_ref",
+        "publisher_display_label",
+        "publisher_trust_tier_class",
+        "publisher_lifecycle_state_class",
+        "publisher_signing_key_ref",
+        "declared_permissions",
+        "manifest_scope_completeness_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_manifest_baseline_record" },
+        "extension_manifest_baseline_schema_version": {
+          "$ref": "#/$defs/extension_manifest_baseline_schema_version"
+        },
+        "manifest_baseline_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for this manifest-baseline row, namespaced under 'manifest_baseline:'."
+        },
+        "extension_identity": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+          "description": "Opaque namespaced id of the form 'publisher_id/extension_id'. Never reused after retirement."
+        },
+        "extension_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SemVer string. Pinning and floors are policy-pack concerns; this field carries the declared value only."
+        },
+        "extension_lifecycle_state_class": {
+          "$ref": "#/$defs/extension_lifecycle_state_class"
+        },
+        "host_contract_family_class": {
+          "$ref": "#/$defs/host_contract_family_class"
+        },
+        "manifest_origin_source_class": {
+          "$ref": "#/$defs/manifest_origin_source_class"
+        },
+        "origin_source_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible origin label. Examples: 'public registry: registry.aureline.dev', 'private registry: acme.example', 'offline bundle: airlock-2026-q2.bundle'. The install / review surface MUST render this label."
+        },
+        "publisher_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the publisher identity record. MUST be a non-empty ref; anonymous or ambient publisher privilege is not acceptable. The 'anonymous_publisher_class' trust tier is permitted only on a denial-drill row whose install decision is denied with reason publisher_anonymous."
+        },
+        "publisher_display_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible publisher label. Never the trust authority on its own."
+        },
+        "publisher_trust_tier_class": {
+          "$ref": "#/$defs/publisher_trust_tier_class"
+        },
+        "publisher_lifecycle_state_class": {
+          "$ref": "#/$defs/publisher_lifecycle_state_class"
+        },
+        "publisher_signing_key_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the publisher's currently active signing-key record. Raw key material never carried."
+        },
+        "declared_permissions": {
+          "type": "array",
+          "description": "Declared permission-scope entries. Every entry MUST carry a non-empty rationale_label.",
+          "items": { "$ref": "#/$defs/permission_scope_entry" }
+        },
+        "manifest_scope_completeness_class": {
+          "$ref": "#/$defs/manifest_scope_completeness_class"
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "effective_permission_baseline_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_manifest_baseline_schema_version",
+        "manifest_baseline_ref",
+        "extension_identity_ref",
+        "extension_version",
+        "effective_permissions",
+        "declared_vs_effective_diff",
+        "widening_attempted_blocked_count",
+        "applied_policy_pack_refs",
+        "summary_freshness_class",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "effective_permission_baseline_record" },
+        "extension_manifest_baseline_schema_version": {
+          "$ref": "#/$defs/extension_manifest_baseline_schema_version"
+        },
+        "manifest_baseline_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref back to the manifest-baseline row this summary was computed against."
+        },
+        "extension_identity_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
+        },
+        "extension_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effective_permissions": {
+          "type": "array",
+          "description": "Effective permission-scope entries after policy-pack narrowing and widening blocks. Every effective entry's scope_class + scope_target MUST appear in the declared set; an entry that does not is recorded in declared_vs_effective_diff with diff_class widening_attempted_blocked and dropped from effective_permissions.",
+          "items": { "$ref": "#/$defs/permission_scope_entry" }
+        },
+        "declared_vs_effective_diff": {
+          "type": "array",
+          "description": "Typed diff per scope entry between declared and effective. A review surface that hides this field MUST be denied install_decision_class admit.",
+          "items": { "$ref": "#/$defs/effective_permission_diff_entry" }
+        },
+        "widening_attempted_blocked_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of declared_vs_effective_diff entries with diff_class widening_attempted_blocked. Equality with the number of widening_attempted_blocked entries in declared_vs_effective_diff MUST hold; a widening_attempted_blocked_count > 0 MUST be paired with install_decision_class = denied and install_decision_reason_class = effective_permission_widening_attempted."
+        },
+        "applied_policy_pack_refs": {
+          "type": "array",
+          "description": "Refs to policy-pack constraint rows that applied. Policy-pack content is never embedded; only refs.",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "summary_freshness_class": { "$ref": "#/$defs/summary_freshness_class" },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "manifest_install_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_manifest_baseline_schema_version",
+        "manifest_baseline_ref",
+        "install_decision_class",
+        "install_decision_reason_class",
+        "decision_summary",
+        "decided_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "manifest_install_decision_record" },
+        "extension_manifest_baseline_schema_version": {
+          "$ref": "#/$defs/extension_manifest_baseline_schema_version"
+        },
+        "manifest_baseline_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "install_decision_class": { "$ref": "#/$defs/install_decision_class" },
+        "install_decision_reason_class": {
+          "$ref": "#/$defs/install_decision_reason_class"
+        },
+        "decision_summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible summary the install / review surface renders next to the typed decision. Examples: 'Admitted: verified publisher and complete manifest.', 'Denied: publisher quarantined.', 'Denied: requested filesystem_write was not declared in the manifest.'."
+        },
+        "decided_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

@@ -1,0 +1,596 @@
+# Extension manifest-baseline seed rows for the M1 lane.
+#
+# This matrix is the canonical M1 truth source for the extension
+# manifest-baseline, the effective-permission baseline summary, and the
+# install / review decision shape on the first ecosystem-bearing lane.
+# Each row exercises one protected install / review path and pins:
+#
+#   - an extension_manifest_baseline_record,
+#   - the effective_permission_baseline_record computed against it,
+#   - the manifest_install_decision_record the install / review surface
+#     emits, and
+#   - a named failure drill with a typed expected_check_id.
+#
+# Conformance.
+#   - Every record conforms to
+#     schemas/extensions/m1_extension_manifest.schema.json.
+#   - Closed vocabularies are reused verbatim from the schema; this
+#     matrix does not fork the vocabulary.
+#   - Every effective_permissions entry's (scope_class, scope_target)
+#     pair MUST be in the manifest's declared_permissions set.
+#   - widening_attempted_blocked_count MUST equal the number of
+#     declared_vs_effective_diff entries with diff_class
+#     widening_attempted_blocked.
+#   - Only manifest_scope_completeness_class = complete may be paired
+#     with install_decision_class = admit; every other completeness
+#     class MUST be paired with install_decision_class = denied.
+#   - Anonymous, quarantined, and retired publishers MUST be paired
+#     with install_decision_class = denied with a typed
+#     install_decision_reason_class.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_extension_manifest_baseline_rows
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/extensions/m1_permission_and_publisher_baseline.md
+manifest_schema_ref: schemas/extensions/m1_extension_manifest.schema.json
+adr_seed_schema_ref: schemas/extensions/effective_permission.schema.json
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+publisher_trust_tier_class_vocabulary:
+  - verified_publisher
+  - community_publisher
+  - organisational_publisher
+  - unverified_publisher
+  - quarantined_publisher
+  - anonymous_publisher_class
+
+publisher_lifecycle_state_class_vocabulary:
+  - active
+  - preview
+  - deprecated
+  - retired
+  - quarantined
+
+extension_lifecycle_state_class_vocabulary:
+  - published
+  - preview
+  - deprecated
+  - retired
+  - quarantined
+
+manifest_origin_source_class_vocabulary:
+  - public_registry
+  - private_registry
+  - mirror
+  - offline_bundle
+  - vendored_local
+  - unknown_source_class
+
+host_contract_family_class_vocabulary:
+  - wasm_component_model
+  - wasm_core_module
+  - external_host_process
+  - helper_binary
+  - remote_side_component
+  - compatibility_bridge
+
+permission_scope_class_vocabulary:
+  - filesystem_read
+  - filesystem_write
+  - shell_execute
+  - network_egress
+  - ai_provider_access
+  - connected_provider_access
+  - secret_handle_use
+  - workspace_settings_read
+  - workspace_settings_write
+  - execution_context_bind
+  - subscription_subscribe
+  - ui_command_contribute
+  - capability_inherit
+
+effective_permission_diff_class_vocabulary:
+  - unchanged
+  - narrowed
+  - denied
+  - step_up_required
+  - widening_attempted_blocked
+
+manifest_scope_completeness_class_vocabulary:
+  - complete
+  - incomplete_publisher_missing
+  - incomplete_origin_missing
+  - incomplete_permission_rationale_missing
+  - incomplete_lifecycle_unknown
+
+install_decision_class_vocabulary:
+  - admit
+  - admit_with_step_up
+  - review_only
+  - denied
+
+install_decision_reason_class_vocabulary:
+  - admitted_no_violation
+  - step_up_required_by_policy_pack
+  - review_only_unverified_publisher
+  - publisher_identity_required
+  - publisher_anonymous
+  - publisher_quarantined
+  - publisher_lifecycle_retired
+  - extension_lifecycle_retired
+  - manifest_scope_incomplete
+  - manifest_origin_unknown
+  - declared_permission_rationale_required
+  - effective_permission_widening_attempted
+  - lifecycle_state_unknown_class
+
+failure_drill_id_vocabulary:
+  - verified_publisher_drill.publisher_identity_stripped
+  - community_publisher_drill.declared_permission_rationale_stripped
+  - org_publisher_drill.requested_permission_outside_declared_scope
+  - unverified_publisher_drill.install_decision_class_widened_to_admit
+  - quarantined_publisher_drill.install_decision_class_widened_to_admit
+  - anonymous_publisher_drill.install_decision_class_widened_to_admit
+
+required_publisher_trust_tier_coverage:
+  - verified_publisher
+  - community_publisher
+  - organisational_publisher
+  - unverified_publisher
+  - quarantined_publisher
+  - anonymous_publisher_class
+
+required_install_decision_coverage:
+  - admit
+  - admit_with_step_up
+  - review_only
+  - denied
+
+consumer_bindings:
+  named_runtime_consumer:
+    consumer_ref: docs/extensions/m1_permission_and_publisher_baseline.md
+    consumed_fields:
+      - extension_manifest_baseline_record.publisher_identity_ref
+      - extension_manifest_baseline_record.publisher_display_label
+      - extension_manifest_baseline_record.publisher_trust_tier_class
+      - extension_manifest_baseline_record.publisher_lifecycle_state_class
+      - extension_manifest_baseline_record.extension_lifecycle_state_class
+      - extension_manifest_baseline_record.manifest_origin_source_class
+      - extension_manifest_baseline_record.declared_permissions
+      - extension_manifest_baseline_record.manifest_scope_completeness_class
+      - effective_permission_baseline_record.effective_permissions
+      - effective_permission_baseline_record.declared_vs_effective_diff
+      - effective_permission_baseline_record.widening_attempted_blocked_count
+      - manifest_install_decision_record.install_decision_class
+      - manifest_install_decision_record.install_decision_reason_class
+      - manifest_install_decision_record.decision_summary
+  rust_validator_consumer:
+    consumer_ref: crates/aureline-extensions/src/manifest_baseline/mod.rs
+    consumed_fields:
+      - extension_manifest_baseline_record.publisher_identity_ref
+      - extension_manifest_baseline_record.declared_permissions.rationale_label
+      - effective_permission_baseline_record.widening_attempted_blocked_count
+      - manifest_install_decision_record.install_decision_class
+      - manifest_install_decision_record.install_decision_reason_class
+
+rows:
+  # 1. Verified publisher, complete manifest, immediate admit.
+  - row_id: extension_manifest:verified_publisher_complete_manifest_admit
+    manifest_baseline:
+      record_kind: extension_manifest_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_id: manifest_baseline:acme-labs/prose-helper:1.4.2
+      extension_identity: acme-labs/prose-helper
+      extension_version: "1.4.2"
+      extension_lifecycle_state_class: published
+      host_contract_family_class: wasm_component_model
+      manifest_origin_source_class: public_registry
+      origin_source_label: "public registry: registry.aureline.dev"
+      publisher_identity_ref: publisher:acme-labs
+      publisher_display_label: "Acme Labs"
+      publisher_trust_tier_class: verified_publisher
+      publisher_lifecycle_state_class: active
+      publisher_signing_key_ref: key:acme-labs:ed25519:2026-q2
+      declared_permissions:
+        - scope_class: filesystem_read
+          scope_target: "workspace:/docs/**"
+          scope_constraint: "read-only under declared workspace prefix"
+          rationale_label: "Read prose documents for grammar suggestions."
+        - scope_class: ai_provider_access
+          scope_target: "connected-provider:ai:acme-default"
+          scope_constraint: "requires user-configured provider link"
+          rationale_label: "Use the user's AI provider to refine suggestions."
+      manifest_scope_completeness_class: complete
+      redaction_class: metadata_safe_default
+    effective_permission_baseline:
+      record_kind: effective_permission_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:acme-labs/prose-helper:1.4.2
+      extension_identity_ref: acme-labs/prose-helper
+      extension_version: "1.4.2"
+      effective_permissions:
+        - scope_class: filesystem_read
+          scope_target: "workspace:/docs/**"
+          scope_constraint: "read-only under declared workspace prefix"
+          rationale_label: "Read prose documents for grammar suggestions."
+        - scope_class: ai_provider_access
+          scope_target: "connected-provider:ai:acme-default"
+          scope_constraint: "requires user-configured provider link"
+          rationale_label: "Use the user's AI provider to refine suggestions."
+      declared_vs_effective_diff:
+        - scope_class: filesystem_read
+          scope_target: "workspace:/docs/**"
+          diff_class: unchanged
+          narrowing_reason_label: "unchanged"
+        - scope_class: ai_provider_access
+          scope_target: "connected-provider:ai:acme-default"
+          diff_class: unchanged
+          narrowing_reason_label: "unchanged"
+      widening_attempted_blocked_count: 0
+      applied_policy_pack_refs: []
+      summary_freshness_class: authoritative_live
+      computed_at: "2026-05-11T08:00:00Z"
+      redaction_class: metadata_safe_default
+    install_decision:
+      record_kind: manifest_install_decision_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:acme-labs/prose-helper:1.4.2
+      install_decision_class: admit
+      install_decision_reason_class: admitted_no_violation
+      decision_summary: "Admitted: complete manifest, attributed publisher, no widening attempt."
+      decided_at: "2026-05-11T08:00:01Z"
+      redaction_class: metadata_safe_default
+    expected_coverage:
+      publisher_trust_tier_class: verified_publisher
+      install_decision_class: admit
+    failure_drill:
+      drill_id: verified_publisher_drill.publisher_identity_stripped
+      expected_check_id: manifest_baseline.publisher_identity_required
+      forced_input:
+        clear_publisher_identity_ref: true
+      next_action: "Re-attribute the manifest to a publisher identity; anonymous or ambient privilege is not acceptable."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 2. Community publisher, complete manifest, immediate admit (covers
+  #    the community-publisher trust tier as a first-class admit case).
+  - row_id: extension_manifest:community_publisher_complete_manifest_admit
+    manifest_baseline:
+      record_kind: extension_manifest_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_id: manifest_baseline:bramble-community/snippet-runner:0.6.1
+      extension_identity: bramble-community/snippet-runner
+      extension_version: "0.6.1"
+      extension_lifecycle_state_class: published
+      host_contract_family_class: wasm_core_module
+      manifest_origin_source_class: public_registry
+      origin_source_label: "public registry: registry.aureline.dev"
+      publisher_identity_ref: publisher:bramble-community
+      publisher_display_label: "Bramble Community"
+      publisher_trust_tier_class: community_publisher
+      publisher_lifecycle_state_class: active
+      publisher_signing_key_ref: key:bramble-community:ed25519:2026-q1
+      declared_permissions:
+        - scope_class: ui_command_contribute
+          scope_target: "command:snippet.run"
+          scope_constraint: "contributes one command id under the snippet namespace"
+          rationale_label: "Contribute a command for running the user's saved snippets."
+      manifest_scope_completeness_class: complete
+      redaction_class: metadata_safe_default
+    effective_permission_baseline:
+      record_kind: effective_permission_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:bramble-community/snippet-runner:0.6.1
+      extension_identity_ref: bramble-community/snippet-runner
+      extension_version: "0.6.1"
+      effective_permissions:
+        - scope_class: ui_command_contribute
+          scope_target: "command:snippet.run"
+          scope_constraint: "contributes one command id under the snippet namespace"
+          rationale_label: "Contribute a command for running the user's saved snippets."
+      declared_vs_effective_diff:
+        - scope_class: ui_command_contribute
+          scope_target: "command:snippet.run"
+          diff_class: unchanged
+          narrowing_reason_label: "unchanged"
+      widening_attempted_blocked_count: 0
+      applied_policy_pack_refs: []
+      summary_freshness_class: authoritative_live
+      computed_at: "2026-05-11T08:01:00Z"
+      redaction_class: metadata_safe_default
+    install_decision:
+      record_kind: manifest_install_decision_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:bramble-community/snippet-runner:0.6.1
+      install_decision_class: admit
+      install_decision_reason_class: admitted_no_violation
+      decision_summary: "Admitted: community publisher, complete manifest, no widening attempt."
+      decided_at: "2026-05-11T08:01:01Z"
+      redaction_class: metadata_safe_default
+    expected_coverage:
+      publisher_trust_tier_class: community_publisher
+      install_decision_class: admit
+    failure_drill:
+      drill_id: community_publisher_drill.declared_permission_rationale_stripped
+      expected_check_id: manifest_baseline.declared_permission_rationale_required
+      forced_input:
+        clear_first_declared_permission_rationale: true
+      next_action: "Restore the declared permission rationale_label so the install / review surface can render the user-visible reason."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 3. Organisational publisher, complete manifest, policy step-up
+  #    required + canonical widening-blocked drill.
+  - row_id: extension_manifest:organisational_publisher_policy_narrowed_step_up
+    manifest_baseline:
+      record_kind: extension_manifest_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_id: manifest_baseline:aureline-org/internal-helper:2.0.0
+      extension_identity: aureline-org/internal-helper
+      extension_version: "2.0.0"
+      extension_lifecycle_state_class: published
+      host_contract_family_class: wasm_component_model
+      manifest_origin_source_class: private_registry
+      origin_source_label: "private registry: registry.internal.aureline"
+      publisher_identity_ref: publisher:aureline-org
+      publisher_display_label: "Aureline (org)"
+      publisher_trust_tier_class: organisational_publisher
+      publisher_lifecycle_state_class: active
+      publisher_signing_key_ref: key:aureline-org:ed25519:2026-q2
+      declared_permissions:
+        - scope_class: filesystem_write
+          scope_target: "workspace:/notes/**"
+          scope_constraint: "write under declared workspace prefix"
+          rationale_label: "Write structured notes the helper produces back into the workspace."
+        - scope_class: network_egress
+          scope_target: "api.internal.aureline"
+          scope_constraint: "egress to declared org API only"
+          rationale_label: "Sync notes through the org API."
+      manifest_scope_completeness_class: complete
+      redaction_class: metadata_safe_default
+    effective_permission_baseline:
+      record_kind: effective_permission_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:aureline-org/internal-helper:2.0.0
+      extension_identity_ref: aureline-org/internal-helper
+      extension_version: "2.0.0"
+      effective_permissions:
+        - scope_class: filesystem_write
+          scope_target: "workspace:/notes/**"
+          scope_constraint: "policy-pack narrowing applied: policy floor narrows write to step-up"
+          rationale_label: "Write structured notes the helper produces back into the workspace."
+        - scope_class: network_egress
+          scope_target: "api.internal.aureline"
+          scope_constraint: "egress to declared org API only"
+          rationale_label: "Sync notes through the org API."
+      declared_vs_effective_diff:
+        - scope_class: filesystem_write
+          scope_target: "workspace:/notes/**"
+          diff_class: step_up_required
+          narrowing_reason_label: "policy floor narrows write to step-up"
+        - scope_class: network_egress
+          scope_target: "api.internal.aureline"
+          diff_class: unchanged
+          narrowing_reason_label: "unchanged"
+      widening_attempted_blocked_count: 0
+      applied_policy_pack_refs:
+        - policy:aureline-org-default-v3
+      summary_freshness_class: authoritative_live
+      computed_at: "2026-05-11T08:02:00Z"
+      redaction_class: metadata_safe_default
+    install_decision:
+      record_kind: manifest_install_decision_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:aureline-org/internal-helper:2.0.0
+      install_decision_class: admit_with_step_up
+      install_decision_reason_class: step_up_required_by_policy_pack
+      decision_summary: "Admit with step-up: policy pack requires a typed step-up before the workspace write scope is usable."
+      decided_at: "2026-05-11T08:02:01Z"
+      redaction_class: metadata_safe_default
+    expected_coverage:
+      publisher_trust_tier_class: organisational_publisher
+      install_decision_class: admit_with_step_up
+    failure_drill:
+      drill_id: org_publisher_drill.requested_permission_outside_declared_scope
+      expected_check_id: manifest_baseline.effective_permission_widening_attempted
+      forced_input:
+        inject_widening_attempted_blocked_diff:
+          scope_class: shell_execute
+          scope_target: "shell:bash:rm -rf /"
+      next_action: "Drop the requested permission from the effective set or declare it (with a typed rationale_label) in the manifest."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 4. Unverified publisher routed to review-only (covers review_only
+  #    install decision class as a first-class case).
+  - row_id: extension_manifest:unverified_publisher_review_only
+    manifest_baseline:
+      record_kind: extension_manifest_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_id: manifest_baseline:driftwood/log-tail:0.1.0
+      extension_identity: driftwood/log-tail
+      extension_version: "0.1.0"
+      extension_lifecycle_state_class: preview
+      host_contract_family_class: helper_binary
+      manifest_origin_source_class: public_registry
+      origin_source_label: "public registry: registry.aureline.dev"
+      publisher_identity_ref: publisher:driftwood
+      publisher_display_label: "Driftwood"
+      publisher_trust_tier_class: unverified_publisher
+      publisher_lifecycle_state_class: preview
+      publisher_signing_key_ref: key:driftwood:ed25519:2026-q2
+      declared_permissions:
+        - scope_class: filesystem_read
+          scope_target: "workspace:/logs/**"
+          scope_constraint: "read-only under declared workspace prefix"
+          rationale_label: "Tail recent log files in the workspace."
+      manifest_scope_completeness_class: complete
+      redaction_class: metadata_safe_default
+    effective_permission_baseline:
+      record_kind: effective_permission_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:driftwood/log-tail:0.1.0
+      extension_identity_ref: driftwood/log-tail
+      extension_version: "0.1.0"
+      effective_permissions:
+        - scope_class: filesystem_read
+          scope_target: "workspace:/logs/**"
+          scope_constraint: "read-only under declared workspace prefix"
+          rationale_label: "Tail recent log files in the workspace."
+      declared_vs_effective_diff:
+        - scope_class: filesystem_read
+          scope_target: "workspace:/logs/**"
+          diff_class: unchanged
+          narrowing_reason_label: "unchanged"
+      widening_attempted_blocked_count: 0
+      applied_policy_pack_refs: []
+      summary_freshness_class: authoritative_live
+      computed_at: "2026-05-11T08:03:00Z"
+      redaction_class: metadata_safe_default
+    install_decision:
+      record_kind: manifest_install_decision_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:driftwood/log-tail:0.1.0
+      install_decision_class: review_only
+      install_decision_reason_class: review_only_unverified_publisher
+      decision_summary: "Review-only: unverified publisher; manifest landed for review without enabling."
+      decided_at: "2026-05-11T08:03:01Z"
+      redaction_class: metadata_safe_default
+    expected_coverage:
+      publisher_trust_tier_class: unverified_publisher
+      install_decision_class: review_only
+    failure_drill:
+      drill_id: unverified_publisher_drill.install_decision_class_widened_to_admit
+      expected_check_id: manifest_baseline.unverified_publisher_install_must_be_review_only
+      forced_input:
+        rewrite_install_decision_class: admit
+        rewrite_install_decision_reason_class: admitted_no_violation
+      next_action: "Restore install_decision_class = review_only with reason review_only_unverified_publisher; an unverified publisher MUST NOT silently admit."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 5. Quarantined publisher MUST be denied install.
+  - row_id: extension_manifest:quarantined_publisher_install_denied
+    manifest_baseline:
+      record_kind: extension_manifest_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_id: manifest_baseline:nightfox/trace-collector:1.2.3
+      extension_identity: nightfox/trace-collector
+      extension_version: "1.2.3"
+      extension_lifecycle_state_class: published
+      host_contract_family_class: external_host_process
+      manifest_origin_source_class: public_registry
+      origin_source_label: "public registry: registry.aureline.dev"
+      publisher_identity_ref: publisher:nightfox
+      publisher_display_label: "Nightfox (quarantined)"
+      publisher_trust_tier_class: quarantined_publisher
+      publisher_lifecycle_state_class: quarantined
+      publisher_signing_key_ref: key:nightfox:ed25519:2026-q2
+      declared_permissions:
+        - scope_class: network_egress
+          scope_target: "telemetry.nightfox.example"
+          scope_constraint: "egress to declared host only"
+          rationale_label: "Send anonymised traces to the publisher's telemetry endpoint."
+      manifest_scope_completeness_class: complete
+      redaction_class: metadata_safe_default
+    effective_permission_baseline:
+      record_kind: effective_permission_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:nightfox/trace-collector:1.2.3
+      extension_identity_ref: nightfox/trace-collector
+      extension_version: "1.2.3"
+      effective_permissions: []
+      declared_vs_effective_diff:
+        - scope_class: network_egress
+          scope_target: "telemetry.nightfox.example"
+          diff_class: denied
+          narrowing_reason_label: "publisher quarantined; effective set is empty"
+      widening_attempted_blocked_count: 0
+      applied_policy_pack_refs:
+        - policy:emergency-disable-quarantined-publishers
+      summary_freshness_class: authoritative_live
+      computed_at: "2026-05-11T08:04:00Z"
+      redaction_class: metadata_safe_default
+    install_decision:
+      record_kind: manifest_install_decision_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:nightfox/trace-collector:1.2.3
+      install_decision_class: denied
+      install_decision_reason_class: publisher_quarantined
+      decision_summary: "Denied: publisher quarantined; install / review must refuse."
+      decided_at: "2026-05-11T08:04:01Z"
+      redaction_class: metadata_safe_default
+    expected_coverage:
+      publisher_trust_tier_class: quarantined_publisher
+      install_decision_class: denied
+    failure_drill:
+      drill_id: quarantined_publisher_drill.install_decision_class_widened_to_admit
+      expected_check_id: manifest_baseline.quarantined_publisher_install_must_be_denied
+      forced_input:
+        rewrite_install_decision_class: admit
+        rewrite_install_decision_reason_class: admitted_no_violation
+      next_action: "Restore install_decision_class = denied with reason publisher_quarantined; a quarantined publisher MUST NOT silently admit."
+      actionable_owner_ref: "@ahmeddyounis"
+
+  # 6. Anonymous publisher MUST be denied install.
+  - row_id: extension_manifest:anonymous_publisher_install_denied
+    manifest_baseline:
+      record_kind: extension_manifest_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_id: manifest_baseline:repair-only/anonymous-handle:0.0.1
+      extension_identity: repair-only/anonymous-handle
+      extension_version: "0.0.1"
+      extension_lifecycle_state_class: published
+      host_contract_family_class: wasm_core_module
+      manifest_origin_source_class: unknown_source_class
+      origin_source_label: "unknown source: extension was sideloaded without an attested origin"
+      publisher_identity_ref: publisher:anonymous_repair_only
+      publisher_display_label: "Anonymous (repair-only)"
+      publisher_trust_tier_class: anonymous_publisher_class
+      publisher_lifecycle_state_class: active
+      publisher_signing_key_ref: key:repair-only:no-signing-key
+      declared_permissions:
+        - scope_class: ui_command_contribute
+          scope_target: "command:repair.diagnose"
+          scope_constraint: "contributes one diagnose command"
+          rationale_label: "Surface a diagnose command so the user can repair the install."
+      manifest_scope_completeness_class: complete
+      redaction_class: metadata_safe_default
+    effective_permission_baseline:
+      record_kind: effective_permission_baseline_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:repair-only/anonymous-handle:0.0.1
+      extension_identity_ref: repair-only/anonymous-handle
+      extension_version: "0.0.1"
+      effective_permissions: []
+      declared_vs_effective_diff:
+        - scope_class: ui_command_contribute
+          scope_target: "command:repair.diagnose"
+          diff_class: denied
+          narrowing_reason_label: "anonymous publisher; effective set is empty pending re-attribution"
+      widening_attempted_blocked_count: 0
+      applied_policy_pack_refs: []
+      summary_freshness_class: authoritative_live
+      computed_at: "2026-05-11T08:05:00Z"
+      redaction_class: metadata_safe_default
+    install_decision:
+      record_kind: manifest_install_decision_record
+      extension_manifest_baseline_schema_version: 1
+      manifest_baseline_ref: manifest_baseline:repair-only/anonymous-handle:0.0.1
+      install_decision_class: denied
+      install_decision_reason_class: publisher_anonymous
+      decision_summary: "Denied: publisher identity is anonymous; manifest must attribute a publisher."
+      decided_at: "2026-05-11T08:05:01Z"
+      redaction_class: metadata_safe_default
+    expected_coverage:
+      publisher_trust_tier_class: anonymous_publisher_class
+      install_decision_class: denied
+    failure_drill:
+      drill_id: anonymous_publisher_drill.install_decision_class_widened_to_admit
+      expected_check_id: manifest_baseline.anonymous_publisher_install_must_be_denied
+      forced_input:
+        rewrite_install_decision_class: admit
+        rewrite_install_decision_reason_class: admitted_no_violation
+      next_action: "Restore install_decision_class = denied with reason publisher_anonymous; an anonymous publisher MUST NOT silently admit."
+      actionable_owner_ref: "@ahmeddyounis"
