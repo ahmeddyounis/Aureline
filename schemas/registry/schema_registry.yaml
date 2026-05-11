@@ -1,0 +1,386 @@
+# M1 schema-registry seed for telemetry, diagnostics, support-export, and
+# usage-export payload families.
+#
+# This file is the canonical, machine-readable M1-bearing entry point into
+# the schema-registry contract. It is the focused subset every later M1
+# privacy, support, and release surface MUST cite when it claims a
+# telemetry, diagnostics, support-export, or usage-export payload exists.
+#
+# Rows here do NOT redeclare the full consent / endpoint / retention /
+# build-flavor / downgrade / exclusion vocabularies; the canonical row
+# vocabulary remains
+#   schemas/governance/schema_registry_entry.schema.json
+# with its consumer seed at
+#   artifacts/governance/consent_ledger_seed.yaml
+# and the human-readable contract at
+#   docs/governance/telemetry_and_support_schema_registry.md.
+#
+# Each row here freezes the M1-bearing subset:
+#
+#   - one payload family (telemetry / diagnostics / support-export /
+#     usage-export);
+#   - the schema file and the integer schema_version_pin that any M1
+#     surface MUST honour when it claims to emit or read the family;
+#   - lifecycle state, consent class summary, default-posture class,
+#     endpoint class, redaction class, retention note, and compatibility
+#     horizon (deprecation + sunset windows) so later work cannot drift
+#     these axes without updating the row;
+#   - deprecated_fields with a typed downgrade_action so deprecated
+#     fields stay tracked rather than silently dropped;
+#   - consent_ledger_entry_id_ref naming the canonical
+#     schema_registry_entry_row this M1 row inherits its full posture
+#     from;
+#   - named_runtime_consumer (a real M1 surface, validator, docs page,
+#     or CI gate that reads the family); and
+#   - exactly one canonical envelope example under
+#     fixtures/schemas/m1_registry_examples/<family>.json that the
+#     validation lane re-parses end-to-end.
+#
+# Adding a new family is additive-minor and bumps
+# schema_registry_row_schema_version; repurposing an existing
+# family_class, lifecycle_state_class, consent_class,
+# default_posture_class, endpoint_class, redaction_class, or
+# registry_consumer_class value is breaking and requires a new decision
+# row plus a superseding registry seed.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_schema_registry_seed
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/governance/schema_registry_seed.md
+row_schema_ref: schemas/registry/schema_registry_row.schema.json
+consent_ledger_registry_ref: artifacts/governance/consent_ledger_seed.yaml
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+family_class_vocabulary:
+  - telemetry_payload
+  - diagnostic_payload
+  - support_export_payload
+  - usage_export_payload
+
+lifecycle_state_class_vocabulary:
+  - seeded
+  - stabilising
+  - stable
+  - deprecated
+  - retired
+
+consent_class_vocabulary:
+  - not_applicable_local_mechanics
+  - implied_for_local_authoritative
+  - explicit_opt_in_required
+  - export_only_on_user_request
+  - admin_policy_gated
+
+default_posture_class_vocabulary:
+  - off_by_default_no_emission_until_consent
+  - local_capture_no_upload_by_default
+  - user_initiated_export_only
+  - admin_policy_gated_default
+
+endpoint_class_vocabulary:
+  - local_device_only
+  - local_authoritative_with_optional_upload
+  - export_only_user_initiated
+  - managed_authoritative_when_enabled
+
+redaction_class_vocabulary:
+  - metadata_safe_default
+  - metadata_only_no_payload_bytes
+  - code_adjacent_redacted_default
+  - high_risk_explicit_review_required
+
+registry_consumer_class_vocabulary:
+  - review_docs_landing_page
+  - rust_runtime_validator
+  - ci_schema_validator
+  - support_or_release_surface
+
+failure_drill_id_vocabulary:
+  - telemetry_drill.consent_class_widened_to_implied
+  - diagnostics_drill.redaction_class_relaxed_to_metadata_only
+  - support_export_drill.example_payload_record_kind_drifted
+  - usage_export_drill.deprecated_field_loses_sunset_note
+
+required_family_class_coverage:
+  - telemetry_payload
+  - diagnostic_payload
+  - support_export_payload
+  - usage_export_payload
+
+rows:
+  # 1. Telemetry payload family.
+  - record_kind: m1_schema_registry_row
+    schema_registry_row_schema_version: 1
+    entry_id: telemetry.m1_payload_baseline
+    family_class: telemetry_payload
+    title: M1 telemetry payload baseline (onboarding task-success measurement row)
+    description: >
+      Onboarding task-success and first-useful-work telemetry row that
+      protected dogfood onboarding paths emit when consent is given.
+      The row is opt-in only, never default-on, and never names raw
+      code, raw prompts, repo names, file paths, clipboard contents,
+      full search queries, free-text input, terminal command payloads,
+      voice audio, or secret material. It is NOT a crash payload, NOT
+      a support-bundle manifest, and NOT a usage-export packet.
+    owner_dri: "@ahmeddyounis"
+    schema_ref: schemas/telemetry/m1_onboarding_metrics.schema.json
+    schema_version_pin: 1
+    schema_version_uri: https://aureline.dev/schemas/telemetry/m1_onboarding_metrics.schema.json
+    lifecycle_state_class: seeded
+    consent_class: explicit_opt_in_required
+    default_posture_class: off_by_default_no_emission_until_consent
+    endpoint_class: local_authoritative_with_optional_upload
+    redaction_class: metadata_safe_default
+    retention_note: >
+      Local aggregate retention follows the telemetry descriptor record
+      class in artifacts/governance/record_class_registry.yaml;
+      uploaded aggregates close on version-replace or user reset.
+      Declining the family never degrades local product function.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Old aggregate shapes remain readable for at least one LTS
+        cycle after a breaking change is landed.
+      sunset_window_note: >
+        Writers drop a deprecated aggregate field only after the
+        downgrade rule has been in effect for at least one LTS cycle.
+    deprecated_fields: []
+    consent_ledger_entry_id_ref: telemetry.ux_product_event
+    named_runtime_consumer:
+      consumer_ref: docs/governance/schema_registry_seed.md
+      consumer_class: review_docs_landing_page
+      consumed_fields:
+        - schema_registry_row.entry_id
+        - schema_registry_row.schema_ref
+        - schema_registry_row.schema_version_pin
+        - schema_registry_row.consent_class
+        - schema_registry_row.default_posture_class
+        - schema_registry_row.redaction_class
+        - schema_registry_row.retention_note
+    example_payload_ref: fixtures/schemas/m1_registry_examples/telemetry_payload.json
+    failure_drill:
+      drill_id: telemetry_drill.consent_class_widened_to_implied
+      description: >
+        Forces consent_class to implied_for_local_authoritative
+        while the canonical consent-ledger row remains
+        explicit_opt_in_required; the lane MUST fail with
+        schema_registry.consent_class_disagrees_with_consent_ledger.
+      forced_input:
+        rewrite_consent_class: implied_for_local_authoritative
+      expected_check_id: schema_registry.consent_class_disagrees_with_consent_ledger
+      actionable_next_action: >
+        Restore consent_class to the value in the named consent-ledger
+        row, or land a new decision row in
+        artifacts/governance/decision_register.yaml before changing it.
+
+  # 2. Diagnostic payload family.
+  - record_kind: m1_schema_registry_row
+    schema_registry_row_schema_version: 1
+    entry_id: diagnostics.m1_payload_baseline
+    family_class: diagnostic_payload
+    title: M1 diagnostic payload baseline (problem-evidence chain record)
+    description: >
+      Diagnostic problem-evidence chain payload assembled when
+      project doctor, repair preview, or recovery ladder surfaces
+      need to capture distinct evidence with a typed confidence
+      class. The family is captured locally by default; upload
+      requires explicit opt-in. It is NOT a usage-export packet
+      and NOT a support-bundle manifest, although the support
+      bundle may embed redacted projections of this family by
+      reference.
+    owner_dri: "@ahmeddyounis"
+    schema_ref: schemas/diagnostics/problem_evidence_chain.schema.json
+    schema_version_pin: 1
+    schema_version_uri: https://aureline.dev/schemas/diagnostics/problem_evidence_chain.schema.json
+    lifecycle_state_class: seeded
+    consent_class: explicit_opt_in_required
+    default_posture_class: local_capture_no_upload_by_default
+    endpoint_class: local_authoritative_with_optional_upload
+    redaction_class: code_adjacent_redacted_default
+    retention_note: >
+      Local chains are retained until the user clears them or the
+      workspace is replaced; uploaded chains follow the
+      crash/diagnostic record class window in
+      artifacts/governance/record_class_registry.yaml.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Old chain shapes remain readable across at least one LTS
+        cycle so historical evidence does not silently disappear.
+      sunset_window_note: >
+        Writers stop emitting a deprecated chain field only after
+        the downgrade rule has been live for one LTS cycle and the
+        replacement field has been writable for the same window.
+    deprecated_fields: []
+    consent_ledger_entry_id_ref: diagnostics.crash_payload
+    named_runtime_consumer:
+      consumer_ref: docs/governance/schema_registry_seed.md
+      consumer_class: review_docs_landing_page
+      consumed_fields:
+        - schema_registry_row.entry_id
+        - schema_registry_row.schema_ref
+        - schema_registry_row.schema_version_pin
+        - schema_registry_row.default_posture_class
+        - schema_registry_row.redaction_class
+        - schema_registry_row.retention_note
+    example_payload_ref: fixtures/schemas/m1_registry_examples/diagnostic_payload.json
+    failure_drill:
+      drill_id: diagnostics_drill.redaction_class_relaxed_to_metadata_only
+      description: >
+        Forces redaction_class to metadata_only_no_payload_bytes,
+        relaxing the code-adjacent default. The lane MUST fail with
+        schema_registry.redaction_class_relaxed_without_review.
+      forced_input:
+        rewrite_redaction_class: metadata_only_no_payload_bytes
+      expected_check_id: schema_registry.redaction_class_relaxed_without_review
+      actionable_next_action: >
+        Restore the row's redaction_class to
+        code_adjacent_redacted_default, or land a decision row
+        explaining why diagnostics may now publish without code-adjacent
+        redaction.
+
+  # 3. Support-export payload family.
+  - record_kind: m1_schema_registry_row
+    schema_registry_row_schema_version: 1
+    entry_id: support_export.m1_payload_baseline
+    family_class: support_export_payload
+    title: M1 support-export payload baseline (support-bundle manifest record)
+    description: >
+      Support-bundle manifest record produced when the user
+      explicitly assembles a support export. The manifest is the
+      authoritative description of what bytes left the device, under
+      which redaction or exclusion rules, and with which intake-time
+      review decisions. It is export-only, user-initiated, and never
+      stands in for telemetry, diagnostics, or usage-export packets.
+    owner_dri: "@ahmeddyounis"
+    schema_ref: schemas/support/support_bundle_manifest.schema.json
+    schema_version_pin: 1
+    schema_version_uri: https://aureline.dev/schemas/support/support_bundle_manifest.schema.json
+    lifecycle_state_class: stabilising
+    consent_class: export_only_on_user_request
+    default_posture_class: user_initiated_export_only
+    endpoint_class: export_only_user_initiated
+    redaction_class: high_risk_explicit_review_required
+    retention_note: >
+      The local preview manifest lives for the lifetime of the
+      preview session; the post-export manifest is preserved on the
+      user-chosen export target. The product itself does not retain
+      uploaded copies; intake retention is owned by the receiving
+      support system.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Old manifest shapes remain readable for at least one LTS
+        cycle so prior support exports can still be reviewed.
+      sunset_window_note: >
+        Writers stop emitting a deprecated manifest field only after
+        the downgrade rule has been live for one LTS cycle.
+    deprecated_fields: []
+    consent_ledger_entry_id_ref: support.bundle_manifest
+    named_runtime_consumer:
+      consumer_ref: docs/governance/schema_registry_seed.md
+      consumer_class: review_docs_landing_page
+      consumed_fields:
+        - schema_registry_row.entry_id
+        - schema_registry_row.schema_ref
+        - schema_registry_row.schema_version_pin
+        - schema_registry_row.endpoint_class
+        - schema_registry_row.redaction_class
+        - schema_registry_row.retention_note
+    example_payload_ref: fixtures/schemas/m1_registry_examples/support_export_payload.json
+    failure_drill:
+      drill_id: support_export_drill.example_payload_record_kind_drifted
+      description: >
+        Forces the example payload's pinned_record_kind to drift
+        away from support_bundle_manifest_record so the
+        registry pin and the example disagree; the lane MUST fail
+        with schema_registry.example_payload_record_kind_mismatch.
+      forced_input:
+        rewrite_example_pinned_record_kind: drifted_support_record
+      expected_check_id: schema_registry.example_payload_record_kind_mismatch
+      actionable_next_action: >
+        Restore the example_payload's pinned_record_kind to the
+        family schema's record_kind, or update the schema together
+        with the row before relanding.
+
+  # 4. Usage-export payload family.
+  - record_kind: m1_schema_registry_row
+    schema_registry_row_schema_version: 1
+    entry_id: usage_export.m1_payload_baseline
+    family_class: usage_export_payload
+    title: M1 usage-export payload baseline (usage-export packet record)
+    description: >
+      Usage-export packet record produced when the deployment
+      profile and managed admin posture allow a customer-visible
+      usage summary to leave the device. The packet is not a
+      billing engine and never names raw prompts, raw code, raw
+      tenant names, raw billing ids, or raw provider URLs. It is
+      kept distinct from support-export and offboarding packets so
+      financial truth, support truth, and access-end truth do not
+      silently collapse.
+    owner_dri: "@ahmeddyounis"
+    schema_ref: schemas/governance/usage_export_record.schema.json
+    schema_version_pin: 1
+    schema_version_uri: https://aureline.dev/schemas/governance/usage_export_record.schema.json
+    lifecycle_state_class: seeded
+    consent_class: admin_policy_gated
+    default_posture_class: admin_policy_gated_default
+    endpoint_class: managed_authoritative_when_enabled
+    redaction_class: metadata_only_no_payload_bytes
+    retention_note: >
+      The packet is point-in-time and replaced each export window;
+      retention of stored copies belongs to the managed admin or
+      finance system that consumes them, not to the product itself.
+    compatibility_horizon:
+      min_readable_version: 1
+      min_writable_version: 1
+      deprecation_window_note: >
+        Old packet shapes remain readable for at least one LTS
+        cycle so historical usage summaries stay legible to finance
+        and admin review.
+      sunset_window_note: >
+        Writers stop emitting a deprecated packet field only after
+        the downgrade rule has been live for one LTS cycle.
+    deprecated_fields:
+      - field_path: envelope.legacy_provider_account_id
+        deprecated_since_schema_version: 1
+        removal_window_note: >
+          Retained as preserve_as_unknown for one LTS cycle so
+          historical packets remain readable; replaced by an opaque
+          provider_account_handle on the same packet.
+        downgrade_action: preserve_as_unknown
+        replacement_field_path: envelope.provider_account_handle
+    consent_ledger_entry_id_ref: usage.metering_export_packet
+    named_runtime_consumer:
+      consumer_ref: docs/governance/schema_registry_seed.md
+      consumer_class: review_docs_landing_page
+      consumed_fields:
+        - schema_registry_row.entry_id
+        - schema_registry_row.schema_ref
+        - schema_registry_row.schema_version_pin
+        - schema_registry_row.consent_class
+        - schema_registry_row.endpoint_class
+        - schema_registry_row.deprecated_fields
+    example_payload_ref: fixtures/schemas/m1_registry_examples/usage_export_payload.json
+    failure_drill:
+      drill_id: usage_export_drill.deprecated_field_loses_sunset_note
+      description: >
+        Clears the removal_window_note on the deprecated
+        envelope.legacy_provider_account_id field; the lane MUST
+        fail with
+        schema_registry.deprecated_field_removal_window_note_required.
+      forced_input:
+        clear_first_deprecated_field_removal_window_note: true
+      expected_check_id: schema_registry.deprecated_field_removal_window_note_required
+      actionable_next_action: >
+        Restore the removal_window_note so the deprecated field's
+        downgrade window remains reviewable, or remove the
+        deprecated-field row if it is no longer needed.
