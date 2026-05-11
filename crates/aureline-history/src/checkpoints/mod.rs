@@ -48,6 +48,15 @@ impl LocalHistoryStore {
         self.group_ids.mint()
     }
 
+    /// Returns the on-disk root that holds content-addressed body objects.
+    ///
+    /// Callers that need to rehydrate a previously-persisted body (for
+    /// example a preview/apply/revert wedge restoring a checkpoint) can
+    /// resolve `obj:blake3:<hex>` ids against this root.
+    pub fn objects_root_path(&self) -> std::path::PathBuf {
+        self.objects_root.clone()
+    }
+
     /// Writes a captured body into the content-addressed object store.
     pub fn write_body_object(&self, bytes: &[u8]) -> Result<String, HistoryError> {
         let digest = blake3::hash(bytes).to_hex().to_string();

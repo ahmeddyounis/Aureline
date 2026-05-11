@@ -61,6 +61,12 @@ pub mod recovery;
 pub mod release_center;
 /// Restore-prompt projection for resume / missing-target recovery.
 pub mod restore;
+/// Preview/apply/revert lifecycle wedge for one destructive core path
+/// (multi-target bulk replace). Bounded prototype: mints named undo
+/// groups and content-addressed checkpoints, refuses to widen scope after
+/// preview, and reuses the shared mutation-journal / local-history
+/// vocabulary without forking.
+pub mod review_preview;
 /// Runtime projections shared by terminal, task, and debug-prep seed surfaces.
 pub mod runtime;
 /// Save-review sheet projections for conflicted save attempts.

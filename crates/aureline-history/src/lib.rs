@@ -27,3 +27,14 @@ pub use mutation_journal::{
     TargetKind, TargetRef,
 };
 pub use storage::{HistoryError, HistoryStorageRoot, IdSource};
+
+/// Stable content-addressed object id (`obj:blake3:<hex>`) for `bytes`.
+///
+/// The shared shape lets non-storage callers (preview/apply/revert lifecycle,
+/// checkpoint plan inspectors, diff projections) compute the same body digest
+/// the [`LocalHistoryStore::write_body_object`] writer would mint without
+/// persisting a blob first.
+pub fn body_object_id(bytes: &[u8]) -> String {
+    let digest = blake3::hash(bytes).to_hex().to_string();
+    format!("obj:blake3:{digest}")
+}
