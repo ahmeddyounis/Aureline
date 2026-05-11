@@ -1,0 +1,285 @@
+# Nightly hot-path fitness gate definition.
+#
+# This file is the canonical, machine-readable register of the protected
+# hot-path fitness functions that the nightly perf lane treats as
+# release controls. Each row pins one fitness function (ff.* row in
+# artifacts/bench/fitness_function_catalog.yaml), one trace-suite scenario
+# (scenarios.yaml#scenarios), one metric_id from the latency budget
+# ledger (artifacts/perf/latency_budget_ledger.yaml), one threshold +
+# warning band, and an explicit waiver state with owner and expiry.
+#
+# The runner (./run_nightly_hot_path.py) joins the latest hot-path
+# trace-suite capture against this gate definition, projects each
+# (protected metric row, hardware row) into a regression-status row,
+# emits the dashboard projection, and writes the durable JSON capture.
+#
+# Identity rules.
+#   - Every row MUST name a stable gate_row_id, one fitness_function_row_ref
+#     resolved against artifacts/bench/fitness_function_catalog.yaml#rows[].id,
+#     a scenario_id resolved against
+#     benchmarks/m1/hot_path_trace_suite/scenarios.yaml#scenarios[].scenario_id
+#     (or scenario_id: null with coverage_state: pending_scenario_seed when
+#     no scenario emits the metric yet), one metric_id resolved against
+#     the budget_ref's thresholds in
+#     artifacts/perf/latency_budget_ledger.yaml, an owner_dri, and an
+#     owning_lane.
+#   - Every row carries a typed waiver row with explicit waiver state,
+#     waiver_record_ref (or null), and expiry_at (or null). A row whose
+#     observed value exceeds the regression_floor_ms MUST cite a
+#     non-null waiver_record_ref to render anything other than fail.
+#   - Milestone names and task ids MUST NOT appear outside this header.
+
+schema_version: 1
+gate_id: aureline.ci.perf.nightly_hot_path
+gate_revision: 1
+status: seeded
+as_of: "2026-05-10"
+owner_dri: "@ahmeddyounis"
+
+reviewer_entrypoint: docs/perf/m1_fitness_gate_policy.md
+
+# Frozen contracts the gate consumes. The runner verifies each ref
+# resolves and refuses to project a row whose contract is missing.
+upstream_contracts:
+  trace_suite_scenarios_ref: benchmarks/m1/hot_path_trace_suite/scenarios.yaml
+  trace_suite_runner_ref: benchmarks/m1/hot_path_trace_suite/run_hot_path_trace_suite.py
+  trace_suite_capture_ref: artifacts/milestones/m1/captures/hot_path_trace_suite_validation_capture.json
+  reference_hardware_matrix_ref: artifacts/perf/m1/reference_hardware_matrix.yaml
+  reference_hardware_manifest_ref: artifacts/perf/reference_hardware_manifest.yaml
+  latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+  protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+  fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+  exact_build_identity_ref: artifacts/build/build_identity.json
+
+# Validation lane bound to this gate. Lane registration in the M1
+# proof index points at the same QE lane.
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# Closed regression-status vocabulary. The runner refuses to emit a
+# status outside this list.
+regression_status_vocabulary:
+  - pass
+  - warn
+  - fail
+  - waived
+  - missing_observation
+  - pending_scenario_seed
+
+# Closed waiver-state vocabulary. Mirrors the waiver-cause vocabulary
+# in docs/perf/benchmark_waiver_dashboard_contract.md without re-
+# inventing a parallel list.
+waiver_state_vocabulary:
+  - no_active_waiver
+  - active_waiver
+  - expired_waiver
+  - threshold_provisional_pending_council
+
+# Protected metric rows. Each row pins one (fitness function, scenario,
+# metric_id) triple. The runner emits one dashboard cell per
+# (gate_row_id, hardware_row_id) by joining the latest trace-suite
+# capture's trace_packets against this register.
+protected_metric_rows:
+  - gate_row_id: gate.startup.warm_first_paint
+    title: Warm startup to first paint
+    fitness_function_row_ref: ff.warm_start_to_first_paint
+    scenario_id: scenario.warm_first_paint
+    metric_id: first_paint_warm_ms
+    budget_ref: path.shell.launch
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    coverage_state: live
+    threshold:
+      target_ms: 150
+      warning_band_ms: 130
+      regression_floor_ms: 150
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is gated against the published warm-startup target.
+
+  - gate_row_id: gate.startup.first_useful_chrome
+    title: Warm startup to first useful chrome
+    fitness_function_row_ref: ff.warm_start_to_first_paint
+    scenario_id: scenario.interactive_shell
+    metric_id: palette_available_warm_ms
+    budget_ref: path.shell.first_useful_chrome
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    coverage_state: live
+    threshold:
+      target_ms: 400
+      warning_band_ms: 360
+      regression_floor_ms: 400
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is gated against the command-palette warm-availability target.
+
+  - gate_row_id: gate.editor.file_open
+    title: Placeholder file open to first paint
+    fitness_function_row_ref: ff.first_paint
+    scenario_id: scenario.file_open
+    metric_id: file_open_typical_project_ms
+    budget_ref: path.editor.placeholder_open
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    coverage_state: live
+    threshold:
+      target_ms: 70
+      warning_band_ms: 60
+      regression_floor_ms: 70
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is gated against the placeholder-open first-paint target.
+
+  - gate_row_id: gate.editor.file_switch
+    title: File switch to first paint
+    fitness_function_row_ref: ff.first_paint
+    scenario_id: scenario.file_switch
+    metric_id: file_open_small_project_ms
+    budget_ref: path.editor.placeholder_open
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    coverage_state: live
+    threshold:
+      target_ms: 50
+      warning_band_ms: 45
+      regression_floor_ms: 50
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is gated against the file-switch first-paint target.
+
+  - gate_row_id: gate.quick_open.invoke_p95
+    title: Quick-open invoke to ranked results (p95)
+    fitness_function_row_ref: ff.input_to_paint
+    scenario_id: scenario.quick_open
+    metric_id: quick_open_p95_ms
+    budget_ref: path.command_palette.open
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    coverage_state: live
+    threshold:
+      target_ms: 75
+      warning_band_ms: 60
+      regression_floor_ms: 75
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is gated against the quick-open p95 target.
+
+  - gate_row_id: gate.input_to_paint.keystroke_p95
+    title: Keystroke admitted to paint (p95)
+    fitness_function_row_ref: ff.input_to_paint
+    scenario_id: scenario.keystroke_to_paint
+    metric_id: key_to_paint_p95_ms
+    budget_ref: path.editor.first_useful_edit
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    coverage_state: live
+    threshold:
+      target_ms: 8
+      warning_band_ms: 7
+      regression_floor_ms: 8
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is gated against the keystroke-to-paint p95 target.
+
+  - gate_row_id: gate.save.pipeline_p95
+    title: Save request to durable save completion (p95)
+    fitness_function_row_ref: ff.vfs_save_conflict_handling
+    scenario_id: scenario.save
+    metric_id: save_pipeline_p95_ms
+    budget_ref: path.editor.save
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    coverage_state: live
+    threshold:
+      target_ms: 220
+      warning_band_ms: 200
+      regression_floor_ms: 220
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is gated against the save-pipeline p95 target.
+
+  - gate_row_id: gate.recovery.workspace_snapshot_restore
+    title: Workspace snapshot restore (warm)
+    fitness_function_row_ref: ff.restore_fidelity
+    # No trace-suite scenario emits workspace_snapshot_restore_ms yet;
+    # the runner reports the row as pending_scenario_seed (advisory)
+    # until a recovery-timing scenario lands in scenarios.yaml.
+    scenario_id: null
+    metric_id: workspace_snapshot_restore_ms
+    budget_ref: path.workspace.restore
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    coverage_state: pending_scenario_seed
+    threshold:
+      target_ms: 120
+      warning_band_ms: 100
+      regression_floor_ms: 120
+    waiver:
+      waiver_state: threshold_provisional_pending_council
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: >
+        Recovery timing scenario not yet seeded in the hot-path trace
+        suite. The threshold is published in the latency-budget ledger
+        (path.workspace.restore.workspace_snapshot_restore_ms <= 120ms);
+        the gate surfaces the row as pending_scenario_seed (advisory)
+        until a trace-suite scenario emits the metric.
+
+# Failure drill. The runner replays the gate with one row's observed
+# value forced over its regression_floor_ms and confirms the durable
+# capture reports a typed regression-fail finding rather than a passive
+# dashboard warning.
+failure_drill:
+  drill_id: drill.regress_protected_metric
+  description: >
+    Force the keystroke-to-paint p95 observation to 12 ms (above the
+    8 ms regression floor) for the macOS reference row and confirm the
+    runner emits a fail row with check_id =
+    nightly_hot_path.regression_floor.exceeded and a non-zero exit.
+  forced_input:
+    gate_row_id: gate.input_to_paint.keystroke_p95
+    hardware_row_id: ref_row.macos15.arm64.apple_silicon_14in
+    forced_observed_ms: 12
+  expected_report:
+    expected_check_id: nightly_hot_path.regression_floor.exceeded
+    expected_overall_status: FAIL
+    expected_row_status: fail
+    actionable_owner_ref: "@ahmeddyounis"
+    next_action: >
+      Bisect input_to_paint regression on the macOS reference row, fix
+      or mint a waiver routed through the performance council, and re-
+      run the nightly hot-path lane.
+
+# Required gate-row coverage. The runner refuses to PASS unless every
+# gate_row_id below resolves to at least one rendered dashboard cell.
+required_gate_row_coverage:
+  - gate.startup.warm_first_paint
+  - gate.startup.first_useful_chrome
+  - gate.editor.file_open
+  - gate.editor.file_switch
+  - gate.quick_open.invoke_p95
+  - gate.input_to_paint.keystroke_p95
+  - gate.save.pipeline_p95
+  - gate.recovery.workspace_snapshot_restore
