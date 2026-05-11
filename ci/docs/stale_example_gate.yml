@@ -1,0 +1,91 @@
+# Stale-example detection CI gate manifest.
+#
+# This file is the canonical machine-readable description of the M1
+# stale-example CI gate that protects docs-pack content and contract
+# example payloads from drifting away from live truth surfaces.
+#
+# The gate is fail-close: any error from the validator stops a docs-pack
+# publication. Advisory downgrade is allowed only via the rollback lever
+# below, and only while the underlying drift is being investigated.
+#
+# Planning identifiers (milestones, task ids) MUST NOT appear in any
+# user-facing string produced from this manifest.
+
+schema_version: 1
+gate_id: aureline.ci.docs_pack_and_example_checks
+status: seeded
+as_of: "2026-05-11"
+
+owner_dri: "@ahmeddyounis"
+overview_page: docs/ci/m1_docs_pack_and_example_checks.md
+source_map_ref: artifacts/ci/m1_stale_example_source_map.yaml
+validator_entrypoint: tools/ci/check_stale_examples.py
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+severity_class: fail_close
+gate_default_posture_class: required_on_protected_paths
+
+protected_paths:
+  - docs/help/**
+  - fixtures/help/**
+  - artifacts/help/**
+  - schemas/help/**
+  - schemas/ux/embedded_boundary_card.schema.json
+  - artifacts/ci/m1_stale_example_source_map.yaml
+
+commands:
+  local_run:
+    description: >
+      Reproduce the gate locally on a clean checkout. Writes the durable
+      JSON capture used by the proof set.
+    command: >-
+      python3 tools/ci/check_stale_examples.py
+      --repo-root .
+      --report artifacts/milestones/m1/captures/docs_pack_and_example_checks_validation_capture.json
+  ci_lane:
+    description: >
+      The unattended validation-lane wrapper exercises the gate and
+      replays the named failure drill so the proof captures every run.
+    command: >-
+      python3 tests/ci/m1_docs_pack_and_example_checks_lane/run_m1_docs_pack_and_example_checks_lane.py
+      --repo-root .
+
+artifact_outputs:
+  capture_ref: artifacts/milestones/m1/captures/docs_pack_and_example_checks_validation_capture.json
+  proof_packet_ref: artifacts/milestones/m1/proof_packets/docs_pack_and_example_checks.md
+  artifact_index_ref: artifacts/milestones/m1/artifact_index.yaml
+
+failure_outputs:
+  pinpointed_failure_class:
+    description: >
+      Every gate failure names the drifting pack_id, example_id,
+      vocabulary_id, schema_ref, payload_ref, and stale token so the
+      reviewer can route the fix without re-running the gate.
+    finding_check_id_examples:
+      - stale_examples.required_metadata_tokens_missing
+      - stale_examples.docs_pack_missing
+      - stale_examples.example_payload_schema_invalid
+      - stale_examples.vocabulary_pin_not_in_seed
+      - stale_examples.vocabulary_pin_path_unresolved
+      - stale_examples.payload_parse_failed
+
+rollback_lever:
+  description: >
+    Downgrade the gate to advisory (warning instead of error) while a
+    stale-example incident is investigated. Use the manifest only —
+    never delete the lane or hide the regression. The downgrade lasts
+    until the next published source-map update, then the gate returns
+    to fail-close automatically.
+  advisory_downgrade_allowed: true
+  destructive_disable_allowed: false
+  history_retention_required: true
+
+refresh_policy:
+  refresh_required_when_any_of_the_following_change:
+    - artifacts/ci/m1_stale_example_source_map.yaml
+    - tools/ci/check_stale_examples.py
+    - docs/ci/m1_docs_pack_and_example_checks.md
+    - artifacts/help/m1_truth_source_examples.yaml
+    - fixtures/help/docs_browser_cases/
+    - docs/help/docs_browser_contract.md
+    - docs/help/truth_source_model.md

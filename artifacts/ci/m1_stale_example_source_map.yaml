@@ -1,0 +1,121 @@
+# Stale-example detection pipeline source map.
+#
+# This artifact is the canonical, machine-readable source map for the M1
+# stale-example detection pipeline. It pins:
+#
+# - the controlling vocabulary seeds the protected docs-pack examples
+#   project (every vocabulary token a protected example renders MUST
+#   still appear in the live seed, otherwise the example has gone stale);
+# - the protected docs-pack pages every M1 dogfood publication MUST
+#   ship with explicit source / version / freshness metadata;
+# - the protected example payload fixtures every M1 docs/help surface
+#   uses to ground its truth rows;
+# - the schema each protected example payload MUST stay valid against;
+# - the docs-pack -> example -> vocabulary path each example pins via
+#   a typed jsonpath into the payload; and
+# - the named failure drill the gate replays under --force-drill so the
+#   pipeline is reproducible without hand-curated stale fixtures.
+#
+# The validator entry point is `tools/ci/check_stale_examples.py`. The
+# reviewer-facing landing page is `docs/ci/m1_docs_pack_and_example_checks.md`.
+# The CI gate manifest that runs the validator is
+# `ci/docs/stale_example_gate.yml`.
+#
+# Planning identifiers (milestones, task ids) MUST NOT appear in any
+# user-facing string produced from this artifact.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+source_map_id: m1_stale_example_source_map
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/ci/m1_docs_pack_and_example_checks.md
+validator_entrypoint: tools/ci/check_stale_examples.py
+ci_gate_manifest: ci/docs/stale_example_gate.yml
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+build_identity_ref: artifacts/build/build_identity.json
+
+# Controlling vocabulary seeds. Every token a protected example pins
+# (e.g. `source_class`, `version_match_state`, `freshness_class`) MUST
+# still appear in the named row of the named seed. When the upstream
+# seed retires a token, the gate fails on every example that still
+# pins it; remediation is to update the example, not paper over the
+# drift.
+vocabulary_seeds:
+  - vocabulary_id: docs_help_source_class
+    seed_ref: artifacts/help/m1_truth_source_examples.yaml
+    seed_row_id: truth_source.docs_help_source_class
+    seed_kind: m1_truth_source_row
+  - vocabulary_id: docs_help_version_match_state
+    seed_ref: artifacts/help/m1_truth_source_examples.yaml
+    seed_row_id: truth_source.docs_help_version_match_state
+    seed_kind: m1_truth_source_row
+  - vocabulary_id: docs_help_freshness_class
+    seed_ref: artifacts/help/m1_truth_source_examples.yaml
+    seed_row_id: truth_source.docs_help_freshness_class
+    seed_kind: m1_truth_source_row
+
+protected_docs_packs:
+  - pack_id: docs_help_browser_skeleton
+    pack_title: Docs/help browser skeleton truth rows
+    pack_ref: docs/help/docs_browser_contract.md
+    upstream_truth_source_ref: docs/help/truth_source_model.md
+    required_metadata_tokens:
+      - source_class
+      - version_match_state
+      - freshness_class
+    protected_examples:
+      - example_id: docs_browser.project_docs_live_verified
+        payload_ref: fixtures/help/docs_browser_cases/project_docs_live_verified.json
+        schema_ref: schemas/ux/embedded_boundary_card.schema.json
+        vocabulary_pins:
+          - vocabulary_id: docs_help_source_class
+            payload_path: source_truth.source_class
+          - vocabulary_id: docs_help_version_match_state
+            payload_path: source_truth.version_match_state
+          - vocabulary_id: docs_help_freshness_class
+            payload_path: source_truth.freshness_class
+      - example_id: docs_browser.mirrored_docs_stale_snapshot
+        payload_ref: fixtures/help/docs_browser_cases/mirrored_docs_stale_snapshot.json
+        schema_ref: schemas/ux/embedded_boundary_card.schema.json
+        vocabulary_pins:
+          - vocabulary_id: docs_help_source_class
+            payload_path: source_truth.source_class
+          - vocabulary_id: docs_help_version_match_state
+            payload_path: source_truth.version_match_state
+          - vocabulary_id: docs_help_freshness_class
+            payload_path: source_truth.freshness_class
+      - example_id: docs_browser.unknown_metadata_unverified
+        payload_ref: fixtures/help/docs_browser_cases/unknown_metadata_unverified.json
+        schema_ref: schemas/ux/embedded_boundary_card.schema.json
+        vocabulary_pins:
+          - vocabulary_id: docs_help_source_class
+            payload_path: source_truth.source_class
+          - vocabulary_id: docs_help_version_match_state
+            payload_path: source_truth.version_match_state
+          - vocabulary_id: docs_help_freshness_class
+            payload_path: source_truth.freshness_class
+    failure_drill:
+      drill_id: stale_example_drill.vocabulary_pin_dropped_from_seed
+      description: >
+        Rewrite the live source_class token on the
+        `docs_browser.project_docs_live_verified` example to a token
+        that no longer exists in the
+        `truth_source.docs_help_source_class` seed row's
+        vocabulary_tokens. The gate MUST fail with
+        `stale_examples.vocabulary_pin_not_in_seed` so the reviewer
+        sees the exact example, vocabulary id, and stale token that
+        drifted.
+      forced_input:
+        example_id: docs_browser.project_docs_live_verified
+        rewrite_vocabulary_pin:
+          payload_path: source_truth.source_class
+          replacement_value: stale_legacy_source_class_v0
+      expected_check_id: stale_examples.vocabulary_pin_not_in_seed
+      actionable_next_action: >
+        Restore the example's pinned token to a value listed in
+        `truth_source.docs_help_source_class.vocabulary_tokens`, or land
+        a superseding seed that mints the new token before publishing
+        the example.
