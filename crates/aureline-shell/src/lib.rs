@@ -54,6 +54,16 @@ pub mod host_boundary_cues;
 /// Help / About / provenance / service-health seed surface with client-scope
 /// badges projected from the shared build-info, runtime, and docs/help truth.
 pub mod help_about;
+/// Bounded install-review fact-grid wedge on one certified install-like
+/// action (extension-bearing). Projects the upstream
+/// [`aureline_extensions::manifest_baseline`] manifest, effective-
+/// permission, and install-decision records into a structured fact
+/// grid that lists publisher identity, origin/source, lifecycle and
+/// compatibility, declared and effective permissions, the typed
+/// install decision, the activation budget, and the rollback posture
+/// before commit. Refuses to admit a widening attempt and refuses to
+/// admit an extension whose rollback posture is "not yet admitted".
+pub mod install_review_fact_grid;
 pub mod layout;
 /// Notification routing: toast, banner, status, and durable-activity row
 /// projections derived from the typed notification envelope contract.
