@@ -167,6 +167,97 @@
       ],
       "description": "Whether the capability may appear in export artifacts. public_exportable means it may appear in public-proof packets and compatibility reports; support_export_only limits visibility to support bundles; internal_redacted means it must not appear in exports."
     },
+    "kill_switch_path": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Opaque ref to the kill switch that disables the capability without requiring a code change (for example a policy-bundle key, a feature-flag id, or a runtime gate ref). Consumers treat this as opaque text and do not parse it. Null only when the capability is non-killable by design (for example a structural surface like the shell frame); the validation lane requires a non-null kill switch for capabilities that declare a non-null rollout_gate."
+        }
+      ]
+    },
+    "retirement_metadata": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "retirement_target_window_note"
+          ],
+          "properties": {
+            "retirement_announced_on": {
+              "oneOf": [
+                { "type": "null" },
+                { "type": "string", "format": "date" }
+              ],
+              "description": "ISO date the retirement was first announced to operators. Null when the capability is announced-deprecated without a fixed date yet."
+            },
+            "replacement_capability_id": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/capability_id" }
+              ],
+              "description": "capability_id of the replacement capability when the deprecation has a forward path. Null when the deprecation has no replacement."
+            },
+            "retirement_target_window_note": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "Reviewer-readable sentence describing the retirement window (for example 'Target removal in the milestone after the next stable cut'). Required so deprecated rows can never claim a deprecation without an actionable horizon."
+            }
+          }
+        }
+      ],
+      "description": "Retirement / deprecation metadata for the capability. MUST be a non-null object when lifecycle_state is one of {deprecated, disabled_by_policy, retired}; MAY be null otherwise. The validation lane enforces this conditional shape so deprecated rows cannot drift into 'announced without an exit plan'."
+    },
+    "failure_drill": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drill_id",
+            "forced_input",
+            "expected_check_id",
+            "actionable_next_action"
+          ],
+          "properties": {
+            "drill_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "description": "Stable id for this row's named failure drill, drawn from the matrix's failure_drill_id_vocabulary."
+            },
+            "forced_input": {
+              "type": "object",
+              "minProperties": 1,
+              "description": "Forced row mutation applied under --force-drill so the runner can reproduce the named expected_check_id from a clean tree."
+            },
+            "expected_check_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "description": "Exact check_id the runner must report under --force-drill so the drill stays loud."
+            },
+            "actionable_next_action": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "Short reviewer-readable next action when the drill fires unexpectedly."
+            }
+          }
+        }
+      ],
+      "description": "Named failure drill for an M1-bearing surface row. Required when m1_surface_seed_membership is true; null otherwise."
+    },
+    "m1_surface_seed_membership": {
+      "type": "boolean",
+      "description": "Marks the row as part of the M1-bearing surface coverage seed. M1-bearing rows MUST also carry a non-null failure_drill so the lane can prove omissions are caught."
+    },
     "capability_inventory_entry_record": {
       "type": "object",
       "additionalProperties": false,
@@ -185,7 +276,9 @@
         "public_label",
         "public_label_policy",
         "public_claim_posture",
-        "export_visibility"
+        "export_visibility",
+        "kill_switch_path",
+        "retirement_metadata"
       ],
       "properties": {
         "record_kind": { "$ref": "#/$defs/record_kind" },
@@ -225,6 +318,10 @@
         "public_label_policy": { "$ref": "#/$defs/public_label_policy" },
         "public_claim_posture": { "$ref": "#/$defs/public_claim_posture" },
         "export_visibility": { "$ref": "#/$defs/export_visibility" },
+        "kill_switch_path": { "$ref": "#/$defs/kill_switch_path" },
+        "retirement_metadata": { "$ref": "#/$defs/retirement_metadata" },
+        "m1_surface_seed_membership": { "$ref": "#/$defs/m1_surface_seed_membership" },
+        "failure_drill": { "$ref": "#/$defs/failure_drill" },
         "notes": {
           "type": "string",
           "description": "Optional short reviewer-facing notes about the capability inventory entry."
@@ -260,6 +357,38 @@
               "export_visibility": { "const": "internal_redacted" }
             },
             "required": ["claim_lanes", "export_visibility"]
+          }
+        },
+        {
+          "description": "lifecycle_state in {deprecated, disabled_by_policy, retired} forces retirement_metadata to be a non-null object.",
+          "if": {
+            "properties": {
+              "lifecycle_state": {
+                "enum": ["deprecated", "disabled_by_policy", "retired"]
+              }
+            },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "retirement_metadata": { "type": "object" }
+            },
+            "required": ["retirement_metadata"]
+          }
+        },
+        {
+          "description": "m1_surface_seed_membership = true forces failure_drill to be a non-null object.",
+          "if": {
+            "properties": {
+              "m1_surface_seed_membership": { "const": true }
+            },
+            "required": ["m1_surface_seed_membership"]
+          },
+          "then": {
+            "properties": {
+              "failure_drill": { "type": "object" }
+            },
+            "required": ["failure_drill"]
           }
         }
       ]

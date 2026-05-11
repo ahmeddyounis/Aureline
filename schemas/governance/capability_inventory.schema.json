@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/capability_inventory.schema.json",
+  "title": "Aureline capability-inventory seed envelope",
+  "description": "Boundary schema for artifacts/governance/capability_inventory_seed.yaml. The envelope pins the canonical entry vocabulary at capability_inventory_entry.schema.json, the reviewer-facing landing page, the build-identity record the validation lane embeds, the validation-lane registry ref, the closed lifecycle-state vocabulary used for M1 surfaces, the named-runtime-consumer set the seed asserts is live, the named failure-drill ids the per-row drills must draw from, the M1 surface coverage list (the capability_ids the seed must seed as M1 surface seed members), and the entry list itself. Rows conform to the entry schema; the envelope cannot relax that contract.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "status",
+    "matrix_id",
+    "owner_dri",
+    "overview_page",
+    "contract_doc_ref",
+    "entry_schema_ref",
+    "build_identity_ref",
+    "validation_lane_ref",
+    "lifecycle_state_vocabulary",
+    "failure_drill_id_vocabulary",
+    "named_runtime_consumers",
+    "required_m1_surface_coverage",
+    "required_lifecycle_state_coverage",
+    "entries"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["seeded", "stabilising", "stable"]
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date"
+    },
+    "matrix_id": {
+      "type": "string",
+      "const": "m1_capability_inventory_seed"
+    },
+    "owner_dri": {
+      "type": "string",
+      "pattern": "^@[a-zA-Z0-9_-]+$"
+    },
+    "overview_page": {
+      "type": "string",
+      "const": "docs/governance/capability_lifecycle_seed.md"
+    },
+    "contract_doc_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "entry_schema_ref": {
+      "type": "string",
+      "const": "schemas/governance/capability_inventory_entry.schema.json"
+    },
+    "capability_lifecycle_schema_ref": { "type": "string", "minLength": 1 },
+    "capability_projection_matrix_ref": { "type": "string", "minLength": 1 },
+    "claim_manifest_contract_ref": { "type": "string", "minLength": 1 },
+    "claim_propagation_rules_ref": { "type": "string", "minLength": 1 },
+    "ownership_matrix_ref": { "type": "string", "minLength": 1 },
+    "experiments_register_ref": { "type": "string", "minLength": 1 },
+    "boundary_manifest_ref": { "type": "string", "minLength": 1 },
+    "build_identity_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validation_lane_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vocabulary": {
+      "type": "object",
+      "description": "Optional human-readable vocabulary echo. The lane validates these against the entry schema's $defs."
+    },
+    "lifecycle_state_vocabulary": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 5,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Closed vocabulary of lifecycle states the seed asserts. MUST agree with the entry schema's lifecycle_state $defs and MUST cover the canonical Labs / Preview / Beta / Stable / Deprecated set."
+    },
+    "failure_drill_id_vocabulary": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Closed vocabulary of named failure drills the per-row failure_drill blocks must draw from."
+    },
+    "named_runtime_consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "consumer_id",
+          "consumer_class",
+          "consumer_ref",
+          "consumed_fields"
+        ],
+        "properties": {
+          "consumer_id": { "type": "string", "minLength": 1 },
+          "consumer_class": {
+            "type": "string",
+            "enum": [
+              "review_docs_landing_page",
+              "rust_runtime_validator",
+              "ci_schema_validator",
+              "support_or_release_surface",
+              "docs_or_help_surface"
+            ]
+          },
+          "consumer_ref": { "type": "string", "minLength": 1 },
+          "consumed_fields": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "notes": { "type": "string" }
+        }
+      },
+      "description": "Named live consumers that read the inventory. The lane resolves consumer_ref on disk and asserts consumed_fields is non-empty so a consumer cannot regress to 'mentioned but never read'."
+    },
+    "required_lifecycle_state_coverage": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 5,
+      "items": {
+        "type": "string",
+        "enum": [
+          "labs",
+          "preview",
+          "beta",
+          "stable",
+          "deprecated"
+        ]
+      },
+      "description": "M1 lifecycle states that MUST appear at least once across the entries (Labs / Preview / Beta / Stable / Deprecated)."
+    },
+    "required_m1_surface_coverage": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 9,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "capability_ids that MUST be present as m1_surface_seed_membership = true rows. Covers the protected M1 surfaces the spec calls out: shell, Start Center, workspace entry, editor basics, quick open, search shell, terminal seed, support export, and help/About."
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "capability_inventory_entry.schema.json"
+      }
+    }
+  }
+}

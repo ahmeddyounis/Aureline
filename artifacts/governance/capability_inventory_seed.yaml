@@ -9,11 +9,17 @@
 #   - compatibility reports, and
 #   - release packets / release notes.
 #
+# Reviewer-facing landing page:
+#   docs/governance/capability_lifecycle_seed.md
+#
 # Companion narrative contract:
 #   docs/governance/capability_inventory_contract.md
 #
 # Row schema:
 #   schemas/governance/capability_inventory_entry.schema.json
+#
+# Envelope schema:
+#   schemas/governance/capability_inventory.schema.json
 #
 # Conformance:
 #   - Every entry conforms to the row schema.
@@ -23,14 +29,24 @@
 #   - Hidden/internal capabilities must not leak into public claims. Any
 #     row with public_claim_posture = forbidden must have claim_lanes = []
 #     and export_visibility = internal_redacted.
+#   - Rows whose lifecycle_state is in {deprecated, disabled_by_policy,
+#     retired} MUST carry a non-null retirement_metadata block with a
+#     reviewable retirement_target_window_note.
+#   - Rows that mark m1_surface_seed_membership = true MUST carry a
+#     non-null failure_drill block whose drill_id is listed in
+#     failure_drill_id_vocabulary.
 #   - Milestone slugs and task ids MUST NOT appear in any id, path, label,
 #     or note field. Describe what the capability is, not which planning
 #     item it came from.
 
 schema_version: 1
 status: seeded
-as_of: "2026-05-07"
+as_of: "2026-05-11"
 
+matrix_id: m1_capability_inventory_seed
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/governance/capability_lifecycle_seed.md
 contract_doc_ref: docs/governance/capability_inventory_contract.md
 entry_schema_ref: schemas/governance/capability_inventory_entry.schema.json
 capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
@@ -40,6 +56,9 @@ claim_propagation_rules_ref: artifacts/governance/claim_propagation_rules.yaml
 ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
 experiments_register_ref: artifacts/governance/experiments_register.yaml
 boundary_manifest_ref: docs/product/boundary_manifest_strawman.md
+
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
 
 vocabulary:
   lifecycle_states:
@@ -83,7 +102,432 @@ vocabulary:
     - support_export_only
     - internal_redacted
 
+lifecycle_state_vocabulary:
+  - labs
+  - preview
+  - beta
+  - stable
+  - lts_facing
+  - deprecated
+  - disabled_by_policy
+  - retired
+
+required_lifecycle_state_coverage:
+  - labs
+  - preview
+  - beta
+  - stable
+  - deprecated
+
+required_m1_surface_coverage:
+  - shell.frame
+  - shell.start_center
+  - workspace.entry
+  - editor.basics
+  - command.quick_open
+  - search.shell_search
+  - terminal.embedded_seed
+  - support.export_seed
+  - help.about_pane
+
+failure_drill_id_vocabulary:
+  - capability_inventory_drill.shell_frame_lifecycle_state_dropped
+  - capability_inventory_drill.start_center_kill_switch_path_dropped
+  - capability_inventory_drill.workspace_entry_owner_dri_dropped
+  - capability_inventory_drill.editor_basics_public_label_dropped
+  - capability_inventory_drill.quick_open_rollout_gate_disclosure_dropped
+  - capability_inventory_drill.search_shell_lifecycle_state_drifted_to_unknown_token
+  - capability_inventory_drill.terminal_seed_widened_to_retired_without_window_note
+  - capability_inventory_drill.support_export_export_visibility_widened_to_public
+  - capability_inventory_drill.help_about_lifecycle_state_dropped
+
+named_runtime_consumers:
+  - consumer_id: capability_lifecycle_seed_landing_page
+    consumer_class: review_docs_landing_page
+    consumer_ref: docs/governance/capability_lifecycle_seed.md
+    consumed_fields:
+      - capability_id
+      - lifecycle_state
+      - public_label
+      - kill_switch_path
+      - retirement_metadata
+    notes: >-
+      Reviewer-facing landing page that quotes the seeded M1 surfaces
+      verbatim so docs / help / release copy reads the same lifecycle
+      vocabulary as the inventory.
+  - consumer_id: capability_inventory_contract_doc
+    consumer_class: docs_or_help_surface
+    consumer_ref: docs/governance/capability_inventory_contract.md
+    consumed_fields:
+      - capability_id
+      - lifecycle_state
+      - public_label_policy
+      - public_claim_posture
+      - export_visibility
+    notes: >-
+      Narrative contract that names the inventory as the canonical
+      register for capability lifecycle and public-claim posture.
+  - consumer_id: capability_inventory_ci_validator
+    consumer_class: ci_schema_validator
+    consumer_ref: tools/ci/validate_contract_artifacts.py
+    consumed_fields:
+      - capability_id
+      - surface_families
+      - dependency_marker_refs
+      - rollout_gate
+      - public_label_policy
+      - public_claim_posture
+      - export_visibility
+    notes: >-
+      Live CI consumer that already reads the inventory and fails closed
+      on missing capability_ids, public-label/claim posture mismatches,
+      and projection coverage gaps.
+
 entries:
+  # ------------------------------------------------------------------
+  # M1 surface seed rows. Each row carries the spec-required fields
+  # (owner, customer-visible label, kill-switch path, rollout state,
+  # and retirement/deprecation metadata) and a named failure drill.
+  # ------------------------------------------------------------------
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: shell.frame
+    capability_kind: workspace_capability
+    surface_families:
+      - help_or_about
+      - docs_page
+      - cli_help
+      - support_export_row
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-shell
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+      - release_evidence
+    dependency_marker_refs: []
+    rollout_gate: null
+    public_label: Shell frame
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+    kill_switch_path: null
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.shell_frame_lifecycle_state_dropped
+      forced_input:
+        clear_lifecycle_state: true
+      expected_check_id: capability_inventory.lifecycle_state_required
+      actionable_next_action: >-
+        Restore the row's lifecycle_state from the canonical
+        Labs / Preview / Beta / Stable / Deprecated vocabulary; the seed
+        cannot leave a claimed surface without a lifecycle posture.
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: shell.start_center
+    capability_kind: workspace_capability
+    surface_families:
+      - help_or_about
+      - docs_page
+      - cli_help
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-shell
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+    dependency_marker_refs: []
+    rollout_gate:
+      gate_kind: feature_flag
+      gate_ref: flag:shell.start_center.disable
+      public_disclosure_required: false
+      notes: >-
+        Operator kill-switch only; the shell still boots into a fallback
+        entry path when the flag is set.
+    public_label: Start Center
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+    kill_switch_path: policy:shell.start_center.kill_switch
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.start_center_kill_switch_path_dropped
+      forced_input:
+        clear_kill_switch_path: true
+      expected_check_id: capability_inventory.kill_switch_path_required_when_rollout_gate_present
+      actionable_next_action: >-
+        Restore the kill_switch_path; rows that declare a non-null
+        rollout_gate MUST also publish an opaque kill-switch ref so
+        operators can disable the capability without a code change.
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: workspace.entry
+    capability_kind: workspace_capability
+    surface_families:
+      - help_or_about
+      - docs_page
+      - cli_help
+      - support_export_row
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-vfs
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+      - release_evidence
+    dependency_marker_refs: []
+    rollout_gate: null
+    public_label: Workspace entry
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+    kill_switch_path: null
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.workspace_entry_owner_dri_dropped
+      forced_input:
+        clear_owner_dri: true
+      expected_check_id: capability_inventory.owner_dri_required
+      actionable_next_action: >-
+        Restore the row's owner_dri; every claimed surface MUST publish
+        a named owning DRI so review can route lifecycle questions
+        without guessing.
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: editor.basics
+    capability_kind: workspace_capability
+    surface_families:
+      - help_or_about
+      - docs_page
+      - cli_help
+      - support_export_row
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-buffer
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+      - release_evidence
+    dependency_marker_refs: []
+    rollout_gate: null
+    public_label: Editor basics
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+    kill_switch_path: null
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.editor_basics_public_label_dropped
+      forced_input:
+        clear_public_label: true
+      expected_check_id: capability_inventory.public_label_required_when_policy_required
+      actionable_next_action: >-
+        Restore the row's public_label; rows whose public_label_policy is
+        public_label_required MUST publish a customer-visible label so
+        docs / help / release copy never collapses into ambiguous wording.
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: command.quick_open
+    capability_kind: command
+    surface_families:
+      - command_palette_entry
+      - help_or_about
+      - docs_page
+      - cli_help
+    lifecycle_state: beta
+    owner_dri: "@ahmeddyounis"
+    owning_lane: shell_command_system
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+    dependency_marker_refs: []
+    rollout_gate:
+      gate_kind: feature_flag
+      gate_ref: flag:command.quick_open.beta
+      public_disclosure_required: true
+      notes: >-
+        Beta gate; surfaces MUST disclose the beta posture so the row
+        does not read as stable-by-omission.
+    public_label: Quick open
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+    kill_switch_path: policy:command.quick_open.kill_switch
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.quick_open_rollout_gate_disclosure_dropped
+      forced_input:
+        relax_rollout_gate_disclosure: true
+      expected_check_id: capability_inventory.rollout_gate_public_disclosure_required_for_pre_stable
+      actionable_next_action: >-
+        Restore public_disclosure_required = true on the rollout_gate;
+        pre-stable rows (labs / preview / beta) MUST disclose their gate
+        so claim copy cannot quietly read as stable.
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: search.shell_search
+    capability_kind: workspace_capability
+    surface_families:
+      - command_palette_entry
+      - diagnostics_panel
+      - docs_page
+      - cli_help
+    lifecycle_state: beta
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-vfs
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+    dependency_marker_refs: []
+    rollout_gate:
+      gate_kind: feature_flag
+      gate_ref: flag:search.shell_search.beta
+      public_disclosure_required: true
+      notes: >-
+        Beta gate; widening to stable without disclosure is a public-
+        claim drift the lane catches.
+    public_label: Search (shell)
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+    kill_switch_path: policy:search.shell_search.kill_switch
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.search_shell_lifecycle_state_drifted_to_unknown_token
+      forced_input:
+        rewrite_lifecycle_state: lifecycle_state_unknown_token_drifted
+      expected_check_id: capability_inventory.lifecycle_state_unknown
+      actionable_next_action: >-
+        Restore the row's lifecycle_state to a member of the canonical
+        Labs / Preview / Beta / Stable / Deprecated vocabulary; the
+        seed cannot ship a row with an unknown lifecycle token.
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: terminal.embedded_seed
+    capability_kind: workspace_capability
+    surface_families:
+      - help_or_about
+      - docs_page
+      - cli_help
+      - release_notes
+    lifecycle_state: preview
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-shell
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+    dependency_marker_refs: []
+    rollout_gate:
+      gate_kind: manual_gate
+      gate_ref: policy_or_opt_in_required
+      public_disclosure_required: true
+      notes: >-
+        Preview seed; surfaces MUST never read this row as stable-by-
+        omission.
+    public_label: Embedded terminal (preview)
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+    kill_switch_path: policy:terminal.embedded_seed.kill_switch
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.terminal_seed_widened_to_retired_without_window_note
+      forced_input:
+        rewrite_lifecycle_state: retired
+      expected_check_id: capability_inventory.retirement_metadata_required_for_retiring_lifecycle_state
+      actionable_next_action: >-
+        Either keep the row pre-stable (labs / preview / beta) or, if
+        retiring, fill retirement_metadata with a reviewable
+        retirement_target_window_note before flipping lifecycle_state
+        to retired.
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: support.export_seed
+    capability_kind: support_capability
+    surface_families:
+      - support_export_row
+      - help_or_about
+      - docs_page
+      - cli_help
+    lifecycle_state: beta
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    claim_lanes:
+      - support_export
+    dependency_marker_refs: []
+    rollout_gate: null
+    public_label: Support export (seed)
+    public_label_policy: public_label_required
+    public_claim_posture: visible_but_nonclaimable
+    export_visibility: support_export_only
+    kill_switch_path: policy:support.export_seed.kill_switch
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.support_export_export_visibility_widened_to_public
+      forced_input:
+        rewrite_export_visibility: public_exportable
+      expected_check_id: capability_inventory.support_export_visibility_widening_blocked
+      actionable_next_action: >-
+        Restore export_visibility to support_export_only or
+        internal_redacted; widening a support-only capability to
+        public_exportable requires a separately reviewed decision row.
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: help.about_pane
+    capability_kind: docs_capability
+    surface_families:
+      - help_or_about
+      - docs_page
+      - cli_help
+      - support_export_row
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-shell
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+      - release_evidence
+    dependency_marker_refs: []
+    rollout_gate: null
+    public_label: Help / About
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+    kill_switch_path: null
+    retirement_metadata: null
+    m1_surface_seed_membership: true
+    failure_drill:
+      drill_id: capability_inventory_drill.help_about_lifecycle_state_dropped
+      forced_input:
+        clear_lifecycle_state: true
+      expected_check_id: capability_inventory.lifecycle_state_required
+      actionable_next_action: >-
+        Restore the row's lifecycle_state; a claimed help / about
+        surface cannot ship without an explicit lifecycle posture.
+
+  # ------------------------------------------------------------------
+  # Existing example rows (not M1 surface seed members). Backfilled with
+  # the spec's required lifecycle inventory fields so the row schema's
+  # uniform contract holds across the whole inventory.
+  # ------------------------------------------------------------------
+
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
     capability_id: editor.inline_diagnostics
@@ -112,6 +556,8 @@ entries:
     public_label_policy: public_label_required
     public_claim_posture: claimable
     export_visibility: public_exportable
+    kill_switch_path: policy:editor.inline_diagnostics.kill_switch
+    retirement_metadata: null
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -137,6 +583,8 @@ entries:
     public_label_policy: public_label_required
     public_claim_posture: claimable
     export_visibility: public_exportable
+    kill_switch_path: null
+    retirement_metadata: null
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -161,6 +609,8 @@ entries:
     public_label_policy: public_label_required
     public_claim_posture: claimable
     export_visibility: public_exportable
+    kill_switch_path: null
+    retirement_metadata: null
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -187,6 +637,8 @@ entries:
     public_label_policy: public_label_required
     public_claim_posture: claimable
     export_visibility: public_exportable
+    kill_switch_path: policy:bundle.dev_basics.addon.ai_assist_preview.kill_switch
+    retirement_metadata: null
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -213,6 +665,8 @@ entries:
     public_label_policy: public_label_required
     public_claim_posture: claimable
     export_visibility: public_exportable
+    kill_switch_path: policy:ai.inline_completions.kill_switch
+    retirement_metadata: null
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -239,6 +693,13 @@ entries:
     public_label_policy: public_label_optional
     public_claim_posture: visible_but_nonclaimable
     export_visibility: support_export_only
+    kill_switch_path: policy:telemetry.send_crash_dumps.kill_switch
+    retirement_metadata:
+      retirement_announced_on: null
+      replacement_capability_id: null
+      retirement_target_window_note: >-
+        Retire after policy-bundle migration completes; the row stays
+        export-only until replacement diagnostics ship.
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -266,6 +727,8 @@ entries:
     public_label_policy: public_label_optional
     public_claim_posture: visible_but_nonclaimable
     export_visibility: support_export_only
+    kill_switch_path: policy:bundle.enterprise_sso.kill_switch
+    retirement_metadata: null
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -289,6 +752,14 @@ entries:
     public_label_policy: public_label_required
     public_claim_posture: claimable
     export_visibility: public_exportable
+    kill_switch_path: null
+    retirement_metadata:
+      retirement_announced_on: null
+      replacement_capability_id: workspace.symbol_index
+      retirement_target_window_note: >-
+        Retire once the workspace symbol index is the only documented
+        rebuild path; the legacy command remains discoverable until
+        then so existing operators are not stranded.
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -312,6 +783,8 @@ entries:
     public_label_policy: public_label_forbidden
     public_claim_posture: forbidden
     export_visibility: internal_redacted
+    kill_switch_path: policy:sdk.workspace_extension_binding.kill_switch
+    retirement_metadata: null
 
   - record_kind: capability_inventory_entry_record
     capability_inventory_entry_schema_version: 1
@@ -337,3 +810,5 @@ entries:
     public_label_policy: public_label_forbidden
     public_claim_posture: forbidden
     export_visibility: internal_redacted
+    kill_switch_path: policy:command.publish_release.kill_switch
+    retirement_metadata: null
