@@ -44,6 +44,13 @@ pub mod explorer;
 pub mod graph_state_card;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
+/// Bounded host-boundary cue and target-identity-handoff wedge on the
+/// bottom-panel terminal pane. Records each session lifecycle event as a
+/// typed handoff step that preserves source / current target identity and
+/// keeps the boundary cue visible through degraded, reconnecting, and
+/// policy-blocked states. Reuses the
+/// [`crate::badges::target_origin`] vocabulary instead of forking it.
+pub mod host_boundary_cues;
 /// Help / About / provenance / service-health seed surface with client-scope
 /// badges projected from the shared build-info, runtime, and docs/help truth.
 pub mod help_about;
