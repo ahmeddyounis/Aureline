@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/install/install_topology_truth_row.schema.json",
+  "title": "Aureline install-topology truth-surface row",
+  "description": "Boundary schema for one install_topology_truth_row_record. Each row binds one supported install-profile id (drawn from artifacts/release/install_topology_matrix.yaml) to (1) the install-mode / channel / updater-owner / binary-root / side-by-side-relation classes the row exposes as customer-visible truth, (2) the file-association and protocol-handler ownership classes the row publishes on Help/About and diagnostics, (3) the revert-path class the row publishes (so the row cannot quietly imply unsupported recovery), (4) the silent-deployment baseline class the row claims (so M1 cannot claim enterprise depth the product has not built), (5) the durable state-root class refs (read into artifacts/release/state_root_map.yaml), (6) the M1 truth-surface families that expose the row, and (7) a named failure drill that the validation lane reproduces. This schema is a truth-surface contract, not a runtime evaluator; it does not implement an installer, updater, or fleet tool.",
+  "$ref": "#/$defs/install_topology_truth_row_record",
+  "$defs": {
+    "install_topology_truth_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for install-topology truth rows. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "install_topology_truth_row_record",
+      "description": "Discriminator for the record shape."
+    },
+    "install_truth_profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable, machine-readable id for the install-truth profile row (for example per_user_installed.stable, portable.portable_stable). Lowercase dot/underscore/hyphen segments only."
+    },
+    "install_mode_class": {
+      "type": "string",
+      "enum": [
+        "per_user_installed",
+        "per_machine_installed",
+        "portable",
+        "offline_bundle",
+        "managed_deployed",
+        "side_by_side_preview"
+      ],
+      "description": "Frozen install-mode vocabulary mirrored from artifacts/release/install_topology_matrix.yaml."
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "preview",
+        "beta",
+        "lts",
+        "portable_stable",
+        "portable_preview"
+      ],
+      "description": "Frozen channel vocabulary mirrored from artifacts/release/install_topology_matrix.yaml."
+    },
+    "updater_owner_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin",
+        "managed_fleet",
+        "external_package_manager",
+        "none_portable"
+      ],
+      "description": "Frozen updater-owner vocabulary mirrored from artifacts/release/install_topology_matrix.yaml."
+    },
+    "binary_root_class": {
+      "type": "string",
+      "enum": [
+        "per_user_profile_program_area",
+        "per_machine_program_area",
+        "portable_colocated",
+        "managed_image_root",
+        "offline_bundle_root"
+      ],
+      "description": "Binary-root class the row publishes on Help/About and diagnostics."
+    },
+    "side_by_side_relation_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "stable_and_preview",
+        "preview_paired_with_stable",
+        "portable_isolated",
+        "managed_image_isolated"
+      ],
+      "description": "Side-by-side relation class. side_by_side_preview rows MUST NOT publish 'none' (they must declare which paired channel they sit beside)."
+    },
+    "file_association_ownership_class": {
+      "type": "string",
+      "enum": [
+        "per_channel_namespaced",
+        "not_registered",
+        "managed_policy_owned"
+      ],
+      "description": "File-association registration ownership class published on Help/About. Mirrors state_root_map.yaml file_association_registration_class."
+    },
+    "protocol_handler_ownership_class": {
+      "type": "string",
+      "enum": [
+        "per_channel_namespaced",
+        "not_registered",
+        "managed_policy_owned"
+      ],
+      "description": "Protocol/URI scheme handler ownership class published on Help/About. Mirrors state_root_map.yaml protocol_handler_ownership_class."
+    },
+    "revert_path_class": {
+      "type": "string",
+      "enum": [
+        "in_app_revert",
+        "package_manager_revert",
+        "portable_swap",
+        "managed_pin_to_prior_build",
+        "unsupported"
+      ],
+      "description": "Revert / rollback path class the row publishes. managed_deployed rows MUST NOT publish 'unsupported' (they must name a managed_pin_to_prior_build or package_manager_revert path)."
+    },
+    "silent_deployment_baseline_class": {
+      "type": "string",
+      "enum": [
+        "not_supported",
+        "scriptable_baseline_with_exit_codes",
+        "managed_silent_partial",
+        "portable_swap_no_silent_required"
+      ],
+      "description": "Silent-deployment baseline class the row claims. M1 baseline forbids 'managed_silent_full' (enterprise depth the product has not yet executed); the absence of that enum value is intentional."
+    },
+    "m1_truth_surface_class": {
+      "type": "string",
+      "enum": [
+        "help_about",
+        "diagnostics",
+        "support_export",
+        "release_evidence",
+        "cli_help"
+      ],
+      "description": "M1 truth-surface family that exposes the row. help_about MUST appear on every row so users can always inspect install topology from the About pane."
+    },
+    "durable_state_root_class_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Opaque ref to a durable_state_root_class value in artifacts/release/state_root_map.yaml. Consumers treat this as opaque text and do not parse it."
+    },
+    "failure_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "forced_input",
+        "expected_check_id",
+        "actionable_next_action"
+      ],
+      "properties": {
+        "drill_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Stable id for the row's named failure drill, drawn from the envelope's failure_drill_id_vocabulary."
+        },
+        "forced_input": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Forced row mutation applied under --force-drill so the runner can reproduce the named expected_check_id from a clean tree."
+        },
+        "expected_check_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Exact check_id the runner must report under --force-drill."
+        },
+        "actionable_next_action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Short reviewer-readable next action when the drill fires unexpectedly."
+        }
+      },
+      "description": "Named failure drill the validation lane reproduces under --force-drill. Required on every row so omissions stay loud."
+    },
+    "install_topology_truth_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "install_topology_truth_row_schema_version",
+        "install_truth_profile_id",
+        "install_mode_class",
+        "channel_class",
+        "updater_owner_class",
+        "binary_root_class",
+        "side_by_side_relation_class",
+        "file_association_ownership_class",
+        "protocol_handler_ownership_class",
+        "revert_path_class",
+        "silent_deployment_baseline_class",
+        "durable_state_root_class_refs",
+        "paired_channel_class",
+        "m1_truth_surfaces",
+        "owner_dri",
+        "install_profile_card_ref",
+        "failure_drill"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "install_topology_truth_row_schema_version": {
+          "$ref": "#/$defs/install_topology_truth_row_schema_version"
+        },
+        "install_truth_profile_id": { "$ref": "#/$defs/install_truth_profile_id" },
+        "install_mode_class": { "$ref": "#/$defs/install_mode_class" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "updater_owner_class": { "$ref": "#/$defs/updater_owner_class" },
+        "binary_root_class": { "$ref": "#/$defs/binary_root_class" },
+        "side_by_side_relation_class": { "$ref": "#/$defs/side_by_side_relation_class" },
+        "file_association_ownership_class": {
+          "$ref": "#/$defs/file_association_ownership_class"
+        },
+        "protocol_handler_ownership_class": {
+          "$ref": "#/$defs/protocol_handler_ownership_class"
+        },
+        "revert_path_class": { "$ref": "#/$defs/revert_path_class" },
+        "silent_deployment_baseline_class": {
+          "$ref": "#/$defs/silent_deployment_baseline_class"
+        },
+        "durable_state_root_class_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/durable_state_root_class_ref" },
+          "description": "Durable state-root class refs the row owns. Empty is non-conforming; even portable rows declare a portable_colocated_root."
+        },
+        "paired_channel_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/channel_class" }
+          ],
+          "description": "Required non-null channel reference when side_by_side_relation_class is not 'none'. Names the paired channel the row sits beside; the lane forbids 'none' relation on side_by_side_preview rows and forbids non-null paired_channel_class when relation is 'none'."
+        },
+        "m1_truth_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/m1_truth_surface_class" },
+          "description": "M1 truth-surface families that expose the row. MUST include 'help_about'."
+        },
+        "owner_dri": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^@[a-zA-Z0-9_-]+$",
+          "description": "Named owner DRI for the install-truth profile row."
+        },
+        "install_profile_card_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Opaque ref into artifacts/release/install_topology_matrix.yaml (for example install_profile_card.<id>). The lane resolves the upstream matrix exists and does not parse the ref further."
+        },
+        "failure_drill": { "$ref": "#/$defs/failure_drill" },
+        "notes": {
+          "type": "string",
+          "maxLength": 1024,
+          "description": "Optional short reviewer-facing note about the row."
+        }
+      },
+      "allOf": [
+        {
+          "description": "side_by_side_preview rows must publish a non-'none' side_by_side_relation_class and a non-null paired_channel_class.",
+          "if": {
+            "properties": {
+              "install_mode_class": { "const": "side_by_side_preview" }
+            },
+            "required": ["install_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "side_by_side_relation_class": {
+                "enum": [
+                  "stable_and_preview",
+                  "preview_paired_with_stable"
+                ]
+              },
+              "paired_channel_class": {
+                "type": "string"
+              }
+            },
+            "required": ["side_by_side_relation_class", "paired_channel_class"]
+          }
+        },
+        {
+          "description": "Rows whose side_by_side_relation_class is one of the non-paired classes MUST set paired_channel_class to null. The '_isolated' classes are explicit no-pair relations for portable and managed-image rows.",
+          "if": {
+            "properties": {
+              "side_by_side_relation_class": {
+                "enum": [
+                  "none",
+                  "portable_isolated",
+                  "managed_image_isolated"
+                ]
+              }
+            },
+            "required": ["side_by_side_relation_class"]
+          },
+          "then": {
+            "properties": {
+              "paired_channel_class": { "type": "null" }
+            },
+            "required": ["paired_channel_class"]
+          }
+        },
+        {
+          "description": "managed_deployed rows MUST NOT publish 'unsupported' as the revert path.",
+          "if": {
+            "properties": {
+              "install_mode_class": { "const": "managed_deployed" }
+            },
+            "required": ["install_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "revert_path_class": {
+                "enum": [
+                  "managed_pin_to_prior_build",
+                  "package_manager_revert"
+                ]
+              }
+            },
+            "required": ["revert_path_class"]
+          }
+        },
+        {
+          "description": "portable rows MUST publish portable_swap as the revert path and portable_swap_no_silent_required as the silent-deployment baseline.",
+          "if": {
+            "properties": {
+              "install_mode_class": { "const": "portable" }
+            },
+            "required": ["install_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "revert_path_class": { "const": "portable_swap" },
+              "silent_deployment_baseline_class": {
+                "const": "portable_swap_no_silent_required"
+              }
+            },
+            "required": ["revert_path_class", "silent_deployment_baseline_class"]
+          }
+        }
+      ]
+    }
+  }
+}

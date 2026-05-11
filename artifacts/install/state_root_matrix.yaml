@@ -1,0 +1,464 @@
+# Install-topology truth-surface seed (state-root matrix projection).
+#
+# Machine-readable register of install-topology truth rows. The seed
+# exists so install mode, channel, updater owner, binary root, side-by-
+# side relation, file/protocol association ownership, durable state
+# roots, revert/rollback path, and silent-deployment baseline are
+# first-class on the M1 truth surfaces: Help/About, diagnostics, support
+# exports, release-evidence reviews, and CLI help. Surfaces consume the
+# row verbatim; copy that disagrees with the row is non-conforming.
+#
+# Reviewer-facing landing page:
+#   docs/install/m1_install_topology_truth.md
+#
+# Silent-deployment design packet (baseline):
+#   design/m1/silent_deployment_baseline.md
+#
+# Upstream canonical sources (the seed projects against these and does
+# NOT fork their vocabularies):
+#   - artifacts/release/install_topology_matrix.yaml (install-profile
+#     cards: install_mode, channel, updater_owner, binary_root,
+#     side_by_side_relation, silent_install_support).
+#   - artifacts/release/state_root_map.yaml (durable state-root classes,
+#     file-association registration class, protocol-handler ownership
+#     class, per-channel separation rules).
+#   - artifacts/release/silent_deployment_seed.yaml (return-code family,
+#     failure-reason and remediation pointer vocabularies).
+#
+# Row schema:
+#   schemas/install/install_topology_truth_row.schema.json
+#
+# Envelope schema:
+#   schemas/install/install_topology_truth.schema.json
+#
+# Conformance:
+#   - Every entry conforms to the row schema.
+#   - install_truth_profile_id is unique. Adding a row is additive-minor.
+#     Removing a row is breaking; narrow by editing the row, not by
+#     deletion.
+#   - Every row MUST declare exactly one install_mode_class, channel_class,
+#     updater_owner_class, binary_root_class, side_by_side_relation_class,
+#     file_association_ownership_class, protocol_handler_ownership_class,
+#     revert_path_class, and silent_deployment_baseline_class drawn from
+#     the closed vocabularies in this file.
+#   - Every row MUST declare at least one durable_state_root_class_ref.
+#   - Every row MUST include 'help_about' in m1_truth_surfaces so users
+#     can always inspect install topology from the About pane.
+#   - managed_deployed rows MUST NOT publish revert_path_class =
+#     'unsupported' (managed rows publish either managed_pin_to_prior_build
+#     or package_manager_revert).
+#   - portable rows MUST publish revert_path_class = 'portable_swap' and
+#     silent_deployment_baseline_class = 'portable_swap_no_silent_required'.
+#   - side_by_side_preview rows MUST publish a non-'none'
+#     side_by_side_relation_class and a non-null paired_channel_class.
+#   - M1 baseline forbids silent_deployment_baseline_class =
+#     'managed_silent_full' anywhere in the seed (the M1 product cannot
+#     execute that depth honestly yet). The runner asserts the token is
+#     absent.
+#   - Milestone slugs and task ids MUST NOT appear in any id, ref, label,
+#     or note field.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_install_topology_truth_seed
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/install/m1_install_topology_truth.md
+silent_deployment_design_packet_ref: design/m1/silent_deployment_baseline.md
+
+install_profile_card_source: artifacts/release/install_topology_matrix.yaml
+state_root_map_source: artifacts/release/state_root_map.yaml
+silent_deployment_seed_source: artifacts/release/silent_deployment_seed.yaml
+
+row_schema_ref: schemas/install/install_topology_truth_row.schema.json
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies. Closed; agreement with the row schema $defs is
+# asserted by the validation lane.
+# -----------------------------------------------------------------------------
+
+install_mode_class_vocabulary:
+  - per_user_installed
+  - per_machine_installed
+  - portable
+  - offline_bundle
+  - managed_deployed
+  - side_by_side_preview
+
+channel_class_vocabulary:
+  - stable
+  - preview
+  - beta
+  - lts
+  - portable_stable
+  - portable_preview
+
+updater_owner_class_vocabulary:
+  - user
+  - admin
+  - managed_fleet
+  - external_package_manager
+  - none_portable
+
+binary_root_class_vocabulary:
+  - per_user_profile_program_area
+  - per_machine_program_area
+  - portable_colocated
+  - managed_image_root
+  - offline_bundle_root
+
+side_by_side_relation_class_vocabulary:
+  - none
+  - stable_and_preview
+  - preview_paired_with_stable
+  - portable_isolated
+  - managed_image_isolated
+
+file_association_ownership_class_vocabulary:
+  - per_channel_namespaced
+  - not_registered
+  - managed_policy_owned
+
+protocol_handler_ownership_class_vocabulary:
+  - per_channel_namespaced
+  - not_registered
+  - managed_policy_owned
+
+revert_path_class_vocabulary:
+  - in_app_revert
+  - package_manager_revert
+  - portable_swap
+  - managed_pin_to_prior_build
+  - unsupported
+
+# Silent-deployment baseline vocabulary. 'managed_silent_full' is
+# intentionally absent: the M1 product does not yet execute full silent
+# managed deployment with fleet-wide rollback orchestration, and any row
+# that claims that depth misleads operators.
+silent_deployment_baseline_class_vocabulary:
+  - not_supported
+  - scriptable_baseline_with_exit_codes
+  - managed_silent_partial
+  - portable_swap_no_silent_required
+
+m1_truth_surface_class_vocabulary:
+  - help_about
+  - diagnostics
+  - support_export
+  - release_evidence
+  - cli_help
+
+required_install_mode_coverage:
+  - per_user_installed
+  - per_machine_installed
+  - portable
+  - managed_deployed
+  - side_by_side_preview
+
+required_m1_truth_surface_coverage:
+  - help_about
+  - diagnostics
+  - support_export
+  - release_evidence
+
+failure_drill_id_vocabulary:
+  - install_topology_truth_drill.per_user_installed_state_roots_dropped
+  - install_topology_truth_drill.per_machine_installed_updater_owner_dropped
+  - install_topology_truth_drill.portable_silent_baseline_widened_to_managed_silent_full
+  - install_topology_truth_drill.managed_deployed_revert_path_dropped_to_unsupported
+  - install_topology_truth_drill.side_by_side_preview_relation_dropped_to_none
+  - install_topology_truth_drill.offline_bundle_help_about_surface_dropped
+
+named_runtime_consumers:
+  - consumer_id: install_topology_truth_landing_page
+    consumer_class: review_docs_landing_page
+    consumer_ref: docs/install/m1_install_topology_truth.md
+    consumed_fields:
+      - install_truth_profile_id
+      - install_mode_class
+      - channel_class
+      - updater_owner_class
+      - binary_root_class
+      - side_by_side_relation_class
+      - file_association_ownership_class
+      - protocol_handler_ownership_class
+      - revert_path_class
+      - silent_deployment_baseline_class
+      - durable_state_root_class_refs
+      - m1_truth_surfaces
+    notes: >-
+      Reviewer-facing landing page that quotes the seeded rows verbatim
+      so Help/About, diagnostics, support exports, release-evidence, and
+      CLI help all read the same install-topology truth vocabulary.
+  - consumer_id: silent_deployment_baseline_design_packet
+    consumer_class: design_packet
+    consumer_ref: design/m1/silent_deployment_baseline.md
+    consumed_fields:
+      - install_truth_profile_id
+      - install_mode_class
+      - silent_deployment_baseline_class
+      - revert_path_class
+    notes: >-
+      Human-readable design packet that records the baseline silent /
+      managed deployment behaviour the seeded rows publish without
+      claiming enterprise depth the M1 product cannot execute.
+  - consumer_id: install_topology_truth_ci_validator
+    consumer_class: ci_schema_validator
+    consumer_ref: tests/governance/m1_install_topology_truth_lane/run_m1_install_topology_truth_lane.py
+    consumed_fields:
+      - install_truth_profile_id
+      - install_mode_class
+      - channel_class
+      - updater_owner_class
+      - revert_path_class
+      - silent_deployment_baseline_class
+      - durable_state_root_class_refs
+      - m1_truth_surfaces
+      - failure_drill
+    notes: >-
+      Unattended CI/review validator that replays the seed, asserts
+      closed-vocabulary agreement with the row schema, structural
+      invariants (managed-deployed revert path, portable silent
+      baseline, side-by-side paired channel, M1 baseline forbids
+      managed_silent_full), required coverage (install modes and truth
+      surfaces), upstream-source resolution, named-consumer resolution,
+      and reproduces every named failure drill loudly.
+
+entries:
+  # ------------------------------------------------------------------
+  # Supported install-truth profile rows. Each row carries the spec-
+  # required fields (install mode, channel, updater owner, binary root,
+  # side-by-side relation, file/protocol association ownership,
+  # durable state roots, revert/rollback path, silent-deployment
+  # baseline) and a named failure drill.
+  # ------------------------------------------------------------------
+
+  - record_kind: install_topology_truth_row_record
+    install_topology_truth_row_schema_version: 1
+    install_truth_profile_id: per_user_installed.stable
+    install_mode_class: per_user_installed
+    channel_class: stable
+    updater_owner_class: user
+    binary_root_class: per_user_profile_program_area
+    side_by_side_relation_class: stable_and_preview
+    paired_channel_class: preview
+    file_association_ownership_class: per_channel_namespaced
+    protocol_handler_ownership_class: per_channel_namespaced
+    revert_path_class: in_app_revert
+    silent_deployment_baseline_class: scriptable_baseline_with_exit_codes
+    durable_state_root_class_refs:
+      - per_user_configuration_root
+      - per_user_recovery_root
+      - per_user_derived_cache_root
+      - per_user_keychain_or_secret_store
+    m1_truth_surfaces:
+      - help_about
+      - diagnostics
+      - support_export
+      - release_evidence
+      - cli_help
+    owner_dri: "@ahmeddyounis"
+    install_profile_card_ref: artifacts/release/install_topology_matrix.yaml#per_user_installed_stable
+    failure_drill:
+      drill_id: install_topology_truth_drill.per_user_installed_state_roots_dropped
+      forced_input:
+        clear_durable_state_root_class_refs: true
+      expected_check_id: install_topology_truth.durable_state_root_class_refs_required
+      actionable_next_action: >-
+        Restore the row's durable_state_root_class_refs; per-user installed
+        profiles MUST publish their configuration, recovery, cache, and
+        keychain roots so support / Help / diagnostics can inspect them
+        without guessing.
+    notes: >-
+      Default per-user installed profile on the stable channel. Updater
+      owner is the user; revert is the in-app revert path. State roots
+      are all per-user.
+
+  - record_kind: install_topology_truth_row_record
+    install_topology_truth_row_schema_version: 1
+    install_truth_profile_id: per_machine_installed.stable
+    install_mode_class: per_machine_installed
+    channel_class: stable
+    updater_owner_class: admin
+    binary_root_class: per_machine_program_area
+    side_by_side_relation_class: stable_and_preview
+    paired_channel_class: preview
+    file_association_ownership_class: per_channel_namespaced
+    protocol_handler_ownership_class: per_channel_namespaced
+    revert_path_class: package_manager_revert
+    silent_deployment_baseline_class: scriptable_baseline_with_exit_codes
+    durable_state_root_class_refs:
+      - per_machine_admin_policy_root
+      - per_machine_shared_data_root
+      - per_user_configuration_root
+      - per_user_keychain_or_secret_store
+    m1_truth_surfaces:
+      - help_about
+      - diagnostics
+      - support_export
+      - release_evidence
+    owner_dri: "@ahmeddyounis"
+    install_profile_card_ref: artifacts/release/install_topology_matrix.yaml#per_machine_installed_stable
+    failure_drill:
+      drill_id: install_topology_truth_drill.per_machine_installed_updater_owner_dropped
+      forced_input:
+        clear_updater_owner_class: true
+      expected_check_id: install_topology_truth.updater_owner_class_required
+      actionable_next_action: >-
+        Restore the row's updater_owner_class; per-machine installed
+        profiles publish 'admin' so Help/About can disclose who owns the
+        updater path without ambiguous wording.
+
+  - record_kind: install_topology_truth_row_record
+    install_topology_truth_row_schema_version: 1
+    install_truth_profile_id: portable.portable_stable
+    install_mode_class: portable
+    channel_class: portable_stable
+    updater_owner_class: none_portable
+    binary_root_class: portable_colocated
+    side_by_side_relation_class: portable_isolated
+    paired_channel_class: null
+    file_association_ownership_class: not_registered
+    protocol_handler_ownership_class: not_registered
+    revert_path_class: portable_swap
+    silent_deployment_baseline_class: portable_swap_no_silent_required
+    durable_state_root_class_refs:
+      - portable_colocated_root
+    m1_truth_surfaces:
+      - help_about
+      - diagnostics
+      - support_export
+    owner_dri: "@ahmeddyounis"
+    install_profile_card_ref: artifacts/release/install_topology_matrix.yaml#portable_stable
+    failure_drill:
+      drill_id: install_topology_truth_drill.portable_silent_baseline_widened_to_managed_silent_full
+      forced_input:
+        rewrite_silent_deployment_baseline_class: managed_silent_full
+      expected_check_id: install_topology_truth.silent_deployment_baseline_managed_silent_full_blocked_in_baseline
+      actionable_next_action: >-
+        Restore silent_deployment_baseline_class to a member of the
+        closed vocabulary (portable rows pin
+        portable_swap_no_silent_required). M1 baseline forbids
+        'managed_silent_full' anywhere in the seed; widening requires a
+        separately reviewed decision row.
+    notes: >-
+      Portable channel. No system updater; revert is by swapping the
+      portable tree. File and protocol associations are not registered;
+      side_by_side_relation_class is portable_isolated and paired_channel_class
+      is null because portable trees do not pair with any installed channel.
+
+  - record_kind: install_topology_truth_row_record
+    install_topology_truth_row_schema_version: 1
+    install_truth_profile_id: managed_deployed.stable
+    install_mode_class: managed_deployed
+    channel_class: stable
+    updater_owner_class: managed_fleet
+    binary_root_class: managed_image_root
+    side_by_side_relation_class: managed_image_isolated
+    paired_channel_class: null
+    file_association_ownership_class: managed_policy_owned
+    protocol_handler_ownership_class: managed_policy_owned
+    revert_path_class: managed_pin_to_prior_build
+    silent_deployment_baseline_class: managed_silent_partial
+    durable_state_root_class_refs:
+      - per_machine_admin_policy_root
+      - per_machine_shared_data_root
+      - per_user_configuration_root
+    m1_truth_surfaces:
+      - help_about
+      - diagnostics
+      - support_export
+      - release_evidence
+    owner_dri: "@ahmeddyounis"
+    install_profile_card_ref: artifacts/release/install_topology_matrix.yaml#managed_deployed_stable
+    failure_drill:
+      drill_id: install_topology_truth_drill.managed_deployed_revert_path_dropped_to_unsupported
+      forced_input:
+        rewrite_revert_path_class: unsupported
+      expected_check_id: install_topology_truth.revert_path_class_unsupported_blocked_for_managed_deployed
+      actionable_next_action: >-
+        Restore revert_path_class to managed_pin_to_prior_build (or, in
+        agreed exceptional cases, package_manager_revert); managed-deployed
+        rows MUST NOT publish 'unsupported' as the revert path because
+        the row would imply an operator-trapped state.
+    notes: >-
+      Managed-deployed profile (admin-policy fleet image). Silent
+      baseline is partial only; full fleet-wide silent deployment is
+      not seeded at M1.
+
+  - record_kind: install_topology_truth_row_record
+    install_topology_truth_row_schema_version: 1
+    install_truth_profile_id: side_by_side_preview.preview
+    install_mode_class: side_by_side_preview
+    channel_class: preview
+    updater_owner_class: user
+    binary_root_class: per_user_profile_program_area
+    side_by_side_relation_class: preview_paired_with_stable
+    paired_channel_class: stable
+    file_association_ownership_class: per_channel_namespaced
+    protocol_handler_ownership_class: per_channel_namespaced
+    revert_path_class: in_app_revert
+    silent_deployment_baseline_class: scriptable_baseline_with_exit_codes
+    durable_state_root_class_refs:
+      - per_user_configuration_root
+      - per_user_recovery_root
+      - per_user_derived_cache_root
+    m1_truth_surfaces:
+      - help_about
+      - diagnostics
+      - support_export
+    owner_dri: "@ahmeddyounis"
+    install_profile_card_ref: artifacts/release/install_topology_matrix.yaml#side_by_side_preview_preview
+    failure_drill:
+      drill_id: install_topology_truth_drill.side_by_side_preview_relation_dropped_to_none
+      forced_input:
+        rewrite_side_by_side_relation_class: none
+      expected_check_id: install_topology_truth.side_by_side_preview_relation_must_disclose_paired_channel
+      actionable_next_action: >-
+        Restore side_by_side_relation_class to a non-'none' value
+        (preview_paired_with_stable or stable_and_preview) and keep
+        paired_channel_class non-null; a side-by-side preview row that
+        publishes 'none' lies about its coexistence with stable and
+        operators cannot disambiguate state roots.
+
+  - record_kind: install_topology_truth_row_record
+    install_topology_truth_row_schema_version: 1
+    install_truth_profile_id: offline_bundle.stable
+    install_mode_class: offline_bundle
+    channel_class: stable
+    updater_owner_class: user
+    binary_root_class: offline_bundle_root
+    side_by_side_relation_class: none
+    paired_channel_class: null
+    file_association_ownership_class: per_channel_namespaced
+    protocol_handler_ownership_class: per_channel_namespaced
+    revert_path_class: package_manager_revert
+    silent_deployment_baseline_class: scriptable_baseline_with_exit_codes
+    durable_state_root_class_refs:
+      - offline_bundle_mirror_metadata_root
+      - per_user_configuration_root
+      - per_user_recovery_root
+    m1_truth_surfaces:
+      - help_about
+      - diagnostics
+      - support_export
+    owner_dri: "@ahmeddyounis"
+    install_profile_card_ref: artifacts/release/install_topology_matrix.yaml#offline_bundle_stable
+    failure_drill:
+      drill_id: install_topology_truth_drill.offline_bundle_help_about_surface_dropped
+      forced_input:
+        drop_help_about_surface: true
+      expected_check_id: install_topology_truth.help_about_truth_surface_required
+      actionable_next_action: >-
+        Restore 'help_about' to the row's m1_truth_surfaces; every
+        supported install profile MUST be inspectable from the About
+        pane, otherwise users cannot read install-topology truth from
+        the canonical surface.
+    notes: >-
+      Offline-bundle profile. Mirror metadata lives at
+      offline_bundle_mirror_metadata_root; per-user roots are reused
+      because the bundle does not install per-machine resources.
