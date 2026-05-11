@@ -1,0 +1,80 @@
+# Onboarding measurement row — Import from external (VS Code
+# settings, portable-state, handoff packet).
+#
+# Projects the migration path: per-item outcomes are rendered
+# before commit, a rollback checkpoint is written, and managed-
+# sync opt-in declination keeps the migration path useful.
+
+schema_version: 1
+record_kind: onboarding_task_success_measurement_row
+
+measurement_row_id: onboarding.measurement.import_from_external.vs_code_settings_dry_run_then_apply
+onboarding_path_class: import_from_external
+entry_route_id: er.clone_or_import
+measurement_surface: surface_migration_review
+completion_checkpoint_class: migration_committed_with_per_item_outcomes
+
+corpus_row_ref: fuw_row:import.vs_code_settings_dry_run_then_apply
+supporting_fixture_ref: fixtures/ux/first_useful_work_cases/import_vs_code_settings_dry_run.yaml
+task_success_corpus_scenario_refs:
+  - tsc.import_vs_code_settings_dry_run_then_apply
+
+expected_first_useful_work_target_surface: migration_center_before_commit
+expected_admission_class: admitted
+expected_completion_class: completed_migration_committed_per_item
+
+expected_failure_category_subset:
+  - dry_run_skipped
+  - outcome_aggregated_not_per_item
+  - unsupported_items_hidden
+  - rollback_checkpoint_missing
+  - rollback_failed
+  - rollback_side_effect_leak
+  - needs_review_not_flagged
+  - blocked_reason_free_form
+
+expected_primary_events:
+  - migration_dry_run_produced
+  - migration_parity_scored
+  - migration_applied
+  - migration_outcome_recorded
+  - migration_rollback_checkpoint_written
+
+expected_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+
+telemetry_default_posture: opt_in_only
+privacy_class: privacy_local_only_no_emission
+deployment_profile_id: individual_local
+owner_dri: "@ahmeddyounis"
+co_reviewing_lane: compatibility_ecosystem_review
+
+delayed_success_threshold_envelope:
+  monotonic_envelope_class: migration_dry_run_to_per_item_outcome_warm_p95
+  threshold_state: to_be_set_by_benchmark_council
+
+failure_drill:
+  drill_id: import_from_external.privacy_class_unknown
+  description: >
+    Rewrite the row's privacy_class to 'send_everything_always',
+    a value outside the schema's closed privacy-class enum. The
+    lane must surface
+    onboarding_task_success.privacy_class.unknown so the audit
+    refuses to ship a measurement row that violates the opt-in /
+    appropriately-gated posture the spec requires.
+  forced_input:
+    rewrite_privacy_class: send_everything_always
+  expected_check_id: onboarding_task_success.privacy_class.unknown
+  actionable_next_action: >
+    Restore privacy_class to one of the closed values defined in
+    schemas/telemetry/m1_onboarding_metrics.schema.json
+    (`privacy_local_only_no_emission`,
+    `privacy_opt_in_aggregate_only`, or
+    `privacy_opt_in_attributable`). Default-on / always-send
+    postures are non-conforming for the M1 measurement lane.
+
+notes: >
+  Import path qualifies the migration-center floor: per-item
+  outcome rendering before commit, rollback checkpoint
+  available, and declining managed-sync opt-in keeps the
+  migration path useful.

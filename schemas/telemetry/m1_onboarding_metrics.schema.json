@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/telemetry/m1_onboarding_metrics.schema.json",
+  "title": "Aureline onboarding task-success and first-useful-work measurement row",
+  "description": "Boundary schema for the unattended onboarding measurement lane that audits whether protected dogfood onboarding paths (Open folder, Open workspace, Clone repository, Restore last session, Import from…) emit structured task-success and first-useful-work signals in a single shared vocabulary instead of a per-surface private notion of success. Every measurement row binds one onboarding path class to one entry-route id, one measurement surface, and one fuw_row corpus reference; declares the expected completion class, expected primary events, expected failure-category subset (from the closed surface vocab in docs/product/onboarding_measurement_plan.md §3), expected protected-metric refs, and a privacy-aware telemetry-default-posture; and pins a named failure drill that proves the lane fails loudly when first-useful-work is silently collapsed into mere app launch or when delayed success is classified as success. Adding a value to a closed enum is additive-minor and requires schema_version to advance; repurposing an existing value is breaking and opens a decision row in artifacts/governance/decision_index.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "measurement_row_id",
+    "onboarding_path_class",
+    "entry_route_id",
+    "measurement_surface",
+    "completion_checkpoint_class",
+    "corpus_row_ref",
+    "supporting_fixture_ref",
+    "task_success_corpus_scenario_refs",
+    "expected_first_useful_work_target_surface",
+    "expected_admission_class",
+    "expected_completion_class",
+    "expected_failure_category_subset",
+    "expected_primary_events",
+    "expected_protected_metric_refs",
+    "telemetry_default_posture",
+    "privacy_class",
+    "deployment_profile_id",
+    "owner_dri",
+    "failure_drill"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "onboarding_task_success_measurement_row"
+    },
+    "measurement_row_id": {
+      "type": "string",
+      "pattern": "^onboarding\\.measurement\\.[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+      "description": "Stable id of the form onboarding.measurement.<onboarding_path_class>.<slug>. No milestone slugs."
+    },
+    "onboarding_path_class": {
+      "type": "string",
+      "enum": [
+        "open_folder",
+        "open_workspace",
+        "clone_repository",
+        "restore_last_session",
+        "import_from_external"
+      ],
+      "description": "The five protected first-useful-work onboarding paths the lane must measure distinctly. These do not collapse into a single 'first-run success' bucket."
+    },
+    "entry_route_id": {
+      "type": "string",
+      "enum": [
+        "er.start_center",
+        "er.recent_work_reopen",
+        "er.restore_prompt",
+        "er.protocol_handler_reentry",
+        "er.clone_or_import",
+        "er.plain_open",
+        "er.workspace_switch",
+        "er.warm_start"
+      ],
+      "description": "Closed entry-route taxonomy from docs/product/onboarding_measurement_plan.md §4."
+    },
+    "measurement_surface": {
+      "type": "string",
+      "enum": [
+        "surface_first_run",
+        "surface_first_open",
+        "surface_first_useful_edit",
+        "surface_migration_review",
+        "surface_restore_success",
+        "surface_opt_in_boundary"
+      ],
+      "description": "Closed measurement-surface taxonomy from docs/product/onboarding_measurement_plan.md §3."
+    },
+    "completion_checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "first_useful_navigation",
+        "first_useful_edit",
+        "migration_committed_with_per_item_outcomes",
+        "restore_level_delivered",
+        "decline_continued_without_degradation"
+      ],
+      "description": "Which checkpoint the row's success criterion is qualified against. Lets the lane distinguish first-useful-work from mere app launch."
+    },
+    "corpus_row_ref": {
+      "type": "string",
+      "pattern": "^fuw_row:[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+      "description": "The first-useful-work qualification corpus row this measurement projects against."
+    },
+    "supporting_fixture_ref": {
+      "type": "string",
+      "pattern": "^fixtures/ux/first_useful_work_cases/[a-z][a-z0-9_]*\\.yaml$",
+      "description": "Path to the worked fixture in the FUW case directory."
+    },
+    "task_success_corpus_scenario_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^tsc\\.[a-z][a-z0-9_]*$"
+      },
+      "description": "References into the task-success corpus seed scenarios."
+    },
+    "expected_first_useful_work_target_surface": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Closed vocabulary inherited from artifacts/product/task_success_corpus_seed.yaml first_useful_work_target_surface_vocabulary."
+    },
+    "expected_admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "denied_with_typed_reason",
+        "denied_pending_review"
+      ]
+    },
+    "expected_completion_class": {
+      "type": "string",
+      "enum": [
+        "completed_first_useful_edit",
+        "completed_first_useful_navigation_only",
+        "completed_with_advertised_narrowing",
+        "completed_migration_committed_per_item",
+        "completed_restore_level_delivered",
+        "completed_decline_without_degradation",
+        "aborted_before_admission",
+        "abandoned_after_admission",
+        "failed_with_typed_blocker"
+      ],
+      "description": "How the path resolves. Mere app launch does not satisfy any completed_* class; lanes that classify delayed_success as completed must surface check_id onboarding_task_success.completion_class.delayed_success_silently_classified_as_completed."
+    },
+    "expected_failure_category_subset": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Subset of the closed per-surface failure_categories from docs/product/onboarding_measurement_plan.md §3. Free-form categories are non-conforming; runner verifies the subset relation."
+    },
+    "expected_primary_events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Subset of the closed per-surface primary_events from docs/product/onboarding_measurement_plan.md §3."
+    },
+    "expected_protected_metric_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^ff\\.[a-z][a-z0-9_]*$"
+      },
+      "description": "Protected metric refs the row qualifies against; runner checks they appear in the bound corpus row's protected_metric_refs."
+    },
+    "telemetry_default_posture": {
+      "type": "string",
+      "enum": [
+        "opt_in_only",
+        "off_by_default_no_emission_until_consent"
+      ],
+      "description": "Default telemetry posture the row asserts. opt_in_only is the canonical posture; emitters that ship default-on are non-conforming for this lane."
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "privacy_local_only_no_emission",
+        "privacy_opt_in_aggregate_only",
+        "privacy_opt_in_attributable"
+      ]
+    },
+    "deployment_profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Resolves through artifacts/governance/deployment_profiles.yaml."
+    },
+    "owner_dri": {
+      "type": "string",
+      "pattern": "^@[a-zA-Z0-9_-]+$"
+    },
+    "co_reviewing_lane": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional co-reviewing lane per docs/product/onboarding_measurement_plan.md §7."
+    },
+    "delayed_success_threshold_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional descriptive envelope distinguishing on-time success from delayed success. The runner does not compute timings; thresholds are advisory placeholders until the benchmark council ratifies them.",
+      "properties": {
+        "monotonic_envelope_class": {
+          "type": "string",
+          "enum": [
+            "first_useful_navigation_warm_p95",
+            "first_useful_edit_warm_p95",
+            "restore_level_delivered_warm_p95",
+            "migration_dry_run_to_per_item_outcome_warm_p95",
+            "decline_to_continue_local_warm_p95"
+          ]
+        },
+        "threshold_state": {
+          "type": "string",
+          "enum": [
+            "to_be_set_by_benchmark_council"
+          ]
+        }
+      },
+      "required": [
+        "monotonic_envelope_class",
+        "threshold_state"
+      ]
+    },
+    "failure_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "description",
+        "forced_input",
+        "expected_check_id",
+        "actionable_next_action"
+      ],
+      "properties": {
+        "drill_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "forced_input": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": true
+        },
+        "expected_check_id": {
+          "type": "string",
+          "pattern": "^onboarding_task_success\\.[a-z][a-z0-9_.]*$"
+        },
+        "actionable_next_action": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

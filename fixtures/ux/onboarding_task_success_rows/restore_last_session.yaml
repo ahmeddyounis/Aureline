@@ -1,0 +1,74 @@
+# Onboarding measurement row — Restore last session.
+#
+# Projects the restore-prompt path: the prompt advertises a
+# restore_level, the materialised session delivers what was
+# advertised, and there is no silent mutating replay.
+
+schema_version: 1
+record_kind: onboarding_task_success_measurement_row
+
+measurement_row_id: onboarding.measurement.restore_last_session.compatible_restore_after_crash
+onboarding_path_class: restore_last_session
+entry_route_id: er.restore_prompt
+measurement_surface: surface_restore_success
+completion_checkpoint_class: restore_level_delivered
+
+corpus_row_ref: fuw_row:restore.compatible_restore_after_crash
+supporting_fixture_ref: fixtures/ux/first_useful_work_cases/compatible_restore_after_crash.yaml
+task_success_corpus_scenario_refs:
+  - tsc.restore_prompt_after_crash_compatible
+
+expected_first_useful_work_target_surface: prior_layout_with_placeholders
+expected_admission_class: admitted
+expected_completion_class: completed_restore_level_delivered
+
+expected_failure_category_subset:
+  - restore_level_promised_higher_than_delivered
+  - missing_target_state_silently_dropped
+  - corrupt_restorable_state_silently_discarded
+  - silent_mutating_command_replay
+  - dirty_buffer_lost_without_journal
+
+expected_primary_events:
+  - restore_prompt_presented
+  - restore_level_advertised
+  - restore_level_delivered
+  - restore_missing_target_classified
+  - restore_completed
+
+expected_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+
+telemetry_default_posture: opt_in_only
+privacy_class: privacy_local_only_no_emission
+deployment_profile_id: individual_local
+owner_dri: "@ahmeddyounis"
+co_reviewing_lane: aureline_buffer
+
+delayed_success_threshold_envelope:
+  monotonic_envelope_class: restore_level_delivered_warm_p95
+  threshold_state: to_be_set_by_benchmark_council
+
+failure_drill:
+  drill_id: restore_last_session.primary_event_outside_surface_vocab
+  description: >
+    Inject the free-form primary event 'restore_did_some_stuff'
+    into the row's expected_primary_events. The lane must surface
+    onboarding_task_success.primary_event.outside_surface_vocab
+    because every primary event MUST quote the closed
+    surface_restore_success vocab in
+    docs/product/onboarding_measurement_plan.md §3.5.
+  forced_input:
+    inject_primary_event: restore_did_some_stuff
+  expected_check_id: onboarding_task_success.primary_event.outside_surface_vocab
+  actionable_next_action: >
+    Drop the free-form event, or — if the event family is real
+    — promote it through the measurement plan §3.5 closed set in
+    the same change. Restore success cannot be inferred from
+    free-form event names.
+
+notes: >
+  Restore-prompt success criterion is `delivered == advertised`
+  and "no silent mutating command replay". The row exists so
+  the lane can tell that the session restored what was
+  promised, not that the app simply started.
