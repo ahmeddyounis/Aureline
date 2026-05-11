@@ -78,6 +78,14 @@ pub mod notebook_trust_badges;
 pub mod palette;
 /// Path-truth chip, alias inspector, and pre-write save-target review projections.
 pub mod path_truth;
+/// Bounded typed-permission-prompt wedge on one certified
+/// ecosystem-bearing install-review path. Projects the upstream
+/// [`install_review_fact_grid`] truth into one inspectable
+/// `TypedPermissionPromptRecord` carrying actor, authority owner,
+/// scope, consequence, deny path, persistence semantics, and a typed
+/// invariant set the chrome quotes verbatim — so the prompt cannot
+/// collapse to a generic "Allow?" button.
+pub mod permission_prompts;
 /// Quick-open query session: recent targets, commands, and lexical results.
 pub mod quick_open;
 /// Safe-mode entry, recovery-ladder rung stubs, and crash-loop containment offers.
