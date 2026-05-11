@@ -1,0 +1,367 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/locality_tenancy_keymode.schema.json",
+  "title": "Aureline locality/tenancy/key-mode seed row",
+  "description": "Boundary schema for one locality_tenancy_keymode_row_record published by the M1 locality/tenancy/key-mode vocabulary seed. Each row binds one protected surface family to (1) a locality_class drawn from the closed local_only/remote_target/provider_linked/managed_control_plane_bearing/mirrored/unknown_locality vocabulary, (2) a tenancy_scope_class drawn from the closed tenancy vocabulary that distinguishes not-applicable-local, single-user-local, single-user-managed-tenant, org-tenant, multi-tenant-isolated, multi-tenant-shared, and an explicit unknown-tenancy uncertainty token, (3) a key_storage_mode_class drawn from the closed key-mode vocabulary that distinguishes not-applicable-local, local-storage-only, os-keychain-backed, byok-user-managed, provider-managed-key, managed-service-kms, and an explicit unknown-key-mode uncertainty token, (4) a local_safe_fallback_class so a managed or provider-linked row cannot silently delete its local-safe fallback by omission, (5) a data_residency_disclosure_class drawn from a closed residency-disclosure vocabulary that names what the surface tells the user about residency without claiming product depth M1 does not have, and (6) a named failure drill the validation lane reproduces under --force-drill. This schema is a vocabulary contract, not a managed-tenancy or key-management runtime: it does not implement residency enforcement, tenant isolation, key custody, or rotation.",
+  "$ref": "#/$defs/locality_tenancy_keymode_row_record",
+  "$defs": {
+    "locality_tenancy_keymode_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for locality/tenancy/key-mode rows. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "locality_tenancy_keymode_row_record",
+      "description": "Discriminator for the record shape."
+    },
+    "locality_tenancy_keymode_profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable, machine-readable id for the locality/tenancy/key-mode profile row (for example local_only.editor_buffer_save). Lowercase dot/underscore/hyphen segments only so the id is safe to log, safe in support exports, and safe in release artifacts."
+    },
+    "surface_family_class": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "workspace",
+        "shell",
+        "search",
+        "terminal",
+        "support",
+        "ai_provider_attach",
+        "settings_sync",
+        "package_registry",
+        "remote_mirror",
+        "symbol_service",
+        "browser_handoff",
+        "companion_notification_channel",
+        "hosted_control_plane_prototype"
+      ],
+      "description": "Coarse surface family the row characterises. M1 distinguishes the protected surfaces named in the boundary manifest plus the prototype managed/control-plane-bearing classes the seed must label without inventing product depth."
+    },
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "remote_target",
+        "provider_linked",
+        "managed_control_plane_bearing",
+        "mirrored",
+        "unknown_locality"
+      ],
+      "description": "Locality class. 'local_only' means the surface works with no network, no sign-in, and no hosted service. 'remote_target' means the surface attaches to a user-controlled remote target (SSH/container/WSL/dev VM) the user named themselves; the surface narrows to local-core editing when the target is absent. 'provider_linked' means an optional user-supplied provider (BYOK / customer IdP / user-owned LSP / local model) attaches to the local surface; without a provider the surface narrows but is not removed. 'managed_control_plane_bearing' means the surface carries a hosted control-plane bearer claim (managed sync, managed companion, hosted optional surface). M1 seeds the vocabulary only; no managed control-plane is enforced. 'mirrored' means reachable via a signed offline mirror/bundle in constrained-connectivity profiles. 'unknown_locality' is the explicit uncertainty token; surfaces that cannot truthfully name their locality MUST publish this rather than guess."
+    },
+    "tenancy_scope_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_local_only",
+        "single_user_local",
+        "single_user_managed_tenant",
+        "org_tenant",
+        "multi_tenant_isolated",
+        "multi_tenant_shared",
+        "unknown_tenancy"
+      ],
+      "description": "Tenancy scope. 'not_applicable_local_only' means the surface has no tenancy concept (local-only). 'single_user_local' means a single-user surface that does not cross a tenancy boundary (a user-attached SSH target, a local-only AI model). 'single_user_managed_tenant' means a managed surface scoped to a single user under a managed tenant. 'org_tenant' means scoped to one organisation tenant. 'multi_tenant_isolated' means the surface is one tenant in a multi-tenant managed service with explicit isolation guarantees the seed only labels, never implements. 'multi_tenant_shared' means the surface shares state with other tenants intentionally. 'unknown_tenancy' is the explicit uncertainty token; surfaces that cannot truthfully name their tenancy MUST publish this rather than guess."
+    },
+    "key_storage_mode_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_local_only",
+        "local_storage_only",
+        "os_keychain_backed",
+        "byok_user_managed",
+        "provider_managed_key",
+        "managed_service_kms",
+        "unknown_key_mode"
+      ],
+      "description": "Key/storage mode. 'not_applicable_local_only' means the surface neither holds keys nor stores user secrets. 'local_storage_only' means key material/data lives in the local profile only. 'os_keychain_backed' means the local OS keychain or equivalent platform key store. 'byok_user_managed' means the user supplies their own key material the surface treats as opaque. 'provider_managed_key' means the user-attached provider manages the key. 'managed_service_kms' means a managed KMS is in scope (label only at M1). 'unknown_key_mode' is the explicit uncertainty token; surfaces that cannot truthfully name their key mode MUST publish this rather than guess."
+    },
+    "local_safe_fallback_class": {
+      "type": "string",
+      "enum": [
+        "local_safe_fallback_present",
+        "local_safe_fallback_narrowed",
+        "local_safe_fallback_unavailable"
+      ],
+      "description": "Local-safe fallback posture the row declares. 'local_safe_fallback_present' means the surface continues to function offline on the same hardware with no narrowing of its M1 baseline. 'local_safe_fallback_narrowed' means a strict local subset of the surface continues to function with documented narrowing (cross-repo nav unavailable, ai narrows to local-only model, etc); absence narrows the claim instead of removing the surface. 'local_safe_fallback_unavailable' means the surface depends on the named remote/managed link to operate at all; M1 surfaces that publish this MUST be optional, MUST disclose it in Help/About/service-health, and MUST NOT be on the local-only floor."
+    },
+    "data_residency_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "residency_local_device_only",
+        "residency_user_owned_remote_target",
+        "residency_provider_default",
+        "residency_managed_tenant_documented_region",
+        "residency_unknown"
+      ],
+      "description": "What the surface tells the user about data residency in M1. 'residency_local_device_only' means the row never moves user data off the local device. 'residency_user_owned_remote_target' means user data may rest on a remote target the user named themselves. 'residency_provider_default' means the user-attached provider's default applies; the surface discloses the provider's posture but does not enforce a region. 'residency_managed_tenant_documented_region' means the managed surface documents its region but the seed does NOT enforce residency in M1. 'residency_unknown' is the explicit uncertainty token; surfaces that cannot truthfully disclose residency MUST publish this rather than imply a region."
+    },
+    "truth_badge_class": {
+      "type": "string",
+      "enum": [
+        "client_scope_badge",
+        "boundary_class_badge",
+        "residual_dependency_posture_badge",
+        "freshness_badge",
+        "managed_disclosure_badge"
+      ],
+      "description": "Closed badge vocabulary the seed maps onto. M1 surfaces may render these via the Help/About truth prototype and the service-health prototype. 'managed_disclosure_badge' is the prototype label managed/control-plane-bearing rows use to keep their disclosure honest."
+    },
+    "diagnostic_surface_class": {
+      "type": "string",
+      "enum": [
+        "help_about_pane",
+        "service_health_row",
+        "support_export_section",
+        "release_evidence_pack",
+        "ci_validation"
+      ],
+      "description": "Closed diagnostic-surface vocabulary that names where the row's locality/tenancy/key-mode tokens are intended to be visible in M1."
+    },
+    "failure_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "forced_input",
+        "expected_check_id",
+        "actionable_next_action"
+      ],
+      "properties": {
+        "drill_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Stable id for the row's named failure drill, drawn from the envelope's failure_drill_id_vocabulary."
+        },
+        "forced_input": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Forced row mutation applied under --force-drill so the runner can reproduce the named expected_check_id from a clean tree."
+        },
+        "expected_check_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Exact check_id the runner must report under --force-drill."
+        },
+        "actionable_next_action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Short reviewer-readable next action when the drill fires unexpectedly."
+        }
+      },
+      "description": "Named failure drill the validation lane reproduces under --force-drill. Required on every row so omissions stay loud."
+    },
+    "locality_tenancy_keymode_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "locality_tenancy_keymode_row_schema_version",
+        "locality_tenancy_keymode_profile_id",
+        "surface_family_class",
+        "locality_class",
+        "tenancy_scope_class",
+        "key_storage_mode_class",
+        "local_safe_fallback_class",
+        "data_residency_disclosure_class",
+        "truth_badge_classes",
+        "diagnostic_surface_classes",
+        "local_core_continuity",
+        "absence_narrows_to",
+        "owner_dri",
+        "failure_drill"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "locality_tenancy_keymode_row_schema_version": {
+          "$ref": "#/$defs/locality_tenancy_keymode_row_schema_version"
+        },
+        "locality_tenancy_keymode_profile_id": {
+          "$ref": "#/$defs/locality_tenancy_keymode_profile_id"
+        },
+        "surface_family_class": { "$ref": "#/$defs/surface_family_class" },
+        "locality_class": { "$ref": "#/$defs/locality_class" },
+        "tenancy_scope_class": { "$ref": "#/$defs/tenancy_scope_class" },
+        "key_storage_mode_class": { "$ref": "#/$defs/key_storage_mode_class" },
+        "local_safe_fallback_class": {
+          "$ref": "#/$defs/local_safe_fallback_class"
+        },
+        "data_residency_disclosure_class": {
+          "$ref": "#/$defs/data_residency_disclosure_class"
+        },
+        "truth_badge_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/truth_badge_class" },
+          "description": "Closed badge classes the row claims to render. Empty list is forbidden so a row cannot quietly opt out of public-truth surfaces; rows that do not render must publish managed_disclosure_badge or one of the explicit badge classes."
+        },
+        "diagnostic_surface_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/diagnostic_surface_class" },
+          "description": "Closed diagnostic surfaces that consume the row's tokens. Empty list is forbidden so a row cannot publish vocabulary that no surface reads."
+        },
+        "local_core_continuity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Required reviewer-facing description of what continues to work with no network, no sign-in, and no managed/control-plane reachability. Cannot be empty; managed and provider-linked rows MUST document the local-safe fallback verbatim so the seed cannot quietly drop local-core continuity."
+        },
+        "absence_narrows_to": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Required reviewer-facing description of what the row narrows to when its remote/managed/provider dependency is absent. Empty is forbidden; absence narrows a claim rather than removing the surface."
+        },
+        "upstream_boundary_manifest_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Optional refs into the upstream internal boundary manifest matrix's row_ids the row projects from. The validation lane resolves these against artifacts/governance/m1_open_local_capability_matrix.yaml so the seed cannot quietly drift from its upstream."
+        },
+        "upstream_provider_registry_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Optional refs into the upstream connected-provider/provider-descriptor seed when the row applies to provider-linked or managed surfaces. The validation lane resolves the consumer ref on disk but does not crawl the IDs (the upstream may not enumerate ids in M1)."
+        },
+        "owner_dri": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^@[a-zA-Z0-9_-]+$",
+          "description": "Named owner DRI for the locality/tenancy/key-mode profile row."
+        },
+        "failure_drill": { "$ref": "#/$defs/failure_drill" },
+        "notes": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "Optional short reviewer-facing note about the row."
+        }
+      },
+      "allOf": [
+        {
+          "description": "local_only rows MUST publish tenancy_scope_class in {not_applicable_local_only, single_user_local}, key_storage_mode_class in {not_applicable_local_only, local_storage_only, os_keychain_backed}, data_residency_disclosure_class = residency_local_device_only, and local_safe_fallback_class = local_safe_fallback_present.",
+          "if": {
+            "properties": { "locality_class": { "const": "local_only" } },
+            "required": ["locality_class"]
+          },
+          "then": {
+            "properties": {
+              "tenancy_scope_class": {
+                "enum": ["not_applicable_local_only", "single_user_local"]
+              },
+              "key_storage_mode_class": {
+                "enum": [
+                  "not_applicable_local_only",
+                  "local_storage_only",
+                  "os_keychain_backed"
+                ]
+              },
+              "data_residency_disclosure_class": {
+                "const": "residency_local_device_only"
+              },
+              "local_safe_fallback_class": {
+                "const": "local_safe_fallback_present"
+              }
+            },
+            "required": [
+              "tenancy_scope_class",
+              "key_storage_mode_class",
+              "data_residency_disclosure_class",
+              "local_safe_fallback_class"
+            ]
+          }
+        },
+        {
+          "description": "managed_control_plane_bearing rows MUST publish tenancy_scope_class in {single_user_managed_tenant, org_tenant, multi_tenant_isolated, multi_tenant_shared, unknown_tenancy}, key_storage_mode_class in {byok_user_managed, provider_managed_key, managed_service_kms, unknown_key_mode}, data_residency_disclosure_class in {residency_managed_tenant_documented_region, residency_provider_default, residency_unknown}, and disclose a local_safe_fallback_class explicitly (cannot be omitted; a managed row MUST NOT publish residency_local_device_only).",
+          "if": {
+            "properties": {
+              "locality_class": { "const": "managed_control_plane_bearing" }
+            },
+            "required": ["locality_class"]
+          },
+          "then": {
+            "properties": {
+              "tenancy_scope_class": {
+                "enum": [
+                  "single_user_managed_tenant",
+                  "org_tenant",
+                  "multi_tenant_isolated",
+                  "multi_tenant_shared",
+                  "unknown_tenancy"
+                ]
+              },
+              "key_storage_mode_class": {
+                "enum": [
+                  "byok_user_managed",
+                  "provider_managed_key",
+                  "managed_service_kms",
+                  "unknown_key_mode"
+                ]
+              },
+              "data_residency_disclosure_class": {
+                "enum": [
+                  "residency_managed_tenant_documented_region",
+                  "residency_provider_default",
+                  "residency_unknown"
+                ]
+              }
+            },
+            "required": [
+              "tenancy_scope_class",
+              "key_storage_mode_class",
+              "data_residency_disclosure_class",
+              "local_safe_fallback_class"
+            ]
+          }
+        },
+        {
+          "description": "unknown_locality rows MUST publish unknown_tenancy and unknown_key_mode; rows that cannot name their locality MUST NOT silently certify their tenancy or key mode.",
+          "if": {
+            "properties": { "locality_class": { "const": "unknown_locality" } },
+            "required": ["locality_class"]
+          },
+          "then": {
+            "properties": {
+              "tenancy_scope_class": { "const": "unknown_tenancy" },
+              "key_storage_mode_class": { "const": "unknown_key_mode" },
+              "data_residency_disclosure_class": { "const": "residency_unknown" }
+            },
+            "required": [
+              "tenancy_scope_class",
+              "key_storage_mode_class",
+              "data_residency_disclosure_class"
+            ]
+          }
+        },
+        {
+          "description": "provider_linked rows MUST NOT publish tenancy_scope_class = not_applicable_local_only or key_storage_mode_class = not_applicable_local_only; provider-linked surfaces must name their tenancy and key-mode classes (including the unknown_* uncertainty tokens) rather than silently fall back to the local-only sentinels.",
+          "if": {
+            "properties": { "locality_class": { "const": "provider_linked" } },
+            "required": ["locality_class"]
+          },
+          "then": {
+            "properties": {
+              "tenancy_scope_class": {
+                "not": { "const": "not_applicable_local_only" }
+              },
+              "key_storage_mode_class": {
+                "not": { "const": "not_applicable_local_only" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
