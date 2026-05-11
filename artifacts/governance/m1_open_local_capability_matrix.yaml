@@ -1,0 +1,504 @@
+# Internal boundary manifest and open/local capability matrix (M1 draft).
+#
+# Machine-readable companion to docs/governance/m1_boundary_manifest.md.
+#
+# This matrix is the canonical M1 internal-boundary truth source for which
+# protected surfaces are local-only, provider-linked, managed, mirrored,
+# or unsupported, and which residual dependencies each protected surface
+# still carries. It seeds the contract that runtime surfaces (Help / About /
+# service-health), support exports, release packets, and CI validation
+# all consume; it does not invent a separate vocabulary.
+#
+# Conformance.
+#   - Every row conforms to
+#     schemas/governance/boundary_manifest.schema.json as a capability_row.
+#   - boundary_class values are drawn from boundary_class_vocabulary below
+#     and the schema's closed vocabulary.
+#   - deployment_profiles entries MUST resolve against
+#     artifacts/governance/deployment_profiles.yaml#deployment_profile_vocabulary.
+#   - residual_dependencies[].dependency_class entries MUST resolve against
+#     artifacts/governance/residual_dependencies.yaml#dependency_class_vocabulary.
+#   - residual_dependencies[].per_profile_posture values MUST resolve against
+#     artifacts/governance/residual_dependencies.yaml#posture_class_vocabulary.
+#   - A posture in this matrix MUST NOT relax a stricter posture declared on
+#     the residual-dependency ledger (the ledger is canonical for "forbidden"
+#     and "not_applicable_structural"; this matrix never overrides those).
+#   - Milestone slugs and task ids MUST NOT appear in any id, label, path,
+#     or narrative field on this register.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_open_local_capability_matrix
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/governance/m1_boundary_manifest.md
+manifest_schema_ref: schemas/governance/boundary_manifest.schema.json
+boundary_manifest_strawman_ref: docs/product/boundary_manifest_strawman.md
+open_paid_boundary_rows_ref: artifacts/governance/open_paid_boundary_rows.yaml
+deployment_profile_register_ref: artifacts/governance/deployment_profiles.yaml
+residual_dependency_ledger_ref: artifacts/governance/residual_dependencies.yaml
+capability_inventory_seed_ref: artifacts/governance/capability_inventory_seed.yaml
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies. Mirrored against the schema and the upstream
+# residual-dependency / deployment-profile registers so consumers can read
+# this file alone without cross-walking three artifacts.
+# -----------------------------------------------------------------------------
+
+boundary_class_vocabulary:
+  - local_only
+  - provider_linked
+  - managed
+  - mirrored
+  - unsupported
+
+deployment_profile_vocabulary:
+  - individual_local
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+  - managed_cloud
+
+residual_dependency_class_vocabulary:
+  - sign_in
+  - package_registry
+  - remote_mirror
+  - remote_agent
+  - symbol_service
+  - ai_provider
+  - policy_bundle
+  - docs_pack
+  - browser_handoff
+  - companion_notification_channel
+  - hosted_control_plane_reachability
+
+posture_class_vocabulary:
+  - required
+  - optional
+  - cached
+  - mirrored
+  - forbidden
+  - not_applicable_structural
+
+surface_family_vocabulary:
+  - shell
+  - editor
+  - workspace
+  - search
+  - terminal
+  - support
+
+truth_field_vocabulary:
+  - build_identity
+  - channel
+  - install_mode
+  - client_scope
+  - service_health_state
+  - boundary_class
+  - residual_dependency_posture
+  - freshness_class
+
+manifest_status_vocabulary:
+  - proposed
+  - accepted
+  - deferred
+  - superseded
+
+failure_drill_id_vocabulary:
+  - shell_drill.local_only_relaxed_to_managed
+  - editor_drill.local_core_continuity_dropped
+  - workspace_drill.posture_relaxes_forbidden
+  - search_drill.dependency_class_unknown
+  - terminal_drill.boundary_class_unknown
+  - support_drill.truth_field_unknown
+
+required_surface_family_coverage:
+  - shell
+  - editor
+  - workspace
+  - search
+  - terminal
+  - support
+
+# -----------------------------------------------------------------------------
+# Named runtime / public-truth consumer.
+#
+# The matrix is only useful when at least one named consumer reads it. M1
+# wires the Help/About truth-prototype parity matrix as the first consumer
+# so the boundary_class and residual_dependency_posture render on a
+# user-facing surface without re-encoding the vocabulary.
+# -----------------------------------------------------------------------------
+
+consumer_bindings:
+  named_runtime_consumer:
+    consumer_id: help_about_truth_prototype
+    consumer_kind: help_about_surface
+    consumer_ref: artifacts/docs/help_parity_matrix.yaml
+    consumed_fields:
+      - boundary_class
+      - residual_dependency_posture
+      - client_scope
+      - install_mode
+    notes: >
+      The Help/About truth prototype reads boundary_class and the per-row
+      residual_dependency_posture from this matrix and renders them as
+      client-scope badges and service-health markers. Other consumers
+      (release packet, support export) follow under additional_consumers.
+  additional_consumers:
+    - consumer_id: late_m1_public_truth_checkpoint_pack
+      consumer_kind: release_packet
+      consumer_ref: artifacts/milestones/m1/late_freeze_pack.yaml
+      notes: >
+        The freeze pack carries badge_vocabulary_draft and
+        help_about_truth_prototype rows that resolve against this matrix's
+        boundary_class and truth_field vocabularies.
+    - consumer_id: support_bundle_contract
+      consumer_kind: support_export
+      consumer_ref: docs/support/support_bundle_contract.md
+      notes: >
+        Support exports quote the row's residual_dependency_posture per
+        profile when a service impairment is in scope; "service down"
+        without a dependency_class ref is out of contract.
+    - consumer_id: m1_boundary_manifest_lane
+      consumer_kind: ci_validator
+      consumer_ref: tests/governance/m1_boundary_manifest_lane/run_m1_boundary_manifest_lane.py
+      notes: >
+        Unattended CI lane validates this matrix against the schema and
+        the canonical residual-dependency / deployment-profile registers.
+
+# -----------------------------------------------------------------------------
+# Capability rows.
+#
+# One row per M1 protected surface family. Local-core continuity is
+# explicit on every row; absence narrows a claim rather than reclassifying.
+# -----------------------------------------------------------------------------
+
+rows:
+  - row_id: boundary_row:shell.frame_and_status
+    surface_family: shell
+    title: Shell frame, command plane, and status bar
+    description: >
+      Desktop shell window, command palette and execution plane, status
+      bar truth items (target, profile, trust, encoding), and the
+      Help/About/service-health skeleton. The shell is the first surface
+      that renders client-scope and boundary truth.
+    boundary_class: local_only
+    manifest_status: proposed
+    deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    local_core_continuity: >
+      Shell frame, command palette, command execution plane, status-bar
+      target/profile/trust/encoding rows, and the Help/About skeleton
+      continue with no network, no sign-in, and no hosted service.
+      Service-health rows degrade with explicit unavailable / stale
+      labels instead of disappearing.
+    residual_dependencies: []
+    carries_truth_fields:
+      - build_identity
+      - channel
+      - install_mode
+      - client_scope
+      - service_health_state
+      - boundary_class
+    absence_narrows_to: >
+      Shell remains fully usable. Service-health rows whose source data
+      is stale or unreachable render with explicit freshness / unavailable
+      labels rather than implying readiness.
+    linked_lanes:
+      - aureline-shell-spike
+      - shell_command_system
+      - docs_public_truth
+    failure_drill:
+      drill_id: shell_drill.local_only_relaxed_to_managed
+      expected_check_id: boundary_manifest.local_only_must_have_no_residual_dependencies
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore the local_only invariant on the shell row or reclassify
+        the row to provider_linked / managed with an explicit narrowing
+        claim and a residual_dependencies entry that names the new
+        dependency class.
+      forced_input:
+        rewrite_boundary_class: local_only
+        inject_residual_dependency:
+          dependency_class: hosted_control_plane_reachability
+          per_profile_posture:
+            individual_local: not_applicable_structural
+            self_hosted: required
+            enterprise_online: required
+            air_gapped: forbidden
+            managed_cloud: required
+          absence_impact: hosted_control_plane_reachability unavailable; service-health markers degrade.
+
+  - row_id: boundary_row:editor.buffer_and_save
+    surface_family: editor
+    title: Editor buffer, save coordination, undo lineage
+    description: >
+      In-process editor surface backed by the piece-tree buffer, save
+      coordination, undo history, and edit primitives. The product's
+      hero surface and the local-core invariant the boundary manifest
+      protects most aggressively.
+    boundary_class: local_only
+    manifest_status: proposed
+    deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    local_core_continuity: >
+      Editing, saving, undo, and navigation continue with no network and
+      no account. Authored files are never mutated by any recovery
+      rung. This is the floor the product guarantees.
+    residual_dependencies: []
+    carries_truth_fields:
+      - boundary_class
+      - install_mode
+      - client_scope
+    absence_narrows_to: >
+      No narrowing required; the row is the baseline.
+    linked_lanes:
+      - aureline-buffer
+      - aureline-text
+    failure_drill:
+      drill_id: editor_drill.local_core_continuity_dropped
+      expected_check_id: boundary_manifest.local_core_continuity_must_be_present
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restate the editor row's local_core_continuity; the editor
+        cannot ship without a written local-core invariant.
+      forced_input:
+        clear_local_core_continuity: true
+
+  - row_id: boundary_row:workspace.vfs_and_local_git
+    surface_family: workspace
+    title: Workspace VFS, file watching, and local Git
+    description: >
+      Workspace root resolution, canonical path identity, file watching,
+      ignore resolution, and local Git operations (status, stage,
+      commit, branch, blame, diff) against the workspace VFS. The local
+      surface is local-only; an optional remote-agent attach
+      (SSH / container / WSL) narrows the row to provider_linked on
+      profiles where the residual-dependency ledger admits it.
+    boundary_class: provider_linked
+    manifest_status: proposed
+    deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    local_core_continuity: >
+      File open, save, watch, and all local Git operations work
+      offline. Remote-hosting integrations are out of this row's scope
+      and live under extensions; their absence does not affect local-Git
+      operations.
+    residual_dependencies:
+      - dependency_class: remote_agent
+        per_profile_posture:
+          individual_local: not_applicable_structural
+          self_hosted: optional
+          enterprise_online: optional
+          air_gapped: forbidden
+          managed_cloud: optional
+        absence_impact: >
+          Remote-attached workspaces (SSH / container / WSL) narrow to
+          local-core editing and local Git; air-gapped fails closed if
+          an attach is attempted.
+    carries_truth_fields:
+      - boundary_class
+      - install_mode
+      - residual_dependency_posture
+    absence_narrows_to: >
+      Workspace VFS and local Git continue with no remote agent;
+      remote-attach narrows to local-core editing on the local workspace.
+    linked_lanes:
+      - aureline-vfs
+    failure_drill:
+      drill_id: workspace_drill.posture_relaxes_forbidden
+      expected_check_id: boundary_manifest.posture_relaxes_ledger_forbidden
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore the air_gapped posture for remote_agent to forbidden on
+        this row so air-gapped attempts continue to fail closed.
+      forced_input:
+        rewrite_residual_dependency_posture:
+          dependency_class: remote_agent
+          profile: air_gapped
+          new_posture: optional
+
+  - row_id: boundary_row:search.local_index_and_grep
+    surface_family: search
+    title: Workspace search, local index, and find/replace
+    description: >
+      In-process workspace search (find, find-in-files, find/replace)
+      backed by a local index over the workspace VFS. Optional symbol
+      service attach extends the row to cross-repository navigation
+      where the deployment profile allows it.
+    boundary_class: provider_linked
+    manifest_status: proposed
+    deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    local_core_continuity: >
+      Workspace find, find-in-files, and find/replace continue with no
+      network. The local index is the source of truth for in-workspace
+      navigation; symbol-service attach is additive.
+    residual_dependencies:
+      - dependency_class: symbol_service
+        per_profile_posture:
+          individual_local: not_applicable_structural
+          self_hosted: optional
+          enterprise_online: optional
+          air_gapped: mirrored
+          managed_cloud: optional
+        absence_impact: >
+          Cross-repository symbol navigation narrows to local-workspace
+          search; air-gapped resolves the index against a signed mirror
+          only.
+    carries_truth_fields:
+      - boundary_class
+      - residual_dependency_posture
+      - freshness_class
+    absence_narrows_to: >
+      Cross-repo navigation is unavailable; in-workspace search and
+      find/replace continue normally with explicit freshness labels on
+      any cached cross-repo result.
+    linked_lanes:
+      - aureline-vfs
+      - aureline-text
+    failure_drill:
+      drill_id: search_drill.dependency_class_unknown
+      expected_check_id: boundary_manifest.residual_dependency_class_unknown
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore the dependency_class to symbol_service or add the new
+        class to artifacts/governance/residual_dependencies.yaml first
+        so the matrix does not invent a parallel vocabulary.
+      forced_input:
+        rewrite_residual_dependency_class:
+          old_class: symbol_service
+          new_class: cross_repo_oracle
+
+  - row_id: boundary_row:terminal.local_pty_and_auth_callback
+    surface_family: terminal
+    title: Local terminal / PTY pane and auth callback handling
+    description: >
+      Embedded terminal pane backed by a local PTY plus the auth /
+      browser-callback flow that returns sign-in tokens to the local
+      shell when a deployment profile requires sign-in.
+    boundary_class: provider_linked
+    manifest_status: proposed
+    deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    local_core_continuity: >
+      Local terminal panes, shell launches, and PTY I/O continue with
+      no network and no account. Auth callback handling is reserved on
+      profiles where sign-in applies; on individual_local it is
+      structurally not applicable.
+    residual_dependencies:
+      - dependency_class: sign_in
+        per_profile_posture:
+          individual_local: not_applicable_structural
+          self_hosted: required
+          enterprise_online: required
+          air_gapped: optional
+          managed_cloud: required
+        absence_impact: >
+          Sign-in-gated flows wait for reconnect; local terminal panes
+          and shell processes continue without sign-in.
+      - dependency_class: browser_handoff
+        per_profile_posture:
+          individual_local: optional
+          self_hosted: optional
+          enterprise_online: optional
+          air_gapped: forbidden
+          managed_cloud: optional
+        absence_impact: >
+          Browser-based auth callback unavailable; sign-in narrows to a
+          local or federated callback path. Air-gapped forbids browser
+          handoff and fails closed if invoked.
+    carries_truth_fields:
+      - boundary_class
+      - residual_dependency_posture
+      - client_scope
+    absence_narrows_to: >
+      Terminal panes continue. Sign-in-gated workflows narrow to
+      "pending reconnect" with an explicit recovery hook rather than
+      disappearing.
+    linked_lanes:
+      - aureline-shell-spike
+      - shell_command_system
+    failure_drill:
+      drill_id: terminal_drill.boundary_class_unknown
+      expected_check_id: boundary_manifest.boundary_class_unknown
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore the terminal row's boundary_class to provider_linked or
+        introduce the new class to the schema first.
+      forced_input:
+        rewrite_boundary_class: byok_assisted
+
+  - row_id: boundary_row:support.bundle_export_and_about
+    surface_family: support
+    title: Support bundle export and About / service-health truth
+    description: >
+      Support-bundle export path (exact build identity, client scope,
+      residual-dependency posture, redaction profile) plus the About /
+      service-health truth rendered in the shell. The first downstream
+      consumer of this matrix.
+    boundary_class: local_only
+    manifest_status: proposed
+    deployment_profiles:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+    local_core_continuity: >
+      Support-bundle export and Help/About truth render with no
+      network. Service-health rows degrade with explicit unavailable /
+      stale labels when their data source is unreachable.
+    residual_dependencies: []
+    carries_truth_fields:
+      - build_identity
+      - channel
+      - install_mode
+      - client_scope
+      - service_health_state
+      - boundary_class
+      - residual_dependency_posture
+      - freshness_class
+    absence_narrows_to: >
+      Support bundle still exports build identity, client scope, and
+      boundary posture; service-health rows render explicit
+      stale / unavailable freshness labels.
+    linked_lanes:
+      - support_export
+      - docs_public_truth
+      - release_evidence
+    failure_drill:
+      drill_id: support_drill.truth_field_unknown
+      expected_check_id: boundary_manifest.truth_field_unknown
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore the support row's carries_truth_fields to closed-vocab
+        members; new truth fields land in the schema first.
+      forced_input:
+        rewrite_truth_field:
+          old_field: residual_dependency_posture
+          new_field: residual_dependency_state

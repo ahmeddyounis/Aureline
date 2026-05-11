@@ -1,0 +1,382 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/boundary_manifest.schema.json",
+  "title": "Internal boundary manifest and open/local capability matrix",
+  "description": "Boundary schema for the internal-boundary capability matrix. One row per protected surface (shell, editor, workspace, search, terminal, support, etc.). Each row carries one boundary_class (local_only, provider_linked, managed, mirrored, unsupported), the deployment profiles it claims to operate on, the residual-dependency classes it relies on with a per-class posture drawn from the residual_dependency_ledger, the public-truth fields the row carries on About / Help / service-health / support / release surfaces, and a named failure drill. Closed vocabularies frozen here are the cross-tool boundary that runtime surfaces, docs, release artifacts, support exports, and CI validation all consume. Adding a new boundary_class, residual_dependency_class, posture_class, deployment_profile, surface_family, truth_field, or failure_drill_id is additive-minor and bumps schema_version; repurposing an existing value is breaking and opens a decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "matrix_id",
+    "owner_dri",
+    "overview_page",
+    "boundary_class_vocabulary",
+    "deployment_profile_vocabulary",
+    "residual_dependency_class_vocabulary",
+    "posture_class_vocabulary",
+    "surface_family_vocabulary",
+    "truth_field_vocabulary",
+    "manifest_status_vocabulary",
+    "failure_drill_id_vocabulary",
+    "required_surface_family_coverage",
+    "deployment_profile_register_ref",
+    "residual_dependency_ledger_ref",
+    "boundary_manifest_strawman_ref",
+    "open_paid_boundary_rows_ref",
+    "consumer_bindings",
+    "rows"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["seeded", "draft", "planned_not_yet_seeded"],
+      "description": "Lifecycle state of this matrix instance. The M1 draft seeds the contract; ratification of individual rows happens via decision rows on the matrix, not by deleting them."
+    },
+    "as_of": { "type": "string", "format": "date" },
+    "matrix_id": { "type": "string", "minLength": 1 },
+    "owner_dri": { "type": "string", "pattern": "^@.+" },
+    "overview_page": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewer-facing landing page repo-relative path."
+    },
+    "manifest_schema_ref": { "type": "string", "minLength": 1 },
+    "boundary_manifest_strawman_ref": { "type": "string", "minLength": 1 },
+    "open_paid_boundary_rows_ref": { "type": "string", "minLength": 1 },
+    "deployment_profile_register_ref": { "type": "string", "minLength": 1 },
+    "residual_dependency_ledger_ref": { "type": "string", "minLength": 1 },
+    "capability_inventory_seed_ref": { "type": "string", "minLength": 1 },
+    "build_identity_ref": { "type": "string", "minLength": 1 },
+    "validation_lane_ref": { "type": "string", "minLength": 1 },
+
+    "boundary_class_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Closed boundary-class vocabulary every row resolves against. local_only: capability MUST work with no network, no sign-in, no hosted service. provider_linked: optional user-supplied provider (BYOK / customer IdP / local model) attaches to the local surface; without a provider the surface narrows but is not removed. managed: hosted-only convenience layered on a self-hostable protocol; the underlying workflow remains reachable via the self-hostable path. mirrored: reachable via a signed offline mirror or bundle in constrained-connectivity profiles. unsupported: explicitly out of scope for the named milestone; reserved row prevents implicit drift.",
+      "items": {
+        "type": "string",
+        "enum": ["local_only", "provider_linked", "managed", "mirrored", "unsupported"]
+      }
+    },
+    "deployment_profile_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Deployment-profile ids the matrix is allowed to cite. MUST match artifacts/governance/deployment_profiles.yaml#deployment_profile_vocabulary verbatim.",
+      "items": {
+        "type": "string",
+        "enum": ["individual_local", "self_hosted", "enterprise_online", "air_gapped", "managed_cloud"]
+      }
+    },
+    "residual_dependency_class_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Residual-dependency classes a surface row may declare. MUST be a subset of artifacts/governance/residual_dependencies.yaml#dependency_class_vocabulary so rows do not invent new dependency classes here.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "sign_in",
+          "package_registry",
+          "remote_mirror",
+          "remote_agent",
+          "symbol_service",
+          "ai_provider",
+          "policy_bundle",
+          "docs_pack",
+          "browser_handoff",
+          "companion_notification_channel",
+          "hosted_control_plane_reachability"
+        ]
+      }
+    },
+    "posture_class_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Per-residual-dependency posture classes. MUST match artifacts/governance/residual_dependencies.yaml#posture_class_vocabulary verbatim.",
+      "items": {
+        "type": "string",
+        "enum": ["required", "optional", "cached", "mirrored", "forbidden", "not_applicable_structural"]
+      }
+    },
+    "surface_family_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Surface families the matrix enumerates. M1 seeds one row per family; later milestones may introduce additive members.",
+      "items": {
+        "type": "string",
+        "enum": ["shell", "editor", "workspace", "search", "terminal", "support"]
+      }
+    },
+    "truth_field_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Public-truth fields a row may claim to populate on Help/About/service-health/support-export/release surfaces. Closed vocabulary so consumers do not invent parallel field names.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "build_identity",
+          "channel",
+          "install_mode",
+          "client_scope",
+          "service_health_state",
+          "boundary_class",
+          "residual_dependency_posture",
+          "freshness_class"
+        ]
+      }
+    },
+    "manifest_status_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["proposed", "accepted", "deferred", "superseded"]
+      },
+      "description": "Per-row manifest status. The M1 draft seeds rows as proposed; ratification flips to accepted; rows do not delete (use superseded)."
+    },
+    "failure_drill_id_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "required_surface_family_coverage": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["shell", "editor", "workspace", "search", "terminal", "support"]
+      },
+      "description": "Surface families the M1 matrix MUST seed at least one row for; gaps fail the validation lane."
+    },
+
+    "consumer_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["named_runtime_consumer"],
+      "properties": {
+        "named_runtime_consumer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["consumer_id", "consumer_kind", "consumer_ref", "consumed_fields"],
+          "properties": {
+            "consumer_id": { "type": "string", "minLength": 1 },
+            "consumer_kind": {
+              "type": "string",
+              "enum": ["help_about_surface", "service_health_surface", "support_export", "release_packet", "docs_help", "ci_validator"]
+            },
+            "consumer_ref": { "type": "string", "minLength": 1 },
+            "consumed_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "notes": { "type": "string" }
+          }
+        },
+        "additional_consumers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["consumer_id", "consumer_kind", "consumer_ref"],
+            "properties": {
+              "consumer_id": { "type": "string", "minLength": 1 },
+              "consumer_kind": { "type": "string", "minLength": 1 },
+              "consumer_ref": { "type": "string", "minLength": 1 },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Capability-matrix rows. One row per protected M1 surface.",
+      "items": { "$ref": "#/$defs/capability_row" }
+    },
+    "notes": { "type": "string" }
+  },
+
+  "$defs": {
+    "capability_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "surface_family",
+        "title",
+        "description",
+        "boundary_class",
+        "manifest_status",
+        "deployment_profiles",
+        "local_core_continuity",
+        "residual_dependencies",
+        "carries_truth_fields",
+        "absence_narrows_to",
+        "linked_lanes",
+        "failure_drill"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^boundary_row:[a-z0-9_.]+$",
+          "description": "Stable row id namespaced under 'boundary_row:'."
+        },
+        "surface_family": {
+          "type": "string",
+          "enum": ["shell", "editor", "workspace", "search", "terminal", "support"]
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "boundary_class": {
+          "type": "string",
+          "enum": ["local_only", "provider_linked", "managed", "mirrored", "unsupported"]
+        },
+        "manifest_status": {
+          "type": "string",
+          "enum": ["proposed", "accepted", "deferred", "superseded"]
+        },
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["individual_local", "self_hosted", "enterprise_online", "air_gapped", "managed_cloud"]
+          }
+        },
+        "local_core_continuity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Statement of what still works locally when every optional service this row touches is absent. For local_only rows this restates the invariant. For all other boundary_class values it MUST name the local-safe baseline so absence narrows a claim rather than silently failing."
+        },
+        "residual_dependencies": {
+          "type": "array",
+          "description": "Residual-dependency declarations consumed against the residual-dependency ledger. May be empty for local_only rows with no residual surface.",
+          "items": { "$ref": "#/$defs/residual_dependency_entry" }
+        },
+        "carries_truth_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "build_identity",
+              "channel",
+              "install_mode",
+              "client_scope",
+              "service_health_state",
+              "boundary_class",
+              "residual_dependency_posture",
+              "freshness_class"
+            ]
+          },
+          "description": "Closed-vocab fields the surface row promises to surface honestly when consumed by Help/About/service-health/support/release tooling. Every row MUST declare at least one truth field so 'inspectable boundary truth' is non-trivial."
+        },
+        "absence_narrows_to": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Narrowed claim the capability carries when its named optional dependencies are absent; pairs with residual_dependencies entries."
+        },
+        "linked_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source_anchors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["doc", "anchor"],
+            "properties": {
+              "doc": { "type": "string", "minLength": 1 },
+              "anchor": { "type": "string", "minLength": 1 },
+              "quote": { "type": "string" }
+            }
+          }
+        },
+        "failure_drill": { "$ref": "#/$defs/failure_drill" },
+        "notes": { "type": "string" }
+      }
+    },
+
+    "residual_dependency_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dependency_class", "per_profile_posture", "absence_impact"],
+      "properties": {
+        "dependency_class": {
+          "type": "string",
+          "enum": [
+            "sign_in",
+            "package_registry",
+            "remote_mirror",
+            "remote_agent",
+            "symbol_service",
+            "ai_provider",
+            "policy_bundle",
+            "docs_pack",
+            "browser_handoff",
+            "companion_notification_channel",
+            "hosted_control_plane_reachability"
+          ]
+        },
+        "per_profile_posture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["individual_local", "self_hosted", "enterprise_online", "air_gapped", "managed_cloud"],
+          "properties": {
+            "individual_local": { "$ref": "#/$defs/posture_value" },
+            "self_hosted": { "$ref": "#/$defs/posture_value" },
+            "enterprise_online": { "$ref": "#/$defs/posture_value" },
+            "air_gapped": { "$ref": "#/$defs/posture_value" },
+            "managed_cloud": { "$ref": "#/$defs/posture_value" }
+          },
+          "description": "Per-profile posture for this residual dependency. Every profile entry MUST be declared; silent defaults are forbidden. The posture MUST agree with the corresponding row in artifacts/governance/residual_dependencies.yaml when that ledger declares a stricter posture (for example, a forbidden posture on a profile MUST NOT be relaxed to required by this matrix)."
+        },
+        "absence_impact": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short statement of what the user experiences when this dependency is unavailable. Pairs with the row's absence_narrows_to."
+        }
+      }
+    },
+    "posture_value": {
+      "type": "string",
+      "enum": ["required", "optional", "cached", "mirrored", "forbidden", "not_applicable_structural"]
+    },
+
+    "failure_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drill_id", "expected_check_id", "actionable_owner_ref", "next_action", "forced_input"],
+      "properties": {
+        "drill_id": { "type": "string", "minLength": 1 },
+        "expected_check_id": { "type": "string", "minLength": 1 },
+        "actionable_owner_ref": { "type": "string", "minLength": 1 },
+        "next_action": { "type": "string", "minLength": 1 },
+        "forced_input": {
+          "type": "object",
+          "description": "At least one declared drift the lane runner replays under --force-drill.",
+          "minProperties": 1
+        }
+      }
+    }
+  }
+}
