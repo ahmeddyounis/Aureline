@@ -1,0 +1,67 @@
+# Partial-startup dogfood audit case.
+#
+# Walks the path where part of the shell came up and part did not
+# (extension host crashed; managed workspace still warming). The
+# editor remains durable; the audit refuses readiness chips for
+# the unavailable parts.
+__case__:
+  scenario: >
+    Managed-cloud workspace reopen. Extension host failed
+    activation; managed workspace lifecycle reports warming.
+    Recent-work rows flip to stale_metadata / mode_downgraded.
+    Copy MUST enumerate each missing_target_state on its own
+    row and name that the editor/save remain durable.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.partial_startup
+dogfood_path_class: open
+entry_verbs_covered:
+  - open
+startup_state_token: startup_state:partial_startup
+source_fixture_ref: fixtures/ux/entry_restore_states/partial_startup.yaml
+copy_review_row_id: ux:startup-state:partial_startup
+required_next_safe_action_hooks:
+  - safe_mode
+  - continue_in_restricted_mode
+  - locate_missing_target
+  - open_minimal
+required_blocked_capability_tokens:
+  - extension_host_offline
+  - language_server_unattached
+  - managed_workspace_not_ready
+required_recovery_ladder_rung_refs:
+  - rung.extension_quarantine
+  - rung.cache_index_repair
+  - rung.restricted_mode_fallback
+required_support_packet_family_refs:
+  - recovery_ladder_packet
+  - object_issue_handoff
+  - managed_workspace_evidence
+required_journey_classes:
+  - shell_open
+  - startup_to_first_useful_chrome
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+forbidden_label_patterns:
+  - "Workspace ready"
+  - "All extensions loaded"
+  - "Managed workspace is running"
+  - "Ready to edit"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/recent_work_rows/partial_restore_card_remote_dirty.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+failure_drill:
+  drill_id: partial_startup_drop_extension_quarantine_rung
+  notes: >
+    Drops rung.extension_quarantine from both the source seed
+    and the copy-review row so the audit reports a partial
+    startup state missing a recovery-ladder rung for the
+    quarantined extension.
+  forced_input:
+    drop_required_recovery_ladder_rung_ref:
+      rung: rung.extension_quarantine
+  expected_findings:
+    - check_id: entry_restore_copy_audit.recovery_or_support_ref.missing
+      message_contains: rung.extension_quarantine

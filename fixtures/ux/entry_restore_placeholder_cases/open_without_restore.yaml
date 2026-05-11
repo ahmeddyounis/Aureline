@@ -1,0 +1,61 @@
+# Open-without-restore dogfood audit case.
+#
+# Walks the path where the user explicitly picked Open without
+# restore on a restore-adjacent surface. The decision MUST be
+# audit-visible on support exports; the shell MUST NOT imply
+# the prior session is restored.
+__case__:
+  scenario: >
+    User reopens after a crash, reviews the restore prompt, and
+    picks Open without restore. The shell opens clean; the
+    user's decision is named verbatim on any support export and
+    the prior restore_prompt_record is retained by reference.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.open_without_restore
+dogfood_path_class: open
+entry_verbs_covered:
+  - open
+startup_state_token: startup_state:open_without_restore
+source_fixture_ref: fixtures/ux/entry_restore_states/open_without_restore.yaml
+copy_review_row_id: ux:startup-state:open_without_restore
+required_next_safe_action_hooks:
+  - open_without_restore
+  - compare_before_restore
+required_blocked_capability_tokens:
+  - prior_work_preserved_as_evidence_only
+  - index_not_authoritative
+required_recovery_ladder_rung_refs:
+  - rung.open_without_restore
+  - rung.cache_index_repair
+required_support_packet_family_refs:
+  - restore_prompt_evidence
+  - recovery_ladder_packet
+required_journey_classes:
+  - restore_adjacent
+  - startup_to_first_useful_chrome
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+  - ff.first_paint
+forbidden_label_patterns:
+  - "Session restored"
+  - "Recovered drafts applied"
+  - "Last session loaded"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/restore_and_deeplink_cases/restore_prompt_no_restore_first_launch.json
+    inspect_fields:
+      - summary_line
+      - notes
+failure_drill:
+  drill_id: open_without_restore_drop_index_block
+  notes: >
+    Drops the index_not_authoritative blocked-capability token
+    from both seed and review row so the audit reports an
+    open_without_restore row that promises full search/index
+    authority it does not have.
+  forced_input:
+    drop_required_blocked_capability_token:
+      token: index_not_authoritative
+  expected_findings:
+    - check_id: entry_restore_copy_audit.blocked_capability_token.missing
+      message_contains: index_not_authoritative

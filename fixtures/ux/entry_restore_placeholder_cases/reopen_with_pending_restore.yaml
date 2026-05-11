@@ -1,0 +1,63 @@
+# Reopen-with-pending-restore dogfood audit case.
+#
+# Walks the restore-prompt path before the user has committed
+# compare_before_restore / open_without_restore / safe_mode. The
+# audited copy MUST NOT imply that the prior session is already
+# restored; the advertised restore_level rides on the prompt
+# verbatim and per-pane execution postures are named.
+__case__:
+  scenario: >
+    Shell restarted with a restore_prompt_record advertising
+    compatible_restore. Terminal panes are transcript_restored_
+    not_rerun; one task pane is rerun_required; a debug pane is
+    session_ended. Copy MUST name what did not rerun.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.reopen_with_pending_restore
+dogfood_path_class: restore
+entry_verbs_covered:
+  - restore
+  - open
+startup_state_token: startup_state:reopen_with_pending_restore
+source_fixture_ref: fixtures/ux/entry_restore_states/reopen_with_pending_restore.yaml
+copy_review_row_id: ux:startup-state:reopen_with_pending_restore
+required_next_safe_action_hooks:
+  - compare_before_restore
+  - open_without_restore
+  - safe_mode
+required_blocked_capability_tokens:
+  - index_not_authoritative
+  - terminal_transcripts_not_rerun
+  - debug_session_ended
+required_recovery_ladder_rung_refs:
+  - rung.open_without_restore
+  - rung.safe_mode
+required_support_packet_family_refs:
+  - restore_prompt_evidence
+  - recovery_ladder_packet
+required_journey_classes:
+  - restore_adjacent
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+forbidden_label_patterns:
+  - "Session restored"
+  - "Welcome back — everything is ready"
+  - "Exact restore complete"
+  - "Last session loaded"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/start_center_rows/start_center_restore_card_compatible.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+failure_drill:
+  drill_id: reopen_drop_open_without_restore_hook
+  notes: >
+    Drops the open_without_restore hook from the source seed so
+    the audit reports the missing next-safe action; a restore
+    prompt without an "open clean" escape is non-conforming.
+  forced_input:
+    drop_required_next_safe_action_hook:
+      hook: open_without_restore
+  expected_findings:
+    - check_id: entry_restore_copy_audit.next_safe_action_hook.missing
+      message_contains: open_without_restore

@@ -1,0 +1,63 @@
+# Empty-state / placeholder-transition dogfood audit case.
+#
+# Walks the transitional placeholder paths (missing-extension
+# zone, returned-focus placeholder, protocol-handler-reentry
+# card). The audit refuses placeholders that imply readiness or
+# hide that the target_kind has not resolved.
+__case__:
+  scenario: >
+    Two placeholder surfaces render at once: a missing-extension
+    zone slot and a returned-focus placeholder. A protocol-
+    handler-reentry card landed but has not resolved its
+    target_kind. Each placeholder MUST name its truthful cause,
+    the resolving decision hook, and the blocked-capability axis.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.empty_state_or_placeholder_transition
+dogfood_path_class: placeholder_transition
+entry_verbs_covered:
+  - open
+  - import
+startup_state_token: startup_state:empty_state_or_placeholder_transition
+source_fixture_ref: fixtures/ux/entry_restore_states/empty_state_or_placeholder_transition.yaml
+copy_review_row_id: ux:startup-state:empty_state_or_placeholder_transition
+required_next_safe_action_hooks:
+  - locate_missing_target
+  - review_archetype_match
+  - open_minimal
+  - set_up_later
+  - remove_from_recents
+required_blocked_capability_tokens:
+  - no_durable_edits_yet
+  - placeholder_surface_no_capability
+  - extension_host_offline
+required_recovery_ladder_rung_refs:
+  - rung.extension_quarantine
+required_support_packet_family_refs:
+  - empty_state_audit_evidence
+  - recovery_ladder_packet
+required_journey_classes:
+  - startup_to_first_useful_chrome
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+forbidden_label_patterns:
+  - "Nothing to worry about"
+  - "All surfaces available"
+  - "Ready"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/start_center_rows/start_center_recent_work_missing_target.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+failure_drill:
+  drill_id: empty_state_drop_locate_missing_target_hook
+  notes: >
+    Drops locate_missing_target from both seed and review row
+    so the audit reports a placeholder transition that hides
+    the locate path for the missing extension / target.
+  forced_input:
+    drop_required_next_safe_action_hook:
+      hook: locate_missing_target
+  expected_findings:
+    - check_id: entry_restore_copy_audit.next_safe_action_hook.missing
+      message_contains: locate_missing_target

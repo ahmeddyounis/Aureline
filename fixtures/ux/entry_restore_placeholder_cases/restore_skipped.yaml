@@ -1,0 +1,62 @@
+# Restore-skipped dogfood audit case.
+#
+# Walks the path where admin policy or a prior user preference
+# skipped session restore. The shell opens clean with the
+# recovery journal still available; the policy source MUST be
+# named when policy blocked restore.
+__case__:
+  scenario: >
+    Admin policy configured policy_blocked_restore on a managed
+    workspace. Restore is not presented; recovery journal stays
+    available for compare/discard/open-journal review. Copy
+    MUST name the policy source and offer continue_in_restricted
+    _mode / set_up_later as safe next actions.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.restore_skipped
+dogfood_path_class: restore
+entry_verbs_covered:
+  - open
+startup_state_token: startup_state:restore_skipped
+source_fixture_ref: fixtures/ux/entry_restore_states/restore_skipped.yaml
+copy_review_row_id: ux:startup-state:restore_skipped
+required_next_safe_action_hooks:
+  - open_without_restore
+  - review_trust_and_open
+  - set_up_later
+  - continue_in_restricted_mode
+required_blocked_capability_tokens:
+  - prior_work_preserved_as_evidence_only
+  - terminal_transcripts_not_rerun
+  - debug_session_ended
+required_recovery_ladder_rung_refs:
+  - rung.open_without_restore
+  - rung.restricted_mode_fallback
+required_support_packet_family_refs:
+  - restore_prompt_evidence
+  - policy_audit_evidence
+required_journey_classes:
+  - restore_adjacent
+  - shell_open
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+forbidden_label_patterns:
+  - "Session restored"
+  - "Last session loaded automatically"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/start_center_rows/start_center_unsupported_envelope.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+failure_drill:
+  drill_id: restore_skipped_drop_policy_audit_evidence
+  notes: >
+    Drops the policy_audit_evidence support-packet family from
+    both the source seed and the copy-review row so the audit
+    flags a missing support linkage on a policy-skipped restore.
+  forced_input:
+    drop_required_support_packet_family_ref:
+      family: policy_audit_evidence
+  expected_findings:
+    - check_id: entry_restore_copy_audit.recovery_or_support_ref.missing
+      message_contains: policy_audit_evidence

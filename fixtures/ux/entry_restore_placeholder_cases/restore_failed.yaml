@@ -1,0 +1,68 @@
+# Restore-failed dogfood audit case.
+#
+# Walks the path where a restore was attempted but delivered less
+# than advertised (corrupt checkpoint, schema-migrated content
+# refusing to rehydrate). The audit refuses automated-recovery
+# claims and pins the delivered restore_level verbatim.
+__case__:
+  scenario: >
+    Restore attempted; checkpoint corrupt. Advertised
+    restore_level compatible_restore degraded to delivered
+    restore_level no_restore. Dirty buffers remain in the
+    recovery journal. Copy MUST NOT claim automated recovery
+    completed.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.restore_failed
+dogfood_path_class: restore
+entry_verbs_covered:
+  - restore
+  - open
+startup_state_token: startup_state:restore_failed
+source_fixture_ref: fixtures/ux/entry_restore_states/restore_failed.yaml
+copy_review_row_id: ux:startup-state:restore_failed
+required_next_safe_action_hooks:
+  - open_without_restore
+  - safe_mode
+  - locate_missing_target
+  - compare_before_restore
+required_blocked_capability_tokens:
+  - index_not_authoritative
+  - prior_work_requires_manual_recovery
+required_recovery_ladder_rung_refs:
+  - rung.open_without_restore
+  - rung.cache_index_repair
+  - rung.safe_mode
+required_support_packet_family_refs:
+  - crash_recovery_evidence
+  - recovery_ladder_packet
+  - object_issue_handoff
+required_journey_classes:
+  - restore_adjacent
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+forbidden_label_patterns:
+  - "Session restored"
+  - "Everything is back to where you left it"
+  - "Automatic recovery complete"
+  - "Last session loaded"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/start_center_rows/start_center_restore_card_evidence_only.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+  - ref: fixtures/ux/recent_work_rows/partial_restore_card_remote_dirty.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+failure_drill:
+  drill_id: restore_failed_force_overclaim
+  notes: >
+    Forces overclaims_readiness=true on the source seed and the
+    copy-review row to confirm the audit denies the readiness
+    overclaim on a restore_failed path.
+  forced_input:
+    force_overclaims_readiness: true
+  expected_findings:
+    - check_id: entry_restore_copy_audit.overclaim.detected
+      message_contains: overclaims_readiness

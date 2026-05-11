@@ -1,0 +1,66 @@
+# Warming-startup dogfood audit case.
+#
+# Walks the path where the editor is interactive and the buffer
+# is editable while the semantic index, language server, and
+# extension host are still warming. Copy MUST name the warming
+# posture explicitly; readiness chips for the index are
+# non-conforming.
+__case__:
+  scenario: >
+    Warm-start reopen of a local repo root. First useful
+    navigation has fired; semantic warmup has not. The editor
+    is interactive; the buffer is editable; the save pipeline
+    is durable. No chip claims the index is complete or that
+    extensions are loaded.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.warming_startup
+dogfood_path_class: open
+entry_verbs_covered:
+  - open
+startup_state_token: startup_state:warming_startup
+source_fixture_ref: fixtures/ux/entry_restore_states/warming_startup.yaml
+copy_review_row_id: ux:startup-state:warming_startup
+required_next_safe_action_hooks:
+  - open_minimal
+  - set_up_later
+  - continue_in_restricted_mode
+required_blocked_capability_tokens:
+  - index_not_authoritative
+  - semantic_lookups_pending
+  - extensions_not_yet_activated
+required_recovery_ladder_rung_refs:
+  - rung.cache_index_repair
+required_support_packet_family_refs:
+  - performance_evidence_packet
+required_journey_classes:
+  - startup_to_first_useful_chrome
+  - open_edit_save
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+  - ff.first_paint
+forbidden_label_patterns:
+  - "Index complete"
+  - "All extensions loaded"
+  - "Workspace ready"
+  - "Semantic search ready"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/placeholder_cases/indexing_in_progress_search.json
+    inspect_fields:
+      - visible_cues.primary_label
+      - visible_cues.cause_label
+      - visible_cues.readiness_badge_label
+      - visible_cues.accessible_name
+failure_drill:
+  drill_id: warming_startup_drop_semantic_lookups_pending
+  notes: >
+    Drops the semantic_lookups_pending blocked-capability token
+    from seed and review row so the audit reports a warming
+    state that hides the fact that semantic search is not
+    authoritative yet.
+  forced_input:
+    drop_required_blocked_capability_token:
+      token: semantic_lookups_pending
+  expected_findings:
+    - check_id: entry_restore_copy_audit.blocked_capability_token.missing
+      message_contains: semantic_lookups_pending

@@ -1,0 +1,75 @@
+# First-run dogfood entry / restore audit case.
+#
+# Walks the no-prior-profile / no-prior-session first-touch path,
+# binding the Start Center entry verbs (Open / Clone / Import /
+# Restore / Recent work) to the truth vocabulary frozen by
+# docs/ux/entry_restore_truth_audit.md §6.1 and the copy-review row
+# ux:startup-state:first_run.
+__case__:
+  scenario: >
+    Fresh install on a previously-unused device. The Start Center
+    lands distinctly on each entry verb without a Get-started
+    collapse, no marketplace-first card, and no forced sign-in.
+    The audited copy MUST NOT imply that any workspace, index,
+    or session is ready before the user picks a verb.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.first_run
+dogfood_path_class: first_run
+entry_verbs_covered:
+  - open
+  - clone
+  - import
+  - restore
+  - start_from_snapshot
+startup_state_token: startup_state:first_run
+source_fixture_ref: fixtures/ux/entry_restore_states/first_run.yaml
+copy_review_row_id: ux:startup-state:first_run
+required_next_safe_action_hooks:
+  - review_archetype_match
+  - set_up_later
+  - open_minimal
+required_blocked_capability_tokens:
+  - no_durable_edits_yet
+required_recovery_ladder_rung_refs:
+  - rung.restricted_mode_fallback
+required_support_packet_family_refs:
+  - first_run_evidence
+required_journey_classes:
+  - startup_to_first_useful_chrome
+  - startup_to_first_paint
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+  - ff.first_paint
+forbidden_label_patterns:
+  - "Workspace ready"
+  - "All extensions loaded"
+  - "Index complete"
+  - "Get started"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/start_center_rows/start_center_first_run_no_account.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+  - ref: fixtures/ux/placeholder_cases/first_run_start_center.json
+    inspect_fields:
+      - visible_cues.primary_label
+      - visible_cues.cause_label
+      - visible_cues.readiness_badge_label
+      - visible_cues.accessible_name
+      - visible_cues.details_route_label
+      - state_summary.area_purpose
+failure_drill:
+  drill_id: first_run_inject_workspace_ready_label
+  notes: >
+    Forces a "Workspace ready" fragment into the first-run Start
+    Center subtitle to confirm the audit flags an overclaim row
+    before broader dogfood rollout.
+  forced_input:
+    inject_forbidden_label_match:
+      snapshot_ref: fixtures/ux/start_center_rows/start_center_first_run_no_account.json
+      field_path: presentation_subtitle
+      forbidden_label_substring: "Workspace ready"
+  expected_findings:
+    - check_id: entry_restore_copy_audit.forbidden_label.matched
+      message_contains: "Workspace ready"

@@ -1,0 +1,63 @@
+# Unsupported-startup dogfood audit case.
+#
+# Walks the path where policy envelope, schema migration, or a
+# prior binary combination does not support a full startup. The
+# shell may open in restricted mode but MUST NOT imply the
+# unsupported path is supported.
+__case__:
+  scenario: >
+    Policy-managed workspace requires a newer schema than the
+    binary supports. policy_blocked_restore plus binary_or_
+    extension_version_changed apply; the recent-work row reports
+    policy_blocked. Copy MUST name the policy source label and
+    keep continue_in_restricted_mode / review_trust_and_open /
+    set_up_later / safe_mode hooks present.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.unsupported_startup
+dogfood_path_class: open
+entry_verbs_covered:
+  - open
+startup_state_token: startup_state:unsupported_startup
+source_fixture_ref: fixtures/ux/entry_restore_states/unsupported_startup.yaml
+copy_review_row_id: ux:startup-state:unsupported_startup
+required_next_safe_action_hooks:
+  - continue_in_restricted_mode
+  - review_trust_and_open
+  - set_up_later
+  - safe_mode
+required_blocked_capability_tokens:
+  - policy_restricted_mode
+  - unsupported_platform_feature
+  - schema_migration_required
+required_recovery_ladder_rung_refs:
+  - rung.restricted_mode_fallback
+  - rung.safe_mode
+required_support_packet_family_refs:
+  - policy_audit_evidence
+  - recovery_ladder_packet
+required_journey_classes:
+  - shell_open
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+forbidden_label_patterns:
+  - "Workspace ready"
+  - "Supported"
+  - "Ready to edit"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/start_center_rows/start_center_unsupported_envelope.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+failure_drill:
+  drill_id: unsupported_startup_drop_safe_mode_hook
+  notes: >
+    Drops safe_mode from both the seed's hook list and the
+    review row to confirm the audit flags an unsupported path
+    that hides its safe-mode escape rung.
+  forced_input:
+    drop_required_next_safe_action_hook:
+      hook: safe_mode
+  expected_findings:
+    - check_id: entry_restore_copy_audit.next_safe_action_hook.missing
+      message_contains: safe_mode

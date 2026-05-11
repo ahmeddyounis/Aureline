@@ -1,0 +1,70 @@
+# Offline-startup dogfood audit case.
+#
+# Walks the path where the device is offline. Local-only rows
+# stay fully reachable; remote rows are marked unreachable. The
+# audit refuses undifferentiated "Offline" banners that hide
+# which rows are affected.
+__case__:
+  scenario: >
+    Shell opened offline. A pinned remote-repo recent-work row
+    reports remote_unreachable; a managed-cloud row reports
+    authority_expired; a local-only folder row remains
+    reachable. Copy MUST name each row's posture and offer
+    reconnect_required / reauth_required / continue_in_restricted
+    _mode / set_up_later.
+record_kind: entry_restore_copy_audit_case_record
+schema_version: 1
+case_id: ux.entry_restore_copy_audit.case.offline_startup
+dogfood_path_class: open
+entry_verbs_covered:
+  - open
+  - clone
+startup_state_token: startup_state:offline_startup
+source_fixture_ref: fixtures/ux/entry_restore_states/offline_startup.yaml
+copy_review_row_id: ux:startup-state:offline_startup
+required_next_safe_action_hooks:
+  - reconnect_required
+  - reauth_required
+  - continue_in_restricted_mode
+  - set_up_later
+required_blocked_capability_tokens:
+  - remote_target_unreachable
+  - managed_workspace_not_ready
+  - provider_paths_offline
+required_recovery_ladder_rung_refs:
+  - rung.restricted_mode_fallback
+  - rung.open_without_restore
+required_support_packet_family_refs:
+  - auth_evidence_packet
+  - recovery_ladder_packet
+required_journey_classes:
+  - shell_open
+  - startup_to_first_useful_chrome
+required_protected_metric_refs:
+  - ff.warm_start_to_first_paint
+forbidden_label_patterns:
+  - "All remotes connected"
+  - "Online"
+  - "Managed workspace is running"
+dogfood_copy_snapshots:
+  - ref: fixtures/ux/start_center_rows/start_center_offline_managed.json
+    inspect_fields:
+      - presentation_label
+      - presentation_subtitle
+  - ref: fixtures/ux/recent_work_rows/remote_workspace_disconnected.json
+    inspect_fields:
+      - primary_label
+      - location_or_target_subtitle
+failure_drill:
+  drill_id: offline_startup_drop_reauth_required_hook
+  notes: >
+    Drops reauth_required from both seed and review row to
+    confirm the audit flags an offline path that hides the
+    reauth recovery for managed-cloud rows with expired
+    authority.
+  forced_input:
+    drop_required_next_safe_action_hook:
+      hook: reauth_required
+  expected_findings:
+    - check_id: entry_restore_copy_audit.next_safe_action_hook.missing
+      message_contains: reauth_required
