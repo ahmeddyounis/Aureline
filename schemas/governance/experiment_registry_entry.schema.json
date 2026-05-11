@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/experiment_registry_entry.schema.json",
+  "title": "Aureline experiment / flag / Labs registry entry",
+  "description": "Boundary schema for one experiment_registry_entry_record published by the M1 experiments / flags / Labs registry seed. Each row projects exactly one stable upstream control row (experiments_register.yaml) into the seed's closed governance vocabulary so the registry can answer: who owns this lane, who can see it, what lifecycle state is it in, when does the next review or expiry land, which kill switch and rollback path are authoritative, what telemetry posture is permitted, and what graduation or retirement path is committed to. The row schema does not maintain a runtime flag service, a cohort delivery system, or a remote experimentation platform; it freezes the metadata the registry's named runtime consumers (docs / help / release / support / CI) key off so the seed cannot quietly lose owner, cohort, expiry, kill-switch, or public-label truth.",
+  "$ref": "#/$defs/experiment_registry_entry_record",
+  "$defs": {
+    "experiment_registry_entry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for experiment-registry rows. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "experiment_registry_entry_record",
+      "description": "Discriminator for the record shape."
+    },
+    "register_entry_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^ereg\\.[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable, machine-readable id for the experiment-registry row (for example ereg.exp.buffer.prototype_harness). Lowercase dot/underscore/hyphen segments only so the id is safe to log, safe in support exports, and safe in release artifacts. Every row id MUST begin with the 'ereg.' prefix so the registry's stable id space cannot collide with the upstream experiments_register.yaml stable id space."
+    },
+    "source_register_class": {
+      "type": "string",
+      "enum": ["experiments_register"],
+      "description": "Closed companion-register class. Only one upstream register backs the M1 seed: artifacts/governance/experiments_register.yaml. The labs_register.yaml is a downstream projection, not a separate source register."
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^(exp|mode|rollout|flag)\\.[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable id from the upstream experiments_register.yaml. exp.* rows are experiments, mode.* rows are benchmark modes, rollout.* rows are rollouts, flag.* rows are feature flags. The validation lane resolves the id on disk in the upstream register."
+    },
+    "row_kind_class": {
+      "type": "string",
+      "enum": ["experiment", "feature_flag", "benchmark_mode", "rollout"],
+      "description": "Closed row-kind vocabulary. MUST agree with the upstream experiments_register.yaml row_kind value for the same source_id. experiment: prototype/Labs/inspection row. feature_flag: toggle that gates code or workflow behavior. benchmark_mode: opt-in benchmark / smoke lane. rollout: scheduled / cohort-driven enablement plan."
+    },
+    "audience_class": {
+      "type": "string",
+      "enum": [
+        "contributor_visible_labs",
+        "hidden_developer_toggle",
+        "control_stack_reserved",
+        "ci_rollout_only"
+      ],
+      "description": "Closed audience vocabulary mirrored from the upstream experiments_register.yaml. contributor_visible_labs: surfaced through the Labs inventory projection at labs_register.yaml. hidden_developer_toggle: developer-only switch never advertised as a Labs item. control_stack_reserved: reserved ADR / control-stack binding kept inert until the runtime control stack lands. ci_rollout_only: CI-only rollout enablement plan."
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta",
+        "stable",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ],
+      "description": "Closed lifecycle vocabulary. labs: contributor-visible prototype lane. preview: opt-in / curated lane that is not yet stable. beta: contributor-broad opt-in. stable: graduated. deprecated: replaced and slated for retirement. disabled_by_policy: turned off by an explicit decision row. retired: removed."
+    },
+    "cohort_class": {
+      "type": "string",
+      "enum": [
+        "maintainer_and_contributor_local",
+        "developer_local_only",
+        "developer_local_and_ci_preview",
+        "developer_local_and_ci_seed_guard",
+        "ci_nightly_reference_hardware",
+        "workflow_dispatch_only",
+        "reserved_for_future_settings_rollout"
+      ],
+      "description": "Closed cohort / ring vocabulary mirrored from artifacts/governance/experiments_register.yaml. The seed cannot mint a new cohort label without an explicit decision row that widens this enum."
+    },
+    "default_posture_class": {
+      "type": "string",
+      "enum": [
+        "off_by_default",
+        "opt_in_only",
+        "enabled_when_named_on_cli",
+        "default_for_developer_local",
+        "scheduled_ci_only",
+        "manual_failure_drill_only",
+        "reserved_until_runtime_control_stack_lands"
+      ],
+      "description": "Closed default-posture vocabulary mirrored from artifacts/governance/experiments_register.yaml. The seed cannot mint a new default posture without an explicit decision row that widens this enum."
+    },
+    "public_label_class": {
+      "type": "string",
+      "enum": [
+        "public_labs_visible_label",
+        "hidden_developer_toggle_label",
+        "control_stack_reserved_label",
+        "ci_rollout_only_label"
+      ],
+      "description": "Closed public-label vocabulary. public_labs_visible_label: the row is advertised as a contributor-visible Labs item and resolves to a labs_register.yaml row. hidden_developer_toggle_label: the row is a developer-only toggle and MUST NOT appear in the contributor-visible Labs inventory. control_stack_reserved_label: the row is reserved for the future runtime control stack and MUST NOT advertise a contributor-visible label. ci_rollout_only_label: the row is a CI-only rollout enablement plan and MUST NOT advertise a contributor-visible label."
+    },
+    "telemetry_posture_class": {
+      "type": "string",
+      "enum": [
+        "counts_only_local",
+        "counts_only_local_then_optional_export",
+        "no_remote_telemetry",
+        "not_applicable_reserved_binding"
+      ],
+      "description": "Closed telemetry-posture vocabulary. counts_only_local: deterministic counts / harness output recorded in repo only. counts_only_local_then_optional_export: counts emitted locally; opt-in export available through a documented wrapper. no_remote_telemetry: explicit lack of remote telemetry. not_applicable_reserved_binding: reserved control-stack binding that has no runtime telemetry plane yet."
+    },
+    "graduation_retirement_path_class": {
+      "type": "string",
+      "enum": [
+        "graduate_to_stable",
+        "graduate_to_beta",
+        "retire_to_disabled_by_policy",
+        "retire_to_deleted",
+        "hold_pending_runtime_control_stack",
+        "hold_pending_review_decision"
+      ],
+      "description": "Closed graduation / retirement vocabulary. graduate_to_stable: the lane is expected to graduate into the stable surface area. graduate_to_beta: the lane is expected to graduate into a broader preview/beta. retire_to_disabled_by_policy: the lane is expected to be turned off by a decision row. retire_to_deleted: the lane is expected to be removed entirely. hold_pending_runtime_control_stack: reserved binding waiting on the runtime control stack. hold_pending_review_decision: held open until a named review decision lands."
+    },
+    "kill_switch_source_class": {
+      "type": "string",
+      "enum": [
+        "embedded_default_off",
+        "local_cli_argument",
+        "ci_workflow_input",
+        "signed_local_admin_bundle",
+        "optional_managed_override"
+      ],
+      "description": "Closed kill-switch source vocabulary mirrored from artifacts/governance/experiments_register.yaml. The seed names which provider-chain step is the authoritative kill switch."
+    },
+    "kill_switch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "source_ref"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/kill_switch_source_class" },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Repo-relative path or stable workflow id the operator uses to disable the row. Required so a row cannot claim a kill switch and then point at nothing."
+        }
+      },
+      "description": "Named kill switch for the row. Every row carries one so disabling the lane is never invented at incident time."
+    },
+    "rollback_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rollback_ref"],
+      "properties": {
+        "rollback_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Repo-relative path or command the operator runs to roll back to the last reviewable state. Required on every row so rollback is never improvised."
+        }
+      },
+      "description": "Named rollback path for the row."
+    },
+    "owner_dri": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^@[a-zA-Z0-9_-]+$",
+      "description": "Named owner DRI for the registry row. Required on every row so the seed cannot publish an ownerless experiment."
+    },
+    "review_iso_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO-8601 calendar date (YYYY-MM-DD). The validation lane compares the date against the envelope's as_of value; a review_by or expires_on that is strictly earlier than as_of trips the experiment-registry expiry check."
+    },
+    "failure_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "forced_input",
+        "expected_check_id",
+        "actionable_next_action"
+      ],
+      "properties": {
+        "drill_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Stable id for the row's named failure drill, drawn from the envelope's failure_drill_id_vocabulary."
+        },
+        "forced_input": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Forced row mutation applied under --force-drill so the runner can reproduce the named expected_check_id from a clean tree."
+        },
+        "expected_check_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Exact check_id the runner must report under --force-drill."
+        },
+        "actionable_next_action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Short reviewer-readable next action when the drill fires unexpectedly."
+        }
+      },
+      "description": "Named failure drill the validation lane reproduces under --force-drill. Required on every row so omissions stay loud."
+    },
+    "experiment_registry_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "experiment_registry_entry_schema_version",
+        "register_entry_id",
+        "source_register",
+        "source_id",
+        "public_label",
+        "row_kind_class",
+        "audience_class",
+        "lifecycle_state_class",
+        "cohort_class",
+        "default_posture_class",
+        "public_label_class",
+        "telemetry_posture_class",
+        "graduation_retirement_path_class",
+        "owner_dri",
+        "kill_switch",
+        "rollback_path",
+        "evidence_refs",
+        "failure_drill"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "experiment_registry_entry_schema_version": {
+          "$ref": "#/$defs/experiment_registry_entry_schema_version"
+        },
+        "register_entry_id": { "$ref": "#/$defs/register_entry_id" },
+        "source_register": { "$ref": "#/$defs/source_register_class" },
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "public_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Human-readable label for the row, mirrored from artifacts/governance/experiments_register.yaml."
+        },
+        "row_kind_class": { "$ref": "#/$defs/row_kind_class" },
+        "audience_class": { "$ref": "#/$defs/audience_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "cohort_class": { "$ref": "#/$defs/cohort_class" },
+        "default_posture_class": { "$ref": "#/$defs/default_posture_class" },
+        "public_label_class": { "$ref": "#/$defs/public_label_class" },
+        "telemetry_posture_class": { "$ref": "#/$defs/telemetry_posture_class" },
+        "graduation_retirement_path_class": {
+          "$ref": "#/$defs/graduation_retirement_path_class"
+        },
+        "owner_dri": { "$ref": "#/$defs/owner_dri" },
+        "review_by": {
+          "anyOf": [
+            { "$ref": "#/$defs/review_iso_date" },
+            { "type": "null" }
+          ],
+          "description": "Next review date for the row in ISO-8601 (YYYY-MM-DD), or null. Either review_by or expires_on (or both) MUST be a non-null ISO date so an unowned, expiry-less row is impossible."
+        },
+        "expires_on": {
+          "anyOf": [
+            { "$ref": "#/$defs/review_iso_date" },
+            { "type": "null" }
+          ],
+          "description": "Hard expiry date for the row in ISO-8601 (YYYY-MM-DD), or null. Either review_by or expires_on (or both) MUST be a non-null ISO date so an unowned, expiry-less row is impossible."
+        },
+        "kill_switch": { "$ref": "#/$defs/kill_switch" },
+        "rollback_path": { "$ref": "#/$defs/rollback_path" },
+        "labs_projection_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Anchor into artifacts/governance/labs_register.yaml (path#labs_id) for contributor-visible Labs rows. Required when audience_class = contributor_visible_labs; the validation lane resolves the labs_id exists. MUST be absent for non-contributor-visible rows so a hidden toggle cannot masquerade as a Labs item."
+        },
+        "rollout_guardrails": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "description": "Plain-language guardrails on the rollout. Required (non-empty) on row_kind_class = rollout."
+        },
+        "default_shift_change_log_posture": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "docs_update_required",
+            "release_note_required"
+          ],
+          "description": "Mirror of the upstream register's default_shift_change_log_posture. benchmark_mode rows MUST publish docs_update_required or release_note_required so a benchmark default shift never lands silently."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Evidence refs (upstream register row anchors, ADR refs, policy docs) the reviewer can follow to corroborate the row's posture."
+        },
+        "failure_drill": { "$ref": "#/$defs/failure_drill" },
+        "notes": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "Optional short reviewer-facing note about the row."
+        }
+      },
+      "allOf": [
+        {
+          "description": "row_kind_class = experiment forces source_id to start with 'exp.'.",
+          "if": {
+            "properties": { "row_kind_class": { "const": "experiment" } },
+            "required": ["row_kind_class"]
+          },
+          "then": {
+            "properties": { "source_id": { "pattern": "^exp\\." } },
+            "required": ["source_id"]
+          }
+        },
+        {
+          "description": "row_kind_class = benchmark_mode forces source_id to start with 'mode.'.",
+          "if": {
+            "properties": { "row_kind_class": { "const": "benchmark_mode" } },
+            "required": ["row_kind_class"]
+          },
+          "then": {
+            "properties": { "source_id": { "pattern": "^mode\\." } },
+            "required": ["source_id"]
+          }
+        },
+        {
+          "description": "row_kind_class = rollout forces source_id to start with 'rollout.'.",
+          "if": {
+            "properties": { "row_kind_class": { "const": "rollout" } },
+            "required": ["row_kind_class"]
+          },
+          "then": {
+            "properties": { "source_id": { "pattern": "^rollout\\." } },
+            "required": ["source_id"]
+          }
+        },
+        {
+          "description": "row_kind_class = feature_flag forces source_id to start with 'flag.'.",
+          "if": {
+            "properties": { "row_kind_class": { "const": "feature_flag" } },
+            "required": ["row_kind_class"]
+          },
+          "then": {
+            "properties": { "source_id": { "pattern": "^flag\\." } },
+            "required": ["source_id"]
+          }
+        },
+        {
+          "description": "row_kind_class = rollout forces rollout_guardrails to be a non-empty list.",
+          "if": {
+            "properties": { "row_kind_class": { "const": "rollout" } },
+            "required": ["row_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "rollout_guardrails": { "type": "array", "minItems": 1 }
+            },
+            "required": ["rollout_guardrails"]
+          }
+        },
+        {
+          "description": "row_kind_class = benchmark_mode forces default_shift_change_log_posture to be one of docs_update_required, release_note_required.",
+          "if": {
+            "properties": { "row_kind_class": { "const": "benchmark_mode" } },
+            "required": ["row_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "default_shift_change_log_posture": {
+                "enum": ["docs_update_required", "release_note_required"]
+              }
+            },
+            "required": ["default_shift_change_log_posture"]
+          }
+        },
+        {
+          "description": "audience_class = contributor_visible_labs forces public_label_class = public_labs_visible_label and labs_projection_ref to be a non-empty string.",
+          "if": {
+            "properties": {
+              "audience_class": { "const": "contributor_visible_labs" }
+            },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "public_label_class": { "const": "public_labs_visible_label" },
+              "labs_projection_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["public_label_class", "labs_projection_ref"]
+          }
+        },
+        {
+          "description": "audience_class = hidden_developer_toggle forces public_label_class = hidden_developer_toggle_label and forbids labs_projection_ref.",
+          "if": {
+            "properties": {
+              "audience_class": { "const": "hidden_developer_toggle" }
+            },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "public_label_class": { "const": "hidden_developer_toggle_label" },
+              "labs_projection_ref": false
+            },
+            "required": ["public_label_class"]
+          }
+        },
+        {
+          "description": "audience_class = control_stack_reserved forces public_label_class = control_stack_reserved_label and forbids labs_projection_ref.",
+          "if": {
+            "properties": {
+              "audience_class": { "const": "control_stack_reserved" }
+            },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "public_label_class": { "const": "control_stack_reserved_label" },
+              "labs_projection_ref": false
+            },
+            "required": ["public_label_class"]
+          }
+        },
+        {
+          "description": "audience_class = ci_rollout_only forces public_label_class = ci_rollout_only_label and forbids labs_projection_ref.",
+          "if": {
+            "properties": {
+              "audience_class": { "const": "ci_rollout_only" }
+            },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "public_label_class": { "const": "ci_rollout_only_label" },
+              "labs_projection_ref": false
+            },
+            "required": ["public_label_class"]
+          }
+        },
+        {
+          "description": "default_posture_class = reserved_until_runtime_control_stack_lands forces graduation_retirement_path_class = hold_pending_runtime_control_stack and telemetry_posture_class = not_applicable_reserved_binding.",
+          "if": {
+            "properties": {
+              "default_posture_class": {
+                "const": "reserved_until_runtime_control_stack_lands"
+              }
+            },
+            "required": ["default_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "graduation_retirement_path_class": {
+                "const": "hold_pending_runtime_control_stack"
+              },
+              "telemetry_posture_class": {
+                "const": "not_applicable_reserved_binding"
+              }
+            },
+            "required": [
+              "graduation_retirement_path_class",
+              "telemetry_posture_class"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

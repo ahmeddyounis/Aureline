@@ -1,0 +1,682 @@
+# Experiments / flags / Labs registry seed (M1 governance).
+#
+# Machine-readable register projection of every non-stable control row
+# already seeded in the repository, keyed off the stable ids declared in
+# artifacts/governance/experiments_register.yaml and projected, where
+# contributor-visible, into artifacts/governance/labs_register.yaml.
+# The seed exists so docs/help/release/support/CI consumers all key off
+# the same stable governance vocabulary for owner, cohort, lifecycle
+# state, expiry, kill switch, default posture, public label, telemetry
+# posture, and graduation / retirement path without forking the
+# upstream registers.
+#
+# Reviewer-facing landing page:
+#   docs/governance/m1_experiments_and_labs_seed.md
+#
+# Companion registers the seed projects against (never forks):
+#   artifacts/governance/experiments_register.yaml
+#   artifacts/governance/labs_register.yaml
+#
+# Row schema:
+#   schemas/governance/experiment_registry_entry.schema.json
+#
+# Envelope schema:
+#   schemas/governance/experiment_registry.schema.json
+#
+# Conformance.
+#   - Every entry conforms to the row schema.
+#   - register_entry_id is unique. Adding a row is additive-minor.
+#     Removing a row is breaking; narrow by editing the row, not by
+#     deletion.
+#   - Every row MUST cite source_register = experiments_register and a
+#     source_id that resolves in artifacts/governance/experiments_register.yaml.
+#     Stable ids are the only ids the seed is allowed to key on.
+#   - audience_class = contributor_visible_labs rows MUST resolve in
+#     artifacts/governance/labs_register.yaml via labs_projection_ref.
+#     Hidden, control-stack-reserved, and CI-rollout-only rows MUST
+#     NOT advertise a Labs projection.
+#   - Every row MUST publish a non-null review_by or expires_on (or
+#     both) so an unowned, expiry-less row is impossible. The
+#     validation lane compares the dates against as_of and trips a
+#     loud check on rows whose review_by or expires_on is in the past.
+#   - default_posture_class = reserved_until_runtime_control_stack_lands
+#     forces graduation_retirement_path_class = hold_pending_runtime_control_stack
+#     and telemetry_posture_class = not_applicable_reserved_binding;
+#     a reserved binding cannot quietly claim a graduation plan.
+#   - Milestone slugs and task ids MUST NOT appear in any id, ref,
+#     label, or note field.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_experiments_and_labs_seed
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/governance/m1_experiments_and_labs_seed.md
+row_schema_ref: schemas/governance/experiment_registry_entry.schema.json
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+companion_registers:
+  experiments_register: artifacts/governance/experiments_register.yaml
+  labs_register: artifacts/governance/labs_register.yaml
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies. Closed; agreement with the row schema $defs is
+# asserted by the validation lane.
+# -----------------------------------------------------------------------------
+
+row_kind_class_vocabulary:
+  - experiment
+  - feature_flag
+  - benchmark_mode
+  - rollout
+
+audience_class_vocabulary:
+  - contributor_visible_labs
+  - hidden_developer_toggle
+  - control_stack_reserved
+  - ci_rollout_only
+
+lifecycle_state_class_vocabulary:
+  - labs
+  - preview
+  - beta
+  - stable
+  - deprecated
+  - disabled_by_policy
+  - retired
+
+cohort_class_vocabulary:
+  - maintainer_and_contributor_local
+  - developer_local_only
+  - developer_local_and_ci_preview
+  - developer_local_and_ci_seed_guard
+  - ci_nightly_reference_hardware
+  - workflow_dispatch_only
+  - reserved_for_future_settings_rollout
+
+default_posture_class_vocabulary:
+  - off_by_default
+  - opt_in_only
+  - enabled_when_named_on_cli
+  - default_for_developer_local
+  - scheduled_ci_only
+  - manual_failure_drill_only
+  - reserved_until_runtime_control_stack_lands
+
+public_label_class_vocabulary:
+  - public_labs_visible_label
+  - hidden_developer_toggle_label
+  - control_stack_reserved_label
+  - ci_rollout_only_label
+
+telemetry_posture_class_vocabulary:
+  - counts_only_local
+  - counts_only_local_then_optional_export
+  - no_remote_telemetry
+  - not_applicable_reserved_binding
+
+graduation_retirement_path_class_vocabulary:
+  - graduate_to_stable
+  - graduate_to_beta
+  - retire_to_disabled_by_policy
+  - retire_to_deleted
+  - hold_pending_runtime_control_stack
+  - hold_pending_review_decision
+
+kill_switch_source_class_vocabulary:
+  - embedded_default_off
+  - local_cli_argument
+  - ci_workflow_input
+  - signed_local_admin_bundle
+  - optional_managed_override
+
+required_row_kind_class_coverage:
+  - experiment
+  - feature_flag
+  - benchmark_mode
+  - rollout
+
+required_audience_class_coverage:
+  - contributor_visible_labs
+  - hidden_developer_toggle
+  - control_stack_reserved
+  - ci_rollout_only
+
+required_lifecycle_state_class_coverage:
+  - labs
+  - preview
+
+failure_drill_id_vocabulary:
+  - review_by_breached_into_past
+  - owner_dri_dropped
+  - labs_projection_ref_dropped
+  - both_review_by_and_expires_on_null
+  - graduation_retirement_path_class_dropped
+  - kill_switch_source_ref_dropped
+  - benchmark_mode_change_log_posture_relaxed_to_not_required
+  - rollout_guardrails_dropped
+  - audience_widened_to_contributor_visible_labs_without_public_label_alignment
+  - rollback_path_rollback_ref_dropped
+  - expires_on_drifted_into_past_with_null_review_by
+  - reserved_default_posture_loses_runtime_control_stack_graduation
+
+named_runtime_consumers:
+  - consumer_id: review_landing_page
+    consumer_class: review_docs_landing_page
+    consumer_ref: docs/governance/m1_experiments_and_labs_seed.md
+    consumed_fields:
+      - register_entry_id
+      - source_id
+      - row_kind_class
+      - audience_class
+      - lifecycle_state_class
+      - default_posture_class
+      - public_label_class
+      - review_by
+      - expires_on
+      - kill_switch
+      - graduation_retirement_path_class
+    notes: >
+      Reviewer-facing landing page that quotes the seeded rows verbatim
+      so docs / help / release / support copy reads the same
+      governance vocabulary as the seed.
+
+  - consumer_id: upstream_experiments_register
+    consumer_class: upstream_governance_register
+    consumer_ref: artifacts/governance/experiments_register.yaml
+    consumed_fields:
+      - id
+      - row_kind
+      - audience_class
+      - lifecycle_state
+      - default_posture
+      - cohort_or_ring
+      - review_by
+      - expires_on
+      - kill_switch
+    notes: >
+      Authoritative upstream control register. The seed projects every
+      row through it without forking the stable id space.
+
+  - consumer_id: upstream_labs_register
+    consumer_class: upstream_governance_register
+    consumer_ref: artifacts/governance/labs_register.yaml
+    consumed_fields:
+      - labs_id
+      - experiment_ref
+      - inventory_group
+      - visibility_state
+    notes: >
+      Contributor-visible Labs inventory projection. Every
+      audience_class = contributor_visible_labs row in this seed
+      resolves to one labs_register.yaml row via labs_projection_ref.
+
+  - consumer_id: feature_flag_policy_landing
+    consumer_class: docs_or_help_surface
+    consumer_ref: docs/governance/feature_flag_policy.md
+    consumed_fields:
+      - lifecycle_state_class
+      - default_posture_class
+      - kill_switch
+      - rollback_path
+      - graduation_retirement_path_class
+    notes: >
+      Existing policy doc the seed is governed by. It already defines
+      the lifecycle / posture / kill-switch vocabulary the seed pins.
+
+  - consumer_id: experiments_and_labs_seed_validator
+    consumer_class: ci_schema_validator
+    consumer_ref: tests/governance/m1_experiments_and_labs_seed_lane/run_m1_experiments_and_labs_seed_lane.py
+    consumed_fields:
+      - schema_version
+      - matrix_id
+      - row_kind_class_vocabulary
+      - audience_class_vocabulary
+      - lifecycle_state_class_vocabulary
+      - public_label_class_vocabulary
+      - failure_drill_id_vocabulary
+      - named_runtime_consumers
+      - entries
+    notes: >
+      Unattended validation runner that asserts envelope, row schema,
+      cross-register source-id resolution, conditional invariants,
+      coverage, and named runtime consumer existence on disk.
+
+entries:
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.exp.buffer.prototype_harness
+    source_register: experiments_register
+    source_id: exp.buffer.prototype_harness
+    public_label: Buffer prototype harness
+    row_kind_class: experiment
+    audience_class: contributor_visible_labs
+    lifecycle_state_class: labs
+    cohort_class: maintainer_and_contributor_local
+    default_posture_class: opt_in_only
+    public_label_class: public_labs_visible_label
+    telemetry_posture_class: counts_only_local
+    graduation_retirement_path_class: graduate_to_beta
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-06-30"
+    expires_on: null
+    kill_switch:
+      source_class: embedded_default_off
+      source_ref: tools/bench_buffer.sh
+    rollback_path:
+      rollback_ref: artifacts/buffer/
+    labs_projection_ref: artifacts/governance/labs_register.yaml#lab.buffer.prototype_harness
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#exp.buffer.prototype_harness
+      - artifacts/governance/labs_register.yaml#lab.buffer.prototype_harness
+      - prototypes/buffer/README.md
+    failure_drill:
+      drill_id: review_by_breached_into_past
+      forced_input:
+        rewrite_review_by: "2024-01-01"
+      expected_check_id: experiment_registry.row_review_by_in_past_breaches_expiry
+      actionable_next_action: >
+        Renew review_by, schedule retirement, or graduate the row
+        before the next governance review window closes.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.exp.vfs.save_prototype
+    source_register: experiments_register
+    source_id: exp.vfs.save_prototype
+    public_label: VFS / save prototype harness
+    row_kind_class: experiment
+    audience_class: contributor_visible_labs
+    lifecycle_state_class: labs
+    cohort_class: maintainer_and_contributor_local
+    default_posture_class: opt_in_only
+    public_label_class: public_labs_visible_label
+    telemetry_posture_class: counts_only_local
+    graduation_retirement_path_class: graduate_to_beta
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-06-30"
+    expires_on: null
+    kill_switch:
+      source_class: embedded_default_off
+      source_ref: tools/vfs_proto.sh
+    rollback_path:
+      rollback_ref: artifacts/fs/save_plan_examples/
+    labs_projection_ref: artifacts/governance/labs_register.yaml#lab.vfs.save_prototype
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#exp.vfs.save_prototype
+      - artifacts/governance/labs_register.yaml#lab.vfs.save_prototype
+      - prototypes/vfs/README.md
+    failure_drill:
+      drill_id: owner_dri_dropped
+      forced_input:
+        clear_owner_dri: true
+      expected_check_id: experiment_registry.owner_dri_required
+      actionable_next_action: >
+        Name a DRI for the experiment or retire the row; the registry
+        cannot publish an ownerless prototype lane.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.exp.large_file.prototype_harness
+    source_register: experiments_register
+    source_id: exp.large_file.prototype_harness
+    public_label: Large-file path prototype harness
+    row_kind_class: experiment
+    audience_class: contributor_visible_labs
+    lifecycle_state_class: labs
+    cohort_class: maintainer_and_contributor_local
+    default_posture_class: opt_in_only
+    public_label_class: public_labs_visible_label
+    telemetry_posture_class: counts_only_local
+    graduation_retirement_path_class: graduate_to_beta
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-06-30"
+    expires_on: null
+    kill_switch:
+      source_class: embedded_default_off
+      source_ref: tools/largefile_proto.sh
+    rollback_path:
+      rollback_ref: artifacts/bench/large_file_proto_metrics.json
+    labs_projection_ref: artifacts/governance/labs_register.yaml#lab.large_file.prototype_harness
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#exp.large_file.prototype_harness
+      - artifacts/governance/labs_register.yaml#lab.large_file.prototype_harness
+      - prototypes/large_file/README.md
+    failure_drill:
+      drill_id: labs_projection_ref_dropped
+      forced_input:
+        clear_labs_projection_ref: true
+      expected_check_id: experiment_registry.labs_projection_required_for_contributor_visible
+      actionable_next_action: >
+        Add the Labs projection back or change audience_class away
+        from contributor_visible_labs; a Labs-visible row cannot lack
+        a labs_register projection.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.exp.graph.prototype_harness
+    source_register: experiments_register
+    source_id: exp.graph.prototype_harness
+    public_label: Semantic-workspace-graph prototype harness
+    row_kind_class: experiment
+    audience_class: contributor_visible_labs
+    lifecycle_state_class: labs
+    cohort_class: maintainer_and_contributor_local
+    default_posture_class: opt_in_only
+    public_label_class: public_labs_visible_label
+    telemetry_posture_class: counts_only_local
+    graduation_retirement_path_class: graduate_to_beta
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-06-30"
+    expires_on: null
+    kill_switch:
+      source_class: embedded_default_off
+      source_ref: tools/graph_proto.sh
+    rollback_path:
+      rollback_ref: fixtures/graph/example_workspace_graphs/
+    labs_projection_ref: artifacts/governance/labs_register.yaml#lab.graph.prototype_harness
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#exp.graph.prototype_harness
+      - artifacts/governance/labs_register.yaml#lab.graph.prototype_harness
+      - prototypes/graph/README.md
+    failure_drill:
+      drill_id: both_review_by_and_expires_on_null
+      forced_input:
+        clear_review_by: true
+        clear_expires_on: true
+      expected_check_id: experiment_registry.review_by_or_expires_on_required
+      actionable_next_action: >
+        Set review_by or expires_on so the row cannot live forever
+        without a governance review window or a hard expiry.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.exp.reactive_state.prototype_harness
+    source_register: experiments_register
+    source_id: exp.reactive_state.prototype_harness
+    public_label: Reactive-state prototype harness
+    row_kind_class: experiment
+    audience_class: contributor_visible_labs
+    lifecycle_state_class: labs
+    cohort_class: maintainer_and_contributor_local
+    default_posture_class: opt_in_only
+    public_label_class: public_labs_visible_label
+    telemetry_posture_class: counts_only_local
+    graduation_retirement_path_class: graduate_to_beta
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-06-30"
+    expires_on: null
+    kill_switch:
+      source_class: embedded_default_off
+      source_ref: tools/reactive_proto.sh
+    rollback_path:
+      rollback_ref: artifacts/state/invalidation_trace_examples/
+    labs_projection_ref: artifacts/governance/labs_register.yaml#lab.reactive_state.prototype_harness
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#exp.reactive_state.prototype_harness
+      - artifacts/governance/labs_register.yaml#lab.reactive_state.prototype_harness
+      - prototypes/reactive_state/README.md
+    failure_drill:
+      drill_id: graduation_retirement_path_class_dropped
+      forced_input:
+        clear_graduation_retirement_path_class: true
+      expected_check_id: experiment_registry.graduation_retirement_path_class_required
+      actionable_next_action: >
+        Pick a graduation or retirement path from the closed
+        vocabulary so the row cannot graduate by surprise.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.exp.text_stack.smoke_mode
+    source_register: experiments_register
+    source_id: exp.text_stack.smoke_mode
+    public_label: Text-stack smoke mode
+    row_kind_class: experiment
+    audience_class: contributor_visible_labs
+    lifecycle_state_class: labs
+    cohort_class: maintainer_and_contributor_local
+    default_posture_class: opt_in_only
+    public_label_class: public_labs_visible_label
+    telemetry_posture_class: counts_only_local
+    graduation_retirement_path_class: graduate_to_beta
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-06-30"
+    expires_on: null
+    kill_switch:
+      source_class: embedded_default_off
+      source_ref: tools/bench_text_stack.sh
+    rollback_path:
+      rollback_ref: artifacts/bench/text_stack_metrics_seed.json
+    labs_projection_ref: artifacts/governance/labs_register.yaml#lab.text_stack.smoke_mode
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#exp.text_stack.smoke_mode
+      - artifacts/governance/labs_register.yaml#lab.text_stack.smoke_mode
+      - prototypes/text_stack/README.md
+    failure_drill:
+      drill_id: kill_switch_source_ref_dropped
+      forced_input:
+        clear_kill_switch_source_ref: true
+      expected_check_id: experiment_registry.kill_switch_source_ref_required
+      actionable_next_action: >
+        Re-anchor the kill switch on its provider-chain step so the
+        operator can always disable the lane without inventing one.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.mode.benchmark_lab.smoke_subset
+    source_register: experiments_register
+    source_id: mode.benchmark_lab.smoke_subset
+    public_label: Benchmark-lab smoke subset
+    row_kind_class: benchmark_mode
+    audience_class: contributor_visible_labs
+    lifecycle_state_class: preview
+    cohort_class: developer_local_and_ci_preview
+    default_posture_class: default_for_developer_local
+    public_label_class: public_labs_visible_label
+    telemetry_posture_class: counts_only_local
+    graduation_retirement_path_class: graduate_to_beta
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-06-30"
+    expires_on: null
+    kill_switch:
+      source_class: local_cli_argument
+      source_ref: tools/benchmark_lab.sh
+    rollback_path:
+      rollback_ref: tools/benchmark_lab.sh --corpus-subset full
+    labs_projection_ref: artifacts/governance/labs_register.yaml#lab.benchmark.smoke_subset
+    default_shift_change_log_posture: docs_update_required
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#mode.benchmark_lab.smoke_subset
+      - artifacts/governance/labs_register.yaml#lab.benchmark.smoke_subset
+      - docs/benchmarks/benchmark_lab_run_results.md
+    failure_drill:
+      drill_id: benchmark_mode_change_log_posture_relaxed_to_not_required
+      forced_input:
+        rewrite_default_shift_change_log_posture: not_required
+      expected_check_id: experiment_registry.benchmark_mode_default_shift_change_log_posture_must_be_logged
+      actionable_next_action: >
+        Restore docs_update_required or release_note_required so a
+        benchmark-lane default shift cannot land silently.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.rollout.benchmark_lab.reference_capture
+    source_register: experiments_register
+    source_id: rollout.benchmark_lab.reference_capture
+    public_label: Benchmark-lab reference-capture rollout
+    row_kind_class: rollout
+    audience_class: ci_rollout_only
+    lifecycle_state_class: preview
+    cohort_class: ci_nightly_reference_hardware
+    default_posture_class: scheduled_ci_only
+    public_label_class: ci_rollout_only_label
+    telemetry_posture_class: counts_only_local_then_optional_export
+    graduation_retirement_path_class: graduate_to_beta
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-07-31"
+    expires_on: null
+    kill_switch:
+      source_class: ci_workflow_input
+      source_ref: .github/workflows/nightly_benchmark.yml
+    rollback_path:
+      rollback_ref: artifacts/benchmarks/dashboard_seed/
+    rollout_guardrails:
+      - reference_capture is the only run_context admissible as future release-evidence input
+      - non-reference runs must remain visibly non-comparable or provisional
+      - remote fetch failure may not block local harness startup
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#rollout.benchmark_lab.reference_capture
+      - .github/workflows/nightly_benchmark.yml
+      - docs/benchmarks/benchmark_lab_run_results.md
+    failure_drill:
+      drill_id: rollout_guardrails_dropped
+      forced_input:
+        clear_rollout_guardrails: true
+      expected_check_id: experiment_registry.rollout_row_must_publish_rollout_guardrails
+      actionable_next_action: >
+        Restore the guardrails so the rollout cannot widen into
+        unannounced cohort coverage or release-evidence reuse.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.flag.benchmark_lab.regression_demo
+    source_register: experiments_register
+    source_id: flag.benchmark_lab.regression_demo
+    public_label: Benchmark-lab regression demonstration
+    row_kind_class: feature_flag
+    audience_class: hidden_developer_toggle
+    lifecycle_state_class: labs
+    cohort_class: workflow_dispatch_only
+    default_posture_class: off_by_default
+    public_label_class: hidden_developer_toggle_label
+    telemetry_posture_class: no_remote_telemetry
+    graduation_retirement_path_class: retire_to_deleted
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-06-15"
+    expires_on: null
+    kill_switch:
+      source_class: ci_workflow_input
+      source_ref: .github/workflows/nightly_benchmark.yml
+    rollback_path:
+      rollback_ref: tools/benchmark_lab.sh
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#flag.benchmark_lab.regression_demo
+      - artifacts/benchmarks/dashboard_seed/raw/benchmark_run.seed.regression_example.json
+      - docs/benchmarks/benchmark_lab_run_results.md
+    failure_drill:
+      drill_id: audience_widened_to_contributor_visible_labs_without_public_label_alignment
+      forced_input:
+        rewrite_audience_class: contributor_visible_labs
+      expected_check_id: experiment_registry.public_label_class_must_match_audience_class
+      actionable_next_action: >
+        Keep audience_class = hidden_developer_toggle for this row;
+        a regression-drill toggle MUST NOT appear in the Labs
+        inventory.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.flag.benchmark_lab.skip_build
+    source_register: experiments_register
+    source_id: flag.benchmark_lab.skip_build
+    public_label: Benchmark-lab skip-build toggle
+    row_kind_class: feature_flag
+    audience_class: hidden_developer_toggle
+    lifecycle_state_class: labs
+    cohort_class: developer_local_only
+    default_posture_class: off_by_default
+    public_label_class: hidden_developer_toggle_label
+    telemetry_posture_class: no_remote_telemetry
+    graduation_retirement_path_class: retire_to_deleted
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-05-31"
+    expires_on: null
+    kill_switch:
+      source_class: local_cli_argument
+      source_ref: tools/benchmark_lab.sh
+    rollback_path:
+      rollback_ref: tools/benchmark_lab.sh
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#flag.benchmark_lab.skip_build
+      - tools/benchmark_lab.sh
+    failure_drill:
+      drill_id: rollback_path_rollback_ref_dropped
+      forced_input:
+        clear_rollback_path_rollback_ref: true
+      expected_check_id: experiment_registry.rollback_path_rollback_ref_required
+      actionable_next_action: >
+        Restore a non-empty rollback path so the operator never has
+        to improvise the recovery step at incident time.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.flag.benchmark_lab.verify_seed_only
+    source_register: experiments_register
+    source_id: flag.benchmark_lab.verify_seed_only
+    public_label: Benchmark-lab verify-seed-only toggle
+    row_kind_class: feature_flag
+    audience_class: hidden_developer_toggle
+    lifecycle_state_class: labs
+    cohort_class: developer_local_and_ci_seed_guard
+    default_posture_class: off_by_default
+    public_label_class: hidden_developer_toggle_label
+    telemetry_posture_class: no_remote_telemetry
+    graduation_retirement_path_class: hold_pending_review_decision
+    owner_dri: "@ahmeddyounis"
+    review_by: null
+    expires_on: "2026-07-31"
+    kill_switch:
+      source_class: local_cli_argument
+      source_ref: tools/benchmark_lab.sh
+    rollback_path:
+      rollback_ref: tools/benchmark_lab.sh
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#flag.benchmark_lab.verify_seed_only
+      - tools/benchmark_lab.sh
+      - docs/benchmarks/benchmark_lab_run_results.md
+    failure_drill:
+      drill_id: expires_on_drifted_into_past_with_null_review_by
+      forced_input:
+        rewrite_expires_on: "2024-01-01"
+      expected_check_id: experiment_registry.row_expires_on_in_past_breaches_expiry
+      actionable_next_action: >
+        Renew expires_on or retire the row; an expired toggle cannot
+        keep gating CI / developer behavior silently.
+
+  - record_kind: experiment_registry_entry_record
+    experiment_registry_entry_schema_version: 1
+    register_entry_id: ereg.flag.settings.experiment_rollout_layer
+    source_register: experiments_register
+    source_id: flag.settings.experiment_rollout_layer
+    public_label: Settings experiment-rollout layer
+    row_kind_class: feature_flag
+    audience_class: control_stack_reserved
+    lifecycle_state_class: preview
+    cohort_class: reserved_for_future_settings_rollout
+    default_posture_class: reserved_until_runtime_control_stack_lands
+    public_label_class: control_stack_reserved_label
+    telemetry_posture_class: not_applicable_reserved_binding
+    graduation_retirement_path_class: hold_pending_runtime_control_stack
+    owner_dri: "@ahmeddyounis"
+    review_by: "2026-07-31"
+    expires_on: null
+    kill_switch:
+      source_class: signed_local_admin_bundle
+      source_ref: docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+    rollback_path:
+      rollback_ref: fixtures/settings/setting_examples/
+    evidence_refs:
+      - artifacts/governance/experiments_register.yaml#flag.settings.experiment_rollout_layer
+      - docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+      - schemas/settings/effective_setting.schema.json
+    failure_drill:
+      drill_id: reserved_default_posture_loses_runtime_control_stack_graduation
+      forced_input:
+        rewrite_graduation_retirement_path_class: graduate_to_stable
+      expected_check_id: experiment_registry.reserved_default_posture_forces_hold_pending_runtime_control_stack
+      actionable_next_action: >
+        Keep graduation_retirement_path_class = hold_pending_runtime_control_stack
+        while default_posture_class is reserved_until_runtime_control_stack_lands;
+        a reserved binding cannot quietly graduate.
