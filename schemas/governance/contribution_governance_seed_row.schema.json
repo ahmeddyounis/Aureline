@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/contribution_governance_seed_row.schema.json",
+  "title": "Aureline M1 contribution-governance seed row",
+  "description": "Boundary schema for one row in the focused M1 contribution-governance seed at artifacts/governance/contribution_governance_seed.yaml. Each row pins one contribution-governance control family (signoff/DCO, per-file license metadata, third-party import provenance, public-interface versioning, deprecation-packet template, repo-hygiene scaffolding), the canonical artifact that carries its contract, the artifact-kind and enforcement-class summaries for that artifact, the lifecycle state, the named runtime consumer that reads the row, and a canonical example payload that the validation lane re-parses end-to-end. Adding an enum value to control_class, artifact_kind_class, enforcement_class, lifecycle_state_class, or contribution_governance_consumer_class is additive-minor and bumps contribution_governance_seed_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/contribution_governance_seed_row",
+  "$defs": {
+    "contribution_governance_seed_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this M1 contribution-governance-row vocabulary. Bumped only on breaking row changes."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence safe for docs, packets, and the validation lane capture."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)+$",
+      "description": "Dot-separated stable identifier (for example 'signoff.contribution_certificate_baseline')."
+    },
+
+    "owner_dri": {
+      "type": "string",
+      "pattern": "^@[a-zA-Z0-9_-]+$",
+      "description": "DRI owning team or maintainer handle in '@handle' form."
+    },
+
+    "control_class": {
+      "type": "string",
+      "enum": [
+        "signoff_dco",
+        "license_metadata",
+        "third_party_import_record",
+        "public_interface_versioning",
+        "deprecation_packet_template",
+        "repo_hygiene_scaffold"
+      ],
+      "description": "Closed control vocabulary for the M1 contribution-governance seed. Each control family stays distinct even when several share the contributing-developer surface."
+    },
+
+    "artifact_kind_class": {
+      "type": "string",
+      "enum": [
+        "developer_certificate_contract",
+        "spdx_license_metadata_policy",
+        "third_party_import_register",
+        "public_interface_versioning_policy",
+        "deprecation_packet_template",
+        "repo_hygiene_scaffolding"
+      ],
+      "description": "Closed artifact-kind vocabulary. The validation lane asserts artifact_kind_class agrees with control_class through a closed map."
+    },
+
+    "enforcement_class": {
+      "type": "string",
+      "enum": [
+        "ci_required",
+        "repo_hygiene_required",
+        "contributor_documentation",
+        "release_review_required"
+      ],
+      "description": "Closed enforcement-class vocabulary. The validation lane asserts enforcement_class agrees with control_class through a closed map (signoff_dco -> ci_required, license_metadata -> repo_hygiene_required, third_party_import_record -> repo_hygiene_required, public_interface_versioning -> release_review_required, deprecation_packet_template -> contributor_documentation, repo_hygiene_scaffold -> contributor_documentation)."
+    },
+
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "seeded",
+        "stabilising",
+        "stable"
+      ],
+      "description": "Lifecycle state of the M1 row. Seeded rows are the first checked-in form; stabilising rows are under active review; stable rows have ridden one LTS cycle without breaking changes. The M1 seed deliberately excludes deprecated/retired so a contribution-governance row is never silently retired without a superseding row."
+    },
+
+    "contribution_governance_consumer_class": {
+      "type": "string",
+      "enum": [
+        "review_docs_landing_page",
+        "contributor_documentation_page",
+        "machine_readable_register",
+        "release_or_compliance_surface"
+      ],
+      "description": "What kind of consumer the row's named runtime consumer is. The M1 seed requires at least one consumer per row."
+    },
+
+    "named_runtime_consumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_ref",
+        "consumer_class",
+        "consumed_fields"
+      ],
+      "properties": {
+        "consumer_ref": { "$ref": "#/$defs/path_ref" },
+        "consumer_class": { "$ref": "#/$defs/contribution_governance_consumer_class" },
+        "consumed_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+
+    "failure_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "description",
+        "forced_input",
+        "expected_check_id",
+        "actionable_next_action"
+      ],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/non_empty_string" },
+        "description": { "$ref": "#/$defs/reviewable_sentence" },
+        "forced_input": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": true
+        },
+        "expected_check_id": {
+          "type": "string",
+          "pattern": "^contribution_governance\\.[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$"
+        },
+        "actionable_next_action": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "contribution_governance_seed_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "contribution_governance_seed_row_schema_version",
+        "control_id",
+        "control_class",
+        "title",
+        "description",
+        "owner_dri",
+        "artifact_kind_class",
+        "enforcement_class",
+        "lifecycle_state_class",
+        "canonical_artifact_ref",
+        "canonical_artifact_marker",
+        "supporting_artifact_refs",
+        "named_runtime_consumer",
+        "example_payload_ref",
+        "failure_drill"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "m1_contribution_governance_seed_row",
+          "description": "Discriminator for the M1 contribution-governance row shape."
+        },
+        "contribution_governance_seed_row_schema_version": {
+          "$ref": "#/$defs/contribution_governance_seed_row_schema_version"
+        },
+        "control_id": {
+          "$ref": "#/$defs/stable_dot_id",
+          "description": "Stable dot-separated id for this M1 contribution-governance row. The prefix MUST match the control_class shortener (signoff_dco -> signoff., license_metadata -> license., third_party_import_record -> import_record., public_interface_versioning -> versioning., deprecation_packet_template -> deprecation., repo_hygiene_scaffold -> repo_hygiene.)."
+        },
+        "control_class": { "$ref": "#/$defs/control_class" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "description": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "One-paragraph statement of what this control covers, what it does not cover, and how it is distinguished from sibling controls it shares plumbing with."
+        },
+        "owner_dri": { "$ref": "#/$defs/owner_dri" },
+        "artifact_kind_class": { "$ref": "#/$defs/artifact_kind_class" },
+        "enforcement_class": { "$ref": "#/$defs/enforcement_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "canonical_artifact_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative path of the canonical human-readable or machine-readable artifact that carries this control's contract."
+        },
+        "canonical_artifact_marker": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "A short literal substring the canonical artifact MUST contain. The validation lane reads the canonical_artifact_ref and asserts the marker is present, so the row cannot quietly point at the wrong document."
+        },
+        "supporting_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional additional repo-relative paths the lane resolves on disk (companion docs, schemas, templates)."
+        },
+        "named_runtime_consumer": { "$ref": "#/$defs/named_runtime_consumer" },
+        "example_payload_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative path to the canonical example payload (JSON) under fixtures/governance/m1_contribution_governance_examples/. The example MUST declare registry_example_kind: contribution_governance_seed_envelope_example, schema_registry_row_control_id matching the row's control_id, and pinned_canonical_artifact_ref matching the row's canonical_artifact_ref."
+        },
+        "failure_drill": { "$ref": "#/$defs/failure_drill" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
