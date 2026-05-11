@@ -1,0 +1,368 @@
+# Recovery-ladder M1 lane matrix.
+#
+# This is the joined, machine-readable matrix the unattended M1 lane
+# runs against. It binds the five seed cases under
+# fixtures/support/recovery_ladder_cases/ — safe mode, suspect-extension
+# quarantine, open without restore, cache/index repair, and restricted-
+# mode fallback — into one typed packet so CI / shiproom review can
+# inspect the recovery ladder by row id without hunting through prose.
+#
+# Reviewer landing page: docs/support/recovery_ladder_m1.md
+# Canonical contract:    docs/support/recovery_ladder_packet.md
+# Row schema:            schemas/support/recovery_ladder_packet.schema.json
+# Per-row record schema: schemas/support/recovery_action.schema.json
+# Per-row seed cases:    fixtures/support/recovery_ladder_cases/
+# Reviewer examples:     artifacts/support/recovery_examples/
+#
+# If this file disagrees with docs/support/recovery_ladder_packet.md or
+# schemas/support/recovery_action.schema.json, the doc and the schema
+# win and this matrix updates in the same change.
+
+schema_version: 1
+matrix_id: support.recovery_ladder.m1_seed
+status: seeded
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/support/recovery_ladder_m1.md
+canonical_packet_doc_ref: docs/support/recovery_ladder_packet.md
+matrix_schema_ref: schemas/support/recovery_ladder_packet.schema.json
+recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+recovery_rungs_artifact_ref: artifacts/recovery/recovery_rungs.yaml
+scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+seed_case_dir: fixtures/support/recovery_ladder_cases/
+reviewer_examples_dir: artifacts/support/recovery_examples/
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# Closed vocabularies re-exported from
+# schemas/support/recovery_action.schema.json. The runner refuses any
+# row that references a token outside these sets.
+rung_class_vocabulary:
+  - safe_mode
+  - extension_bisect
+  - extension_quarantine
+  - open_without_restore
+  - cache_reset_candidate
+  - restricted_reopen
+  - rollback_reinstall_candidate
+  - typed_repair_flow
+
+reversal_class_vocabulary:
+  - exact_undo
+  - compensating_action
+  - regeneration
+  - checkpoint_restore
+  - no_undo_export_only
+
+escalation_trigger_class_vocabulary:
+  - repeated_entry_within_budget
+  - user_denied_next_rung
+  - exact_undo_unavailable
+  - policy_forced_narrower_than_user_request
+  - lost_capability_blocks_current_task
+  - rung_exit_reason_denied_by_policy
+  - diagnosis_remains_insufficient
+  - no_local_repair_path_available
+
+preserved_state_class_vocabulary:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - remote_helper_authorization
+  - managed_policy_overrides
+  - session_restore_store
+  - support_export_store
+  - docs_pack_authoring
+
+lost_capability_class_vocabulary:
+  - extension_auto_activation
+  - extension_host_launch
+  - session_restore_auto_reopen
+  - remote_helper_attach
+  - docs_pack_live_fetch
+  - background_rebuild
+  - ai_runtime_access
+  - telemetry_upload
+  - managed_control_plane_writes
+  - workspace_trust_widening
+
+# New M1-lane vocabularies — additive over the recovery_action contract.
+# Adding a token here is additive-minor; repurposing is breaking and
+# requires a decision row in artifacts/governance/decision_index.yaml.
+implementation_status_class_vocabulary:
+  - implemented
+  - stubbed
+  - blocked_by_dependency
+  - blocked_by_install_topology
+  - blocked_by_policy
+
+destructive_class_vocabulary:
+  - non_destructive
+  - regenerative_only
+  - requires_review_before_destructive
+
+# Named failure drills the runner replays via --force-drill. Each row
+# below pins exactly one drill_id from this set.
+failure_drill_id_vocabulary:
+  - drop_user_authored_files_preservation
+  - rewrite_destructive_class_unknown
+  - rewrite_implementation_status_unknown
+  - drop_doctor_finding_ref
+  - drop_no_local_repair_path_for_no_undo_export_only
+
+# Required rung coverage. Every token in this set MUST appear at least
+# once in rows[].rung_class.
+required_rung_coverage:
+  - safe_mode
+  - extension_quarantine
+  - open_without_restore
+  - cache_reset_candidate
+  - restricted_reopen
+
+rows:
+  - row_id: recovery_ladder_row:safe_mode.crash_loop_entry
+    title: Safe mode after a bounded crash-loop entry
+    seed_case_ref: fixtures/support/recovery_ladder_cases/crash_loop_safe_mode.yaml
+    reviewer_example_ref: artifacts/support/recovery_examples/safe_mode_crash_loop_entry.json
+    recovery_action_id: recovery_action:safe_mode.crash_loop_entry
+    rung_class: safe_mode
+    reversal_class: checkpoint_restore
+    destructive_class: non_destructive
+    implementation_status_class: stubbed
+    implementation_status_notes: >
+      Decision-object only in M1. No live recovery supervisor or repair
+      transaction engine is wired up; the rung is reviewable but not
+      auto-entered.
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+    lost_capability_classes:
+      - extension_auto_activation
+      - extension_host_launch
+      - session_restore_auto_reopen
+      - remote_helper_attach
+      - ai_runtime_access
+      - background_rebuild
+    escalation_trigger_classes:
+      - repeated_entry_within_budget
+      - user_denied_next_rung
+      - diagnosis_remains_insufficient
+    linkage_refs:
+      support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+      object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+      project_doctor_finding_ref: doctor.finding.extension_host_crash_loop_quarantined
+      repair_transaction_ref: repair:safe-mode:seed
+      checkpoint_ref: checkpoint:safe-mode:seed
+    inherited_dogfood_row_id: dogfood.fixture_repo.nested_source_tree
+    failure_drill:
+      drill_id: drop_user_authored_files_preservation
+      expected_check_id: recovery_ladder.user_authored_files_must_be_preserved
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore user_authored_files in the row's preserved_state_classes
+        and re-run the lane. Recovery rungs that mutate authored files
+        are out of scope for the M1 ladder.
+      forced_input:
+        drop_preserved_state_class: user_authored_files
+
+  - row_id: recovery_ladder_row:extension_quarantine.suspect_host_regression
+    title: Suspect-extension quarantine after a host regression
+    seed_case_ref: fixtures/support/recovery_ladder_cases/suspect_extension_quarantine.yaml
+    reviewer_example_ref: artifacts/support/recovery_examples/extension_quarantine_suspect_host.json
+    recovery_action_id: recovery_action:extension_quarantine.suspect_host_regression
+    rung_class: extension_quarantine
+    reversal_class: compensating_action
+    destructive_class: non_destructive
+    implementation_status_class: stubbed
+    implementation_status_notes: >
+      Decision-object only in M1. No extension quarantine supervisor or
+      bisect engine is wired up; marketplace state is never mutated and
+      the rung does not auto-re-enable a quarantined extension.
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+    lost_capability_classes:
+      - extension_auto_activation
+      - extension_host_launch
+      - background_rebuild
+      - ai_runtime_access
+    escalation_trigger_classes:
+      - repeated_entry_within_budget
+      - user_denied_next_rung
+      - lost_capability_blocks_current_task
+    linkage_refs:
+      support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+      object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+      project_doctor_finding_ref: doctor.finding.extension_host_crash_loop_quarantined
+      repair_transaction_ref: repair:extension-quarantine:seed
+      checkpoint_ref: null
+    inherited_dogfood_row_id: dogfood.fixture_repo.nested_source_tree
+    failure_drill:
+      drill_id: rewrite_destructive_class_unknown
+      expected_check_id: recovery_ladder.destructive_class_unknown
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore destructive_class to a token in
+        destructive_class_vocabulary. Adding a new destructive class
+        requires a decision row in
+        artifacts/governance/decision_index.yaml.
+      forced_input:
+        rewrite_destructive_class: unknown_choice
+
+  - row_id: recovery_ladder_row:open_without_restore.session_restore_declined
+    title: Open without restore when session restore is declined
+    seed_case_ref: fixtures/support/recovery_ladder_cases/open_without_restore.yaml
+    reviewer_example_ref: artifacts/support/recovery_examples/open_without_restore_session_declined.json
+    recovery_action_id: recovery_action:open_without_restore.session_restore_declined
+    rung_class: open_without_restore
+    reversal_class: exact_undo
+    destructive_class: non_destructive
+    implementation_status_class: stubbed
+    implementation_status_notes: >
+      Decision-object only in M1. The session-restore store is never
+      mutated by this rung; relaunching with restore enabled re-enters
+      the prior posture (exact_undo).
+    preserved_state_classes:
+      - user_authored_files
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+    lost_capability_classes:
+      - session_restore_auto_reopen
+      - remote_helper_attach
+      - background_rebuild
+    escalation_trigger_classes:
+      - user_denied_next_rung
+      - exact_undo_unavailable
+      - lost_capability_blocks_current_task
+    linkage_refs:
+      support_bundle_case_ref: null
+      object_handoff_case_ref: null
+      project_doctor_finding_ref: doctor.finding.watcher_observe_only_baseline
+      repair_transaction_ref: null
+      checkpoint_ref: null
+    inherited_dogfood_row_id: dogfood.fixture_repo.plain_text_notes
+    failure_drill:
+      drill_id: rewrite_implementation_status_unknown
+      expected_check_id: recovery_ladder.implementation_status_unknown
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore implementation_status_class to a token in
+        implementation_status_class_vocabulary so CI / shiproom review
+        can tell whether the rung is implemented, stubbed, or blocked.
+      forced_input:
+        rewrite_implementation_status: unsafe_unknown
+
+  - row_id: recovery_ladder_row:cache_reset_candidate.cache_index_repair
+    title: Cache / index repair via regeneration
+    seed_case_ref: fixtures/support/recovery_ladder_cases/cache_index_repair.yaml
+    reviewer_example_ref: artifacts/support/recovery_examples/cache_reset_candidate_cache_index_repair.json
+    recovery_action_id: recovery_action:cache_reset_candidate.cache_index_repair
+    rung_class: cache_reset_candidate
+    reversal_class: regeneration
+    destructive_class: regenerative_only
+    implementation_status_class: stubbed
+    implementation_status_notes: >
+      Decision-object only in M1. The disposable derived cache rebuilds
+      from authoritative sources when the rung enters; authoritative
+      profile / session-restore state stays untouched.
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+      - support_export_store
+    lost_capability_classes:
+      - background_rebuild
+      - docs_pack_live_fetch
+      - ai_runtime_access
+    escalation_trigger_classes:
+      - repeated_entry_within_budget
+      - exact_undo_unavailable
+      - no_local_repair_path_available
+    linkage_refs:
+      support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+      object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/incompatible_cache_profile_schema_drift.yaml
+      project_doctor_finding_ref: doctor.finding.cache_schema_version_drift
+      repair_transaction_ref: repair:cache-reset:seed
+      checkpoint_ref: null
+    inherited_dogfood_row_id: dogfood.fixture_repo.nested_source_tree
+    failure_drill:
+      drill_id: drop_doctor_finding_ref
+      expected_check_id: recovery_ladder.project_doctor_finding_ref_missing
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Re-bind project_doctor_finding_ref to a doctor.finding.* code in
+        fixtures/support/scenario_matrix.yaml so Doctor surfaces and
+        recovery actions agree on identity.
+      forced_input:
+        drop_project_doctor_finding_ref: true
+
+  - row_id: recovery_ladder_row:restricted_reopen.managed_fallback
+    title: Restricted-mode fallback when managed posture forces narrowing
+    seed_case_ref: fixtures/support/recovery_ladder_cases/restricted_mode_fallback.yaml
+    reviewer_example_ref: artifacts/support/recovery_examples/restricted_reopen_managed_fallback.json
+    recovery_action_id: recovery_action:restricted_reopen.managed_fallback
+    rung_class: restricted_reopen
+    reversal_class: no_undo_export_only
+    destructive_class: non_destructive
+    implementation_status_class: blocked_by_dependency
+    implementation_status_notes: >
+      Decision-object only in M1. Widening from restricted_reopen
+      requires the reapproval flow that lands with the managed control-
+      plane review surfaces; until then the only safe widening path is
+      an exported escalation packet.
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - remote_helper_authorization
+      - managed_policy_overrides
+      - support_export_store
+    lost_capability_classes:
+      - remote_helper_attach
+      - managed_control_plane_writes
+      - workspace_trust_widening
+      - telemetry_upload
+      - docs_pack_live_fetch
+    escalation_trigger_classes:
+      - no_local_repair_path_available
+      - user_denied_next_rung
+      - policy_forced_narrower_than_user_request
+      - rung_exit_reason_denied_by_policy
+    linkage_refs:
+      support_bundle_case_ref: fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json
+      object_handoff_case_ref: fixtures/support/escalation_packet_completeness_cases/wrong_target_environment_requires_reapproval.yaml
+      project_doctor_finding_ref: doctor.finding.wrong_target_detected_requires_reapproval
+      repair_transaction_ref: null
+      checkpoint_ref: null
+    inherited_dogfood_row_id: null
+    failure_drill:
+      drill_id: drop_no_local_repair_path_for_no_undo_export_only
+      expected_check_id: recovery_ladder.no_local_repair_path_required_for_no_undo_export_only
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Re-add no_local_repair_path_available to
+        escalation_trigger_classes. Every no_undo_export_only rung MUST
+        carry this trigger so support routes the user to an escalation
+        packet instead of widening locally.
+      forced_input:
+        drop_escalation_trigger: no_local_repair_path_available
