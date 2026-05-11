@@ -1,0 +1,867 @@
+# Critical-dependency / import register seed (M1 governance).
+#
+# Machine-readable register projection of the critical third-party
+# inputs the M1 build, release, and provenance lanes must reason
+# about as a single executable contract. The seed exists so the
+# release-notice draft pipeline, the docs/help truth surfaces, the
+# support-bundle exporter, the release-evidence pack, and the
+# governance / CI validation lane all key off the same stable row
+# ids without forking the source registers.
+#
+# Reviewer-facing landing page:
+#   docs/governance/m1_dependency_and_notice_seed.md
+#
+# Companion registers the seed projects against (never forks):
+#   artifacts/governance/dependency_register.yaml
+#   artifacts/governance/third_party_import_register.yaml
+#   artifacts/governance/release_notice_seed.yaml
+#
+# Row schema:
+#   schemas/governance/critical_dependency_register_entry.schema.json
+#
+# Envelope schema:
+#   schemas/governance/critical_dependency_register.schema.json
+#
+# Conformance:
+#   - Every entry conforms to the row schema.
+#   - register_entry_id is unique. Adding a row is additive-minor.
+#     Removing a row is breaking; narrow by editing the row, not by
+#     deletion.
+#   - Every row MUST cite a source_register + source_id that resolves
+#     in the named companion register. Stable ids are the only ids
+#     the seed and the draft pipeline are allowed to key on.
+#   - template_class binds the row to exactly one release-notice
+#     template path (runtime_dependency / bundled_asset / build_tooling
+#     / host_runtime / mirrored_pack). Conditional invariants in the
+#     row schema force publication_targets and release_notice_action_class
+#     to agree with the template.
+#   - protected_path_class = protected_path_critical rows MUST publish
+#     a named owner DRI and a reviewable fork_or_replace_trigger; the
+#     seed cannot anonymise a protected-path dependency.
+#   - host_runtime rows MUST publish exactly [provenance_statement] in
+#     publication_targets; host_runtime bytes are never redistributed.
+#   - release_notice_action_class = hold_pending_first_admission is
+#     only valid when admission_state_class is selected_not_admitted
+#     or reserved_not_yet_imported (row-schema invariant).
+#   - Milestone slugs and task ids MUST NOT appear in any id, ref,
+#     label, or note field. Describe what the row is, not which
+#     planning item it came from.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_critical_dependency_register_seed
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/governance/m1_dependency_and_notice_seed.md
+row_schema_ref: schemas/governance/critical_dependency_register_entry.schema.json
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+companion_registers:
+  dependency_register: artifacts/governance/dependency_register.yaml
+  third_party_import_register: artifacts/governance/third_party_import_register.yaml
+  release_notice_seed: artifacts/governance/release_notice_seed.yaml
+
+draft_output_refs:
+  draft_notice_markdown: artifacts/governance/build/dependency_notice_draft.md
+  draft_notice_json: artifacts/governance/build/dependency_notice_draft.json
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies. Closed; agreement with the row schema $defs is
+# asserted by the validation lane.
+# -----------------------------------------------------------------------------
+
+source_register_class_vocabulary:
+  - dependency_register
+  - third_party_import_register
+
+template_class_vocabulary:
+  - runtime_dependency
+  - bundled_asset
+  - build_tooling
+  - host_runtime
+  - mirrored_pack
+
+criticality_class_vocabulary:
+  - protected_path_release_critical
+  - release_engineering_critical
+  - benchmark_lab_required
+  - repo_operations_required
+  - docs_public_truth_supporting
+
+protected_path_class_vocabulary:
+  - protected_path_critical
+  - non_protected_repo_operations
+  - non_protected_docs_pack
+
+license_class_vocabulary:
+  - permissive_oss
+  - permissive_oss_expected_pending_admission
+  - redistributable_font_expected_pending_import
+  - permissive_runtime
+  - strong_copyleft_runtime
+  - permissive_toolchain_runtime
+  - upstream_pack_license_to_verify_on_first_mirror
+
+provenance_status_class_vocabulary:
+  - pinned_in_repo_and_observed
+  - selected_by_adr_not_manifested
+  - host_runtime_required_not_pinned
+  - reserved_by_contract_not_imported
+  - imported_with_origin_recorded
+
+admission_state_class_vocabulary:
+  - admitted_repo_tooling
+  - selected_not_admitted
+  - reserved_not_yet_imported
+  - imported_and_tracked
+
+publication_target_class_vocabulary:
+  - third_party_notice
+  - spdx_sbom
+  - cyclonedx_sbom
+  - provenance_statement
+  - docs_pack_manifest
+
+release_notice_action_class_vocabulary:
+  - emit_third_party_notice_and_sbom_entries
+  - emit_bundled_asset_notice_when_imported
+  - emit_build_tooling_provenance_record_only
+  - emit_host_runtime_environment_capture_only
+  - emit_docs_pack_manifest_attribution
+  - hold_pending_first_admission
+
+required_template_class_coverage:
+  - runtime_dependency
+  - bundled_asset
+  - build_tooling
+  - host_runtime
+  - mirrored_pack
+
+required_publication_target_coverage:
+  - third_party_notice
+  - spdx_sbom
+  - provenance_statement
+  - docs_pack_manifest
+
+required_release_notice_action_coverage:
+  - emit_third_party_notice_and_sbom_entries
+  - emit_build_tooling_provenance_record_only
+  - emit_host_runtime_environment_capture_only
+  - emit_docs_pack_manifest_attribution
+  - hold_pending_first_admission
+
+failure_drill_id_vocabulary:
+  - critical_dependency_register_drill.runtime_dependency_third_party_notice_dropped
+  - critical_dependency_register_drill.runtime_dependency_release_notice_action_widened_to_build_tooling
+  - critical_dependency_register_drill.runtime_dependency_spdx_sbom_target_dropped
+  - critical_dependency_register_drill.runtime_dependency_provenance_target_dropped
+  - critical_dependency_register_drill.runtime_dependency_protected_path_class_relaxed
+  - critical_dependency_register_drill.bundled_asset_provenance_target_dropped
+  - critical_dependency_register_drill.bundled_asset_family_release_notice_action_widened
+  - critical_dependency_register_drill.build_tooling_widened_to_third_party_notice
+  - critical_dependency_register_drill.host_runtime_widened_to_sbom_publication
+  - critical_dependency_register_drill.host_runtime_widened_to_third_party_notice
+  - critical_dependency_register_drill.host_runtime_release_notice_action_widened_to_build_tooling
+  - critical_dependency_register_drill.mirrored_pack_docs_pack_manifest_dropped
+  - critical_dependency_register_drill.protected_path_fork_or_replace_trigger_dropped
+  - critical_dependency_register_drill.hold_pending_admission_relaxed_to_admitted_action
+
+named_runtime_consumers:
+  - consumer_id: m1_dependency_and_notice_seed_landing_page
+    consumer_class: review_docs_landing_page
+    consumer_ref: docs/governance/m1_dependency_and_notice_seed.md
+    consumed_fields:
+      - register_entry_id
+      - template_class
+      - criticality_class
+      - publication_targets
+      - release_notice_action_class
+      - owner_dri
+    notes: >-
+      Reviewer-facing landing page that quotes the seeded rows verbatim
+      so docs / help / release / support copy reads the same template
+      and publication vocabulary as the seed.
+  - consumer_id: build_dependency_notice_seed_tool
+    consumer_class: release_notice_draft_tool
+    consumer_ref: tools/governance/build_dependency_notice_seed.py
+    consumed_fields:
+      - register_entry_id
+      - source_register
+      - source_id
+      - template_class
+      - publication_targets
+      - release_notice_action_class
+      - admission_state_class
+      - license_class
+      - provenance_status_class
+    notes: >-
+      Draft release-notice / report pipeline. Reads the seed and emits
+      a markdown draft notice plus a JSON sidecar so the data model is
+      executable rather than aspirational.
+  - consumer_id: dependency_register_upstream
+    consumer_class: upstream_governance_register
+    consumer_ref: artifacts/governance/dependency_register.yaml
+    consumed_fields:
+      - id
+      - name
+      - criticality
+      - protected_path
+      - license_class
+      - provenance_status
+      - admission_state
+    notes: >-
+      Upstream register of upstream choices. The seed resolves every
+      source_register = dependency_register row's source_id against
+      this register so the seed cannot quietly outlive its upstream.
+  - consumer_id: third_party_import_register_upstream
+    consumer_class: upstream_governance_register
+    consumer_ref: artifacts/governance/third_party_import_register.yaml
+    consumed_fields:
+      - id
+      - name
+      - import_kind
+      - admission_state
+      - license_class
+      - provenance_status
+    notes: >-
+      Upstream register of copied / mirrored third-party bytes. The
+      seed resolves every source_register = third_party_import_register
+      row's source_id against this register.
+  - consumer_id: release_notice_seed_upstream
+    consumer_class: upstream_governance_register
+    consumer_ref: artifacts/governance/release_notice_seed.yaml
+    consumed_fields:
+      - source_register
+      - source_id
+      - template_class
+      - publication_targets
+    notes: >-
+      Upstream publication-binding seed. The M1 critical-dependency
+      register projects against this so the draft pipeline and the
+      existing release-notice seed never disagree on which template a
+      row uses.
+  - consumer_id: m1_dependency_and_notice_seed_ci_validator
+    consumer_class: ci_schema_validator
+    consumer_ref: tests/governance/m1_dependency_and_notice_seed_lane/run_m1_dependency_and_notice_seed_lane.py
+    consumed_fields:
+      - register_entry_id
+      - source_register
+      - source_id
+      - template_class
+      - criticality_class
+      - protected_path_class
+      - publication_targets
+      - release_notice_action_class
+      - owner_dri
+      - fork_or_replace_trigger
+      - failure_drill
+    notes: >-
+      Unattended CI / review validator that replays the seed, asserts
+      closed-vocabulary agreement with the row schema, structural
+      invariants (runtime_dependency forces notice + SBOM + provenance,
+      bundled_asset forces provenance, build_tooling forbids third-
+      party notice, host_runtime restricted to provenance-only,
+      mirrored_pack forces docs-pack manifest attribution, protected-
+      path rows must carry an owner DRI and a fork_or_replace_trigger,
+      hold_pending_first_admission cannot ride on an admitted row),
+      required coverage (template classes, publication targets,
+      release-notice actions), named-consumer resolution, and
+      reproduces every named failure drill loudly.
+
+# -----------------------------------------------------------------------------
+# Entries. Each row binds one stable source_id to a template class,
+# publication targets, and a release-notice action so the draft
+# pipeline can read the row and decide what to emit.
+# -----------------------------------------------------------------------------
+
+entries:
+  # ------------------------------------------------------------------
+  # runtime_dependency: protected-path Rust crate selected by ADR but
+  # not yet manifest-admitted. Notice + SBOM + provenance are held
+  # pending first admission.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.runtime_dependency.renderer_wgpu
+    source_register: dependency_register
+    source_id: dep.renderer.wgpu
+    name: wgpu
+    template_class: runtime_dependency
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status_class: selected_by_adr_not_manifested
+    admission_state_class: selected_not_admitted
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - cyclonedx_sbom
+      - provenance_statement
+    release_notice_action_class: hold_pending_first_admission
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Open replacement or local-fork review if a claimed-backend bug
+      or hot-path budget blocker cannot be corrected inside one
+      release family without waiting on upstream.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.renderer.wgpu
+      - artifacts/governance/release_notice_seed.yaml
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.runtime_dependency_third_party_notice_dropped
+      forced_input:
+        rewrite_publication_targets:
+          - spdx_sbom
+          - provenance_statement
+      expected_check_id: critical_dependency_register.runtime_dependency_publication_targets_must_include_third_party_notice
+      actionable_next_action: >-
+        Restore third_party_notice in publication_targets; a runtime
+        dependency that ships in a distributed binary MUST emit the
+        notice section so attribution is not silently dropped from the
+        release notice draft.
+    notes: >-
+      Protected-path GPU backend. Held pending first manifest admission
+      so the draft pipeline records the intent without emitting a
+      notice that does not yet correspond to shipped bytes.
+
+  # ------------------------------------------------------------------
+  # runtime_dependency: protected-path Rust crate, identical pattern.
+  # Second row covers the third_party_notice failure path and feeds
+  # the require_template_class_coverage requirement.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.runtime_dependency.accessibility_accesskit
+    source_register: dependency_register
+    source_id: dep.accessibility.accesskit
+    name: accesskit-class accessibility bridge
+    template_class: runtime_dependency
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status_class: selected_by_adr_not_manifested
+    admission_state_class: selected_not_admitted
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - cyclonedx_sbom
+      - provenance_statement
+    release_notice_action_class: hold_pending_first_admission
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Reopen bridge selection if a claimed OS accessibility API drifts
+      faster than upstream can track, or if semantic-tree parity would
+      otherwise require a private host bridge.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.accessibility.accesskit
+      - artifacts/governance/release_notice_seed.yaml
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.hold_pending_admission_relaxed_to_admitted_action
+      forced_input:
+        rewrite_admission_state_class: admitted_repo_tooling
+      expected_check_id: critical_dependency_register.hold_pending_first_admission_blocked_when_admitted
+      actionable_next_action: >-
+        Restore admission_state_class to selected_not_admitted on the
+        accessibility row; hold_pending_first_admission MUST NOT ride
+        on an admitted row, because that would block notice emission
+        for an upstream that is already shipping.
+
+  # ------------------------------------------------------------------
+  # bundled_asset: a font subset reserved but not yet imported.
+  # publication_targets MUST include provenance_statement; the row's
+  # failure drill drops it to prove the seed catches the omission.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.bundled_asset.noto_fallback_font_subset
+    source_register: third_party_import_register
+    source_id: import.fonts.noto_subset
+    name: Last-resort bundled Noto-class fallback subset
+    template_class: bundled_asset
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: redistributable_font_expected_pending_import
+    provenance_status_class: reserved_by_contract_not_imported
+    admission_state_class: reserved_not_yet_imported
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - provenance_statement
+    release_notice_action_class: hold_pending_first_admission
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Replace the source family or subset plan if redistribution
+      terms, signature posture, or glyph coverage can no longer
+      satisfy the renderer fallback contract on the release cadence.
+    evidence_refs:
+      - artifacts/governance/third_party_import_register.yaml#import.fonts.noto_subset
+      - artifacts/governance/dependency_register.yaml#dep.text.noto_class_fallback_font
+      - artifacts/governance/release_notice_seed.yaml
+    failure_drill:
+      drill_id: critical_dependency_register_drill.bundled_asset_provenance_target_dropped
+      forced_input:
+        rewrite_publication_targets:
+          - third_party_notice
+          - spdx_sbom
+      expected_check_id: critical_dependency_register.bundled_asset_publication_targets_must_include_provenance_statement
+      actionable_next_action: >-
+        Restore provenance_statement in publication_targets; bundled
+        assets MUST publish a provenance record on every release so
+        the imported-bytes lineage is recoverable from the release
+        evidence pack.
+
+  # ------------------------------------------------------------------
+  # build_tooling: pinned Rust toolchain. Recorded for SBOM /
+  # provenance but never third-party notice.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.build_tooling.rust_toolchain
+    source_register: dependency_register
+    source_id: dep.repo.rust_toolchain
+    name: rustup-managed Rust toolchain
+    template_class: build_tooling
+    criticality_class: release_engineering_critical
+    protected_path_class: non_protected_repo_operations
+    license_class: permissive_toolchain_runtime
+    provenance_status_class: pinned_in_repo_and_observed
+    admission_state_class: admitted_repo_tooling
+    publication_targets:
+      - spdx_sbom
+      - provenance_statement
+    release_notice_action_class: emit_build_tooling_provenance_record_only
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Open toolchain replacement or split-lane review if the pinned
+      channel no longer services the declared target matrix or stops
+      receiving required security and compiler fixes.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.repo.rust_toolchain
+      - rust-toolchain.toml
+      - docs/build/reproducible_build_baseline.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.build_tooling_widened_to_third_party_notice
+      forced_input:
+        rewrite_publication_targets:
+          - third_party_notice
+          - spdx_sbom
+          - provenance_statement
+      expected_check_id: critical_dependency_register.build_tooling_publication_targets_must_not_include_third_party_notice
+      actionable_next_action: >-
+        Restore publication_targets to drop third_party_notice; the
+        build toolchain is never redistributed and MUST NOT appear in
+        the third-party notice section. Provenance + SBOM only.
+
+  # ------------------------------------------------------------------
+  # host_runtime: required host program. provenance-only.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.host_runtime.git_cli
+    source_register: dependency_register
+    source_id: dep.repo.git_cli
+    name: Git CLI
+    template_class: host_runtime
+    criticality_class: repo_operations_required
+    protected_path_class: non_protected_repo_operations
+    license_class: strong_copyleft_runtime
+    provenance_status_class: host_runtime_required_not_pinned
+    admission_state_class: admitted_repo_tooling
+    publication_targets:
+      - provenance_statement
+    release_notice_action_class: emit_host_runtime_environment_capture_only
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Review a replacement path only if build identity, lockfile
+      truth, or release scripts can no longer rely on a standard Git
+      CLI on the supported developer and CI hosts.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.repo.git_cli
+      - tools/build/print_build_identity.sh
+      - docs/build/reproducible_build_baseline.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.host_runtime_widened_to_sbom_publication
+      forced_input:
+        rewrite_publication_targets:
+          - spdx_sbom
+          - provenance_statement
+      expected_check_id: critical_dependency_register.host_runtime_publication_targets_must_be_provenance_only
+      actionable_next_action: >-
+        Restore publication_targets to [provenance_statement]; host
+        runtimes are never redistributed and MUST NOT contribute SBOM
+        entries to the release artifact. The host environment capture
+        belongs in the provenance section only.
+
+  # ------------------------------------------------------------------
+  # mirrored_pack: mirrored docs pack. docs_pack_manifest + provenance.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.mirrored_pack.docs_official_pack
+    source_register: third_party_import_register
+    source_id: import.docs.mirrored_official_pack
+    name: Mirrored official docs pack source
+    template_class: mirrored_pack
+    criticality_class: docs_public_truth_supporting
+    protected_path_class: non_protected_docs_pack
+    license_class: upstream_pack_license_to_verify_on_first_mirror
+    provenance_status_class: reserved_by_contract_not_imported
+    admission_state_class: reserved_not_yet_imported
+    publication_targets:
+      - docs_pack_manifest
+      - provenance_statement
+    release_notice_action_class: emit_docs_pack_manifest_attribution
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Stop mirroring and fall back to project docs or browser handoff
+      if upstream redistribution terms, signature continuity, or
+      mirror freshness can no longer be proven.
+    evidence_refs:
+      - artifacts/governance/third_party_import_register.yaml#import.docs.mirrored_official_pack
+      - docs/adr/0013-docs-help-service-health-truth.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.mirrored_pack_docs_pack_manifest_dropped
+      forced_input:
+        rewrite_publication_targets:
+          - provenance_statement
+      expected_check_id: critical_dependency_register.mirrored_pack_publication_targets_must_include_docs_pack_manifest
+      actionable_next_action: >-
+        Restore docs_pack_manifest in publication_targets; mirrored
+        packs publish their attribution through the pack manifest
+        section, not through the core binary notice document.
+
+  # ------------------------------------------------------------------
+  # protected-path runtime_dependency: protected-path row whose drill
+  # drops fork_or_replace_trigger so the seed proves it catches the
+  # anonymisation of a protected-path dependency.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.runtime_dependency.shaper_rustybuzz
+    source_register: dependency_register
+    source_id: dep.text.rustybuzz
+    name: rustybuzz-class shaper
+    template_class: runtime_dependency
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status_class: selected_by_adr_not_manifested
+    admission_state_class: selected_not_admitted
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - cyclonedx_sbom
+      - provenance_statement
+    release_notice_action_class: hold_pending_first_admission
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Reopen the shaping choice if a claimed script or locale
+      requires fixes the Rust-native path cannot carry in time and
+      the platform-native seam is no longer sufficient.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.text.rustybuzz
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.protected_path_fork_or_replace_trigger_dropped
+      forced_input:
+        clear_fork_or_replace_trigger: true
+      expected_check_id: critical_dependency_register.fork_or_replace_trigger_required_for_protected_path
+      actionable_next_action: >-
+        Restore fork_or_replace_trigger on the shaper row; protected-
+        path rows MUST publish a reviewable exit horizon so the seed
+        cannot anonymise a release-critical upstream choice into
+        'no documented replacement path'.
+
+  # ------------------------------------------------------------------
+  # bundled_asset already imported (uses emit_bundled_asset_notice_when_imported)
+  # so the seed exercises the non-held action class and the imported
+  # provenance status.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.runtime_dependency.shell_winit
+    source_register: dependency_register
+    source_id: dep.renderer.winit
+    name: winit
+    template_class: runtime_dependency
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status_class: selected_by_adr_not_manifested
+    admission_state_class: selected_not_admitted
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - cyclonedx_sbom
+      - provenance_statement
+    release_notice_action_class: emit_third_party_notice_and_sbom_entries
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Open replacement or local-fork review if claimed-platform
+      windowing, DPI, or accessibility-root requirements can no
+      longer be met without per-platform shell forks.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.renderer.winit
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.runtime_dependency_release_notice_action_widened_to_build_tooling
+      forced_input:
+        rewrite_release_notice_action_class: emit_build_tooling_provenance_record_only
+      expected_check_id: critical_dependency_register.runtime_dependency_release_notice_action_must_match_template
+      actionable_next_action: >-
+        Restore release_notice_action_class to emit_third_party_notice_and_sbom_entries
+        on the shell row; runtime_dependency rows MUST emit the third-party
+        notice + SBOM action, not the build-tooling provenance-only action.
+
+  # ------------------------------------------------------------------
+  # runtime_dependency: softbuffer windowing-surface stub. Held pending
+  # admission. Drill drops spdx_sbom to prove the SBOM target gate fires.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.runtime_dependency.shell_softbuffer
+    source_register: dependency_register
+    source_id: dep.renderer.softbuffer
+    name: softbuffer
+    template_class: runtime_dependency
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status_class: selected_by_adr_not_manifested
+    admission_state_class: selected_not_admitted
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - provenance_statement
+    release_notice_action_class: hold_pending_first_admission
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Replace the window-present stub once the GPU-backed renderer
+      surface is admitted; keep the shell frame and zone registry
+      contracts intact.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.renderer.softbuffer
+      - docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.runtime_dependency_spdx_sbom_target_dropped
+      forced_input:
+        rewrite_publication_targets:
+          - third_party_notice
+          - provenance_statement
+      expected_check_id: critical_dependency_register.runtime_dependency_publication_targets_must_include_spdx_sbom
+      actionable_next_action: >-
+        Restore spdx_sbom in publication_targets; runtime dependencies
+        MUST publish an SBOM entry so the release evidence pack can
+        join the notice text to the bytes that were shipped.
+
+  # ------------------------------------------------------------------
+  # runtime_dependency: swash-class rasteriser. Held pending admission.
+  # Drill drops provenance_statement to prove the provenance gate fires.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.runtime_dependency.text_swash
+    source_register: dependency_register
+    source_id: dep.text.swash
+    name: swash-class rasterisation
+    template_class: runtime_dependency
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status_class: selected_by_adr_not_manifested
+    admission_state_class: selected_not_admitted
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - cyclonedx_sbom
+      - provenance_statement
+    release_notice_action_class: hold_pending_first_admission
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Open replacement review if glyph raster correctness, color-font
+      coverage, or atlas pressure on claimed hosts cannot be corrected
+      without diverging locally.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.text.swash
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.runtime_dependency_provenance_target_dropped
+      forced_input:
+        rewrite_publication_targets:
+          - third_party_notice
+          - spdx_sbom
+          - cyclonedx_sbom
+      expected_check_id: critical_dependency_register.runtime_dependency_publication_targets_must_include_provenance_statement
+      actionable_next_action: >-
+        Restore provenance_statement in publication_targets on the
+        rasteriser row; runtime dependencies MUST publish a provenance
+        record so the release evidence pack can reconstruct the bytes.
+
+  # ------------------------------------------------------------------
+  # runtime_dependency: fontdb-class font discovery. Held pending
+  # admission. Drill relaxes protected_path_class to prove the
+  # protected-path posture gate fires.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.runtime_dependency.text_fontdb
+    source_register: dependency_register
+    source_id: dep.text.fontdb
+    name: fontdb-class discovery layer
+    template_class: runtime_dependency
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: permissive_oss_expected_pending_admission
+    provenance_status_class: selected_by_adr_not_manifested
+    admission_state_class: selected_not_admitted
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - cyclonedx_sbom
+      - provenance_statement
+    release_notice_action_class: hold_pending_first_admission
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Replace or fork if discovery cannot maintain stable font handles
+      across the claimed desktop matrix without host-specific escape
+      hatches that would leak raw-path dependencies into the shell.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.text.fontdb
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.runtime_dependency_protected_path_class_relaxed
+      forced_input:
+        rewrite_protected_path_class: non_protected_repo_operations
+        clear_fork_or_replace_trigger: true
+      expected_check_id: critical_dependency_register.fork_or_replace_trigger_required
+      actionable_next_action: >-
+        Restore protected_path_class to protected_path_critical and
+        the fork_or_replace_trigger on the discovery row; the seed
+        cannot relax a release-critical font-discovery dependency
+        into an anonymous repo-operations posture.
+
+  # ------------------------------------------------------------------
+  # bundled_asset: upstream Noto family source. Held pending first
+  # admission so the draft pipeline records the intent without
+  # emitting bytes that have not yet been imported.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.bundled_asset.noto_font_family_source
+    source_register: dependency_register
+    source_id: dep.text.noto_class_fallback_font
+    name: Noto-class fallback font source
+    template_class: bundled_asset
+    criticality_class: protected_path_release_critical
+    protected_path_class: protected_path_critical
+    license_class: redistributable_font_expected_pending_import
+    provenance_status_class: selected_by_adr_not_manifested
+    admission_state_class: selected_not_admitted
+    publication_targets:
+      - third_party_notice
+      - spdx_sbom
+      - provenance_statement
+    release_notice_action_class: hold_pending_first_admission
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Replace the source family if redistributable subset terms,
+      signing posture, or glyph-coverage maintenance can no longer be
+      satisfied on the release cadence.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.text.noto_class_fallback_font
+      - artifacts/governance/third_party_import_register.yaml#import.fonts.noto_subset
+    failure_drill:
+      drill_id: critical_dependency_register_drill.bundled_asset_family_release_notice_action_widened
+      forced_input:
+        rewrite_release_notice_action_class: emit_third_party_notice_and_sbom_entries
+      expected_check_id: critical_dependency_register.bundled_asset_release_notice_action_must_match_template
+      actionable_next_action: >-
+        Restore release_notice_action_class to either
+        emit_bundled_asset_notice_when_imported or
+        hold_pending_first_admission on the Noto family source;
+        bundled-asset rows MUST NOT borrow the runtime-dependency
+        action class, which would cause the draft pipeline to emit
+        notice text for bytes that are not yet imported.
+
+  # ------------------------------------------------------------------
+  # host_runtime: rustup. Provenance-only. Drill widens to
+  # third_party_notice to prove the host-runtime widening gate fires.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.host_runtime.rustup
+    source_register: dependency_register
+    source_id: dep.repo.rustup
+    name: rustup
+    template_class: host_runtime
+    criticality_class: release_engineering_critical
+    protected_path_class: non_protected_repo_operations
+    license_class: permissive_toolchain_runtime
+    provenance_status_class: host_runtime_required_not_pinned
+    admission_state_class: admitted_repo_tooling
+    publication_targets:
+      - provenance_statement
+    release_notice_action_class: emit_host_runtime_environment_capture_only
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Replace the acquisition path if rustup is no longer viable for
+      the declared connected and offline bootstrap flows.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.repo.rustup
+      - tools/build/bootstrap.sh
+      - docs/build/reproducible_build_baseline.md
+    failure_drill:
+      drill_id: critical_dependency_register_drill.host_runtime_widened_to_third_party_notice
+      forced_input:
+        rewrite_publication_targets:
+          - third_party_notice
+          - provenance_statement
+      expected_check_id: critical_dependency_register.host_runtime_publication_targets_must_be_provenance_only
+      actionable_next_action: >-
+        Restore publication_targets to [provenance_statement] only on
+        the rustup row; host runtimes are never redistributed and MUST
+        NOT contribute a third-party notice entry to the release
+        artifact.
+
+  # ------------------------------------------------------------------
+  # host_runtime: python3 benchmark runtime. Provenance-only. Drill
+  # widens release_notice_action_class to prove the action gate fires.
+  # ------------------------------------------------------------------
+  - record_kind: critical_dependency_register_entry_record
+    critical_dependency_register_entry_schema_version: 1
+    register_entry_id: cdr.host_runtime.python3_benchmark_runtime
+    source_register: dependency_register
+    source_id: dep.benchmark.python3
+    name: python3 runtime
+    template_class: host_runtime
+    criticality_class: benchmark_lab_required
+    protected_path_class: non_protected_repo_operations
+    license_class: permissive_runtime
+    provenance_status_class: host_runtime_required_not_pinned
+    admission_state_class: admitted_repo_tooling
+    publication_targets:
+      - provenance_statement
+    release_notice_action_class: emit_host_runtime_environment_capture_only
+    owner_dri: "@ahmeddyounis"
+    fork_or_replace_trigger: >-
+      Replace the runtime requirement if committed-seed generation or
+      verification can no longer run portably on the supported host
+      matrix without a virtualenv or non-standard package manager.
+    evidence_refs:
+      - artifacts/governance/dependency_register.yaml#dep.benchmark.python3
+      - tools/benchmark_lab.sh
+      - tools/journey_harness.sh
+    failure_drill:
+      drill_id: critical_dependency_register_drill.host_runtime_release_notice_action_widened_to_build_tooling
+      forced_input:
+        rewrite_release_notice_action_class: emit_build_tooling_provenance_record_only
+      expected_check_id: critical_dependency_register.host_runtime_release_notice_action_must_match_template
+      actionable_next_action: >-
+        Restore release_notice_action_class to
+        emit_host_runtime_environment_capture_only on the python3 row;
+        host_runtime rows MUST publish the host-runtime environment
+        capture, not the build-tooling provenance record.

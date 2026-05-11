@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/critical_dependency_register_entry.schema.json",
+  "title": "Aureline critical-dependency register row",
+  "description": "Boundary schema for one critical_dependency_register_entry_record published by the M1 critical-dependency / import register seed. Each row binds one stable upstream choice or imported byte set to (1) a closed template_class drawn from the runtime_dependency / bundled_asset / build_tooling / host_runtime / mirrored_pack vocabulary so the release-notice draft pipeline can pick a template without inventing one, (2) a closed criticality_class so the seed cannot quietly downgrade a protected-path dependency, (3) a closed publication_targets set drawn from third_party_notice / spdx_sbom / cyclonedx_sbom / provenance_statement / docs_pack_manifest, (4) a closed release_notice_action_class that names what the draft pipeline emits for the row, (5) a non-empty owner DRI and a reviewable fork_or_replace_trigger so protected-path rows can never be anonymous, and (6) a named failure drill the validation lane reproduces under --force-drill. The schema is a register-row contract, not a release-notice runtime: it does not fetch upstream metadata, compute SBOM contents, or publish notice text. It freezes the metadata the draft pipeline keys off so the data model is executable rather than aspirational.",
+  "$ref": "#/$defs/critical_dependency_register_entry_record",
+  "$defs": {
+    "critical_dependency_register_entry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for critical-dependency register rows. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "critical_dependency_register_entry_record",
+      "description": "Discriminator for the record shape."
+    },
+    "register_entry_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable, machine-readable id for the critical-dependency register row (for example cdr.runtime_dependency.renderer_wgpu). Lowercase dot/underscore/hyphen segments only so the id is safe to log, safe in support exports, and safe in release artifacts."
+    },
+    "source_register_class": {
+      "type": "string",
+      "enum": [
+        "dependency_register",
+        "third_party_import_register"
+      ],
+      "description": "Which companion register the row's source_id points into. dependency_register rows describe upstream choices the build relies on; third_party_import_register rows describe copied / mirrored bytes that ship with a release."
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^(dep|import)\\.[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable id from the companion register. dependency_register source ids MUST start with 'dep.'; third_party_import_register source ids MUST start with 'import.'. The validation lane resolves the id against the named source register."
+    },
+    "template_class": {
+      "type": "string",
+      "enum": [
+        "runtime_dependency",
+        "bundled_asset",
+        "build_tooling",
+        "host_runtime",
+        "mirrored_pack"
+      ],
+      "description": "Closed release-notice template class. runtime_dependency: third-party code linked into a distributed binary (notice + SBOM + provenance). bundled_asset: third-party bytes that ship with the product (notice when imported + provenance). build_tooling: build-input recorded for provenance and SBOM but NOT for third-party notice. host_runtime: required host program recorded for provenance only (never redistributed). mirrored_pack: mirrored upstream pack surfaced via docs-pack manifest attribution."
+    },
+    "criticality_class": {
+      "type": "string",
+      "enum": [
+        "protected_path_release_critical",
+        "release_engineering_critical",
+        "benchmark_lab_required",
+        "repo_operations_required",
+        "docs_public_truth_supporting"
+      ],
+      "description": "Closed criticality vocabulary mirrored from artifacts/governance/dependency_register.yaml and artifacts/governance/third_party_import_register.yaml so the seed cannot invent a new criticality scale."
+    },
+    "protected_path_class": {
+      "type": "string",
+      "enum": [
+        "protected_path_critical",
+        "non_protected_repo_operations",
+        "non_protected_docs_pack"
+      ],
+      "description": "Closed protected-path posture. protected_path_critical: the row is on a release-critical protected path and MUST carry an owner DRI and a reviewable fork_or_replace_trigger. non_protected_repo_operations: tooling/host-runtime row recorded for provenance only. non_protected_docs_pack: docs-pack mirror row recorded for attribution only."
+    },
+    "license_class": {
+      "type": "string",
+      "enum": [
+        "permissive_oss",
+        "permissive_oss_expected_pending_admission",
+        "redistributable_font_expected_pending_import",
+        "permissive_runtime",
+        "strong_copyleft_runtime",
+        "permissive_toolchain_runtime",
+        "upstream_pack_license_to_verify_on_first_mirror"
+      ],
+      "description": "Closed license vocabulary mirrored from the companion registers. The seed labels the license posture; it does not adjudicate license terms."
+    },
+    "provenance_status_class": {
+      "type": "string",
+      "enum": [
+        "pinned_in_repo_and_observed",
+        "selected_by_adr_not_manifested",
+        "host_runtime_required_not_pinned",
+        "reserved_by_contract_not_imported",
+        "imported_with_origin_recorded"
+      ],
+      "description": "Closed provenance status vocabulary mirrored from the companion registers."
+    },
+    "admission_state_class": {
+      "type": "string",
+      "enum": [
+        "admitted_repo_tooling",
+        "selected_not_admitted",
+        "reserved_not_yet_imported",
+        "imported_and_tracked"
+      ],
+      "description": "Closed admission-state vocabulary mirrored from the companion registers. release_notice_action_class = hold_pending_first_admission is only valid when admission_state_class is selected_not_admitted or reserved_not_yet_imported."
+    },
+    "publication_target_class": {
+      "type": "string",
+      "enum": [
+        "third_party_notice",
+        "spdx_sbom",
+        "cyclonedx_sbom",
+        "provenance_statement",
+        "docs_pack_manifest"
+      ],
+      "description": "Closed publication-target vocabulary. The release-notice draft pipeline emits one section per target; targets that are not listed in a row are intentionally not generated for that row."
+    },
+    "release_notice_action_class": {
+      "type": "string",
+      "enum": [
+        "emit_third_party_notice_and_sbom_entries",
+        "emit_bundled_asset_notice_when_imported",
+        "emit_build_tooling_provenance_record_only",
+        "emit_host_runtime_environment_capture_only",
+        "emit_docs_pack_manifest_attribution",
+        "hold_pending_first_admission"
+      ],
+      "description": "Closed action vocabulary the build_dependency_notice_seed pipeline reads to decide what to emit for the row. Each action maps onto exactly one section in the draft notice / SBOM / provenance output."
+    },
+    "owner_dri": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^@[a-zA-Z0-9_-]+$",
+      "description": "Named owner DRI for the register row. Required on every row so protected-path rows can never be anonymous."
+    },
+    "fork_or_replace_trigger": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Reviewer-readable description of the condition that would force a fork, local patch carry, or replacement of the upstream choice. Required so protected-path rows cannot claim a posture without an exit horizon."
+    },
+    "failure_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "forced_input",
+        "expected_check_id",
+        "actionable_next_action"
+      ],
+      "properties": {
+        "drill_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Stable id for the row's named failure drill, drawn from the envelope's failure_drill_id_vocabulary."
+        },
+        "forced_input": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Forced row mutation applied under --force-drill so the runner can reproduce the named expected_check_id from a clean tree."
+        },
+        "expected_check_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Exact check_id the runner must report under --force-drill."
+        },
+        "actionable_next_action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Short reviewer-readable next action when the drill fires unexpectedly."
+        }
+      },
+      "description": "Named failure drill the validation lane reproduces under --force-drill. Required on every row so omissions stay loud."
+    },
+    "critical_dependency_register_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "critical_dependency_register_entry_schema_version",
+        "register_entry_id",
+        "source_register",
+        "source_id",
+        "name",
+        "template_class",
+        "criticality_class",
+        "protected_path_class",
+        "license_class",
+        "provenance_status_class",
+        "admission_state_class",
+        "publication_targets",
+        "release_notice_action_class",
+        "owner_dri",
+        "fork_or_replace_trigger",
+        "evidence_refs",
+        "failure_drill"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "critical_dependency_register_entry_schema_version": {
+          "$ref": "#/$defs/critical_dependency_register_entry_schema_version"
+        },
+        "register_entry_id": { "$ref": "#/$defs/register_entry_id" },
+        "source_register": { "$ref": "#/$defs/source_register_class" },
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Human-readable name for the row, mirrored from the companion register."
+        },
+        "template_class": { "$ref": "#/$defs/template_class" },
+        "criticality_class": { "$ref": "#/$defs/criticality_class" },
+        "protected_path_class": { "$ref": "#/$defs/protected_path_class" },
+        "license_class": { "$ref": "#/$defs/license_class" },
+        "provenance_status_class": { "$ref": "#/$defs/provenance_status_class" },
+        "admission_state_class": { "$ref": "#/$defs/admission_state_class" },
+        "publication_targets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/publication_target_class" },
+          "description": "Publication targets the draft pipeline emits for the row. Empty is forbidden so a row cannot claim notice coverage and then publish nothing."
+        },
+        "release_notice_action_class": { "$ref": "#/$defs/release_notice_action_class" },
+        "owner_dri": { "$ref": "#/$defs/owner_dri" },
+        "fork_or_replace_trigger": { "$ref": "#/$defs/fork_or_replace_trigger" },
+        "evidence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Evidence refs (companion-register row anchors, ADR refs, design docs) the reviewer can follow to corroborate the row's posture."
+        },
+        "failure_drill": { "$ref": "#/$defs/failure_drill" },
+        "notes": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "Optional short reviewer-facing note about the row."
+        }
+      },
+      "allOf": [
+        {
+          "description": "source_register = dependency_register forces source_id to start with 'dep.'.",
+          "if": {
+            "properties": { "source_register": { "const": "dependency_register" } },
+            "required": ["source_register"]
+          },
+          "then": {
+            "properties": {
+              "source_id": { "pattern": "^dep\\." }
+            },
+            "required": ["source_id"]
+          }
+        },
+        {
+          "description": "source_register = third_party_import_register forces source_id to start with 'import.'.",
+          "if": {
+            "properties": { "source_register": { "const": "third_party_import_register" } },
+            "required": ["source_register"]
+          },
+          "then": {
+            "properties": {
+              "source_id": { "pattern": "^import\\." }
+            },
+            "required": ["source_id"]
+          }
+        },
+        {
+          "description": "template_class = runtime_dependency forces publication_targets to include third_party_notice, spdx_sbom, and provenance_statement, and release_notice_action_class to be emit_third_party_notice_and_sbom_entries or hold_pending_first_admission.",
+          "if": {
+            "properties": { "template_class": { "const": "runtime_dependency" } },
+            "required": ["template_class"]
+          },
+          "then": {
+            "properties": {
+              "publication_targets": {
+                "allOf": [
+                  { "contains": { "const": "third_party_notice" } },
+                  { "contains": { "const": "spdx_sbom" } },
+                  { "contains": { "const": "provenance_statement" } }
+                ]
+              },
+              "release_notice_action_class": {
+                "enum": [
+                  "emit_third_party_notice_and_sbom_entries",
+                  "hold_pending_first_admission"
+                ]
+              }
+            },
+            "required": ["publication_targets", "release_notice_action_class"]
+          }
+        },
+        {
+          "description": "template_class = bundled_asset forces publication_targets to include provenance_statement; release_notice_action_class MUST be emit_bundled_asset_notice_when_imported or hold_pending_first_admission.",
+          "if": {
+            "properties": { "template_class": { "const": "bundled_asset" } },
+            "required": ["template_class"]
+          },
+          "then": {
+            "properties": {
+              "publication_targets": {
+                "contains": { "const": "provenance_statement" }
+              },
+              "release_notice_action_class": {
+                "enum": [
+                  "emit_bundled_asset_notice_when_imported",
+                  "hold_pending_first_admission"
+                ]
+              }
+            },
+            "required": ["publication_targets", "release_notice_action_class"]
+          }
+        },
+        {
+          "description": "template_class = build_tooling forbids third_party_notice in publication_targets; release_notice_action_class MUST be emit_build_tooling_provenance_record_only.",
+          "if": {
+            "properties": { "template_class": { "const": "build_tooling" } },
+            "required": ["template_class"]
+          },
+          "then": {
+            "properties": {
+              "publication_targets": {
+                "allOf": [
+                  { "not": { "contains": { "const": "third_party_notice" } } },
+                  { "contains": { "const": "provenance_statement" } }
+                ]
+              },
+              "release_notice_action_class": {
+                "const": "emit_build_tooling_provenance_record_only"
+              }
+            },
+            "required": ["publication_targets", "release_notice_action_class"]
+          }
+        },
+        {
+          "description": "template_class = host_runtime forbids third_party_notice and SBOM targets; publication_targets MUST be exactly provenance_statement. release_notice_action_class MUST be emit_host_runtime_environment_capture_only.",
+          "if": {
+            "properties": { "template_class": { "const": "host_runtime" } },
+            "required": ["template_class"]
+          },
+          "then": {
+            "properties": {
+              "publication_targets": {
+                "allOf": [
+                  { "not": { "contains": { "const": "third_party_notice" } } },
+                  { "not": { "contains": { "const": "spdx_sbom" } } },
+                  { "not": { "contains": { "const": "cyclonedx_sbom" } } },
+                  { "contains": { "const": "provenance_statement" } }
+                ]
+              },
+              "release_notice_action_class": {
+                "const": "emit_host_runtime_environment_capture_only"
+              }
+            },
+            "required": ["publication_targets", "release_notice_action_class"]
+          }
+        },
+        {
+          "description": "template_class = mirrored_pack forces publication_targets to include docs_pack_manifest and provenance_statement. release_notice_action_class MUST be emit_docs_pack_manifest_attribution.",
+          "if": {
+            "properties": { "template_class": { "const": "mirrored_pack" } },
+            "required": ["template_class"]
+          },
+          "then": {
+            "properties": {
+              "publication_targets": {
+                "allOf": [
+                  { "contains": { "const": "docs_pack_manifest" } },
+                  { "contains": { "const": "provenance_statement" } }
+                ]
+              },
+              "release_notice_action_class": {
+                "const": "emit_docs_pack_manifest_attribution"
+              }
+            },
+            "required": ["publication_targets", "release_notice_action_class"]
+          }
+        },
+        {
+          "description": "release_notice_action_class = hold_pending_first_admission restricts admission_state_class to selected_not_admitted or reserved_not_yet_imported.",
+          "if": {
+            "properties": {
+              "release_notice_action_class": { "const": "hold_pending_first_admission" }
+            },
+            "required": ["release_notice_action_class"]
+          },
+          "then": {
+            "properties": {
+              "admission_state_class": {
+                "enum": ["selected_not_admitted", "reserved_not_yet_imported"]
+              }
+            },
+            "required": ["admission_state_class"]
+          }
+        }
+      ]
+    }
+  }
+}
