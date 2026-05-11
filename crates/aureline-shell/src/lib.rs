@@ -65,6 +65,13 @@ pub mod recovery;
 pub mod release_center;
 /// Restore-prompt projection for resume / missing-target recovery.
 pub mod restore;
+/// Representation-labeled safe-preview and copy/export card: live shell
+/// consumer of the bounded [`aureline_preview`] safe-preview wedge. Projects
+/// the canonical preview record into a card snapshot the chrome quotes
+/// verbatim — including the prototype label chip, the currently visible
+/// representation, the paired copy/export options, and the explicit
+/// representation-honesty invariants.
+pub mod safe_preview_card;
 /// Preview/apply/revert lifecycle wedge for one destructive core path
 /// (multi-target bulk replace). Bounded prototype: mints named undo
 /// groups and content-addressed checkpoints, refuses to widen scope after
