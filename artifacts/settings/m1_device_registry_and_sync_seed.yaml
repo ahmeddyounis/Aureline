@@ -1,0 +1,586 @@
+# Device-registry and settings-sync seed (M1 conflict-review vocabulary).
+#
+# Machine-readable register of sync-state profile rows. The seed exists
+# so device participation, sync session state, conflict-review class,
+# offered resolution paths, resolution state, scope-broadening verdict,
+# non-widening posture, local-vs-managed ownership, and per-data-class
+# portability are first-class across:
+#   - the settings UI (sync section, device pill, conflict review row),
+#   - the CLI `settings sync` command,
+#   - the profile importer / exporter,
+#   - the support-bundle exporter,
+#   - the mutation-journal renderer,
+#   - the migration center, and
+#   - any later managed-sync service (M1: not built; only the contract).
+#
+# Reviewer-facing landing page:
+#   docs/settings/m1_sync_and_device_seed.md
+#
+# Upstream optional-sync contract source the seed projects against:
+#   docs/settings/sync_and_device_registry_seed.md
+#
+# Row schema:
+#   schemas/settings/settings_sync_state.schema.json
+#
+# Envelope schema:
+#   schemas/settings/device_registry.schema.json
+#
+# Conformance:
+#   - Every entry conforms to the row schema.
+#   - sync_state_profile_id is unique. Adding a row is additive-minor.
+#     Removing a row is breaking; narrow by editing the row, not by
+#     deletion.
+#   - Every row MUST declare exactly one device_participation_state_class,
+#     device_class, os_family_class, identity_mode_class,
+#     sync_session_state_class, conflict_review_class,
+#     conflict_resolution_state_class, non_widening_posture_class,
+#     scope_broadening_verdict_class, and local_ownership_marker_class
+#     drawn from the closed vocabularies in this file.
+#   - revoked rows MUST publish sync_session_state_class = refused and
+#     conflict_review_class = device_revoked (row-schema invariant).
+#   - paused rows MUST publish sync_session_state_class in
+#     {local_authoritative_degraded, paused} and conflict_review_class =
+#     device_paused (row-schema invariant).
+#   - Rows whose conflict_review_class is scope_broadening_refusal MUST
+#     publish scope_broadening_verdict_class = would_widen_trust_refused
+#     and offer keep_local in offered_resolution_path_classes.
+#   - Rows whose conflict_review_class is no_conflict or
+#     value_equal_no_op MUST publish conflict_resolution_state_class =
+#     not_applicable.
+#   - The union of every row's data_class_portabilities MUST cover all
+#     four portability classes (portable, machine_local, excluded,
+#     policy_owned). Forces the seed to document machine-local
+#     exclusions and policy-owned ownership distinct from
+#     local-authoritative state.
+#   - Milestone slugs and task ids MUST NOT appear in any id, ref,
+#     label, or note field. Describe what the profile is, not which
+#     planning item it came from.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+
+matrix_id: m1_device_registry_and_sync_seed
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/settings/m1_sync_and_device_seed.md
+upstream_sync_contract_ref: docs/settings/sync_and_device_registry_seed.md
+upstream_settings_registry_ref: docs/settings/schema_registry_seed.md
+
+row_schema_ref: schemas/settings/settings_sync_state.schema.json
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies. Closed; agreement with the row schema $defs is
+# asserted by the validation lane.
+# -----------------------------------------------------------------------------
+
+device_participation_state_class_vocabulary:
+  - active
+  - paused
+  - revoked
+  - forgotten
+
+device_class_vocabulary:
+  - personal_workstation
+  - corp_workstation
+  - personal_laptop
+  - corp_laptop
+  - remote_dev_vm
+  - ci_worker
+  - ephemeral_sandbox
+  - unknown
+
+os_family_class_vocabulary:
+  - macos
+  - linux
+  - windows
+  - remote_container
+  - web_runtime
+  - unknown
+
+identity_mode_class_vocabulary:
+  - account_free_local
+  - self_hosted_org
+  - managed_convenience
+
+sync_session_state_class_vocabulary:
+  - open
+  - local_authoritative_degraded
+  - refused
+  - paused
+  - manual_continuity_in_progress
+
+# The canonical conflict-review vocabulary later UI surfaces (settings UI,
+# support exporter, mutation-journal renderer, migration center, conflict
+# review surface) consume verbatim. Surfaces MUST NOT invent their own
+# conflict status names; widening requires a separately reviewed
+# decision row.
+conflict_review_class_vocabulary:
+  - no_conflict
+  - value_equal_no_op
+  - keep_local_pending_review
+  - keep_synced_pending_review
+  - merge_preview_pending_review
+  - rollback_friendly_review_pending
+  - scope_broadening_refusal
+  - allowed_scope_mismatch
+  - stale_payload
+  - encryption_failure
+  - policy_block
+  - device_revoked
+  - device_paused
+  - identity_mode_mismatch
+  - schema_version_incompatible
+  - declined
+
+conflict_resolution_state_class_vocabulary:
+  - pending
+  - previewed
+  - acknowledged
+  - resolved
+  - declined
+  - expired
+  - withdrawn
+  - not_applicable
+
+offered_resolution_path_class_vocabulary:
+  - keep_local
+  - keep_synced
+  - merge_preview
+  - rollback_friendly_review
+  - decline
+
+non_widening_posture_class_vocabulary:
+  - non_widening_affirmed
+  - non_widening_not_required
+  - non_widening_affirmation_missing
+
+scope_broadening_verdict_class_vocabulary:
+  - would_not_widen_trust
+  - would_widen_trust_refused
+  - narrowing_only
+  - not_applicable
+
+local_ownership_marker_class_vocabulary:
+  - local_authoritative
+  - managed_authoritative
+  - policy_authoritative
+  - machine_local_excluded
+
+data_portability_class_vocabulary:
+  - portable
+  - machine_local
+  - excluded
+  - policy_owned
+
+required_device_participation_state_coverage:
+  - active
+  - paused
+  - revoked
+
+required_sync_session_state_coverage:
+  - open
+  - local_authoritative_degraded
+  - refused
+
+required_conflict_review_class_coverage:
+  - no_conflict
+  - scope_broadening_refusal
+  - device_revoked
+  - device_paused
+  - stale_payload
+
+required_data_portability_class_coverage:
+  - portable
+  - machine_local
+  - excluded
+  - policy_owned
+
+failure_drill_id_vocabulary:
+  - device_sync_state_drill.active_local_authoritative_non_widening_affirmation_dropped
+  - device_sync_state_drill.active_scope_broadening_verdict_relaxed_to_widen_trust
+  - device_sync_state_drill.active_keep_local_resolution_path_dropped
+  - device_sync_state_drill.paused_session_state_widened_to_open
+  - device_sync_state_drill.revoked_session_state_widened_to_open
+  - device_sync_state_drill.manual_continuity_data_class_drifted_from_excluded_to_portable
+  - device_sync_state_drill.stale_payload_conflict_review_class_drifted_to_no_conflict
+
+named_runtime_consumers:
+  - consumer_id: m1_sync_and_device_seed_landing_page
+    consumer_class: review_docs_landing_page
+    consumer_ref: docs/settings/m1_sync_and_device_seed.md
+    consumed_fields:
+      - sync_state_profile_id
+      - device_participation_state_class
+      - sync_session_state_class
+      - conflict_review_class
+      - offered_resolution_path_classes
+      - non_widening_posture_class
+      - scope_broadening_verdict_class
+      - local_ownership_marker_class
+      - data_class_portabilities
+    notes: >-
+      Reviewer-facing landing page that quotes the seeded rows verbatim
+      so the settings UI, CLI settings sync, profile importer, support
+      exporter, and migration center all read the same conflict-review
+      vocabulary and portability model.
+  - consumer_id: upstream_sync_and_device_registry_contract_doc
+    consumer_class: docs_or_help_surface
+    consumer_ref: docs/settings/sync_and_device_registry_seed.md
+    consumed_fields:
+      - device_participation_state_class
+      - sync_session_state_class
+      - conflict_review_class
+      - offered_resolution_path_classes
+    notes: >-
+      Upstream optional-sync and device-registry contract that the M1
+      seed projects against. The seed inherits the contract's
+      vocabularies; the runner asserts the doc still resolves on disk
+      so the seed cannot quietly outlive its upstream.
+  - consumer_id: m1_device_registry_and_sync_seed_ci_validator
+    consumer_class: ci_schema_validator
+    consumer_ref: tests/governance/m1_device_registry_and_sync_seed_lane/run_m1_device_registry_and_sync_seed_lane.py
+    consumed_fields:
+      - sync_state_profile_id
+      - device_participation_state_class
+      - sync_session_state_class
+      - conflict_review_class
+      - conflict_resolution_state_class
+      - offered_resolution_path_classes
+      - non_widening_posture_class
+      - scope_broadening_verdict_class
+      - local_ownership_marker_class
+      - data_class_portabilities
+      - failure_drill
+    notes: >-
+      Unattended CI/review validator that replays the seed, asserts
+      closed-vocabulary agreement with the row schema, structural
+      invariants (revoked refused / device_revoked; paused
+      degraded-or-paused / device_paused; scope_broadening_refusal
+      verdict + keep_local; no_conflict / value_equal_no_op
+      not_applicable), required coverage (participation states,
+      session states, conflict-review classes, portability classes),
+      named-consumer resolution, and reproduces every named failure
+      drill loudly.
+
+entries:
+  # ------------------------------------------------------------------
+  # Active, local-authoritative, no conflict. The default state for a
+  # registered device on the stable channel before any divergence.
+  # ------------------------------------------------------------------
+  - record_kind: settings_sync_state_row_record
+    settings_sync_state_row_schema_version: 1
+    sync_state_profile_id: active.local_authoritative.no_conflict
+    device_participation_state_class: active
+    device_class: personal_workstation
+    os_family_class: macos
+    identity_mode_class: account_free_local
+    sync_session_state_class: open
+    conflict_review_class: no_conflict
+    conflict_resolution_state_class: not_applicable
+    offered_resolution_path_classes:
+      - keep_local
+    non_widening_posture_class: non_widening_affirmed
+    scope_broadening_verdict_class: would_not_widen_trust
+    local_ownership_marker_class: local_authoritative
+    data_class_portabilities:
+      - data_class_id: settings_user_global
+        portability_class: portable
+        notes: >-
+          User-global settings ride sync subject to scope-broadening
+          and allowed-scope rules.
+      - data_class_id: settings_language_override
+        portability_class: portable
+      - data_class_id: machine_local_paths
+        portability_class: machine_local
+        notes: >-
+          Filesystem paths, mount points, and serials never cross sync.
+      - data_class_id: secret_bytes
+        portability_class: excluded
+      - data_class_id: admin_policy_bundles
+        portability_class: policy_owned
+        notes: >-
+          Signed admin-policy bundles are owned by admin policy and
+          cannot be moved by user sync.
+    last_successful_sync_state_class: synced_within_freshness_budget
+    rollback_checkpoint_required: false
+    approval_ticket_required: false
+    owner_dri: "@ahmeddyounis"
+    failure_drill:
+      drill_id: device_sync_state_drill.active_local_authoritative_non_widening_affirmation_dropped
+      forced_input:
+        rewrite_non_widening_posture_class: non_widening_affirmation_missing
+      expected_check_id: settings_sync_state.non_widening_affirmation_missing_blocked_on_active_row
+      actionable_next_action: >-
+        Restore non_widening_posture_class to non_widening_affirmed;
+        active rows that emit bundles MUST affirm non-widening so the
+        receiver does not silently apply a synced value that widens
+        trust, AI egress, network egress, extension permissions, or
+        managed entitlement.
+    notes: >-
+      Default profile for a registered personal workstation on
+      account-free-local identity with no pending divergence.
+
+  # ------------------------------------------------------------------
+  # Active device, would-widen-trust refusal. Demonstrates the
+  # scope-broadening refusal path with keep_local always available.
+  # ------------------------------------------------------------------
+  - record_kind: settings_sync_state_row_record
+    settings_sync_state_row_schema_version: 1
+    sync_state_profile_id: active.scope_broadening_refusal
+    device_participation_state_class: active
+    device_class: corp_workstation
+    os_family_class: linux
+    identity_mode_class: self_hosted_org
+    sync_session_state_class: open
+    conflict_review_class: scope_broadening_refusal
+    conflict_resolution_state_class: pending
+    offered_resolution_path_classes:
+      - keep_local
+      - decline
+    non_widening_posture_class: non_widening_affirmed
+    scope_broadening_verdict_class: would_widen_trust_refused
+    local_ownership_marker_class: local_authoritative
+    data_class_portabilities:
+      - data_class_id: settings_user_global
+        portability_class: portable
+      - data_class_id: workspace_trust_grants
+        portability_class: excluded
+        notes: >-
+          Workspace-trust grants never sync; the refusal here is the
+          synced entry trying to widen trust on the receiver.
+    last_successful_sync_state_class: synced_within_freshness_budget
+    rollback_checkpoint_required: false
+    approval_ticket_required: false
+    owner_dri: "@ahmeddyounis"
+    failure_drill:
+      drill_id: device_sync_state_drill.active_scope_broadening_verdict_relaxed_to_widen_trust
+      forced_input:
+        rewrite_scope_broadening_verdict_class: would_not_widen_trust
+      expected_check_id: settings_sync_state.scope_broadening_refusal_requires_would_widen_trust_refused_verdict
+      actionable_next_action: >-
+        Restore scope_broadening_verdict_class to
+        would_widen_trust_refused; rows whose conflict_review_class is
+        scope_broadening_refusal MUST stamp the refusal verdict so the
+        UI cannot quietly read the packet as a normal apply.
+
+  # ------------------------------------------------------------------
+  # Active device, rollback-friendly review pending. Exercises the
+  # merge-preview / rollback-checkpoint resolution path on a setting
+  # whose preview class requires a checkpoint.
+  # ------------------------------------------------------------------
+  - record_kind: settings_sync_state_row_record
+    settings_sync_state_row_schema_version: 1
+    sync_state_profile_id: active.rollback_friendly_review_pending
+    device_participation_state_class: active
+    device_class: personal_laptop
+    os_family_class: windows
+    identity_mode_class: account_free_local
+    sync_session_state_class: open
+    conflict_review_class: rollback_friendly_review_pending
+    conflict_resolution_state_class: previewed
+    offered_resolution_path_classes:
+      - keep_local
+      - rollback_friendly_review
+      - decline
+    non_widening_posture_class: non_widening_affirmed
+    scope_broadening_verdict_class: narrowing_only
+    local_ownership_marker_class: local_authoritative
+    data_class_portabilities:
+      - data_class_id: settings_user_global
+        portability_class: portable
+      - data_class_id: rollback_checkpoints
+        portability_class: machine_local
+        notes: >-
+          Rollback checkpoints live on the owning device; only the
+          ref crosses, not the checkpoint payload.
+    last_successful_sync_state_class: synced_within_freshness_budget
+    rollback_checkpoint_required: true
+    approval_ticket_required: false
+    owner_dri: "@ahmeddyounis"
+    failure_drill:
+      drill_id: device_sync_state_drill.active_keep_local_resolution_path_dropped
+      forced_input:
+        drop_keep_local_resolution_path: true
+      expected_check_id: settings_sync_state.keep_local_resolution_path_required_for_active_conflict
+      actionable_next_action: >-
+        Restore keep_local in offered_resolution_path_classes; every
+        active conflict row MUST always expose keep_local so the user
+        has a safe out, even when the merge preview is the recommended
+        path.
+
+  # ------------------------------------------------------------------
+  # Paused device. Session enters local_authoritative_degraded; the
+  # conflict review surface renders device_paused.
+  # ------------------------------------------------------------------
+  - record_kind: settings_sync_state_row_record
+    settings_sync_state_row_schema_version: 1
+    sync_state_profile_id: paused.local_authoritative_degraded
+    device_participation_state_class: paused
+    device_class: corp_laptop
+    os_family_class: macos
+    identity_mode_class: self_hosted_org
+    sync_session_state_class: local_authoritative_degraded
+    conflict_review_class: device_paused
+    conflict_resolution_state_class: withdrawn
+    offered_resolution_path_classes:
+      - keep_local
+    non_widening_posture_class: non_widening_not_required
+    scope_broadening_verdict_class: not_applicable
+    local_ownership_marker_class: local_authoritative
+    data_class_portabilities:
+      - data_class_id: settings_user_global
+        portability_class: portable
+      - data_class_id: machine_local_paths
+        portability_class: machine_local
+    last_successful_sync_state_class: not_applicable
+    rollback_checkpoint_required: false
+    approval_ticket_required: false
+    owner_dri: "@ahmeddyounis"
+    failure_drill:
+      drill_id: device_sync_state_drill.paused_session_state_widened_to_open
+      forced_input:
+        rewrite_sync_session_state_class: open
+      expected_check_id: settings_sync_state.paused_device_session_state_must_be_degraded_or_paused
+      actionable_next_action: >-
+        Restore sync_session_state_class to
+        local_authoritative_degraded; paused devices MUST NOT publish
+        an 'open' session because they neither push nor pull, and
+        an 'open' session would mislead operators inspecting the
+        device pill.
+
+  # ------------------------------------------------------------------
+  # Revoked device. Session is refused; the conflict review surface
+  # renders device_revoked. Demonstrates the durable-refusal lifecycle.
+  # ------------------------------------------------------------------
+  - record_kind: settings_sync_state_row_record
+    settings_sync_state_row_schema_version: 1
+    sync_state_profile_id: revoked.refused
+    device_participation_state_class: revoked
+    device_class: ephemeral_sandbox
+    os_family_class: remote_container
+    identity_mode_class: managed_convenience
+    sync_session_state_class: refused
+    conflict_review_class: device_revoked
+    conflict_resolution_state_class: declined
+    offered_resolution_path_classes:
+      - keep_local
+      - decline
+    non_widening_posture_class: non_widening_not_required
+    scope_broadening_verdict_class: not_applicable
+    local_ownership_marker_class: machine_local_excluded
+    data_class_portabilities:
+      - data_class_id: settings_user_global
+        portability_class: portable
+      - data_class_id: credential_raw
+        portability_class: excluded
+      - data_class_id: admin_policy_bundles
+        portability_class: policy_owned
+    last_successful_sync_state_class: not_applicable
+    rollback_checkpoint_required: false
+    approval_ticket_required: false
+    owner_dri: "@ahmeddyounis"
+    failure_drill:
+      drill_id: device_sync_state_drill.revoked_session_state_widened_to_open
+      forced_input:
+        rewrite_sync_session_state_class: open
+      expected_check_id: settings_sync_state.revoked_device_session_state_must_be_refused
+      actionable_next_action: >-
+        Restore sync_session_state_class to refused; revoked devices
+        MUST refuse all sync traffic so the support exporter, audit
+        stream, and migration center read the same posture.
+
+  # ------------------------------------------------------------------
+  # Manual continuity path. User carries continuity by hand via export
+  # / import; arriving entries route through the same review pipeline.
+  # ------------------------------------------------------------------
+  - record_kind: settings_sync_state_row_record
+    settings_sync_state_row_schema_version: 1
+    sync_state_profile_id: manual_continuity.keep_synced_pending_review
+    device_participation_state_class: active
+    device_class: personal_workstation
+    os_family_class: linux
+    identity_mode_class: account_free_local
+    sync_session_state_class: manual_continuity_in_progress
+    conflict_review_class: keep_synced_pending_review
+    conflict_resolution_state_class: acknowledged
+    offered_resolution_path_classes:
+      - keep_local
+      - keep_synced
+      - decline
+    non_widening_posture_class: non_widening_affirmed
+    scope_broadening_verdict_class: would_not_widen_trust
+    local_ownership_marker_class: local_authoritative
+    data_class_portabilities:
+      - data_class_id: settings_user_global
+        portability_class: portable
+      - data_class_id: settings_language_override
+        portability_class: portable
+      - data_class_id: machine_local_paths
+        portability_class: machine_local
+      - data_class_id: secret_bytes
+        portability_class: excluded
+        notes: >-
+          Even on manual continuity, raw secret material never crosses;
+          only broker aliases are carried through the export artifact.
+    last_successful_sync_state_class: never_synced
+    rollback_checkpoint_required: false
+    approval_ticket_required: false
+    owner_dri: "@ahmeddyounis"
+    failure_drill:
+      drill_id: device_sync_state_drill.manual_continuity_data_class_drifted_from_excluded_to_portable
+      forced_input:
+        rewrite_secret_bytes_portability_to_portable: true
+      expected_check_id: settings_sync_state.excluded_data_class_widening_blocked
+      actionable_next_action: >-
+        Restore the secret_bytes data class to portability_class =
+        excluded; raw secret material MUST NOT widen to portable on
+        any sync path (manual or live), and the seed cannot publish a
+        row that would allow it.
+
+  # ------------------------------------------------------------------
+  # Stale-payload row. Local-authoritative degrade with the bundle
+  # refused for stale_payload; resolution surface offers keep_local
+  # only because the synced value is older than the local epoch.
+  # ------------------------------------------------------------------
+  - record_kind: settings_sync_state_row_record
+    settings_sync_state_row_schema_version: 1
+    sync_state_profile_id: stale_payload.local_authoritative_degraded
+    device_participation_state_class: active
+    device_class: remote_dev_vm
+    os_family_class: linux
+    identity_mode_class: self_hosted_org
+    sync_session_state_class: local_authoritative_degraded
+    conflict_review_class: stale_payload
+    conflict_resolution_state_class: pending
+    offered_resolution_path_classes:
+      - keep_local
+      - decline
+    non_widening_posture_class: non_widening_affirmed
+    scope_broadening_verdict_class: not_applicable
+    local_ownership_marker_class: local_authoritative
+    data_class_portabilities:
+      - data_class_id: settings_user_global
+        portability_class: portable
+      - data_class_id: machine_local_paths
+        portability_class: machine_local
+      - data_class_id: ephemeral_operation_tokens
+        portability_class: excluded
+      - data_class_id: admin_policy_bundles
+        portability_class: policy_owned
+    last_successful_sync_state_class: stale_payload_pending_review
+    rollback_checkpoint_required: false
+    approval_ticket_required: false
+    owner_dri: "@ahmeddyounis"
+    failure_drill:
+      drill_id: device_sync_state_drill.stale_payload_conflict_review_class_drifted_to_no_conflict
+      forced_input:
+        rewrite_conflict_review_class: no_conflict
+      expected_check_id: settings_sync_state.stale_payload_must_not_drift_to_no_conflict
+      actionable_next_action: >-
+        Restore conflict_review_class to stale_payload; a refused
+        bundle whose epoch is not strictly greater than the last
+        accepted epoch MUST surface as stale_payload, not silently as
+        no_conflict.

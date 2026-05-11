@@ -1,0 +1,393 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/settings_sync_state.schema.json",
+  "title": "Aureline device-registry and settings-sync seed row",
+  "description": "Boundary schema for one settings_sync_state_row_record published by the M1 device-registry and settings-sync seed. Each row binds one device participation profile to (1) a device participation_state_class drawn from the canonical active/paused/revoked/forgotten lifecycle, (2) a sync session_state_class drawn from the closed sync-session vocabulary, (3) a typed conflict_review_class drawn from the conflict-review vocabulary later UI surfaces consume verbatim, (4) the offered_resolution_path_class set the row exposes (so surfaces cannot invent their own keep-local / keep-synced / merge / rollback / decline paths), (5) the resolution_state_class lifecycle stage the row sits in, (6) the non_widening_posture_class declared on the row's outgoing scope bundle, (7) the scope_broadening_verdict_class the row exposes (so widening cannot ride the same packet shape as a normal apply), (8) the local_ownership_marker_class that separates local-authoritative, managed-authoritative, and policy-authoritative state, (9) a data_class_portability_set covering portable / machine_local / excluded / policy_owned classes the row exposes, and (10) a named failure drill the validation lane reproduces. This schema is a registry entry contract, not a runtime sync engine: it does not implement transport, conflict detection, or merging.",
+  "$ref": "#/$defs/settings_sync_state_row_record",
+  "$defs": {
+    "settings_sync_state_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for settings-sync state rows. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "settings_sync_state_row_record",
+      "description": "Discriminator for the record shape."
+    },
+    "sync_state_profile_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable, machine-readable id for the sync-state profile row (for example active.local_authoritative.no_conflict). Lowercase dot/underscore/hyphen segments only so the id is safe to log, safe in support exports, and safe in release artifacts."
+    },
+    "device_participation_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "revoked",
+        "forgotten"
+      ],
+      "description": "Frozen device participation-state vocabulary. 'active' is the normal participating state. 'paused' is a user- or admin-initiated freeze that retains the device's lineage cursor but emits no bundles and consumes no arrivals. 'revoked' is a durable refusal that rejects all sync traffic. 'forgotten' is the terminal state after the revoke retention window; only the device_id and revocation stamps remain so the audit stream stays complete."
+    },
+    "device_class": {
+      "type": "string",
+      "enum": [
+        "personal_workstation",
+        "corp_workstation",
+        "personal_laptop",
+        "corp_laptop",
+        "remote_dev_vm",
+        "ci_worker",
+        "ephemeral_sandbox",
+        "unknown"
+      ],
+      "description": "Coarse device-class vocabulary used by the seed. Raw hostnames, MAC addresses, serials, and user ids never appear; only the class travels."
+    },
+    "os_family_class": {
+      "type": "string",
+      "enum": [
+        "macos",
+        "linux",
+        "windows",
+        "remote_container",
+        "web_runtime",
+        "unknown"
+      ],
+      "description": "Coarse os-family class used by the seed. Raw os versions, kernel builds, and hostnames never appear; only the class travels."
+    },
+    "identity_mode_class": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_convenience"
+      ],
+      "description": "Identity mode at the moment of seed registration. A device whose identity_mode changes mints a new device_id under migration; the old profile carries through the revocation lifecycle rather than being rewritten in place."
+    },
+    "sync_session_state_class": {
+      "type": "string",
+      "enum": [
+        "open",
+        "local_authoritative_degraded",
+        "refused",
+        "paused",
+        "manual_continuity_in_progress"
+      ],
+      "description": "Frozen sync-session state vocabulary. 'open' is a live, non-degraded session. 'local_authoritative_degraded' is the floor whenever transport is unavailable, payload stale, capability missing, or policy blocks; local values remain authoritative. 'refused' covers durable refusals (revoked device, encryption failure, policy block, schema incompatibility). 'paused' covers user- or admin-initiated session pause. 'manual_continuity_in_progress' covers the typed export/import path users carry by hand."
+    },
+    "conflict_review_class": {
+      "type": "string",
+      "enum": [
+        "no_conflict",
+        "value_equal_no_op",
+        "keep_local_pending_review",
+        "keep_synced_pending_review",
+        "merge_preview_pending_review",
+        "rollback_friendly_review_pending",
+        "scope_broadening_refusal",
+        "allowed_scope_mismatch",
+        "stale_payload",
+        "encryption_failure",
+        "policy_block",
+        "device_revoked",
+        "device_paused",
+        "identity_mode_mismatch",
+        "schema_version_incompatible",
+        "declined"
+      ],
+      "description": "Canonical conflict-review vocabulary. Later UI surfaces (settings UI, support exporter, mutation-journal renderer, migration center, conflict review surface) MUST present one of these tokens; surfaces MUST NOT invent their own conflict status names. 'no_conflict' and 'value_equal_no_op' are the only no-write outcomes safe to suppress from the UI."
+    },
+    "conflict_resolution_state_class": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "previewed",
+        "acknowledged",
+        "resolved",
+        "declined",
+        "expired",
+        "withdrawn",
+        "not_applicable"
+      ],
+      "description": "Resolution-state lifecycle stage the row sits in. 'pending' is the initial state. 'previewed' is reached after a preview render. 'acknowledged' is reached after the user reviews and signs off. 'resolved' is terminal-applied. 'declined' is terminal-refused. 'expired' fires when an acknowledgement times out. 'withdrawn' fires when the producer device is paused/revoked/forgotten before apply. 'not_applicable' applies to no-conflict / value_equal_no_op rows that never enter the lifecycle."
+    },
+    "offered_resolution_path_class": {
+      "type": "string",
+      "enum": [
+        "keep_local",
+        "keep_synced",
+        "merge_preview",
+        "rollback_friendly_review",
+        "decline"
+      ],
+      "description": "Resolution path the row offers. 'keep_local' is always available so the user always has a safe out. 'keep_synced' is offered only when the entry did not widen trust and does not violate allowed-scope rules. 'merge_preview' is offered only when the delta is merge-safe. 'rollback_friendly_review' is the default path whenever the setting requires a rollback checkpoint or an approval ticket. 'decline' is terminal refusal."
+    },
+    "non_widening_posture_class": {
+      "type": "string",
+      "enum": [
+        "non_widening_affirmed",
+        "non_widening_not_required",
+        "non_widening_affirmation_missing"
+      ],
+      "description": "Posture the row's outgoing scope bundle declares for the non-widening invariant. 'non_widening_affirmed' means the producer set non_widening_affirmed = true. 'non_widening_not_required' applies to rows that do not emit bundles (paused/revoked/forgotten or manual-continuity-in-progress with no bundle on the wire). 'non_widening_affirmation_missing' represents the invariant-violation state used by the failure drill; the validation lane forbids it on protected rows."
+    },
+    "scope_broadening_verdict_class": {
+      "type": "string",
+      "enum": [
+        "would_not_widen_trust",
+        "would_widen_trust_refused",
+        "narrowing_only",
+        "not_applicable"
+      ],
+      "description": "Scope-broadening verdict the row stamps on its entries. 'would_not_widen_trust' is the normal case. 'would_widen_trust_refused' captures the refusal path (paired with conflict_review_class = scope_broadening_refusal). 'narrowing_only' captures rows that only narrow local values. 'not_applicable' applies to rows that do not exchange entries."
+    },
+    "local_ownership_marker_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "managed_authoritative",
+        "policy_authoritative",
+        "machine_local_excluded"
+      ],
+      "description": "Local-vs-managed ownership marker. 'local_authoritative' means the device retains final say over its local values regardless of session state. 'managed_authoritative' means a managed sync service (M1: not yet built) would own the row when it lands. 'policy_authoritative' means admin policy owns the row and sync cannot override it. 'machine_local_excluded' marks rows whose data class is machine-local-only and never crosses sync, distinct from local_authoritative state that could in principle ride sync."
+    },
+    "data_portability_class": {
+      "type": "string",
+      "enum": [
+        "portable",
+        "machine_local",
+        "excluded",
+        "policy_owned"
+      ],
+      "description": "Portability class for a data class. 'portable' rides sync subject to scope-broadening and allowed-scope rules. 'machine_local' is bound to one device and never syncs. 'excluded' is on the explicit omitted-classes denylist (secret bytes, credentials, trust grants, etc). 'policy_owned' is owned by admin policy and cannot be moved by user sync."
+    },
+    "data_class_portability_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_class_id",
+        "portability_class"
+      ],
+      "properties": {
+        "data_class_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Opaque data-class id (for example settings_user_global, machine_local_paths, admin_policy_bundles). Consumers treat this as opaque text."
+        },
+        "portability_class": { "$ref": "#/$defs/data_portability_class" },
+        "notes": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "Optional short reviewer-facing note about this data class on this row."
+        }
+      }
+    },
+    "failure_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "forced_input",
+        "expected_check_id",
+        "actionable_next_action"
+      ],
+      "properties": {
+        "drill_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Stable id for the row's named failure drill, drawn from the envelope's failure_drill_id_vocabulary."
+        },
+        "forced_input": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Forced row mutation applied under --force-drill so the runner can reproduce the named expected_check_id from a clean tree."
+        },
+        "expected_check_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Exact check_id the runner must report under --force-drill."
+        },
+        "actionable_next_action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Short reviewer-readable next action when the drill fires unexpectedly."
+        }
+      },
+      "description": "Named failure drill the validation lane reproduces under --force-drill. Required on every row so omissions stay loud."
+    },
+    "settings_sync_state_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "settings_sync_state_row_schema_version",
+        "sync_state_profile_id",
+        "device_participation_state_class",
+        "device_class",
+        "os_family_class",
+        "identity_mode_class",
+        "sync_session_state_class",
+        "conflict_review_class",
+        "conflict_resolution_state_class",
+        "offered_resolution_path_classes",
+        "non_widening_posture_class",
+        "scope_broadening_verdict_class",
+        "local_ownership_marker_class",
+        "data_class_portabilities",
+        "owner_dri",
+        "failure_drill"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "settings_sync_state_row_schema_version": {
+          "$ref": "#/$defs/settings_sync_state_row_schema_version"
+        },
+        "sync_state_profile_id": { "$ref": "#/$defs/sync_state_profile_id" },
+        "device_participation_state_class": {
+          "$ref": "#/$defs/device_participation_state_class"
+        },
+        "device_class": { "$ref": "#/$defs/device_class" },
+        "os_family_class": { "$ref": "#/$defs/os_family_class" },
+        "identity_mode_class": { "$ref": "#/$defs/identity_mode_class" },
+        "sync_session_state_class": {
+          "$ref": "#/$defs/sync_session_state_class"
+        },
+        "conflict_review_class": { "$ref": "#/$defs/conflict_review_class" },
+        "conflict_resolution_state_class": {
+          "$ref": "#/$defs/conflict_resolution_state_class"
+        },
+        "offered_resolution_path_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/offered_resolution_path_class" },
+          "description": "Resolution paths the row offers. MUST include 'keep_local' on every row so the user always has a safe out, unless the row is in no_conflict / value_equal_no_op state where keep_local is the trivial path and the validation lane allows omission only when conflict_review_class is one of those two."
+        },
+        "non_widening_posture_class": {
+          "$ref": "#/$defs/non_widening_posture_class"
+        },
+        "scope_broadening_verdict_class": {
+          "$ref": "#/$defs/scope_broadening_verdict_class"
+        },
+        "local_ownership_marker_class": {
+          "$ref": "#/$defs/local_ownership_marker_class"
+        },
+        "data_class_portabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/data_class_portability_entry" },
+          "description": "Per-data-class portability classifications the row exposes. Every row publishes at least one entry; the envelope asserts the union covers all four portability classes (portable, machine_local, excluded, policy_owned) across the seed."
+        },
+        "last_successful_sync_state_class": {
+          "type": "string",
+          "enum": [
+            "never_synced",
+            "synced_within_freshness_budget",
+            "stale_payload_pending_review",
+            "not_applicable"
+          ],
+          "description": "Coarse last-successful-sync class. 'never_synced' applies to first-registration rows. 'synced_within_freshness_budget' applies to rows whose last accepted epoch is fresh per the resolver budget. 'stale_payload_pending_review' applies to rows whose latest arrival was refused with stale_payload. 'not_applicable' applies to rows that never participate."
+        },
+        "rollback_checkpoint_required": {
+          "type": "boolean",
+          "description": "Whether applying this row's sync resolution requires an ADR-0006 rollback checkpoint. The validation lane forbids merge_preview without a non-null rollback_checkpoint_required pin on protected rows."
+        },
+        "approval_ticket_required": {
+          "type": "boolean",
+          "description": "Whether applying this row's sync resolution requires an ADR-0007 approval ticket."
+        },
+        "owner_dri": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^@[a-zA-Z0-9_-]+$",
+          "description": "Named owner DRI for the sync-state profile row."
+        },
+        "failure_drill": { "$ref": "#/$defs/failure_drill" },
+        "notes": {
+          "type": "string",
+          "maxLength": 1024,
+          "description": "Optional short reviewer-facing note about the row."
+        }
+      },
+      "allOf": [
+        {
+          "description": "active rows MUST publish a sync_session_state_class drawn from the active-eligible subset; paused / revoked / forgotten rows MUST publish the corresponding refused or degraded session class.",
+          "if": {
+            "properties": {
+              "device_participation_state_class": { "const": "revoked" }
+            },
+            "required": ["device_participation_state_class"]
+          },
+          "then": {
+            "properties": {
+              "sync_session_state_class": { "const": "refused" },
+              "conflict_review_class": { "const": "device_revoked" }
+            },
+            "required": ["sync_session_state_class", "conflict_review_class"]
+          }
+        },
+        {
+          "description": "paused devices MUST publish sync_session_state_class = local_authoritative_degraded or paused and conflict_review_class = device_paused.",
+          "if": {
+            "properties": {
+              "device_participation_state_class": { "const": "paused" }
+            },
+            "required": ["device_participation_state_class"]
+          },
+          "then": {
+            "properties": {
+              "sync_session_state_class": {
+                "enum": ["local_authoritative_degraded", "paused"]
+              },
+              "conflict_review_class": { "const": "device_paused" }
+            },
+            "required": ["sync_session_state_class", "conflict_review_class"]
+          }
+        },
+        {
+          "description": "rows whose conflict_review_class is scope_broadening_refusal MUST publish scope_broadening_verdict_class = would_widen_trust_refused and offer keep_local in the resolution-path set.",
+          "if": {
+            "properties": {
+              "conflict_review_class": { "const": "scope_broadening_refusal" }
+            },
+            "required": ["conflict_review_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_broadening_verdict_class": {
+                "const": "would_widen_trust_refused"
+              }
+            },
+            "required": ["scope_broadening_verdict_class"]
+          }
+        },
+        {
+          "description": "rows whose conflict_review_class is no_conflict or value_equal_no_op MUST publish conflict_resolution_state_class = not_applicable.",
+          "if": {
+            "properties": {
+              "conflict_review_class": {
+                "enum": ["no_conflict", "value_equal_no_op"]
+              }
+            },
+            "required": ["conflict_review_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_resolution_state_class": { "const": "not_applicable" }
+            },
+            "required": ["conflict_resolution_state_class"]
+          }
+        }
+      ]
+    }
+  }
+}
