@@ -58,6 +58,12 @@ pub mod layout;
 /// Notification routing: toast, banner, status, and durable-activity row
 /// projections derived from the typed notification envelope contract.
 pub mod notifications;
+/// Bounded notebook-trust-badge and representation-state wedge on one
+/// certified notebook-like preview row. Renders workspace, notebook,
+/// kernel, output, and widget trust as visibly distinct axes alongside
+/// the per-row representation state and escape hatches. The wedge never
+/// autoexecutes active content on notebook open.
+pub mod notebook_trust_badges;
 /// Command palette query-session state and grouped result projections.
 pub mod palette;
 /// Path-truth chip, alias inspector, and pre-write save-target review projections.
