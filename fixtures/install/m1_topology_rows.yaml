@@ -1,0 +1,616 @@
+# Trust-policy and install-topology smoke matrix for the local-first
+# dogfood rows.
+#
+# This file is the canonical, machine-readable seed for the unattended
+# trust-policy / install-topology smoke lane. The lane proves that on
+# the protected dogfood rows:
+#
+#   - local-first install profiles remain usable without account sign-in;
+#   - state-root and channel identity are inspectable on supported
+#     packaging paths without guessing from the filesystem;
+#   - trust-state and policy denials surface actionable explanations
+#     instead of generic errors;
+#   - locked or unavailable credential stores keep local capabilities
+#     reachable while pausing only the credentialed surfaces; and
+#   - side-by-side channels, handler ownership, and restricted/suspicious
+#     preview posture stay explicit on dogfood rows.
+#
+# The matrix joins already-frozen sources rather than inventing a
+# parallel vocabulary. The runner under
+# tests/smoke/trust_policy_install_topology/ resolves every row's
+# claimed install card, durable state roots, trust state, credential
+# store posture, and claimed profile against those sources and emits a
+# durable JSON capture under
+# artifacts/milestones/m1/captures/.
+#
+# Rules.
+#   - Every row MUST name one stable smoke_row_id, the dogfood row it
+#     inherits coverage from, the install_truth_card_id it claims, the
+#     declared trust_state, the shell_mode it is asserting, and the
+#     credential_store posture it exercises.
+#   - Every row MUST resolve install_mode_class, channel_class,
+#     side_by_side_relation_class, and durable_state_root_refs into the
+#     install-topology matrix and the state-root map; mismatches are
+#     non-conforming.
+#   - Every row MUST keep the local-baseline admissible-surface floor
+#     admitted regardless of trust state or credential posture. Trust
+#     denials and policy blocks narrow only the named non-floor
+#     surfaces.
+#   - Every row MUST declare at least one named failure drill drawn
+#     from the row's failure_drill_id_vocabulary; the drill MUST be
+#     reproducible by the runner against pure data.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field outside this header note.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-11"
+owner_dri: "@ahmeddyounis"
+
+matrix_id: aureline.install.trust_policy_install_topology_smoke_matrix
+overview_page: artifacts/ops/m1_install_topology_smoke_report.md
+
+# Vocabulary reuse pointers. The runner verifies these resolve.
+vocabulary_sources:
+  trust_state_matrix_ref: artifacts/security/trust_state_matrix.yaml
+  install_topology_matrix_ref: artifacts/release/install_topology_matrix.yaml
+  state_root_map_ref: artifacts/release/state_root_map.yaml
+  credential_state_capability_matrix_ref: fixtures/auth/credential_state_cases/store_capability_matrix.yaml
+  claimed_profiles_ref: artifacts/platform/claimed_desktop_profiles.yaml
+  native_trust_integration_matrix_ref: artifacts/platform/native_trust_integration_matrix.yaml
+  local_baseline_proof_ref: artifacts/managed/local_baseline_proof.yaml
+  dogfood_matrix_ref: artifacts/milestones/m1/dogfood_matrix.yaml
+
+# Hard upstream contracts this lane projects against. The lane is not
+# allowed to fork these surfaces; it only reads them and asserts truth.
+hard_dependency_refs:
+  - crates/aureline-shell/src/recovery/safe_mode.rs
+  - crates/aureline-auth/src/credential_state/mod.rs
+  - crates/aureline-auth/src/browser_callback/mod.rs
+  - crates/aureline-shell/src/terminal_pane/mod.rs
+
+# Validation lane bound to this matrix. Lane registration in the proof
+# index points at the same QE lane.
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# Frozen vocabulary echoed for the runner. These slices stay aligned
+# with the canonical sources above.
+shell_mode_vocabulary:
+  - local_first_no_account
+  - managed_signed_in
+  - managed_with_local_byok_ai
+
+credential_store_unlock_state_vocabulary:
+  - locked
+  - unlocking
+  - unlocked
+  - step_up_required
+  - degraded_session_only
+  - unavailable
+
+denial_reason_class_vocabulary:
+  - blocked_pending_trust
+  - quarantine_denied
+  - degraded_preview_only
+  - approval_required_per_invocation
+  - trust_store_locked
+  - trust_store_unavailable
+  - policy_denied_egress
+  - safe_mode_workspace_restricted
+
+safe_preview_posture_vocabulary:
+  - sanitized_metadata_only
+  - trusted_local_active
+  - blocked_pending_trust
+
+failure_drill_id_vocabulary:
+  - flip_topology_truth_to_force_drift
+  - flip_trust_policy_to_force_drift
+  - drop_local_baseline_floor_surface
+  - drop_state_root_inspectable_disclosure
+
+# Closed list of admissible surface ids the runner accepts on every
+# row. Surfaces not in this list are not allowed to appear in the
+# expected_admissible_surfaces or expected_blocked_surfaces blocks.
+admissible_surface_class_vocabulary:
+  - file_open_and_edit
+  - file_save_to_local_disk
+  - local_search
+  - local_git_read
+  - local_git_write
+  - support_bundle_export_local_only
+  - quick_open
+  - integrated_terminal_manual_open
+  - integrated_terminal_repo_recipe_launch
+  - tasks_run
+  - debug_launch
+  - notebook_kernel_connect
+  - notebook_cell_execute
+  - notebook_rich_output_render
+  - extension_activation
+  - extension_install
+  - environment_activator_run
+  - scaffold_template_run
+  - connected_provider_open
+  - connected_provider_tool_call
+  - remote_attach
+  - mcp_server_launch
+  - shell_command_palette
+  - admin_policy_read
+
+# Local-baseline floor that MUST remain admitted on every row regardless
+# of trust state or credential posture (re-exported from the local-
+# baseline proof artifact). The runner refuses to admit a row whose
+# expected_blocked_surfaces overlaps the floor.
+local_baseline_admissible_surface_floor:
+  - file_open_and_edit
+  - file_save_to_local_disk
+  - local_search
+  - local_git_read
+  - support_bundle_export_local_only
+
+# Required dimension coverage. Every dimension MUST be exercised by at
+# least one row; missing coverage is a lane failure.
+required_smoke_dimension_coverage:
+  - local_first_no_account_entry
+  - managed_local_versus_managed_vocabulary
+  - locked_or_unavailable_credential_store
+  - policy_blocked_action
+  - side_by_side_channels
+  - portable_no_host_mutation
+  - safe_mode_or_restricted_preview
+
+smoke_dimension_class_vocabulary:
+  - local_first_no_account_entry
+  - managed_local_versus_managed_vocabulary
+  - locked_or_unavailable_credential_store
+  - policy_blocked_action
+  - side_by_side_channels
+  - portable_no_host_mutation
+  - safe_mode_or_restricted_preview
+
+# Smoke rows. Each row pins one (install_truth_card_id, trust_state,
+# credential_store_posture, shell_mode) tuple plus the dogfood row it
+# inherits coverage from. The runner refuses unknown vocabulary, missing
+# install cards, missing state-roots, and trust-state mismatches.
+rows:
+  - smoke_row_id: aureline.install.smoke.local_first_no_account_per_user_stable_macos
+    title: Local-first per-user-installed Stable on macOS opens and edits without sign-in
+    inherited_dogfood_row_id: dogfood.fixture_repo.plain_text_notes
+    install_truth_card_id: card.macos.universal_binary.per_user_installed.stable
+    expected_install_mode_class: per_user_installed
+    expected_channel_class: stable
+    expected_side_by_side_relation_class: stable_and_preview
+    expected_durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_keychain_or_secret_store.stable
+    trust_state: trusted
+    shell_mode: local_first_no_account
+    credential_store_posture:
+      trust_store_class: os_keychain
+      unlock_state: unlocked
+      backend_label: Keychain Services
+    safe_preview_posture: trusted_local_active
+    expected_admissible_surfaces:
+      - file_open_and_edit
+      - file_save_to_local_disk
+      - local_search
+      - local_git_read
+      - local_git_write
+      - support_bundle_export_local_only
+      - quick_open
+      - integrated_terminal_manual_open
+      - shell_command_palette
+    expected_blocked_surfaces: []
+    expected_state_root_inspectable_in_diagnostics: true
+    expected_channel_identity_visible: true
+    expected_handler_ownership_disclosure_required: true
+    claimed_profile_ids:
+      - macos_15_plus_universal
+    smoke_dimensions_covered:
+      - local_first_no_account_entry
+    named_failure_drills:
+      - flip_topology_truth_to_force_drift
+    failure_drill:
+      drill_id: flip_topology_truth_to_force_drift
+      description: >
+        Rewrite the row's expected_install_mode_class to "portable" while
+        the install_truth_card resolves to per_user_installed. The smoke
+        runner must surface install_topology.install_mode_class.mismatch
+        with an actionable owner pointer instead of treating the row as
+        passing.
+      forced_input:
+        rewrite_expected_install_mode_class: portable
+      expected_check_id: install_topology.install_mode_class.mismatch
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Re-run the smoke lane after re-aligning the row's
+        expected_install_mode_class with the install_truth_card; if the
+        topology truly changed, update the install-topology matrix in
+        the same change.
+
+  - smoke_row_id: aureline.install.smoke.managed_signed_in_per_machine_stable_windows
+    title: Managed-deployed per-machine Stable on Windows shows managed shell vocabulary and admin policy roots
+    inherited_dogfood_row_id: dogfood.fixture_repo.nested_source_tree
+    install_truth_card_id: card.windows.x86_64.managed_deployed.stable
+    expected_install_mode_class: managed_deployed
+    expected_channel_class: stable
+    expected_side_by_side_relation_class: none
+    expected_durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+    trust_state: trusted_policy_degraded
+    shell_mode: managed_signed_in
+    credential_store_posture:
+      trust_store_class: os_keychain
+      unlock_state: unlocked
+      backend_label: Credential Manager / DPAPI-backed storage
+    safe_preview_posture: trusted_local_active
+    expected_admissible_surfaces:
+      - file_open_and_edit
+      - file_save_to_local_disk
+      - local_search
+      - local_git_read
+      - local_git_write
+      - support_bundle_export_local_only
+      - quick_open
+      - integrated_terminal_manual_open
+      - shell_command_palette
+      - admin_policy_read
+    expected_blocked_surfaces: []
+    expected_state_root_inspectable_in_diagnostics: true
+    expected_channel_identity_visible: true
+    expected_handler_ownership_disclosure_required: true
+    claimed_profile_ids:
+      - windows_11_23h2_plus_x86_64
+    smoke_dimensions_covered:
+      - managed_local_versus_managed_vocabulary
+    named_failure_drills:
+      - flip_trust_policy_to_force_drift
+    failure_drill:
+      drill_id: flip_trust_policy_to_force_drift
+      description: >
+        Rewrite the row's trust_state to "trusted" while the row still
+        names admin_policy_read. The smoke must continue to enforce the
+        policy-degraded floor and refuse to silently widen approvals;
+        the runner asserts trust_state.allowed_only_under_policy_degraded
+        as the precise actionable check.
+      forced_input:
+        rewrite_trust_state_to_trusted: true
+      expected_check_id: trust_policy.degraded_marker_dropped
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Re-confirm the managed shell's policy posture in the trust-state
+        matrix; if the workspace is no longer policy-degraded, update
+        both the matrix and the smoke row in the same change.
+
+  - smoke_row_id: aureline.install.smoke.locked_keychain_local_first_linux
+    title: Locked OS keychain on Linux keeps local edit/save reachable while pausing credentialed actions
+    inherited_dogfood_row_id: dogfood.fixture_repo.path_and_encoding
+    install_truth_card_id: card.linux.x86_64.per_user_installed.stable
+    expected_install_mode_class: per_user_installed
+    expected_channel_class: stable
+    expected_side_by_side_relation_class: stable_and_preview
+    expected_durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+    trust_state: trusted
+    shell_mode: local_first_no_account
+    credential_store_posture:
+      trust_store_class: os_keychain
+      unlock_state: locked
+      backend_label: Secret Service via libsecret / GNOME Keyring
+      visible_failure_label: trust_store_locked
+    safe_preview_posture: sanitized_metadata_only
+    expected_admissible_surfaces:
+      - file_open_and_edit
+      - file_save_to_local_disk
+      - local_search
+      - local_git_read
+      - local_git_write
+      - support_bundle_export_local_only
+      - quick_open
+      - integrated_terminal_manual_open
+      - shell_command_palette
+    expected_blocked_surfaces:
+      - surface: connected_provider_tool_call
+        denial_reason: trust_store_locked
+        actionable_explanation: Unlock the OS keyring (Secret Service / Keyring) to resolve the saved provider session; local editing remains available.
+      - surface: connected_provider_open
+        denial_reason: trust_store_locked
+        actionable_explanation: The OS keyring is locked; the connected-provider open prompt waits for unlock.
+    expected_state_root_inspectable_in_diagnostics: true
+    expected_channel_identity_visible: true
+    expected_handler_ownership_disclosure_required: true
+    claimed_profile_ids:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+    smoke_dimensions_covered:
+      - locked_or_unavailable_credential_store
+    named_failure_drills:
+      - drop_local_baseline_floor_surface
+    failure_drill:
+      drill_id: drop_local_baseline_floor_surface
+      description: >
+        Drop file_save_to_local_disk from the row's
+        expected_admissible_surfaces. The smoke runner must surface
+        local_baseline.floor_surface_missing because the local-baseline
+        proof artifact requires the floor surfaces on every row,
+        regardless of credential-store posture.
+      forced_input:
+        drop_admissible_surface: file_save_to_local_disk
+      expected_check_id: local_baseline.floor_surface_missing
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Re-add file_save_to_local_disk to expected_admissible_surfaces;
+        a locked credential store MUST never block local save.
+
+  - smoke_row_id: aureline.install.smoke.policy_blocked_managed_egress_macos
+    title: Policy-blocked managed egress on macOS surfaces typed denial without hiding local-baseline floor
+    inherited_dogfood_row_id: dogfood.fixture_repo.missing_target_restore
+    install_truth_card_id: card.macos.universal_binary.managed_deployed.stable
+    expected_install_mode_class: managed_deployed
+    expected_channel_class: stable
+    expected_side_by_side_relation_class: none
+    expected_durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_keychain_or_secret_store.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+    trust_state: trusted_policy_degraded
+    shell_mode: managed_signed_in
+    credential_store_posture:
+      trust_store_class: os_keychain
+      unlock_state: unlocked
+      backend_label: Keychain Services
+    safe_preview_posture: trusted_local_active
+    expected_admissible_surfaces:
+      - file_open_and_edit
+      - file_save_to_local_disk
+      - local_search
+      - local_git_read
+      - local_git_write
+      - support_bundle_export_local_only
+      - quick_open
+      - integrated_terminal_manual_open
+      - shell_command_palette
+      - admin_policy_read
+    expected_blocked_surfaces:
+      - surface: connected_provider_open
+        denial_reason: policy_denied_egress
+        actionable_explanation: Admin policy blocks outbound egress to this provider; the typed transport-decision denial is shown instead of a generic network error.
+      - surface: extension_install
+        denial_reason: approval_required_per_invocation
+        actionable_explanation: Install requires a fresh approval ticket under policy-degraded posture; existing local edits and saves continue.
+    expected_state_root_inspectable_in_diagnostics: true
+    expected_channel_identity_visible: true
+    expected_handler_ownership_disclosure_required: true
+    claimed_profile_ids:
+      - macos_15_plus_universal
+    smoke_dimensions_covered:
+      - policy_blocked_action
+    named_failure_drills:
+      - flip_trust_policy_to_force_drift
+    failure_drill:
+      drill_id: flip_trust_policy_to_force_drift
+      description: >
+        Rewrite the row's connected_provider_open denial_reason to a
+        generic "network_error" string outside the typed denial-reason
+        vocabulary. The smoke runner must surface
+        denial_reason.unknown_class so support reviewers cannot mistake
+        a policy denial for an offline state.
+      forced_input:
+        rewrite_blocked_surface_denial_reason:
+          surface: connected_provider_open
+          to: network_error
+      expected_check_id: denial_reason.unknown_class
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore the typed denial-reason class (policy_denied_egress) so
+        the support-bundle and About surfaces explain the denial
+        actionably instead of as a generic network failure.
+
+  - smoke_row_id: aureline.install.smoke.side_by_side_preview_stable_windows
+    title: Side-by-side Preview channel on Windows keeps state-roots and protocol scheme isolated from Stable
+    inherited_dogfood_row_id: dogfood.fixture_repo.plain_text_notes
+    install_truth_card_id: card.windows.x86_64.side_by_side_preview.preview
+    expected_install_mode_class: side_by_side_preview
+    expected_channel_class: preview
+    expected_side_by_side_relation_class: stable_and_preview
+    expected_durable_state_root_refs:
+      - state.per_user_configuration_root.preview
+      - state.per_user_recovery_root.preview
+      - state.per_user_derived_cache_root.preview
+    trust_state: trusted
+    shell_mode: local_first_no_account
+    credential_store_posture:
+      trust_store_class: os_keychain
+      unlock_state: unlocked
+      backend_label: Credential Manager / DPAPI-backed storage
+    safe_preview_posture: trusted_local_active
+    expected_admissible_surfaces:
+      - file_open_and_edit
+      - file_save_to_local_disk
+      - local_search
+      - local_git_read
+      - local_git_write
+      - support_bundle_export_local_only
+      - quick_open
+      - integrated_terminal_manual_open
+      - shell_command_palette
+    expected_blocked_surfaces: []
+    expected_state_root_inspectable_in_diagnostics: true
+    expected_channel_identity_visible: true
+    expected_handler_ownership_disclosure_required: true
+    expected_no_state_root_collision_with_other_channel: true
+    claimed_profile_ids:
+      - windows_11_23h2_plus_x86_64
+    smoke_dimensions_covered:
+      - side_by_side_channels
+    named_failure_drills:
+      - drop_state_root_inspectable_disclosure
+    failure_drill:
+      drill_id: drop_state_root_inspectable_disclosure
+      description: >
+        Replace one of the row's expected_durable_state_root_refs with
+        a stable-channel state root (state.per_user_configuration_root.stable).
+        The smoke runner must surface
+        side_by_side.state_root_owning_channel_collision so the lane
+        catches a Preview install reading Stable state.
+      forced_input:
+        rewrite_durable_state_root_ref:
+          from: state.per_user_configuration_root.preview
+          to: state.per_user_configuration_root.stable
+      expected_check_id: side_by_side.state_root_owning_channel_collision
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Re-align the Preview row's durable_state_root_refs with the
+        Preview-owned state-root rows; cross-channel state sharing is a
+        violation of the per-channel separation rules.
+
+  - smoke_row_id: aureline.install.smoke.portable_no_host_mutation_linux
+    title: Portable channel on Linux remains colocated with the portable directory and never mutates host registrations
+    inherited_dogfood_row_id: dogfood.fixture_repo.nested_source_tree
+    install_truth_card_id: card.linux.x86_64.portable.portable_stable
+    expected_install_mode_class: portable
+    expected_channel_class: portable_stable
+    expected_side_by_side_relation_class: installed_and_portable
+    expected_durable_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+    trust_state: trusted
+    shell_mode: local_first_no_account
+    credential_store_posture:
+      trust_store_class: session_memory_cache
+      unlock_state: degraded_session_only
+      backend_label: Session-only broker fallback
+      visible_failure_label: trust_store_unavailable
+    safe_preview_posture: sanitized_metadata_only
+    expected_admissible_surfaces:
+      - file_open_and_edit
+      - file_save_to_local_disk
+      - local_search
+      - local_git_read
+      - local_git_write
+      - support_bundle_export_local_only
+      - quick_open
+      - integrated_terminal_manual_open
+      - shell_command_palette
+    expected_blocked_surfaces:
+      - surface: connected_provider_open
+        denial_reason: trust_store_unavailable
+        actionable_explanation: Portable mode falls back to a visible session-only broker; durable secure storage is disclosed as unavailable rather than implied present.
+    expected_state_root_inspectable_in_diagnostics: true
+    expected_channel_identity_visible: true
+    expected_handler_ownership_disclosure_required: true
+    expected_no_host_global_mutation: true
+    claimed_profile_ids:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+    smoke_dimensions_covered:
+      - portable_no_host_mutation
+    named_failure_drills:
+      - drop_state_root_inspectable_disclosure
+    failure_drill:
+      drill_id: drop_state_root_inspectable_disclosure
+      description: >
+        Replace the portable colocated state root with a per-user
+        configuration root. The smoke runner must surface
+        portable.host_mutation_forbidden because portable mode MUST NOT
+        write into per-user configuration outside the portable
+        directory.
+      forced_input:
+        rewrite_durable_state_root_ref:
+          from: state.portable_colocated_root.portable_stable
+          to: state.per_user_configuration_root.stable
+      expected_check_id: portable.host_mutation_forbidden
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Restore the portable colocated state root so portable mode
+        keeps its colocated state and the host stays uncontaminated.
+
+  - smoke_row_id: aureline.install.smoke.safe_mode_restricted_preview_macos
+    title: Safe-mode restricted workspace on macOS shows sanitized preview and keeps the local-baseline floor reachable
+    inherited_dogfood_row_id: dogfood.fixture_repo.missing_target_restore
+    install_truth_card_id: card.macos.universal_binary.per_user_installed.stable
+    expected_install_mode_class: per_user_installed
+    expected_channel_class: stable
+    expected_side_by_side_relation_class: stable_and_preview
+    expected_durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_user_keychain_or_secret_store.stable
+    trust_state: restricted_recovery_fallback
+    shell_mode: local_first_no_account
+    credential_store_posture:
+      trust_store_class: os_keychain
+      unlock_state: unlocked
+      backend_label: Keychain Services
+    safe_preview_posture: sanitized_metadata_only
+    expected_admissible_surfaces:
+      - file_open_and_edit
+      - file_save_to_local_disk
+      - local_search
+      - local_git_read
+      - support_bundle_export_local_only
+      - admin_policy_read
+    expected_blocked_surfaces:
+      - surface: integrated_terminal_repo_recipe_launch
+        denial_reason: safe_mode_workspace_restricted
+        actionable_explanation: The workspace is in safe-mode restricted recovery; repo-defined recipes are blocked until trust is granted.
+      - surface: tasks_run
+        denial_reason: blocked_pending_trust
+        actionable_explanation: Tasks remain blocked until the workspace is granted trust; local edit and search remain available.
+      - surface: extension_activation
+        denial_reason: blocked_pending_trust
+        actionable_explanation: Extension auto-activation pauses under restricted recovery; recovery-ladder offers remain reachable.
+      - surface: notebook_rich_output_render
+        denial_reason: degraded_preview_only
+        actionable_explanation: Notebook rich output downgrades to sanitized metadata preview under restricted recovery.
+    expected_state_root_inspectable_in_diagnostics: true
+    expected_channel_identity_visible: true
+    expected_handler_ownership_disclosure_required: true
+    claimed_profile_ids:
+      - macos_15_plus_universal
+    smoke_dimensions_covered:
+      - safe_mode_or_restricted_preview
+    named_failure_drills:
+      - drop_local_baseline_floor_surface
+    failure_drill:
+      drill_id: drop_local_baseline_floor_surface
+      description: >
+        Drop local_search from the row's expected_admissible_surfaces.
+        The smoke runner must surface
+        local_baseline.floor_surface_missing because restricted recovery
+        MUST keep the local-baseline floor reachable.
+      forced_input:
+        drop_admissible_surface: local_search
+      expected_check_id: local_baseline.floor_surface_missing
+      actionable_owner_ref: "@ahmeddyounis"
+      next_action: >
+        Re-add local_search to expected_admissible_surfaces; restricted
+        recovery is not a mode that may block local search.
+
+# Cadence guidance for the lane. The runner does not enforce cadence;
+# release and CI configuration do. This is informational so reviewers
+# know how often the artifact is expected to refresh.
+cadence_guidance:
+  per_change: >
+    Re-run when artifacts/security/trust_state_matrix.yaml,
+    artifacts/release/install_topology_matrix.yaml,
+    artifacts/release/state_root_map.yaml,
+    fixtures/auth/credential_state_cases/store_capability_matrix.yaml,
+    artifacts/platform/native_trust_integration_matrix.yaml,
+    artifacts/managed/local_baseline_proof.yaml, or
+    artifacts/milestones/m1/dogfood_matrix.yaml change.
+  nightly: >
+    Run on the nightly proof-lane scheduler against this matrix; capture
+    the JSON report under artifacts/milestones/m1/captures/.
