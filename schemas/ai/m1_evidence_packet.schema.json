@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/m1_evidence_packet.schema.json",
+  "title": "Aureline M1 AI evidence-packet seed and route/spend truth-strip vocabulary",
+  "description": "Bounded prototype schema for the AI evidence packet and route/spend truth strip that the launch AI wedge mints on every interaction. The schema covers only the M1 seed: it is intentionally narrower than the full ai_evidence_packet_record vocabulary in schemas/ai/evidence_packet.schema.json. The M1 seed never dispatches a model and never mints a billable spend amount, so this schema carries run identity, the typed provider/route placeholder, the local-vs-remote path posture, the spend posture, a coarse context summary, and the typed result lineage. Raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw prompt text, raw provider payloads, raw cost amounts, raw token counts, raw user identifiers, and raw billing-account ids never cross this boundary. Adding a new run-state class, local-vs-remote path class, spend-posture class, claim-limit row, or invariant-violation token is additive-minor and requires a schema-version bump; repurposing an existing value is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ai_evidence_seed_record" },
+    { "$ref": "#/$defs/ai_truth_strip_snapshot_record" }
+  ],
+  "$defs": {
+    "ai_evidence_seed_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this M1 evidence-packet seed export. Current value is 1."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support exports. Raw URLs, raw provider payloads, raw prompt text, raw cost amounts, and raw credential bodies never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source, or an opaque mono:<N> token in test fixtures."
+    },
+
+    "prototype_label": {
+      "type": "string",
+      "enum": ["m1_prototype_evidence_and_spend_seed"],
+      "description": "Frozen prototype-label vocabulary. The chrome MUST quote the token verbatim on every truth-strip and evidence-packet readout so a downstream surface cannot accidentally render the wedge without the boundary marker."
+    },
+
+    "run_state_class": {
+      "type": "string",
+      "enum": [
+        "dispatch_disabled_in_m1_seed",
+        "blocked_pending_resolution",
+        "preview_pre_dispatch_mocked",
+        "post_run_completed_mocked",
+        "post_run_failed_mocked"
+      ],
+      "description": "Run-state vocabulary the seed surfaces. dispatch_disabled_in_m1_seed and blocked_pending_resolution are the only states reachable from a live shell row in M1. The *_mocked variants exist only for fixture replay and never reach the live wedge."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "disabled_no_provider_in_m1_seed",
+        "mocked_test_provider"
+      ],
+      "description": "Provider class re-exported verbatim from the upstream aureline_ai::ProviderClass seed vocabulary. The live wedge always pins disabled_no_provider_in_m1_seed; mocked_test_provider is fixture-only."
+    },
+
+    "route_path_class": {
+      "type": "string",
+      "enum": [
+        "denied_by_policy_in_m1_seed",
+        "offline_cached_only"
+      ],
+      "description": "Route-path class re-exported verbatim from the upstream aureline_ai::RoutePathClass seed vocabulary."
+    },
+
+    "dispatch_target_class": {
+      "type": "string",
+      "enum": ["disabled_no_dispatch_in_m1_seed"],
+      "description": "Dispatch-target class re-exported verbatim from the upstream aureline_ai::DispatchTargetClass seed vocabulary. The M1 seed has exactly one value so the strip cannot imply a live dispatch path."
+    },
+
+    "local_or_remote_path_class": {
+      "type": "string",
+      "enum": [
+        "local_no_dispatch",
+        "local_only_cached",
+        "remote_mocked_for_fixtures",
+        "disabled_no_path"
+      ],
+      "description": "Coarse local-vs-remote vocabulary the strip renders so the user can see at a glance whether the wedge would run on the device, against a cached store, or off-device. local_no_dispatch is the live default; remote_mocked_for_fixtures exists only for the failure drill."
+    },
+
+    "spend_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_spend_in_m1_seed",
+        "mocked_spend_for_fixtures",
+        "bundled_no_incremental_cost",
+        "estimated_unverified_band"
+      ],
+      "description": "Coarse spend-posture vocabulary the strip renders. no_spend_in_m1_seed is the live default; the *_band and mocked variants exist only for fixture replay. Raw cost amounts in any currency, raw token counts, and raw provider unit prices never appear on the seed."
+    },
+
+    "draft_state_token": {
+      "type": "string",
+      "enum": [
+        "drafting",
+        "blocked_pending_resolution",
+        "ready_for_review_only",
+        "dispatch_disabled_in_m1_seed"
+      ],
+      "description": "Re-exported verbatim from aureline_ai::ComposerDraftState."
+    },
+
+    "claim_limit": {
+      "type": "string",
+      "enum": [
+        "single_bounded_wedge_only",
+        "no_live_model_dispatch",
+        "no_billing_or_quota_tracking",
+        "no_raw_secrets_or_provider_urls"
+      ],
+      "description": "Frozen claim-limit vocabulary. Every snapshot MUST carry this exact list in this exact order so a downstream surface cannot imply broad provider, billing, or admin depth."
+    },
+
+    "invariant_violation": {
+      "type": "string",
+      "enum": [
+        "missing_prototype_label",
+        "claim_limits_missing_or_out_of_order",
+        "route_and_path_class_disagree",
+        "spend_posture_contradicts_route",
+        "dispatch_disabled_but_completed_outcome_claimed",
+        "draft_blocked_but_packet_claims_ready",
+        "evidence_packet_id_missing",
+        "exact_build_identity_ref_missing"
+      ],
+      "description": "Frozen invariant-violation tokens. A buggy caller that strips the prototype label, drops a claim-limit row, asserts a completed run state while dispatch is disabled, claims ready_for_review_only while the draft is blocked, or omits the build-identity ref each lands a typed addressable failure rather than letting the chrome render a misleading packet."
+    },
+
+    "context_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mention_count",
+        "resolved_mention_count",
+        "attachment_count",
+        "trusted_attachment_count",
+        "tainted_attachment_count",
+        "fenced_attachment_count",
+        "slash_command_count",
+        "resolved_slash_command_count",
+        "aggregate_byte_estimate",
+        "budget_byte_ceiling"
+      ],
+      "properties": {
+        "mention_count": { "type": "integer", "minimum": 0 },
+        "resolved_mention_count": { "type": "integer", "minimum": 0 },
+        "attachment_count": { "type": "integer", "minimum": 0 },
+        "trusted_attachment_count": { "type": "integer", "minimum": 0 },
+        "tainted_attachment_count": { "type": "integer", "minimum": 0 },
+        "fenced_attachment_count": { "type": "integer", "minimum": 0 },
+        "slash_command_count": { "type": "integer", "minimum": 0 },
+        "resolved_slash_command_count": { "type": "integer", "minimum": 0 },
+        "aggregate_byte_estimate": { "type": "integer", "minimum": 0 },
+        "budget_byte_ceiling": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Coarse context summary the strip surfaces. Counts are derived mechanically from the upstream composer draft; raw mention text, raw attachment bytes, and raw slash-command arguments never appear."
+    },
+
+    "result_lineage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_reason_token", "addressable_target_token"],
+      "properties": {
+        "block_reason_token": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable token from aureline_ai::BlockReason::as_str() (e.g. unresolved_mention, tainted_attachment_outside_fenced_section, policy_blocked_route). Quoted verbatim by the chrome."
+        },
+        "addressable_target_token": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable token naming the upstream addressable row the block reason attributes to (e.g. mention:<id>, attachment:<id>, invocation:<id>, route:placeholder). The chrome routes the user to the matching upstream record through this token."
+        }
+      },
+      "description": "One result-lineage row. Every block reason on the upstream validation outcome emits exactly one row so the packet's lineage equals the draft's typed truth without forking the vocabulary."
+    },
+
+    "ai_evidence_seed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evidence_packet_id",
+        "prototype_label_token",
+        "composer_draft_ref",
+        "composer_session_ref",
+        "request_workspace_ref",
+        "exact_build_identity_ref",
+        "run_state_class",
+        "provider_class",
+        "route_path_class",
+        "dispatch_target_class",
+        "local_or_remote_path_class",
+        "spend_posture_class",
+        "draft_state_token",
+        "context_summary",
+        "result_lineage",
+        "claim_limits",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_evidence_seed_record" },
+        "schema_version": { "$ref": "#/$defs/ai_evidence_seed_schema_version" },
+        "evidence_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "prototype_label_token": { "$ref": "#/$defs/prototype_label" },
+        "composer_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "request_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "exact_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build's exact-build identity. Never the raw rustc / cargo / commit text — the build-info crate's exact_build_identity_ref() string only."
+        },
+        "run_state_class": { "$ref": "#/$defs/run_state_class" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "route_path_class": { "$ref": "#/$defs/route_path_class" },
+        "dispatch_target_class": { "$ref": "#/$defs/dispatch_target_class" },
+        "local_or_remote_path_class": { "$ref": "#/$defs/local_or_remote_path_class" },
+        "spend_posture_class": { "$ref": "#/$defs/spend_posture_class" },
+        "draft_state_token": { "$ref": "#/$defs/draft_state_token" },
+        "context_summary": { "$ref": "#/$defs/context_summary" },
+        "result_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/result_lineage_row" },
+          "description": "Result-lineage rows, in the order the upstream composer draft's validate() outcome emitted them. The chrome quotes the list verbatim so a downstream surface cannot reshape lineage truth."
+        },
+        "claim_limits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claim_limit" },
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "Exactly the four canonical claim-limit rows, in canonical order. A snapshot that drops a row, reorders, or duplicates a row denies with claim_limits_missing_or_out_of_order."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Bounded M1 AI evidence-packet seed. One record per inspected composer draft on the launch AI wedge. The packet links the draft, the route placeholder, the local-vs-remote path, the spend posture, and the result lineage. Raw URLs, raw provider payloads, raw cost amounts, raw token counts, and raw credential bodies never appear."
+    },
+
+    "route_spend_truth_strip_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_id", "label", "value_token", "value_label"],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "enum": [
+            "provider",
+            "route",
+            "dispatch_target",
+            "local_or_remote_path",
+            "spend_posture",
+            "run_state",
+            "context_summary",
+            "build_identity"
+          ],
+          "description": "Stable strip-row id. The chrome MUST render the rows in this order on the live wedge."
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "value_token": { "type": "string", "minLength": 1 },
+        "value_label": { "type": "string", "minLength": 1 }
+      },
+      "description": "One row on the truth strip. The chrome quotes the value_token verbatim for support exports and renders the value_label in the strip itself."
+    },
+
+    "ai_truth_strip_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "prototype_label_token",
+        "evidence_packet",
+        "truth_strip_rows",
+        "invariant_violations",
+        "has_invariant_violations"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_truth_strip_snapshot_record" },
+        "schema_version": { "$ref": "#/$defs/ai_evidence_seed_schema_version" },
+        "prototype_label_token": { "$ref": "#/$defs/prototype_label" },
+        "evidence_packet": { "$ref": "#/$defs/ai_evidence_seed_record" },
+        "truth_strip_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/route_spend_truth_strip_row" },
+          "minItems": 1
+        },
+        "invariant_violations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invariant_violation" }
+        },
+        "has_invariant_violations": { "type": "boolean" }
+      },
+      "description": "Snapshot the chrome renders on the launch AI wedge. Combines the evidence packet, the visible truth-strip rows, and the typed invariant-violation set so the chrome cannot ship a misleading strip without surfacing the violations."
+    }
+  }
+}

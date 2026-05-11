@@ -15,6 +15,14 @@ pub mod activity_center;
 /// AI composer / context-inspector projection over the bounded
 /// [`aureline_ai`] composer seed. Read-only for mutation; no model dispatch.
 pub mod ai_context_inspector;
+/// Bounded AI evidence-packet seed and route/spend truth strip wedge for
+/// the launch AI wedge. Reuses the upstream [`aureline_ai`] composer
+/// draft verbatim and never dispatches a model. The wedge mints one
+/// inspectable [`ai_truth_strip::AiEvidencePacketSeedRecord`] plus a
+/// typed [`ai_truth_strip::RouteSpendTruthStripRow`] list so the chrome
+/// can render a visible provider / route / path / spend strip alongside
+/// the AI context inspector without overstating what the seed can do.
+pub mod ai_truth_strip;
 pub mod app_frame;
 /// Shared badge projections (target/origin chips, boundary cues) consumed by
 /// terminal, task, debug-prep, and provider/auth entry points.
