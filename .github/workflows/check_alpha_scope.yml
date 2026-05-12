@@ -1,0 +1,63 @@
+# External alpha scope gate.
+#
+# Validates the canonical wedge matrix, go/no-go scoreboard, dependency graph,
+# and the validator consumer report for review.
+
+name: check_alpha_scope
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_alpha_scope.yml"
+      - "ci/check_alpha_scope.py"
+      - "docs/milestones/m2_alpha_scope.md"
+      - "artifacts/milestones/m2/alpha_wedge_matrix.yaml"
+      - "artifacts/milestones/m2/exit_gate_scoreboard.yaml"
+      - "artifacts/milestones/m2/dependency_graph.yaml"
+      - "artifacts/milestones/m2/proof_packets/alpha_scope.md"
+      - "artifacts/milestones/m2/captures/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-alpha-scope-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  alpha_scope:
+    name: Alpha scope artifacts
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run alpha scope validator
+        run: |
+          python3 ci/check_alpha_scope.py --repo-root . --report target/alpha-scope/report.json
+
+      - name: Upload alpha scope report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpha-scope-${{ github.run_id }}
+          path: target/alpha-scope
+          if-no-files-found: error
+          retention-days: 30
+

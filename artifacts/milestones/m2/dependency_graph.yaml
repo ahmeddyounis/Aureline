@@ -1,0 +1,173 @@
+# External alpha scope dependency graph.
+#
+# This graph binds the alpha wedge matrix, go/no-go scoreboard, upstream launch
+# contracts, and validator so later proof packets consume one dependency model.
+
+schema_version: 1
+as_of: "2026-05-12"
+owner: "@ahmeddyounis"
+
+graph_id: alpha_scope_dependency_graph
+human_entrypoint_ref: docs/milestones/m2_alpha_scope.md
+matrix_ref: artifacts/milestones/m2/alpha_wedge_matrix.yaml
+scoreboard_ref: artifacts/milestones/m2/exit_gate_scoreboard.yaml
+
+nodes:
+  - node_id: alpha_wedge_matrix
+    kind: canonical_scope_matrix
+    required: true
+    artifact_ref: artifacts/milestones/m2/alpha_wedge_matrix.yaml
+
+  - node_id: alpha_exit_gate_scoreboard
+    kind: go_no_go_scoreboard
+    required: true
+    artifact_ref: artifacts/milestones/m2/exit_gate_scoreboard.yaml
+
+  - node_id: alpha_scope_entrypoint
+    kind: human_entrypoint
+    required: true
+    artifact_ref: docs/milestones/m2_alpha_scope.md
+
+  - node_id: alpha_scope_validator
+    kind: first_consumer
+    required: true
+    artifact_ref: ci/check_alpha_scope.py
+
+  - node_id: workflow_bundle_register
+    kind: upstream_contract
+    required: true
+    artifact_ref: artifacts/qe/workflow_bundle_ids.yaml
+
+  - node_id: launch_language_bundles
+    kind: upstream_contract
+    required: true
+    artifact_ref: artifacts/product/language_bundle_rows.yaml
+
+  - node_id: p0_persona_rows
+    kind: upstream_contract
+    required: true
+    artifact_ref: artifacts/product/p0_persona_rows.yaml
+
+  - node_id: reference_workspace_rows
+    kind: upstream_contract
+    required: true
+    artifact_ref: artifacts/compat/reference_workspace_rows.yaml
+
+  - node_id: design_partner_intake
+    kind: intake_contract
+    required: true
+    artifact_ref: artifacts/program/design_partner_intake_checklist.yaml
+
+  - node_id: benchmark_corpus_manifest
+    kind: protected_fixture_register
+    required: true
+    artifact_ref: fixtures/benchmarks/corpus_manifest.yaml
+
+  - node_id: reference_workspace_fixtures
+    kind: protected_fixture_root
+    required: true
+    artifact_ref: fixtures/workspaces/reference/
+
+  - node_id: deployment_locality_matrix
+    kind: deployment_contract
+    required: true
+    artifact_ref: artifacts/deployment/locality_matrix.yaml
+
+  - node_id: known_limits_contract
+    kind: publication_contract
+    required: true
+    artifact_ref: docs/product/known_limits_contract.md
+
+  - node_id: alpha_scope_proof_packet
+    kind: proof_packet
+    required: true
+    artifact_ref: artifacts/milestones/m2/proof_packets/alpha_scope.md
+
+edges:
+  - from: workflow_bundle_register
+    to: alpha_wedge_matrix
+    rationale: >
+      Wedge rows cite shared workflow-bundle and scoreboard-family IDs rather
+      than minting local proof vocabulary.
+
+  - from: launch_language_bundles
+    to: alpha_wedge_matrix
+    rationale: >
+      Alpha wedge rows bind to existing launch-language bundle rows.
+
+  - from: p0_persona_rows
+    to: alpha_wedge_matrix
+    rationale: >
+      Wedge rows cite the persona rows whose daily workflows define the alpha
+      task surface.
+
+  - from: reference_workspace_rows
+    to: alpha_wedge_matrix
+    rationale: >
+      Wedge rows inherit archetype scope and reference workspace IDs from the
+      compatibility inventory.
+
+  - from: deployment_locality_matrix
+    to: alpha_wedge_matrix
+    rationale: >
+      Deployment claims are limited to declared local/helper-backed rows and
+      must not silently widen to managed or cloud parity.
+
+  - from: known_limits_contract
+    to: alpha_exit_gate_scoreboard
+    rationale: >
+      Any claim widening or known limitation must propagate through one docs and
+      known-limits scoreboard row.
+
+  - from: design_partner_intake
+    to: alpha_exit_gate_scoreboard
+    rationale: >
+      External alpha inputs enter through the governed intake checklist before
+      they become fixture, support, benchmark, or publication evidence.
+
+  - from: benchmark_corpus_manifest
+    to: alpha_exit_gate_scoreboard
+    rationale: >
+      Benchmark and task-success proof rows must resolve to a governed fixture
+      register before they can move a go/no-go row to green.
+
+  - from: alpha_wedge_matrix
+    to: alpha_exit_gate_scoreboard
+    rationale: >
+      Every claimed workflow and deployment row names a scoreboard row.
+
+  - from: alpha_exit_gate_scoreboard
+    to: alpha_scope_validator
+    rationale: >
+      The validator is the first consuming surface and fails when scoreboard row
+      references drift from the matrix.
+
+  - from: alpha_wedge_matrix
+    to: alpha_scope_validator
+    rationale: >
+      The validator enforces launch-wedge presence, proof-packet refs, and
+      scope-review requirements for held rows.
+
+  - from: alpha_scope_proof_packet
+    to: alpha_scope_entrypoint
+    rationale: >
+      The reviewer-facing page links the proof packet, validator, and canonical
+      artifacts together.
+
+consumer_surfaces:
+  - consumer_id: alpha_scope_validator
+    title: Alpha scope artifact validator
+    reads:
+      - alpha_wedge_matrix
+      - alpha_exit_gate_scoreboard
+      - alpha_scope_dependency_graph
+    command: python3 ci/check_alpha_scope.py --repo-root .
+    report_ref: artifacts/milestones/m2/captures/alpha_scope_validation_capture.json
+
+  - consumer_id: downstream_alpha_proof_lanes
+    title: Downstream alpha proof packets and dashboards
+    reads:
+      - alpha_exit_gate_scoreboard
+    command: cite scoreboard_row values before adding local scope text
+    report_ref: artifacts/milestones/m2/exit_gate_scoreboard.yaml
+
