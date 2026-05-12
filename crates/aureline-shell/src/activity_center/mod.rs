@@ -595,6 +595,25 @@ impl ActivityCenterRuntime {
         self.store.record_observation(&routed, observation)
     }
 
+    /// Records an observation from an already-routed notification.
+    ///
+    /// Live shell surfaces use this when one canonical router has already
+    /// applied quiet-hours and toast/banner fanout. The activity center then
+    /// persists the same routed truth instead of routing the envelope a
+    /// second time with different dedupe memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the file-backed store cannot persist the
+    /// updated row set.
+    pub fn record_routed_observation(
+        &mut self,
+        routed: &RoutedNotification,
+        observation: &DurableJobObservation,
+    ) -> Result<&ActivityCenterRow, ActivityCenterError> {
+        self.store.record_observation(routed, observation)
+    }
+
     /// Returns the current durable row snapshot.
     pub fn snapshot(&self) -> ActivityCenterSnapshot {
         self.store.snapshot()

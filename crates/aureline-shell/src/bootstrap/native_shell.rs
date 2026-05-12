@@ -49,9 +49,11 @@ use crate::host_boundary_cues::{HostBoundaryCueCardRecord, HostBoundaryCueWedge}
 use crate::layout::split_tree::PaneId;
 use crate::layout::zone_registry::{Rect, ShellZoneId};
 use crate::notifications::{
-    DedupeKeyScheme, FanoutSurfaceClass, NotificationEnvelope, PrivacyClass, PrivacyPayloadClass,
-    QuietHoursMode, RedactionClass, ReopenTarget, ReopenTargetKind, SeverityClass, SourceSubsystem,
-    StableAction, SuppressionState, NOTIFICATION_ENVELOPE_SCHEMA_VERSION,
+    DedupeKeyScheme, FanoutReceiptState, FanoutSurfaceClass, NotificationEnvelope,
+    NotificationRouter, NotificationRoutingError, NotificationSurfaceRow, PrivacyClass,
+    PrivacyPayloadClass, QuietHoursMode, QuietHoursPosture, RedactionClass, ReopenTarget,
+    ReopenTargetKind, RoutedNotification, SeverityClass, SourceSubsystem, StableAction,
+    SuppressionState, NOTIFICATION_ENVELOPE_SCHEMA_VERSION,
 };
 use crate::palette::preview::{
     argument_provenance_map_for, copy_payload_for, materialize_palette_preview_record,
@@ -867,6 +869,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(err) = activity_center.last_error.as_deref() {
         command_runtime.note_non_command_action(err.to_string());
     }
+    if let Some(err) = activity_center.notifications.last_error.as_deref() {
+        command_runtime.note_non_command_action(err.to_string());
+    }
     if let Some(err) = appearance.last_error.as_deref() {
         command_runtime.note_non_command_action(format!("appearance session unavailable — {err}"));
     }
@@ -1110,6 +1115,16 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
             let animation_frame = now + Duration::from_millis(16);
+            if activity_center.tick_notifications(now) {
+                enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+            }
+            if activity_center.notifications_need_animation() {
+                enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                next_deadline = Some(match next_deadline {
+                    Some(existing) => existing.min(animation_frame),
+                    None => animation_frame,
+                });
+            }
             if let Ok(token_registry) = seeded_token_registry(appearance.theme_class()) {
                 let posture = appearance.reduced_motion_posture();
                 if palette.is_open() {
@@ -1369,6 +1384,13 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     Some(pos) => pos,
                     None => return,
                 };
+                if !palette.is_open()
+                    && overlay.is_none()
+                    && activity_center.dismiss_notification_at(&frame, window.scale_factor(), x, y)
+                {
+                    enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                    return;
+                }
                 if !palette.is_open()
                     && overlay.is_none()
                     && handle_status_bar_click(
@@ -4921,10 +4943,236 @@ impl RecentWorkRuntimeState {
     }
 }
 
+const NOTIFICATION_TOAST_FADE: Duration = Duration::from_millis(260);
+const NOTIFICATION_TOAST_MAX_VISIBLE: usize = 4;
+const NOTIFICATION_BANNER_MAX_VISIBLE: usize = 3;
+
+#[derive(Debug, Clone)]
+struct NotificationSurfaceRuntimeState {
+    router: NotificationRouter,
+    quiet_hours: QuietHoursPosture,
+    toasts: Vec<LiveToastNotification>,
+    banners: Vec<LiveBannerNotification>,
+    last_error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct LiveToastNotification {
+    row: NotificationSurfaceRow,
+    opened_at: Instant,
+    expires_at: Instant,
+}
+
+#[derive(Debug, Clone)]
+struct LiveBannerNotification {
+    row: NotificationSurfaceRow,
+}
+
+impl NotificationSurfaceRuntimeState {
+    fn from_env() -> Self {
+        Self::new(quiet_hours_posture_from_env())
+    }
+
+    fn new(quiet_hours: QuietHoursPosture) -> Self {
+        Self {
+            router: NotificationRouter::new(),
+            quiet_hours,
+            toasts: Vec::new(),
+            banners: Vec::new(),
+            last_error: None,
+        }
+    }
+
+    fn route(
+        &mut self,
+        mut envelope: NotificationEnvelope,
+        now: Instant,
+    ) -> Result<RoutedNotification, NotificationRoutingError> {
+        self.quiet_hours.apply_to_envelope(&mut envelope);
+        let routed = self.router.route(&envelope)?;
+        self.apply_routed_surfaces(&routed, now);
+        Ok(routed)
+    }
+
+    fn apply_routed_surfaces(&mut self, routed: &RoutedNotification, now: Instant) {
+        if let Some(row) = NotificationSurfaceRow::project_toast(routed) {
+            if surface_route_is_visible(routed, FanoutSurfaceClass::Toast) {
+                self.upsert_toast(row, now);
+            } else if surface_route_is_dedupe(routed, FanoutSurfaceClass::Toast) {
+                self.refresh_toast_row(row);
+            }
+        }
+
+        if let Some(row) = NotificationSurfaceRow::project_contextual_banner(routed) {
+            if surface_route_is_visible(routed, FanoutSurfaceClass::ContextualBanner) {
+                self.upsert_banner(row);
+            } else if surface_route_is_dedupe(routed, FanoutSurfaceClass::ContextualBanner) {
+                self.refresh_banner_row(row);
+            }
+        }
+    }
+
+    fn upsert_toast(&mut self, row: NotificationSurfaceRow, now: Instant) {
+        let timeout = toast_timeout_for(row.severity_class);
+        if let Some(existing) = self
+            .toasts
+            .iter_mut()
+            .find(|toast| toast.row.canonical_event_id == row.canonical_event_id)
+        {
+            existing.row = row;
+            existing.expires_at = now + timeout;
+            return;
+        }
+
+        self.toasts.push(LiveToastNotification {
+            row,
+            opened_at: now,
+            expires_at: now + timeout,
+        });
+        if self.toasts.len() > NOTIFICATION_TOAST_MAX_VISIBLE {
+            let overflow = self.toasts.len() - NOTIFICATION_TOAST_MAX_VISIBLE;
+            self.toasts.drain(0..overflow);
+        }
+    }
+
+    fn refresh_toast_row(&mut self, row: NotificationSurfaceRow) {
+        if let Some(existing) = self
+            .toasts
+            .iter_mut()
+            .find(|toast| toast.row.canonical_event_id == row.canonical_event_id)
+        {
+            existing.row = row;
+        }
+    }
+
+    fn upsert_banner(&mut self, row: NotificationSurfaceRow) {
+        if let Some(existing) = self
+            .banners
+            .iter_mut()
+            .find(|banner| banner.row.canonical_event_id == row.canonical_event_id)
+        {
+            existing.row = row;
+            return;
+        }
+
+        self.banners.push(LiveBannerNotification { row });
+        if self.banners.len() > NOTIFICATION_BANNER_MAX_VISIBLE {
+            let overflow = self.banners.len() - NOTIFICATION_BANNER_MAX_VISIBLE;
+            self.banners.drain(0..overflow);
+        }
+    }
+
+    fn refresh_banner_row(&mut self, row: NotificationSurfaceRow) {
+        if let Some(existing) = self
+            .banners
+            .iter_mut()
+            .find(|banner| banner.row.canonical_event_id == row.canonical_event_id)
+        {
+            existing.row = row;
+        }
+    }
+
+    fn tick(&mut self, now: Instant) -> bool {
+        let before = self.toasts.len();
+        self.toasts.retain(|toast| now < toast.expires_at);
+        before != self.toasts.len()
+    }
+
+    fn has_active_toasts(&self) -> bool {
+        !self.toasts.is_empty()
+    }
+
+    fn dismiss_at(&mut self, frame: &DesktopFrame, scale_factor: f64, x: u32, y: u32) -> bool {
+        if let Some(index) =
+            notification_toast_hit_index(frame, scale_factor, self.toasts.len(), x, y)
+        {
+            if index < self.toasts.len() {
+                self.toasts.remove(index);
+                return true;
+            }
+        }
+
+        if notification_banner_rect(frame, scale_factor)
+            .is_some_and(|rect| point_in_rect(x, y, rect))
+            && !self.banners.is_empty()
+        {
+            self.banners.pop();
+            return true;
+        }
+
+        false
+    }
+}
+
+fn quiet_hours_posture_from_env() -> QuietHoursPosture {
+    let Ok(value) = env::var("AURELINE_QUIET_HOURS") else {
+        return QuietHoursPosture::none();
+    };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" | "quiet" | "quiet_hours" => {
+            QuietHoursPosture::quiet_hours_user()
+        }
+        "dnd" | "do_not_disturb" => QuietHoursPosture::do_not_disturb(),
+        "focus" | "focus_mode" => QuietHoursPosture::focus_mode(),
+        "presentation" | "presenting" => QuietHoursPosture::presentation(),
+        "privacy" | "privacy_mode" => QuietHoursPosture::privacy_mode(),
+        "admin" | "admin_suppression" => QuietHoursPosture::admin_suppression(),
+        _ => QuietHoursPosture::none(),
+    }
+}
+
+fn surface_route_is_visible(routed: &RoutedNotification, surface: FanoutSurfaceClass) -> bool {
+    routed
+        .surface_routes
+        .iter()
+        .find(|route| route.fanout_surface_class == surface)
+        .is_some_and(|route| route.is_visible())
+}
+
+fn surface_route_is_dedupe(routed: &RoutedNotification, surface: FanoutSurfaceClass) -> bool {
+    routed
+        .surface_routes
+        .iter()
+        .find(|route| route.fanout_surface_class == surface)
+        .is_some_and(|route| {
+            matches!(
+                route.receipt_state,
+                FanoutReceiptState::DedupedCanonicalEvent | FanoutReceiptState::DedupedGroupedBurst
+            )
+        })
+}
+
+fn toast_timeout_for(severity: SeverityClass) -> Duration {
+    match severity {
+        SeverityClass::Success => Duration::from_millis(3200),
+        SeverityClass::Info => Duration::from_millis(4200),
+        SeverityClass::Warning | SeverityClass::Degraded => Duration::from_millis(6200),
+        SeverityClass::Error | SeverityClass::Blocking | SeverityClass::Critical => {
+            Duration::from_millis(8200)
+        }
+    }
+}
+
+fn toast_alpha(toast: &LiveToastNotification, now: Instant) -> f32 {
+    if now >= toast.expires_at {
+        return 0.0;
+    }
+    let fade_starts = toast
+        .expires_at
+        .checked_sub(NOTIFICATION_TOAST_FADE)
+        .unwrap_or(toast.opened_at);
+    if now < fade_starts {
+        return 1.0;
+    }
+    let remaining = toast.expires_at.saturating_duration_since(now);
+    clamp_unit(remaining.as_secs_f32() / NOTIFICATION_TOAST_FADE.as_secs_f32())
+}
+
 #[derive(Debug, Clone)]
 struct ActivityCenterRuntimeState {
     store_path: PathBuf,
     runtime: ActivityCenterRuntime,
+    notifications: NotificationSurfaceRuntimeState,
     file_index_ready_by_key: HashMap<String, bool>,
     last_error: Option<String>,
 }
@@ -4940,20 +5188,51 @@ impl ActivityCenterRuntimeState {
             Ok(runtime) => Self {
                 store_path,
                 runtime,
+                notifications: NotificationSurfaceRuntimeState::from_env(),
                 file_index_ready_by_key: HashMap::new(),
                 last_error: None,
             },
             Err(err) => Self {
                 store_path,
                 runtime: ActivityCenterRuntime::in_memory(),
+                notifications: NotificationSurfaceRuntimeState::from_env(),
                 file_index_ready_by_key: HashMap::new(),
                 last_error: Some(format!("activity center load failed: {err}")),
             },
         }
     }
 
+    #[cfg(test)]
+    fn in_memory_with_quiet_hours(quiet_hours: QuietHoursPosture) -> Self {
+        Self {
+            store_path: PathBuf::from("activity_center_rows.json"),
+            runtime: ActivityCenterRuntime::in_memory(),
+            notifications: NotificationSurfaceRuntimeState::new(quiet_hours),
+            file_index_ready_by_key: HashMap::new(),
+            last_error: None,
+        }
+    }
+
     fn snapshot(&self) -> ActivityCenterSnapshot {
         self.runtime.snapshot()
+    }
+
+    fn tick_notifications(&mut self, now: Instant) -> bool {
+        self.notifications.tick(now)
+    }
+
+    fn notifications_need_animation(&self) -> bool {
+        self.notifications.has_active_toasts()
+    }
+
+    fn dismiss_notification_at(
+        &mut self,
+        frame: &DesktopFrame,
+        scale_factor: f64,
+        x: u32,
+        y: u32,
+    ) -> bool {
+        self.notifications.dismiss_at(frame, scale_factor, x, y)
     }
 
     fn persist_clean_shutdown(&mut self) {
@@ -4990,6 +5269,7 @@ impl ActivityCenterRuntimeState {
                 severity_class: SeverityClass::Info,
                 action_command_id: "cmd:activity.focus_origin",
                 action_label: "Focus workspace",
+                attention_surface: None,
                 minted_at: now_rfc3339(),
             },
             DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
@@ -5005,6 +5285,7 @@ impl ActivityCenterRuntimeState {
                 severity_class: SeverityClass::Success,
                 action_command_id: "cmd:activity.focus_origin",
                 action_label: "Focus workspace",
+                attention_surface: Some(FanoutSurfaceClass::Toast),
                 minted_at: now_rfc3339(),
             },
             DurableJobObservation::completed(detail, Some(object_target_ref.clone())),
@@ -5046,6 +5327,7 @@ impl ActivityCenterRuntimeState {
                     severity_class: SeverityClass::Success,
                     action_command_id: "cmd:activity.focus_origin",
                     action_label: "Focus workspace",
+                    attention_surface: None,
                     minted_at: now_rfc3339(),
                 },
                 DurableJobObservation::completed(
@@ -5065,6 +5347,7 @@ impl ActivityCenterRuntimeState {
                     severity_class: SeverityClass::Info,
                     action_command_id: "cmd:activity.focus_origin",
                     action_label: "Focus workspace",
+                    attention_surface: None,
                     minted_at: now_rfc3339(),
                 },
                 DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
@@ -5144,16 +5427,67 @@ impl ActivityCenterRuntimeState {
                 severity_class,
                 action_command_id: "cmd:activity.focus_origin",
                 action_label: "Focus editor",
+                attention_surface: match phase {
+                    "completed" => Some(FanoutSurfaceClass::Toast),
+                    "failed" => Some(FanoutSurfaceClass::ContextualBanner),
+                    _ => None,
+                },
                 minted_at: now_rfc3339(),
             },
             observation,
         );
     }
 
+    fn note_trust_state_changed(&mut self, previous: &str, current: &str) {
+        let minted_at = now_rfc3339();
+        let transition_id =
+            sanitize_activity_id_component(&format!("{previous}-{current}-{minted_at}"));
+        let event_id = format!("ux:event:workspace-trust:{transition_id}");
+        let object_target_ref = "obj:workspace-trust:current";
+        let source_event_ref = format!("workspace-trust:{transition_id}");
+        let summary_label = format!("Workspace trust changed: {}", trust_state_label(current));
+        let detail = format!(
+            "Workspace trust changed from {} to {}.",
+            trust_state_label(previous),
+            trust_state_label(current)
+        );
+        self.record_job(
+            ActivityJobRecord {
+                event_id: &event_id,
+                envelope_id: &format!("ux:notif-env:workspace-trust:{transition_id}"),
+                source_subsystem: SourceSubsystem::WorkspaceTrust,
+                source_event_ref: &source_event_ref,
+                object_target_ref,
+                summary_label: &summary_label,
+                severity_class: if current == "trusted" {
+                    SeverityClass::Info
+                } else {
+                    SeverityClass::Warning
+                },
+                action_command_id: "cmd:activity.focus_origin",
+                action_label: "Open trust details",
+                attention_surface: Some(FanoutSurfaceClass::ContextualBanner),
+                minted_at,
+            },
+            DurableJobObservation::completed(detail, Some(object_target_ref.to_string())),
+        );
+    }
+
     fn record_job(&mut self, job: ActivityJobRecord<'_>, observation: DurableJobObservation) {
         let envelope = activity_job_envelope(job);
-        if let Err(err) = self.runtime.record_observation(&envelope, &observation) {
-            self.last_error = Some(format!("activity center record failed: {err}"));
+        match self.notifications.route(envelope, Instant::now()) {
+            Ok(routed) => {
+                if let Err(err) = self
+                    .runtime
+                    .record_routed_observation(&routed, &observation)
+                {
+                    self.last_error = Some(format!("activity center record failed: {err}"));
+                }
+            }
+            Err(err) => {
+                self.notifications.last_error = Some(format!("notification route failed: {err}"));
+                self.last_error = Some(format!("notification route failed: {err}"));
+            }
         }
     }
 }
@@ -5169,10 +5503,21 @@ struct ActivityJobRecord<'a> {
     severity_class: SeverityClass,
     action_command_id: &'a str,
     action_label: &'a str,
+    attention_surface: Option<FanoutSurfaceClass>,
     minted_at: String,
 }
 
 fn activity_job_envelope(job: ActivityJobRecord<'_>) -> NotificationEnvelope {
+    let mut recommended_surfaces = vec![
+        FanoutSurfaceClass::DurableJobRow,
+        FanoutSurfaceClass::StatusItem,
+    ];
+    if let Some(surface) = job.attention_surface {
+        if !recommended_surfaces.contains(&surface) {
+            recommended_surfaces.push(surface);
+        }
+    }
+
     NotificationEnvelope {
         record_kind: "notification_envelope_record".to_string(),
         notification_envelope_schema_version: NOTIFICATION_ENVELOPE_SCHEMA_VERSION,
@@ -5190,10 +5535,7 @@ fn activity_job_envelope(job: ActivityJobRecord<'_>) -> NotificationEnvelope {
         dedupe_key_scheme: DedupeKeyScheme::CanonicalEventId,
         dedupe_key_ref: job.event_id.to_string(),
         grouped_burst_id_ref: None,
-        recommended_surfaces: vec![
-            FanoutSurfaceClass::DurableJobRow,
-            FanoutSurfaceClass::StatusItem,
-        ],
+        recommended_surfaces,
         summary_label: job.summary_label.to_string(),
         reopen_target: ReopenTarget {
             reopen_target_ref: format!("ux:reopen:{}", job.event_id),
@@ -5712,6 +6054,15 @@ fn trust_state_for_recent_work(value: &str) -> TrustState {
         "restricted" => TrustState::Restricted,
         "pending_evaluation" => TrustState::PendingEvaluation,
         _ => TrustState::PendingEvaluation,
+    }
+}
+
+fn trust_state_label(value: &str) -> &'static str {
+    match value {
+        "trusted" => "Trusted",
+        "restricted" => "Restricted",
+        "pending_evaluation" => "Pending evaluation",
+        _ => "Unknown",
     }
 }
 
@@ -8776,14 +9127,7 @@ fn handle_key_event(
                 if overlay_opened {
                     return ShellDamageHint::FullWindow;
                 }
-                damage_geometry
-                    .focused_editor_group
-                    .map(|rect| ShellDamageHint::Rect {
-                        layer: CompositionLayerId::TextAndDecoration,
-                        class: DamageClassId::TextReflowLocal,
-                        rect,
-                    })
-                    .unwrap_or(ShellDamageHint::FullWindow)
+                ShellDamageHint::FullWindow
             } else {
                 ShellDamageHint::None
             }
@@ -9060,10 +9404,15 @@ fn handle_key_event(
         }
         KeyCode::KeyT => {
             if modifiers.ctrl_or_logo() && modifiers.shift {
+                let previous_trust_state = enablement_runtime.workspace_trust_state.clone();
                 enablement_runtime.toggle_trust_state();
                 workspace_lifecycle.resolve_trust(trust_state_for_recent_work(
                     enablement_runtime.workspace_trust_state.as_str(),
                 ));
+                activity_center.note_trust_state_changed(
+                    &previous_trust_state,
+                    enablement_runtime.workspace_trust_state.as_str(),
+                );
                 ShellDamageHint::FullWindow
             } else {
                 ShellDamageHint::None
@@ -10074,6 +10423,17 @@ fn rasterize_shell(
         }
     }
 
+    draw_notification_layers(
+        buffer,
+        width,
+        height,
+        frame,
+        scale,
+        &activity_center.notifications,
+        now,
+        &style,
+    );
+
     let reduced_motion_posture = appearance.reduced_motion_posture();
 
     if palette.is_open() {
@@ -10345,6 +10705,206 @@ fn rasterize_shell(
             style.tokens.text_muted,
         );
     }
+}
+
+fn draw_notification_layers(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    frame: &DesktopFrame,
+    scale_factor: f64,
+    notifications: &NotificationSurfaceRuntimeState,
+    now: Instant,
+    style: &ShellRenderStyle,
+) {
+    if let Some(banner) = notifications.banners.last() {
+        if let Some(rect) = notification_banner_rect(frame, scale_factor) {
+            draw_notification_banner(buffer, width, height, rect, banner, style);
+        }
+    }
+
+    let toast_rects = notification_toast_rects(frame, scale_factor, notifications.toasts.len());
+    for (toast, rect) in notifications.toasts.iter().zip(toast_rects.into_iter()) {
+        let alpha = toast_alpha(toast, now);
+        if alpha > 0.0 {
+            draw_notification_toast(buffer, width, height, rect, toast, alpha, style);
+        }
+    }
+}
+
+fn draw_notification_toast(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    toast: &LiveToastNotification,
+    alpha: f32,
+    style: &ShellRenderStyle,
+) {
+    let (fg, border, fill) = notification_tone(toast.row.severity_class, style);
+    fill_rect(buffer, width, height, rect, scale_alpha(fill, alpha));
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        rect,
+        style.stroke_default,
+        scale_alpha(border, alpha),
+    );
+
+    let x = rect.x.saturating_add(style.space_3);
+    let mut y = rect.y.saturating_add(style.space_2);
+    let max_x = rect.right().saturating_sub(style.space_3).max(x);
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        1,
+        &toast.row.summary_label,
+        scale_alpha(fg, alpha),
+        max_x,
+    );
+    y = y.saturating_add(12);
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        x,
+        y,
+        1,
+        "Details in Activity Center",
+        scale_alpha(style.tokens.text_secondary, alpha),
+        max_x,
+    );
+}
+
+fn draw_notification_banner(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    banner: &LiveBannerNotification,
+    style: &ShellRenderStyle,
+) {
+    let (fg, border, fill) = notification_tone(banner.row.severity_class, style);
+    fill_rect(buffer, width, height, rect, fill);
+    stroke_rect(buffer, width, height, rect, style.stroke_default, border);
+
+    let x = rect.x.saturating_add(style.space_3);
+    let y = rect.y.saturating_add(rect.height.saturating_sub(8) / 2);
+    let close_w = 8u32;
+    let close_x = rect
+        .right()
+        .saturating_sub(style.space_3)
+        .saturating_sub(close_w);
+    let max_x = close_x.saturating_sub(style.space_3).max(x);
+    let label = if let Some(action) = banner.row.primary_action.as_ref() {
+        format!("{} - {}", banner.row.summary_label, action.label)
+    } else {
+        banner.row.summary_label.clone()
+    };
+    draw_text_clamped(buffer, width, height, x, y, 1, &label, fg, max_x);
+    draw_text(buffer, width, height, close_x, y, 1, "x", fg);
+}
+
+fn notification_tone(
+    severity: SeverityClass,
+    style: &ShellRenderStyle,
+) -> (ColorRgba, ColorRgba, ColorRgba) {
+    match severity {
+        SeverityClass::Success => (
+            style.status_success,
+            style.status_success_border,
+            style.status_success_fill,
+        ),
+        SeverityClass::Warning | SeverityClass::Degraded => (
+            style.status_warning,
+            style.status_warning_border,
+            style.status_warning_fill,
+        ),
+        SeverityClass::Error | SeverityClass::Blocking | SeverityClass::Critical => (
+            style.status_danger,
+            style.status_danger_border,
+            style.status_danger_fill,
+        ),
+        SeverityClass::Info => (
+            style.tokens.text_primary,
+            style.tokens.border_strong,
+            style.tokens.bg_raised,
+        ),
+    }
+}
+
+fn notification_toast_rects(frame: &DesktopFrame, scale_factor: f64, count: usize) -> Vec<Rect> {
+    let Some(main) = frame.layout().zone(ShellZoneId::MainWorkspace) else {
+        return Vec::new();
+    };
+    let main = to_physical_rect(main, scale_factor);
+    if main.is_empty() || count == 0 {
+        return Vec::new();
+    }
+
+    let margin = scaled_notification_px(16, scale_factor);
+    let gap = scaled_notification_px(8, scale_factor);
+    let toast_h = scaled_notification_px(48, scale_factor);
+    let preferred_w = scaled_notification_px(440, scale_factor);
+    let available_w = main.width.saturating_sub(margin.saturating_mul(2));
+    let toast_w = preferred_w.min(available_w).max(available_w.min(220));
+    let x = main.right().saturating_sub(margin).saturating_sub(toast_w);
+    let bottom = main.bottom().saturating_sub(margin);
+
+    let mut rects = Vec::with_capacity(count);
+    for idx in 0..count {
+        let stack_from_bottom = count.saturating_sub(1).saturating_sub(idx) as u32;
+        let y = bottom.saturating_sub(
+            toast_h.saturating_mul(stack_from_bottom.saturating_add(1))
+                + gap.saturating_mul(stack_from_bottom),
+        );
+        rects.push(Rect::new(x, y, toast_w, toast_h));
+    }
+    rects
+}
+
+fn notification_toast_hit_index(
+    frame: &DesktopFrame,
+    scale_factor: f64,
+    count: usize,
+    x: u32,
+    y: u32,
+) -> Option<usize> {
+    notification_toast_rects(frame, scale_factor, count)
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(idx, rect)| point_in_rect(x, y, *rect).then_some(idx))
+}
+
+fn notification_banner_rect(frame: &DesktopFrame, scale_factor: f64) -> Option<Rect> {
+    let title = to_physical_rect(frame.layout().title_context_bar, scale_factor);
+    if title.is_empty() {
+        return None;
+    }
+    let margin = scaled_notification_px(8, scale_factor);
+    let banner_h = scaled_notification_px(18, scale_factor).min(title.height);
+    let banner_w = title.width.saturating_sub(margin.saturating_mul(2));
+    if banner_w == 0 {
+        return None;
+    }
+    Some(Rect::new(
+        title.x.saturating_add(margin),
+        title.bottom().saturating_sub(banner_h),
+        banner_w,
+        banner_h,
+    ))
+}
+
+fn scaled_notification_px(value: u32, scale_factor: f64) -> u32 {
+    if !scale_factor.is_finite() || scale_factor <= 0.0 {
+        return value;
+    }
+    ((value as f64) * scale_factor).round().max(1.0) as u32
 }
 
 fn draw_activity_center_rail(
@@ -15429,6 +15989,99 @@ fn stroke_rect(
         ),
         color,
     );
+}
+
+#[cfg(test)]
+mod notification_surface_tests {
+    use super::*;
+
+    #[test]
+    fn save_success_routes_to_transient_toast_and_durable_row() {
+        let mut runtime =
+            ActivityCenterRuntimeState::in_memory_with_quiet_hours(QuietHoursPosture::none());
+        runtime.note_save_running("save-test-success", "demo.rs");
+        runtime.note_save_completed("save-test-success", "demo.rs", Some("packet:save".into()));
+
+        assert_eq!(runtime.notifications.toasts.len(), 1);
+        assert!(runtime.notifications.banners.is_empty());
+        assert_eq!(
+            runtime.notifications.toasts[0].row.summary_label,
+            "Save completed: demo.rs"
+        );
+
+        let snapshot = runtime.snapshot();
+        let row = snapshot
+            .find("ux:event:save-fsync:save-test-success")
+            .expect("save row should persist");
+        assert_eq!(row.lifecycle_class, ActivityRowLifecycleClass::Completed);
+        assert_eq!(row.severity_class, SeverityClass::Success);
+    }
+
+    #[test]
+    fn save_failure_routes_to_persistent_banner() {
+        let mut runtime =
+            ActivityCenterRuntimeState::in_memory_with_quiet_hours(QuietHoursPosture::none());
+        runtime.note_save_running("save-test-failure", "readonly.rs");
+        runtime.note_save_failed("save-test-failure", "readonly.rs", "permission denied");
+
+        assert!(runtime.notifications.toasts.is_empty());
+        assert_eq!(runtime.notifications.banners.len(), 1);
+        assert_eq!(
+            runtime.notifications.banners[0].row.summary_label,
+            "Save failed: readonly.rs"
+        );
+
+        let later = Instant::now() + Duration::from_secs(30);
+        assert!(!runtime.tick_notifications(later));
+        assert_eq!(runtime.notifications.banners.len(), 1);
+    }
+
+    #[test]
+    fn quiet_hours_holds_toast_but_keeps_activity_row() {
+        let mut runtime = ActivityCenterRuntimeState::in_memory_with_quiet_hours(
+            QuietHoursPosture::quiet_hours_user(),
+        );
+        runtime.note_save_running("save-test-held", "quiet.rs");
+        runtime.note_save_completed("save-test-held", "quiet.rs", None);
+
+        assert!(runtime.notifications.toasts.is_empty());
+        assert!(runtime.notifications.banners.is_empty());
+
+        let snapshot = runtime.snapshot();
+        let row = snapshot
+            .find("ux:event:save-fsync:save-test-held")
+            .expect("held toast should still have a durable row");
+        assert_eq!(row.lifecycle_class, ActivityRowLifecycleClass::Completed);
+        assert_eq!(row.summary_label, "Save completed: quiet.rs");
+    }
+
+    #[test]
+    fn clicking_banner_dismisses_it() {
+        let mut runtime =
+            ActivityCenterRuntimeState::in_memory_with_quiet_hours(QuietHoursPosture::none());
+        runtime.note_trust_state_changed("trusted", "restricted");
+        assert_eq!(runtime.notifications.banners.len(), 1);
+
+        let frame = DesktopFrame::new(1280, 720);
+        let rect = notification_banner_rect(&frame, 1.0).expect("banner rect");
+        assert!(runtime.dismiss_notification_at(&frame, 1.0, rect.x + 1, rect.y + 1));
+        assert!(runtime.notifications.banners.is_empty());
+    }
+
+    #[test]
+    fn clicking_toast_dismisses_it() {
+        let mut runtime =
+            ActivityCenterRuntimeState::in_memory_with_quiet_hours(QuietHoursPosture::none());
+        runtime.note_save_running("save-test-click-toast", "toast.rs");
+        runtime.note_save_completed("save-test-click-toast", "toast.rs", None);
+        assert_eq!(runtime.notifications.toasts.len(), 1);
+
+        let frame = DesktopFrame::new(1280, 720);
+        let rects = notification_toast_rects(&frame, 1.0, runtime.notifications.toasts.len());
+        let rect = rects.first().copied().expect("toast rect");
+        assert!(runtime.dismiss_notification_at(&frame, 1.0, rect.x + 1, rect.y + 1));
+        assert!(runtime.notifications.toasts.is_empty());
+    }
 }
 
 #[cfg(test)]
