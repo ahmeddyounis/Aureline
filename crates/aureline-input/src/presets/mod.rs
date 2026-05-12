@@ -265,11 +265,16 @@ pub fn preset_conflicts(
     Ok(packets)
 }
 
-const VS_CODE_SPECS: [PresetBindingSpec; 9] = [
+const VS_CODE_SPECS: [PresetBindingSpec; 10] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+P",
         other_sequence: "Ctrl+Shift+P",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:terminal.toggle",
+        macos_sequence: "Cmd+`",
+        other_sequence: "Ctrl+`",
     },
     PresetBindingSpec {
         command_id: "cmd:editor.find",
@@ -313,11 +318,16 @@ const VS_CODE_SPECS: [PresetBindingSpec; 9] = [
     },
 ];
 
-const INTELLIJ_SPECS: [PresetBindingSpec; 9] = [
+const INTELLIJ_SPECS: [PresetBindingSpec; 10] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+A",
         other_sequence: "Ctrl+Shift+A",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:terminal.toggle",
+        macos_sequence: "Cmd+`",
+        other_sequence: "Ctrl+`",
     },
     PresetBindingSpec {
         command_id: "cmd:editor.find",
@@ -361,11 +371,16 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 9] = [
     },
 ];
 
-const VIM_SPECS: [PresetBindingSpec; 10] = [
+const VIM_SPECS: [PresetBindingSpec; 11] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Ctrl+P",
         other_sequence: "Ctrl+P",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:terminal.toggle",
+        macos_sequence: "Cmd+`",
+        other_sequence: "Ctrl+`",
     },
     PresetBindingSpec {
         command_id: "cmd:editor.find",
@@ -416,11 +431,16 @@ const VIM_SPECS: [PresetBindingSpec; 10] = [
     },
 ];
 
-const EMACS_SPECS: [PresetBindingSpec; 9] = [
+const EMACS_SPECS: [PresetBindingSpec; 10] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Alt+X",
         other_sequence: "Alt+X",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:terminal.toggle",
+        macos_sequence: "Cmd+`",
+        other_sequence: "Ctrl+`",
     },
     PresetBindingSpec {
         command_id: "cmd:editor.find",

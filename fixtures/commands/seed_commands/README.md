@@ -43,6 +43,9 @@ The fixtures exist for three reasons:
 - [`docs_open_in_browser.registry.json`](./docs_open_in_browser.registry.json)
   — `Open in Browser` entry with a built-in-extension origin badge and a
   browser-handoff result contract.
+- [`terminal_toggle.registry.json`](./terminal_toggle.registry.json)
+  — `Toggle Terminal` entry with bottom-panel, workspace-target, and
+  keybinding-help projection refs.
 - [`labs_open_command_trace.registry.json`](./labs_open_command_trace.registry.json)
   — intentionally disabled `Labs` command carrying typed repair guidance
   and discoverability-only projection refs.

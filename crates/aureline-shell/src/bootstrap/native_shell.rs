@@ -36,6 +36,7 @@ use crate::commands::CommandReviewRuntimeInputs;
 use crate::embedded::boundary_card::EmbeddedBoundaryCardRecord;
 use crate::embedded::docs_help::{resolve_docs_help_handoff_url, seeded_docs_help_boundary_card};
 use crate::help::keybinding_inspector::build_inspector_lines;
+use crate::host_boundary_cues::{HostBoundaryCueCardRecord, HostBoundaryCueWedge};
 use crate::layout::split_tree::PaneId;
 use crate::layout::zone_registry::{Rect, ShellZoneId};
 use crate::palette::preview::{
@@ -57,6 +58,7 @@ use crate::start_center::{
     START_CENTER_PRESENTATION_SUBTITLE,
 };
 use crate::state_cards::{shell_slot_label, DegradedStateToken, ShellPlaceholderCard};
+use crate::terminal_pane::{TerminalPaneSnapshot, TerminalPaneTabRecord};
 use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
@@ -82,10 +84,16 @@ use aureline_input::keybindings::{
     Modifiers, PlatformClass, SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
 };
 use aureline_input::presets::{preset_binding_rows, resolver_with_preset, KeymapPresetId};
+use aureline_runtime::{
+    CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextRequest,
+    ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode, ScopeClass,
+    TargetClass,
+};
 use aureline_telemetry::hot_path_metrics::{
     HotPathMetrics, HotPathMetricsConfig, HotPathMetricsContext,
 };
 use aureline_telemetry::trace_event::BuildIdentityRecord as TelemetryBuildIdentityRecord;
+use aureline_terminal::{HostClass, OpenSessionRequest, PtyHost, PtySessionId};
 use aureline_ui::components::{
     ComponentStateRegistry, ComponentStates, ComponentSurfaceTone, FocusReturnStack,
 };
@@ -1015,7 +1023,31 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 );
             }
+            if editor_runtime
+                .terminal_pane
+                .drain_outputs(&mono_timestamp_now())
+            {
+                if let Some(rect) = frame.layout().bottom_panel {
+                    enqueue_damage_hint(
+                        &mut scheduler,
+                        ShellDamageHint::Rect {
+                            layer: CompositionLayerId::TextAndDecoration,
+                            class: DamageClassId::TextReflowLocal,
+                            rect: to_physical_rect(rect, window.scale_factor()),
+                        },
+                    );
+                } else {
+                    enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                }
+            }
             let mut next_deadline = palette.next_wake_deadline(now);
+            if editor_runtime.terminal_pane.has_live_sessions() {
+                let terminal_poll_deadline = now + Duration::from_millis(50);
+                next_deadline = Some(match next_deadline {
+                    Some(existing) => existing.min(terminal_poll_deadline),
+                    None => terminal_poll_deadline,
+                });
+            }
             let animation_frame = now + Duration::from_millis(16);
             if let Ok(token_registry) = seeded_token_registry(appearance.theme_class()) {
                 let posture = appearance.reduced_motion_posture();
@@ -1067,6 +1099,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
             WindowEvent::CloseRequested => {
                 let _ = hot_path_metrics.write_if_configured();
+                editor_runtime
+                    .terminal_pane
+                    .close_active_workspace(&mono_timestamp_now(), Some("window_closed"));
                 if let Some(guard) = crash_marker_guard.as_mut() {
                     if let Err(err) = guard.mark_clean_shutdown() {
                         command_runtime.note_non_command_action(format!(
@@ -2397,6 +2432,7 @@ enum SaveTabAttempt {
 
 struct EditorWorkspaceRuntimeState {
     text_runtime: EditorTextRuntime,
+    terminal_pane: TerminalPaneRuntimeState,
     groups: HashMap<PaneId, EditorGroupSession>,
     buffers: BufferAuthorityStore,
     save_coordinator: StagedSaveCoordinator,
@@ -2419,6 +2455,7 @@ impl EditorWorkspaceRuntimeState {
         let recovery_root = PathBuf::from(".logs").join("recovery");
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
+            terminal_pane: TerminalPaneRuntimeState::new(),
             groups: HashMap::new(),
             buffers: BufferAuthorityStore::new(),
             save_coordinator: StagedSaveCoordinator::new(),
@@ -2435,6 +2472,7 @@ impl EditorWorkspaceRuntimeState {
         let recovery_root = PathBuf::from(".logs").join("recovery");
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
+            terminal_pane: TerminalPaneRuntimeState::new(),
             groups: HashMap::new(),
             buffers,
             save_coordinator: StagedSaveCoordinator::new(),
@@ -3230,6 +3268,522 @@ mod clipboard_tests {
     }
 }
 
+const TERMINAL_BUFFER_MAX_BYTES: usize = 128 * 1024;
+
+#[derive(Debug, Clone)]
+struct TerminalPaneRuntimeState {
+    host: PtyHost,
+    active_workspace_id: Option<String>,
+    workspace_root: Option<PathBuf>,
+    active_session_id: Option<PtySessionId>,
+    output_buffers: HashMap<PtySessionId, String>,
+    contexts_by_session: HashMap<PtySessionId, ExecutionContext>,
+    host_boundary_wedges: HashMap<String, HostBoundaryCueWedge>,
+}
+
+impl TerminalPaneRuntimeState {
+    fn new() -> Self {
+        Self {
+            host: PtyHost::new(),
+            active_workspace_id: None,
+            workspace_root: None,
+            active_session_id: None,
+            output_buffers: HashMap::new(),
+            contexts_by_session: HashMap::new(),
+            host_boundary_wedges: HashMap::new(),
+        }
+    }
+
+    fn open_workspace(
+        &mut self,
+        workspace_id: String,
+        workspace_root: PathBuf,
+        trust_state: TrustState,
+        observed_at: &str,
+    ) {
+        if self.active_workspace_id.as_deref() != Some(workspace_id.as_str()) {
+            self.close_active_workspace(observed_at, Some("workspace_changed"));
+        }
+        self.active_workspace_id = Some(workspace_id);
+        self.workspace_root = Some(workspace_root);
+        let _ = self.ensure_session_for_active_workspace(trust_state, observed_at);
+    }
+
+    fn close_active_workspace(&mut self, observed_at: &str, reason_code: Option<&str>) {
+        let Some(workspace_id) = self.active_workspace_id.clone() else {
+            return;
+        };
+        let ids: Vec<PtySessionId> = self
+            .host
+            .sessions()
+            .filter(|session| session.header().workspace_id == workspace_id)
+            .map(|session| session.session_id().clone())
+            .collect();
+        for id in ids {
+            let _ = self.host.close_session(&id, observed_at, reason_code);
+            self.output_buffers.remove(&id);
+            self.contexts_by_session.remove(&id);
+        }
+        if let Some(mut wedge) = self.host_boundary_wedges.remove(&workspace_id) {
+            let _ = wedge.record_closed(observed_at, reason_code);
+        }
+        self.active_session_id = None;
+        self.active_workspace_id = None;
+        self.workspace_root = None;
+    }
+
+    fn ensure_session_for_active_workspace(
+        &mut self,
+        trust_state: TrustState,
+        observed_at: &str,
+    ) -> Option<PtySessionId> {
+        let workspace_id = self.active_workspace_id.clone()?;
+        if let Some(id) = self.active_session_id.clone() {
+            if self
+                .host
+                .session(&id)
+                .is_some_and(|session| session.lifecycle_state().is_interactive())
+            {
+                return Some(id);
+            }
+        }
+        if let Some(id) = self.interactive_session_for_workspace(&workspace_id) {
+            self.active_session_id = Some(id.clone());
+            return Some(id);
+        }
+        Some(self.open_session_for_active_workspace(trust_state, observed_at, None))
+    }
+
+    #[cfg(test)]
+    fn open_command_session_for_test(
+        &mut self,
+        workspace_id: &str,
+        workspace_root: PathBuf,
+        command: aureline_terminal::PtyCommand,
+        observed_at: &str,
+    ) -> PtySessionId {
+        self.close_active_workspace(observed_at, Some("test_workspace_changed"));
+        self.active_workspace_id = Some(workspace_id.to_owned());
+        self.workspace_root = Some(workspace_root);
+        self.open_session_for_active_workspace(TrustState::Trusted, observed_at, Some(command))
+    }
+
+    fn write_active_input(
+        &mut self,
+        bytes: &[u8],
+        trust_state: TrustState,
+        observed_at: &str,
+    ) -> Result<(), String> {
+        let Some(session_id) = self.ensure_session_for_active_workspace(trust_state, observed_at)
+        else {
+            return Err("terminal unavailable: open a workspace first".to_string());
+        };
+        self.host
+            .write_input(&session_id, bytes, observed_at)
+            .map_err(|err| err.to_string())?;
+        let _ = self.drain_outputs(observed_at);
+        Ok(())
+    }
+
+    fn drain_outputs(&mut self, observed_at: &str) -> bool {
+        let ids: Vec<PtySessionId> = self
+            .host
+            .sessions()
+            .filter(|session| session.has_live_pty())
+            .map(|session| session.session_id().clone())
+            .collect();
+        let mut changed = false;
+        for id in ids {
+            match self.host.drain_output(&id, observed_at) {
+                Ok(drain) => {
+                    changed |= self.append_output(&id, &drain.bytes);
+                }
+                Err(_) => {}
+            }
+        }
+        changed
+    }
+
+    fn has_live_sessions(&self) -> bool {
+        self.host.sessions().any(|session| {
+            session.header().workspace_id == self.active_workspace_id.as_deref().unwrap_or("")
+                && session.has_live_pty()
+                && session.lifecycle_state().is_interactive()
+        })
+    }
+
+    fn snapshot(&self) -> Option<TerminalPaneSnapshot> {
+        self.active_workspace_id
+            .as_deref()
+            .map(|workspace_id| TerminalPaneSnapshot::project(workspace_id, &self.host))
+    }
+
+    fn active_output_text(&self) -> &str {
+        self.active_session_id
+            .as_ref()
+            .and_then(|id| self.output_buffers.get(id))
+            .map(String::as_str)
+            .unwrap_or("")
+    }
+
+    fn active_host_boundary_card(&self) -> Option<HostBoundaryCueCardRecord> {
+        let workspace_id = self.active_workspace_id.as_deref()?;
+        self.host_boundary_wedges
+            .get(workspace_id)
+            .map(HostBoundaryCueWedge::card)
+    }
+
+    fn active_workspace_id(&self) -> Option<&str> {
+        self.active_workspace_id.as_deref()
+    }
+
+    fn interactive_session_for_workspace(&self, workspace_id: &str) -> Option<PtySessionId> {
+        self.host
+            .sessions()
+            .find(|session| {
+                session.header().workspace_id == workspace_id
+                    && session.lifecycle_state().is_interactive()
+            })
+            .map(|session| session.session_id().clone())
+    }
+
+    fn open_session_for_active_workspace(
+        &mut self,
+        trust_state: TrustState,
+        observed_at: &str,
+        command: Option<aureline_terminal::PtyCommand>,
+    ) -> PtySessionId {
+        let workspace_id = self
+            .active_workspace_id
+            .clone()
+            .unwrap_or_else(|| "workspace:none".to_string());
+        let workspace_root = self
+            .workspace_root
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let context = resolve_terminal_execution_context(
+            &workspace_id,
+            &workspace_root,
+            trust_state,
+            observed_at,
+        );
+        let display_title = default_terminal_display_title();
+        let request = OpenSessionRequest {
+            workspace_id: &workspace_id,
+            host_class: host_class_for_execution_context(&context),
+            display_title: &display_title,
+            cwd_hint: context.target_identity.working_directory.as_deref(),
+            execution_context_ref: context.execution_context_id(),
+            trust_state: context.policy_and_trust.trust_state,
+            observed_at,
+        };
+        let session_id = match command {
+            Some(command) => self.host.open_command_session(request, command),
+            None => self.host.open_session(request),
+        };
+        self.contexts_by_session
+            .insert(session_id.clone(), context.clone());
+        self.output_buffers.entry(session_id.clone()).or_default();
+        self.active_session_id = Some(session_id.clone());
+
+        if let Some(session) = self.host.session(&session_id).cloned() {
+            let mut wedge = HostBoundaryCueWedge::new(workspace_id.clone());
+            let _ = wedge.open_initial(&context, &session, observed_at);
+            self.host_boundary_wedges.insert(workspace_id, wedge);
+        }
+
+        session_id
+    }
+
+    fn append_output(&mut self, session_id: &PtySessionId, bytes: &[u8]) -> bool {
+        if bytes.is_empty() {
+            return false;
+        }
+        let raw = String::from_utf8_lossy(bytes);
+        let text = strip_terminal_control_sequences(&raw);
+        if text.is_empty() {
+            return false;
+        }
+        let buffer = self.output_buffers.entry(session_id.clone()).or_default();
+        buffer.push_str(&text);
+        if buffer.len() > TERMINAL_BUFFER_MAX_BYTES {
+            let keep_from = buffer.len().saturating_sub(TERMINAL_BUFFER_MAX_BYTES);
+            let split_at = buffer
+                .char_indices()
+                .find(|(idx, _)| *idx >= keep_from)
+                .map(|(idx, _)| idx)
+                .unwrap_or(keep_from);
+            buffer.drain(..split_at);
+        }
+        true
+    }
+}
+
+fn resolve_terminal_execution_context(
+    workspace_id: &str,
+    workspace_root: &Path,
+    trust_state: TrustState,
+    observed_at: &str,
+) -> ExecutionContext {
+    let mut resolver = ExecutionContextResolver::new(ExecutionContextResolverConfig {
+        workspace_id: workspace_id.to_owned(),
+        profile_id: Some("profile:local".to_string()),
+        identity_mode: IdentityMode::AccountFreeLocal,
+        policy_epoch: 1,
+        workspace_default_target_class: TargetClass::LocalHost,
+        workspace_default_working_directory: Some(workspace_root.display().to_string()),
+        workspace_default_scope_class: ScopeClass::CurrentRoot,
+        local_host_canonical_id: format!(
+            "localhost:{}-{}",
+            std::env::consts::OS,
+            std::env::consts::ARCH
+        ),
+        environment_capsule_ref: EnvironmentCapsuleRef {
+            capsule_id: format!("caps:{workspace_id}:terminal"),
+            capsule_hash: "sha256:terminal-pane-seed".to_string(),
+            resolved_schema_version: "1".to_string(),
+            drift_state: CapsuleDriftState::InSync,
+        },
+        resolver_version: "native-shell-terminal-pane-1".to_string(),
+    });
+    resolver.resolve(ExecutionContextRequest::local_terminal_seed(
+        "cmd:terminal.toggle",
+        trust_state,
+        observed_at,
+    ))
+}
+
+fn host_class_for_execution_context(context: &ExecutionContext) -> HostClass {
+    match context.target_identity.target_class {
+        TargetClass::LocalHost => HostClass::HostDesktop,
+        TargetClass::ContainerLocal | TargetClass::Devcontainer => HostClass::LocalContainer,
+        _ => HostClass::RemoteAgentPrimary,
+    }
+}
+
+fn default_terminal_display_title() -> String {
+    std::env::var("SHELL")
+        .ok()
+        .and_then(|shell| {
+            Path::new(&shell)
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+        })
+        .filter(|label| !label.trim().is_empty())
+        .unwrap_or_else(|| "terminal".to_string())
+}
+
+fn strip_terminal_control_sequences(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut chars = raw.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\u{1b}' {
+            match chars.peek().copied() {
+                Some('[') => {
+                    let _ = chars.next();
+                    for next in chars.by_ref() {
+                        if ('@'..='~').contains(&next) {
+                            break;
+                        }
+                    }
+                }
+                Some(']') => {
+                    let _ = chars.next();
+                    let mut prior_was_escape = false;
+                    for next in chars.by_ref() {
+                        if next == '\u{7}' || (prior_was_escape && next == '\\') {
+                            break;
+                        }
+                        prior_was_escape = next == '\u{1b}';
+                    }
+                }
+                Some(_) => {
+                    let _ = chars.next();
+                }
+                None => {}
+            }
+            continue;
+        }
+        if ch == '\r' {
+            out.push('\n');
+        } else if ch == '\n' || ch == '\t' || !ch.is_control() {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+fn terminal_input_bytes_for_key_event(
+    code: KeyCode,
+    text: Option<&str>,
+    modifiers: HeldModifiers,
+    platform: PlatformClass,
+) -> Option<Vec<u8>> {
+    if is_terminal_toggle_chord(code, modifiers, platform) {
+        return None;
+    }
+    match code {
+        KeyCode::Enter => Some(b"\r".to_vec()),
+        KeyCode::Backspace => Some(vec![0x7f]),
+        KeyCode::Delete => Some(b"\x1b[3~".to_vec()),
+        KeyCode::Tab if !modifiers.ctrl_or_logo() => Some(b"\t".to_vec()),
+        KeyCode::Escape => Some(vec![0x1b]),
+        KeyCode::ArrowUp if !modifiers.ctrl_or_logo() => Some(b"\x1b[A".to_vec()),
+        KeyCode::ArrowDown if !modifiers.ctrl_or_logo() => Some(b"\x1b[B".to_vec()),
+        KeyCode::ArrowRight if !modifiers.ctrl_or_logo() => Some(b"\x1b[C".to_vec()),
+        KeyCode::ArrowLeft if !modifiers.ctrl_or_logo() => Some(b"\x1b[D".to_vec()),
+        code if modifiers.ctrl && !modifiers.alt && !modifiers.logo && !modifiers.shift => {
+            control_byte_for_keycode(code).map(|byte| vec![byte])
+        }
+        _ if !modifiers.ctrl && !modifiers.logo => text
+            .filter(|value| !value.is_empty())
+            .map(|value| value.as_bytes().to_vec()),
+        _ => None,
+    }
+}
+
+fn control_byte_for_keycode(code: KeyCode) -> Option<u8> {
+    let byte = match code {
+        KeyCode::KeyA => 0x01,
+        KeyCode::KeyB => 0x02,
+        KeyCode::KeyC => 0x03,
+        KeyCode::KeyD => 0x04,
+        KeyCode::KeyE => 0x05,
+        KeyCode::KeyF => 0x06,
+        KeyCode::KeyG => 0x07,
+        KeyCode::KeyH => 0x08,
+        KeyCode::KeyI => 0x09,
+        KeyCode::KeyJ => 0x0a,
+        KeyCode::KeyK => 0x0b,
+        KeyCode::KeyL => 0x0c,
+        KeyCode::KeyM => 0x0d,
+        KeyCode::KeyN => 0x0e,
+        KeyCode::KeyO => 0x0f,
+        KeyCode::KeyP => 0x10,
+        KeyCode::KeyQ => 0x11,
+        KeyCode::KeyR => 0x12,
+        KeyCode::KeyS => 0x13,
+        KeyCode::KeyT => 0x14,
+        KeyCode::KeyU => 0x15,
+        KeyCode::KeyV => 0x16,
+        KeyCode::KeyW => 0x17,
+        KeyCode::KeyX => 0x18,
+        KeyCode::KeyY => 0x19,
+        KeyCode::KeyZ => 0x1a,
+        KeyCode::BracketLeft => 0x1b,
+        KeyCode::Backslash => 0x1c,
+        KeyCode::BracketRight => 0x1d,
+        _ => return None,
+    };
+    Some(byte)
+}
+
+fn is_terminal_toggle_chord(
+    code: KeyCode,
+    modifiers: HeldModifiers,
+    platform: PlatformClass,
+) -> bool {
+    if code != KeyCode::Backquote || modifiers.alt || modifiers.shift {
+        return false;
+    }
+    match platform {
+        PlatformClass::Macos => modifiers.logo && !modifiers.ctrl,
+        _ => modifiers.ctrl && !modifiers.logo,
+    }
+}
+
+#[cfg(test)]
+mod terminal_routing_tests {
+    use super::*;
+
+    #[cfg(unix)]
+    use std::thread;
+
+    #[cfg(unix)]
+    #[test]
+    fn bottom_panel_text_input_reaches_active_pty() {
+        let workspace = tempfile::tempdir().expect("workspace tempdir");
+        let mut runtime = TerminalPaneRuntimeState::new();
+        runtime.open_command_session_for_test(
+            "ws-test",
+            workspace.path().to_path_buf(),
+            aureline_terminal::PtyCommand::new("/bin/sh"),
+            "mono:0",
+        );
+        let modifiers = HeldModifiers::default();
+        for ch in "echo routed".chars() {
+            let text = ch.to_string();
+            let bytes = terminal_input_bytes_for_key_event(
+                KeyCode::Space,
+                Some(&text),
+                modifiers,
+                PlatformClass::Linux,
+            )
+            .expect("printable key routes");
+            runtime
+                .write_active_input(&bytes, TrustState::Trusted, "mono:input")
+                .expect("write printable key");
+        }
+        let enter = terminal_input_bytes_for_key_event(
+            KeyCode::Enter,
+            None,
+            modifiers,
+            PlatformClass::Linux,
+        )
+        .expect("enter routes");
+        runtime
+            .write_active_input(&enter, TrustState::Trusted, "mono:enter")
+            .expect("write enter");
+
+        let mut observed = String::new();
+        for _ in 0..40 {
+            let _ = runtime.drain_outputs("mono:poll");
+            observed = runtime.active_output_text().to_string();
+            if observed.contains("routed") {
+                break;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+
+        runtime.close_active_workspace("mono:close", Some("test_complete"));
+        assert!(
+            observed.contains("routed"),
+            "expected terminal output to contain routed command output, got: {observed:?}"
+        );
+    }
+
+    #[test]
+    fn platform_terminal_toggle_chords_are_not_sent_to_pty() {
+        let modifiers = HeldModifiers {
+            ctrl: true,
+            alt: false,
+            shift: false,
+            logo: false,
+        };
+        assert!(terminal_input_bytes_for_key_event(
+            KeyCode::Backquote,
+            None,
+            modifiers,
+            PlatformClass::Linux,
+        )
+        .is_none());
+
+        let mac_modifiers = HeldModifiers {
+            ctrl: false,
+            alt: false,
+            shift: false,
+            logo: true,
+        };
+        assert!(terminal_input_bytes_for_key_event(
+            KeyCode::Backquote,
+            None,
+            mac_modifiers,
+            PlatformClass::Macos,
+        )
+        .is_none());
+    }
+}
+
 #[derive(Debug, Clone)]
 struct CommandEnablementRuntimeState {
     workspace_trust_state: String,
@@ -3787,8 +4341,14 @@ fn open_local_folder_workspace(
     }
     palette.set_workspace_root(path.to_path_buf());
     let identity_key = path.to_string_lossy();
-    workspace_lifecycle
-        .open_local_folder(workspace_id_for_local_folder(&identity_key), trust_state);
+    let workspace_id = workspace_id_for_local_folder(&identity_key);
+    workspace_lifecycle.open_local_folder(workspace_id.clone(), trust_state);
+    editor_runtime.terminal_pane.open_workspace(
+        workspace_id,
+        path.to_path_buf(),
+        trust_state,
+        &mono_timestamp_now(),
+    );
     if let Err(err) = recent_work.save() {
         command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
     } else {
@@ -4037,6 +4597,7 @@ fn dispatch_registry_entry(
         "cmd:workspace.clone_repository" => "apply_after_preview",
         "cmd:workspace.restore_from_checkpoint" => "apply_after_preview",
         "cmd:workspace.import_profile" => "apply_after_preview",
+        "cmd:terminal.toggle" => "run_interactive_terminal",
         _ => "query_only_no_mutation",
     };
 
@@ -4232,6 +4793,28 @@ fn dispatch_registry_entry(
             frame.focus_zone(ShellZoneId::TransientOverlay);
             let invocation = invocation_and_result_simple_success(&session, "succeeded");
             command_runtime.record(invocation);
+            true
+        }
+        "cmd:terminal.toggle" => {
+            let trust_state =
+                trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
+            let session_opened = editor_runtime
+                .terminal_pane
+                .ensure_session_for_active_workspace(trust_state, &mono_timestamp_now())
+                .is_some();
+            if session_opened {
+                if frame.focused_zone() == ShellZoneId::BottomPanel {
+                    frame.focus_zone(ShellZoneId::MainWorkspace);
+                } else {
+                    frame.focus_zone(ShellZoneId::BottomPanel);
+                }
+                command_runtime.note_non_command_action("terminal toggled");
+                command_runtime.record(invocation_and_result_simple_success(&session, "succeeded"));
+            } else {
+                command_runtime
+                    .note_non_command_action("terminal unavailable: open a workspace first");
+                command_runtime.record(invocation_and_result_simple_success(&session, "no_op"));
+            }
             true
         }
         "cmd:workspace.open_folder" => {
@@ -4862,6 +5445,19 @@ fn activate_recent_work_entry(
 
     let trust_state = trust_override.unwrap_or(entry.trust_state);
     *workspace_trust_state = trust_state.as_str().to_string();
+    if let Some(root) = workspace_root_for_recent_work_entry(&entry) {
+        let identity_key = root.to_string_lossy();
+        editor_runtime.terminal_pane.open_workspace(
+            workspace_id_for_local_folder(&identity_key),
+            root,
+            trust_state,
+            &mono_timestamp_now(),
+        );
+    } else {
+        editor_runtime
+            .terminal_pane
+            .close_active_workspace(&mono_timestamp_now(), Some("workspace_closed"));
+    }
 
     let opened_at = mono_timestamp_now();
     entry.last_opened_at = opened_at.clone();
@@ -5764,6 +6360,57 @@ fn handle_key_event(
             return ShellDamageHint::FullWindow;
         }
         return ShellDamageHint::None;
+    }
+
+    if frame.focused_zone() == ShellZoneId::BottomPanel {
+        if is_terminal_toggle_chord(code, *modifiers, keybinding_runtime.platform_class) {
+            let changed = dispatch_command_id(
+                command_runtime,
+                registry,
+                frame,
+                editor_runtime,
+                palette,
+                palette_focus_return,
+                overlay,
+                "cmd:terminal.toggle",
+                DispatchOrigin::KeybindingChord,
+                enablement_runtime,
+                workspace_lifecycle,
+                recent_work,
+            );
+            return if changed {
+                ShellDamageHint::FullWindow
+            } else {
+                ShellDamageHint::None
+            };
+        }
+
+        if let Some(bytes) = terminal_input_bytes_for_key_event(
+            code,
+            event.text.as_deref(),
+            *modifiers,
+            keybinding_runtime.platform_class,
+        ) {
+            let trust_state =
+                trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
+            match editor_runtime.terminal_pane.write_active_input(
+                &bytes,
+                trust_state,
+                &mono_timestamp_now(),
+            ) {
+                Ok(()) => {}
+                Err(err) => command_runtime.note_non_command_action(err),
+            }
+            return frame
+                .layout()
+                .bottom_panel
+                .map(|rect| ShellDamageHint::Rect {
+                    layer: CompositionLayerId::TextAndDecoration,
+                    class: DamageClassId::TextReflowLocal,
+                    rect: to_physical_rect(rect, window.scale_factor()),
+                })
+                .unwrap_or(ShellDamageHint::FullWindow);
+        }
     }
 
     if frame.focused_zone() == ShellZoneId::MainWorkspace
@@ -7313,6 +7960,27 @@ fn rasterize_shell(
                     }
                 }
             }
+            ShellZoneId::BottomPanel => {
+                let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
+                for (_slot_id, slot_rect) in
+                    frame.slot_rects_within_zone(zone, logical_rect, zone_inset_logical)
+                {
+                    let slot_rect = to_physical_rect(slot_rect, scale);
+                    if clip.is_some_and(|clip_rect| !rect_intersects(slot_rect, clip_rect)) {
+                        continue;
+                    }
+                    draw_terminal_panel(
+                        buffer,
+                        width,
+                        height,
+                        slot_rect,
+                        &mut editor_runtime.terminal_pane,
+                        keybinding_runtime,
+                        &style,
+                        zone == frame.focused_zone(),
+                    );
+                }
+            }
             ShellZoneId::TitleContextBar => {
                 let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
                 for (_slot_id, slot_rect) in
@@ -7533,6 +8201,7 @@ fn rasterize_shell(
             "allow"
         };
         let palette_keys = keybinding_runtime.shortcuts_label("cmd:command_palette.open");
+        let terminal_keys = keybinding_runtime.shortcuts_label("cmd:terminal.toggle");
         let docs_keys = keybinding_runtime.shortcuts_label("cmd:docs.open_in_browser");
         let enablement_trust_token = enablement_runtime.workspace_trust_state.as_str();
         let theme_label = appearance.theme_class().token();
@@ -7553,7 +8222,7 @@ fn rasterize_shell(
             .projection_label(SurfaceKind::WorkspaceStatusItem)
             .unwrap_or("Workspace ready");
         let text = format!(
-            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
+            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   {} terminal   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
             status_item_label,
             theme_label,
             density_label,
@@ -7571,6 +8240,7 @@ fn rasterize_shell(
             keybinding_runtime.active_preset.display_name(),
             keybinding_runtime.active_preset.preset_ref(),
             palette_keys,
+            terminal_keys,
             docs_keys,
             recent_work_store
         );
@@ -7804,6 +8474,288 @@ fn draw_shell_slot_placeholder_card(
         if cursor_x >= max_x {
             break;
         }
+    }
+}
+
+fn draw_terminal_panel(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    terminal_runtime: &mut TerminalPaneRuntimeState,
+    keybinding_runtime: &KeybindingRuntimeState,
+    style: &ShellRenderStyle,
+    focused: bool,
+) {
+    if rect.is_empty() || rect.width < 8 || rect.height < 8 {
+        return;
+    }
+    let _ = terminal_runtime.drain_outputs(&mono_timestamp_now());
+
+    fill_rect(buffer, width, height, rect, style.tokens.bg_surface);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        rect,
+        style.stroke_default,
+        style.tokens.border_default,
+    );
+
+    let inset = style.space_2.max(2);
+    let max_x = rect.right().saturating_sub(inset).max(rect.x);
+    let title_x = rect.x.saturating_add(inset);
+    let mut y = rect.y.saturating_add(inset / 2);
+    let toggle_keys = keybinding_runtime.shortcuts_label("cmd:terminal.toggle");
+    let title = match terminal_runtime.active_workspace_id() {
+        Some(workspace_id) => format!("Terminal  workspace={workspace_id}  toggle={toggle_keys}"),
+        None => format!("Terminal  open a workspace to start a shell  toggle={toggle_keys}"),
+    };
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        title_x,
+        y,
+        1,
+        &title,
+        style.tokens.text_primary,
+        max_x,
+    );
+    y = y.saturating_add(12);
+
+    let snapshot = terminal_runtime.snapshot();
+    let active_tab_id = snapshot
+        .as_ref()
+        .and_then(|snapshot| snapshot.active_tab_id.as_ref())
+        .or(terminal_runtime.active_session_id.as_ref());
+
+    if let Some(snapshot) = snapshot.as_ref() {
+        let tab_y = y;
+        let mut cursor_x = title_x;
+        if snapshot.tabs.is_empty() {
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                tab_y,
+                1,
+                "No terminal session",
+                style.tokens.text_muted,
+                max_x,
+            );
+        } else {
+            for tab in snapshot.tabs.iter().take(4) {
+                let label = terminal_tab_badge_label(tab, active_tab_id == Some(&tab.session_id));
+                let badge = draw_status_badge(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    tab_y,
+                    18,
+                    style,
+                    &label,
+                    if active_tab_id == Some(&tab.session_id) {
+                        style.tokens.text_primary
+                    } else {
+                        style.tokens.text_muted
+                    },
+                    if active_tab_id == Some(&tab.session_id) {
+                        style.tokens.accent_brand
+                    } else {
+                        style.tokens.border_default
+                    },
+                    if active_tab_id == Some(&tab.session_id) {
+                        style.tokens.bg_hover
+                    } else {
+                        style.tokens.bg_raised
+                    },
+                );
+                cursor_x = cursor_x
+                    .saturating_add(badge.width)
+                    .saturating_add(style.space_2);
+                if cursor_x >= max_x {
+                    break;
+                }
+            }
+        }
+    }
+    y = y.saturating_add(22);
+
+    if let Some(card) = terminal_runtime.active_host_boundary_card() {
+        let boundary_label = if card.current_boundary_cue_visible {
+            card.current_boundary_cue_label.as_str()
+        } else {
+            "Local desktop"
+        };
+        let degraded = card
+            .current_degraded_token
+            .as_deref()
+            .map(|token| format!("  state={token}"))
+            .unwrap_or_default();
+        let label = format!(
+            "host boundary: {}  cue={}{}",
+            boundary_label, card.current_boundary_cue_token, degraded
+        );
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            title_x,
+            y,
+            1,
+            &label,
+            if card.has_invariant_violations {
+                style.status_danger
+            } else {
+                style.tokens.text_secondary
+            },
+            max_x,
+        );
+    } else {
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            title_x,
+            y,
+            1,
+            "host boundary: waiting for workspace",
+            style.tokens.text_muted,
+            max_x,
+        );
+    }
+    y = y.saturating_add(14);
+
+    let viewport = Rect::new(
+        rect.x.saturating_add(inset),
+        y,
+        rect.width.saturating_sub(inset.saturating_mul(2)),
+        rect.bottom().saturating_sub(y).saturating_sub(inset),
+    );
+    if viewport.is_empty() {
+        return;
+    }
+    fill_rect(buffer, width, height, viewport, style.tokens.bg_canvas);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        viewport,
+        style.stroke_default,
+        style.tokens.border_default,
+    );
+    if focused {
+        let caret = Rect::new(
+            viewport.x.saturating_add(style.space_2),
+            viewport.bottom().saturating_sub(12).max(viewport.y),
+            6,
+            10,
+        );
+        fill_rect(
+            buffer,
+            width,
+            height,
+            caret,
+            style.tokens.accent_interactive,
+        );
+    }
+
+    let line_h = 10u32;
+    let max_lines = (viewport.height / line_h).saturating_sub(1).max(1) as usize;
+    let lines = terminal_view_lines(terminal_runtime.active_output_text(), max_lines);
+    if lines.is_empty() {
+        let empty = if terminal_runtime.active_workspace_id().is_some() {
+            "Shell starting..."
+        } else {
+            "Open a workspace, then toggle the terminal."
+        };
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            viewport.x.saturating_add(style.space_2),
+            viewport.y.saturating_add(style.space_2),
+            1,
+            empty,
+            style.tokens.text_muted,
+            viewport.right().saturating_sub(style.space_2),
+        );
+        return;
+    }
+
+    let mut line_y = viewport.y.saturating_add(style.space_2);
+    let line_max_x = viewport.right().saturating_sub(style.space_2);
+    for line in lines {
+        if line_y.saturating_add(line_h) > viewport.bottom() {
+            break;
+        }
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            viewport.x.saturating_add(style.space_2),
+            line_y,
+            1,
+            &line,
+            style.tokens.text_primary,
+            line_max_x,
+        );
+        line_y = line_y.saturating_add(line_h);
+    }
+}
+
+fn terminal_tab_badge_label(tab: &TerminalPaneTabRecord, active: bool) -> String {
+    let mut label = String::new();
+    if active {
+        label.push('[');
+    }
+    label.push_str(&tab.display_title);
+    if active {
+        label.push(']');
+    }
+    label.push(' ');
+    label.push_str(&tab.target_badge);
+    if let Some(token) = tab.degraded_token.as_deref() {
+        label.push(' ');
+        label.push_str(token);
+    }
+    const MAX_LABEL_CHARS: usize = 28;
+    if label.chars().count() <= MAX_LABEL_CHARS {
+        return label;
+    }
+    let mut truncated = label
+        .chars()
+        .take(MAX_LABEL_CHARS.saturating_sub(1))
+        .collect::<String>();
+    truncated.push('~');
+    truncated
+}
+
+fn terminal_view_lines(text: &str, max_lines: usize) -> Vec<String> {
+    if max_lines == 0 || text.trim().is_empty() {
+        return Vec::new();
+    }
+    let mut lines: Vec<String> = text
+        .lines()
+        .map(|line| {
+            let trimmed = line.trim_end_matches('\0');
+            if trimmed.is_empty() {
+                String::new()
+            } else {
+                trimmed.to_string()
+            }
+        })
+        .collect();
+    while lines.first().is_some_and(|line| line.is_empty()) {
+        lines.remove(0);
+    }
+    if lines.len() > max_lines {
+        lines.split_off(lines.len().saturating_sub(max_lines))
+    } else {
+        lines
     }
 }
 
@@ -11872,6 +12824,7 @@ fn key_string_for_keycode(code: KeyCode) -> Option<String> {
         KeyCode::KeyX => Some("X".to_string()),
         KeyCode::KeyY => Some("Y".to_string()),
         KeyCode::KeyZ => Some("Z".to_string()),
+        KeyCode::Backquote => Some("`".to_string()),
         KeyCode::Space => Some("Space".to_string()),
         _ => None,
     }
