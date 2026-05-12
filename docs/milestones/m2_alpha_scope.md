@@ -16,9 +16,14 @@ cite those rows instead of copying scope text.
 - Design-partner task pack: `artifacts/milestones/m2/design_partner_task_pack.md`
 - Design-partner feedback taxonomy: `artifacts/feedback/design_partner_feedback_taxonomy.yaml`
 - External alpha known limits: `artifacts/feedback/external_alpha_known_limits.md`
+- Benchmark fixture register: `artifacts/benchmarks/m2_fixture_register.yaml`
+- Privacy-cleared corpus workflow: `docs/benchmarks/privacy_cleared_corpus_workflow.md`
+- Benchmark fixture proof packet: `artifacts/milestones/m2/proof_packets/benchmark_fixture_register.md`
 - Latest validation capture: `artifacts/milestones/m2/captures/alpha_scope_validation_capture.json`
+- Latest benchmark fixture capture: `artifacts/milestones/m2/captures/benchmark_fixture_register_validation_capture.json`
 - Validator: `ci/check_alpha_scope.py`
 - Design-partner validator: `ci/check_design_partner_alpha.py`
+- Benchmark fixture validator: `ci/check_benchmark_fixture_register.py`
 
 ## Definition of Green
 
@@ -63,6 +68,10 @@ Optional machine-readable report:
 External alpha design-partner packet validation:
 
 `python3 ci/check_design_partner_alpha.py --repo-root . --report target/design-partner-alpha/report.json`
+
+External alpha benchmark fixture-register validation:
+
+`python3 ci/check_benchmark_fixture_register.py --repo-root . --report target/benchmark-fixture-register/report.json`
 
 ## Update Rules
 

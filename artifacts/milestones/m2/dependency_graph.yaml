@@ -103,6 +103,31 @@ nodes:
     required: true
     artifact_ref: fixtures/benchmarks/corpus_manifest.yaml
 
+  - node_id: external_alpha_fixture_register
+    kind: protected_fixture_register
+    required: true
+    artifact_ref: artifacts/benchmarks/m2_fixture_register.yaml
+
+  - node_id: external_alpha_fixture_workflow_packets
+    kind: protected_fixture_root
+    required: true
+    artifact_ref: fixtures/reference_workspaces/m2/
+
+  - node_id: external_alpha_fixture_register_docs
+    kind: human_entrypoint
+    required: true
+    artifact_ref: docs/benchmarks/privacy_cleared_corpus_workflow.md
+
+  - node_id: external_alpha_fixture_register_validator
+    kind: first_consumer
+    required: true
+    artifact_ref: ci/check_benchmark_fixture_register.py
+
+  - node_id: external_alpha_fixture_register_proof_packet
+    kind: proof_packet
+    required: true
+    artifact_ref: artifacts/milestones/m2/proof_packets/benchmark_fixture_register.md
+
   - node_id: reference_workspace_fixtures
     kind: protected_fixture_root
     required: true
@@ -226,6 +251,57 @@ edges:
       register before they can move a go/no-go row to green.
 
   - from: alpha_wedge_matrix
+    to: external_alpha_fixture_register
+    rationale: >
+      The fixture register binds each alpha reference workspace to the protected
+      workflows and scoreboard rows already frozen in the matrix.
+
+  - from: benchmark_corpus_manifest
+    to: external_alpha_fixture_register
+    rationale: >
+      Register rows cite stable corpus ids from the protected manifest rather
+      than hardcoding workspace paths in benchmark packets.
+
+  - from: reference_workspace_fixtures
+    to: external_alpha_fixture_register
+    rationale: >
+      Existing reference workspace descriptors remain the canonical workspace
+      shapes; the register adds privacy, provenance, proof-lane, and
+      repeatability bindings.
+
+  - from: design_partner_intake
+    to: external_alpha_fixture_register
+    rationale: >
+      Any partner-derived fixture must pass the shared intake, privacy,
+      license, retention, and owner-coverage workflow before it can become a
+      register row.
+
+  - from: external_alpha_fixture_workflow_packets
+    to: external_alpha_fixture_register
+    rationale: >
+      Workflow packets carry the task scripts and repeatability notes the
+      register row exposes to benchmark packets.
+
+  - from: external_alpha_fixture_register
+    to: external_alpha_fixture_register_validator
+    rationale: >
+      The validator is the first consumer and fails when register rows lose
+      provenance, privacy review, repeatability notes, corpus refs, or
+      scoreboard bindings.
+
+  - from: external_alpha_fixture_register
+    to: alpha_exit_gate_scoreboard
+    rationale: >
+      The benchmark fixture scoreboard row reads this register before allowing
+      benchmark packets to cite alpha reference workspaces.
+
+  - from: external_alpha_fixture_register_proof_packet
+    to: external_alpha_fixture_register_docs
+    rationale: >
+      The workflow page links the proof packet, validator, capture, and register
+      into one reviewable corpus-admission path.
+
+  - from: alpha_wedge_matrix
     to: alpha_exit_gate_scoreboard
     rationale: >
       Every claimed workflow and deployment row names a scoreboard row.
@@ -283,3 +359,15 @@ consumer_surfaces:
       - alpha_exit_gate_scoreboard
     command: python3 ci/check_design_partner_alpha.py --repo-root .
     report_ref: artifacts/milestones/m2/captures/design_partner_intake_validation_capture.json
+
+  - consumer_id: external_alpha_fixture_register_validator
+    title: External alpha benchmark fixture-register validator
+    reads:
+      - external_alpha_fixture_register
+      - external_alpha_fixture_workflow_packets
+      - benchmark_corpus_manifest
+      - reference_workspace_fixtures
+      - alpha_wedge_matrix
+      - alpha_exit_gate_scoreboard
+    command: python3 ci/check_benchmark_fixture_register.py --repo-root .
+    report_ref: artifacts/milestones/m2/captures/benchmark_fixture_register_validation_capture.json

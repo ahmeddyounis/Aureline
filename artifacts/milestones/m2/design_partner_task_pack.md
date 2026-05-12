@@ -13,6 +13,7 @@ alpha wedge. It consumes the alpha scope matrix and does not add new wedges.
 - Feedback taxonomy: `artifacts/feedback/design_partner_feedback_taxonomy.yaml`
 - Known limits: `artifacts/feedback/external_alpha_known_limits.md`
 - Upstream intake checklist: `artifacts/program/design_partner_intake_checklist.yaml`
+- Benchmark fixture register: `artifacts/benchmarks/m2_fixture_register.yaml`
 - TypeScript / JavaScript fixture: `fixtures/workspaces/reference/ts_web_app_archetype_seed.json`
 - Python fixture: `fixtures/workspaces/reference/python_data_app_archetype_seed.json`
 - Shared benchmark manifest: `fixtures/benchmarks/corpus_manifest.yaml`
@@ -26,6 +27,7 @@ Every task result records:
 - `workflow_id`;
 - `scoreboard_row_ref`;
 - reference workspace or privacy-cleared partner workspace ref;
+- fixture register row ref when the task uses a registered alpha workspace;
 - operating system and deployment posture;
 - pass/fail state;
 - `blocker_severity`;

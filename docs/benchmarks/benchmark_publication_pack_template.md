@@ -13,6 +13,7 @@ Related control artifacts:
 - artifacts/bench/corpus_change_control.yaml
 - docs/benchmarks/public_comparison_rules.md
 - artifacts/bench/fitness_function_catalog.yaml
+- artifacts/benchmarks/m2_fixture_register.yaml
 - fixtures/benchmarks/corpus_manifest.yaml
 - artifacts/perf/protected_path_ledger.yaml
 - artifacts/perf/latency_budget_ledger.yaml
@@ -54,6 +55,7 @@ known-limit notes, or migration packets.
 - **Release channel / workspace version:** `<channel>` / `<version>`
 - **Protected metrics revision:** `<metrics-file-id>@<revision>`
 - **Fitness-function catalog revision:** `<catalog-id>@<revision>`
+- **Fixture register revision:** `<register-id>@<revision>`
 - **Corpus manifest revision:** `<manifest-id>@<revision>`
 - **Protected-path ledger revision:** `<ledger-id>@<revision>` or `not_applicable`
 - **Latency-budget ledger revision:** `<ledger-id>@<revision>` or `not_applicable`
@@ -109,6 +111,8 @@ before reading numbers.
 ## Corpus and task definition
 
 - **Protected fitness rows cited:** list `ff.*` ids.
+- **Fixture register rows cited:** list `fixture_register:*` ids and their
+  register revision.
 - **Corpus refs:** list `corpus.*` ids or repo slices.
 - **Protected path ids cited when the claim is path-level:** list `path.*`
   ids or `not_applicable`.
