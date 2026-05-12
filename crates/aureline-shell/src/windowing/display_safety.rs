@@ -472,8 +472,10 @@ mod tests {
         width: u32,
         height: u32,
         #[serde(default)]
+        #[allow(dead_code)]
         scale_factor: Option<f64>,
         #[serde(default)]
+        #[allow(dead_code)]
         primary: bool,
     }
 

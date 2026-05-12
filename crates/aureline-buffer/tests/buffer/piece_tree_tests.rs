@@ -33,7 +33,7 @@ fn coordinate_translation_is_grapheme_aware() {
     assert_eq!(start, 0);
 
     let second = snapshot.byte_offset_for_line_grapheme(0, 1).unwrap();
-    let expected_second = "a\u{0301}".as_bytes().len();
+    let expected_second = "a\u{0301}".len();
     assert_eq!(second, expected_second);
 
     assert_eq!(snapshot.line_grapheme_for_byte_offset(second), Some((0, 1)));

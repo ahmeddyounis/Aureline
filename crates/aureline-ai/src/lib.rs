@@ -31,6 +31,6 @@ pub use composer::{
     AttachmentKind, AttachmentStatusClass, BlockReason, ComposerAttachment, ComposerDraft,
     ComposerDraftState, ComposerMention, ComposerSlashCommandInvocation, DispatchTargetClass,
     MentionKind, MentionResolutionState, PrototypeLabel, ProviderClass, RoutePathClass,
-    RoutePlaceholder, SelectionReasonClass, SlashCommandResolutionState, SourceClass,
-    TrustPosture, ValidationOutcome, COMPOSER_DRAFT_RECORD_KIND, COMPOSER_DRAFT_SCHEMA_VERSION,
+    RoutePlaceholder, SelectionReasonClass, SlashCommandResolutionState, SourceClass, TrustPosture,
+    ValidationOutcome, COMPOSER_DRAFT_RECORD_KIND, COMPOSER_DRAFT_SCHEMA_VERSION,
 };

@@ -488,6 +488,7 @@ impl KeybindingResolver {
         self.admin_locked_sequences = sequences;
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn push_candidate(
         &mut self,
         layer: ResolverLayerClass,

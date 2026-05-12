@@ -49,10 +49,7 @@ impl Hook {
     /// Whether this hook is a protected hot path per ADR 0002. Non-hot-path
     /// hooks are observability-only and do not gate release.
     pub const fn is_hot_path(self) -> bool {
-        match self {
-            Self::AtlasEviction | Self::DegradedRendererBanner => false,
-            _ => true,
-        }
+        !matches!(self, Self::AtlasEviction | Self::DegradedRendererBanner)
     }
 
     /// The full enumeration in ADR 0002 order. Used by the capability

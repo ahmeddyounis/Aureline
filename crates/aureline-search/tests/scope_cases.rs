@@ -11,9 +11,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use aureline_search::{
-    glob_matches_relative_path, ScopePatternRecord, WorkspaceSearchScope,
-};
+use aureline_search::{glob_matches_relative_path, WorkspaceSearchScope};
 use aureline_workspace::{
     MemberRef, MemberRefKind, MembershipPolicy, NarrowingCause, PartialTruthLabel, PatternEntry,
     PatternKind, PolicyLimitation, PortabilityMetadata, ReadinessMetadata, ReadinessState,
@@ -144,8 +142,10 @@ fn pattern_entry(pattern: &PatternFixture) -> PatternEntry {
 fn build_artifact(fixture: &WorksetArtifactFixture) -> WorksetArtifactRecord {
     let scope_class = parse_scope_class(&fixture.scope_class);
     let member_partial = parse_partial_truth(&fixture.member_partial_truth);
-    let policy_limitation = if matches!(scope_class, aureline_workspace::ScopeClass::PolicyLimitedView)
-        || fixture.policy_limited
+    let policy_limitation = if matches!(
+        scope_class,
+        aureline_workspace::ScopeClass::PolicyLimitedView
+    ) || fixture.policy_limited
     {
         Some(PolicyLimitation {
             underlying_workset_ref: format!("{}:underlying", fixture.workset_id),
@@ -244,8 +244,8 @@ fn assert_partition(
 
 #[test]
 fn scope_cases_match_expected_partition() {
-    let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/search/scope_cases");
+    let fixtures_dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/search/scope_cases");
     let mut fixtures: Vec<_> = std::fs::read_dir(&fixtures_dir)
         .unwrap_or_else(|err| panic!("fixtures dir must exist at {fixtures_dir:?}: {err}"))
         .filter_map(|entry| entry.ok().map(|e| e.path()))
@@ -363,7 +363,8 @@ fn verify_switch(fixture: &CaseFixture, path: &Path) {
         .expect("from artifact must validate");
     to_artifact.validate().expect("to artifact must validate");
 
-    let from_scope = WorkspaceSearchScope::from_workset_artifact(&fixture.workspace_id, &from_artifact);
+    let from_scope =
+        WorkspaceSearchScope::from_workset_artifact(&fixture.workspace_id, &from_artifact);
     let to_scope = WorkspaceSearchScope::from_workset_artifact(&fixture.workspace_id, &to_artifact);
 
     assert_eq!(
@@ -416,14 +417,7 @@ fn verify_switch(fixture: &CaseFixture, path: &Path) {
         // contract exposed to callers that bypass the WorkspaceSearchScope
         // wrapper.
         assert!(
-            !glob_matches_relative_path(
-                row,
-                &to_scope
-                    .patterns()
-                    .iter()
-                    .cloned()
-                    .collect::<Vec<ScopePatternRecord>>()
-            ) || to_scope.patterns().is_empty(),
+            !glob_matches_relative_path(row, to_scope.patterns()) || to_scope.patterns().is_empty(),
             "primitive check leaked row {row} into the after_switch scope in {path:?}"
         );
     }

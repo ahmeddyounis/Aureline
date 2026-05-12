@@ -142,15 +142,8 @@ use winit::event::{ElementState, Event, Ime, KeyEvent, MouseScrollDelta, WindowE
 use winit::event_loop::{ControlFlow, EventLoop};
 
 use aureline_recovery::crash_journal::{CrashJournalStore, CrashMarkerGuard};
-use aureline_recovery::session_restore::records::{
-    DirtyBufferJournalIdentity, DowngradeTriggerRecord, ExcludedLiveAuthorityClass,
-    ProducerBuildStamp, RestoreClass, SurfaceClass as RestoreSurfaceClass, SurfaceRole,
-    TrustedRootRecord, WindowRole,
-};
-use aureline_recovery::session_restore::{
-    RestoreProposal, SessionRestoreCaptureInput, SessionRestoreStore, TabGroupCaptureInput,
-    TabItemCaptureInput,
-};
+use aureline_recovery::session_restore::records::RestoreClass;
+use aureline_recovery::session_restore::{RestoreProposal, SessionRestoreStore};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[derive(Debug, Clone)]
@@ -160,16 +153,21 @@ struct ShellRenderTokens {
     bg_surface: ColorRgba,
     bg_raised: ColorRgba,
     bg_hover: ColorRgba,
+    #[allow(dead_code)]
     bg_active: ColorRgba,
     bg_overlay: ColorRgba,
     text_primary: ColorRgba,
     text_secondary: ColorRgba,
     text_muted: ColorRgba,
+    #[allow(dead_code)]
     text_inverse: ColorRgba,
     border_default: ColorRgba,
     border_strong: ColorRgba,
+    #[allow(dead_code)]
     icon_default: ColorRgba,
+    #[allow(dead_code)]
     icon_muted: ColorRgba,
+    #[allow(dead_code)]
     focus_ring: ColorRgba,
     accent_brand: ColorRgba,
     accent_interactive: ColorRgba,
@@ -217,6 +215,7 @@ impl ShellRenderTokens {
 struct ShellRenderStyle {
     tokens: ShellRenderTokens,
     component_states: ComponentStateRegistry,
+    #[allow(dead_code)]
     density_class: DensityClass,
     density_row_height: u32,
     density_control_height: u32,
@@ -1622,6 +1621,7 @@ impl ReadOnlyState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GeneratedState {
     Authored,
+    #[allow(dead_code)]
     Generated,
 }
 
@@ -1637,6 +1637,7 @@ impl GeneratedState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ManagedState {
     Unmanaged,
+    #[allow(dead_code)]
     Managed,
 }
 
@@ -1652,6 +1653,7 @@ impl ManagedState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProjectionState {
     Direct,
+    #[allow(dead_code)]
     Projection,
 }
 
@@ -1667,6 +1669,7 @@ impl ProjectionState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SnapshotFacingState {
     Live,
+    #[allow(dead_code)]
     Snapshot,
 }
 

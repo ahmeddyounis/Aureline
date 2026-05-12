@@ -47,9 +47,9 @@ pub use roots::{
 
 pub use generated_artifacts::{
     default_catalog as default_generated_artifact_catalog, detect_lineage,
-    GeneratedArtifactCatalog, GeneratedArtifactClass, GeneratedArtifactRule,
-    LineageFreshnessClass, LineageHintRecord, LineageHintRecordKind, LineageHintSchemaVersion,
-    RuleMatcher, SourceCanonicalLink,
+    GeneratedArtifactCatalog, GeneratedArtifactClass, GeneratedArtifactRule, LineageFreshnessClass,
+    LineageHintRecord, LineageHintRecordKind, LineageHintSchemaVersion, RuleMatcher,
+    SourceCanonicalLink,
 };
 
 pub use worksets::{

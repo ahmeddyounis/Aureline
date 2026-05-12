@@ -343,7 +343,9 @@ impl ContextSummary {
         let trusted_attachment_count = draft
             .attachments
             .iter()
-            .filter(|attachment| matches!(attachment.trust_posture, TrustPosture::TrustedFirstParty))
+            .filter(|attachment| {
+                matches!(attachment.trust_posture, TrustPosture::TrustedFirstParty)
+            })
             .count() as u32;
         let tainted_attachment_count = draft
             .attachments
@@ -761,7 +763,10 @@ fn validate_packet(
 
     // A dispatch-disabled wedge cannot claim a post-run completed outcome.
     if dispatch_disabled
-        && matches!(packet.run_state_class, AiRunStateClass::PostRunCompletedMocked)
+        && matches!(
+            packet.run_state_class,
+            AiRunStateClass::PostRunCompletedMocked
+        )
     {
         violations.push(AiTruthStripInvariantViolation::DispatchDisabledButCompletedOutcomeClaimed);
     }
@@ -779,7 +784,10 @@ fn validate_packet(
     );
     if draft_blocked
         && !fixture_only_state
-        && !matches!(packet.run_state_class, AiRunStateClass::BlockedPendingResolution)
+        && !matches!(
+            packet.run_state_class,
+            AiRunStateClass::BlockedPendingResolution
+        )
     {
         violations.push(AiTruthStripInvariantViolation::DraftBlockedButPacketClaimsReady);
     }

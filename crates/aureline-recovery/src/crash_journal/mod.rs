@@ -20,5 +20,5 @@ pub use records::{
     RetentionClass, RetentionPostureRecord, SourceClass, SupportBundleInclusionState,
     SupportExportRecord, SurfaceClass, TextFormatRecord, TokenClass, TokenConfidenceClass,
 };
-pub use store::{CrashJournalError, CrashJournalStore};
 pub use store::CrashJournalCaptureInput;
+pub use store::{CrashJournalError, CrashJournalStore};

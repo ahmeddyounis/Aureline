@@ -65,10 +65,7 @@ impl ScopeClass {
     pub const fn is_narrowed(self) -> bool {
         matches!(
             self,
-            Self::CurrentRepo
-                | Self::SelectedWorkset
-                | Self::SparseSlice
-                | Self::PolicyLimitedView
+            Self::CurrentRepo | Self::SelectedWorkset | Self::SparseSlice | Self::PolicyLimitedView
         )
     }
 
@@ -309,17 +306,26 @@ impl std::fmt::Display for WorksetArtifactError {
             Self::EmptyRootRefs => write!(f, "root_refs must contain at least one root"),
             Self::DuplicateRootRef(r) => write!(f, "duplicate root_ref: {r}"),
             Self::PolicyLimitationRequired => {
-                write!(f, "policy_limitation is required for policy_limited_view scope")
+                write!(
+                    f,
+                    "policy_limitation is required for policy_limited_view scope"
+                )
             }
             Self::PolicyLimitationForbidden => {
-                write!(f, "policy_limitation is forbidden outside policy_limited_view scope")
+                write!(
+                    f,
+                    "policy_limitation is forbidden outside policy_limited_view scope"
+                )
             }
             Self::PolicyExposesAdminHiddenList(cause) => write!(
                 f,
                 "narrowing cause {cause:?} forbids exposing the hidden member list"
             ),
             Self::PatternRootRefNotInRootRefs(r) => {
-                write!(f, "pattern applies_to_root_ref {r} is not declared in root_refs")
+                write!(
+                    f,
+                    "pattern applies_to_root_ref {r} is not declared in root_refs"
+                )
             }
             Self::SchemaVersionMismatch(v) => write!(
                 f,
@@ -507,8 +513,7 @@ impl WorksetArtifactRecord {
                 offered_actions.push(ChipAction::KeepCurrentScope);
                 if let Some(limit) = self.policy_limitation.as_ref() {
                     if limit.hidden_member_list_visible {
-                        offered_actions
-                            .push(ChipAction::RevealHiddenResultsPolicyAdminOnly);
+                        offered_actions.push(ChipAction::RevealHiddenResultsPolicyAdminOnly);
                     }
                 }
             }
@@ -834,8 +839,7 @@ mod tests {
     #[test]
     fn project_chip_marks_partial_when_member_truth_is_not_loaded() {
         let artifact = fixture_artifact();
-        let chip =
-            artifact.project_chip("chip:0", ChipSurfaceClass::WorksetSwitcher, "mono:1");
+        let chip = artifact.project_chip("chip:0", ChipSurfaceClass::WorksetSwitcher, "mono:1");
         assert_eq!(
             chip.chip_presentation_state,
             ChipPresentationState::ActivePartial

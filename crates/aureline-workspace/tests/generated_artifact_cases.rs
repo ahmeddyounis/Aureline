@@ -126,12 +126,8 @@ fn fixture_corpus_drives_generated_artifact_catalog() {
             obj.remove("__fixture__");
             obj.remove("scenario");
         }
-        let fixture: CaseFixture = serde_json::from_value(value).unwrap_or_else(|err| {
-            panic!(
-                "fixture {} did not deserialize: {err}",
-                path.display(),
-            )
-        });
+        let fixture: CaseFixture = serde_json::from_value(value)
+            .unwrap_or_else(|err| panic!("fixture {} did not deserialize: {err}", path.display(),));
 
         // Cover every input path with the catalog and confirm the result
         // matches the expected record (or that no record is produced when

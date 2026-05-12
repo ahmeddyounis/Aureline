@@ -53,11 +53,7 @@ fn ime_and_dead_key_fixtures_stay_deterministic() {
                 TextInputStepEvent::Key { key } => session.handle_key_event(&key),
             };
 
-            assert_eq!(
-                actual, step.expected,
-                "step {idx} mismatch for {path:?}"
-            );
+            assert_eq!(actual, step.expected, "step {idx} mismatch for {path:?}");
         }
     }
 }
-

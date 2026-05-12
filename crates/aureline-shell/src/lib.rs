@@ -5,6 +5,29 @@
 //! placeholder occupants in each declared zone.
 
 #![doc(html_root_url = "https://docs.rs/aureline-shell/0.0.0")]
+#![allow(
+    clippy::collapsible_if,
+    clippy::comparison_chain,
+    clippy::derivable_impls,
+    clippy::if_same_then_else,
+    clippy::large_enum_variant,
+    clippy::match_like_matches_macro,
+    clippy::missing_const_for_thread_local,
+    clippy::needless_borrow,
+    clippy::needless_lifetimes,
+    clippy::needless_range_loop,
+    clippy::new_without_default,
+    clippy::permissions_set_readonly_false,
+    clippy::question_mark,
+    clippy::redundant_closure,
+    clippy::redundant_guards,
+    clippy::too_many_arguments,
+    clippy::unnecessary_map_or,
+    clippy::unnecessary_to_owned,
+    clippy::useless_format,
+    clippy::wildcard_in_or_patterns,
+    clippy::wrong_self_convention
+)]
 
 /// Accessibility-tree bridge groundwork for shell surfaces.
 pub(crate) mod a11y;
@@ -52,6 +75,9 @@ pub mod explorer;
 pub mod graph_state_card;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
+/// Help / About / provenance / service-health seed surface with client-scope
+/// badges projected from the shared build-info, runtime, and docs/help truth.
+pub mod help_about;
 /// Bounded host-boundary cue and target-identity-handoff wedge on the
 /// bottom-panel terminal pane. Records each session lifecycle event as a
 /// typed handoff step that preserves source / current target identity and
@@ -59,9 +85,6 @@ pub mod help;
 /// policy-blocked states. Reuses the
 /// [`crate::badges::target_origin`] vocabulary instead of forking it.
 pub mod host_boundary_cues;
-/// Help / About / provenance / service-health seed surface with client-scope
-/// badges projected from the shared build-info, runtime, and docs/help truth.
-pub mod help_about;
 /// Bounded install-review fact-grid wedge on one certified install-like
 /// action (extension-bearing). Projects the upstream
 /// [`aureline_extensions::manifest_baseline`] manifest, effective-
@@ -83,15 +106,15 @@ pub mod layout;
 /// the upstream locality/tenancy/key-mode tokens on the per-step
 /// authority lineage rather than forking them.
 pub mod managed_workspace_labels;
-/// Notification routing: toast, banner, status, and durable-activity row
-/// projections derived from the typed notification envelope contract.
-pub mod notifications;
 /// Bounded notebook-trust-badge and representation-state wedge on one
 /// certified notebook-like preview row. Renders workspace, notebook,
 /// kernel, output, and widget trust as visibly distinct axes alongside
 /// the per-row representation state and escape hatches. The wedge never
 /// autoexecutes active content on notebook open.
 pub mod notebook_trust_badges;
+/// Notification routing: toast, banner, status, and durable-activity row
+/// projections derived from the typed notification envelope contract.
+pub mod notifications;
 /// Command palette query-session state and grouped result projections.
 pub mod palette;
 /// Path-truth chip, alias inspector, and pre-write save-target review projections.
@@ -114,13 +137,6 @@ pub mod recovery;
 pub mod release_center;
 /// Restore-prompt projection for resume / missing-target recovery.
 pub mod restore;
-/// Representation-labeled safe-preview and copy/export card: live shell
-/// consumer of the bounded [`aureline_preview`] safe-preview wedge. Projects
-/// the canonical preview record into a card snapshot the chrome quotes
-/// verbatim — including the prototype label chip, the currently visible
-/// representation, the paired copy/export options, and the explicit
-/// representation-honesty invariants.
-pub mod safe_preview_card;
 /// Preview/apply/revert lifecycle wedge for one destructive core path
 /// (multi-target bulk replace). Bounded prototype: mints named undo
 /// groups and content-addressed checkpoints, refuses to widen scope after
@@ -129,6 +145,13 @@ pub mod safe_preview_card;
 pub mod review_preview;
 /// Runtime projections shared by terminal, task, and debug-prep seed surfaces.
 pub mod runtime;
+/// Representation-labeled safe-preview and copy/export card: live shell
+/// consumer of the bounded [`aureline_preview`] safe-preview wedge. Projects
+/// the canonical preview record into a card snapshot the chrome quotes
+/// verbatim — including the prototype label chip, the currently visible
+/// representation, the paired copy/export options, and the explicit
+/// representation-honesty invariants.
+pub mod safe_preview_card;
 /// Save-review sheet projections for conflicted save attempts.
 pub mod save_review;
 /// Scope-truth chip projections shared across open and search foundations.

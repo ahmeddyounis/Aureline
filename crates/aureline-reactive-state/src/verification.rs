@@ -205,7 +205,7 @@ pub fn invalidation_order_audits_to_json(audits: &[InvalidationOrderAudit]) -> S
 }
 
 fn diagnostics_summary_parity_case() -> SnapshotDeltaParityCase {
-    let snapshot_states = vec![
+    let snapshot_states = [
         DiagnosticsProjectionState {
             freshness: Freshness::Cached,
             completeness: Completeness::Full,
@@ -528,7 +528,7 @@ fn find_scenario<'a>(scenarios: &'a [ScenarioReport], label: &str) -> &'a Scenar
         .unwrap_or_else(|| panic!("missing scenario: {label}"))
 }
 
-fn first_frame<'a, F>(report: &'a ScenarioReport, predicate: F) -> &'a TraceEvent
+fn first_frame<F>(report: &ScenarioReport, predicate: F) -> &TraceEvent
 where
     F: Fn(&str, &str, u64, u64) -> bool,
 {

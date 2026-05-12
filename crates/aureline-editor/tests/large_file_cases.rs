@@ -149,27 +149,24 @@ fn large_file_cases_fixture_set_stays_deterministic() {
         let uri = VfsUri::file_url_for_path(&file_path)
             .unwrap_or_else(|| panic!("fixture path must map to file uri: {file_path:?}"));
 
-        let policy = fixture.policy_overrides.apply(ClassificationPolicy::default());
+        let policy = fixture
+            .policy_overrides
+            .apply(ClassificationPolicy::default());
         let viewer = fixture
             .viewer_overrides
             .apply(LargeFileViewerConfig::default());
 
-        let outcome = open_document(
-            &root,
-            &uri,
-            &policy,
-            viewer,
-            DocumentOpenDisposition::Auto,
-        )
-        .unwrap_or_else(|err| panic!("open failed for {:?} ({}): {err}", path, fixture.meta.scenario));
+        let outcome = open_document(&root, &uri, &policy, viewer, DocumentOpenDisposition::Auto)
+            .unwrap_or_else(|err| {
+                panic!(
+                    "open failed for {:?} ({}): {err}",
+                    path, fixture.meta.scenario
+                )
+            });
 
         match (fixture.expected.mode.as_str(), outcome) {
             ("large_file", DocumentOpenOutcome::LargeFile(mut doc)) => {
-                let trigger = doc
-                    .viewer
-                    .decision()
-                    .trigger
-                    .map(|t| t.as_str().to_owned());
+                let trigger = doc.viewer.decision().trigger.map(|t| t.as_str().to_owned());
                 assert_eq!(
                     trigger, fixture.expected.trigger,
                     "trigger mismatch for {:?} ({})",
@@ -251,13 +248,17 @@ fn large_file_cases_fixture_set_stays_deterministic() {
             ("large_file", other) => {
                 panic!(
                     "expected large-file open outcome for {:?} ({}), got {:?}",
-                    path, fixture.meta.scenario, other_kind(&other)
+                    path,
+                    fixture.meta.scenario,
+                    other_kind(&other)
                 );
             }
             ("normal", other) => {
                 panic!(
                     "expected normal open outcome for {:?} ({}), got {:?}",
-                    path, fixture.meta.scenario, other_kind(&other)
+                    path,
+                    fixture.meta.scenario,
+                    other_kind(&other)
                 );
             }
             (mode, _) => panic!("unknown expected mode {mode:?} for {:?}", path),

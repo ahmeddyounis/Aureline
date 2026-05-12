@@ -34,10 +34,7 @@ fn baseline_lineage(workspace_id: &str) -> ManagedAuthorityLineage {
     )
 }
 
-fn drive_to_ready(
-    wedge: &mut ManagedWorkspaceLifecycleWedge,
-    lineage: &ManagedAuthorityLineage,
-) {
+fn drive_to_ready(wedge: &mut ManagedWorkspaceLifecycleWedge, lineage: &ManagedAuthorityLineage) {
     wedge
         .open_authenticating(lineage.clone(), "mono:1")
         .expect("authenticating");
@@ -47,7 +44,9 @@ fn drive_to_ready(
     wedge
         .record_warming(lineage.clone(), "mono:3")
         .expect("warming");
-    wedge.record_ready(lineage.clone(), "mono:4").expect("ready");
+    wedge
+        .record_ready(lineage.clone(), "mono:4")
+        .expect("ready");
 }
 
 #[test]
@@ -57,8 +56,14 @@ fn protected_walk_renders_clean_card_with_visible_labels() {
     drive_to_ready(&mut wedge, &lineage);
     let card = wedge.card();
 
-    assert_eq!(card.record_kind, MANAGED_WORKSPACE_LIFECYCLE_CARD_RECORD_KIND);
-    assert_eq!(card.schema_version, MANAGED_WORKSPACE_LIFECYCLE_CARD_SCHEMA_VERSION);
+    assert_eq!(
+        card.record_kind,
+        MANAGED_WORKSPACE_LIFECYCLE_CARD_RECORD_KIND
+    );
+    assert_eq!(
+        card.schema_version,
+        MANAGED_WORKSPACE_LIFECYCLE_CARD_SCHEMA_VERSION
+    );
     assert_eq!(card.workspace_id, "ws-managed-acme");
     assert_eq!(
         card.prototype_label_token,
@@ -125,11 +130,7 @@ fn failure_drill_walks_reconnect_through_reprovisioning_back_to_ready() {
         .expect("ready on fresh copy");
 
     let card = wedge.card();
-    let labels: Vec<&str> = card
-        .steps
-        .iter()
-        .map(|s| s.label_token.as_str())
-        .collect();
+    let labels: Vec<&str> = card.steps.iter().map(|s| s.label_token.as_str()).collect();
     assert_eq!(
         labels,
         vec![
@@ -247,9 +248,7 @@ fn reprovision_without_prior_pause_is_refused() {
 fn empty_lineage_is_refused() {
     let mut wedge = ManagedWorkspaceLifecycleWedge::new("ws-managed-acme");
     let lineage = ManagedAuthorityLineage::new("", "", "", "");
-    let err = wedge
-        .open_authenticating(lineage, "mono:1")
-        .unwrap_err();
+    let err = wedge.open_authenticating(lineage, "mono:1").unwrap_err();
     assert!(matches!(err, WedgeError::EmptyAuthorityLineage));
 }
 
@@ -273,11 +272,8 @@ fn degraded_step_must_carry_recovery_action() {
         last.recovery_action_label = RecoveryActionClass::None.label().to_owned();
     }
     let card = wedge.card();
-    assert!(card
-        .invariants
-        .iter()
-        .any(|row| row.violation
-            == ManagedLifecycleInvariantViolation::MissingRecoveryActionForDegradedState));
+    assert!(card.invariants.iter().any(|row| row.violation
+        == ManagedLifecycleInvariantViolation::MissingRecoveryActionForDegradedState));
 }
 
 #[test]
@@ -293,7 +289,10 @@ fn snapshot_only_view_after_ready_keeps_writes_blocked() {
     assert_eq!(last.label, ManagedLifecycleLabelClass::SnapshotOnlyView);
     assert_eq!(last.copy_class, WorkspaceCopyClass::SnapshotOnlyView);
     assert!(!last.admits_writes);
-    assert_eq!(last.recovery_action, RecoveryActionClass::ContinueInSnapshotView);
+    assert_eq!(
+        last.recovery_action,
+        RecoveryActionClass::ContinueInSnapshotView
+    );
     assert_eq!(last.degraded_token.as_deref(), Some("Stale"));
     assert!(!card.has_invariant_violations);
 }
@@ -310,9 +309,7 @@ fn closed_step_seals_wedge() {
         .record_closed(lineage.clone(), "mono:6", Some("user_closed"))
         .expect("close");
     assert!(wedge.is_closed());
-    let err = wedge
-        .record_ready(lineage.clone(), "mono:7")
-        .unwrap_err();
+    let err = wedge.record_ready(lineage.clone(), "mono:7").unwrap_err();
     assert!(matches!(err, WedgeError::AlreadyClosed));
 }
 
@@ -550,7 +547,10 @@ fn assert_fixture_matches(card: &ManagedWorkspaceLifecycleCardRecord, fixture: &
         card.current_degraded_token.as_deref(),
         fixture.expect.current_degraded_token.as_deref(),
     );
-    assert_eq!(card.current_admits_writes, fixture.expect.current_admits_writes);
+    assert_eq!(
+        card.current_admits_writes,
+        fixture.expect.current_admits_writes
+    );
     assert_eq!(
         card.has_invariant_violations,
         fixture.expect.has_invariant_violations

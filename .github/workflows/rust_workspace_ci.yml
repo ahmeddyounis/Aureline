@@ -1,0 +1,161 @@
+# Rust workspace PR gate.
+#
+# Compiles, tests, and lints the full Cargo workspace on the desktop host
+# platforms that exercise the local shell/runtime stack.
+
+name: rust_workspace_ci
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-workspace-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  check:
+    name: Cargo check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-check-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-check-
+
+      - name: Run cargo check
+        run: |
+          set -o pipefail
+          mkdir -p target/ci-logs
+          cargo check --workspace --locked --all-targets 2>&1 | tee "target/ci-logs/cargo-check-${{ matrix.os }}.log"
+
+      - name: Upload cargo check log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-workspace-check-log-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/ci-logs/*.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  test:
+    name: Cargo test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-
+
+      - name: Run cargo test
+        run: |
+          set -o pipefail
+          mkdir -p target/ci-logs
+          cargo test --workspace --locked 2>&1 | tee "target/ci-logs/cargo-test-${{ matrix.os }}.log"
+
+      - name: Upload cargo test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-workspace-test-log-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/ci-logs/*.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  clippy:
+    name: Cargo clippy (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-clippy-
+
+      - name: Run cargo clippy
+        run: |
+          set -o pipefail
+          mkdir -p target/ci-logs
+          cargo clippy --workspace --locked --all-targets -- -D warnings 2>&1 | tee "target/ci-logs/cargo-clippy-${{ matrix.os }}.log"
+
+      - name: Upload cargo clippy log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-workspace-clippy-log-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/ci-logs/*.log
+          if-no-files-found: warn
+          retention-days: 30

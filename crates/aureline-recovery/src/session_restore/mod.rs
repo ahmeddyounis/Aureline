@@ -19,6 +19,6 @@ pub use proposal::{
     RestoreProposalSchemaVersion,
 };
 pub use store::{
-    SessionRestoreCaptureInput, SessionRestoreError, SessionRestoreLatestRefs,
-    SessionRestoreStore, SessionRestoreSummary, TabGroupCaptureInput, TabItemCaptureInput,
+    SessionRestoreCaptureInput, SessionRestoreError, SessionRestoreLatestRefs, SessionRestoreStore,
+    SessionRestoreSummary, TabGroupCaptureInput, TabItemCaptureInput,
 };

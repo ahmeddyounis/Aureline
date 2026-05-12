@@ -96,7 +96,9 @@ impl SettingDefinition {
 /// a reason is not enough.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueValidationError {
-    TypeMismatch { expected_kind: &'static str },
+    TypeMismatch {
+        expected_kind: &'static str,
+    },
     OutOfRange {
         value: i64,
         min: Option<i64>,

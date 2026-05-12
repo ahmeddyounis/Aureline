@@ -68,7 +68,10 @@ fn protected_walk_fully_trusted_local_renders_clean_card() {
 
     let card = wedge.card();
     assert_eq!(card.record_kind, NOTEBOOK_TRUST_BADGE_CARD_RECORD_KIND);
-    assert_eq!(card.schema_version, NOTEBOOK_TRUST_BADGE_CARD_SCHEMA_VERSION);
+    assert_eq!(
+        card.schema_version,
+        NOTEBOOK_TRUST_BADGE_CARD_SCHEMA_VERSION
+    );
     assert_eq!(
         card.prototype_label_token,
         "m1_prototype_notebook_trust_badges_and_representation_state"
@@ -139,7 +142,11 @@ fn protected_walk_mixed_trust_untrusted_notebook_keeps_axes_distinct() {
     );
 
     let card = wedge.card();
-    assert!(!card.has_invariant_violations, "card should be clean: {:?}", card.invariants);
+    assert!(
+        !card.has_invariant_violations,
+        "card should be clean: {:?}",
+        card.invariants
+    );
     assert!(!card.any_row_claims_autoexecute_on_open);
 
     // Axes are visibly distinct: notebook untrusted, workspace
@@ -175,7 +182,9 @@ fn protected_walk_mixed_trust_untrusted_notebook_keeps_axes_distinct() {
     );
     assert!(widget_row.honesty_marker_present);
     assert_eq!(widget_row.degraded_token.as_deref(), Some("PolicyBlocked"));
-    assert!(widget_row.escape_hatches.contains(&"keep_static_fallback".to_owned()));
+    assert!(widget_row
+        .escape_hatches
+        .contains(&"keep_static_fallback".to_owned()));
 }
 
 #[test]
@@ -504,17 +513,14 @@ fn load_fixture(name: &str) -> WedgeFixture {
 }
 
 fn build_card_from_fixture(fixture: &WedgeFixture) -> NotebookTrustBadgeCardRecord {
-    let mut wedge =
-        NotebookTrustBadgeWedge::new(&fixture.workspace_id, &fixture.notebook_ref)
-            .with_workspace_trust(parse_workspace_trust(
-                &fixture.trust_axes.workspace_trust_state,
-            ))
-            .with_notebook_trust_rung(parse_notebook_rung(
-                &fixture.trust_axes.notebook_trust_rung,
-            ))
-            .with_kernel_availability(parse_kernel(&fixture.trust_axes.kernel_availability))
-            .with_output_trust(parse_output_trust(&fixture.trust_axes.output_trust_state))
-            .with_widget_trust(parse_widget_trust(&fixture.trust_axes.widget_trust_state));
+    let mut wedge = NotebookTrustBadgeWedge::new(&fixture.workspace_id, &fixture.notebook_ref)
+        .with_workspace_trust(parse_workspace_trust(
+            &fixture.trust_axes.workspace_trust_state,
+        ))
+        .with_notebook_trust_rung(parse_notebook_rung(&fixture.trust_axes.notebook_trust_rung))
+        .with_kernel_availability(parse_kernel(&fixture.trust_axes.kernel_availability))
+        .with_output_trust(parse_output_trust(&fixture.trust_axes.output_trust_state))
+        .with_widget_trust(parse_widget_trust(&fixture.trust_axes.widget_trust_state));
     if let Some(id) = &fixture.wedge_id {
         wedge = wedge.with_wedge_id(id);
     }
@@ -545,8 +551,7 @@ fn assert_fixture_matches(card: &NotebookTrustBadgeCardRecord, fixture: &WedgeFi
         "has_invariant_violations mismatch"
     );
     assert_eq!(
-        card.any_row_claims_autoexecute_on_open,
-        fixture.expect.any_row_claims_autoexecute_on_open,
+        card.any_row_claims_autoexecute_on_open, fixture.expect.any_row_claims_autoexecute_on_open,
         "any_row_claims_autoexecute_on_open mismatch"
     );
     if let Some(needle) = &fixture.expect.summary_contains {
@@ -562,7 +567,10 @@ fn assert_fixture_matches(card: &NotebookTrustBadgeCardRecord, fixture: &WedgeFi
         assert_eq!(row.row_id, expect.row_id);
         assert_eq!(row.representation_state_token, expect.representation_state);
         assert_eq!(row.honesty_marker_present, expect.honesty_marker_present);
-        assert_eq!(row.will_autoexecute_on_open, expect.will_autoexecute_on_open);
+        assert_eq!(
+            row.will_autoexecute_on_open,
+            expect.will_autoexecute_on_open
+        );
     }
 }
 

@@ -50,14 +50,8 @@ fn run(args: &Args) -> Result<(), String> {
     }
 
     let viewer_config = LargeFileViewerConfig::default();
-    let outcome = open_document(
-        &root,
-        &uri,
-        &policy,
-        viewer_config,
-        args.disposition,
-    )
-    .map_err(|e| e.to_string())?;
+    let outcome = open_document(&root, &uri, &policy, viewer_config, args.disposition)
+        .map_err(|e| e.to_string())?;
 
     match outcome {
         DocumentOpenOutcome::Normal(doc) => {
@@ -87,10 +81,7 @@ fn run(args: &Args) -> Result<(), String> {
             println!("bytes_on_disk: {}", decision.bytes_on_disk);
             println!(
                 "trigger: {}",
-                decision
-                    .trigger
-                    .map(|t| t.as_str())
-                    .unwrap_or("unknown")
+                decision.trigger.map(|t| t.as_str()).unwrap_or("unknown")
             );
             println!("reason: {}", decision.reason);
 
@@ -99,10 +90,7 @@ fn run(args: &Args) -> Result<(), String> {
             println!("notice_escalation_label: {}", notice.escalation_label);
 
             if let Some(needle) = args.find.as_deref() {
-                let found = doc
-                    .viewer
-                    .find_first(needle)
-                    .map_err(|e| e.to_string())?;
+                let found = doc.viewer.find_first(needle).map_err(|e| e.to_string())?;
                 match found {
                     Some(offset) => println!("find_first_offset: {offset}"),
                     None => println!("find_first_offset: <none>"),
@@ -149,7 +137,9 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
                 out.find = Some(needle.clone());
             }
             "--help" | "-h" => return Err(usage()),
-            other if other.starts_with("--") => return Err(format!("unknown flag: {other}\n\n{}", usage())),
+            other if other.starts_with("--") => {
+                return Err(format!("unknown flag: {other}\n\n{}", usage()))
+            }
             other => {
                 if out.path.is_some() {
                     return Err(format!("unexpected extra arg: {other}\n\n{}", usage()));

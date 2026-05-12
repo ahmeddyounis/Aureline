@@ -6,7 +6,7 @@ use aureline_vfs::save::open_save_target;
 use aureline_vfs::{HookCounters, LocalFilesystemRoot, SaveOutcome, VfsUri};
 
 use aureline_workspace::save::{
-    detect_external_drift, BomStateDetected, DetectionSource, DetectedEncoding, ExecutableIntent,
+    detect_external_drift, BomStateDetected, DetectedEncoding, DetectionSource, ExecutableIntent,
     ExternalDriftConflict, FinalNewlineDetected, NewlineModeDetected, SourceFidelityRecord,
     StagedSaveCoordinator, StagedSaveRequest,
 };

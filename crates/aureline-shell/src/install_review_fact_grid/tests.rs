@@ -104,8 +104,8 @@ fn verified_admit_decision() -> ManifestInstallDecisionRecord {
         manifest_baseline_ref: "manifest_baseline:acme-labs/prose-helper:1.4.2".to_owned(),
         install_decision_class: InstallDecisionClass::Admit,
         install_decision_reason_class: InstallDecisionReasonClass::AdmittedNoViolation,
-        decision_summary:
-            "Admitted: complete manifest, attributed publisher, no widening attempt.".to_owned(),
+        decision_summary: "Admitted: complete manifest, attributed publisher, no widening attempt."
+            .to_owned(),
         decided_at: "2026-05-11T08:00:01Z".to_owned(),
         redaction_class: RedactionClass::MetadataSafeDefault,
     }
@@ -191,7 +191,10 @@ fn protected_walk_verified_publisher_renders_clean_admit_card() {
         "m1_prototype_install_review_fact_grid"
     );
     assert_eq!(card.extension_identity, "acme-labs/prose-helper");
-    assert_eq!(card.publisher.publisher_trust_tier_token, "verified_publisher");
+    assert_eq!(
+        card.publisher.publisher_trust_tier_token,
+        "verified_publisher"
+    );
     assert_eq!(card.origin.manifest_origin_source_token, "public_registry");
     assert_eq!(
         card.lifecycle.host_contract_family_token,
@@ -210,7 +213,11 @@ fn protected_walk_verified_publisher_renders_clean_admit_card() {
         card.decision.install_decision_reason_class_token,
         "admitted_no_violation"
     );
-    assert!(card.invariants.is_empty(), "invariants: {:?}", card.invariants);
+    assert!(
+        card.invariants.is_empty(),
+        "invariants: {:?}",
+        card.invariants
+    );
     assert!(!card.has_invariant_violations);
     assert!(card.is_clean_admit());
 
@@ -233,7 +240,10 @@ fn protected_walk_verified_publisher_renders_clean_admit_card() {
 #[test]
 fn protected_walk_unverified_publisher_renders_review_only_with_limited_chip() {
     let card = unverified_review_only_wedge().card();
-    assert_eq!(card.publisher.publisher_trust_tier_token, "unverified_publisher");
+    assert_eq!(
+        card.publisher.publisher_trust_tier_token,
+        "unverified_publisher"
+    );
     assert_eq!(card.decision.install_decision_class_token, "review_only");
     assert_eq!(
         card.decision.install_decision_reason_class_token,
@@ -325,8 +335,8 @@ fn widening_attempt_with_admit_decision_surfaces_typed_invariant() {
             scope_class: PermissionScopeClass::NetworkEgress,
             scope_target: "host:exfil.example".to_owned(),
             diff_class: EffectivePermissionDiffClass::WideningAttemptedBlocked,
-            narrowing_reason_label:
-                "declared scope did not include this scope; widening blocked".to_owned(),
+            narrowing_reason_label: "declared scope did not include this scope; widening blocked"
+                .to_owned(),
         });
     let wedge = InstallReviewFactGridWedge::new(
         manifest,
@@ -427,8 +437,7 @@ fn step_up_decision_requires_restricted_step_up_activation_budget() {
     let effective = verified_admit_effective();
     let mut decision = verified_admit_decision();
     decision.install_decision_class = InstallDecisionClass::AdmitWithStepUp;
-    decision.install_decision_reason_class =
-        InstallDecisionReasonClass::StepUpRequiredByPolicyPack;
+    decision.install_decision_reason_class = InstallDecisionReasonClass::StepUpRequiredByPolicyPack;
     decision.decision_summary =
         "Admit with step-up: policy pack requires a typed step-up.".to_owned();
     // Buggy caller: lazy activation paired with admit-with-step-up.
@@ -866,9 +875,7 @@ fn parse_install_decision_class(token: &str) -> InstallDecisionClass {
 fn parse_install_decision_reason_class(token: &str) -> InstallDecisionReasonClass {
     match token {
         "admitted_no_violation" => InstallDecisionReasonClass::AdmittedNoViolation,
-        "step_up_required_by_policy_pack" => {
-            InstallDecisionReasonClass::StepUpRequiredByPolicyPack
-        }
+        "step_up_required_by_policy_pack" => InstallDecisionReasonClass::StepUpRequiredByPolicyPack,
         "review_only_unverified_publisher" => {
             InstallDecisionReasonClass::ReviewOnlyUnverifiedPublisher
         }

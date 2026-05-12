@@ -100,9 +100,10 @@ fn failure_drill_risky_text_unlabeled_rendered_copy_is_rejected() {
         v,
         SafePreviewInvariantViolation::MissingPairedAction { missing_action_id, .. } if missing_action_id == "copy_escaped"
     )));
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, SafePreviewInvariantViolation::UnlabeledRenderedCopy { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        SafePreviewInvariantViolation::UnlabeledRenderedCopy { .. }
+    )));
 }
 
 #[test]
@@ -113,12 +114,15 @@ fn risky_text_must_carry_representation_label_disclosure() {
         .iter_mut()
         .find(|o| o.action_id == "copy_raw")
     {
-        option.required_disclosure_fields.retain(|f| f != "representation_label");
+        option
+            .required_disclosure_fields
+            .retain(|f| f != "representation_label");
     }
     let violations = record.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, SafePreviewInvariantViolation::MissingRepresentationLabel { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        SafePreviewInvariantViolation::MissingRepresentationLabel { .. }
+    )));
 }
 
 #[test]
@@ -163,12 +167,14 @@ fn failure_drill_oversized_scope_overclaim_is_rejected() {
     assert!(violations
         .iter()
         .any(|v| matches!(v, SafePreviewInvariantViolation::OversizedScopeOverclaim)));
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, SafePreviewInvariantViolation::OversizedMissingWindowTransform)));
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, SafePreviewInvariantViolation::OversizedMissingOmittedBytes)));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        SafePreviewInvariantViolation::OversizedMissingWindowTransform
+    )));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        SafePreviewInvariantViolation::OversizedMissingOmittedBytes
+    )));
 }
 
 #[test]
@@ -215,9 +221,10 @@ fn failure_drill_generated_copy_raw_without_citation_is_rejected() {
         option.citation_anchor_refs.clear();
     }
     let violations = record.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, SafePreviewInvariantViolation::GeneratedCopyRawWithoutCitation { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        SafePreviewInvariantViolation::GeneratedCopyRawWithoutCitation { .. }
+    )));
 }
 
 #[test]
@@ -226,12 +233,14 @@ fn failure_drill_generated_origin_mislabel_is_rejected() {
     record.origin_class_token = "user_authored_or_imported".to_owned();
     record.currently_visible_representation_token = "raw".to_owned();
     let violations = record.validate();
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, SafePreviewInvariantViolation::GeneratedOriginMismatch { .. })));
-    assert!(violations
-        .iter()
-        .any(|v| matches!(v, SafePreviewInvariantViolation::GeneratedVisibleMismatch { .. })));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        SafePreviewInvariantViolation::GeneratedOriginMismatch { .. }
+    )));
+    assert!(violations.iter().any(|v| matches!(
+        v,
+        SafePreviewInvariantViolation::GeneratedVisibleMismatch { .. }
+    )));
 }
 
 #[test]
@@ -270,7 +279,10 @@ fn record_round_trips_through_serde_json() {
     let json = serde_json::to_string(&record).expect("serialize");
     let back: SafePreviewRecord = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(back.preview_id, record.preview_id);
-    assert_eq!(back.copy_export_options.len(), record.copy_export_options.len());
+    assert_eq!(
+        back.copy_export_options.len(),
+        record.copy_export_options.len()
+    );
     assert_eq!(back.validate(), record.validate());
 }
 

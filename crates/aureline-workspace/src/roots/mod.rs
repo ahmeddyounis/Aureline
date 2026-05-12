@@ -290,7 +290,10 @@ mod tests {
         let ws = MultiRootWorkspace::try_new(
             "wksp:multi",
             "Payments monorepo",
-            vec![root("r-api", "payments-api"), root("r-shared", "payments-shared")],
+            vec![
+                root("r-api", "payments-api"),
+                root("r-shared", "payments-shared"),
+            ],
         )
         .expect("must construct");
 

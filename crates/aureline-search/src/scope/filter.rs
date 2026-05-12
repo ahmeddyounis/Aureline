@@ -100,10 +100,7 @@ impl ScopeFilterOutcome {
 /// Returns true when the path is in scope under those rules. The function is
 /// pure and deterministic: surfaces use it directly and never invent their
 /// own glob semantics on top.
-pub fn glob_matches_relative_path(
-    relative_path: &str,
-    patterns: &[ScopePatternRecord],
-) -> bool {
+pub fn glob_matches_relative_path(relative_path: &str, patterns: &[ScopePatternRecord]) -> bool {
     let mut had_include = false;
     let mut include_hit = false;
     for entry in patterns {
@@ -219,7 +216,10 @@ mod tests {
     fn include_requires_match() {
         let patterns = vec![pattern(ScopePatternKind::Include, "apps/web/**")];
         assert!(glob_matches_relative_path("apps/web/main.tsx", &patterns));
-        assert!(!glob_matches_relative_path("apps/api/handler.rs", &patterns));
+        assert!(!glob_matches_relative_path(
+            "apps/api/handler.rs",
+            &patterns
+        ));
     }
 
     #[test]

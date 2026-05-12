@@ -100,6 +100,7 @@ pub struct MutationJournalEntryRecord {
 
 impl MutationJournalEntryRecord {
     /// Creates a schema-shaped mutation-journal entry record.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         mutation_id: String,
         command_id: String,
@@ -181,6 +182,7 @@ pub struct MutationGroupRecord {
 
 impl MutationGroupRecord {
     /// Creates a schema-shaped mutation-group record.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         group_id: String,
         group_kind: MutationGroupKind,

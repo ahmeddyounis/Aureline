@@ -4,6 +4,8 @@
 //! module provides the editor viewport compositor that maintains a retained
 //! text layer and paints overlays without re-shaping or re-rasterizing glyphs.
 
+#![allow(clippy::too_many_arguments)]
+
 use aureline_render::glyph_atlas::GlyphKey;
 use aureline_render::PixelRect;
 use aureline_text::shaping::{FeatureSet, FontFallbackConfig, FontSystem, TextShaper};
@@ -199,7 +201,7 @@ impl ViewportCompositor {
             -i32::try_from(old_first - new_first).unwrap_or(i32::MAX)
         };
 
-        let abs_lines = delta_lines.unsigned_abs() as u32;
+        let abs_lines = delta_lines.unsigned_abs();
         let shift_px = abs_lines.saturating_mul(line_height);
         if shift_px == 0 || shift_px >= height {
             self.repaint_text_layer(viewport, document_lines, runtime, style, viewport_size);
@@ -737,7 +739,11 @@ fn paint_highlight_span(
             continue;
         }
 
-        let start_col = if line == start.line { start.grapheme } else { 0 };
+        let start_col = if line == start.line {
+            start.grapheme
+        } else {
+            0
+        };
         let end_col = if line == end.line {
             end.grapheme
         } else {

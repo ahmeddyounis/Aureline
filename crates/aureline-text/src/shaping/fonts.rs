@@ -3,6 +3,7 @@
 //! This module wraps the platform font database (`fontdb`) and exposes the
 //! deterministic fallback chain from ADR 0002 as a small, testable API.
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -123,22 +124,19 @@ impl FontSystem {
     }
 
     fn cached_face(&mut self, id: fontdb::ID) -> Option<&CachedFace> {
-        if !self.cached_faces.contains_key(&id) {
+        if let Entry::Vacant(entry) = self.cached_faces.entry(id) {
             let (bytes, face_index) = self
                 .db
                 .with_face_data(id, |data, face_index| (data.to_vec(), face_index))?;
             let font_ref = FontRef::from_index(&bytes, face_index as usize)?;
             let swash_offset = font_ref.offset;
             let swash_key = font_ref.key;
-            self.cached_faces.insert(
-                id,
-                CachedFace {
-                    bytes: Arc::new(bytes),
-                    face_index,
-                    swash_offset,
-                    swash_key,
-                },
-            );
+            entry.insert(CachedFace {
+                bytes: Arc::new(bytes),
+                face_index,
+                swash_offset,
+                swash_key,
+            });
         }
         self.cached_faces.get(&id)
     }
@@ -235,9 +233,7 @@ impl FontSystem {
     }
 
     fn resolve_any_face_for_cluster(&mut self, cluster: &str) -> Option<fontdb::ID> {
-        let Some(codepoint) = first_base_codepoint(cluster) else {
-            return None;
-        };
+        let codepoint = first_base_codepoint(cluster)?;
         if let Some(cached) = self.last_resort_cache.get(&codepoint) {
             return *cached;
         }

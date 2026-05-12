@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use aureline_vfs::save::open_save_target;
@@ -18,11 +18,11 @@ fn unique_temp_path(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!("aureline_source_fidelity_{label}_{suffix}.bin"))
 }
 
-fn write_temp_file(path: &PathBuf, bytes: &[u8]) {
+fn write_temp_file(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("write temp fixture");
 }
 
-fn open_token(path: &PathBuf) -> (LocalFilesystemRoot, VfsUri, aureline_vfs::SaveTargetToken) {
+fn open_token(path: &Path) -> (LocalFilesystemRoot, VfsUri, aureline_vfs::SaveTargetToken) {
     let uri = VfsUri::file_url_for_path(path).expect("file uri");
     let root = LocalFilesystemRoot::host_root("ws-test", "root-local");
     let mut counters = HookCounters::default();
@@ -120,8 +120,14 @@ fn blocks_save_when_encoding_is_unknown_binary_like() {
 
     let (mut root, _uri, token) = open_token(&tmp_path);
     let open = detect_and_decode_for_buffer(&on_disk, &token.permission_snapshot);
-    assert_eq!(open.record.detected_encoding, DetectedEncoding::UnknownBinaryLike);
-    assert!(open.buffer_utf8_bytes.is_none(), "expected no decoded bytes");
+    assert_eq!(
+        open.record.detected_encoding,
+        DetectedEncoding::UnknownBinaryLike
+    );
+    assert!(
+        open.buffer_utf8_bytes.is_none(),
+        "expected no decoded bytes"
+    );
 
     let mut coordinator = StagedSaveCoordinator::new();
     let request = StagedSaveRequest {
@@ -175,10 +181,7 @@ fn preserves_executable_bit_on_atomic_replace_save() {
     let result = coordinator.save(&mut root, request, participants.as_mut_slice());
     assert!(result.committed(), "expected committed save");
 
-    let mode = fs::metadata(&tmp_path)
-        .expect("stat")
-        .permissions()
-        .mode();
+    let mode = fs::metadata(&tmp_path).expect("stat").permissions().mode();
     assert_ne!(mode & 0o111, 0, "expected executable bits preserved");
 
     let _ = fs::remove_file(&tmp_path);

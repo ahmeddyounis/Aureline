@@ -74,9 +74,7 @@ use serde::{Deserialize, Serialize};
 
 use aureline_extensions::manifest_baseline::{InstallDecisionClass, PermissionScopeClass};
 
-use crate::install_review_fact_grid::{
-    InstallReviewFactGridRecord, InstallReviewFactGridWedge,
-};
+use crate::install_review_fact_grid::{InstallReviewFactGridRecord, InstallReviewFactGridWedge};
 use crate::state_cards::DegradedStateToken;
 
 /// Stable record-kind tag carried on serialized
@@ -292,9 +290,7 @@ impl DegradedCapabilityClass {
         match self {
             Self::NoDegradeAvailable => "No safe continuation — denying blocks the row",
             Self::LocalOnlyContinues => "Local work continues; external boundary stays closed",
-            Self::ReadOnlyInspectionContinues => {
-                "Read-only inspection of the manifest continues"
-            }
+            Self::ReadOnlyInspectionContinues => "Read-only inspection of the manifest continues",
             Self::PreviewOnlyContinues => "Preview-only continues; install is not committed",
             Self::MetadataOnlyExport => "Metadata-only support export remains available",
             Self::InstallDisabledCapabilityRemoved => {
@@ -1070,10 +1066,8 @@ impl PermissionPromptWedge {
                 .clone(),
         };
 
-        let approve_offered = self.compute_approve_offered(
-            install_review_clean,
-            upstream_install_decision_class,
-        );
+        let approve_offered =
+            self.compute_approve_offered(install_review_clean, upstream_install_decision_class);
         let deny_offered = !self.suppress_deny_action;
 
         let mut decision_actions: Vec<PermissionPromptDecisionAction> = Vec::new();
@@ -1115,7 +1109,10 @@ impl PermissionPromptWedge {
             resulting_state_class: PermissionPromptDecisionState::Pending,
             resulting_state_token: PermissionPromptDecisionState::Pending.as_str().to_owned(),
         });
-        if matches!(self.authority_owner.issuer_class, AuthorityIssuerClass::PolicyService) {
+        if matches!(
+            self.authority_owner.issuer_class,
+            AuthorityIssuerClass::PolicyService
+        ) {
             decision_actions.push(PermissionPromptDecisionAction {
                 action_role: DecisionActionRole::RequestAdminReview,
                 action_role_token: DecisionActionRole::RequestAdminReview.as_str().to_owned(),
@@ -1250,7 +1247,13 @@ impl PermissionPromptWedge {
             out.push(TypedPermissionPromptInvariantViolation::DenyPathMissing);
         }
         // Consequence summary.
-        if self.install_review.decision.decision_summary.trim().is_empty() {
+        if self
+            .install_review
+            .decision
+            .decision_summary
+            .trim()
+            .is_empty()
+        {
             out.push(TypedPermissionPromptInvariantViolation::ConsequenceMissing);
         }
         // Prompt questions.
@@ -1274,7 +1277,12 @@ impl PermissionPromptWedge {
             );
         }
         // Approve offered against a denied install decision.
-        if approve_offered && matches!(upstream_install_decision_class, InstallDecisionClass::Denied) {
+        if approve_offered
+            && matches!(
+                upstream_install_decision_class,
+                InstallDecisionClass::Denied
+            )
+        {
             out.push(
                 TypedPermissionPromptInvariantViolation::ApproveOfferedAgainstDeniedDecision {
                     install_decision_class: self
@@ -1292,7 +1300,10 @@ impl PermissionPromptWedge {
                 upstream_install_decision_class,
                 InstallDecisionClass::Admit | InstallDecisionClass::AdmitWithStepUp
             )
-            && !matches!(self.decision_state, PermissionPromptDecisionState::BlockedByPolicy)
+            && !matches!(
+                self.decision_state,
+                PermissionPromptDecisionState::BlockedByPolicy
+            )
         {
             out.push(
                 TypedPermissionPromptInvariantViolation::NoApprovePathOnAdmittableRow {

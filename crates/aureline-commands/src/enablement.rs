@@ -325,6 +325,7 @@ pub fn evaluate_enablement(
 
 /// Computes the preflight decision a surface should use before attempting
 /// dispatch.
+#[allow(clippy::too_many_arguments)]
 pub fn preflight(
     descriptor_client_scopes: &[String],
     descriptor_lifecycle_state: &str,

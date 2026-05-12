@@ -135,7 +135,10 @@ impl SyntheticRoot {
     /// Return the identity-record layers (1-4) for the opened
     /// presentation URI. Layer 5 is the save-target token issued
     /// by [`crate::save`].
-    pub fn identity_record(&self, presentation_uri: &VfsUri) -> Result<crate::identity::IdentityRecord, String> {
+    pub fn identity_record(
+        &self,
+        presentation_uri: &VfsUri,
+    ) -> Result<crate::identity::IdentityRecord, String> {
         let resolved = self.resolve(presentation_uri.as_str())?;
         let presentation_path = PresentationPath {
             uri: presentation_uri.clone(),
@@ -416,8 +419,9 @@ impl SyntheticRootBuilder {
     }
 
     pub fn build(self) -> SyntheticRoot {
-        let template_logical_uri = VfsUri::workspace_logical_uri(&self.workspace_id, &self.root_id, "")
-            .expect("synthetic root template logical uri must be valid");
+        let template_logical_uri =
+            VfsUri::workspace_logical_uri(&self.workspace_id, &self.root_id, "")
+                .expect("synthetic root template logical uri must be valid");
         let envelope = RootCapabilityEnvelope {
             root_id: self.root_id.clone(),
             root_class: self.root_class,

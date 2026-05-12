@@ -556,6 +556,7 @@ pub enum SyncExclusionClass {
 
 impl LocalHistoryEntryRecord {
     /// Creates a schema-shaped local-history entry record.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         entry_id: String,
         snapshot_class: SnapshotClass,
@@ -684,6 +685,7 @@ pub struct RestorePreviewRequiredFields {
 
 impl LocalHistoryGroupRecord {
     /// Creates a schema-shaped local-history group record.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         group_id: String,
         group_kind: LocalHistoryGroupKind,

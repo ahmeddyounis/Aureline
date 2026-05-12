@@ -188,10 +188,7 @@ pub enum SourceCanonicalLink {
     /// Source canonical is the same path with the given suffix stripped from
     /// the basename and replaced with the named replacement (e.g.
     /// `*.gen.rs` → `*.rs`).
-    StripBasenameSuffix {
-        suffix: String,
-        replacement: String,
-    },
+    StripBasenameSuffix { suffix: String, replacement: String },
 }
 
 impl SourceCanonicalLink {
@@ -562,10 +559,7 @@ mod tests {
             .expect("target subtree must produce a hint");
         assert_eq!(hint.generated_class, GeneratedArtifactClass::BuildOutput);
         assert!(hint.source_canonical_relative_path.is_none());
-        assert_eq!(
-            hint.freshness_class,
-            LineageFreshnessClass::PossiblyStale
-        );
+        assert_eq!(hint.freshness_class, LineageFreshnessClass::PossiblyStale);
     }
 
     #[test]

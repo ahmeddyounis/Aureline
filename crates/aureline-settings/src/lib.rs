@@ -30,8 +30,8 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-settings/0.0.0")]
 
-pub mod schema;
 pub mod resolver;
+pub mod schema;
 
 pub use resolver::{
     EffectiveSettingsResolver, EffectiveValue, LockReason, LockState, PolicyConstraint,

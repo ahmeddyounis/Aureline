@@ -8,9 +8,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::hooks::HookCounters;
-use crate::model::{
-    ConfidenceRollup, EdgeEvidence, GraphEdge, GraphNode, NodeBody, WorkspaceGraph,
-};
+use crate::model::{ConfidenceRollup, GraphEdge, GraphNode, NodeBody, WorkspaceGraph};
 use crate::vocab::{
     ConfidenceLevel, EdgeClass, EdgeEvidenceState, Freshness, NodeClass, ProvenanceClass,
     StaleReason,
@@ -428,19 +426,14 @@ fn validate_edge(
         hooks.graph_topology_edge_admitted += 1;
     }
     if matches!(edge.edge_class, EdgeClass::ScopedBy) {
-        match edge
-            .scope_refs
-            .iter()
-            .find(|s| {
-                matches!(
-                    s.visibility,
-                    crate::vocab::Visibility::PartialVisible
-                        | crate::vocab::Visibility::PolicyHidden
-                        | crate::vocab::Visibility::MissingInScope
-                )
-            })
-            .is_some()
-        {
+        match edge.scope_refs.iter().any(|s| {
+            matches!(
+                s.visibility,
+                crate::vocab::Visibility::PartialVisible
+                    | crate::vocab::Visibility::PolicyHidden
+                    | crate::vocab::Visibility::MissingInScope
+            )
+        }) {
             true => hooks.graph_workset_scope_narrowed += 1,
             false => hooks.graph_workset_scope_widened += 1,
         }

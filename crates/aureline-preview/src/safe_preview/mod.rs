@@ -769,9 +769,7 @@ impl SafePreviewInvariantViolation {
             Self::UnlabeledRenderedCopy { .. } => "unlabeled_rendered_copy",
             Self::GeneratedOriginMismatch { .. } => "generated_origin_mismatch",
             Self::GeneratedVisibleMismatch { .. } => "generated_visible_mismatch",
-            Self::GeneratedCopyRawWithoutCitation { .. } => {
-                "generated_copy_raw_without_citation"
-            }
+            Self::GeneratedCopyRawWithoutCitation { .. } => "generated_copy_raw_without_citation",
             Self::OversizedMissingWindowTransform => "oversized_missing_window_transform",
             Self::OversizedScopeOverclaim => "oversized_scope_overclaim",
             Self::OversizedMissingOmittedBytes => "oversized_missing_omitted_bytes",
@@ -972,10 +970,7 @@ fn standard_disclosure_fields() -> Vec<String> {
     ]
 }
 
-fn copy_raw_option_for_risky_text(
-    input: &RiskyTextInput,
-    has_findings: bool,
-) -> CopyExportOption {
+fn copy_raw_option_for_risky_text(input: &RiskyTextInput, has_findings: bool) -> CopyExportOption {
     let notes = if has_findings {
         "Raw copy preserves exact source bytes for reconstruction; not share-safe when controls present."
     } else {
@@ -1006,11 +1001,9 @@ fn copy_escaped_option_for_risky_text(
     input: &RiskyTextInput,
     has_findings: bool,
 ) -> CopyExportOption {
-    let mut transforms = vec![
-        TransformKind::EscapedControlsOrMetacharacters
-            .as_str()
-            .to_owned(),
-    ];
+    let mut transforms = vec![TransformKind::EscapedControlsOrMetacharacters
+        .as_str()
+        .to_owned()];
     if !has_findings {
         transforms = vec![TransformKind::None.as_str().to_owned()];
     }
@@ -1138,7 +1131,9 @@ fn export_sanitized_snapshot_option_for_oversized(
         label: "Export sanitized snapshot".to_owned(),
         scope_class: ScopeClass::NamedSnapshotOnly.as_str().to_owned(),
         transforms_applied: vec![
-            TransformKind::SanitizedActiveContentRemoved.as_str().to_owned(),
+            TransformKind::SanitizedActiveContentRemoved
+                .as_str()
+                .to_owned(),
             TransformKind::StrippedAnsiOrControlSequences
                 .as_str()
                 .to_owned(),
@@ -1196,8 +1191,9 @@ fn export_metadata_only_option_for_oversized(
             safe_for_issue_report: true,
             safe_for_support_bundle: true,
         },
-        notes: "Metadata-only export preserves identity handle and omission summary; bytes withheld."
-            .to_owned(),
+        notes:
+            "Metadata-only export preserves identity handle and omission summary; bytes withheld."
+                .to_owned(),
     }
 }
 
@@ -1230,7 +1226,10 @@ fn copy_rendered_option_for_generated(input: &GeneratedContentInput) -> CopyExpo
 }
 
 fn copy_raw_option_for_generated(input: &GeneratedContentInput) -> CopyExportOption {
-    let canonical = input.canonical_source_subject_ref.clone().unwrap_or_default();
+    let canonical = input
+        .canonical_source_subject_ref
+        .clone()
+        .unwrap_or_default();
     let mut required = standard_disclosure_fields();
     required.push("citation_anchors".to_owned());
     required.push("origin_or_provenance".to_owned());
@@ -1318,8 +1317,9 @@ fn export_metadata_only_option_for_generated(input: &GeneratedContentInput) -> C
             safe_for_issue_report: true,
             safe_for_support_bundle: true,
         },
-        notes: "Metadata-only export records the generator id and identity handle without the bytes."
-            .to_owned(),
+        notes:
+            "Metadata-only export records the generator id and identity handle without the bytes."
+                .to_owned(),
     }
 }
 

@@ -20,12 +20,18 @@ impl VfsRoot for SyntheticRoot {
         self.resolve(uri.as_str()).is_ok()
     }
 
-    fn identity_record(&self, presentation_uri: &VfsUri) -> Result<crate::identity::IdentityRecord, RootResolveError> {
+    fn identity_record(
+        &self,
+        presentation_uri: &VfsUri,
+    ) -> Result<crate::identity::IdentityRecord, RootResolveError> {
         self.identity_record(presentation_uri)
             .map_err(|_| RootResolveError::UnknownPresentation(presentation_uri.clone()))
     }
 
-    fn read_strongest_identity_token(&self, canonical_uri: &VfsUri) -> Result<IdentityToken, RootResolveError> {
+    fn read_strongest_identity_token(
+        &self,
+        canonical_uri: &VfsUri,
+    ) -> Result<IdentityToken, RootResolveError> {
         self.read_strongest_token(canonical_uri.as_str())
             .ok_or_else(|| RootResolveError::UnknownCanonical(canonical_uri.clone()))
     }
@@ -41,7 +47,10 @@ impl VfsRoot for SyntheticRoot {
         Ok(tokens)
     }
 
-    fn read_generation_token(&self, canonical_uri: &VfsUri) -> Result<GenerationToken, RootResolveError> {
+    fn read_generation_token(
+        &self,
+        canonical_uri: &VfsUri,
+    ) -> Result<GenerationToken, RootResolveError> {
         let identity = self.read_strongest_identity_token(canonical_uri)?;
         Ok(GenerationToken {
             kind: match identity.kind {
@@ -68,7 +77,10 @@ impl VfsRoot for SyntheticRoot {
         })
     }
 
-    fn permission_snapshot(&self, canonical_uri: &VfsUri) -> Result<PermissionSnapshot, RootResolveError> {
+    fn permission_snapshot(
+        &self,
+        canonical_uri: &VfsUri,
+    ) -> Result<PermissionSnapshot, RootResolveError> {
         self.permission_snapshot(canonical_uri.as_str())
             .ok_or_else(|| RootResolveError::UnknownCanonical(canonical_uri.clone()))
     }
@@ -85,7 +97,11 @@ impl VfsRoot for SyntheticRoot {
         })
     }
 
-    fn write_bytes(&mut self, canonical_uri: &VfsUri, new_content: Vec<u8>) -> Result<(), RootIoError> {
+    fn write_bytes(
+        &mut self,
+        canonical_uri: &VfsUri,
+        new_content: Vec<u8>,
+    ) -> Result<(), RootIoError> {
         if self
             .apply_commit(canonical_uri.as_str(), new_content)
             .is_some()
@@ -98,4 +114,3 @@ impl VfsRoot for SyntheticRoot {
         })
     }
 }
-

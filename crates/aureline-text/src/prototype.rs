@@ -13,6 +13,7 @@
 //! comments; this module only documents invariants a reader of the
 //! API must know.
 
+use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
@@ -663,11 +664,14 @@ impl TextLayer {
                 subpixel_variant: 0,
                 scale_bucket: self.scale_bucket,
             };
-            if self.raster_cache.contains_key(&key) {
-                self.metrics.raster_cache_hits += 1;
-            } else {
-                self.metrics.raster_cache_misses += 1;
-                self.raster_cache.insert(key, cluster.glyph_id);
+            match self.raster_cache.entry(key) {
+                Entry::Occupied(_) => {
+                    self.metrics.raster_cache_hits += 1;
+                }
+                Entry::Vacant(entry) => {
+                    self.metrics.raster_cache_misses += 1;
+                    entry.insert(cluster.glyph_id);
+                }
             }
         }
         self.merge_shape_side();

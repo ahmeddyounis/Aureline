@@ -432,12 +432,16 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
     #[serde(tag = "action", rename_all = "snake_case")]
     enum LifecycleCaseStep {
-        OpenWorkspace { observed_at: String },
+        OpenWorkspace {
+            observed_at: String,
+        },
         ResolveTrust {
             trust_state: TrustState,
             observed_at: String,
         },
-        MarkShellInteractive { observed_at: String },
+        MarkShellInteractive {
+            observed_at: String,
+        },
         UpdateReadinessGates {
             watcher_health: Option<WatcherHealthFixture>,
             hot_index_ready: Option<bool>,
@@ -446,8 +450,12 @@ mod tests {
             #[serde(default)]
             reason_code: Option<String>,
         },
-        Close { observed_at: String },
-        MarkClosed { observed_at: String },
+        Close {
+            observed_at: String,
+        },
+        MarkClosed {
+            observed_at: String,
+        },
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -517,13 +525,7 @@ mod tests {
         );
         assert_eq!(machine.state(), WorkspaceLifecycleState::Degraded);
 
-        machine.update_readiness_gates(
-            Some(WatcherHealth::Healthy),
-            None,
-            None,
-            "mono:6",
-            None,
-        );
+        machine.update_readiness_gates(Some(WatcherHealth::Healthy), None, None, "mono:6", None);
         assert_eq!(machine.state(), WorkspaceLifecycleState::Ready);
     }
 
@@ -552,8 +554,8 @@ mod tests {
 
     #[test]
     fn lifecycle_case_fixtures_match_expected_transitions() {
-        let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../fixtures/workspace/lifecycle_cases");
+        let fixtures_dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/workspace/lifecycle_cases");
         let mut fixtures: Vec<_> = std::fs::read_dir(&fixtures_dir)
             .expect("fixtures dir must exist")
             .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -634,7 +636,10 @@ mod tests {
             );
             assert_eq!(
                 machine.watcher_health(),
-                fixture.expect.final_watcher_health.map(WatcherHealthFixture::to_health),
+                fixture
+                    .expect
+                    .final_watcher_health
+                    .map(WatcherHealthFixture::to_health),
                 "unexpected final watcher_health in {path:?}"
             );
             assert_eq!(

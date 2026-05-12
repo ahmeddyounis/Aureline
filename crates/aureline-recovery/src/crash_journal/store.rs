@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 use super::records::{
     ActorClass, ActorSurfaceRecord, AutosaveJournalEntryRecord, BaseOnDiskTokenRecord,
     CaptureClass, CaptureDescriptorRecord, CaptureMode, CaptureOmissionReason, ChecksumAlgorithm,
-    DecoderPosture, EncodingLabelClass, ExternalChangeState, FinalNewlineState,
-    FrameIntegrityState, GuidedChoiceClass, IdentityRelation, IntegrityRecord, NewlineMode,
-    ObjectClass, ObjectIdentityRecord, ReplayIntegrityPosture, ReplayPostureClass,
-    ReplayPostureRecord, RetentionClass, RetentionPostureRecord, SourceClass, SupportBundleInclusionState,
-    SupportExportRecord, SurfaceClass, TextFormatRecord, TokenClass, TokenConfidenceClass,
-    DowngradeReasonClass,
+    DecoderPosture, DowngradeReasonClass, EncodingLabelClass, ExternalChangeState,
+    FinalNewlineState, FrameIntegrityState, GuidedChoiceClass, IdentityRelation, IntegrityRecord,
+    NewlineMode, ObjectClass, ObjectIdentityRecord, ReplayIntegrityPosture, ReplayPostureClass,
+    ReplayPostureRecord, RetentionClass, RetentionPostureRecord, SourceClass,
+    SupportBundleInclusionState, SupportExportRecord, SurfaceClass, TextFormatRecord, TokenClass,
+    TokenConfidenceClass,
 };
 
 /// Error returned when crash-journal persistence fails.
@@ -138,7 +138,10 @@ impl CrashJournalStore {
     }
 
     /// Persists an autosave journal entry record.
-    pub fn write_entry(&self, entry: &AutosaveJournalEntryRecord) -> Result<PathBuf, CrashJournalError> {
+    pub fn write_entry(
+        &self,
+        entry: &AutosaveJournalEntryRecord,
+    ) -> Result<PathBuf, CrashJournalError> {
         let path = self
             .root
             .join("entries")
@@ -325,14 +328,6 @@ fn write_new_json<T: Serialize>(path: &Path, value: &T) -> Result<(), CrashJourn
     }
     let json = serde_json::to_string_pretty(value)?;
     write_new_file(path, json.as_bytes())?;
-    Ok(())
-}
-
-fn write_new_blob(path: &Path, bytes: &[u8]) -> Result<(), CrashJournalError> {
-    if let Some(parent) = path.parent() {
-        create_dir_all(parent)?;
-    }
-    write_new_file(path, bytes)?;
     Ok(())
 }
 

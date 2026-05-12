@@ -34,13 +34,13 @@
 //! [`envelope::SubscriptionEnvelope`] is what would ride the
 //! ADR-0004 event-stream envelope on the wire.
 
+#[cfg(test)]
+use crate::envelope::InputDigest;
 use crate::envelope::{
     AuthorityClass, BackpressureMode, Completeness, DerivationClass, FrameClass, Freshness,
     Invalidation, JsonValue, ProducerRef, ScopeRef, StaleReason, SubscriptionEnvelope,
     TerminalReason, ViewClass, SUBSCRIPTION_SCHEMA_VERSION,
 };
-#[cfg(test)]
-use crate::envelope::InputDigest;
 use crate::hooks::HookCounters;
 use crate::trace::{ConsumerObservation, TraceEvent};
 
@@ -761,6 +761,7 @@ impl ReactiveStore {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_envelope(
         &self,
         idx: usize,

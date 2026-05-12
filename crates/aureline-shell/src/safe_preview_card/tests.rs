@@ -1,8 +1,8 @@
 use super::*;
 use aureline_content_safety::{detect_suspicious_content, TrustClass};
 use aureline_preview::{
-    build_generated_content_preview, build_oversized_artifact_preview,
-    build_risky_text_preview, GeneratedContentInput, OversizedArtifactInput, RiskyTextInput,
+    build_generated_content_preview, build_oversized_artifact_preview, build_risky_text_preview,
+    GeneratedContentInput, OversizedArtifactInput, RiskyTextInput,
 };
 
 fn risky_record() -> aureline_preview::SafePreviewRecord {
@@ -36,9 +36,7 @@ fn generated_record() -> aureline_preview::SafePreviewRecord {
         source_subject_ref: "ai:change_summary:proposal:001".to_owned(),
         source_surface_family: "rich_preview".to_owned(),
         generator_id: "composer-seed/m1".to_owned(),
-        citation_anchor_refs: vec![
-            "anchor:src/router.rs#fn:dispatch:lines:42-58".to_owned(),
-        ],
+        citation_anchor_refs: vec!["anchor:src/router.rs#fn:dispatch:lines:42-58".to_owned()],
         canonical_source_subject_ref: Some("buffer:file:src/router.rs#fn:dispatch".to_owned()),
     })
 }
@@ -46,11 +44,8 @@ fn generated_record() -> aureline_preview::SafePreviewRecord {
 #[test]
 fn protected_walk_risky_text_snapshot_includes_every_section_in_canonical_order() {
     let snapshot = SafePreviewCardSnapshot::project(&risky_record());
-    let section_ids: Vec<SafePreviewSectionId> = snapshot
-        .sections
-        .iter()
-        .map(|s| s.section_id)
-        .collect();
+    let section_ids: Vec<SafePreviewSectionId> =
+        snapshot.sections.iter().map(|s| s.section_id).collect();
     assert_eq!(
         section_ids,
         vec![
@@ -131,7 +126,10 @@ fn invariants_section_is_blocked_when_record_is_dishonest() {
     let section = snapshot
         .section(SafePreviewSectionId::Invariants)
         .expect("invariants section");
-    assert!(section.rows.iter().all(|row| row.status == SafePreviewRowStatus::Blocked));
+    assert!(section
+        .rows
+        .iter()
+        .all(|row| row.status == SafePreviewRowStatus::Blocked));
     let tokens: Vec<String> = section
         .rows
         .iter()
@@ -145,12 +143,17 @@ fn render_plaintext_quotes_every_section_heading() {
     let snapshot = SafePreviewCardSnapshot::project(&risky_record());
     let text = snapshot.render_plaintext();
     for section in &snapshot.sections {
-        assert!(text.contains(section.heading.as_str()), "missing {}", section.heading);
+        assert!(
+            text.contains(section.heading.as_str()),
+            "missing {}",
+            section.heading
+        );
     }
     assert!(text.contains("m1_prototype_safe_preview_and_copy_export"));
     assert!(text.contains("risky_text"));
-    assert!(text.contains("currently_visible=escaped")
-        || text.contains("Currently visible: escaped"));
+    assert!(
+        text.contains("currently_visible=escaped") || text.contains("Currently visible: escaped")
+    );
 }
 
 #[test]
@@ -160,5 +163,8 @@ fn snapshot_round_trips_through_serde_json() {
     let back: SafePreviewCardSnapshot = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(back.preview_id, snapshot.preview_id);
     assert_eq!(back.sections.len(), snapshot.sections.len());
-    assert_eq!(back.has_invariant_violations, snapshot.has_invariant_violations);
+    assert_eq!(
+        back.has_invariant_violations,
+        snapshot.has_invariant_violations
+    );
 }

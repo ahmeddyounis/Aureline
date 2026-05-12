@@ -388,8 +388,10 @@ pub fn classify_graph_basis(
             // Authoritative is only honoured when every side aligns. Any
             // mismatch downgrades to partial-subscope so the wedge cannot
             // silently overclaim authority.
-            let provenance_ok =
-                matches!(subject.provenance_class, ProvenanceClass::AuthoritativeProducer);
+            let provenance_ok = matches!(
+                subject.provenance_class,
+                ProvenanceClass::AuthoritativeProducer
+            );
             let scope_ok = matches!(subject.scope_visibility, Visibility::FullyVisible);
             if provenance_ok && scope_ok {
                 GraphBasisClass::LiveWorkspaceAuthoritative
@@ -519,8 +521,7 @@ impl GraphStateCardMount {
         snapshot: &WorkspaceReadinessSnapshot,
         subject: GraphStateCardSubject,
     ) -> Result<(Self, u64), StoreError> {
-        let (sid, _initial) =
-            aureline_reactive_state::open_workspace_readiness(store, snapshot)?;
+        let (sid, _initial) = aureline_reactive_state::open_workspace_readiness(store, snapshot)?;
         let mount = Self::mount_existing(store, sid, snapshot.workspace_id.clone(), subject)?;
         Ok((mount, sid))
     }

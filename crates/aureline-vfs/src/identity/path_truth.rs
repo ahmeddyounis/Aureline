@@ -205,7 +205,9 @@ fn path_truth_summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capabilities::{FallbackIdentityTokenKind, NormalizationForm, StrongestIdentityTokenKind};
+    use crate::capabilities::{
+        FallbackIdentityTokenKind, NormalizationForm, StrongestIdentityTokenKind,
+    };
     use crate::identity::{
         Alias, AliasSet, CanonicalFilesystemObject, FallbackIdentityToken, IdentityRecord,
         IdentityToken, LogicalWorkspaceIdentity, PresentationPath,

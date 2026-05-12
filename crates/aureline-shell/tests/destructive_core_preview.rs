@@ -76,7 +76,9 @@ fn unique_temp_root(label: &str) -> PathBuf {
         .unwrap_or_default()
         .as_nanos();
     let mut root = std::env::temp_dir();
-    root.push(format!("aureline_destructive_core_preview_{label}_{pid}_{stamp}"));
+    root.push(format!(
+        "aureline_destructive_core_preview_{label}_{pid}_{stamp}"
+    ));
     root
 }
 
@@ -107,8 +109,7 @@ fn load_case(name: &str) -> DestructiveCoreCase {
         .join("../..")
         .join("fixtures/ux/preview_apply_cases/destructive_core_path")
         .join(name);
-    let raw =
-        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
+    let raw = std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
     serde_json::from_str(&raw).unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
 }
 
@@ -122,7 +123,10 @@ fn fixture_drives_full_protected_walk() {
     let (mut engine, root) = engine_for_case(&case.case_id);
 
     for seed in &case.seed_world {
-        engine.seed_target(seed.logical_ref.clone(), seed.initial_text.clone().into_bytes());
+        engine.seed_target(
+            seed.logical_ref.clone(),
+            seed.initial_text.clone().into_bytes(),
+        );
     }
 
     let refs: Vec<&str> = case
@@ -155,7 +159,10 @@ fn fixture_drives_full_protected_walk() {
         expected.expected_apply_admissibility_token,
         "expected apply admission"
     );
-    assert_eq!(preview.total_match_count, expected.expected_match_count_total);
+    assert_eq!(
+        preview.total_match_count,
+        expected.expected_match_count_total
+    );
 
     engine.apply(&mut packet).expect("apply");
     let apply = packet.apply.as_ref().expect("apply present");
@@ -215,12 +222,7 @@ fn fixture_drives_full_protected_walk() {
     assert!(ids.local_history_group_id.is_some());
     assert!(ids.validation_id.is_some());
     assert!(ids.revert_id.is_some());
-    assert_eq!(
-        revert
-            .group_resolution
-            ,
-        GroupResolution::Reverted
-    );
+    assert_eq!(revert.group_resolution, GroupResolution::Reverted);
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -235,7 +237,10 @@ fn fixture_drives_scope_drift_failure_drill() {
     let (mut engine, root) = engine_for_case(&case.case_id);
 
     for seed in &case.seed_world {
-        engine.seed_target(seed.logical_ref.clone(), seed.initial_text.clone().into_bytes());
+        engine.seed_target(
+            seed.logical_ref.clone(),
+            seed.initial_text.clone().into_bytes(),
+        );
     }
     let refs: Vec<&str> = case
         .proposal
@@ -262,11 +267,17 @@ fn fixture_drives_scope_drift_failure_drill() {
     );
 
     for drift in &case.external_mutations_after_preview {
-        engine.simulate_external_mutation(&drift.logical_ref, drift.initial_text.clone().into_bytes());
+        engine.simulate_external_mutation(
+            &drift.logical_ref,
+            drift.initial_text.clone().into_bytes(),
+        );
     }
     engine.reopen_preview(&mut packet).expect("reopen preview");
 
-    let preview = packet.preview.as_ref().expect("preview present after reopen");
+    let preview = packet
+        .preview
+        .as_ref()
+        .expect("preview present after reopen");
     assert_eq!(
         preview.apply_admissibility.as_token(),
         expected.expected_admission_token_after_drift,

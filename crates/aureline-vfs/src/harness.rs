@@ -1414,7 +1414,13 @@ fn write_identity(out: &mut String, depth: usize, id: &IdentityRecord) {
     // presentation_path
     key(out, depth + 1, "presentation_path");
     out.push_str(" {\n");
-    kv_str(out, depth + 2, "uri", id.presentation_path.uri.as_str(), false);
+    kv_str(
+        out,
+        depth + 2,
+        "uri",
+        id.presentation_path.uri.as_str(),
+        false,
+    );
     kv_str(
         out,
         depth + 2,
@@ -1437,7 +1443,13 @@ fn write_identity(out: &mut String, depth: usize, id: &IdentityRecord) {
     out.push_str(" {\n");
     kv_str(out, depth + 2, "workspace_id", &logical.workspace_id, false);
     kv_str(out, depth + 2, "root_id", &logical.root_id, false);
-    kv_str(out, depth + 2, "logical_uri", logical.logical_uri.as_str(), false);
+    kv_str(
+        out,
+        depth + 2,
+        "logical_uri",
+        logical.logical_uri.as_str(),
+        false,
+    );
     kv_str(
         out,
         depth + 2,

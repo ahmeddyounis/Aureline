@@ -23,8 +23,8 @@ pub use find_replace::{FindOptions, FindReplaceError, FindReplaceMode, FindRepla
 pub use highlight::{HighlightOverlaySet, HighlightSpan};
 pub use large_file::{
     open_document, BomKind, ClassificationDecision, ClassificationPolicy, DocumentOpenDisposition,
-    DocumentOpenError, DocumentOpenOutcome, FileMode, LargeFileDocument, LargeFileOverrideInfo,
-    LargeFileModeNotice, LargeFileTrigger, LargeFileViewer, LargeFileViewerConfig,
+    DocumentOpenError, DocumentOpenOutcome, FileMode, LargeFileDocument, LargeFileModeNotice,
+    LargeFileOverrideInfo, LargeFileTrigger, LargeFileViewer, LargeFileViewerConfig,
     LargeFileViewerError, NormalDocument, ReaderMetrics,
 };
 pub use paint::{EditorTextRuntime, ViewportCompositor, ViewportPaintStyle};

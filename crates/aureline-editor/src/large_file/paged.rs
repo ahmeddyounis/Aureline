@@ -114,7 +114,7 @@ impl PagedReader {
     /// Returns the number of pages implied by `(file_len, page_size)`.
     pub fn page_count(&self) -> u64 {
         let ps = self.page_size as u64;
-        (self.file_len + ps - 1) / ps
+        self.file_len.div_ceil(ps)
     }
 
     /// Reads one page by index.
@@ -148,7 +148,10 @@ impl PagedReader {
         let owned = buf.clone();
         self.evict_to_make_room_for(owned.len() as u64);
         let bytes = owned.len() as u64;
-        self.lru.push_back(CachedPage { index, bytes: owned });
+        self.lru.push_back(CachedPage {
+            index,
+            bytes: owned,
+        });
         self.bytes_resident += bytes;
         if self.bytes_resident > self.metrics.bytes_resident_high_water {
             self.metrics.bytes_resident_high_water = self.bytes_resident;
@@ -231,7 +234,9 @@ impl PagedReader {
     }
 
     fn evict_to_make_room_for(&mut self, needed_bytes: u64) {
-        if self.lru.len() < self.max_resident_pages && self.bytes_resident + needed_bytes <= self.max_resident_bytes() {
+        if self.lru.len() < self.max_resident_pages
+            && self.bytes_resident + needed_bytes <= self.max_resident_bytes()
+        {
             return;
         }
         while self.lru.len() >= self.max_resident_pages
@@ -258,4 +263,3 @@ fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
         .windows(needle.len())
         .position(|window| window == needle)
 }
-

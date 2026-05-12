@@ -292,7 +292,6 @@ impl Default for ScopeClass {
     }
 }
 
-
 /// Typed subscription scope. Unscoped ambient subscriptions are
 /// forbidden on protected surfaces.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]

@@ -45,7 +45,7 @@ impl TraceSample {
                 None => "null".to_owned(),
             };
             indent(&mut out, 3);
-            let _ = write!(out, "\"note\": {note_value}\n");
+            let _ = writeln!(out, "\"note\": {note_value}");
             indent(&mut out, 2);
             if last {
                 out.push_str("}\n");

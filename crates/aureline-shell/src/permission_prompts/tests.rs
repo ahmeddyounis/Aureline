@@ -118,8 +118,8 @@ fn verified_admit_decision() -> ManifestInstallDecisionRecord {
         manifest_baseline_ref: "manifest_baseline:acme-labs/prose-helper:1.4.2".to_owned(),
         install_decision_class: InstallDecisionClass::Admit,
         install_decision_reason_class: InstallDecisionReasonClass::AdmittedNoViolation,
-        decision_summary:
-            "Admitted: complete manifest, attributed publisher, no widening attempt.".to_owned(),
+        decision_summary: "Admitted: complete manifest, attributed publisher, no widening attempt."
+            .to_owned(),
         decided_at: "2026-05-11T08:00:01Z".to_owned(),
         redaction_class: RedactionClass::MetadataSafeDefault,
     }
@@ -341,7 +341,11 @@ fn protected_walk_verified_admit_pending_card_offers_approve_and_deny() {
     assert!(roles.contains(&"primary_approve"));
     assert!(roles.contains(&"primary_deny"));
     assert!(roles.contains(&"details"));
-    assert!(card.invariants.is_empty(), "invariants: {:?}", card.invariants);
+    assert!(
+        card.invariants.is_empty(),
+        "invariants: {:?}",
+        card.invariants
+    );
     let claim_tokens: Vec<&str> = card.claim_limits.iter().map(|r| r.token.as_str()).collect();
     assert_eq!(
         claim_tokens,
@@ -385,7 +389,11 @@ fn protected_walk_unverified_review_only_suppresses_approve() {
     assert_eq!(card.degraded_token.as_deref(), Some("Limited"));
     // No invariant violations: a review-only path that suppresses
     // approve is an honest decision.
-    assert!(card.invariants.is_empty(), "invariants: {:?}", card.invariants);
+    assert!(
+        card.invariants.is_empty(),
+        "invariants: {:?}",
+        card.invariants
+    );
     let roles: Vec<&str> = card
         .decision_actions
         .iter()
@@ -837,19 +845,44 @@ fn build_card_from_fixture(fixture: &PromptFixture) -> TypedPermissionPromptReco
     let manifest = ExtensionManifestBaselineRecord {
         record_kind: EXTENSION_MANIFEST_BASELINE_RECORD_KIND.to_owned(),
         extension_manifest_baseline_schema_version: EXTENSION_MANIFEST_BASELINE_SCHEMA_VERSION,
-        manifest_baseline_id: fixture.install_review.manifest_baseline.manifest_baseline_id.clone(),
-        extension_identity: fixture.install_review.manifest_baseline.extension_identity.clone(),
-        extension_version: fixture.install_review.manifest_baseline.extension_version.clone(),
+        manifest_baseline_id: fixture
+            .install_review
+            .manifest_baseline
+            .manifest_baseline_id
+            .clone(),
+        extension_identity: fixture
+            .install_review
+            .manifest_baseline
+            .extension_identity
+            .clone(),
+        extension_version: fixture
+            .install_review
+            .manifest_baseline
+            .extension_version
+            .clone(),
         extension_lifecycle_state_class: parse_extension_lifecycle(
-            &fixture.install_review.manifest_baseline.extension_lifecycle_state_class,
+            &fixture
+                .install_review
+                .manifest_baseline
+                .extension_lifecycle_state_class,
         ),
         host_contract_family_class: parse_host_contract_family(
-            &fixture.install_review.manifest_baseline.host_contract_family_class,
+            &fixture
+                .install_review
+                .manifest_baseline
+                .host_contract_family_class,
         ),
         manifest_origin_source_class: parse_origin_source(
-            &fixture.install_review.manifest_baseline.manifest_origin_source_class,
+            &fixture
+                .install_review
+                .manifest_baseline
+                .manifest_origin_source_class,
         ),
-        origin_source_label: fixture.install_review.manifest_baseline.origin_source_label.clone(),
+        origin_source_label: fixture
+            .install_review
+            .manifest_baseline
+            .origin_source_label
+            .clone(),
         publisher_identity_ref: fixture
             .install_review
             .manifest_baseline
@@ -861,10 +894,16 @@ fn build_card_from_fixture(fixture: &PromptFixture) -> TypedPermissionPromptReco
             .publisher_display_label
             .clone(),
         publisher_trust_tier_class: parse_publisher_trust_tier(
-            &fixture.install_review.manifest_baseline.publisher_trust_tier_class,
+            &fixture
+                .install_review
+                .manifest_baseline
+                .publisher_trust_tier_class,
         ),
         publisher_lifecycle_state_class: parse_publisher_lifecycle(
-            &fixture.install_review.manifest_baseline.publisher_lifecycle_state_class,
+            &fixture
+                .install_review
+                .manifest_baseline
+                .publisher_lifecycle_state_class,
         ),
         publisher_signing_key_ref: fixture
             .install_review
@@ -884,7 +923,10 @@ fn build_card_from_fixture(fixture: &PromptFixture) -> TypedPermissionPromptReco
             })
             .collect(),
         manifest_scope_completeness_class: parse_manifest_scope_completeness(
-            &fixture.install_review.manifest_baseline.manifest_scope_completeness_class,
+            &fixture
+                .install_review
+                .manifest_baseline
+                .manifest_scope_completeness_class,
         ),
         redaction_class: RedactionClass::MetadataSafeDefault,
     };
@@ -923,7 +965,10 @@ fn build_card_from_fixture(fixture: &PromptFixture) -> TypedPermissionPromptReco
         extension_manifest_baseline_schema_version: EXTENSION_MANIFEST_BASELINE_SCHEMA_VERSION,
         manifest_baseline_ref: manifest.manifest_baseline_id.clone(),
         install_decision_class: parse_install_decision_class(
-            &fixture.install_review.install_decision.install_decision_class,
+            &fixture
+                .install_review
+                .install_decision
+                .install_decision_class,
         ),
         install_decision_reason_class: parse_install_decision_reason_class(
             &fixture
@@ -1212,9 +1257,7 @@ fn parse_install_decision_class(token: &str) -> InstallDecisionClass {
 fn parse_install_decision_reason_class(token: &str) -> InstallDecisionReasonClass {
     match token {
         "admitted_no_violation" => InstallDecisionReasonClass::AdmittedNoViolation,
-        "step_up_required_by_policy_pack" => {
-            InstallDecisionReasonClass::StepUpRequiredByPolicyPack
-        }
+        "step_up_required_by_policy_pack" => InstallDecisionReasonClass::StepUpRequiredByPolicyPack,
         "review_only_unverified_publisher" => {
             InstallDecisionReasonClass::ReviewOnlyUnverifiedPublisher
         }

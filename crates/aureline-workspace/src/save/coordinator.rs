@@ -505,10 +505,7 @@ fn allocate_sibling_temp_path(parent_dir: &Path, hint: Option<&str>) -> PathBuf 
 fn sync_parent_dir(parent_dir: &Path) -> std::io::Result<()> {
     // Best-effort durability barrier for the directory entry. Not all
     // platforms allow opening directories as files.
-    let file = match std::fs::File::open(parent_dir) {
-        Ok(file) => file,
-        Err(err) => return Err(err),
-    };
+    let file = std::fs::File::open(parent_dir)?;
     file.sync_all()
 }
 

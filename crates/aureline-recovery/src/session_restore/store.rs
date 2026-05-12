@@ -13,7 +13,8 @@ use super::records::{
     PaneTreeSchemaVersion, ProducerBuildStamp, RestoreClass, ScopeRefs, SnapshotReason,
     SplitOrientation, SurfaceClass, SurfaceRole, TabGroupInventoryEntry, TabRecord,
     TopologyPacketSchemaVersion, TrustedRootRecord, WindowChromeState, WindowRole, WindowState,
-    WindowTopologySnapshotBodyRecord, WindowTopologySnapshotRecord, WorkspaceAuthorityCheckpointRecord,
+    WindowTopologySnapshotBodyRecord, WindowTopologySnapshotRecord,
+    WorkspaceAuthorityCheckpointRecord,
 };
 
 /// Error returned when session-restore persistence fails.
@@ -173,7 +174,10 @@ impl SessionRestoreStore {
     }
 
     /// Captures and writes a workspace checkpoint + topology packet + pane-tree body.
-    pub fn capture(&mut self, input: SessionRestoreCaptureInput) -> Result<SessionRestoreLatestRefs, SessionRestoreError> {
+    pub fn capture(
+        &mut self,
+        input: SessionRestoreCaptureInput,
+    ) -> Result<SessionRestoreLatestRefs, SessionRestoreError> {
         let checkpoint_id = self.checkpoint_ids.mint();
         let snapshot_id = self.snapshot_ids.mint();
         let workspace_authority_ref = format!("workspace-authority:{}", input.workspace_ref);
@@ -339,8 +343,7 @@ impl SessionRestoreStore {
                 }));
             }
         }
-        let checkpoint_id =
-            latest_id_in_dir(&self.root.join("workspace_authority_checkpoints"))?;
+        let checkpoint_id = latest_id_in_dir(&self.root.join("workspace_authority_checkpoints"))?;
         let snapshot_id = latest_id_in_dir(&self.root.join("window_topology_snapshots"))?;
         match (checkpoint_id, snapshot_id) {
             (Some(checkpoint_id), Some(snapshot_id)) => Ok(Some(SessionRestoreLatestRefs {
@@ -475,7 +478,7 @@ fn latest_id_in_dir(dir: &Path) -> Result<Option<String>, SessionRestoreError> {
             continue;
         };
         let stem = stem.to_string();
-        if best.as_ref().is_none_or(|current| stem > *current) {
+        if best.as_ref().map_or(true, |current| stem > *current) {
             best = Some(stem);
         }
     }
@@ -512,7 +515,8 @@ fn materialize_topology_from_capture(
         for (idx, tab) in group.ordered_tabs.iter().enumerate() {
             let tab_id = tab.tab_id.clone();
             ordered_tab_ids.push(tab_id.clone());
-            let pane_id = format!("pane:{snapshot_id}:{group}:{tab}:{idx}",
+            let pane_id = format!(
+                "pane:{snapshot_id}:{group}:{tab}:{idx}",
                 snapshot_id = snapshot_id,
                 group = group.group_id,
                 tab = tab_id,
@@ -572,7 +576,10 @@ fn materialize_topology_from_capture(
         });
 
         if !tabs.is_empty() {
-            all_tabs.extend(tabs.iter().map(|t| (t.tab_id.clone(), t.pane.pane_id.clone())));
+            all_tabs.extend(
+                tabs.iter()
+                    .map(|t| (t.tab_id.clone(), t.pane.pane_id.clone())),
+            );
         }
     }
 
@@ -608,7 +615,8 @@ fn materialize_topology_from_capture(
                     .enumerate()
                     .map(|(idx, tab)| {
                         let tab_id = tab.tab_id.clone();
-                        let pane_id = format!("pane:{snapshot_id}:{group}:{tab}:{idx}",
+                        let pane_id = format!(
+                            "pane:{snapshot_id}:{group}:{tab}:{idx}",
                             snapshot_id = snapshot_id,
                             group = g.group_id,
                             tab = tab_id,

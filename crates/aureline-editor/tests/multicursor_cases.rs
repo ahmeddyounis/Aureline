@@ -98,7 +98,13 @@ fn multicursor_cases_fixture_set_stays_deterministic() {
         let outcome = match &fixture.action {
             EditorAction::InsertText { text } => viewport
                 .selections_mut()
-                .apply_insert_text(&mut buffer, &snapshot, text, "user_keystroke", scope_for_insert)
+                .apply_insert_text(
+                    &mut buffer,
+                    &snapshot,
+                    text,
+                    "user_keystroke",
+                    scope_for_insert,
+                )
                 .expect("insert should succeed"),
             EditorAction::DeleteBackward => viewport
                 .selections_mut()
@@ -109,10 +115,7 @@ fn multicursor_cases_fixture_set_stays_deterministic() {
                     TextEditScope::AllCarets,
                 )
                 .expect("delete_backward should succeed"),
-            _ => panic!(
-                "unsupported action in {:?}: {:?}",
-                path, fixture.action
-            ),
+            _ => panic!("unsupported action in {:?}: {:?}", path, fixture.action),
         };
 
         let Some(outcome) = outcome else {
@@ -125,14 +128,12 @@ fn multicursor_cases_fixture_set_stays_deterministic() {
         viewport.set_ime_composition(None);
 
         assert_eq!(
-            outcome.committed.class_id,
-            fixture.expected.committed.class_id,
+            outcome.committed.class_id, fixture.expected.committed.class_id,
             "class_id mismatch for {:?}",
             path
         );
         assert_eq!(
-            outcome.committed.operation_count,
-            fixture.expected.committed.operation_count,
+            outcome.committed.operation_count, fixture.expected.committed.operation_count,
             "operation_count mismatch for {:?}",
             path
         );
@@ -153,7 +154,12 @@ fn multicursor_cases_fixture_set_stays_deterministic() {
             fixture.meta.scenario
         );
 
-        assert_eq!(buffer.journal_len(), 1, "expected one undo group for {:?}", path);
+        assert_eq!(
+            buffer.journal_len(),
+            1,
+            "expected one undo group for {:?}",
+            path
+        );
         buffer.undo().expect("undo should exist");
         assert_eq!(
             buffer.contents(),
@@ -174,4 +180,3 @@ fn multicursor_cases_fixture_set_stays_deterministic() {
         let _ = fixture.meta.name;
     }
 }
-

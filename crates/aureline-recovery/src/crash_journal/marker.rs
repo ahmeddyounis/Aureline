@@ -21,13 +21,17 @@ pub struct CrashMarkerGuard {
 
 impl CrashMarkerGuard {
     /// Creates (or refreshes) the crash marker under `root_dir`.
-    pub fn begin(root_dir: impl AsRef<Path>, emitted_at: &str) -> Result<(Self, CrashMarkerOutcome), String> {
+    pub fn begin(
+        root_dir: impl AsRef<Path>,
+        emitted_at: &str,
+    ) -> Result<(Self, CrashMarkerOutcome), String> {
         let root_dir = root_dir.as_ref();
         let marker_path = root_dir.join("crash_marker.json");
         let prior_run_abnormal = marker_path.exists();
 
         if let Some(parent) = marker_path.parent() {
-            fs::create_dir_all(parent).map_err(|err| format!("crash marker dir create failed: {err}"))?;
+            fs::create_dir_all(parent)
+                .map_err(|err| format!("crash marker dir create failed: {err}"))?;
         }
 
         let payload = format!(
@@ -73,4 +77,3 @@ fn escape_json_string(value: &str) -> String {
         .replace('\r', "\\r")
         .replace('\t', "\\t")
 }
-

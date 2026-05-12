@@ -283,8 +283,7 @@ pub fn sniff_bytes_summary(bytes: &[u8], policy: &ClassificationPolicy) -> Sniff
 }
 
 fn is_printable_or_whitespace(byte: u8) -> bool {
-    matches!(byte, b'\t' | b'\n' | b'\r' | 0x0C | b' ')
-        || (byte.is_ascii_graphic() && byte != 0x7F)
+    matches!(byte, b'\t' | b'\n' | b'\r' | 0x0C | b' ') || (byte.is_ascii_graphic() && byte != 0x7F)
 }
 
 fn matches_pack_suffix(path: &Path, suffixes: &[String]) -> bool {
@@ -326,7 +325,8 @@ pub fn classify_file(
     let sniff_bytes = policy.sniff_bytes.min(bytes_on_disk);
     let sniff = bounded_prefix(path, sniff_bytes)?;
     let mut summary = sniff_bytes_summary(&sniff, policy);
-    summary.heuristics.matches_pack_suffix = matches_pack_suffix(path, &policy.large_file_pack_suffixes);
+    summary.heuristics.matches_pack_suffix =
+        matches_pack_suffix(path, &policy.large_file_pack_suffixes);
 
     // 1) Size threshold.
     if bytes_on_disk > policy.large_file_size_threshold {
@@ -376,8 +376,9 @@ pub fn classify_file(
             bytes_on_disk,
             mode: FileMode::LargeFile,
             trigger: Some(LargeFileTrigger::Classification),
-            reason: "File appears to be minified or unusually dense; opening in a constrained viewer."
-                .to_owned(),
+            reason:
+                "File appears to be minified or unusually dense; opening in a constrained viewer."
+                    .to_owned(),
             sniff: summary,
         });
     }
@@ -387,7 +388,8 @@ pub fn classify_file(
             bytes_on_disk,
             mode: FileMode::LargeFile,
             trigger: Some(LargeFileTrigger::Classification),
-            reason: "File matches a large-file pack rule; opening in a constrained viewer.".to_owned(),
+            reason: "File matches a large-file pack rule; opening in a constrained viewer."
+                .to_owned(),
             sniff: summary,
         });
     }
@@ -425,4 +427,3 @@ pub fn classify_file(
         sniff: summary,
     })
 }
-

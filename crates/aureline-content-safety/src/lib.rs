@@ -43,8 +43,8 @@ pub use detector::{
     DetectorOutcomeClass, SuspiciousContentDetection, SuspiciousFinding,
 };
 pub use records::{
-    LabelExamples, SuspiciousContentCaseRecord, SuspiciousContentClass,
-    SuspiciousContentFindingRecord, SurfaceFamily, SurfaceTrustResolutionRecord, TrustClass,
+    LabelExamples, SurfaceFamily, SurfaceTrustResolutionRecord, SuspiciousContentCaseRecord,
+    SuspiciousContentClass, SuspiciousContentFindingRecord, TrustClass,
 };
 pub use transfer::{
     BodyPosture, RepresentationActionId, RepresentationClass, RepresentationTransferRecord,

@@ -20,12 +20,12 @@
 #![doc(html_root_url = "https://docs.rs/aureline-terminal/0.0.0")]
 
 pub mod pty_host;
-/// Bounded, redaction-aware scrollback ring used by transcript restore and
-/// support / export bundles.
-pub mod scrollback;
 /// Transcript / ended-session restore projection. Restored records never
 /// claim a live shell survived; auto-rerun is always forbidden.
 pub mod restore;
+/// Bounded, redaction-aware scrollback ring used by transcript restore and
+/// support / export bundles.
+pub mod scrollback;
 
 pub use pty_host::{
     HostClass, OpenSessionRequest, PtyHost, PtyHostError, PtySession, PtySessionId, SessionHeader,

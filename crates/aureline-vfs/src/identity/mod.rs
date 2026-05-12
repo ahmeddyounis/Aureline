@@ -18,10 +18,10 @@ pub mod alias_inspection;
 pub mod path_truth;
 pub mod save_target_review;
 
-pub use alias_inspection::{AliasInspectionEntry, AliasInspectionRecord, inspect_aliases};
-pub use path_truth::{PathTruthChip, PathTruthClass, derive_path_truth_chip};
+pub use alias_inspection::{inspect_aliases, AliasInspectionEntry, AliasInspectionRecord};
+pub use path_truth::{derive_path_truth_chip, PathTruthChip, PathTruthClass};
 pub use save_target_review::{
-    PermissionSummary, SaveTargetReviewBlocker, SaveTargetReviewRecord, review_save_target,
+    review_save_target, PermissionSummary, SaveTargetReviewBlocker, SaveTargetReviewRecord,
 };
 
 use crate::capabilities::{

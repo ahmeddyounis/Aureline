@@ -8,8 +8,9 @@
 use std::collections::BTreeMap;
 
 use crate::capabilities::{
-    AtomicWriteMode, CapabilityFlags, CaseSensitivity, FallbackIdentityTokenKind, NormalizationForm,
-    RootCapabilityEnvelope, RootClass, StrongestIdentityTokenKind, SymlinkEscapePolicy,
+    AtomicWriteMode, CapabilityFlags, CaseSensitivity, FallbackIdentityTokenKind,
+    NormalizationForm, RootCapabilityEnvelope, RootClass, StrongestIdentityTokenKind,
+    SymlinkEscapePolicy,
 };
 use crate::identity::{
     AliasSet, CanonicalFilesystemObject, FallbackIdentityToken, IdentityRecord, IdentityToken,
@@ -37,7 +38,12 @@ pub enum VirtualDocumentKind {
 }
 
 impl VirtualDocumentKind {
-    fn uri_for(&self, workspace_id: &str, root_id: &str, document_id: &str) -> Result<VfsUri, crate::uri_model::UriError> {
+    fn uri_for(
+        &self,
+        workspace_id: &str,
+        root_id: &str,
+        document_id: &str,
+    ) -> Result<VfsUri, crate::uri_model::UriError> {
         match self {
             Self::Virtual => VfsUri::virtual_document_uri(workspace_id, root_id, document_id),
             Self::Generated => VfsUri::generated_document_uri(workspace_id, root_id, document_id),
@@ -123,7 +129,10 @@ impl VirtualDocumentRoot {
     }
 
     /// Registers a document in the root.
-    pub fn add_document(&mut self, spec: VirtualDocumentSpec) -> Result<VfsUri, VirtualDocumentRootError> {
+    pub fn add_document(
+        &mut self,
+        spec: VirtualDocumentSpec,
+    ) -> Result<VfsUri, VirtualDocumentRootError> {
         if self.documents.contains_key(&spec.document_id) {
             return Err(VirtualDocumentRootError::DuplicateDocumentId(
                 spec.document_id,
@@ -131,7 +140,11 @@ impl VirtualDocumentRoot {
         }
         let uri = spec
             .kind
-            .uri_for(&self.workspace_id, &self.envelope.root_id, &spec.document_id)
+            .uri_for(
+                &self.workspace_id,
+                &self.envelope.root_id,
+                &spec.document_id,
+            )
             .map_err(|err| VirtualDocumentRootError::UriBuildFailed(err.to_string()))?;
         self.documents.insert(spec.document_id.clone(), spec);
         Ok(uri)
@@ -182,7 +195,10 @@ impl VfsRoot for VirtualDocumentRoot {
         self.parse_document_ref(uri).is_some()
     }
 
-    fn identity_record(&self, presentation_uri: &VfsUri) -> Result<IdentityRecord, RootResolveError> {
+    fn identity_record(
+        &self,
+        presentation_uri: &VfsUri,
+    ) -> Result<IdentityRecord, RootResolveError> {
         let Some((kind, document_id)) = self.parse_document_ref(presentation_uri) else {
             return Err(RootResolveError::NotInRoot(presentation_uri.clone()));
         };
@@ -198,12 +214,15 @@ impl VfsRoot for VirtualDocumentRoot {
                 detail: err.to_string(),
             })?;
         let logical_path = format!("{}/{}", kind.logical_prefix(), document_id);
-        let logical_uri =
-            VfsUri::workspace_logical_uri(&self.workspace_id, &self.envelope.root_id, &logical_path)
-                .map_err(|err| RootResolveError::UriInvalid {
-                    uri: logical_path.clone(),
-                    detail: err.to_string(),
-                })?;
+        let logical_uri = VfsUri::workspace_logical_uri(
+            &self.workspace_id,
+            &self.envelope.root_id,
+            &logical_path,
+        )
+        .map_err(|err| RootResolveError::UriInvalid {
+            uri: logical_path.clone(),
+            detail: err.to_string(),
+        })?;
 
         let strongest_identity_token = IdentityToken {
             kind: StrongestIdentityTokenKind::LogicalDocumentIdSourceRefs,
@@ -233,7 +252,9 @@ impl VfsRoot for VirtualDocumentRoot {
                 strongest_identity_token,
                 fallback_identity_tokens,
             },
-            alias_set: AliasSet { aliases: Vec::new() },
+            alias_set: AliasSet {
+                aliases: Vec::new(),
+            },
         })
     }
 
@@ -269,7 +290,10 @@ impl VfsRoot for VirtualDocumentRoot {
         }])
     }
 
-    fn read_generation_token(&self, canonical_uri: &VfsUri) -> Result<GenerationToken, RootResolveError> {
+    fn read_generation_token(
+        &self,
+        canonical_uri: &VfsUri,
+    ) -> Result<GenerationToken, RootResolveError> {
         let Some((_, document_id)) = self.parse_document_ref(canonical_uri) else {
             return Err(RootResolveError::UnknownCanonical(canonical_uri.clone()));
         };
@@ -282,7 +306,10 @@ impl VfsRoot for VirtualDocumentRoot {
         })
     }
 
-    fn permission_snapshot(&self, canonical_uri: &VfsUri) -> Result<PermissionSnapshot, RootResolveError> {
+    fn permission_snapshot(
+        &self,
+        canonical_uri: &VfsUri,
+    ) -> Result<PermissionSnapshot, RootResolveError> {
         if !self.claims_uri(canonical_uri) {
             return Err(RootResolveError::UnknownCanonical(canonical_uri.clone()));
         }
@@ -305,7 +332,11 @@ impl VfsRoot for VirtualDocumentRoot {
         Ok(spec.content.clone())
     }
 
-    fn write_bytes(&mut self, canonical_uri: &VfsUri, _new_content: Vec<u8>) -> Result<(), RootIoError> {
+    fn write_bytes(
+        &mut self,
+        canonical_uri: &VfsUri,
+        _new_content: Vec<u8>,
+    ) -> Result<(), RootIoError> {
         Err(RootIoError::NotSupported {
             uri: canonical_uri.clone(),
             operation: "write_bytes",
@@ -329,7 +360,9 @@ mod tests {
             })
             .expect("document registration should succeed");
 
-        let identity = root.identity_record(&uri).expect("identity record should resolve");
+        let identity = root
+            .identity_record(&uri)
+            .expect("identity record should resolve");
         assert_eq!(identity.presentation_path.uri, uri);
         assert_eq!(identity.presentation_path.root_badge, "virtual");
         assert_eq!(
@@ -356,7 +389,9 @@ mod tests {
         let root = VirtualDocumentRoot::new("ws-test", "root-virtual");
         let uri = VfsUri::virtual_document_uri("ws-test", "root-virtual", "missing")
             .expect("uri build should succeed");
-        let err = root.identity_record(&uri).expect_err("expected lookup failure");
+        let err = root
+            .identity_record(&uri)
+            .expect_err("expected lookup failure");
         assert_eq!(err, RootResolveError::UnknownPresentation(uri));
     }
 }

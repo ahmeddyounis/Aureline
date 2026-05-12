@@ -1,7 +1,7 @@
 use aureline_ai::{
     AttachmentKind, AttachmentStatusClass, ComposerAttachment, ComposerDraft, ComposerMention,
     ComposerSlashCommandInvocation, MentionKind, MentionResolutionState, SelectionReasonClass,
-    SlashCommandResolutionState, SourceClass, TrustPosture,
+    SourceClass, TrustPosture,
 };
 use aureline_commands::registry::seeded_registry;
 
@@ -86,7 +86,10 @@ fn prototype_chip_carries_read_only_no_dispatch_label() {
         .section(InspectorSectionId::PrototypeLabel)
         .expect("prototype section");
     let row = &chip.rows[0];
-    assert_eq!(row.value_token.as_deref(), Some("m1_prototype_read_only_no_mutation"));
+    assert_eq!(
+        row.value_token.as_deref(),
+        Some("m1_prototype_read_only_no_mutation")
+    );
     assert!(row.value.contains("read-only"));
     assert!(row.value.contains("no model dispatch"));
 }
@@ -153,8 +156,7 @@ fn tainted_attachment_failure_drill_lights_chip_and_addresses_the_attachment() {
         .rows
         .iter()
         .find(|row| {
-            row.blocked_reason_token.as_deref()
-                == Some("tainted_attachment_outside_fenced_section")
+            row.blocked_reason_token.as_deref() == Some("tainted_attachment_outside_fenced_section")
         })
         .expect("tainted block reason row");
     assert!(matches!(
@@ -215,7 +217,10 @@ fn resolved_slash_command_quotes_canonical_command_id_from_seeded_registry() {
         .expect("slash command row");
     assert_eq!(row.status, InspectorRowStatusClass::Live);
     assert_eq!(row.value, "cmd:workspace.open_folder");
-    assert_eq!(row.value_token.as_deref(), Some("cmd:workspace.open_folder"));
+    assert_eq!(
+        row.value_token.as_deref(),
+        Some("cmd:workspace.open_folder")
+    );
 }
 
 #[test]
@@ -238,7 +243,10 @@ fn unresolved_slash_command_renders_blocked_with_typed_reason() {
         .find(|row| row.row_id == "invocation_invocation.bogus")
         .expect("slash command row");
     assert_eq!(row.status, InspectorRowStatusClass::Blocked);
-    assert_eq!(row.blocked_reason_token.as_deref(), Some("unresolved_no_match"));
+    assert_eq!(
+        row.blocked_reason_token.as_deref(),
+        Some("unresolved_no_match")
+    );
 }
 
 #[test]
@@ -262,6 +270,9 @@ fn draft_state_section_quotes_dispatch_disabled_label_for_m1_seed() {
         .section(InspectorSectionId::DraftState)
         .expect("draft state section");
     let row = &state.rows[0];
-    assert_eq!(row.value_token.as_deref(), Some("dispatch_disabled_in_m1_seed"));
+    assert_eq!(
+        row.value_token.as_deref(),
+        Some("dispatch_disabled_in_m1_seed")
+    );
     assert_eq!(row.status, InspectorRowStatusClass::DispatchDisabled);
 }

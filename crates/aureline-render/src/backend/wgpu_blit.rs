@@ -11,6 +11,14 @@ use winit::window::Window;
 
 use crate::PixelRect;
 
+type SurfaceResourceBundle = (
+    wgpu::SurfaceConfiguration,
+    wgpu::Texture,
+    wgpu::TextureView,
+    wgpu::Sampler,
+    Vec<u8>,
+);
+
 /// GPU surface backend that presents a CPU-rasterized `0RGB` buffer.
 #[derive(Debug)]
 pub struct WgpuBlitRenderer {
@@ -409,16 +417,7 @@ fn create_surface_resources(
     surface: &wgpu::Surface<'static>,
     adapter: &wgpu::Adapter,
     device: &wgpu::Device,
-) -> Result<
-    (
-        wgpu::SurfaceConfiguration,
-        wgpu::Texture,
-        wgpu::TextureView,
-        wgpu::Sampler,
-        Vec<u8>,
-    ),
-    Box<dyn std::error::Error>,
-> {
+) -> Result<SurfaceResourceBundle, Box<dyn std::error::Error>> {
     let size = window.inner_size();
     let width = size.width.max(1);
     let height = size.height.max(1);

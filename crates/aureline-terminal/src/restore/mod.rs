@@ -397,10 +397,7 @@ mod tests {
             restored.restore_level,
             TerminalRestoreLevel::RestoreUiWithTranscript
         );
-        assert_eq!(
-            restored.restore_level_token,
-            "restore_ui_with_transcript"
-        );
+        assert_eq!(restored.restore_level_token, "restore_ui_with_transcript");
         assert_eq!(
             restored.restore_decision,
             TerminalRestoreDecision::RestoreApprovedEvidenceOnly
@@ -430,8 +427,7 @@ mod tests {
         host.mark_lost_transport(&id, "mono:3", Some("network_drop"))
             .unwrap();
 
-        let mut scrollback =
-            TerminalScrollback::with_bound(id.clone(), ScrollbackBound::custom(2));
+        let mut scrollback = TerminalScrollback::with_bound(id.clone(), ScrollbackBound::custom(2));
         scrollback.record_line(
             "$ tail -f log",
             ScrollbackRedactionClass::SupportBundleScoped,
@@ -534,10 +530,8 @@ mod tests {
             let expect = outer
                 .get("expect_restored_terminal")
                 .unwrap_or_else(|| panic!("fixture {case} missing expect_restored_terminal"));
-            let record: RestoredTerminalRecord =
-                serde_json::from_value(expect.clone()).unwrap_or_else(|err| {
-                    panic!("fixture {case} restored record must parse: {err}")
-                });
+            let record: RestoredTerminalRecord = serde_json::from_value(expect.clone())
+                .unwrap_or_else(|err| panic!("fixture {case} restored record must parse: {err}"));
 
             assert_eq!(
                 record.record_kind, RESTORED_TERMINAL_RECORD_KIND,
@@ -600,8 +594,7 @@ mod tests {
         let prior = host.session(&id).expect("session must exist");
         let restored = restore_session_as_transcript(prior, Some(&scrollback), "mono:restart");
         let json = serde_json::to_string(&restored).expect("serialize");
-        let round: RestoredTerminalRecord =
-            serde_json::from_str(&json).expect("deserialize");
+        let round: RestoredTerminalRecord = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(round, restored);
         assert!(round.auto_rerun_forbidden);
         assert!(round.fresh_session_required);

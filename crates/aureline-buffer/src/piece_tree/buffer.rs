@@ -382,6 +382,7 @@ impl Buffer {
         Self::from_bytes_with_config(bytes, BufferConfig::default())
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(text: &str) -> Self {
         Self::from_bytes(text.as_bytes())
     }
@@ -562,7 +563,7 @@ impl Buffer {
     ) -> Result<CommittedInfo, BufferError> {
         let mut tx = self.begin(TransactionSpec::new(UndoClass::TextEdit, originator))?;
         tx.insert(offset, text)?;
-        Ok(tx.commit()?)
+        tx.commit()
     }
 
     /// Convenience: single-op `text_edit` delete-and-commit.
@@ -573,7 +574,7 @@ impl Buffer {
     ) -> Result<CommittedInfo, BufferError> {
         let mut tx = self.begin(TransactionSpec::new(UndoClass::TextEdit, originator))?;
         tx.delete(range)?;
-        Ok(tx.commit()?)
+        tx.commit()
     }
 
     /// Convenience: single-op `text_edit` replace-and-commit.
@@ -585,7 +586,7 @@ impl Buffer {
     ) -> Result<CommittedInfo, BufferError> {
         let mut tx = self.begin(TransactionSpec::new(UndoClass::TextEdit, originator))?;
         tx.replace(range, text)?;
-        Ok(tx.commit()?)
+        tx.commit()
     }
 
     // -- Undo / redo -----------------------------------------------------

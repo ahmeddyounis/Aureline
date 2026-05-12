@@ -200,7 +200,10 @@ pub fn detect_and_decode_for_buffer(
 
     let (newline_mode, final_newline) = match decoded.as_deref() {
         Some(text) => (detect_newline_mode(text), detect_final_newline(text)),
-        None => (NewlineModeDetected::UnknownOrDegraded, FinalNewlineDetected::UnknownOrDegraded),
+        None => (
+            NewlineModeDetected::UnknownOrDegraded,
+            FinalNewlineDetected::UnknownOrDegraded,
+        ),
     };
 
     let record = SourceFidelityRecord {
@@ -323,7 +326,9 @@ fn decode_to_string(encoding: DetectedEncoding, body: &[u8]) -> Result<String, S
         DetectedEncoding::Utf16BeBom => decode_utf16(body, Endianness::Big),
         DetectedEncoding::Utf32LeBom => decode_utf32(body, Endianness::Little),
         DetectedEncoding::Utf32BeBom => decode_utf32(body, Endianness::Big),
-        DetectedEncoding::UnknownBinaryLike => Err("unknown_binary_like: no decoder chosen".to_owned()),
+        DetectedEncoding::UnknownBinaryLike => {
+            Err("unknown_binary_like: no decoder chosen".to_owned())
+        }
     }
 }
 

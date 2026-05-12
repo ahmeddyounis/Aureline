@@ -85,8 +85,8 @@ fn parse_readiness_label(token: &str) -> ReadinessLabel {
 
 #[test]
 fn result_identity_cases_match_expected_projection() {
-    let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/search/result_identity_cases");
+    let fixtures_dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/search/result_identity_cases");
     let mut fixtures: Vec<_> = std::fs::read_dir(&fixtures_dir)
         .unwrap_or_else(|err| panic!("fixtures dir must exist at {fixtures_dir:?}: {err}"))
         .filter_map(|entry| entry.ok().map(|e| e.path()))
@@ -144,11 +144,7 @@ fn result_identity_cases_match_expected_projection() {
             "readiness_class mismatch in {path:?}"
         );
 
-        let actual_rows: Vec<_> = results
-            .groups
-            .iter()
-            .flat_map(|g| g.items.iter())
-            .collect();
+        let actual_rows: Vec<_> = results.groups.iter().flat_map(|g| g.items.iter()).collect();
 
         assert_eq!(
             actual_rows.len(),
@@ -184,7 +180,11 @@ fn result_identity_cases_match_expected_projection() {
             let actual_reasons: Vec<&'static str> = actual.identity.ranking_reason_tokens();
             assert_eq!(
                 actual_reasons,
-                expected.ranking_reasons.iter().map(|s| s.as_str()).collect::<Vec<&str>>(),
+                expected
+                    .ranking_reasons
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<&str>>(),
                 "ranking_reasons mismatch for {} in {path:?}",
                 expected.relative_path
             );
@@ -207,8 +207,7 @@ fn result_identity_cases_match_expected_projection() {
                 expected.relative_path
             );
             assert_eq!(
-                actual.identity.workspace_id,
-                fixture.workspace_id,
+                actual.identity.workspace_id, fixture.workspace_id,
                 "workspace_id mismatch on identity for {} in {path:?}",
                 expected.relative_path
             );

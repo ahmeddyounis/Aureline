@@ -14,9 +14,9 @@ use serde::Deserialize;
 
 use aureline_content_safety::detect_suspicious_content;
 use aureline_preview::{
-    build_generated_content_preview, build_oversized_artifact_preview,
-    build_risky_text_preview, GeneratedContentInput, OversizedArtifactInput, RiskyTextInput,
-    SafePreviewInvariantViolation, SafePreviewRecord,
+    build_generated_content_preview, build_oversized_artifact_preview, build_risky_text_preview,
+    GeneratedContentInput, OversizedArtifactInput, RiskyTextInput, SafePreviewInvariantViolation,
+    SafePreviewRecord,
 };
 use aureline_shell::safe_preview_card::{
     SafePreviewCardSnapshot, SafePreviewRowStatus, SafePreviewSectionId,
@@ -255,10 +255,7 @@ fn protected_walk_oversized_fixture_carries_window_scope_and_omission() {
         }
     }
     if let Some(estimate) = expected["expected_windowed_option_omitted_bytes_estimate"].as_u64() {
-        assert_eq!(
-            copy.omission_summary.omitted_bytes_estimate,
-            Some(estimate)
-        );
+        assert_eq!(copy.omission_summary.omitted_bytes_estimate, Some(estimate));
     }
     assert_common_record_fields(&record, &fixture);
 
@@ -271,7 +268,10 @@ fn protected_walk_oversized_fixture_carries_window_scope_and_omission() {
     {
         for row_id in expected_rows {
             let token = row_id.as_str().unwrap();
-            assert!(body.rows.iter().any(|r| r.row_id == token), "missing {token}");
+            assert!(
+                body.rows.iter().any(|r| r.row_id == token),
+                "missing {token}"
+            );
         }
     }
     assert_common_snapshot_fields(&snapshot, &fixture);
@@ -294,9 +294,9 @@ fn protected_walk_generated_fixture_requires_citation_anchors_for_copy_raw() {
         .iter()
         .find(|o| o.action_id == "copy_rendered")
         .expect("copy_rendered present");
-    if let Some(fields) =
-        fixture["expected_record"]["expected_copy_rendered_required_disclosure_fields_include"]
-            .as_array()
+    if let Some(fields) = fixture["expected_record"]
+        ["expected_copy_rendered_required_disclosure_fields_include"]
+        .as_array()
     {
         for field in fields {
             let token = field.as_str().unwrap();

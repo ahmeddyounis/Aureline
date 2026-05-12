@@ -379,9 +379,7 @@ impl ProviderClass {
     /// Human-readable label rendered on the route row.
     pub const fn label(self) -> &'static str {
         match self {
-            Self::DisabledNoProviderInM1Seed => {
-                "Disabled — M1 seed does not route or spend"
-            }
+            Self::DisabledNoProviderInM1Seed => "Disabled — M1 seed does not route or spend",
             Self::MockedTestProvider => "Mocked test provider (fixtures only)",
         }
     }
@@ -539,15 +537,11 @@ impl BlockReason {
             }
             Self::OverBudgetContext { .. } => "Attachment pushes the draft over the context budget",
             Self::PolicyBlockedAttachment { .. } => "Attachment is blocked by policy or trust",
-            Self::OutOfScopeAttachment { .. } => {
-                "Attachment source is outside the workspace scope"
-            }
+            Self::OutOfScopeAttachment { .. } => "Attachment source is outside the workspace scope",
             Self::UnresolvedSlashCommand { .. } => {
                 "Slash command does not resolve to a registry entry"
             }
-            Self::PolicyBlockedRoute => {
-                "Model dispatch is disabled in the M1 prototype seed"
-            }
+            Self::PolicyBlockedRoute => "Model dispatch is disabled in the M1 prototype seed",
         }
     }
 }
@@ -696,10 +690,9 @@ impl RoutePlaceholder {
             provider_class: ProviderClass::DisabledNoProviderInM1Seed,
             route_path_class: RoutePathClass::DeniedByPolicyInM1Seed,
             dispatch_target_class: DispatchTargetClass::DisabledNoDispatchInM1Seed,
-            seed_note:
-                "Model routing, dispatch, and spend are reserved for a later milestone. \
+            seed_note: "Model routing, dispatch, and spend are reserved for a later milestone. \
                  The M1 prototype seed inspects context only."
-                    .to_owned(),
+                .to_owned(),
         }
     }
 
@@ -911,13 +904,12 @@ impl ComposerDraft {
             // Attribute the overflow to the last attachment so the
             // inspector has a single addressable row to route the user to.
             if let Some(last) = self.attachments.last() {
-                let already_reported =
-                    block_reasons.iter().any(|reason| match reason {
-                        BlockReason::OverBudgetContext { attachment_id } => {
-                            attachment_id == &last.attachment_id
-                        }
-                        _ => false,
-                    });
+                let already_reported = block_reasons.iter().any(|reason| match reason {
+                    BlockReason::OverBudgetContext { attachment_id } => {
+                        attachment_id == &last.attachment_id
+                    }
+                    _ => false,
+                });
                 if !already_reported {
                     block_reasons.push(BlockReason::OverBudgetContext {
                         attachment_id: last.attachment_id.clone(),

@@ -108,7 +108,7 @@ fn sequence_for_platform(spec: PresetBindingSpec, platform: PlatformClass) -> &'
 }
 
 fn sanitize_sequence_for_candidate_ref(sequence: &str) -> String {
-    sequence.replace(' ', "_").replace('+', "_").to_lowercase()
+    sequence.replace([' ', '+'], "_").to_lowercase()
 }
 
 fn candidate_ref_for(preset: KeymapPresetId, command_id: &str, sequence: &str) -> String {

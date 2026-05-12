@@ -298,10 +298,12 @@ impl AiContextInspectorSnapshot {
             .iter()
             .any(|reason| !matches!(reason, BlockReason::PolicyBlockedRoute));
 
-        let has_tainted_attachments = outcome
-            .block_reasons
-            .iter()
-            .any(|reason| matches!(reason, BlockReason::TaintedAttachmentOutsideFencedSection { .. }));
+        let has_tainted_attachments = outcome.block_reasons.iter().any(|reason| {
+            matches!(
+                reason,
+                BlockReason::TaintedAttachmentOutsideFencedSection { .. }
+            )
+        });
 
         Self {
             record_kind: AI_CONTEXT_INSPECTOR_RECORD_KIND.to_owned(),
@@ -491,25 +493,19 @@ fn project_attachments_section(
     InspectorSection::new(InspectorSectionId::Attachments, rows)
 }
 
-fn attachment_row(
-    attachment: &ComposerAttachment,
-    outcome: &ValidationOutcome,
-) -> InspectorRow {
-    let block = outcome
-        .block_reasons
-        .iter()
-        .find(|reason| match reason {
-            BlockReason::StaleAttachment { attachment_id }
-            | BlockReason::OverBudgetContext { attachment_id }
-            | BlockReason::PolicyBlockedAttachment { attachment_id }
-            | BlockReason::OutOfScopeAttachment { attachment_id } => {
-                attachment_id == &attachment.attachment_id
-            }
-            BlockReason::TaintedAttachmentOutsideFencedSection { attachment_id, .. } => {
-                attachment_id == &attachment.attachment_id
-            }
-            _ => false,
-        });
+fn attachment_row(attachment: &ComposerAttachment, outcome: &ValidationOutcome) -> InspectorRow {
+    let block = outcome.block_reasons.iter().find(|reason| match reason {
+        BlockReason::StaleAttachment { attachment_id }
+        | BlockReason::OverBudgetContext { attachment_id }
+        | BlockReason::PolicyBlockedAttachment { attachment_id }
+        | BlockReason::OutOfScopeAttachment { attachment_id } => {
+            attachment_id == &attachment.attachment_id
+        }
+        BlockReason::TaintedAttachmentOutsideFencedSection { attachment_id, .. } => {
+            attachment_id == &attachment.attachment_id
+        }
+        _ => false,
+    });
 
     let (status, blocked_reason_token) = if let Some(reason) = block {
         (
@@ -674,7 +670,10 @@ fn block_reason_row(idx: usize, reason: &BlockReason) -> InspectorRow {
             InspectorRowStatusClass::Blocked,
         ),
         BlockReason::StaleAttachment { attachment_id } => (
-            format!("{label} — attachment {attachment_id}", label = reason.label()),
+            format!(
+                "{label} — attachment {attachment_id}",
+                label = reason.label()
+            ),
             InspectorRowAddress::Attachment {
                 attachment_id: attachment_id.clone(),
             },
@@ -695,21 +694,30 @@ fn block_reason_row(idx: usize, reason: &BlockReason) -> InspectorRow {
             InspectorRowStatusClass::Blocked,
         ),
         BlockReason::OverBudgetContext { attachment_id } => (
-            format!("{label} — attachment {attachment_id}", label = reason.label()),
+            format!(
+                "{label} — attachment {attachment_id}",
+                label = reason.label()
+            ),
             InspectorRowAddress::Attachment {
                 attachment_id: attachment_id.clone(),
             },
             InspectorRowStatusClass::Blocked,
         ),
         BlockReason::PolicyBlockedAttachment { attachment_id } => (
-            format!("{label} — attachment {attachment_id}", label = reason.label()),
+            format!(
+                "{label} — attachment {attachment_id}",
+                label = reason.label()
+            ),
             InspectorRowAddress::Attachment {
                 attachment_id: attachment_id.clone(),
             },
             InspectorRowStatusClass::Blocked,
         ),
         BlockReason::OutOfScopeAttachment { attachment_id } => (
-            format!("{label} — attachment {attachment_id}", label = reason.label()),
+            format!(
+                "{label} — attachment {attachment_id}",
+                label = reason.label()
+            ),
             InspectorRowAddress::Attachment {
                 attachment_id: attachment_id.clone(),
             },

@@ -567,7 +567,10 @@ pub struct TabRecord {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "node_kind", rename_all = "snake_case")]
 pub enum PaneNode {
-    Leaf { pane_id: String, surface: PaneSurfaceDescriptor },
+    Leaf {
+        pane_id: String,
+        surface: PaneSurfaceDescriptor,
+    },
     Split {
         split_id: String,
         orientation: SplitOrientation,

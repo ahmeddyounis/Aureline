@@ -428,7 +428,7 @@ impl SpikeTimingTrace {
                 None => "null".to_owned(),
             };
             indent(&mut out, 3);
-            let _ = write!(out, "\"note\": {note_value}\n");
+            let _ = writeln!(out, "\"note\": {note_value}");
             indent(&mut out, 2);
             if last {
                 out.push_str("}\n");
@@ -486,8 +486,10 @@ fn enrich_mark(raw: &crate::frame_timing::TimingMark, label: &'static str) -> Sp
 }
 
 fn compute_counters(marks: &[SpikeMark], damage: &[DamageRecord]) -> SpikeCounters {
-    let mut c = SpikeCounters::default();
-    c.total_marks = marks.len() as u64;
+    let mut c = SpikeCounters {
+        total_marks: marks.len() as u64,
+        ..SpikeCounters::default()
+    };
     for m in marks {
         if m.protected_hot_path {
             c.hot_path_marks += 1;

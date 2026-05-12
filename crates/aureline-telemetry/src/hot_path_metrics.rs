@@ -217,10 +217,10 @@ enum MarkKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SpanKind {
-    FileOpenToPaint,
-    FileSwitchToPaint,
-    KeystrokeToPaint,
-    ScrollToPaint,
+    FileOpen,
+    FileSwitch,
+    Keystroke,
+    Scroll,
 }
 
 #[derive(Debug, Clone)]
@@ -293,22 +293,22 @@ impl HotPathMetrics {
 
     /// Records a file-open request that will be closed on the next frame submit.
     pub fn note_file_open_to_paint_requested(&mut self, tick: u64) {
-        self.note_span_start(SpanKind::FileOpenToPaint, tick, None);
+        self.note_span_start(SpanKind::FileOpen, tick, None);
     }
 
     /// Records a file switch request that will be closed on the next frame submit.
     pub fn note_file_switch_to_paint_requested(&mut self, tick: u64) {
-        self.note_span_start(SpanKind::FileSwitchToPaint, tick, None);
+        self.note_span_start(SpanKind::FileSwitch, tick, None);
     }
 
     /// Records a keystroke-admitted boundary that will be closed on the next frame submit.
     pub fn note_keystroke_to_paint_admitted(&mut self, tick: u64) {
-        self.note_span_start(SpanKind::KeystrokeToPaint, tick, None);
+        self.note_span_start(SpanKind::Keystroke, tick, None);
     }
 
     /// Records a scroll-admitted boundary that will be closed on the next frame submit.
     pub fn note_scroll_to_paint_admitted(&mut self, tick: u64) {
-        self.note_span_start(SpanKind::ScrollToPaint, tick, None);
+        self.note_span_start(SpanKind::Scroll, tick, None);
     }
 
     /// Records that a pending span failed and should be closed immediately.
@@ -527,19 +527,19 @@ impl HotPathMetrics {
 
     fn note_span_start(&mut self, kind: SpanKind, tick: u64, note: Option<String>) {
         match kind {
-            SpanKind::FileOpenToPaint => {
+            SpanKind::FileOpen => {
                 self.counters.file_open_to_paint_spans =
                     self.counters.file_open_to_paint_spans.saturating_add(1);
             }
-            SpanKind::FileSwitchToPaint => {
+            SpanKind::FileSwitch => {
                 self.counters.file_switch_to_paint_spans =
                     self.counters.file_switch_to_paint_spans.saturating_add(1);
             }
-            SpanKind::KeystrokeToPaint => {
+            SpanKind::Keystroke => {
                 self.counters.keystroke_to_paint_spans =
                     self.counters.keystroke_to_paint_spans.saturating_add(1);
             }
-            SpanKind::ScrollToPaint => {
+            SpanKind::Scroll => {
                 self.counters.scroll_to_paint_spans =
                     self.counters.scroll_to_paint_spans.saturating_add(1);
             }
@@ -557,7 +557,7 @@ impl HotPathMetrics {
             budget_ref,
             metric,
         ) = match kind {
-            SpanKind::FileOpenToPaint => (
+            SpanKind::FileOpen => (
                 "quick_open",
                 "placeholder_open",
                 "ui_dispatch",
@@ -565,7 +565,7 @@ impl HotPathMetrics {
                 "path.editor.placeholder_open",
                 "file_open_to_paint",
             ),
-            SpanKind::FileSwitchToPaint => (
+            SpanKind::FileSwitch => (
                 "quick_open",
                 "placeholder_open",
                 "ui_dispatch",
@@ -573,7 +573,7 @@ impl HotPathMetrics {
                 "path.editor.placeholder_open",
                 "file_switch_to_paint",
             ),
-            SpanKind::KeystrokeToPaint => (
+            SpanKind::Keystroke => (
                 "input_to_paint",
                 "input_to_paint",
                 "ui_dispatch",
@@ -581,7 +581,7 @@ impl HotPathMetrics {
                 "path.editor.first_useful_edit",
                 "keystroke_to_paint",
             ),
-            SpanKind::ScrollToPaint => (
+            SpanKind::Scroll => (
                 "input_to_paint",
                 "input_to_paint",
                 "ui_dispatch",
@@ -651,28 +651,28 @@ impl HotPathMetrics {
     ) {
         let (event_class, protected_journey, dispatch_layer, journey_segment_id, budget_ref) =
             match pending.kind {
-                SpanKind::FileOpenToPaint => (
+                SpanKind::FileOpen => (
                     "quick_open",
                     "placeholder_open",
                     "ui_dispatch",
                     "seg.quick_open.ui_dispatch.file_open_to_paint",
                     "path.editor.placeholder_open",
                 ),
-                SpanKind::FileSwitchToPaint => (
+                SpanKind::FileSwitch => (
                     "quick_open",
                     "placeholder_open",
                     "ui_dispatch",
                     "seg.quick_open.ui_dispatch.file_switch_to_paint",
                     "path.editor.placeholder_open",
                 ),
-                SpanKind::KeystrokeToPaint => (
+                SpanKind::Keystroke => (
                     "input_to_paint",
                     "input_to_paint",
                     "ui_dispatch",
                     "seg.input_to_paint.ui_dispatch.keystroke_to_paint",
                     "path.editor.first_useful_edit",
                 ),
-                SpanKind::ScrollToPaint => (
+                SpanKind::Scroll => (
                     "input_to_paint",
                     "input_to_paint",
                     "ui_dispatch",

@@ -620,14 +620,17 @@ mod tests {
     }
 
     fn tempdir() -> PathBuf {
+        static TEMP_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
         let mut p = std::env::temp_dir();
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+        let seq = TEMP_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         p.push(format!(
-            "aureline-largefile-proto-{nanos}-{}",
-            std::process::id()
+            "aureline-largefile-proto-{nanos}-{}-{seq}",
+            std::process::id(),
         ));
         std::fs::create_dir_all(&p).unwrap();
         p

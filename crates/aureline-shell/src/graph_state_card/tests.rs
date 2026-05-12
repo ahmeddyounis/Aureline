@@ -69,14 +69,19 @@ fn protected_walk_renders_live_authoritative_card_when_workspace_ready() {
     assert_eq!(card.basis_class_token, "live_workspace_authoritative");
     assert!(card.is_authoritative);
     assert_eq!(card.degraded_token, None);
-    assert_eq!(card.prototype_label_token, "m1_prototype_graph_readiness_card");
+    assert_eq!(
+        card.prototype_label_token,
+        "m1_prototype_graph_readiness_card"
+    );
     assert_eq!(card.workspace_id, "ws-protected");
     assert_eq!(card.node_class_token, "workset_scope_node");
     assert_eq!(card.query_family_token, "topology_walk");
     assert_eq!(card.provenance_class_token, "authoritative_producer");
     assert_eq!(card.scope_visibility_token, "fully_visible");
     assert!(
-        card.claim_limits.iter().any(|l| l.token == "workspace_local_only"),
+        card.claim_limits
+            .iter()
+            .any(|l| l.token == "workspace_local_only"),
         "claim limits must always quote the workspace-local row verbatim",
     );
     let plain = card.render_plaintext();
@@ -260,7 +265,7 @@ fn republish_refreshes_card_via_live_store_without_drift() {
 #[test]
 fn unmount_stops_card_refresh() {
     let store = LiveReactiveStore::new();
-    let (mount, sid) = GraphStateCardMount::open_and_mount(
+    let (mount, _sid) = GraphStateCardMount::open_and_mount(
         &store,
         &snapshot(
             WorkspaceLifecyclePhase::Ready,
@@ -302,7 +307,10 @@ fn render_plaintext_lists_every_field_a_reviewer_needs() {
         "workspace_local_only",
         "no_refactor_scope_expansion",
     ] {
-        assert!(plain.contains(token), "plaintext missing token {token}: {plain}");
+        assert!(
+            plain.contains(token),
+            "plaintext missing token {token}: {plain}"
+        );
     }
 }
 
@@ -443,8 +451,7 @@ fn fixture_cases_match_expected_card_classification() {
 
     for path in fixtures {
         let payload = std::fs::read_to_string(&path).expect("fixture must read");
-        let fixture: CaseFixture =
-            serde_json::from_str(&payload).expect("fixture must parse");
+        let fixture: CaseFixture = serde_json::from_str(&payload).expect("fixture must parse");
         assert_eq!(
             fixture.record_kind, "graph_state_card_case",
             "unexpected record_kind in {path:?}"
@@ -454,9 +461,8 @@ fn fixture_cases_match_expected_card_classification() {
             "unexpected schema_version in {path:?}"
         );
 
-        let lifecycle_phase =
-            WorkspaceLifecyclePhase::from_token(&fixture.input.lifecycle_phase)
-                .unwrap_or_else(|| panic!("unknown lifecycle_phase in {path:?}"));
+        let lifecycle_phase = WorkspaceLifecyclePhase::from_token(&fixture.input.lifecycle_phase)
+            .unwrap_or_else(|| panic!("unknown lifecycle_phase in {path:?}"));
         let watcher = fixture.input.watcher_health.as_deref().map(|t| {
             WatcherHealthPhase::from_token(t)
                 .unwrap_or_else(|| panic!("unknown watcher_health in {path:?}"))

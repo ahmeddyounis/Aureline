@@ -198,10 +198,10 @@ impl RestoreProposal {
         let dirty_buffer_entries = collect_dirty_buffer_entries(&crash_entries);
         counts.dirty_buffer_journals = dirty_buffer_entries.len();
 
-        if dirty_buffer_entries.iter().any(|entry| {
-            !matches!(entry.frame_integrity, FrameIntegrityState::Verified)
-        }) && !downgrade_triggers
-            .contains(&DowngradeTriggerClass::ManualRepairRequired)
+        if dirty_buffer_entries
+            .iter()
+            .any(|entry| !matches!(entry.frame_integrity, FrameIntegrityState::Verified))
+            && !downgrade_triggers.contains(&DowngradeTriggerClass::ManualRepairRequired)
         {
             downgrade_triggers.push(DowngradeTriggerClass::ManualRepairRequired);
         }
@@ -276,10 +276,7 @@ fn collect_dirty_buffer_entries(
 ) -> Vec<RestoreProposalDirtyBufferEntry> {
     let mut latest_per_object: HashMap<String, &AutosaveJournalEntryRecord> = HashMap::new();
     for entry in crash_entries {
-        let key = format!(
-            "{}|{}",
-            entry.journal_id, entry.object_identity.object_ref
-        );
+        let key = format!("{}|{}", entry.journal_id, entry.object_identity.object_ref);
         latest_per_object
             .entry(key)
             .and_modify(|current| {
@@ -378,9 +375,9 @@ fn classify_restore_class(
     downgraded: bool,
 ) -> RestoreClass {
     if downgraded
-        && dirty_entries.iter().all(|entry| {
-            !matches!(entry.frame_integrity, FrameIntegrityState::Verified)
-        })
+        && dirty_entries
+            .iter()
+            .all(|entry| !matches!(entry.frame_integrity, FrameIntegrityState::Verified))
         && !dirty_entries.is_empty()
     {
         return RestoreClass::EvidenceOnly;
@@ -521,8 +518,7 @@ mod tests {
         let session_store = SessionRestoreStore::new(dir.path());
         let crash_store = CrashJournalStore::new(dir.path());
 
-        let proposal =
-            RestoreProposal::build(&session_store, &crash_store, false).expect("build");
+        let proposal = RestoreProposal::build(&session_store, &crash_store, false).expect("build");
         assert!(proposal.is_empty());
         assert!(!proposal.has_dirty_buffers());
         assert_eq!(proposal.restore_class, RestoreClass::NoRestore);
@@ -537,8 +533,7 @@ mod tests {
 
         capture_one_layout(&mut session_store, false);
 
-        let proposal =
-            RestoreProposal::build(&session_store, &crash_store, true).expect("build");
+        let proposal = RestoreProposal::build(&session_store, &crash_store, true).expect("build");
         assert_eq!(proposal.restore_class, RestoreClass::LayoutOnly);
         assert_eq!(proposal.counts.windows, 1);
         assert_eq!(proposal.counts.tab_groups, 1);
@@ -560,8 +555,7 @@ mod tests {
         capture_one_layout(&mut session_store, false);
         capture_one_dirty_buffer(&mut crash_store);
 
-        let proposal =
-            RestoreProposal::build(&session_store, &crash_store, true).expect("build");
+        let proposal = RestoreProposal::build(&session_store, &crash_store, true).expect("build");
         assert_eq!(proposal.restore_class, RestoreClass::RecoveredDrafts);
         assert!(proposal.has_dirty_buffers());
         assert_eq!(proposal.counts.dirty_buffer_journals, 1);
@@ -576,8 +570,7 @@ mod tests {
 
         capture_one_layout(&mut session_store, true);
 
-        let proposal =
-            RestoreProposal::build(&session_store, &crash_store, false).expect("build");
+        let proposal = RestoreProposal::build(&session_store, &crash_store, false).expect("build");
         assert_eq!(proposal.counts.terminals, 1);
         let terminal_plan = proposal
             .pane_plans
@@ -598,8 +591,7 @@ mod tests {
 
         capture_one_dirty_buffer(&mut crash_store);
 
-        let proposal =
-            RestoreProposal::build(&session_store, &crash_store, true).expect("build");
+        let proposal = RestoreProposal::build(&session_store, &crash_store, true).expect("build");
         assert_eq!(proposal.restore_class, RestoreClass::RecoveredDrafts);
         assert_eq!(proposal.counts.windows, 0);
         assert_eq!(proposal.counts.dirty_buffer_journals, 1);
@@ -611,7 +603,11 @@ mod tests {
         let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .and_then(|p| p.parent())
-            .map(|p| p.join("fixtures").join("recovery").join("session_restore_cases"))
+            .map(|p| {
+                p.join("fixtures")
+                    .join("recovery")
+                    .join("session_restore_cases")
+            })
             .expect("derive fixtures dir");
 
         let cases = [

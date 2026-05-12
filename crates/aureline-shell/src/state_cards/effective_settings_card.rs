@@ -23,7 +23,7 @@
 
 use aureline_settings::{
     EffectiveSettingsResolver, EffectiveValue, SettingScope, SettingValue, ShadowChainEntry,
-    ShadowRelation, WriteAttemptOutcome, WriteDenialReason, WriteIntent,
+    WriteAttemptOutcome, WriteDenialReason,
 };
 use serde::{Deserialize, Serialize};
 

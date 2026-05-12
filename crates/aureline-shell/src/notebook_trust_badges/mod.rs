@@ -593,13 +593,12 @@ impl NotebookTrustBadgeInvariantRow {
         let addressable_row_id = match &violation {
             NotebookTrustBadgeInvariantViolation::AutoexecuteOnOpen { row_id }
             | NotebookTrustBadgeInvariantViolation::ActiveContentOnUntrustedRung {
-                row_id,
-                ..
+                row_id, ..
             }
             | NotebookTrustBadgeInvariantViolation::MissingSafePreviewEscapeHatch { row_id }
-            | NotebookTrustBadgeInvariantViolation::WidgetTrustNotApplicableForWidget {
-                row_id,
-            } => Some(row_id.clone()),
+            | NotebookTrustBadgeInvariantViolation::WidgetTrustNotApplicableForWidget { row_id } => {
+                Some(row_id.clone())
+            }
             _ => None,
         };
         Self {
@@ -718,9 +717,7 @@ impl NotebookTrustBadgeRowBuilder {
                 .iter()
                 .map(|h| h.as_str().to_owned())
                 .collect(),
-            widget_trust_override_token: self
-                .widget_trust_override
-                .map(|w| w.as_str().to_owned()),
+            widget_trust_override_token: self.widget_trust_override.map(|w| w.as_str().to_owned()),
             will_autoexecute_on_open: self.will_autoexecute_on_open,
         }
     }
@@ -799,7 +796,10 @@ impl NotebookTrustBadgeCardRecord {
                 out.push_str(" honesty_marker=true");
             }
             if !row.escape_hatches.is_empty() {
-                out.push_str(&format!(" escape_hatches=[{}]", row.escape_hatches.join(",")));
+                out.push_str(&format!(
+                    " escape_hatches=[{}]",
+                    row.escape_hatches.join(",")
+                ));
             }
             if let Some(token) = &row.widget_trust_override_token {
                 out.push_str(&format!(" widget_trust_override={}", token));
@@ -992,10 +992,12 @@ impl NotebookTrustBadgeWedge {
         if self.output_trust_state == OutputTrustState::LiveFromCurrentSession
             && !self.kernel_availability.is_available()
         {
-            out.push(NotebookTrustBadgeInvariantViolation::LiveOutputsWithoutKernel {
-                output_trust_state: self.output_trust_state.as_str().to_owned(),
-                kernel_availability: self.kernel_availability.as_str().to_owned(),
-            });
+            out.push(
+                NotebookTrustBadgeInvariantViolation::LiveOutputsWithoutKernel {
+                    output_trust_state: self.output_trust_state.as_str().to_owned(),
+                    kernel_availability: self.kernel_availability.as_str().to_owned(),
+                },
+            );
         }
 
         let collapsed_axes = self.collapsed_axes();
@@ -1073,9 +1075,7 @@ impl NotebookTrustBadgeWedge {
         {
             collapsed.push("workspace_trust_state".to_owned());
         }
-        if has_code_rows
-            && matches!(self.kernel_availability, KernelAvailability::NotApplicable)
-        {
+        if has_code_rows && matches!(self.kernel_availability, KernelAvailability::NotApplicable) {
             collapsed.push("kernel_availability".to_owned());
         }
         if has_outputs

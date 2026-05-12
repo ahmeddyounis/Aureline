@@ -136,7 +136,7 @@ impl PagedReader {
 
     pub fn page_count(&self) -> u64 {
         let ps = self.page_size as u64;
-        (self.file_len + ps - 1) / ps
+        self.file_len.div_ceil(ps)
     }
 
     /// Read one page by index. Returns the page bytes (which may
@@ -289,6 +289,9 @@ fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn tempdir() -> PathBuf {
         let mut p = std::env::temp_dir();
@@ -296,9 +299,10 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+        let seq = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
         p.push(format!(
-            "aureline-largefile-proto-paged-{nanos}-{}",
-            std::process::id()
+            "aureline-largefile-proto-paged-{nanos}-{}-{seq}",
+            std::process::id(),
         ));
         std::fs::create_dir_all(&p).unwrap();
         p
@@ -414,7 +418,7 @@ mod tests {
         let mut r = PagedReader::open_with(&path, 32, 2).unwrap();
         let bytes = r.read_range(80..200).unwrap();
         assert_eq!(bytes.len(), 20);
-        assert_eq!(bytes[0], 80 % 251);
+        assert_eq!(bytes[0], 80);
         cleanup(dir);
     }
 

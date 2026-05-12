@@ -396,6 +396,7 @@ mod tests {
         )
         .unwrap();
         let initial = chip.latest_record().expect("initial frame");
+        assert_eq!(initial.readiness_label, "exact");
         chip.unmount(&store).unwrap();
         assert_eq!(store.observer_count(sid), 0);
 

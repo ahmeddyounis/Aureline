@@ -45,8 +45,14 @@ impl std::error::Error for RootResolveError {}
 /// Root-side IO error for content reads/writes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RootIoError {
-    NotSupported { uri: VfsUri, operation: &'static str },
-    IoFailure { uri: VfsUri, detail: String },
+    NotSupported {
+        uri: VfsUri,
+        operation: &'static str,
+    },
+    IoFailure {
+        uri: VfsUri,
+        detail: String,
+    },
 }
 
 impl std::fmt::Display for RootIoError {
@@ -75,7 +81,10 @@ pub trait VfsRoot {
     fn claims_uri(&self, uri: &VfsUri) -> bool;
 
     /// Resolves a presentation URI into layers 1–4 of the identity model.
-    fn identity_record(&self, presentation_uri: &VfsUri) -> Result<IdentityRecord, RootResolveError>;
+    fn identity_record(
+        &self,
+        presentation_uri: &VfsUri,
+    ) -> Result<IdentityRecord, RootResolveError>;
 
     /// Reads the strongest identity token for the canonical object.
     fn read_strongest_identity_token(
@@ -96,11 +105,18 @@ pub trait VfsRoot {
     ) -> Result<GenerationToken, RootResolveError>;
 
     /// Reads the permission snapshot for the canonical object.
-    fn permission_snapshot(&self, canonical_uri: &VfsUri) -> Result<PermissionSnapshot, RootResolveError>;
+    fn permission_snapshot(
+        &self,
+        canonical_uri: &VfsUri,
+    ) -> Result<PermissionSnapshot, RootResolveError>;
 
     /// Reads the raw bytes for the canonical object.
     fn read_bytes(&self, canonical_uri: &VfsUri) -> Result<Vec<u8>, RootIoError>;
 
     /// Writes raw bytes to the canonical object.
-    fn write_bytes(&mut self, canonical_uri: &VfsUri, new_content: Vec<u8>) -> Result<(), RootIoError>;
+    fn write_bytes(
+        &mut self,
+        canonical_uri: &VfsUri,
+        new_content: Vec<u8>,
+    ) -> Result<(), RootIoError>;
 }

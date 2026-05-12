@@ -62,10 +62,7 @@ impl ScopeClass {
     pub const fn is_narrowed(self) -> bool {
         matches!(
             self,
-            Self::CurrentRepo
-                | Self::SelectedWorkset
-                | Self::SparseSlice
-                | Self::PolicyLimitedView
+            Self::CurrentRepo | Self::SelectedWorkset | Self::SparseSlice | Self::PolicyLimitedView
         )
     }
 }

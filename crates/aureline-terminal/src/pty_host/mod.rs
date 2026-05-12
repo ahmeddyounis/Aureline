@@ -185,10 +185,7 @@ impl SessionLifecycleState {
     /// True when the chrome should render a degraded-state cue alongside the
     /// header (the row is still addressable, but not currently usable).
     pub const fn is_degraded(self) -> bool {
-        matches!(
-            self,
-            Self::LostTransport | Self::Closed | Self::Quarantined
-        )
+        matches!(self, Self::LostTransport | Self::Closed | Self::Quarantined)
     }
 }
 

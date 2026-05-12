@@ -6,8 +6,9 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::capabilities::{
-    AtomicWriteMode, CapabilityFlags, CaseSensitivity, FallbackIdentityTokenKind, NormalizationForm,
-    RootCapabilityEnvelope, RootClass, StrongestIdentityTokenKind, SymlinkEscapePolicy,
+    AtomicWriteMode, CapabilityFlags, CaseSensitivity, FallbackIdentityTokenKind,
+    NormalizationForm, RootCapabilityEnvelope, RootClass, StrongestIdentityTokenKind,
+    SymlinkEscapePolicy,
 };
 use crate::identity::{
     AliasSet, CanonicalFilesystemObject, FallbackIdentityToken, IdentityRecord, IdentityToken,
@@ -95,7 +96,10 @@ impl LocalFilesystemRoot {
             strongest_identity_token_kind,
             fallback_identity_token_kinds: vec![FallbackIdentityTokenKind::InodeMtimeSize],
             preferred_save_mode: AtomicWriteMode::AtomicReplace,
-            permitted_save_modes: vec![AtomicWriteMode::AtomicReplace, AtomicWriteMode::InPlaceWrite],
+            permitted_save_modes: vec![
+                AtomicWriteMode::AtomicReplace,
+                AtomicWriteMode::InPlaceWrite,
+            ],
             watcher_source: crate::watcher::WatcherSource::OsNativeWatcher,
             mount_graph_hash: None,
         };
@@ -113,8 +117,7 @@ impl LocalFilesystemRoot {
     /// Creates a local filesystem root mounted at the host root.
     pub fn host_root(workspace_id: impl Into<String>, root_id: impl Into<String>) -> Self {
         let mount_path = default_mount_path();
-        Self::new(workspace_id, root_id, mount_path)
-            .expect("host_root mount path must be absolute")
+        Self::new(workspace_id, root_id, mount_path).expect("host_root mount path must be absolute")
     }
 
     fn claims_path(&self, path: &Path) -> bool {
@@ -141,7 +144,10 @@ impl LocalFilesystemRoot {
             .to_owned()
     }
 
-    fn logical_uri_for_canonical_path(&self, canonical_path: &Path) -> Result<VfsUri, RootResolveError> {
+    fn logical_uri_for_canonical_path(
+        &self,
+        canonical_path: &Path,
+    ) -> Result<VfsUri, RootResolveError> {
         let relative = canonical_path
             .strip_prefix(&self.mount_path)
             .unwrap_or(canonical_path);
@@ -171,11 +177,13 @@ impl VfsRoot for LocalFilesystemRoot {
         if uri.scheme() != "file" {
             return false;
         }
-        uri.file_path()
-            .is_some_and(|path| self.claims_path(&path))
+        uri.file_path().is_some_and(|path| self.claims_path(&path))
     }
 
-    fn identity_record(&self, presentation_uri: &VfsUri) -> Result<IdentityRecord, RootResolveError> {
+    fn identity_record(
+        &self,
+        presentation_uri: &VfsUri,
+    ) -> Result<IdentityRecord, RootResolveError> {
         if !self.claims_uri(presentation_uri) {
             return Err(RootResolveError::NotInRoot(presentation_uri.clone()));
         }
@@ -211,7 +219,9 @@ impl VfsRoot for LocalFilesystemRoot {
                 strongest_identity_token,
                 fallback_identity_tokens,
             },
-            alias_set: AliasSet { aliases: Vec::new() },
+            alias_set: AliasSet {
+                aliases: Vec::new(),
+            },
         })
     }
 
@@ -223,10 +233,11 @@ impl VfsRoot for LocalFilesystemRoot {
             return Err(RootResolveError::UnknownCanonical(canonical_uri.clone()));
         }
         let canonical_path = self.canonical_path_for_uri(canonical_uri)?;
-        let metadata = std::fs::metadata(&canonical_path).map_err(|err| RootResolveError::IoFailure {
-            uri: canonical_uri.clone(),
-            detail: err.to_string(),
-        })?;
+        let metadata =
+            std::fs::metadata(&canonical_path).map_err(|err| RootResolveError::IoFailure {
+                uri: canonical_uri.clone(),
+                detail: err.to_string(),
+            })?;
 
         let gen = generation_counter_hint(&metadata);
         let (kind, value) = strongest_token_for_metadata(&metadata, gen);
@@ -241,10 +252,11 @@ impl VfsRoot for LocalFilesystemRoot {
             return Err(RootResolveError::UnknownCanonical(canonical_uri.clone()));
         }
         let canonical_path = self.canonical_path_for_uri(canonical_uri)?;
-        let metadata = std::fs::metadata(&canonical_path).map_err(|err| RootResolveError::IoFailure {
-            uri: canonical_uri.clone(),
-            detail: err.to_string(),
-        })?;
+        let metadata =
+            std::fs::metadata(&canonical_path).map_err(|err| RootResolveError::IoFailure {
+                uri: canonical_uri.clone(),
+                detail: err.to_string(),
+            })?;
 
         Ok(vec![FallbackIdentityToken {
             kind: FallbackIdentityTokenKind::InodeMtimeSize,
@@ -252,11 +264,16 @@ impl VfsRoot for LocalFilesystemRoot {
         }])
     }
 
-    fn read_generation_token(&self, canonical_uri: &VfsUri) -> Result<GenerationToken, RootResolveError> {
+    fn read_generation_token(
+        &self,
+        canonical_uri: &VfsUri,
+    ) -> Result<GenerationToken, RootResolveError> {
         let identity = self.read_strongest_identity_token(canonical_uri)?;
         Ok(GenerationToken {
             kind: match identity.kind {
-                StrongestIdentityTokenKind::FileIdGeneration => GenerationTokenKind::FileIdGeneration,
+                StrongestIdentityTokenKind::FileIdGeneration => {
+                    GenerationTokenKind::FileIdGeneration
+                }
                 StrongestIdentityTokenKind::DeviceInodeGeneration => {
                     GenerationTokenKind::DeviceInodeGeneration
                 }
@@ -264,14 +281,19 @@ impl VfsRoot for LocalFilesystemRoot {
                 StrongestIdentityTokenKind::ProviderObjectIdRevision => {
                     GenerationTokenKind::ProviderObjectIdRevision
                 }
-                StrongestIdentityTokenKind::LogicalDocumentIdSourceRefs => GenerationTokenKind::ContentHash,
+                StrongestIdentityTokenKind::LogicalDocumentIdSourceRefs => {
+                    GenerationTokenKind::ContentHash
+                }
                 StrongestIdentityTokenKind::ContentHashOnly => GenerationTokenKind::ContentHash,
             },
             value: identity.value,
         })
     }
 
-    fn permission_snapshot(&self, canonical_uri: &VfsUri) -> Result<PermissionSnapshot, RootResolveError> {
+    fn permission_snapshot(
+        &self,
+        canonical_uri: &VfsUri,
+    ) -> Result<PermissionSnapshot, RootResolveError> {
         if canonical_uri.scheme() != "file" {
             return Err(RootResolveError::UnknownCanonical(canonical_uri.clone()));
         }
@@ -280,10 +302,11 @@ impl VfsRoot for LocalFilesystemRoot {
             .write(true)
             .open(&canonical_path)
             .is_ok();
-        let metadata = std::fs::metadata(&canonical_path).map_err(|err| RootResolveError::IoFailure {
-            uri: canonical_uri.clone(),
-            detail: err.to_string(),
-        })?;
+        let metadata =
+            std::fs::metadata(&canonical_path).map_err(|err| RootResolveError::IoFailure {
+                uri: canonical_uri.clone(),
+                detail: err.to_string(),
+            })?;
         Ok(permission_snapshot_for_metadata(writable, &metadata))
     }
 
@@ -300,7 +323,11 @@ impl VfsRoot for LocalFilesystemRoot {
         })
     }
 
-    fn write_bytes(&mut self, canonical_uri: &VfsUri, new_content: Vec<u8>) -> Result<(), RootIoError> {
+    fn write_bytes(
+        &mut self,
+        canonical_uri: &VfsUri,
+        new_content: Vec<u8>,
+    ) -> Result<(), RootIoError> {
         let Some(path) = canonical_uri.file_path() else {
             return Err(RootIoError::NotSupported {
                 uri: canonical_uri.clone(),
@@ -351,26 +378,29 @@ fn generation_counter_hint(metadata: &std::fs::Metadata) -> u128 {
         .saturating_add(metadata.len() as u128)
 }
 
-fn strongest_token_for_metadata(metadata: &std::fs::Metadata, gen: u128) -> (StrongestIdentityTokenKind, String) {
+fn strongest_token_for_metadata(
+    metadata: &std::fs::Metadata,
+    gen: u128,
+) -> (StrongestIdentityTokenKind, String) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt as _;
         let dev = metadata.dev();
         let ino = metadata.ino();
-        return (
+        (
             StrongestIdentityTokenKind::DeviceInodeGeneration,
             format!("dev:{dev}/ino:{ino}/gen:{gen}"),
-        );
+        )
     }
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt as _;
         let serial = metadata.volume_serial_number().unwrap_or_default();
         let idx = ((metadata.file_index_high() as u64) << 32) | metadata.file_index_low() as u64;
-        return (
+        (
             StrongestIdentityTokenKind::WindowsObjectId,
             format!("vol:{serial}/idx:{idx}/gen:{gen}"),
-        );
+        )
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -390,7 +420,10 @@ fn inode_mtime_size_fallback(metadata: &std::fs::Metadata) -> String {
     format!("mtime:{secs}/len:{}", metadata.len())
 }
 
-fn permission_snapshot_for_metadata(writable: bool, metadata: &std::fs::Metadata) -> PermissionSnapshot {
+fn permission_snapshot_for_metadata(
+    writable: bool,
+    metadata: &std::fs::Metadata,
+) -> PermissionSnapshot {
     let mode = permission_mode_string(metadata);
     let (owner, group) = owner_group_strings(metadata);
     PermissionSnapshot {
@@ -406,7 +439,7 @@ fn permission_mode_string(metadata: &std::fs::Metadata) -> String {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
-        return format!("{:04o}", metadata.permissions().mode() & 0o7777);
+        format!("{:04o}", metadata.permissions().mode() & 0o7777)
     }
     #[cfg(not(unix))]
     {
@@ -419,7 +452,10 @@ fn owner_group_strings(metadata: &std::fs::Metadata) -> (Option<String>, Option<
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt as _;
-        return (Some(metadata.uid().to_string()), Some(metadata.gid().to_string()));
+        (
+            Some(metadata.uid().to_string()),
+            Some(metadata.gid().to_string()),
+        )
     }
     #[cfg(not(unix))]
     {
@@ -446,7 +482,9 @@ mod tests {
         let root = LocalFilesystemRoot::new("ws-test", "root-local", tmp_root.clone())
             .expect("root build should succeed");
         let uri = VfsUri::file_url_for_path(&file_path).expect("file uri build");
-        let identity = root.identity_record(&uri).expect("identity record should resolve");
+        let identity = root
+            .identity_record(&uri)
+            .expect("identity record should resolve");
         assert_eq!(identity.presentation_path.uri, uri);
         assert_eq!(identity.presentation_path.root_badge, "local");
         assert_eq!(identity.logical_workspace_identity.workspace_id, "ws-test");
@@ -456,10 +494,7 @@ mod tests {
             "aureline-ws"
         );
         assert_eq!(
-            identity
-                .canonical_filesystem_object
-                .canonical_uri
-                .scheme(),
+            identity.canonical_filesystem_object.canonical_uri.scheme(),
             "file"
         );
 
@@ -469,14 +504,19 @@ mod tests {
     #[test]
     fn local_filesystem_root_rejects_files_outside_mount() {
         let mount = std::env::temp_dir();
-        let file_path = std::env::temp_dir().parent().unwrap_or(&mount).join("outside.txt");
+        let file_path = std::env::temp_dir()
+            .parent()
+            .unwrap_or(&mount)
+            .join("outside.txt");
         let root = LocalFilesystemRoot::new("ws-test", "root-local", mount)
             .expect("root build should succeed");
         let uri = VfsUri::file_url_for_path(&file_path).unwrap_or_else(|| {
             VfsUri::parse("file:///outside.txt".to_owned()).expect("fallback uri parse")
         });
         assert!(!root.claims_uri(&uri));
-        let err = root.identity_record(&uri).expect_err("expected scope rejection");
+        let err = root
+            .identity_record(&uri)
+            .expect_err("expected scope rejection");
         assert_eq!(err, RootResolveError::NotInRoot(uri));
     }
 }

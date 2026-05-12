@@ -325,12 +325,18 @@ mod tests {
     #[test]
     fn metadata_only_lines_omit_plaintext_body() {
         let mut ring = TerminalScrollback::new(session_id());
-        let record =
-            ring.record_line("$ git status", ScrollbackRedactionClass::MetadataAndHashesOnly, "mono:0");
+        let record = ring.record_line(
+            "$ git status",
+            ScrollbackRedactionClass::MetadataAndHashesOnly,
+            "mono:0",
+        );
         assert_eq!(record.line_index, 0);
         assert_eq!(record.byte_length, "$ git status".len());
         assert_eq!(record.redaction_class_token, "metadata_and_hashes_only");
-        assert!(record.text.is_none(), "metadata-only forbids plaintext body");
+        assert!(
+            record.text.is_none(),
+            "metadata-only forbids plaintext body"
+        );
         assert!(record.digest.starts_with("fnv1a64:"));
         assert_eq!(ring.len(), 1);
         assert_eq!(ring.observed_line_count(), 1);

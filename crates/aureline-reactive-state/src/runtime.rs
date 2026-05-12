@@ -288,10 +288,10 @@ impl LiveReactiveStore {
             let mut store = self.inner.borrow_mut();
             store.register_producer(producer);
         }
-        let subscription_id = self
-            .inner
-            .borrow_mut()
-            .subscribe(&query_family, &scope_ref, backpressure_mode)?;
+        let subscription_id =
+            self.inner
+                .borrow_mut()
+                .subscribe(&query_family, &scope_ref, backpressure_mode)?;
         self.subscriptions.borrow_mut().push(LiveSubscription {
             query_family,
             scope_ref,
@@ -393,11 +393,7 @@ impl LiveReactiveStore {
 
     /// Returns the latest projection for a `(query_family,
     /// scope_ref)` pair, if any has been published.
-    pub fn latest(
-        &self,
-        query_family: &str,
-        scope_ref: &ScopeRef,
-    ) -> Option<ReadinessProjection> {
+    pub fn latest(&self, query_family: &str, scope_ref: &ScopeRef) -> Option<ReadinessProjection> {
         self.subscriptions
             .borrow()
             .iter()
@@ -552,9 +548,7 @@ impl WorkspaceReadinessSnapshot {
     /// Map the readiness inputs into the envelope's
     /// `(freshness, completeness)` posture. Returns the
     /// `(freshness, completeness, invalidation)` tuple to publish.
-    pub fn to_envelope_inputs(
-        &self,
-    ) -> (Freshness, Completeness, Option<Invalidation>) {
+    pub fn to_envelope_inputs(&self) -> (Freshness, Completeness, Option<Invalidation>) {
         match self.lifecycle_phase {
             WorkspaceLifecyclePhase::Closed | WorkspaceLifecyclePhase::Closing => (
                 Freshness::Stale,
@@ -566,16 +560,12 @@ impl WorkspaceReadinessSnapshot {
             ),
             WorkspaceLifecyclePhase::Discovered
             | WorkspaceLifecyclePhase::TrustEvaluating
-            | WorkspaceLifecyclePhase::Opening => (
-                Freshness::Warming,
-                Completeness::Unloaded,
-                None,
-            ),
-            WorkspaceLifecyclePhase::PartiallyReady => (
-                Freshness::Warming,
-                Completeness::Partial,
-                None,
-            ),
+            | WorkspaceLifecyclePhase::Opening => {
+                (Freshness::Warming, Completeness::Unloaded, None)
+            }
+            WorkspaceLifecyclePhase::PartiallyReady => {
+                (Freshness::Warming, Completeness::Partial, None)
+            }
             WorkspaceLifecyclePhase::Ready => {
                 let healthy = matches!(self.watcher_health, Some(WatcherHealthPhase::Healthy));
                 if healthy && self.hot_index_ready && self.command_graph_ready {
@@ -583,11 +573,7 @@ impl WorkspaceReadinessSnapshot {
                 } else if matches!(self.watcher_health, Some(WatcherHealthPhase::Warming)) {
                     (Freshness::Warming, Completeness::Partial, None)
                 } else {
-                    (
-                        Freshness::Authoritative,
-                        Completeness::Partial,
-                        None,
-                    )
+                    (Freshness::Authoritative, Completeness::Partial, None)
                 }
             }
             WorkspaceLifecyclePhase::Degraded => match self.watcher_health {
@@ -599,8 +585,7 @@ impl WorkspaceReadinessSnapshot {
                         caused_by: None,
                     }),
                 ),
-                Some(WatcherHealthPhase::Degraded)
-                | Some(WatcherHealthPhase::FallbackPolling) => (
+                Some(WatcherHealthPhase::Degraded) | Some(WatcherHealthPhase::FallbackPolling) => (
                     Freshness::Stale,
                     Completeness::Partial,
                     Some(Invalidation {
@@ -756,7 +741,9 @@ pub fn readiness_label_counts(store: &LiveReactiveStore) -> BTreeMap<&'static st
     let mut counts: BTreeMap<&'static str, u64> = BTreeMap::new();
     for sub in store.subscriptions.borrow().iter() {
         if let Some(projection) = &sub.latest {
-            *counts.entry(projection.readiness_label.as_str()).or_insert(0) += 1;
+            *counts
+                .entry(projection.readiness_label.as_str())
+                .or_insert(0) += 1;
         }
     }
     counts
@@ -892,7 +879,10 @@ mod tests {
         // Both observers must have replayed the latest projection
         // when they subscribed, so they start from the same value.
         assert_eq!(chrome_log.borrow().as_slice(), &[ReadinessLabel::Partial]);
-        assert_eq!(inspector_log.borrow().as_slice(), &[ReadinessLabel::Partial]);
+        assert_eq!(
+            inspector_log.borrow().as_slice(),
+            &[ReadinessLabel::Partial]
+        );
 
         // Republish: both observers must see the same change in
         // the same order, with no private cache drift.
@@ -1042,8 +1032,8 @@ mod tests {
             not_ready_reason: Option<String>,
         }
 
-        let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../fixtures/state/readiness_cases");
+        let fixtures_dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/state/readiness_cases");
         let mut fixtures: Vec<_> = std::fs::read_dir(&fixtures_dir)
             .expect("readiness_cases directory must exist")
             .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -1069,16 +1059,13 @@ mod tests {
                 "unexpected schema_version in {path:?}"
             );
 
-            let lifecycle_phase = WorkspaceLifecyclePhase::from_token(&fixture.input.lifecycle_phase)
-                .unwrap_or_else(|| panic!("unknown lifecycle_phase in {path:?}"));
-            let watcher_health = fixture
-                .input
-                .watcher_health
-                .as_deref()
-                .map(|token| {
-                    WatcherHealthPhase::from_token(token)
-                        .unwrap_or_else(|| panic!("unknown watcher_health in {path:?}"))
-                });
+            let lifecycle_phase =
+                WorkspaceLifecyclePhase::from_token(&fixture.input.lifecycle_phase)
+                    .unwrap_or_else(|| panic!("unknown lifecycle_phase in {path:?}"));
+            let watcher_health = fixture.input.watcher_health.as_deref().map(|token| {
+                WatcherHealthPhase::from_token(token)
+                    .unwrap_or_else(|| panic!("unknown watcher_health in {path:?}"))
+            });
 
             let snapshot = WorkspaceReadinessSnapshot {
                 workspace_id: fixture.input.workspace_id,
@@ -1127,7 +1114,10 @@ mod tests {
             WorkspaceLifecyclePhase::Closed,
         ];
         for phase in cases {
-            assert_eq!(WorkspaceLifecyclePhase::from_token(phase.as_str()), Some(phase));
+            assert_eq!(
+                WorkspaceLifecyclePhase::from_token(phase.as_str()),
+                Some(phase)
+            );
         }
         assert_eq!(WorkspaceLifecyclePhase::from_token("nope"), None);
     }

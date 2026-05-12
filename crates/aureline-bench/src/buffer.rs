@@ -12,9 +12,7 @@
 
 use std::fmt::Write as _;
 
-use aureline_buffer::{
-    Buffer, BufferConfig, CompensationPosture, HookCounters, TransactionSpec, UndoClass,
-};
+use aureline_buffer::{Buffer, HookCounters, TransactionSpec, UndoClass};
 
 /// Canonical corpus / scenario-family identifier written into
 /// emitted artifacts.
@@ -866,6 +864,7 @@ fn render_counters(out: &mut String, counters: &HookCounters) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aureline_buffer::{BufferConfig, CompensationPosture};
 
     #[test]
     fn harness_runs_every_scenario() {

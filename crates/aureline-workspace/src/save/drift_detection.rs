@@ -19,7 +19,12 @@ pub struct ExternalDriftConflict {
 
 impl std::fmt::Display for ExternalDriftConflict {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{outcome}: {detail}", outcome = self.outcome.as_str(), detail = self.detail)
+        write!(
+            f,
+            "{outcome}: {detail}",
+            outcome = self.outcome.as_str(),
+            detail = self.detail
+        )
     }
 }
 
@@ -89,4 +94,3 @@ pub fn detect_external_drift(
 
     Ok(())
 }
-

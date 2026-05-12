@@ -370,6 +370,9 @@ pub struct StructuralSnapshot {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn tempdir() -> PathBuf {
         let mut p = std::env::temp_dir();
@@ -377,9 +380,10 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
+        let seq = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
         p.push(format!(
-            "aureline-largefile-proto-buffer-{nanos}-{}",
-            std::process::id()
+            "aureline-largefile-proto-buffer-{nanos}-{}-{seq}",
+            std::process::id(),
         ));
         std::fs::create_dir_all(&p).unwrap();
         p

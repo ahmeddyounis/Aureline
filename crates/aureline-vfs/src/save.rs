@@ -333,7 +333,11 @@ pub fn attempt_save(
 ) -> SaveManifest {
     counters.vfs_save_stage += 1;
     let token = &request.token;
-    let canonical_uri = token.identity.canonical_filesystem_object.canonical_uri.clone();
+    let canonical_uri = token
+        .identity
+        .canonical_filesystem_object
+        .canonical_uri
+        .clone();
     let presentation_path = token.identity.presentation_path.clone();
 
     // Policy / read-only / review gates short-circuit before any
@@ -524,22 +528,39 @@ fn make_manifest(
 ) -> SaveManifest {
     let strongest = root
         .read_strongest_identity_token(canonical_uri)
-        .unwrap_or_else(|_| token.identity.canonical_filesystem_object.strongest_identity_token.clone());
+        .unwrap_or_else(|_| {
+            token
+                .identity
+                .canonical_filesystem_object
+                .strongest_identity_token
+                .clone()
+        });
     let canonical_object = CanonicalFilesystemObject {
         canonical_uri: canonical_uri.clone(),
-        normalization_form: token.identity.canonical_filesystem_object.normalization_form,
+        normalization_form: token
+            .identity
+            .canonical_filesystem_object
+            .normalization_form,
         strongest_identity_token: strongest.clone(),
         fallback_identity_tokens: root
             .read_fallback_identity_tokens(canonical_uri)
-            .unwrap_or_else(|_| token.identity.canonical_filesystem_object.fallback_identity_tokens.clone()),
+            .unwrap_or_else(|_| {
+                token
+                    .identity
+                    .canonical_filesystem_object
+                    .fallback_identity_tokens
+                    .clone()
+            }),
     };
     SaveManifest {
         presentation_path,
         canonical_filesystem_object: canonical_object,
-        generation_token: root.read_generation_token(canonical_uri).unwrap_or(GenerationToken {
-            kind: GenerationTokenKind::ContentHash,
-            value: "missing".to_owned(),
-        }),
+        generation_token: root
+            .read_generation_token(canonical_uri)
+            .unwrap_or(GenerationToken {
+                kind: GenerationTokenKind::ContentHash,
+                value: "missing".to_owned(),
+            }),
         capability_mode: token.atomic_write_mode,
         save_participant_group_id,
         checkpoint_ref,

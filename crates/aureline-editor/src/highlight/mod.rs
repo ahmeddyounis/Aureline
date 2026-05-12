@@ -35,4 +35,3 @@ impl HighlightOverlaySet {
         self.matches.is_empty() && self.active_match.is_none()
     }
 }
-

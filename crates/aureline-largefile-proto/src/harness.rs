@@ -270,34 +270,44 @@ mod configs {
     use super::*;
 
     pub(super) fn default_with_small_pages() -> LargeFileConfig {
-        let mut cfg = LargeFileConfig::default();
-        cfg.page_size = 256;
-        cfg.max_resident_pages = 2;
-        cfg
+        LargeFileConfig {
+            page_size: 256,
+            max_resident_pages: 2,
+            ..LargeFileConfig::default()
+        }
     }
 
     pub(super) fn tight_size_threshold() -> LargeFileConfig {
-        let mut cfg = LargeFileConfig::default();
-        cfg.policy.large_file_size_threshold = 256;
-        cfg.page_size = 256;
-        cfg.max_resident_pages = 2;
-        cfg
+        LargeFileConfig {
+            policy: ClassificationPolicy {
+                large_file_size_threshold: 256,
+                ..ClassificationPolicy::default()
+            },
+            page_size: 256,
+            max_resident_pages: 2,
+        }
     }
 
     pub(super) fn decode_recovery_chose_large_file() -> LargeFileConfig {
-        let mut cfg = LargeFileConfig::default();
-        cfg.policy.decode_recovery_chose_large_file = true;
-        cfg.page_size = 256;
-        cfg.max_resident_pages = 2;
-        cfg
+        LargeFileConfig {
+            policy: ClassificationPolicy {
+                decode_recovery_chose_large_file: true,
+                ..ClassificationPolicy::default()
+            },
+            page_size: 256,
+            max_resident_pages: 2,
+        }
     }
 
     pub(super) fn operator_override() -> LargeFileConfig {
-        let mut cfg = LargeFileConfig::default();
-        cfg.policy.operator_override = true;
-        cfg.page_size = 256;
-        cfg.max_resident_pages = 2;
-        cfg
+        LargeFileConfig {
+            policy: ClassificationPolicy {
+                operator_override: true,
+                ..ClassificationPolicy::default()
+            },
+            page_size: 256,
+            max_resident_pages: 2,
+        }
     }
 
     pub(super) fn minified_threshold_low() -> LargeFileConfig {
@@ -306,11 +316,14 @@ mod configs {
         // the conservative 8 KiB minified threshold; this config
         // pulls the threshold down for the dedicated scenario so
         // the heuristic still fires on the small fixture.
-        let mut cfg = LargeFileConfig::default();
-        cfg.policy.minified_line_length = 512;
-        cfg.page_size = 256;
-        cfg.max_resident_pages = 2;
-        cfg
+        LargeFileConfig {
+            policy: ClassificationPolicy {
+                minified_line_length: 512,
+                ..ClassificationPolicy::default()
+            },
+            page_size: 256,
+            max_resident_pages: 2,
+        }
     }
 }
 
@@ -688,6 +701,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn fixture_catalogue_is_non_empty_and_unique() {
         assert!(!FIXTURES.is_empty());
         let mut names: Vec<&'static str> = FIXTURES.iter().map(|f| f.name).collect();

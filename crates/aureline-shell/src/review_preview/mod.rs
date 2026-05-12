@@ -130,9 +130,7 @@ impl ConsequenceClass {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Reversible => "reversible",
-            Self::DestructiveReversibleWithCheckpoint => {
-                "destructive_reversible_with_checkpoint"
-            }
+            Self::DestructiveReversibleWithCheckpoint => "destructive_reversible_with_checkpoint",
             Self::IrreversibleHighBlast => "irreversible_high_blast",
         }
     }
@@ -387,7 +385,10 @@ impl MutationPacket {
         LineageIds {
             packet_id: self.packet_id.clone(),
             proposal_id: self.proposal.proposal_id.clone(),
-            preview_id: self.preview.as_ref().map(|preview| preview.preview_id.clone()),
+            preview_id: self
+                .preview
+                .as_ref()
+                .map(|preview| preview.preview_id.clone()),
             apply_id: self.apply.as_ref().map(|apply| apply.apply_id.clone()),
             mutation_group_id: self
                 .apply
@@ -713,8 +714,7 @@ impl DestructiveCoreEngine {
             workspace_id: self.workspace_id.clone(),
             search_pattern: search_pattern.into(),
             replacement_text: replacement_text.into(),
-            declared_consequence_class:
-                ConsequenceClass::DestructiveReversibleWithCheckpoint,
+            declared_consequence_class: ConsequenceClass::DestructiveReversibleWithCheckpoint,
             declared_revert_class: RevertClass::RestoreFromCheckpoint,
             target_specs,
             proposed_at,
@@ -745,8 +745,11 @@ impl DestructiveCoreEngine {
         let mut any_matches = false;
 
         for spec in &packet.proposal.target_specs {
-            let row =
-                self.compute_diff_row(spec, &packet.proposal.search_pattern, &packet.proposal.replacement_text);
+            let row = self.compute_diff_row(
+                spec,
+                &packet.proposal.search_pattern,
+                &packet.proposal.replacement_text,
+            );
             match row.blocked_reason {
                 Some(DiffRowBlockReason::BasisDrifted) => {
                     drifted_count = drifted_count.saturating_add(1);
@@ -808,7 +811,11 @@ impl DestructiveCoreEngine {
             });
         }
 
-        let preview = packet.preview.as_ref().ok_or(WedgeError::NoPreview)?.clone();
+        let preview = packet
+            .preview
+            .as_ref()
+            .ok_or(WedgeError::NoPreview)?
+            .clone();
         if !preview.apply_admissibility.is_admitted() {
             return Err(WedgeError::ApplyBlocked(preview.apply_admissibility));
         }
@@ -1158,10 +1165,7 @@ impl DestructiveCoreEngine {
         // Persist the reverse mutation-group record so support exports
         // surface the restore as one named row.
         let reverse_group_id = self.journal.mint_group_id();
-        let reverse_group_label = format!(
-            "Revert of {label}",
-            label = apply.mutation_group_label
-        );
+        let reverse_group_label = format!("Revert of {label}", label = apply.mutation_group_label);
         let reverse_group_record = MutationGroupRecord::new(
             reverse_group_id.clone(),
             MutationGroupKind::BulkReplace,

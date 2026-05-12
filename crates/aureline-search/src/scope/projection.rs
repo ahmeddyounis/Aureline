@@ -123,13 +123,7 @@ impl WorkspaceSearchScope {
         let chip_label = build_chip_label(scope_class, workset_name);
         let presentation_state = match scope_class {
             ScopeClass::PolicyLimitedView => ScopePresentationState::ActivePolicyLimited,
-            _ => {
-                if scope_class.is_narrowed() {
-                    ScopePresentationState::ActiveNarrowSafe
-                } else {
-                    ScopePresentationState::ActiveNarrowSafe
-                }
-            }
+            _ => ScopePresentationState::ActiveNarrowSafe,
         };
         let workset_name = match scope_class {
             ScopeClass::CurrentRepo | ScopeClass::FullWorkspace => None,
@@ -195,7 +189,8 @@ impl WorkspaceSearchScope {
             .map(ScopePatternRecord::from_workspace)
             .collect();
         let root_refs = artifact.root_refs.clone();
-        let is_policy_limited = matches!(artifact.scope_class, WorkspaceScopeClass::PolicyLimitedView);
+        let is_policy_limited =
+            matches!(artifact.scope_class, WorkspaceScopeClass::PolicyLimitedView);
         let workset_name = if matches!(
             artifact.scope_class,
             WorkspaceScopeClass::CurrentRepo | WorkspaceScopeClass::FullWorkspace
@@ -382,14 +377,14 @@ fn build_chip_label(scope: ScopeClass, workset_name: Option<&str>) -> String {
         ScopeClass::CurrentRepo | ScopeClass::FullWorkspace => {
             scope.chip_label_family().to_string()
         }
-        ScopeClass::SelectedWorkset
-        | ScopeClass::SparseSlice
-        | ScopeClass::PolicyLimitedView => match workset_name {
-            Some(name) if !name.trim().is_empty() => {
-                format!("{} · {}", scope.chip_label_family(), name)
+        ScopeClass::SelectedWorkset | ScopeClass::SparseSlice | ScopeClass::PolicyLimitedView => {
+            match workset_name {
+                Some(name) if !name.trim().is_empty() => {
+                    format!("{} · {}", scope.chip_label_family(), name)
+                }
+                _ => scope.chip_label_family().to_string(),
             }
-            _ => scope.chip_label_family().to_string(),
-        },
+        }
     }
 }
 

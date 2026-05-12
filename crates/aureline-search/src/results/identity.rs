@@ -264,7 +264,10 @@ mod tests {
             false,
             ReadinessClass::Ready,
         );
-        assert_eq!(identity.partiality_class, ResultPartialityClass::Authoritative);
+        assert_eq!(
+            identity.partiality_class,
+            ResultPartialityClass::Authoritative
+        );
         assert_eq!(
             identity.ranking_reasons,
             vec![RankingReasonClass::ExactBasenameMatch]
@@ -398,8 +401,7 @@ mod tests {
             let token = reason.as_str();
             let json = serde_json::to_string(&reason).expect("serialize");
             assert_eq!(json, format!("\"{token}\""));
-            let parsed: RankingReasonClass =
-                serde_json::from_str(&json).expect("deserialize");
+            let parsed: RankingReasonClass = serde_json::from_str(&json).expect("deserialize");
             assert_eq!(parsed, reason);
         }
     }

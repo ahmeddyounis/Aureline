@@ -10,6 +10,7 @@ use crate::hooks::HookCounters;
 use crate::render::{edge_id_list, node_id_list};
 use crate::scenarios::{all_scenarios, Scenario};
 use crate::validator::{rule_ids, validate_graph, ValidationError};
+#[cfg(test)]
 use crate::vocab::{Freshness, NodeClass};
 
 /// Per-scenario structural report. Fields mirror the shape emitted
@@ -136,12 +137,14 @@ fn dedup_sorted(items: &mut Vec<String>) {
 
 /// Discovery helper: every node-class token the frozen vocabulary
 /// names. Used by the coverage test below.
+#[cfg(test)]
 fn all_node_class_tokens() -> Vec<&'static str> {
     NodeClass::all().iter().map(|c| c.as_str()).collect()
 }
 
 /// Discovery helper: every freshness token the frozen vocabulary
 /// names.
+#[cfg(test)]
 fn all_freshness_tokens() -> Vec<&'static str> {
     Freshness::all().iter().map(|f| f.as_str()).collect()
 }

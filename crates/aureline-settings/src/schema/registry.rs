@@ -196,7 +196,8 @@ impl SchemaRegistry {
                 lifecycle_label: LifecycleLabel::Stable,
                 is_machine_specific: true,
                 is_policy_narrowable: false,
-                summary: "Polling interval used when filesystem watchers are unavailable.".to_owned(),
+                summary: "Polling interval used when filesystem watchers are unavailable."
+                    .to_owned(),
             })
             .expect("seed: vfs.watcher.fallback_polling_ms");
         registry
@@ -235,7 +236,9 @@ mod tests {
         assert!(registry.definition("editor.format_on_save").is_some());
         assert!(registry.definition("shell.theme").is_some());
         assert!(registry.definition("security.ai.egress_policy").is_some());
-        assert!(registry.definition("vfs.watcher.fallback_polling_ms").is_some());
+        assert!(registry
+            .definition("vfs.watcher.fallback_polling_ms")
+            .is_some());
         assert_eq!(registry.len(), 5);
     }
 

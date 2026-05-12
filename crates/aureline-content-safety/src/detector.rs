@@ -17,8 +17,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::records::{
-    SuspiciousContentCaseRecord, SuspiciousContentClass, SuspiciousContentFindingRecord,
-    SurfaceFamily, TRUST_CLASS_SCHEMA_VERSION,
+    SurfaceFamily, SuspiciousContentCaseRecord, SuspiciousContentClass,
+    SuspiciousContentFindingRecord, TRUST_CLASS_SCHEMA_VERSION,
 };
 use crate::transfer::{
     BodyPosture, RepresentationActionId, RepresentationClass, RepresentationTransferRecord,
@@ -398,11 +398,9 @@ fn script_bit(ch: char) -> u8 {
     }
     match cp {
         // Latin (basic + supplements + extended A/B + IPA + Latin Extended Additional)
-        0x0041..=0x005A
-        | 0x0061..=0x007A
-        | 0x00C0..=0x00FF
-        | 0x0100..=0x024F
-        | 0x1E00..=0x1EFF => 1 << 0,
+        0x0041..=0x005A | 0x0061..=0x007A | 0x00C0..=0x00FF | 0x0100..=0x024F | 0x1E00..=0x1EFF => {
+            1 << 0
+        }
         // Cyrillic
         0x0400..=0x04FF | 0x0500..=0x052F | 0x2DE0..=0x2DFF | 0xA640..=0xA69F => 1 << 1,
         // Greek
@@ -507,7 +505,10 @@ mod tests {
             TrustClass::RawText,
         );
         assert_eq!(transfers.len(), 2);
-        let raw = transfers.iter().find(|r| r.action_id == "copy_raw").unwrap();
+        let raw = transfers
+            .iter()
+            .find(|r| r.action_id == "copy_raw")
+            .unwrap();
         let escaped = transfers
             .iter()
             .find(|r| r.action_id == "copy_escaped")

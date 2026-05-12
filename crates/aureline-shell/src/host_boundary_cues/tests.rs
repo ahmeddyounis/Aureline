@@ -105,7 +105,9 @@ fn resolve_remote(resolver: &mut ExecutionContextResolver) -> aureline_runtime::
     resolver.resolve(request)
 }
 
-fn resolve_container(resolver: &mut ExecutionContextResolver) -> aureline_runtime::ExecutionContext {
+fn resolve_container(
+    resolver: &mut ExecutionContextResolver,
+) -> aureline_runtime::ExecutionContext {
     let mut request = ExecutionContextRequest::local_terminal_seed(
         "terminal.handoff",
         TrustState::Trusted,
@@ -403,9 +405,7 @@ fn closed_step_seals_the_wedge_and_preserves_prior_identity() {
     wedge
         .open_initial(&local_context, &local_session, "mono:1")
         .unwrap();
-    wedge
-        .record_closed("mono:2", Some("user_closed"))
-        .unwrap();
+    wedge.record_closed("mono:2", Some("user_closed")).unwrap();
     assert!(wedge.is_closed());
 
     let err = wedge
@@ -417,7 +417,10 @@ fn closed_step_seals_the_wedge_and_preserves_prior_identity() {
     assert_eq!(card.steps.len(), 2);
     let closed = card.steps.last().unwrap();
     assert_eq!(closed.kind, HandoffKind::Closed);
-    assert_eq!(closed.current.lifecycle_state, SessionLifecycleState::Closed);
+    assert_eq!(
+        closed.current.lifecycle_state,
+        SessionLifecycleState::Closed
+    );
     assert_eq!(closed.degraded_token.as_deref(), Some("Limited"));
 }
 
@@ -546,8 +549,7 @@ fn record_round_trips_through_serde_json() {
         .unwrap();
     let card = wedge.card();
     let json = serde_json::to_string(&card).expect("serialise");
-    let parsed: HostBoundaryCueCardRecord =
-        serde_json::from_str(&json).expect("round trip parses");
+    let parsed: HostBoundaryCueCardRecord = serde_json::from_str(&json).expect("round trip parses");
     assert_eq!(parsed, card);
 }
 
@@ -571,7 +573,10 @@ fn fixture_failure_drill_handoff_preserves_source_and_lights_remote_cue() {
         .find(|step| step.kind == HandoffKind::TargetHandoff)
         .expect("target handoff step");
     let source = handoff.source.as_ref().expect("source identity preserved");
-    assert_ne!(source.canonical_target_id, handoff.current.canonical_target_id);
+    assert_ne!(
+        source.canonical_target_id,
+        handoff.current.canonical_target_id
+    );
 }
 
 #[test]
@@ -866,7 +871,10 @@ fn assert_fixture_matches(card: &HostBoundaryCueCardRecord, fixture: &WedgeFixtu
                 step.step_id,
             ),
             (None, None) => {}
-            other => panic!("source presence mismatch on step {}: {:?}", step.step_id, other),
+            other => panic!(
+                "source presence mismatch on step {}: {:?}",
+                step.step_id, other
+            ),
         }
     }
     assert_eq!(

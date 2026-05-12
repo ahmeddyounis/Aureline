@@ -27,8 +27,7 @@ pub mod source;
 
 pub use index::{LexicalIndexInputs, LexicalIndexState, ReadinessClass};
 pub use query::{
-    LexicalQuery, LexicalSearchResults, MatchKind, ResultGroup, ResultRow,
-    MAX_RESULTS_PER_GROUP,
+    LexicalQuery, LexicalSearchResults, MatchKind, ResultGroup, ResultRow, MAX_RESULTS_PER_GROUP,
 };
 pub use scope::ScopeClass;
 pub use shell::{LexicalShell, LexicalShellSnapshot};

@@ -9,7 +9,7 @@ use crate::hooks::Hook;
 
 /// Key events the spike recognises. Intentionally small; IME composition
 /// is modelled as a separate event because it rides a different hook.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InputEvent {
     /// A printable text burst delivered by the platform text-input
     /// pipeline (post-IME-commit, post-dead-key).
@@ -59,7 +59,7 @@ pub struct ImeComposition {
 
 /// The action an input event resolves to. The spike models just enough
 /// vocabulary to exercise every hot-path hook the ADR lists.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InputAction {
     InsertText(String),
     MoveCaret(CaretMove),

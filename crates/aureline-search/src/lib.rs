@@ -45,6 +45,4 @@ pub use scope::{
     ScopePresentationState, WorkspaceSearchScope, WorkspaceSearchScopeMetadata,
 };
 
-pub use aureline_workspace::{
-    GeneratedArtifactClass, LineageFreshnessClass, LineageHintRecord,
-};
+pub use aureline_workspace::{GeneratedArtifactClass, LineageFreshnessClass, LineageHintRecord};

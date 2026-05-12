@@ -120,7 +120,9 @@ pub struct WriteAttemptOutcome {
 /// [`WriteAttemptOutcome`] instead of an error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResolveError {
-    UnknownSetting { setting_id: String },
+    UnknownSetting {
+        setting_id: String,
+    },
     InvalidOverlayValue {
         setting_id: String,
         scope: SettingScope,
@@ -192,12 +194,11 @@ impl EffectiveSettingsResolver {
         overlay: ScopeOverlay,
     ) -> Result<Option<ScopeOverlay>, ResolveError> {
         for (setting_id, value) in &overlay.values {
-            let def = self
-                .registry
-                .definition(setting_id)
-                .ok_or_else(|| ResolveError::UnknownSetting {
+            let def = self.registry.definition(setting_id).ok_or_else(|| {
+                ResolveError::UnknownSetting {
                     setting_id: setting_id.clone(),
-                })?;
+                }
+            })?;
             if let Err(err) = def.validate_value(value) {
                 return Err(ResolveError::InvalidOverlayValue {
                     setting_id: setting_id.clone(),
@@ -235,12 +236,12 @@ impl EffectiveSettingsResolver {
 
     /// Resolve the effective value for `setting_id`.
     pub fn resolve(&self, setting_id: &str) -> Result<EffectiveValue, ResolveError> {
-        let def = self
-            .registry
-            .definition(setting_id)
-            .ok_or_else(|| ResolveError::UnknownSetting {
-                setting_id: setting_id.to_owned(),
-            })?;
+        let def =
+            self.registry
+                .definition(setting_id)
+                .ok_or_else(|| ResolveError::UnknownSetting {
+                    setting_id: setting_id.to_owned(),
+                })?;
         Ok(self.resolve_with_definition(def))
     }
 
@@ -659,10 +660,7 @@ mod tests {
         let mut user = ScopeOverlay::new(SettingScope::UserGlobal, "User settings");
         user.set_value("editor.tab_size", SettingValue::Integer(99));
         let err = resolver.set_overlay(user).unwrap_err();
-        assert!(matches!(
-            err,
-            ResolveError::InvalidOverlayValue { .. }
-        ));
+        assert!(matches!(err, ResolveError::InvalidOverlayValue { .. }));
     }
 
     #[test]
@@ -690,10 +688,7 @@ mod tests {
             effective.value,
             SettingValue::String("approved_hosted_providers_only".into())
         );
-        assert_eq!(
-            effective.winning_scope,
-            SettingScope::AdminPolicyNarrowing
-        );
+        assert_eq!(effective.winning_scope, SettingScope::AdminPolicyNarrowing);
         assert_eq!(effective.lock_state, LockState::PolicyLocked);
         assert_eq!(effective.lock_reason, LockReason::PolicyLocked);
         assert!(effective.policy_ceiling_active);

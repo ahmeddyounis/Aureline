@@ -13,8 +13,10 @@ use serde::Deserialize;
 
 use super::*;
 
-const FIXTURE_DIR: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../../fixtures/ai/m1_evidence_and_spend_seed_cases");
+const FIXTURE_DIR: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ai/m1_evidence_and_spend_seed_cases"
+);
 
 fn baseline_draft() -> ComposerDraft {
     let mut draft = ComposerDraft::new(
@@ -83,15 +85,24 @@ fn protected_walk_local_no_dispatch_renders_clean_packet() {
     assert_eq!(packet.composer_draft_ref, "draft.test");
     assert_eq!(packet.composer_session_ref, "session.test");
     assert_eq!(packet.request_workspace_ref, "request_workspace.test");
-    assert_eq!(packet.run_state_class, AiRunStateClass::DispatchDisabledInM1Seed);
+    assert_eq!(
+        packet.run_state_class,
+        AiRunStateClass::DispatchDisabledInM1Seed
+    );
     assert_eq!(packet.provider_class, "disabled_no_provider_in_m1_seed");
     assert_eq!(packet.route_path_class, "denied_by_policy_in_m1_seed");
-    assert_eq!(packet.dispatch_target_class, "disabled_no_dispatch_in_m1_seed");
+    assert_eq!(
+        packet.dispatch_target_class,
+        "disabled_no_dispatch_in_m1_seed"
+    );
     assert_eq!(
         packet.local_or_remote_path_class,
         LocalOrRemotePathClass::LocalNoDispatch
     );
-    assert_eq!(packet.spend_posture_class, SpendPostureClass::NoSpendInM1Seed);
+    assert_eq!(
+        packet.spend_posture_class,
+        SpendPostureClass::NoSpendInM1Seed
+    );
 
     assert!(!snapshot.has_invariant_violations);
     assert!(snapshot.invariant_violations.is_empty());
@@ -160,12 +171,10 @@ fn unresolved_mention_routes_into_packet_lineage() {
     });
     let snapshot = project_with_default(&draft);
     let lineage = &snapshot.evidence_packet.result_lineage;
-    assert!(
-        lineage
-            .iter()
-            .any(|row| row.block_reason_token == "unresolved_mention"
-                && row.addressable_target_token == "mention:mention.missing")
-    );
+    assert!(lineage
+        .iter()
+        .any(|row| row.block_reason_token == "unresolved_mention"
+            && row.addressable_target_token == "mention:mention.missing"));
     // A draft with an actionable block must surface as
     // BlockedPendingResolution on the run-state row.
     assert_eq!(
@@ -190,12 +199,9 @@ fn tainted_attachment_routes_into_packet_lineage_and_counts() {
     });
     let snapshot = project_with_default(&draft);
     let lineage = &snapshot.evidence_packet.result_lineage;
-    assert!(
-        lineage
-            .iter()
-            .any(|row| row.block_reason_token == "tainted_attachment_outside_fenced_section"
-                && row.addressable_target_token == "attachment:att.tainted_user_paste")
-    );
+    assert!(lineage.iter().any(|row| row.block_reason_token
+        == "tainted_attachment_outside_fenced_section"
+        && row.addressable_target_token == "attachment:att.tainted_user_paste"));
     let summary = &snapshot.evidence_packet.context_summary;
     assert_eq!(summary.attachment_count, 2);
     assert_eq!(summary.trusted_attachment_count, 1);
@@ -274,16 +280,12 @@ fn mocked_spend_against_live_run_state_surfaces_typed_invariant() {
         },
     );
     assert!(snapshot.has_invariant_violations);
-    assert!(
-        snapshot
-            .invariant_violations
-            .contains(&AiTruthStripInvariantViolation::RouteAndPathClassDisagree)
-    );
-    assert!(
-        snapshot
-            .invariant_violations
-            .contains(&AiTruthStripInvariantViolation::SpendPostureContradictsRoute)
-    );
+    assert!(snapshot
+        .invariant_violations
+        .contains(&AiTruthStripInvariantViolation::RouteAndPathClassDisagree));
+    assert!(snapshot
+        .invariant_violations
+        .contains(&AiTruthStripInvariantViolation::SpendPostureContradictsRoute));
 }
 
 #[test]
@@ -332,7 +334,9 @@ fn export_safe_run_metadata_omits_raw_intent_and_carries_typed_tokens() {
     assert!(exported.contains("\"provider_class\": \"disabled_no_provider_in_m1_seed\""));
     assert!(exported.contains("\"local_or_remote_path_class\": \"local_no_dispatch\""));
     assert!(exported.contains("\"spend_posture_class\": \"no_spend_in_m1_seed\""));
-    assert!(exported.contains("\"prototype_label_token\": \"m1_prototype_evidence_and_spend_seed\""));
+    assert!(
+        exported.contains("\"prototype_label_token\": \"m1_prototype_evidence_and_spend_seed\"")
+    );
     assert!(!exported.contains("Explain editor.find"));
     assert!(!exported.contains("@editor.find"));
     assert!(!exported.contains("src/editor/find.rs slice"));
@@ -624,7 +628,8 @@ fn parse_posture(token: &str) -> AiRouteSpendPosture {
 
 fn run_fixture(name: &str) -> (FixtureCase, AiTruthStripSnapshot) {
     let fixture = load_fixture(name);
-    let draft = build_draft_from_fixture(&fixture.draft, fixture.inputs.use_mocked_route_placeholder);
+    let draft =
+        build_draft_from_fixture(&fixture.draft, fixture.inputs.use_mocked_route_placeholder);
     let posture = parse_posture(&fixture.inputs.posture);
     let snapshot = AiTruthStripSnapshot::project(
         &draft,
@@ -687,7 +692,10 @@ fn assert_fixture_matches(fixture: &FixtureCase, snapshot: &AiTruthStripSnapshot
         .zip(fixture.expect.result_lineage_tokens.iter())
     {
         assert_eq!(row.block_reason_token, expected.block_reason_token);
-        assert_eq!(row.addressable_target_token, expected.addressable_target_token);
+        assert_eq!(
+            row.addressable_target_token,
+            expected.addressable_target_token
+        );
     }
 
     let summary = &packet.context_summary;
@@ -732,8 +740,7 @@ fn fixture_protected_walk_local_no_dispatch_replays_into_the_wedge() {
 
 #[test]
 fn fixture_failure_drill_alternate_route_and_spend_replays_into_the_wedge() {
-    let (fixture, snapshot) =
-        run_fixture("failure_drill_alternate_route_and_spend.json");
+    let (fixture, snapshot) = run_fixture("failure_drill_alternate_route_and_spend.json");
     assert_fixture_matches(&fixture, &snapshot);
     // Failure-drill specific: the strip row tokens MUST flip away from
     // the live defaults so the user sees the route/spend posture

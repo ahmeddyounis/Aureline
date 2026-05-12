@@ -6,7 +6,7 @@ use aureline_vfs::save::open_save_target;
 use aureline_vfs::{HookCounters, LocalFilesystemRoot, SaveOutcome, VfsUri};
 
 use aureline_workspace::save::{
-    BomStateDetected, DetectionSource, DetectedEncoding, ExecutableIntent, FinalNewlineDetected,
+    BomStateDetected, DetectedEncoding, DetectionSource, ExecutableIntent, FinalNewlineDetected,
     NewlineModeDetected, SaveParticipant, SourceFidelityRecord, StagedSaveCoordinator,
     StagedSaveRequest, WriteStrategy,
 };

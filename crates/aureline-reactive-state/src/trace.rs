@@ -18,6 +18,7 @@ use crate::envelope::{
 /// subscription-lifecycle event (subscribe, frame emit, frame
 /// apply, terminate) or a supporting observation (coalesce,
 /// replay begin / end, delta-gap detection).
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TraceEvent {
     Subscribe {

@@ -706,8 +706,7 @@ impl HostBoundaryCueWedge {
         observed_at: &str,
     ) -> Result<&HostBoundaryCueHandoffStep, WedgeError> {
         let source = self.require_current()?.clone();
-        let requested =
-            TargetIdentitySnapshot::from_context_and_header(context, session.header());
+        let requested = TargetIdentitySnapshot::from_context_and_header(context, session.header());
         if requested.canonical_target_id != source.canonical_target_id {
             return Err(WedgeError::ReconnectIdentityMismatch {
                 source_canonical_target_id: source.canonical_target_id,
@@ -931,14 +930,7 @@ impl HostBoundaryCueWedge {
         }
     }
 
-    fn current_state(
-        &self,
-    ) -> (
-        HostBoundaryCue,
-        bool,
-        Option<DegradedStateToken>,
-        bool,
-    ) {
+    fn current_state(&self) -> (HostBoundaryCue, bool, Option<DegradedStateToken>, bool) {
         match self.steps.last() {
             Some(step) => {
                 let degraded = step

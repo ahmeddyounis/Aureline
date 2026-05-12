@@ -200,7 +200,7 @@ impl SelectionState {
         }
 
         self.normalize();
-        let inserted_len = text.as_bytes().len();
+        let inserted_len = text.len();
         let mut ops = build_insert_ops(snapshot, self, scope, inserted_len);
         if ops.is_empty() {
             return Ok(None);

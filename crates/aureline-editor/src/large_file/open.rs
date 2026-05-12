@@ -12,7 +12,9 @@ use std::path::PathBuf;
 use aureline_buffer::{Buffer, Snapshot};
 use aureline_vfs::{IdentityRecord, RootIoError, RootResolveError, VfsRoot, VfsUri};
 
-use super::classification::{classify_file, ClassificationDecision, ClassificationPolicy, FileMode};
+use super::classification::{
+    classify_file, ClassificationDecision, ClassificationPolicy, FileMode,
+};
 use super::viewer::{LargeFileViewer, LargeFileViewerConfig, LargeFileViewerError};
 
 /// Controls how the open path treats large-file classification.
@@ -59,9 +61,14 @@ impl std::fmt::Display for DocumentOpenError {
                 write!(f, "failed to classify file {path:?}: {detail}")
             }
             Self::ViewerOpenFailed { path, detail } => {
-                write!(f, "failed to open constrained viewer for {path:?}: {detail}")
+                write!(
+                    f,
+                    "failed to open constrained viewer for {path:?}: {detail}"
+                )
             }
-            Self::ReadFailed { uri, detail } => write!(f, "failed to read bytes for {uri}: {detail}"),
+            Self::ReadFailed { uri, detail } => {
+                write!(f, "failed to read bytes for {uri}: {detail}")
+            }
         }
     }
 }
@@ -149,6 +156,7 @@ impl LargeFileDocument {
 }
 
 /// Result of opening a document with large-file protection.
+#[allow(clippy::large_enum_variant)]
 pub enum DocumentOpenOutcome {
     Normal(NormalDocument),
     LargeFile(LargeFileDocument),
@@ -175,10 +183,11 @@ pub fn open_document(
     if disposition == DocumentOpenDisposition::ForceLargeFile {
         policy.operator_override = true;
     }
-    let decision = classify_file(&path, &policy).map_err(|err| DocumentOpenError::ClassificationFailed {
-        path: path.clone(),
-        detail: err.to_string(),
-    })?;
+    let decision =
+        classify_file(&path, &policy).map_err(|err| DocumentOpenError::ClassificationFailed {
+            path: path.clone(),
+            detail: err.to_string(),
+        })?;
 
     match (decision.mode, disposition) {
         (FileMode::LargeFile, DocumentOpenDisposition::ForceNormal) => {
@@ -201,7 +210,10 @@ fn open_large_file(
             detail: err.to_string(),
         }
     })?;
-    Ok(DocumentOpenOutcome::LargeFile(LargeFileDocument { identity, viewer }))
+    Ok(DocumentOpenOutcome::LargeFile(LargeFileDocument {
+        identity,
+        viewer,
+    }))
 }
 
 fn open_normal(

@@ -546,9 +546,7 @@ impl ManagedLifecycleInvariantViolation {
                 "Degraded posture is missing a recovery action."
             }
             Self::CopyClassMissing => "Step is missing its workspace-copy class.",
-            Self::LabelAndCopyClassDisagree => {
-                "Lifecycle label and workspace-copy class disagree."
-            }
+            Self::LabelAndCopyClassDisagree => "Lifecycle label and workspace-copy class disagree.",
             Self::MissingAuthorityLineage => "Step is missing its managed authority lineage.",
             Self::ReconnectingWithoutPriorConnection => {
                 "Reconnect landed without a prior ready/read-only-degraded step."
@@ -571,10 +569,7 @@ pub struct ManagedLifecycleInvariantRow {
 }
 
 impl ManagedLifecycleInvariantRow {
-    fn new(
-        violation: ManagedLifecycleInvariantViolation,
-        step_id: Option<&str>,
-    ) -> Self {
+    fn new(violation: ManagedLifecycleInvariantViolation, step_id: Option<&str>) -> Self {
         Self {
             violation,
             violation_token: violation.as_str().to_owned(),
@@ -805,8 +800,7 @@ impl ManagedWorkspaceLifecycleWedge {
         let prior = self.require_current_label()?;
         if !matches!(
             prior,
-            ManagedLifecycleLabelClass::Authenticating
-                | ManagedLifecycleLabelClass::Reprovisioning
+            ManagedLifecycleLabelClass::Authenticating | ManagedLifecycleLabelClass::Reprovisioning
         ) {
             return Err(WedgeError::SkippedTransition {
                 from: prior,
@@ -1029,8 +1023,7 @@ impl ManagedWorkspaceLifecycleWedge {
         let prior = self.require_current_label()?;
         if !matches!(
             prior,
-            ManagedLifecycleLabelClass::Suspended
-                | ManagedLifecycleLabelClass::ReadOnlyDegraded
+            ManagedLifecycleLabelClass::Suspended | ManagedLifecycleLabelClass::ReadOnlyDegraded
         ) {
             return Err(WedgeError::ReprovisionWithoutPriorPause);
         }
@@ -1126,13 +1119,8 @@ impl ManagedWorkspaceLifecycleWedge {
                 .collect();
         let invariants = self.validate_invariants();
         let has_invariant_violations = !invariants.is_empty();
-        let (
-            current_label,
-            current_copy,
-            current_recovery,
-            current_degraded,
-            current_writes,
-        ) = self.current_state();
+        let (current_label, current_copy, current_recovery, current_degraded, current_writes) =
+            self.current_state();
         let summary_line = self.summary_line();
         ManagedWorkspaceLifecycleCardRecord {
             record_kind: MANAGED_WORKSPACE_LIFECYCLE_CARD_RECORD_KIND.to_owned(),
@@ -1344,16 +1332,12 @@ const fn expected_copy_class_for(label: ManagedLifecycleLabelClass) -> Option<Wo
             Some(WorkspaceCopyClass::NotYetAdmittedCopyClass)
         }
         ManagedLifecycleLabelClass::Ready => Some(WorkspaceCopyClass::LiveEnvironment),
-        ManagedLifecycleLabelClass::ReadOnlyDegraded => {
-            Some(WorkspaceCopyClass::SnapshotOnlyView)
-        }
+        ManagedLifecycleLabelClass::ReadOnlyDegraded => Some(WorkspaceCopyClass::SnapshotOnlyView),
         ManagedLifecycleLabelClass::Suspended => Some(WorkspaceCopyClass::SuspendedWorkspace),
         ManagedLifecycleLabelClass::Reprovisioning => {
             Some(WorkspaceCopyClass::FreshReprovisionedCopy)
         }
-        ManagedLifecycleLabelClass::SnapshotOnlyView => {
-            Some(WorkspaceCopyClass::SnapshotOnlyView)
-        }
+        ManagedLifecycleLabelClass::SnapshotOnlyView => Some(WorkspaceCopyClass::SnapshotOnlyView),
         ManagedLifecycleLabelClass::Connecting
         | ManagedLifecycleLabelClass::Warming
         | ManagedLifecycleLabelClass::Reconnecting

@@ -461,6 +461,7 @@ pub struct AutosaveJournalEntryRecord {
 
 impl AutosaveJournalEntryRecord {
     /// Creates a new autosave journal entry record.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         journal_entry_id: String,
         journal_id: String,
@@ -496,4 +497,3 @@ impl AutosaveJournalEntryRecord {
         }
     }
 }
-

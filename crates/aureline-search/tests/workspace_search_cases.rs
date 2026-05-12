@@ -105,21 +105,21 @@ fn project_scope_label(scope: ScopeClass, workset_name: Option<&str>) -> String 
         ScopeClass::CurrentRepo | ScopeClass::FullWorkspace => {
             scope.chip_label_family().to_string()
         }
-        ScopeClass::SelectedWorkset
-        | ScopeClass::SparseSlice
-        | ScopeClass::PolicyLimitedView => match workset_name {
-            Some(name) if !name.trim().is_empty() => {
-                format!("{} · {}", scope.chip_label_family(), name)
+        ScopeClass::SelectedWorkset | ScopeClass::SparseSlice | ScopeClass::PolicyLimitedView => {
+            match workset_name {
+                Some(name) if !name.trim().is_empty() => {
+                    format!("{} · {}", scope.chip_label_family(), name)
+                }
+                _ => scope.chip_label_family().to_string(),
             }
-            _ => scope.chip_label_family().to_string(),
-        },
+        }
     }
 }
 
 #[test]
 fn workspace_search_cases_match_expected_projection() {
-    let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/search/workspace_search_cases");
+    let fixtures_dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/search/workspace_search_cases");
     let mut fixtures: Vec<_> = std::fs::read_dir(&fixtures_dir)
         .unwrap_or_else(|err| panic!("fixtures dir must exist at {fixtures_dir:?}: {err}"))
         .filter_map(|entry| entry.ok().map(|e| e.path()))
@@ -172,8 +172,7 @@ fn workspace_search_cases_match_expected_projection() {
         let index = LexicalIndexState::from_inputs(inputs);
 
         let scope_label = project_scope_label(scope, fixture.workset_name.as_deref());
-        let mut shell =
-            LexicalShell::with_empty_query(scope, scope_label.clone(), index.clone());
+        let mut shell = LexicalShell::with_empty_query(scope, scope_label.clone(), index.clone());
         shell.set_query(LexicalQuery::new(fixture.query.clone()));
 
         // Parity check: running the query directly through `run_query`
@@ -223,9 +222,7 @@ fn workspace_search_cases_match_expected_projection() {
             "group count mismatch in {path:?}"
         );
 
-        for (got_group, expected_group) in
-            results.groups.iter().zip(fixture.expect.groups.iter())
-        {
+        for (got_group, expected_group) in results.groups.iter().zip(fixture.expect.groups.iter()) {
             assert_eq!(
                 got_group.source_class.as_str(),
                 expected_group.source_class,
@@ -241,8 +238,7 @@ fn workspace_search_cases_match_expected_projection() {
                 "group {} item count mismatch in {path:?}",
                 got_group.label
             );
-            for (got_item, expected_item) in
-                got_group.items.iter().zip(expected_group.items.iter())
+            for (got_item, expected_item) in got_group.items.iter().zip(expected_group.items.iter())
             {
                 assert_eq!(
                     got_item.relative_path, expected_item.relative_path,

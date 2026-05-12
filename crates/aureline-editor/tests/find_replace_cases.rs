@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use aureline_buffer::Buffer;
 use aureline_editor::find_replace::FindReplaceDegradedReason;
-use aureline_editor::{FindOptions, FindReplaceError, FindReplaceMode, FindReplaceState, TextPoint};
+use aureline_editor::{
+    FindOptions, FindReplaceError, FindReplaceMode, FindReplaceState, TextPoint,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -303,12 +305,14 @@ fn find_replace_cases_fixture_set_stays_deterministic() {
                     path, fixture.meta.scenario
                 );
 
-                let expected_active = expected.active_match.as_ref().map(|span| {
-                    aureline_editor::HighlightSpan {
-                        start: span.start,
-                        end: span.end,
-                    }
-                });
+                let expected_active =
+                    expected
+                        .active_match
+                        .as_ref()
+                        .map(|span| aureline_editor::HighlightSpan {
+                            start: span.start,
+                            end: span.end,
+                        });
                 assert_eq!(
                     actual.active_match, expected_active,
                     "active highlight mismatch for {:?} ({})",

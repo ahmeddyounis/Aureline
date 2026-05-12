@@ -33,21 +33,12 @@ pub enum FindReplaceMode {
 }
 
 /// Options that control lexical match discovery.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FindOptions {
     /// When false, matches ignore ASCII case differences.
     pub case_sensitive: bool,
     /// When true, matches must be bounded by ASCII word boundaries.
     pub whole_word: bool,
-}
-
-impl Default for FindOptions {
-    fn default() -> Self {
-        Self {
-            case_sensitive: false,
-            whole_word: false,
-        }
-    }
 }
 
 /// Degraded-state vocabulary for in-file find/replace.
@@ -57,7 +48,10 @@ pub enum FindReplaceDegradedReason {
     /// Snapshot was not lossless UTF-8, so string matching cannot run safely.
     NonUtf8Snapshot,
     /// Match discovery was capped by the scan budget.
-    ScanBudgetExceeded { scanned_bytes: usize, total_bytes: usize },
+    ScanBudgetExceeded {
+        scanned_bytes: usize,
+        total_bytes: usize,
+    },
     /// Match discovery was capped by the match-count budget.
     MatchBudgetExceeded { match_cap: usize },
 }
@@ -264,7 +258,11 @@ impl FindReplaceState {
     }
 
     /// Ensures the match set and highlight overlays are current for `snapshot`.
-    pub fn sync_for_view(&mut self, snapshot: &Snapshot, caret: TextPoint) -> Result<(), FindReplaceError> {
+    pub fn sync_for_view(
+        &mut self,
+        snapshot: &Snapshot,
+        caret: TextPoint,
+    ) -> Result<(), FindReplaceError> {
         if self.mode == FindReplaceMode::Hidden || self.query.trim().is_empty() {
             self.clear_runtime_state();
             self.computed_snapshot_id = Some(snapshot.id());
@@ -473,7 +471,9 @@ impl FindReplaceState {
     }
 
     fn refresh_highlight_cache(&mut self, snapshot: &Snapshot) {
-        if self.mode == FindReplaceMode::Hidden || self.query.trim().is_empty() || self.matches.is_empty()
+        if self.mode == FindReplaceMode::Hidden
+            || self.query.trim().is_empty()
+            || self.matches.is_empty()
         {
             self.highlight_cache_snapshot_id = None;
             self.highlight_cache = HighlightOverlaySet::default();
@@ -481,12 +481,14 @@ impl FindReplaceState {
         }
 
         if self.highlight_cache_snapshot_id != Some(snapshot.id()) {
-            let mut overlays = HighlightOverlaySet::default();
-            overlays.matches = self
-                .matches
-                .iter()
-                .filter_map(|range| highlight_span_for_byte_range(snapshot, range))
-                .collect();
+            let overlays = HighlightOverlaySet {
+                matches: self
+                    .matches
+                    .iter()
+                    .filter_map(|range| highlight_span_for_byte_range(snapshot, range))
+                    .collect(),
+                ..HighlightOverlaySet::default()
+            };
             self.highlight_cache_snapshot_id = Some(snapshot.id());
             self.highlight_cache = overlays;
         }
@@ -541,7 +543,8 @@ fn find_matches_with_budget(
     } else {
         for (start, matched) in limited_haystack.match_indices(needle) {
             let end = start.saturating_add(matched.len());
-            if options.whole_word && !is_ascii_whole_word_boundary(limited_haystack.as_bytes(), start, end)
+            if options.whole_word
+                && !is_ascii_whole_word_boundary(limited_haystack.as_bytes(), start, end)
             {
                 continue;
             }
@@ -574,12 +577,8 @@ fn find_next_ascii_case_insensitive(hay: &[u8], needle: &[u8], from: usize) -> O
         return None;
     }
     let max_start = hay.len().saturating_sub(needle.len());
-    for start in from..=max_start {
-        if eq_ascii_case_insensitive(&hay[start..start + needle.len()], needle) {
-            return Some(start);
-        }
-    }
-    None
+    (from..=max_start)
+        .find(|&start| eq_ascii_case_insensitive(&hay[start..start + needle.len()], needle))
 }
 
 fn eq_ascii_case_insensitive(a: &[u8], b: &[u8]) -> bool {
@@ -588,7 +587,7 @@ fn eq_ascii_case_insensitive(a: &[u8], b: &[u8]) -> bool {
     }
     a.iter()
         .zip(b.iter())
-        .all(|(left, right)| left.to_ascii_lowercase() == right.to_ascii_lowercase())
+        .all(|(left, right)| left.eq_ignore_ascii_case(right))
 }
 
 fn is_ascii_whole_word_boundary(bytes: &[u8], start: usize, end: usize) -> bool {
@@ -604,7 +603,10 @@ fn is_ascii_word_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
-fn highlight_span_for_byte_range(snapshot: &Snapshot, range: &Range<usize>) -> Option<HighlightSpan> {
+fn highlight_span_for_byte_range(
+    snapshot: &Snapshot,
+    range: &Range<usize>,
+) -> Option<HighlightSpan> {
     if range.start >= range.end {
         return None;
     }

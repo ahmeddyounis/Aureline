@@ -109,7 +109,10 @@ impl SafePreviewRowStatus {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SafePreviewRowAddress {
     /// Row addresses a copy/export option by id.
-    CopyExportOption { option_id: String, action_id: String },
+    CopyExportOption {
+        option_id: String,
+        action_id: String,
+    },
     /// Row addresses a typed invariant violation by token.
     Invariant { violation_token: String },
     /// Row has no addressable target.
@@ -298,11 +301,7 @@ fn project_header_section(record: &SafePreviewRecord) -> SafePreviewSection {
             "Trust class",
             record.trust_class_token.clone(),
         ),
-        SafePreviewRow::live(
-            "origin_class",
-            "Origin",
-            record.origin_class_token.clone(),
-        ),
+        SafePreviewRow::live("origin_class", "Origin", record.origin_class_token.clone()),
         SafePreviewRow::live(
             "source_surface_family",
             "Source surface",
@@ -411,9 +410,7 @@ fn project_claim_limits_section(record: &SafePreviewRecord) -> SafePreviewSectio
     SafePreviewSection::new(SafePreviewSectionId::ClaimLimits, rows)
 }
 
-fn project_invariants_section(
-    violations: &[SafePreviewInvariantViolation],
-) -> SafePreviewSection {
+fn project_invariants_section(violations: &[SafePreviewInvariantViolation]) -> SafePreviewSection {
     if violations.is_empty() {
         let row = SafePreviewRow {
             row_id: "no_violations".to_owned(),

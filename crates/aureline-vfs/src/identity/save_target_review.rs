@@ -12,7 +12,7 @@
 //! This one explains the target up front.
 
 use super::{
-    AliasKind, IdentityRecord, PathTruthChip, PathTruthClass, TrustState, derive_path_truth_chip,
+    derive_path_truth_chip, AliasKind, IdentityRecord, PathTruthChip, PathTruthClass, TrustState,
 };
 use crate::capabilities::{AtomicWriteMode, CapabilityFlags};
 use crate::save::{GenerationTokenKind, PermissionSnapshot, SaveTargetToken};
@@ -130,10 +130,7 @@ fn review_record_from_parts(
         path_truth_class: chip.class,
         permission_summary: (&token.permission_snapshot).into(),
         pinned_generation_token_kind: token.compare_before_write_generation_token.kind,
-        pinned_generation_token_value: token
-            .compare_before_write_generation_token
-            .value
-            .clone(),
+        pinned_generation_token_value: token.compare_before_write_generation_token.value.clone(),
         review_required_before_save: token.review_required_before_save,
         review_required_before_rename: token.review_required_before_rename,
         save_redirects_target: chip.save_redirects_target,
@@ -143,10 +140,7 @@ fn review_record_from_parts(
     }
 }
 
-fn collect_blockers(
-    token: &SaveTargetToken,
-    chip: &PathTruthChip,
-) -> Vec<SaveTargetReviewBlocker> {
+fn collect_blockers(token: &SaveTargetToken, chip: &PathTruthChip) -> Vec<SaveTargetReviewBlocker> {
     let flags: &CapabilityFlags = &token.capability_flags;
     let mut blockers: Vec<SaveTargetReviewBlocker> = Vec::new();
 
@@ -185,7 +179,11 @@ fn explainers_for(
 ) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     let presentation = token.identity.presentation_path.uri.as_str();
-    let canonical = token.identity.canonical_filesystem_object.canonical_uri.as_str();
+    let canonical = token
+        .identity
+        .canonical_filesystem_object
+        .canonical_uri
+        .as_str();
     let label = &token.identity.presentation_path.display_label;
 
     if chip.save_redirects_target {
@@ -228,11 +226,11 @@ mod tests {
     use crate::capabilities::{
         CapabilityFlags, CaseSensitivity, NormalizationForm, SymlinkEscapePolicy,
     };
+    use crate::capabilities::{FallbackIdentityTokenKind, StrongestIdentityTokenKind};
     use crate::identity::{
         Alias, AliasSet, CanonicalFilesystemObject, FallbackIdentityToken, IdentityRecord,
         IdentityToken, LogicalWorkspaceIdentity, PresentationPath,
     };
-    use crate::capabilities::{FallbackIdentityTokenKind, StrongestIdentityTokenKind};
     use crate::save::{CompareBeforeWriteGenerationToken, GenerationTokenKind, PermissionSnapshot};
 
     fn flags(read_only: bool, policy_constrained: bool, review_required: bool) -> CapabilityFlags {
@@ -340,7 +338,10 @@ mod tests {
         ));
         assert!(review.save_redirects_target);
         assert_eq!(review.opens_via_alias_kind, Some(AliasKind::Symlink));
-        assert!(review.explainers.iter().any(|line| line.contains("symlink")));
+        assert!(review
+            .explainers
+            .iter()
+            .any(|line| line.contains("symlink")));
     }
 
     #[test]

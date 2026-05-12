@@ -250,7 +250,8 @@ fn projected_chips_match_expectations() {
             "chip presentation_state mismatch in {path:?}"
         );
         assert!(
-            chip.chip_label.starts_with(&fixture.expect.chip.label_starts_with),
+            chip.chip_label
+                .starts_with(&fixture.expect.chip.label_starts_with),
             "chip label '{}' does not start with '{}' in {path:?}",
             chip.chip_label,
             fixture.expect.chip.label_starts_with
@@ -265,7 +266,12 @@ fn projected_chips_match_expectations() {
             fixture.expect.chip.outside_current_scope_marker_visible,
             "outside_current_scope_marker_visible mismatch in {path:?}"
         );
-        let offered: Vec<&str> = chip.offered_actions.iter().copied().map(chip_action_token).collect();
+        let offered: Vec<&str> = chip
+            .offered_actions
+            .iter()
+            .copied()
+            .map(chip_action_token)
+            .collect();
         for must in &fixture.expect.chip.must_offer_actions {
             assert!(
                 offered.iter().any(|a| a == must),
@@ -286,8 +292,7 @@ fn projected_chips_match_expectations() {
                 "mono:test",
             );
             assert_eq!(
-                outside_chip.outside_current_scope_marker_visible,
-                outside.expect_outside_marker,
+                outside_chip.outside_current_scope_marker_visible, outside.expect_outside_marker,
                 "outside-scope marker mismatch in {path:?}"
             );
             assert_eq!(
@@ -318,7 +323,10 @@ fn projected_chips_match_expectations() {
 #[test]
 fn at_least_one_fixture_exercises_each_seed_class() {
     let fixtures = load_fixtures();
-    assert!(!fixtures.is_empty(), "workset_cases must seed at least one fixture");
+    assert!(
+        !fixtures.is_empty(),
+        "workset_cases must seed at least one fixture"
+    );
     let scope_classes: std::collections::BTreeSet<&'static str> = fixtures
         .iter()
         .map(|(_, f)| match f.artifact.scope_class {

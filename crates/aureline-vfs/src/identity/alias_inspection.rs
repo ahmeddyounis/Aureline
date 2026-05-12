@@ -60,8 +60,8 @@ pub fn inspect_aliases(record: &IdentityRecord) -> AliasInspectionRecord {
         }
     }
 
-    let presentation_alias_missing = presentation_uri != canonical_uri
-        && !entries.iter().any(|entry| entry.is_presentation);
+    let presentation_alias_missing =
+        presentation_uri != canonical_uri && !entries.iter().any(|entry| entry.is_presentation);
 
     AliasInspectionRecord {
         presentation_uri: presentation_uri.clone(),
@@ -92,7 +92,9 @@ fn build_entry(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capabilities::{FallbackIdentityTokenKind, NormalizationForm, StrongestIdentityTokenKind};
+    use crate::capabilities::{
+        FallbackIdentityTokenKind, NormalizationForm, StrongestIdentityTokenKind,
+    };
     use crate::identity::{
         Alias, AliasSet, CanonicalFilesystemObject, FallbackIdentityToken, IdentityRecord,
         IdentityToken, LogicalWorkspaceIdentity, PresentationPath, TrustState,

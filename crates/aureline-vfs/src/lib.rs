@@ -77,11 +77,11 @@ pub use capabilities::{
 };
 pub use hooks::HookCounters;
 pub use identity::{
-    Alias, AliasInspectionEntry, AliasInspectionRecord, AliasKind, AliasSet,
-    CanonicalFilesystemObject, FallbackIdentityToken, IdentityRecord, IdentityToken,
-    LogicalWorkspaceIdentity, PathTruthChip, PathTruthClass, PermissionSummary, PresentationPath,
-    SaveTargetReviewBlocker, SaveTargetReviewRecord, TrustState, derive_path_truth_chip,
-    inspect_aliases, review_save_target,
+    derive_path_truth_chip, inspect_aliases, review_save_target, Alias, AliasInspectionEntry,
+    AliasInspectionRecord, AliasKind, AliasSet, CanonicalFilesystemObject, FallbackIdentityToken,
+    IdentityRecord, IdentityToken, LogicalWorkspaceIdentity, PathTruthChip, PathTruthClass,
+    PermissionSummary, PresentationPath, SaveTargetReviewBlocker, SaveTargetReviewRecord,
+    TrustState,
 };
 pub use roots::{
     LocalFilesystemRoot, LocalFilesystemRootError, RootIoError, RootResolveError, VfsRoot,

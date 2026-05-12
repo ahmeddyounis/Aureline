@@ -29,6 +29,4 @@ pub mod projection;
 pub use filter::{
     glob_matches_relative_path, ScopeFilterOutcome, ScopePatternKind, ScopePatternRecord,
 };
-pub use projection::{
-    ScopePresentationState, WorkspaceSearchScope, WorkspaceSearchScopeMetadata,
-};
+pub use projection::{ScopePresentationState, WorkspaceSearchScope, WorkspaceSearchScopeMetadata};

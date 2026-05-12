@@ -239,6 +239,7 @@ impl Default for TextShaper {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn shape_visual_run(
     font_system: &mut FontSystem,
     run_text: &str,

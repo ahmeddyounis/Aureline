@@ -256,14 +256,11 @@ pub fn run_query(index: &LexicalIndexState, query: &LexicalQuery) -> LexicalSear
 
 fn sort_rows(rows: &mut [ResultRow]) {
     rows.sort_by(|a, b| {
-        a.match_kind
-            .rank()
-            .cmp(&b.match_kind.rank())
-            .then_with(|| {
-                a.relative_path
-                    .to_ascii_lowercase()
-                    .cmp(&b.relative_path.to_ascii_lowercase())
-            })
+        a.match_kind.rank().cmp(&b.match_kind.rank()).then_with(|| {
+            a.relative_path
+                .to_ascii_lowercase()
+                .cmp(&b.relative_path.to_ascii_lowercase())
+        })
     });
 }
 
@@ -395,9 +392,10 @@ mod tests {
         );
         let results = run_query(&index, &LexicalQuery::new("main"));
         let row = &results.groups[0].items[0];
-        assert!(row.identity.ranking_reasons.contains(
-            &crate::results::RankingReasonClass::PartialCoverageCaveat
-        ));
+        assert!(row
+            .identity
+            .ranking_reasons
+            .contains(&crate::results::RankingReasonClass::PartialCoverageCaveat));
         assert_eq!(
             row.identity.partiality_class,
             crate::results::ResultPartialityClass::Partial
@@ -415,18 +413,20 @@ mod tests {
             .flat_map(|g| g.items.iter())
             .find(|r| r.relative_path == "Cargo.lock")
             .expect("Cargo.lock must surface");
-        assert!(lockfile_row.identity.ranking_reasons.contains(
-            &crate::results::RankingReasonClass::GeneratedArtifactDeprioritized
-        ));
+        assert!(lockfile_row
+            .identity
+            .ranking_reasons
+            .contains(&crate::results::RankingReasonClass::GeneratedArtifactDeprioritized));
         let toml_row = results
             .groups
             .iter()
             .flat_map(|g| g.items.iter())
             .find(|r| r.relative_path == "Cargo.toml")
             .expect("Cargo.toml must surface");
-        assert!(!toml_row.identity.ranking_reasons.contains(
-            &crate::results::RankingReasonClass::GeneratedArtifactDeprioritized
-        ));
+        assert!(!toml_row
+            .identity
+            .ranking_reasons
+            .contains(&crate::results::RankingReasonClass::GeneratedArtifactDeprioritized));
     }
 
     #[test]

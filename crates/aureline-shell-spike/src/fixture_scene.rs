@@ -5,7 +5,7 @@
 //! the spike ships; later benchmark and conformance tasks extend the
 //! idea, not this file.
 
-use crate::frame_timing::{Clock, Tick, TimingMark, TimingRecorder};
+use crate::frame_timing::{Clock, TimingMark, TimingRecorder};
 use crate::hooks::Hook;
 use crate::input_path::{
     dispatch, CaretMove, ImeComposition, InputAction, InputEvent, NamedKey, SelectionDelta,
@@ -19,7 +19,7 @@ pub const FIXTURE_SCENE_ID: &str = "shell_spike.fixture_v1";
 /// The sequence of input events the fixture scene plays. Each entry is
 /// wrapped in a label so trace samples can name the step that produced
 /// a hook.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FixtureStep {
     pub label: &'static str,
     pub event: InputEvent,
@@ -74,7 +74,7 @@ pub fn script() -> Vec<FixtureStep> {
 
 /// One step's resolved state. The recorder returns a vector of these so
 /// the trace and the composited frame stay aligned.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FixtureFrame {
     pub label: &'static str,
     pub action: InputAction,
@@ -123,7 +123,7 @@ pub fn run(frame: &ShellFrame, clock: &impl Clock) -> FixtureRunResult {
 }
 
 /// Resolved state of one fixture run.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FixtureRunResult {
     pub scene_id: &'static str,
     pub frames: Vec<FixtureFrame>,
@@ -159,7 +159,7 @@ pub fn structural_fingerprint(result: &FixtureRunResult) -> String {
     for frame in &result.frames {
         out.push_str(";step=");
         out.push_str(frame.label);
-        out.push_str(":");
+        out.push(':');
         out.push_str(match &frame.action {
             InputAction::InsertText(_) => "insert_text",
             InputAction::MoveCaret(CaretMove::Left) => "caret_left",

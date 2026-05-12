@@ -215,9 +215,7 @@ impl RollbackPostureClass {
             Self::QuarantineOnlyPendingPublisherReview => {
                 "Quarantine only — pending publisher review"
             }
-            Self::UninstallBlockedPendingAdminReview => {
-                "Uninstall blocked — admin review required"
-            }
+            Self::UninstallBlockedPendingAdminReview => "Uninstall blocked — admin review required",
             Self::NotYetAdmittedNoRollbackNeeded => "Not yet admitted — no rollback",
         }
     }
@@ -689,7 +687,10 @@ impl InstallReviewFactGridRecord {
     /// invariant violations and the install decision is `Admit`.
     pub fn is_clean_admit(&self) -> bool {
         !self.has_invariant_violations
-            && matches!(self.decision.install_decision_class, InstallDecisionClass::Admit)
+            && matches!(
+                self.decision.install_decision_class,
+                InstallDecisionClass::Admit
+            )
     }
 }
 
@@ -907,9 +908,11 @@ impl InstallReviewFactGridWedge {
                 PublisherTrustTierClass::AnonymousPublisherClass
             );
         if publisher_missing {
-            out.push(InstallReviewFactGridInvariantViolation::PublisherIdentityMissing {
-                extension_identity: self.manifest.extension_identity.clone(),
-            });
+            out.push(
+                InstallReviewFactGridInvariantViolation::PublisherIdentityMissing {
+                    extension_identity: self.manifest.extension_identity.clone(),
+                },
+            );
         }
 
         // Manifest origin must be attributable.
@@ -917,9 +920,11 @@ impl InstallReviewFactGridWedge {
             self.manifest.manifest_origin_source_class,
             ManifestOriginSourceClass::UnknownSourceClass
         ) {
-            out.push(InstallReviewFactGridInvariantViolation::OriginSourceMissing {
-                extension_identity: self.manifest.extension_identity.clone(),
-            });
+            out.push(
+                InstallReviewFactGridInvariantViolation::OriginSourceMissing {
+                    extension_identity: self.manifest.extension_identity.clone(),
+                },
+            );
         }
 
         // Every declared permission must carry a rationale_label.
@@ -966,13 +971,15 @@ impl InstallReviewFactGridWedge {
                 RollbackPostureClass::NotYetAdmittedNoRollbackNeeded
             )
         {
-            out.push(InstallReviewFactGridInvariantViolation::AdmitWithoutRollbackPosture {
-                install_decision_class: install_decision_class_token(
-                    self.decision.install_decision_class,
-                )
-                .to_owned(),
-                rollback_posture_class: self.rollback_posture.as_str().to_owned(),
-            });
+            out.push(
+                InstallReviewFactGridInvariantViolation::AdmitWithoutRollbackPosture {
+                    install_decision_class: install_decision_class_token(
+                        self.decision.install_decision_class,
+                    )
+                    .to_owned(),
+                    rollback_posture_class: self.rollback_posture.as_str().to_owned(),
+                },
+            );
         }
 
         // Activation budget must agree with the install decision.
