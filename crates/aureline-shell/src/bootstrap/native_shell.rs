@@ -322,11 +322,25 @@ struct NativeShellArgs {
     disable_clipboard: bool,
     renderer: ShellRendererChoice,
     open_workspace_path: Option<PathBuf>,
+    headless_edit_save: HeadlessEditSaveArgs,
     window_size: Option<(f64, f64)>,
     screenshot_path: Option<PathBuf>,
     theme_class: Option<ThemeClass>,
     density_class: Option<DensityClass>,
     reduced_motion_posture: Option<AccessibilityPostureClass>,
+}
+
+#[derive(Debug, Default)]
+struct HeadlessEditSaveArgs {
+    file_path: Option<PathBuf>,
+    write_hex: Option<String>,
+    report_path: Option<PathBuf>,
+}
+
+impl HeadlessEditSaveArgs {
+    fn is_requested(&self) -> bool {
+        self.file_path.is_some() || self.write_hex.is_some() || self.report_path.is_some()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -374,6 +388,24 @@ where
                     .next()
                     .ok_or_else(|| "--open requires a folder path".to_string())?;
                 args.open_workspace_path = Some(resolve_open_workspace_path(&path)?);
+            }
+            "--headless-test-edit-save" => {
+                let path = iter
+                    .next()
+                    .ok_or_else(|| "--headless-test-edit-save requires a file path".to_string())?;
+                args.headless_edit_save.file_path = Some(PathBuf::from(path));
+            }
+            "--headless-test-write-hex" => {
+                let value = iter.next().ok_or_else(|| {
+                    "--headless-test-write-hex requires a hex-encoded byte payload".to_string()
+                })?;
+                args.headless_edit_save.write_hex = Some(value);
+            }
+            "--headless-test-report" => {
+                let path = iter.next().ok_or_else(|| {
+                    "--headless-test-report requires an output file path".to_string()
+                })?;
+                args.headless_edit_save.report_path = Some(PathBuf::from(path));
             }
             "--emit-screenshot" => {
                 let path = iter
@@ -444,6 +476,7 @@ fn usage() -> String {
      \taureline_shell --open <folder>\n\
      \taureline_shell <folder>\n\
      \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n\
+     \taureline_shell --open <folder> --headless-test-edit-save <file> --headless-test-write-hex <hex> [--headless-test-report <path>]\n\
      \taureline_shell --emit-hot-path-metrics <path>\n\
      \taureline_shell --emit-screenshot <path> [--theme-class <token>] [--density-class <token>] [--reduced-motion-posture <token>] [--window-size <WxH>] [--renderer (gpu|software)]\n\
      \taureline_shell --renderer (gpu|software)\n"
@@ -474,6 +507,154 @@ fn resolve_open_workspace_path(path: impl AsRef<Path>) -> Result<PathBuf, String
             path.display()
         )
     })
+}
+
+fn run_headless_edit_save(args: &NativeShellArgs) -> Result<(), String> {
+    let workspace_root = args
+        .open_workspace_path
+        .as_ref()
+        .ok_or_else(|| "--headless-test-edit-save requires --open <folder>".to_string())?;
+    let request = &args.headless_edit_save;
+    let target_arg = request
+        .file_path
+        .as_ref()
+        .ok_or_else(|| "--headless-test-edit-save requires a file path".to_string())?;
+    let write_hex = request
+        .write_hex
+        .as_deref()
+        .ok_or_else(|| "--headless-test-write-hex is required".to_string())?;
+    let bytes = parse_hex_bytes(write_hex)?;
+    let text = std::str::from_utf8(&bytes).map_err(|err| {
+        format!("--headless-test-write-hex must decode to UTF-8 text for this editor path: {err}")
+    })?;
+
+    let canonical_workspace = workspace_root
+        .canonicalize()
+        .map_err(|err| format!("workspace path could not be canonicalized: {err}"))?;
+    let target_path = if target_arg.is_absolute() {
+        target_arg.clone()
+    } else {
+        canonical_workspace.join(target_arg)
+    };
+    let canonical_target = target_path.canonicalize().map_err(|err| {
+        format!(
+            "headless edit target is not accessible: {} ({err})",
+            target_path.display()
+        )
+    })?;
+    if !canonical_target.starts_with(&canonical_workspace) {
+        return Err(format!(
+            "headless edit target must stay inside workspace: {}",
+            canonical_target.display()
+        ));
+    }
+
+    let mut frame = DesktopFrame::new(1280, 720);
+    let group = frame.focused_editor_group();
+    let tab = frame
+        .open_tab()
+        .ok_or_else(|| "headless editor tab could not be opened".to_string())?;
+    let mut editor_runtime = EditorWorkspaceRuntimeState::with_log_root(
+        headless_edit_save_log_root(request.report_path.as_deref()),
+    );
+    editor_runtime.open_file(group, tab, &canonical_target)?;
+    if editor_runtime
+        .tab_render_info(group, tab)
+        .is_some_and(|info| info.large_file_state.is_some())
+    {
+        editor_runtime.open_anyway(group, tab)?;
+    }
+    editor_runtime.replace_tab_contents(group, tab, text, "headless_test_edit_save")?;
+    let save = editor_runtime.save_tab(group, tab)?;
+    let (outcome, write_strategy, committed) = match save {
+        SaveTabAttempt::Saved(result) => (
+            result.manifest.outcome.as_str().to_string(),
+            result.write_strategy.as_str().to_string(),
+            result.committed(),
+        ),
+        SaveTabAttempt::NoTarget => ("no_target".to_string(), "none".to_string(), false),
+        SaveTabAttempt::ReviewRequired { outcome, .. } => {
+            (outcome.as_str().to_string(), "blocked".to_string(), false)
+        }
+    };
+
+    if !committed {
+        return Err(format!("headless edit/save did not commit: {outcome}"));
+    }
+
+    if let Some(report_path) = request.report_path.as_ref() {
+        if let Some(parent) = report_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|err| format!("create headless report directory failed: {err}"))?;
+        }
+        let payload = serde_json::json!({
+            "schema_version": 1,
+            "mode": "headless_edit_save",
+            "workspace_root": canonical_workspace.display().to_string(),
+            "target_path": canonical_target.display().to_string(),
+            "byte_count": bytes.len(),
+            "outcome": outcome,
+            "write_strategy": write_strategy,
+            "exact_build_identity_ref": build_info::exact_build_identity_ref(),
+        });
+        let json = serde_json::to_string_pretty(&payload)
+            .map_err(|err| format!("serialize headless edit/save report failed: {err}"))?;
+        std::fs::write(report_path, format!("{json}\n"))
+            .map_err(|err| format!("write headless edit/save report failed: {err}"))?;
+    }
+
+    Ok(())
+}
+
+fn parse_hex_bytes(value: &str) -> Result<Vec<u8>, String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err("hex payload must not be empty".to_string());
+    }
+    if value.len() % 2 != 0 {
+        return Err("hex payload must contain an even number of characters".to_string());
+    }
+
+    let mut bytes = Vec::with_capacity(value.len() / 2);
+    for (idx, pair) in value.as_bytes().chunks_exact(2).enumerate() {
+        let high = hex_nibble(pair[0]).ok_or_else(|| {
+            format!(
+                "hex payload contains non-hex characters at byte {}",
+                idx * 2
+            )
+        })?;
+        let low = hex_nibble(pair[1]).ok_or_else(|| {
+            format!(
+                "hex payload contains non-hex characters at byte {}",
+                idx * 2 + 1
+            )
+        })?;
+        bytes.push((high << 4) | low);
+    }
+    Ok(bytes)
+}
+
+fn headless_edit_save_log_root(report_path: Option<&Path>) -> PathBuf {
+    if let Some(parent) = report_path.and_then(Path::parent) {
+        return parent.join("headless_logs");
+    }
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    env::temp_dir().join(format!(
+        "aureline-headless-edit-save-{}-{}",
+        std::process::id(),
+        duration.as_nanos()
+    ))
+}
+
+fn hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -533,6 +714,78 @@ mod native_shell_arg_tests {
             err.contains("unexpected positional argument"),
             "unexpected error: {err}"
         );
+    }
+
+    #[test]
+    fn headless_edit_save_requires_open_root_at_runtime() {
+        let parsed = parse_native_shell_args_from([
+            "--headless-test-edit-save",
+            "README.md",
+            "--headless-test-write-hex",
+            "6869",
+        ])
+        .expect("parse headless edit/save args");
+
+        assert!(parsed.headless_edit_save.is_requested());
+        let err = run_headless_edit_save(&parsed).expect_err("missing open root should fail");
+        assert!(
+            err.contains("--headless-test-edit-save requires --open"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn headless_edit_save_rejects_invalid_hex() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let parsed = parse_native_shell_args_from(vec![
+            "--open".to_string(),
+            dir.path().display().to_string(),
+            "--headless-test-edit-save".to_string(),
+            "README.md".to_string(),
+            "--headless-test-write-hex".to_string(),
+            "abc".to_string(),
+        ])
+        .expect("parse headless edit/save args");
+
+        let err = run_headless_edit_save(&parsed).expect_err("odd hex length should fail");
+        assert!(
+            err.contains("even number of characters"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn headless_edit_save_commits_bytes_and_report() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file_path = dir.path().join("notes.md");
+        std::fs::write(&file_path, b"old\n").expect("seed file");
+        let report_path = dir.path().join("headless_report.json");
+        let payload = b"known-byte-sequence\n";
+        let parsed = parse_native_shell_args_from(vec![
+            "--open".to_string(),
+            dir.path().display().to_string(),
+            "--headless-test-edit-save".to_string(),
+            "notes.md".to_string(),
+            "--headless-test-write-hex".to_string(),
+            hex_encode(payload),
+            "--headless-test-report".to_string(),
+            report_path.display().to_string(),
+        ])
+        .expect("parse headless edit/save args");
+
+        run_headless_edit_save(&parsed).expect("headless edit/save should commit");
+
+        let on_disk = std::fs::read(&file_path).expect("read saved file");
+        assert_eq!(on_disk, payload);
+        let report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&report_path).expect("read report"))
+                .expect("report json");
+        assert_eq!(report["outcome"], "committed");
+        assert_eq!(report["byte_count"], payload.len());
+    }
+
+    fn hex_encode(bytes: &[u8]) -> String {
+        bytes.iter().map(|byte| format!("{byte:02x}")).collect()
     }
 }
 
@@ -681,6 +934,10 @@ impl ShellFocusReturnTarget {
 pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_native_shell_args()
         .map_err(|message| -> Box<dyn std::error::Error> { message.into() })?;
+    if args.headless_edit_save.is_requested() {
+        return run_headless_edit_save(&args)
+            .map_err(|message| -> Box<dyn std::error::Error> { message.into() });
+    }
     let capture_a11y_tree = env::var("AURELINE_CAPTURE_A11Y_TREE")
         .ok()
         .map(|value| {
@@ -2624,8 +2881,12 @@ struct CrashJournalSnapshotCandidate {
 
 impl EditorWorkspaceRuntimeState {
     fn new() -> Self {
-        let storage = HistoryStorageRoot::new(PathBuf::from(".logs").join("history"));
-        let recovery_root = PathBuf::from(".logs").join("recovery");
+        Self::with_log_root(PathBuf::from(".logs"))
+    }
+
+    fn with_log_root(log_root: PathBuf) -> Self {
+        let storage = HistoryStorageRoot::new(log_root.join("history"));
+        let recovery_root = log_root.join("recovery");
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             explorer: ExplorerViewRuntime::new(),
@@ -2727,6 +2988,47 @@ impl EditorWorkspaceRuntimeState {
         if let Some(view_state) = view_state {
             session.apply_viewport_snapshot(&view_state);
         }
+        Ok(())
+    }
+
+    fn replace_tab_contents(
+        &mut self,
+        group: PaneId,
+        tab: EditorTabId,
+        text: &str,
+        originator: impl Into<String>,
+    ) -> Result<(), String> {
+        let snapshot_candidate = {
+            let Some(session) = self.tab_session_mut(group, tab) else {
+                return Err("tab not found".to_string());
+            };
+            if session.authority.borrow().read_only != ReadOnlyState::Writable {
+                return Err("tab is read-only".to_string());
+            }
+
+            let produced = {
+                let mut authority = session.authority.borrow_mut();
+                let len = authority.buffer.len();
+                authority
+                    .buffer
+                    .replace(0..len, text, originator)
+                    .map_err(|err| format!("headless edit failed — {err}"))?;
+                authority.buffer.snapshot()
+            };
+
+            session.snapshot = produced;
+            session.last_seen_revision = session.authority.borrow().revision_id();
+            session.refresh_document_cache();
+            session.viewport.clamp_to_document(&session.line_graphemes);
+            session.needs_text_repaint = true;
+
+            CrashJournalSnapshotCandidate {
+                view_id: session.view_id,
+                snapshot_bytes: session.snapshot.as_bytes().to_vec(),
+                authority: session.authority.clone(),
+            }
+        };
+        self.record_crash_journal_snapshot(snapshot_candidate);
         Ok(())
     }
 
