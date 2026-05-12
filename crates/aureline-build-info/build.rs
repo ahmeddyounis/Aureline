@@ -1,5 +1,7 @@
 use std::env;
+use std::fmt::Write as _;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -64,6 +66,25 @@ fn main() {
         .unwrap_or(0);
     let build_timestamp_utc = epoch_seconds_to_utc_rfc3339(source_date_epoch);
 
+    let record = BuildIdentityRecord {
+        schema_version: 1,
+        commit: &commit,
+        commit_short: &commit_short,
+        dirty,
+        toolchain_channel: &toolchain_channel,
+        rustc_version: &rustc_version,
+        cargo_version: &cargo_version,
+        host_triple: &host_triple,
+        target_triple: &target_triple,
+        profile: &profile,
+        workspace_version: &workspace_version,
+        source_date_epoch,
+        build_timestamp_utc: &build_timestamp_utc,
+    };
+    let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR missing"));
+    write_build_identity_json(&out_dir.join("build_identity.json"), &record)
+        .expect("failed to write build_identity.json");
+
     emit_env("AURELINE_BUILD_IDENTITY_COMMIT", &commit);
     emit_env("AURELINE_BUILD_IDENTITY_COMMIT_SHORT", &commit_short);
     emit_env(
@@ -95,6 +116,73 @@ fn main() {
 
 fn emit_env(key: &str, value: &str) {
     println!("cargo:rustc-env={key}={value}");
+}
+
+struct BuildIdentityRecord<'a> {
+    schema_version: u32,
+    commit: &'a str,
+    commit_short: &'a str,
+    dirty: bool,
+    toolchain_channel: &'a str,
+    rustc_version: &'a str,
+    cargo_version: &'a str,
+    host_triple: &'a str,
+    target_triple: &'a str,
+    profile: &'a str,
+    workspace_version: &'a str,
+    source_date_epoch: i64,
+    build_timestamp_utc: &'a str,
+}
+
+fn write_build_identity_json(path: &Path, record: &BuildIdentityRecord<'_>) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, render_build_identity_json(record))
+}
+
+fn render_build_identity_json(record: &BuildIdentityRecord<'_>) -> String {
+    let mut out = String::new();
+    out.push_str("{\n");
+    push_json_kv_u32(&mut out, "schema_version", record.schema_version, true, 2);
+    push_json_kv_str(&mut out, "commit", record.commit, true, 2);
+    push_json_kv_str(&mut out, "commit_short", record.commit_short, true, 2);
+    push_json_kv_bool(&mut out, "dirty", record.dirty, true, 2);
+    push_json_kv_str(
+        &mut out,
+        "toolchain_channel",
+        record.toolchain_channel,
+        true,
+        2,
+    );
+    push_json_kv_str(&mut out, "rustc_version", record.rustc_version, true, 2);
+    push_json_kv_str(&mut out, "cargo_version", record.cargo_version, true, 2);
+    push_json_kv_str(&mut out, "host_triple", record.host_triple, true, 2);
+    push_json_kv_str(&mut out, "target_triple", record.target_triple, true, 2);
+    push_json_kv_str(&mut out, "profile", record.profile, true, 2);
+    push_json_kv_str(
+        &mut out,
+        "workspace_version",
+        record.workspace_version,
+        true,
+        2,
+    );
+    push_json_kv_i64(
+        &mut out,
+        "source_date_epoch",
+        record.source_date_epoch,
+        true,
+        2,
+    );
+    push_json_kv_str(
+        &mut out,
+        "build_timestamp_utc",
+        record.build_timestamp_utc,
+        false,
+        2,
+    );
+    out.push_str("}\n");
+    out
 }
 
 fn run_stdout_trimmed(repo_root: &Path, cmd: &str, args: &[&str]) -> Option<String> {
@@ -165,6 +253,75 @@ fn emit_git_rerun_markers(repo_root: &Path) {
     if index_path.exists() {
         println!("cargo:rerun-if-changed={}", index_path.display());
     }
+}
+
+fn json_escape_into(out: &mut String, value: &str) {
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c.is_control() => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+}
+
+fn push_json_indent(out: &mut String, spaces: usize) {
+    for _ in 0..spaces {
+        out.push(' ');
+    }
+}
+
+fn push_json_kv_str(out: &mut String, key: &str, value: &str, comma: bool, indent: usize) {
+    push_json_indent(out, indent);
+    out.push('"');
+    json_escape_into(out, key);
+    out.push_str("\": \"");
+    json_escape_into(out, value);
+    out.push('"');
+    if comma {
+        out.push(',');
+    }
+    out.push('\n');
+}
+
+fn push_json_kv_bool(out: &mut String, key: &str, value: bool, comma: bool, indent: usize) {
+    push_json_indent(out, indent);
+    out.push('"');
+    json_escape_into(out, key);
+    out.push_str("\": ");
+    out.push_str(if value { "true" } else { "false" });
+    if comma {
+        out.push(',');
+    }
+    out.push('\n');
+}
+
+fn push_json_kv_u32(out: &mut String, key: &str, value: u32, comma: bool, indent: usize) {
+    push_json_indent(out, indent);
+    out.push('"');
+    json_escape_into(out, key);
+    let _ = write!(out, "\": {value}");
+    if comma {
+        out.push(',');
+    }
+    out.push('\n');
+}
+
+fn push_json_kv_i64(out: &mut String, key: &str, value: i64, comma: bool, indent: usize) {
+    push_json_indent(out, indent);
+    out.push('"');
+    json_escape_into(out, key);
+    let _ = write!(out, "\": {value}");
+    if comma {
+        out.push(',');
+    }
+    out.push('\n');
 }
 
 fn epoch_seconds_to_utc_rfc3339(seconds: i64) -> String {

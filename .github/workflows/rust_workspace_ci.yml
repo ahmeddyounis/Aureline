@@ -100,6 +100,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-test-
 
+      - name: Regenerate build identity artifact
+        run: python3 tools/regenerate_build_identity.py
+
+      - name: Validate build identity artifact
+        run: python3 tools/validate_build_identity_artifact.py
+
+      # The checked-in seed is one host-specific artifact. Both OS legs
+      # regenerate and validate it; the canonical macOS leg enforces drift for
+      # fields that are not self-referential to the commit carrying the file.
+      - name: Check committed build identity artifact
+        if: matrix.os == 'macos-latest'
+        run: |
+          git diff --exit-code \
+            -G '"(toolchain_channel|rustc_version|cargo_version|host_triple|target_triple|profile|workspace_version)"' \
+            -- artifacts/build/build_identity.json
+
       - name: Run cargo test
         run: |
           set -o pipefail
