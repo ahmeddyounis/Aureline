@@ -1,0 +1,715 @@
+# Alpha boundary manifest for open/local, self-hostable, mirrored, managed,
+# quota-gated, and offboarded truth.
+#
+# Consumers must read this file before rendering capability-boundary labels in
+# docs/help, admin, CLI/headless, support-export, or release-evidence surfaces.
+
+schema_version: 1
+manifest_id: boundary_manifest.alpha_managed_truth
+as_of: "2026-05-12"
+owner_dri: "@ahmeddyounis"
+schema_ref: schemas/governance/boundary_manifest_v1.schema.json
+
+source_contract_refs:
+  alpha_wedge_matrix_ref: artifacts/milestones/m2/alpha_wedge_matrix.yaml
+  schema_registry_ref: artifacts/governance/schema_registry_alpha.yaml
+  record_class_registry_ref: artifacts/governance/record_class_registry_alpha.yaml
+  usage_export_posture_matrix_ref: artifacts/governance/usage_export_posture_matrix.yaml
+  product_boundary_strawman_ref: docs/product/boundary_manifest_strawman.md
+  usage_offboarding_contract_ref: docs/governance/usage_export_and_offboarding_contract.md
+
+consumer_bindings:
+  first_consumer:
+    consumer_id: boundary_offboarding_alpha_projection
+    consumer_kind: cli_support_export_projection
+    consumer_ref: ci/check_boundary_offboarding_alpha.py
+    render_command: python3 ci/check_boundary_offboarding_alpha.py --repo-root . --render-consumer-projection
+  consumer_surfaces:
+    - docs_help
+    - admin
+    - support_export
+    - cli
+    - release_evidence
+
+boundary_class_vocabulary:
+  - open_local_core
+  - self_hostable_service
+  - mirrored_service
+  - managed_optional
+  - managed_premium
+  - managed_admin_only
+  - explicitly_out_of_scope
+
+claim_status_vocabulary:
+  - alpha_core_claim
+  - alpha_managed_truth_seed
+  - explicitly_out_of_scope
+
+identity_boundary_vocabulary:
+  - no_identity_required
+  - optional_account
+  - org_identity_required_for_managed_action
+  - admin_identity_required_for_managed_action
+
+network_boundary_vocabulary:
+  - none
+  - optional_public_or_mirror
+  - customer_operated_control_plane
+  - vendor_managed_control_plane
+  - mirror_or_file_import
+  - denied_for_alpha
+
+meter_definitions:
+  - meter_id: meter.ai_gateway.tokens
+    capability_refs:
+      - model_gateway
+      - managed_ai_quota_billing
+    service_family_class: ai_gateway
+    quota_family_class: ai_tokens
+    quota_unit_class: tokens
+    export_row_contract_ref: schemas/managed/usage_export_row.schema.json#/$defs/quota_family_class
+    meter_summary: Managed AI gateway token totals are exportable metadata and never include prompts or code payloads.
+
+  - meter_id: meter.ai_gateway.tool_invocations
+    capability_refs:
+      - model_gateway
+      - managed_ai_quota_billing
+    service_family_class: ai_gateway
+    quota_family_class: ai_tool_invocations
+    quota_unit_class: tool_invocations
+    export_row_contract_ref: schemas/managed/usage_export_row.schema.json#/$defs/quota_unit_class
+    meter_summary: Managed AI tool invocation totals are counted without exporting raw tool input or result bodies.
+
+  - meter_id: meter.remote_workspace.workspace_hours
+    capability_refs:
+      - workspace_control_plane
+    service_family_class: remote_workspace_control_plane
+    quota_family_class: managed_workspace_hours
+    quota_unit_class: workspace_hours
+    export_row_contract_ref: schemas/managed/usage_export_row.schema.json#/$defs/quota_family_class
+    meter_summary: Managed workspace hours are aggregate lifecycle metadata; direct local and SSH/container work remains outside the meter.
+
+  - meter_id: meter.registry.downloads
+    capability_refs:
+      - extension_registry_mirror
+      - hosted_marketplace_ui
+    service_family_class: registry_mirror_services
+    quota_family_class: registry_downloads
+    quota_unit_class: download_count
+    export_row_contract_ref: schemas/managed/usage_export_row.schema.json#/$defs/quota_family_class
+    meter_summary: Registry download counts are package/version metadata and stay separate from extension execution or local source content.
+
+  - meter_id: meter.profile_sync.bytes
+    capability_refs:
+      - managed_sync_profile
+    service_family_class: profile_settings_sync
+    quota_family_class: profile_sync_bytes
+    quota_unit_class: bytes_stored
+    export_row_contract_ref: schemas/managed/usage_export_row.schema.json#/$defs/quota_family_class
+    meter_summary: Profile-sync storage bytes measure encrypted or customer-managed sync payload size, not raw setting values in export rows.
+
+  - meter_id: meter.support_ingest.bundle_count
+    capability_refs:
+      - telemetry_support_pipeline
+    service_family_class: support_ingest
+    quota_family_class: support_ingest_bytes
+    quota_unit_class: support_bundle_count
+    export_row_contract_ref: schemas/managed/usage_export_row.schema.json#/$defs/quota_unit_class
+    meter_summary: Support-ingest usage counts explicit bundle submissions; local support bundles remain available without upload.
+
+  - meter_id: meter.collaboration.participant_minutes
+    capability_refs:
+      - collaboration_relay
+    service_family_class: collaboration_relay_presence
+    quota_family_class: collaboration_participant_minutes
+    quota_unit_class: participant_minutes
+    export_row_contract_ref: schemas/managed/usage_export_row.schema.json#/$defs/quota_family_class
+    meter_summary: Collaboration participant minutes cover relay presence only and do not become local editing authority.
+
+capability_rows:
+  - capability_id: editor_core
+    title: Editor and buffer local core
+    boundary_class: open_local_core
+    claim_status: alpha_core_claim
+    open_local_alternative:
+      available: true
+      capability_ref: editor_core
+      summary: Editing, save, undo, and local navigation remain available with no account and no network.
+    self_host_alternative:
+      available: true
+      capability_ref: editor_core
+      summary: The same local editor core is used in self-hosted and managed profiles.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: not_applicable
+      summary: No mirror is required for local editing.
+    required_identity_boundary: no_identity_required
+    required_network_boundary: none
+    entitlement_state_refs: []
+    quota_meter_refs: []
+    usage_export_baseline_refs: []
+    offboarding_baseline_refs: []
+    local_core_guardrail: Managed identity, quota, usage export, and offboarding state must not gate local editing.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#local-core
+
+  - capability_id: command_plane
+    title: Command identity and execution plane
+    boundary_class: open_local_core
+    claim_status: alpha_core_claim
+    open_local_alternative:
+      available: true
+      capability_ref: command_plane
+      summary: Local commands and keyboard routes remain available without org context.
+    self_host_alternative:
+      available: true
+      capability_ref: command_plane
+      summary: Self-hosted and managed modes reuse the same command graph.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: not_applicable
+      summary: No managed mirror is needed for local command invocation.
+    required_identity_boundary: no_identity_required
+    required_network_boundary: none
+    entitlement_state_refs: []
+    quota_meter_refs: []
+    usage_export_baseline_refs: []
+    offboarding_baseline_refs: []
+    local_core_guardrail: Disabled commands may cite entitlement for managed actions only; local commands remain discoverable.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#local-core
+
+  - capability_id: local_git
+    title: Local version-control integration
+    boundary_class: open_local_core
+    claim_status: alpha_core_claim
+    open_local_alternative:
+      available: true
+      capability_ref: local_git
+      summary: Local Git status, diff, branch, and commit workflows do not require managed identity.
+    self_host_alternative:
+      available: true
+      capability_ref: local_git
+      summary: Self-hosted profiles use the same local Git surface unless a separate provider integration is enabled.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: not_applicable
+      summary: Existing local repositories remain usable in air-gapped profiles.
+    required_identity_boundary: no_identity_required
+    required_network_boundary: none
+    entitlement_state_refs: []
+    quota_meter_refs: []
+    usage_export_baseline_refs: []
+    offboarding_baseline_refs: []
+    local_core_guardrail: Seat, quota, or org-switch state must not block local Git operations on an already available repository.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#local-core
+
+  - capability_id: configuration_profiles
+    title: Layered configuration and profiles
+    boundary_class: open_local_core
+    claim_status: alpha_core_claim
+    open_local_alternative:
+      available: true
+      capability_ref: configuration_profiles
+      summary: Local configuration files remain authoritative when sync or policy services are absent.
+    self_host_alternative:
+      available: true
+      capability_ref: configuration_profiles
+      summary: Signed admin bundles may arrive from customer-operated or file-based channels.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: file_import
+      summary: Air-gapped policy and profile posture uses signed files or local bundles.
+    required_identity_boundary: no_identity_required
+    required_network_boundary: mirror_or_file_import
+    entitlement_state_refs: []
+    quota_meter_refs: []
+    usage_export_baseline_refs: []
+    offboarding_baseline_refs: []
+    local_core_guardrail: Profile import and sync may narrow managed posture but must not widen trust, egress, or entitlement.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#local-core
+
+  - capability_id: local_ai_byok
+    title: Local AI and bring-your-own-key providers
+    boundary_class: open_local_core
+    claim_status: alpha_core_claim
+    open_local_alternative:
+      available: true
+      capability_ref: local_ai_byok
+      summary: BYOK and local AI routes remain distinct from managed gateway entitlement.
+    self_host_alternative:
+      available: true
+      capability_ref: local_ai_byok
+      summary: Customer-operated model endpoints can be attached without using the managed gateway.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: offline_bundle
+      summary: Local model packs may be mirrored or bundled where a profile claims that path.
+    required_identity_boundary: no_identity_required
+    required_network_boundary: optional_public_or_mirror
+    entitlement_state_refs: []
+    quota_meter_refs: []
+    usage_export_baseline_refs: []
+    offboarding_baseline_refs: []
+    local_core_guardrail: Managed AI quota loss must not disable local or BYOK model routes.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#local-core
+
+  - capability_id: local_support_bundle
+    title: Local and offline support bundles
+    boundary_class: open_local_core
+    claim_status: alpha_core_claim
+    open_local_alternative:
+      available: true
+      capability_ref: local_support_bundle
+      summary: Redaction-aware local support bundles can be generated and inspected without upload.
+    self_host_alternative:
+      available: true
+      capability_ref: local_support_bundle
+      summary: Self-hosted support workflows consume the same local bundle format.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: file_import
+      summary: Air-gapped support uses local file export and manual transfer.
+    required_identity_boundary: no_identity_required
+    required_network_boundary: none
+    entitlement_state_refs: []
+    quota_meter_refs: []
+    usage_export_baseline_refs: []
+    offboarding_baseline_refs: []
+    local_core_guardrail: Support export availability must not depend on a paid support channel.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#local-core
+
+  - capability_id: identity_policy_service
+    title: Identity and policy distribution
+    boundary_class: self_hostable_service
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: configuration_profiles
+      summary: Local editing, search, Git, tasks, and local AI continue under local configuration or last-known policy.
+    self_host_alternative:
+      available: true
+      capability_ref: identity_policy_service
+      summary: OIDC-compatible identity and signed policy bundles can be customer operated or file imported.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: file_import
+      summary: Offline entitlement and policy snapshots are signed files in mirror-only profiles.
+    required_identity_boundary: org_identity_required_for_managed_action
+    required_network_boundary: customer_operated_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.signed_out
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs: []
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.entitlement_snapshot
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Sign-out, revocation, or org switch narrows managed actions only; local core remains usable.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#self-host-friendly
+        - docs/governance/usage_export_and_offboarding_contract.md
+
+  - capability_id: workspace_control_plane
+    title: Remote workspace orchestration
+    boundary_class: self_hostable_service
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: editor_core
+      summary: Local workspaces and direct SSH or container attach remain separate from managed orchestration.
+    self_host_alternative:
+      available: true
+      capability_ref: workspace_control_plane
+      summary: Templates and lifecycle metadata are importable into customer-operated orchestration.
+    mirrored_or_airgap_alternative:
+      available: false
+      mirror_class: not_applicable
+      summary: Managed workspace orchestration is not claimed for fully offline operation.
+    required_identity_boundary: org_identity_required_for_managed_action
+    required_network_boundary: customer_operated_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.remote_workspace.workspace_hours
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.remote_workspace
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Workspace-hour quota state must not block local folders or direct configured remotes.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#self-host-friendly
+        - docs/managed/metering_and_usage_export_contract.md
+
+  - capability_id: model_gateway
+    title: AI provider routing and policy gateway
+    boundary_class: self_hostable_service
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: local_ai_byok
+      summary: Local and BYOK AI routes continue when the managed gateway is unavailable.
+    self_host_alternative:
+      available: true
+      capability_ref: model_gateway
+      summary: The model gateway protocol may be customer operated for policy, redaction, and quotas.
+    mirrored_or_airgap_alternative:
+      available: false
+      mirror_class: not_applicable
+      summary: A live model gateway is not implied for fully offline profiles.
+    required_identity_boundary: org_identity_required_for_managed_action
+    required_network_boundary: customer_operated_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.ai_gateway.tokens
+      - meter.ai_gateway.tool_invocations
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.ai_gateway
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Managed AI denial may block that request only; edit, search, Git, tasks, and local/BYOK AI remain distinct.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#self-host-friendly
+        - docs/managed/metering_and_usage_export_contract.md
+
+  - capability_id: extension_registry_mirror
+    title: Extension registry and mirror
+    boundary_class: mirrored_service
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: local_support_bundle
+      summary: Already installed extensions and local support export do not require registry reachability.
+    self_host_alternative:
+      available: true
+      capability_ref: extension_registry_mirror
+      summary: Registry content can be mirrored through customer-operated or offline artifact channels.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: signed_mirror
+      summary: Air-gapped installs use signed registry mirrors or offline bundles.
+    required_identity_boundary: optional_account
+    required_network_boundary: mirror_or_file_import
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.registry.downloads
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.registry_mirror
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Registry or marketplace unavailability pauses discovery only; local extension execution remains separate.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#self-host-friendly
+        - artifacts/governance/usage_export_posture_matrix.yaml
+
+  - capability_id: telemetry_support_pipeline
+    title: Telemetry and support pipeline
+    boundary_class: self_hostable_service
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: local_support_bundle
+      summary: Local/offline support bundles remain canonical when upload or managed support ingest is unavailable.
+    self_host_alternative:
+      available: true
+      capability_ref: telemetry_support_pipeline
+      summary: Support ingest and metrics sinks can be customer operated where enabled.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: file_import
+      summary: Air-gapped support handoff uses local export rather than upload.
+    required_identity_boundary: optional_account
+    required_network_boundary: customer_operated_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.support_ingest.bundle_count
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.support_ingest
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Declining or losing support ingest must not disable local diagnostics or support bundle generation.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#self-host-friendly
+        - docs/governance/usage_export_and_offboarding_contract.md
+
+  - capability_id: collaboration_relay
+    title: Collaboration relay and presence
+    boundary_class: self_hostable_service
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: editor_core
+      summary: Local edits continue when relay presence is absent.
+    self_host_alternative:
+      available: true
+      capability_ref: collaboration_relay
+      summary: Relay protocols can be customer operated when collaboration is enabled.
+    mirrored_or_airgap_alternative:
+      available: false
+      mirror_class: not_applicable
+      summary: Live collaboration relay is not claimed in fully offline profiles.
+    required_identity_boundary: org_identity_required_for_managed_action
+    required_network_boundary: customer_operated_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.collaboration.participant_minutes
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.collaboration_relay
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Relay loss affects presence or shared control only; local buffers and Git remain user-controlled.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#self-host-friendly
+
+  - capability_id: managed_sync_profile
+    title: Managed settings sync
+    boundary_class: managed_optional
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: configuration_profiles
+      summary: Local profile files remain the source of truth when sync is disabled or offboarded.
+    self_host_alternative:
+      available: true
+      capability_ref: configuration_profiles
+      summary: Customer-managed storage or signed import can carry equivalent profile state without vendor sync.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: file_import
+      summary: Portable profile export/import is the offline path.
+    required_identity_boundary: org_identity_required_for_managed_action
+    required_network_boundary: vendor_managed_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.profile_sync.bytes
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.profile_sync
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Sync entitlement must not mutate or remove local profile files during sign-out or offboarding.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#managed-convenience
+
+  - capability_id: hosted_marketplace_ui
+    title: Hosted marketplace UI
+    boundary_class: managed_optional
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: extension_registry_mirror
+      summary: CLI, local bundle, and private mirror install paths remain available without the hosted UI.
+    self_host_alternative:
+      available: true
+      capability_ref: extension_registry_mirror
+      summary: Customer-operated registry or mirror replaces hosted browsing where required.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: signed_mirror
+      summary: Offline registry bundles preserve install/review posture without hosted marketplace pages.
+    required_identity_boundary: optional_account
+    required_network_boundary: vendor_managed_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.registry.downloads
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.registry_mirror
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Hosted marketplace unavailability must not hide mirror, local bundle, or already-installed extension paths.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#managed-convenience
+
+  - capability_id: managed_ai_quota_billing
+    title: Managed AI quota and audit UI
+    boundary_class: managed_premium
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: local_ai_byok
+      summary: Local and BYOK AI routes remain outside managed AI quota enforcement.
+    self_host_alternative:
+      available: true
+      capability_ref: model_gateway
+      summary: Customer-operated gateway can provide quota, redaction, and audit without hosted billing UI.
+    mirrored_or_airgap_alternative:
+      available: false
+      mirror_class: not_applicable
+      summary: Hosted AI quota UI is not an offline claim.
+    required_identity_boundary: org_identity_required_for_managed_action
+    required_network_boundary: vendor_managed_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.ai_gateway.tokens
+      - meter.ai_gateway.tool_invocations
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.ai_gateway
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Managed AI quota denial must name the managed gateway boundary and preserve non-AI local work.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#managed-convenience
+        - docs/managed/metering_and_usage_export_contract.md
+
+  - capability_id: fleet_admin_ui_scim
+    title: Fleet admin UI and SCIM dashboards
+    boundary_class: managed_admin_only
+    claim_status: alpha_managed_truth_seed
+    open_local_alternative:
+      available: true
+      capability_ref: configuration_profiles
+      summary: File-based policy and local configuration explain effective posture without a hosted admin dashboard.
+    self_host_alternative:
+      available: true
+      capability_ref: identity_policy_service
+      summary: Standards-based identity and signed policy bundles remain available through self-hosted or file-based distribution.
+    mirrored_or_airgap_alternative:
+      available: true
+      mirror_class: file_import
+      summary: Air-gapped administration uses signed policy and entitlement files, not the hosted dashboard.
+    required_identity_boundary: admin_identity_required_for_managed_action
+    required_network_boundary: vendor_managed_control_plane
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs: []
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.entitlement_snapshot
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_guardrail: Removing admin access must not corrupt local clones, unsaved buffers, or already exported files.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - docs/product/boundary_manifest_strawman.md#managed-convenience
+
+  - capability_id: managed_cloud_daily_driver
+    title: Managed cloud daily-driver parity
+    boundary_class: explicitly_out_of_scope
+    claim_status: explicitly_out_of_scope
+    open_local_alternative:
+      available: true
+      capability_ref: editor_core
+      summary: External alpha remains local-first and helper-backed; managed cloud parity is not claimed.
+    self_host_alternative:
+      available: false
+      capability_ref: null
+      summary: No managed cloud parity substitute is claimed in this alpha contract.
+    mirrored_or_airgap_alternative:
+      available: false
+      mirror_class: not_applicable
+      summary: Managed cloud daily-driver parity is not an air-gap claim.
+    required_identity_boundary: org_identity_required_for_managed_action
+    required_network_boundary: denied_for_alpha
+    entitlement_state_refs: []
+    quota_meter_refs: []
+    usage_export_baseline_refs: []
+    offboarding_baseline_refs: []
+    local_core_guardrail: This reserved row prevents hosted workspace parity from being implied by managed-truth artifacts.
+    lifecycle_metadata:
+      introduced_at: "2026-05-12"
+      review_state: seeded
+      owner_dri: "@ahmeddyounis"
+      source_refs:
+        - artifacts/milestones/m2/alpha_wedge_matrix.yaml

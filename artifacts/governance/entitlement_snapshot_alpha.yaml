@@ -1,0 +1,334 @@
+# Alpha entitlement snapshot states for managed-boundary and offboarding truth.
+#
+# This artifact is the source that docs/help, admin, support-export, and CLI
+# projections consume before labeling a managed action active, grace-limited,
+# restricted, signed out, or offboarded.
+
+schema_version: 1
+snapshot_set_id: entitlement_snapshot.alpha_managed_truth
+as_of: "2026-05-12"
+owner_dri: "@ahmeddyounis"
+
+boundary_manifest_ref: artifacts/governance/boundary_manifest_alpha.yaml
+schema_registry_ref: artifacts/governance/schema_registry_alpha.yaml
+record_class_registry_ref: artifacts/governance/record_class_registry_alpha.yaml
+usage_export_baseline_ref: artifacts/governance/usage_export_baseline_alpha.yaml
+usage_export_contract_ref: docs/governance/usage_export_and_offboarding_contract.md
+
+lifecycle_state_vocabulary:
+  - active
+  - signed_out
+  - grace
+  - restricted_managed_only
+  - offboarded
+
+managed_action_posture_vocabulary:
+  - available_per_policy_and_quota
+  - no_org_scoped_managed_action
+  - soft_limited_export_window
+  - blocked_except_recovery_and_export
+  - access_ended
+
+local_core_capability_ids:
+  - editor_core
+  - command_plane
+  - local_git
+  - configuration_profiles
+  - local_ai_byok
+  - local_support_bundle
+
+snapshot_rows:
+  - state_id: entitlement_state.active
+    lifecycle_state: active
+    snapshot_ref: entitlement_snapshot.alpha.active
+    managed_action_posture: available_per_policy_and_quota
+    local_core_available: true
+    local_core_posture: unchanged
+    new_managed_actions_blocked: false
+    usage_export_available: true
+    offboarding_packet_available: true
+    grace_window_days: null
+    recovery_actions:
+      - refresh_policy_or_entitlement
+      - export_usage_packet
+      - open_boundary_details
+    required_surface_copy:
+      docs_help: Managed features are available according to the signed org snapshot, policy, and quota state.
+      admin: Signed entitlement, policy epoch, quota meters, and export availability are visible.
+      support_export: Active entitlement snapshots include opaque snapshot refs and meter ids only.
+    local_core_capability_ids:
+      - editor_core
+      - command_plane
+      - local_git
+      - configuration_profiles
+      - local_ai_byok
+      - local_support_bundle
+
+  - state_id: entitlement_state.signed_out
+    lifecycle_state: signed_out
+    snapshot_ref: entitlement_snapshot.alpha.signed_out
+    managed_action_posture: no_org_scoped_managed_action
+    local_core_available: true
+    local_core_posture: unchanged
+    new_managed_actions_blocked: true
+    usage_export_available: true
+    offboarding_packet_available: false
+    grace_window_days: null
+    recovery_actions:
+      - continue_local
+      - sign_in_or_import_snapshot
+      - export_local_support_bundle
+    required_surface_copy:
+      docs_help: Signed-out users can continue local work; org-scoped managed actions require sign-in or an imported snapshot.
+      admin: No org-scoped managed mutation is available until identity is restored or a signed snapshot is imported.
+      support_export: Support export records signed-out state without claiming zero usage or deleting prior exports.
+    local_core_capability_ids:
+      - editor_core
+      - command_plane
+      - local_git
+      - configuration_profiles
+      - local_ai_byok
+      - local_support_bundle
+
+  - state_id: entitlement_state.grace
+    lifecycle_state: grace
+    snapshot_ref: entitlement_snapshot.alpha.grace
+    managed_action_posture: soft_limited_export_window
+    local_core_available: true
+    local_core_posture: unchanged
+    new_managed_actions_blocked: false
+    usage_export_available: true
+    offboarding_packet_available: true
+    grace_window_days: 14
+    recovery_actions:
+      - renew_entitlement
+      - recover_seat_or_quota
+      - export_before_restriction
+      - open_offboarding_packet
+    required_surface_copy:
+      docs_help: Grace state keeps local work unchanged and opens an export or renewal window before managed restriction.
+      admin: Admin views show grace deadline, affected managed capabilities, and last contractual export refs.
+      support_export: Support packets preserve the grace deadline and export window without embedding raw usage rows.
+    local_core_capability_ids:
+      - editor_core
+      - command_plane
+      - local_git
+      - configuration_profiles
+      - local_ai_byok
+      - local_support_bundle
+
+  - state_id: entitlement_state.restricted_managed_only
+    lifecycle_state: restricted_managed_only
+    snapshot_ref: entitlement_snapshot.alpha.restricted_managed_only
+    managed_action_posture: blocked_except_recovery_and_export
+    local_core_available: true
+    local_core_posture: unchanged
+    new_managed_actions_blocked: true
+    usage_export_available: true
+    offboarding_packet_available: true
+    grace_window_days: 0
+    recovery_actions:
+      - export_usage_packet
+      - open_self_host_or_local_alternative
+      - request_admin_recovery
+    required_surface_copy:
+      docs_help: Restricted managed-only state blocks new managed actions but keeps local editing, search, Git, tasks, and support export available.
+      admin: Admin views distinguish blocked managed writes from local-core continuity and export recovery.
+      support_export: Support export carries the blocked state, capability ids, meter ids, and offboarding refs.
+    local_core_capability_ids:
+      - editor_core
+      - command_plane
+      - local_git
+      - configuration_profiles
+      - local_ai_byok
+      - local_support_bundle
+
+  - state_id: entitlement_state.offboarded
+    lifecycle_state: offboarded
+    snapshot_ref: entitlement_snapshot.alpha.offboarded
+    managed_action_posture: access_ended
+    local_core_available: true
+    local_core_posture: unchanged
+    new_managed_actions_blocked: true
+    usage_export_available: true
+    offboarding_packet_available: true
+    grace_window_days: 0
+    recovery_actions:
+      - download_exit_package
+      - review_deletion_timeline
+      - continue_local
+      - import_self_hostable_policy
+    required_surface_copy:
+      docs_help: Offboarding ends managed access while preserving local artifacts, prior exports, and documented self-host/open alternatives.
+      admin: Admin views show access-end time, linked export refs, held-data notes, and deletion timeline refs.
+      support_export: Exit packets reference usage-export ids and retained or held refs; they do not embed sibling packet bodies.
+    local_core_capability_ids:
+      - editor_core
+      - command_plane
+      - local_git
+      - configuration_profiles
+      - local_ai_byok
+      - local_support_bundle
+
+capability_entitlements:
+  - capability_id: identity_policy_service
+    boundary_class: self_hostable_service
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+    blocked_state_refs:
+      - entitlement_state.signed_out
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs: []
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.entitlement_snapshot
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: none
+
+  - capability_id: workspace_control_plane
+    boundary_class: self_hostable_service
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+    blocked_state_refs:
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.remote_workspace.workspace_hours
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.remote_workspace
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: direct_local_and_configured_remote_paths_remain_available
+
+  - capability_id: model_gateway
+    boundary_class: self_hostable_service
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+    blocked_state_refs:
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.ai_gateway.tokens
+      - meter.ai_gateway.tool_invocations
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.ai_gateway
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: local_and_byok_ai_remain_available_where_configured
+
+  - capability_id: extension_registry_mirror
+    boundary_class: mirrored_service
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+    blocked_state_refs:
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.registry.downloads
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.registry_mirror
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: installed_extensions_and_offline_bundles_remain_available
+
+  - capability_id: telemetry_support_pipeline
+    boundary_class: self_hostable_service
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+    blocked_state_refs:
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.support_ingest.bundle_count
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.support_ingest
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: local_support_bundle_generation_remains_available
+
+  - capability_id: collaboration_relay
+    boundary_class: self_hostable_service
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+    blocked_state_refs:
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.collaboration.participant_minutes
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.collaboration_relay
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: local_editing_continues_without_presence_or_shared_control
+
+  - capability_id: managed_sync_profile
+    boundary_class: managed_optional
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+    blocked_state_refs:
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.profile_sync.bytes
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.profile_sync
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: local_profile_files_remain_authoritative
+
+  - capability_id: hosted_marketplace_ui
+    boundary_class: managed_optional
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+    blocked_state_refs:
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.registry.downloads
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.registry_mirror
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: private_mirror_and_local_bundle_paths_remain_available
+
+  - capability_id: managed_ai_quota_billing
+    boundary_class: managed_premium
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+    blocked_state_refs:
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs:
+      - meter.ai_gateway.tokens
+      - meter.ai_gateway.tool_invocations
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.ai_gateway
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: local_and_byok_ai_remain_available_where_configured
+
+  - capability_id: fleet_admin_ui_scim
+    boundary_class: managed_admin_only
+    allowed_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+    blocked_state_refs:
+      - entitlement_state.signed_out
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    quota_meter_refs: []
+    usage_export_baseline_refs:
+      - usage_export_packet.alpha.entitlement_snapshot
+    offboarding_baseline_refs:
+      - offboarding_packet.alpha.managed_access_end
+    local_core_effect: local_workspaces_and_exports_remain_available

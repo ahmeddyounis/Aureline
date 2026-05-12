@@ -1,0 +1,196 @@
+# Alpha organization-switch posture for managed-boundary truth.
+#
+# Org switching consumes the same entitlement states as the boundary manifest.
+# It invalidates managed credentials promptly without treating local work as
+# org-owned or managed-gated.
+
+schema_version: 1
+posture_set_id: org_switch_posture.alpha_managed_truth
+as_of: "2026-05-12"
+owner_dri: "@ahmeddyounis"
+
+boundary_manifest_ref: artifacts/governance/boundary_manifest_alpha.yaml
+entitlement_snapshot_ref: artifacts/governance/entitlement_snapshot_alpha.yaml
+usage_export_baseline_ref: artifacts/governance/usage_export_baseline_alpha.yaml
+policy_bundle_contract_ref: docs/identity/offline_entitlement_and_policy_seed.md
+admin_audit_export_schema_ref: schemas/admin/admin_audit_export.schema.json
+
+org_switch_state_vocabulary:
+  - no_org_signed_out
+  - active_org
+  - switching_org_reauth
+  - grace_after_switch
+  - restricted_after_revocation
+  - offboarded_org
+
+local_core_capability_ids:
+  - editor_core
+  - command_plane
+  - local_git
+  - configuration_profiles
+  - local_ai_byok
+  - local_support_bundle
+
+posture_rows:
+  - posture_id: org_switch.no_org_signed_out
+    org_switch_state: no_org_signed_out
+    entitlement_state_ref: entitlement_state.signed_out
+    org_context_ref: null
+    local_core_available: true
+    managed_credential_invalidation: no_managed_credentials_present
+    policy_epoch_behavior: local_defaults_or_imported_policy_only
+    managed_action_posture: no_org_scoped_managed_action
+    export_posture:
+      usage_export_available: true
+      offboarding_packet_available: false
+      support_export_available: true
+    blocked_managed_capability_ids:
+      - identity_policy_service
+      - workspace_control_plane
+      - model_gateway
+      - collaboration_relay
+      - managed_sync_profile
+      - hosted_marketplace_ui
+      - managed_ai_quota_billing
+      - fleet_admin_ui_scim
+    allowed_recovery_actions:
+      - continue_local
+      - sign_in_or_import_snapshot
+      - import_policy_file
+    surface_projection:
+      docs_help: No organization is active; local work continues and managed actions require sign-in or an imported snapshot.
+      admin: There is no org context to administer from this client.
+      support_export: Signed-out posture is exported as local-only plus any prior opaque export refs.
+
+  - posture_id: org_switch.active_org
+    org_switch_state: active_org
+    entitlement_state_ref: entitlement_state.active
+    org_context_ref: org_context.alpha.active
+    local_core_available: true
+    managed_credential_invalidation: not_applicable_current_context
+    policy_epoch_behavior: current_signed_epoch_applies
+    managed_action_posture: available_per_policy_and_quota
+    export_posture:
+      usage_export_available: true
+      offboarding_packet_available: true
+      support_export_available: true
+    blocked_managed_capability_ids: []
+    allowed_recovery_actions:
+      - refresh_policy_or_entitlement
+      - export_usage_packet
+      - open_boundary_details
+    surface_projection:
+      docs_help: Managed actions use the active org context, signed policy epoch, and quota state.
+      admin: Active org context exposes entitlement epoch, policy source, and export refs.
+      support_export: Active org context exports opaque policy, entitlement, and meter refs.
+
+  - posture_id: org_switch.switching_org_reauth
+    org_switch_state: switching_org_reauth
+    entitlement_state_ref: entitlement_state.signed_out
+    org_context_ref: org_context.alpha.switching
+    local_core_available: true
+    managed_credential_invalidation: invalidate_previous_org_delegated_credentials
+    policy_epoch_behavior: previous_managed_epoch_not_reused_for_new_org
+    managed_action_posture: no_org_scoped_managed_action
+    export_posture:
+      usage_export_available: true
+      offboarding_packet_available: true
+      support_export_available: true
+    blocked_managed_capability_ids:
+      - workspace_control_plane
+      - model_gateway
+      - collaboration_relay
+      - managed_sync_profile
+      - hosted_marketplace_ui
+      - managed_ai_quota_billing
+      - fleet_admin_ui_scim
+    allowed_recovery_actions:
+      - complete_system_browser_auth
+      - cancel_and_continue_local
+      - export_previous_org_usage_packet
+    surface_projection:
+      docs_help: Switching orgs pauses managed actions until fresh auth and policy resolve; local work remains available.
+      admin: Previous delegated credentials are invalidated before the new org grants any managed authority.
+      support_export: The switch posture records previous and pending org refs by opaque ids only.
+
+  - posture_id: org_switch.grace_after_switch
+    org_switch_state: grace_after_switch
+    entitlement_state_ref: entitlement_state.grace
+    org_context_ref: org_context.alpha.grace
+    local_core_available: true
+    managed_credential_invalidation: previous_org_credentials_invalidated
+    policy_epoch_behavior: grace_snapshot_applies_until_deadline
+    managed_action_posture: soft_limited_export_window
+    export_posture:
+      usage_export_available: true
+      offboarding_packet_available: true
+      support_export_available: true
+    blocked_managed_capability_ids: []
+    allowed_recovery_actions:
+      - renew_entitlement
+      - recover_seat_or_quota
+      - export_before_restriction
+    surface_projection:
+      docs_help: Grace after org switch keeps local work unchanged and surfaces the renewal or export deadline.
+      admin: Admin views show grace deadline, previous entitlement ref, and affected managed capabilities.
+      support_export: Grace state exports deadline and usage-export refs without raw usage rows.
+
+  - posture_id: org_switch.restricted_after_revocation
+    org_switch_state: restricted_after_revocation
+    entitlement_state_ref: entitlement_state.restricted_managed_only
+    org_context_ref: org_context.alpha.restricted
+    local_core_available: true
+    managed_credential_invalidation: revoke_current_org_delegated_credentials
+    policy_epoch_behavior: last_known_policy_may_explain_denial_without_granting_new_privilege
+    managed_action_posture: blocked_except_recovery_and_export
+    export_posture:
+      usage_export_available: true
+      offboarding_packet_available: true
+      support_export_available: true
+    blocked_managed_capability_ids:
+      - workspace_control_plane
+      - model_gateway
+      - collaboration_relay
+      - managed_sync_profile
+      - hosted_marketplace_ui
+      - managed_ai_quota_billing
+      - fleet_admin_ui_scim
+    allowed_recovery_actions:
+      - export_usage_packet
+      - request_admin_recovery
+      - open_self_host_or_local_alternative
+    surface_projection:
+      docs_help: Revocation blocks new managed actions, while export, recovery, and local work stay available.
+      admin: Admin views separate blocked managed writes from local-core continuity.
+      support_export: Restricted posture exports denial class, capability ids, and recovery refs.
+
+  - posture_id: org_switch.offboarded_org
+    org_switch_state: offboarded_org
+    entitlement_state_ref: entitlement_state.offboarded
+    org_context_ref: org_context.alpha.offboarded
+    local_core_available: true
+    managed_credential_invalidation: revoke_all_org_delegated_credentials
+    policy_epoch_behavior: offboarded_snapshot_explains_export_and_delete_timeline_only
+    managed_action_posture: access_ended
+    export_posture:
+      usage_export_available: true
+      offboarding_packet_available: true
+      support_export_available: true
+    blocked_managed_capability_ids:
+      - identity_policy_service
+      - workspace_control_plane
+      - model_gateway
+      - collaboration_relay
+      - managed_sync_profile
+      - hosted_marketplace_ui
+      - managed_ai_quota_billing
+      - fleet_admin_ui_scim
+    allowed_recovery_actions:
+      - download_exit_package
+      - review_deletion_timeline
+      - continue_local
+      - import_self_hostable_policy
+    surface_projection:
+      docs_help: Offboarded org access has ended; local files and prior exports remain available.
+      admin: Admin views show access end, linked exit packet, held-data notes, and deletion timeline refs.
+      support_export: Exit summary references usage export and held-data ids without embedding sibling payloads.

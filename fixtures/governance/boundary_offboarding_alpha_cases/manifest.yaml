@@ -1,0 +1,98 @@
+schema_version: 1
+fixture_manifest_id: boundary_offboarding_alpha_cases
+contract_ref: docs/governance/boundary_offboarding_packet_skeleton.md
+boundary_manifest_ref: artifacts/governance/boundary_manifest_alpha.yaml
+entitlement_snapshot_ref: artifacts/governance/entitlement_snapshot_alpha.yaml
+org_switch_posture_ref: artifacts/governance/org_switch_posture_alpha.yaml
+usage_export_baseline_ref: artifacts/governance/usage_export_baseline_alpha.yaml
+validator_ref: ci/check_boundary_offboarding_alpha.py
+
+required_acceptance_states:
+  - boundary_manifest_claimed_rows
+  - local_core_no_managed_prerequisite
+  - entitlement_signed_out
+  - entitlement_grace
+  - entitlement_restricted_managed_only
+  - entitlement_offboarded
+  - org_switch_reauth_and_revocation
+  - usage_export_meter_reconciliation
+  - offboarding_references_usage_export
+  - consumer_projection
+
+cases:
+  - case_id: boundary_manifest_claimed_rows
+    exercises_state: boundary_manifest_claimed_rows
+    capability_refs:
+      - identity_policy_service
+      - workspace_control_plane
+      - model_gateway
+      - extension_registry_mirror
+      - telemetry_support_pipeline
+      - managed_sync_profile
+      - hosted_marketplace_ui
+      - managed_ai_quota_billing
+      - fleet_admin_ui_scim
+    expected_validator_result: pass_only_when_each_claimed_managed_row_has_local_and_self_host_or_mirror_alternative
+
+  - case_id: local_core_no_managed_prerequisite
+    exercises_state: local_core_no_managed_prerequisite
+    capability_refs:
+      - editor_core
+      - command_plane
+      - local_git
+      - configuration_profiles
+      - local_ai_byok
+      - local_support_bundle
+    expected_validator_result: pass_only_when_local_core_rows_have_no_identity_network_quota_or_export_gate
+
+  - case_id: signed_out_preserves_local_core
+    exercises_state: entitlement_signed_out
+    entitlement_state_ref: entitlement_state.signed_out
+    usage_export_packet_ref: usage_export_packet.alpha.signed_out_local_absent
+    expected_validator_result: pass_only_when_signed_out_blocks_org_scoped_managed_actions_and_preserves_local_core
+
+  - case_id: grace_window_exports_before_restriction
+    exercises_state: entitlement_grace
+    entitlement_state_ref: entitlement_state.grace
+    offboarding_packet_ref: offboarding_packet.alpha.managed_access_end
+    expected_validator_result: pass_only_when_grace_state_has_export_window_and_local_core_continuity
+
+  - case_id: restricted_managed_only_recovery
+    exercises_state: entitlement_restricted_managed_only
+    entitlement_state_ref: entitlement_state.restricted_managed_only
+    usage_export_packet_ref: usage_export_packet.alpha.restricted_recovery
+    expected_validator_result: pass_only_when_restricted_state_blocks_new_managed_actions_but_allows_recovery_exports
+
+  - case_id: offboarded_exit_packet
+    exercises_state: entitlement_offboarded
+    entitlement_state_ref: entitlement_state.offboarded
+    offboarding_packet_ref: offboarding_packet.alpha.managed_access_end
+    expected_validator_result: pass_only_when_offboarded_state_references_exit_package_and_preserves_local_artifacts
+
+  - case_id: org_switch_reauth_and_revocation
+    exercises_state: org_switch_reauth_and_revocation
+    posture_refs:
+      - org_switch.switching_org_reauth
+      - org_switch.restricted_after_revocation
+      - org_switch.offboarded_org
+    expected_validator_result: pass_only_when_org_switch_invalidates_managed_credentials_without_blocking_local_core
+
+  - case_id: usage_export_meter_reconciliation
+    exercises_state: usage_export_meter_reconciliation
+    usage_export_packet_refs:
+      - usage_export_packet.alpha.ai_gateway
+      - usage_export_packet.alpha.remote_workspace
+      - usage_export_packet.alpha.registry_mirror
+      - usage_export_packet.alpha.support_ingest
+      - usage_export_packet.alpha.profile_sync
+    expected_validator_result: pass_only_when_export_rows_match_boundary_meter_definitions
+
+  - case_id: offboarding_references_usage_export
+    exercises_state: offboarding_references_usage_export
+    offboarding_packet_ref: offboarding_packet.alpha.managed_access_end
+    expected_validator_result: pass_only_when_exit_packet_references_usage_exports_by_id_without_embedding_sibling_payloads
+
+  - case_id: consumer_projection
+    exercises_state: consumer_projection
+    command: python3 ci/check_boundary_offboarding_alpha.py --repo-root . --render-consumer-projection
+    expected_validator_result: pass_only_when_projection_contains_docs_help_admin_cli_and_support_export_fields

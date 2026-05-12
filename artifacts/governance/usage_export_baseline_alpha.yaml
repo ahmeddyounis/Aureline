@@ -1,0 +1,327 @@
+# Alpha usage-export and offboarding baseline.
+#
+# This file reconciles usage-export packet examples, offboarding packet examples,
+# entitlement states, and boundary-manifest meter definitions. It is a baseline
+# for projection and validation only; it is not a billing engine.
+
+schema_version: 1
+baseline_id: usage_export_baseline.alpha_managed_truth
+as_of: "2026-05-12"
+owner_dri: "@ahmeddyounis"
+
+boundary_manifest_ref: artifacts/governance/boundary_manifest_alpha.yaml
+entitlement_snapshot_ref: artifacts/governance/entitlement_snapshot_alpha.yaml
+org_switch_posture_ref: artifacts/governance/org_switch_posture_alpha.yaml
+usage_export_posture_matrix_ref: artifacts/governance/usage_export_posture_matrix.yaml
+usage_export_packet_schema_ref: schemas/governance/usage_export_record.schema.json
+usage_export_row_schema_ref: schemas/managed/usage_export_row.schema.json
+offboarding_exit_packet_schema_ref: schemas/governance/offboarding_exit_packet.schema.json
+record_class_registry_ref: artifacts/governance/record_class_registry_alpha.yaml
+
+usage_export_packets:
+  - packet_id: usage_export_packet.alpha.signed_out_local_absent
+    record_kind: usage_export_packet_record
+    availability_class: absent_no_applicable_metering
+    entitlement_state_refs:
+      - entitlement_state.signed_out
+    capability_refs:
+      - editor_core
+      - command_plane
+      - local_git
+      - configuration_profiles
+      - local_ai_byok
+      - local_support_bundle
+    offboarding_packet_refs: []
+    export_format_classes:
+      - json_rows
+    support_ticket_required: false
+    packet_summary: Signed-out local-only posture exports an explicit absence row rather than implying zero managed usage.
+    quota_rows: []
+
+  - packet_id: usage_export_packet.alpha.entitlement_snapshot
+    record_kind: usage_export_packet_record
+    availability_class: present
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    capability_refs:
+      - identity_policy_service
+      - fleet_admin_ui_scim
+    offboarding_packet_refs:
+      - offboarding_packet.alpha.managed_access_end
+    export_format_classes:
+      - json_rows
+      - signed_json_rows
+    support_ticket_required: false
+    packet_summary: Entitlement snapshots are exported as signed or checksum-verifiable metadata and referenced from exit packets.
+    quota_rows: []
+
+  - packet_id: usage_export_packet.alpha.ai_gateway
+    record_kind: usage_export_packet_record
+    availability_class: present
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    capability_refs:
+      - model_gateway
+      - managed_ai_quota_billing
+    offboarding_packet_refs:
+      - offboarding_packet.alpha.managed_access_end
+    export_format_classes:
+      - json_rows
+      - csv_rows
+    support_ticket_required: false
+    packet_summary: Managed AI gateway export rows carry meter ids, quota family, unit, authority, and caveats without prompts or code.
+    quota_rows:
+      - row_id: usage_export_row.alpha.ai_gateway.tokens
+        meter_id: meter.ai_gateway.tokens
+        capability_id: model_gateway
+        service_family_class: ai_gateway
+        quota_family_class: ai_tokens
+        quota_unit_class: tokens
+        authority_class: authoritative
+        time_basis_class: usage_event_time
+        export_visibility: customer_visible
+        offboarding_inclusion: referenced_by_exit_packet_when_offboarding
+      - row_id: usage_export_row.alpha.ai_gateway.tool_invocations
+        meter_id: meter.ai_gateway.tool_invocations
+        capability_id: model_gateway
+        service_family_class: ai_gateway
+        quota_family_class: ai_tool_invocations
+        quota_unit_class: tool_invocations
+        authority_class: cached
+        time_basis_class: export_generation_time
+        export_visibility: customer_visible
+        offboarding_inclusion: referenced_by_exit_packet_when_offboarding
+
+  - packet_id: usage_export_packet.alpha.remote_workspace
+    record_kind: usage_export_packet_record
+    availability_class: present
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    capability_refs:
+      - workspace_control_plane
+    offboarding_packet_refs:
+      - offboarding_packet.alpha.managed_access_end
+    export_format_classes:
+      - json_rows
+      - csv_rows
+    support_ticket_required: false
+    packet_summary: Remote workspace usage exports aggregate managed workspace-hours and do not cover local folders or direct configured remotes.
+    quota_rows:
+      - row_id: usage_export_row.alpha.remote_workspace.hours
+        meter_id: meter.remote_workspace.workspace_hours
+        capability_id: workspace_control_plane
+        service_family_class: remote_workspace_control_plane
+        quota_family_class: managed_workspace_hours
+        quota_unit_class: workspace_hours
+        authority_class: authoritative
+        time_basis_class: usage_event_time
+        export_visibility: customer_visible
+        offboarding_inclusion: referenced_by_exit_packet_when_offboarding
+
+  - packet_id: usage_export_packet.alpha.registry_mirror
+    record_kind: usage_export_packet_record
+    availability_class: present
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    capability_refs:
+      - extension_registry_mirror
+      - hosted_marketplace_ui
+    offboarding_packet_refs:
+      - offboarding_packet.alpha.managed_access_end
+    export_format_classes:
+      - json_rows
+      - csv_rows
+    support_ticket_required: false
+    packet_summary: Registry export rows identify package metadata counts and mirror posture without requiring hosted marketplace access.
+    quota_rows:
+      - row_id: usage_export_row.alpha.registry.downloads
+        meter_id: meter.registry.downloads
+        capability_id: extension_registry_mirror
+        service_family_class: registry_mirror_services
+        quota_family_class: registry_downloads
+        quota_unit_class: download_count
+        authority_class: cached
+        time_basis_class: export_generation_time
+        export_visibility: customer_visible
+        offboarding_inclusion: referenced_by_exit_packet_when_offboarding
+
+  - packet_id: usage_export_packet.alpha.support_ingest
+    record_kind: usage_export_packet_record
+    availability_class: present
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    capability_refs:
+      - telemetry_support_pipeline
+    offboarding_packet_refs:
+      - offboarding_packet.alpha.managed_access_end
+    export_format_classes:
+      - json_rows
+      - csv_rows
+    support_ticket_required: false
+    packet_summary: Support-ingest usage exports count explicitly submitted bundles; local bundles remain outside managed ingest.
+    quota_rows:
+      - row_id: usage_export_row.alpha.support_ingest.bundle_count
+        meter_id: meter.support_ingest.bundle_count
+        capability_id: telemetry_support_pipeline
+        service_family_class: support_ingest
+        quota_family_class: support_ingest_bytes
+        quota_unit_class: support_bundle_count
+        authority_class: authoritative
+        time_basis_class: service_ingest_time
+        export_visibility: customer_visible
+        offboarding_inclusion: referenced_by_exit_packet_when_offboarding
+
+  - packet_id: usage_export_packet.alpha.collaboration_relay
+    record_kind: usage_export_packet_record
+    availability_class: present
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    capability_refs:
+      - collaboration_relay
+    offboarding_packet_refs:
+      - offboarding_packet.alpha.managed_access_end
+    export_format_classes:
+      - json_rows
+      - csv_rows
+    support_ticket_required: false
+    packet_summary: Collaboration usage export rows measure relay participant minutes and do not transfer local document authority.
+    quota_rows:
+      - row_id: usage_export_row.alpha.collaboration.participant_minutes
+        meter_id: meter.collaboration.participant_minutes
+        capability_id: collaboration_relay
+        service_family_class: collaboration_relay_presence
+        quota_family_class: collaboration_participant_minutes
+        quota_unit_class: participant_minutes
+        authority_class: cached
+        time_basis_class: usage_event_time
+        export_visibility: customer_visible
+        offboarding_inclusion: referenced_by_exit_packet_when_offboarding
+
+  - packet_id: usage_export_packet.alpha.profile_sync
+    record_kind: usage_export_packet_record
+    availability_class: present
+    entitlement_state_refs:
+      - entitlement_state.active
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    capability_refs:
+      - managed_sync_profile
+    offboarding_packet_refs:
+      - offboarding_packet.alpha.managed_access_end
+    export_format_classes:
+      - json_rows
+      - csv_rows
+    support_ticket_required: false
+    packet_summary: Profile-sync export rows measure sync storage and preserve local profile files as the portable source.
+    quota_rows:
+      - row_id: usage_export_row.alpha.profile_sync.bytes
+        meter_id: meter.profile_sync.bytes
+        capability_id: managed_sync_profile
+        service_family_class: profile_settings_sync
+        quota_family_class: profile_sync_bytes
+        quota_unit_class: bytes_stored
+        authority_class: authoritative
+        time_basis_class: service_ingest_time
+        export_visibility: customer_visible
+        offboarding_inclusion: referenced_by_exit_packet_when_offboarding
+
+  - packet_id: usage_export_packet.alpha.restricted_recovery
+    record_kind: usage_export_packet_record
+    availability_class: policy_withheld
+    entitlement_state_refs:
+      - entitlement_state.restricted_managed_only
+    capability_refs:
+      - model_gateway
+      - workspace_control_plane
+      - managed_sync_profile
+    offboarding_packet_refs:
+      - offboarding_packet.alpha.managed_access_end
+    export_format_classes:
+      - json_rows
+    support_ticket_required: false
+    packet_summary: Restricted managed-only recovery may suppress amounts while still preserving capability, meter, and export refs.
+    quota_rows:
+      - row_id: usage_export_row.alpha.restricted.policy_suppressed_amount
+        meter_id: meter.ai_gateway.tokens
+        capability_id: model_gateway
+        service_family_class: ai_gateway
+        quota_family_class: ai_tokens
+        quota_unit_class: tokens
+        authority_class: policy_suppressed
+        time_basis_class: policy_effective_time
+        export_visibility: operator_only_restricted
+        offboarding_inclusion: referenced_by_exit_packet_when_offboarding
+
+offboarding_packets:
+  - packet_id: offboarding_packet.alpha.managed_access_end
+    record_kind: offboarding_exit_packet_record
+    entitlement_state_refs:
+      - entitlement_state.grace
+      - entitlement_state.restricted_managed_only
+      - entitlement_state.offboarded
+    capability_refs:
+      - identity_policy_service
+      - workspace_control_plane
+      - model_gateway
+      - extension_registry_mirror
+      - telemetry_support_pipeline
+      - collaboration_relay
+      - managed_sync_profile
+      - hosted_marketplace_ui
+      - managed_ai_quota_billing
+      - fleet_admin_ui_scim
+    usage_export_packet_refs:
+      - usage_export_packet.alpha.entitlement_snapshot
+      - usage_export_packet.alpha.ai_gateway
+      - usage_export_packet.alpha.remote_workspace
+      - usage_export_packet.alpha.registry_mirror
+      - usage_export_packet.alpha.support_ingest
+      - usage_export_packet.alpha.collaboration_relay
+      - usage_export_packet.alpha.profile_sync
+      - usage_export_packet.alpha.restricted_recovery
+    support_ticket_required: false
+    access_end_window:
+      window_opened_at: "2026-05-12T00:00:00Z"
+      window_closes_at: null
+      window_summary: Exit package remains downloadable during the declared access-end window without requiring a live paid seat.
+    local_artifacts_accessible: true
+    siblings_not_embedded: true
+    packet_summary: Offboarding packet references usage exports, portability records, held-data notes, and deletion timeline refs by opaque id.
+    held_data_notes:
+      - note_class: policy_retained
+        note_summary: Audit and policy-history records may remain under retention policy and are not reported as destroyed.
+      - note_class: outside_platform_scope
+        note_summary: Local-only files and externally managed provider records remain outside the managed access-end action.
+
+state_sample_coverage:
+  - state_ref: entitlement_state.signed_out
+    usage_export_packet_ref: usage_export_packet.alpha.signed_out_local_absent
+    offboarding_packet_ref: null
+  - state_ref: entitlement_state.grace
+    usage_export_packet_ref: usage_export_packet.alpha.ai_gateway
+    offboarding_packet_ref: offboarding_packet.alpha.managed_access_end
+  - state_ref: entitlement_state.restricted_managed_only
+    usage_export_packet_ref: usage_export_packet.alpha.restricted_recovery
+    offboarding_packet_ref: offboarding_packet.alpha.managed_access_end
+  - state_ref: entitlement_state.offboarded
+    usage_export_packet_ref: usage_export_packet.alpha.entitlement_snapshot
+    offboarding_packet_ref: offboarding_packet.alpha.managed_access_end
