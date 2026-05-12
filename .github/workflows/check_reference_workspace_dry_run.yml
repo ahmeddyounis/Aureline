@@ -1,0 +1,65 @@
+# External alpha reference-workspace dry-run gate.
+
+name: check_reference_workspace_dry_run
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_reference_workspace_dry_run.yml"
+      - "ci/check_reference_workspace_dry_run.py"
+      - "artifacts/milestones/m2/reference_workspace_dry_run.md"
+      - "artifacts/benchmarks/m2_publication_rehearsal.md"
+      - "artifacts/milestones/m2/known_limits_alpha.yaml"
+      - "artifacts/feedback/external_alpha_known_limits.md"
+      - "fixtures/reference_workspaces/m2/**"
+      - "artifacts/benchmarks/m2_fixture_register.yaml"
+      - "artifacts/bundles/**"
+      - "artifacts/certification/m2_archetype_seed_rows.yaml"
+      - "artifacts/milestones/m2/exit_gate_scoreboard.yaml"
+      - "artifacts/milestones/m2/artifact_index.yaml"
+      - "artifacts/milestones/m2/dependency_graph.yaml"
+      - "artifacts/milestones/m2/captures/reference_workspace_dry_run_validation_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-reference-workspace-dry-run-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  reference_workspace_dry_run:
+    name: Reference-workspace dry run
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run reference-workspace dry-run validator
+        run: |
+          python3 ci/check_reference_workspace_dry_run.py --repo-root . --report target/reference-workspace-dry-run/report.json --render-publication-summary
+
+      - name: Upload reference-workspace dry-run report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-workspace-dry-run-${{ github.run_id }}
+          path: target/reference-workspace-dry-run
+          if-no-files-found: error
+          retention-days: 30

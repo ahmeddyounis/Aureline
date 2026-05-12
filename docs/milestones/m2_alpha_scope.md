@@ -25,6 +25,12 @@ cite those rows instead of copying scope text.
 - Launch bundle proof packet: `artifacts/milestones/m2/proof_packets/launch_bundles_and_archetypes.md`
 - Launch bundle validator: `ci/check_alpha_launch_bundles.py`
 - Latest launch bundle capture: `artifacts/milestones/m2/captures/launch_bundle_validation_capture.json`
+- Reference-workspace dry-run report: `artifacts/milestones/m2/reference_workspace_dry_run.md`
+- Benchmark/publication rehearsal: `artifacts/benchmarks/m2_publication_rehearsal.md`
+- Machine-readable known-limits packet: `artifacts/milestones/m2/known_limits_alpha.yaml`
+- Reference-workspace dry-run cases: `fixtures/reference_workspaces/m2/dry_run_rehearsal_cases.yaml`
+- Reference-workspace dry-run validator: `ci/check_reference_workspace_dry_run.py`
+- Latest reference-workspace dry-run capture: `artifacts/milestones/m2/captures/reference_workspace_dry_run_validation_capture.json`
 - Proof artifact index: `artifacts/milestones/m2/artifact_index.yaml`
 - Review packet template: `docs/review/m2_review_packet_template.md`
 - Same-change truth workflow: `docs/governance/m2_truth_update_workflow.md`
@@ -92,6 +98,10 @@ External alpha proof artifact index validation:
 External alpha launch bundle validation:
 
 `python3 ci/check_alpha_launch_bundles.py --repo-root . --report target/alpha-launch-bundles/report.json --render-gallery`
+
+External alpha reference-workspace dry-run and publication rehearsal validation:
+
+`python3 ci/check_reference_workspace_dry_run.py --repo-root . --report target/reference-workspace-dry-run/report.json --render-publication-summary`
 
 ## Update Rules
 

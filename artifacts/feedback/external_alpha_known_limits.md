@@ -20,6 +20,9 @@ alpha wedge matrix.
 - Migration parity scoreboard: `artifacts/migration/m2_parity_scoreboard.yaml`
 - Import-gap taxonomy: `artifacts/migration/import_gap_taxonomy.yaml`
 - Retained import diagnostics packet: `docs/migration/import_diagnostics_packet.md`
+- Machine-readable known-limits packet: `artifacts/milestones/m2/known_limits_alpha.yaml`
+- Reference-workspace dry run: `artifacts/milestones/m2/reference_workspace_dry_run.md`
+- Benchmark/publication rehearsal: `artifacts/benchmarks/m2_publication_rehearsal.md`
 
 ## Active Known Limits
 
@@ -37,6 +40,8 @@ alpha wedge matrix.
 | `known_limit:external_alpha.migration_manual_followup_required` | `migration_path_limited` | `major` | imported tasks, run/debug configs, execution-context mappings, conflict rows | Manual follow-up rows must remain open until the user accepts, edits, rejects, or rolls them back; they cannot count as migrated workflow parity. |
 | `known_limit:external_alpha.no_raw_partner_content` | `corpus_narrowed` | `blocking` | partner repositories, support bundles, traces, screenshots, terminal transcripts | Raw partner content is never required for initial filing and must not enter public packets without clearance. |
 | `known_limit:external_alpha.launch_bundle_seed_not_certified` | `workflow_narrowed` | `major` | launch bundles, archetype badges, Start Center bundle gallery, mirror/offline install review | Bundle rows are setup seeds only. Badges must open the underlying evidence packet and may not imply certified or replacement-grade status. |
+| `known_limit:external_alpha.reference_workspace_dry_run_synthetic_only` | `corpus_narrowed` | `moderate` | reference-workspace dry runs, benchmark packets, public-proof rehearsals | The first dry run uses synthetic described-byte fixtures, not partner repositories or materialized benchmark workspaces. |
+| `known_limit:external_alpha.publication_rehearsal_methodology_only` | `competitor_parity_narrowed` | `major` | benchmark/publication rehearsal, public-proof packets, release evidence | The rehearsal is methodology-only and cannot publish benchmark, competitor-comparison, certified, or replacement-grade claims. |
 
 ## Routing Rules
 
@@ -56,6 +61,10 @@ alpha wedge matrix.
 - Any migration issue below native parity must cite the parity scoreboard row,
   import-gap taxonomy row, retained diagnostics refs, and known-limit id rather
   than using screenshots or summary prose as the source of truth.
+- Any reference-workspace dry-run report must cite
+  `artifacts/milestones/m2/known_limits_alpha.yaml` and keep publication
+  wording methodology-only until materialized benchmark and support-export proof
+  exist.
 
 ## Rollback Posture
 
