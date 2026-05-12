@@ -15,6 +15,8 @@ alpha wedge matrix.
 - Feedback taxonomy: `artifacts/feedback/design_partner_feedback_taxonomy.yaml`
 - Upstream intake checklist: `artifacts/program/design_partner_intake_checklist.yaml`
 - Known-limits contract: `docs/product/known_limits_contract.md`
+- Launch bundle manifests: `artifacts/bundles/tsjs_launch_bundle_alpha.yaml`, `artifacts/bundles/python_launch_bundle_alpha.yaml`
+- Archetype seed rows: `artifacts/certification/m2_archetype_seed_rows.yaml`
 
 ## Active Known Limits
 
@@ -27,6 +29,7 @@ alpha wedge matrix.
 | `known_limit:external_alpha.support_export_redaction_required` | `support_export_narrowed` | `blocking` | support exports, traces, screenshots, logs, transcripts | Privacy-sensitive artifacts must pass redaction review before partners are asked to share them. |
 | `known_limit:external_alpha.migration_evidence_seeded` | `migration_path_limited` | `moderate` | migration, import, and first-run parity reports | Migration feedback may enter alpha evidence, but it cannot widen switching claims without a current migration packet. |
 | `known_limit:external_alpha.no_raw_partner_content` | `corpus_narrowed` | `blocking` | partner repositories, support bundles, traces, screenshots, terminal transcripts | Raw partner content is never required for initial filing and must not enter public packets without clearance. |
+| `known_limit:external_alpha.launch_bundle_seed_not_certified` | `workflow_narrowed` | `major` | launch bundles, archetype badges, Start Center bundle gallery, mirror/offline install review | Bundle rows are setup seeds only. Badges must open the underlying evidence packet and may not imply certified or replacement-grade status. |
 
 ## Routing Rules
 
@@ -40,6 +43,9 @@ alpha wedge matrix.
 - Any request for managed cloud, browser/mobile companion parity, full notebook
   parity, or a new language wedge opens scope review. It is not treated as a
   failed alpha task.
+- Any launch-bundle or archetype badge must open the linked manifest,
+  certification seed row, or proof packet. It must not behave as an ungrounded
+  marketing label.
 
 ## Rollback Posture
 

@@ -128,6 +128,41 @@ nodes:
     required: true
     artifact_ref: artifacts/milestones/m2/proof_packets/benchmark_fixture_register.md
 
+  - node_id: external_alpha_tsjs_launch_bundle_manifest
+    kind: canonical_bundle_manifest
+    required: true
+    artifact_ref: artifacts/bundles/tsjs_launch_bundle_alpha.yaml
+
+  - node_id: external_alpha_python_launch_bundle_manifest
+    kind: canonical_bundle_manifest
+    required: true
+    artifact_ref: artifacts/bundles/python_launch_bundle_alpha.yaml
+
+  - node_id: external_alpha_archetype_seed_rows
+    kind: certification_seed_register
+    required: true
+    artifact_ref: artifacts/certification/m2_archetype_seed_rows.yaml
+
+  - node_id: external_alpha_launch_bundle_validator
+    kind: first_consumer
+    required: true
+    artifact_ref: ci/check_alpha_launch_bundles.py
+
+  - node_id: external_alpha_launch_bundle_proof_packet
+    kind: proof_packet
+    required: true
+    artifact_ref: artifacts/milestones/m2/proof_packets/launch_bundles_and_archetypes.md
+
+  - node_id: external_alpha_launch_bundle_validation_capture
+    kind: validation_capture
+    required: true
+    artifact_ref: artifacts/milestones/m2/captures/launch_bundle_validation_capture.json
+
+  - node_id: start_center_bundle_gallery
+    kind: first_consumer
+    required: true
+    artifact_ref: crates/aureline-shell/src/start_center/mod.rs
+
   - node_id: reference_workspace_fixtures
     kind: protected_fixture_root
     required: true
@@ -327,6 +362,82 @@ edges:
       into one reviewable corpus-admission path.
 
   - from: alpha_wedge_matrix
+    to: external_alpha_tsjs_launch_bundle_manifest
+    rationale: >
+      The bundle manifest consumes the declared TypeScript / JavaScript wedge
+      id, launch bundle id, and scoped workflow rows instead of restating alpha
+      scope locally.
+
+  - from: alpha_wedge_matrix
+    to: external_alpha_python_launch_bundle_manifest
+    rationale: >
+      The bundle manifest consumes the declared Python wedge id, launch bundle
+      id, and scoped workflow rows instead of restating alpha scope locally.
+
+  - from: external_alpha_fixture_register
+    to: external_alpha_tsjs_launch_bundle_manifest
+    rationale: >
+      The manifest links to the benchmark fixture register row before citing
+      workspace descriptors or corpus ids.
+
+  - from: external_alpha_fixture_register
+    to: external_alpha_python_launch_bundle_manifest
+    rationale: >
+      The manifest links to the benchmark fixture register row before citing
+      workspace descriptors or corpus ids.
+
+  - from: reference_workspace_rows
+    to: external_alpha_archetype_seed_rows
+    rationale: >
+      Archetype seed rows quote the canonical reference-workspace archetype ids
+      and support class vocabulary.
+
+  - from: external_alpha_tsjs_launch_bundle_manifest
+    to: external_alpha_archetype_seed_rows
+    rationale: >
+      The TypeScript / JavaScript bundle binds to exactly one archetype seed row
+      and one benchmark fixture row.
+
+  - from: external_alpha_python_launch_bundle_manifest
+    to: external_alpha_archetype_seed_rows
+    rationale: >
+      The Python bundle binds to exactly one archetype seed row and one
+      benchmark fixture row.
+
+  - from: external_alpha_tsjs_launch_bundle_manifest
+    to: start_center_bundle_gallery
+    rationale: >
+      The Start Center projects bundle id, persona or stack label,
+      signer/source, channel, compatible range, certification state, and mirror
+      availability from the manifest.
+
+  - from: external_alpha_python_launch_bundle_manifest
+    to: start_center_bundle_gallery
+    rationale: >
+      The Start Center projects bundle id, persona or stack label,
+      signer/source, channel, compatible range, certification state, and mirror
+      availability from the manifest.
+
+  - from: external_alpha_archetype_seed_rows
+    to: external_alpha_launch_bundle_validator
+    rationale: >
+      The validator checks that bundle badging opens underlying archetype or
+      compatibility evidence and that seed rows do not overclaim certification.
+
+  - from: external_alpha_launch_bundle_validator
+    to: external_alpha_launch_bundle_validation_capture
+    rationale: >
+      The checked-in capture records the protected validation path for bundle
+      manifests, archetype seed rows, mirror/offline vocabulary, and Start
+      Center gallery projection.
+
+  - from: external_alpha_launch_bundle_proof_packet
+    to: alpha_review_packet_template
+    rationale: >
+      Review packets can cite the bundle/archetype packet when launch-bundle
+      setup or certification seed truth changes.
+
+  - from: alpha_wedge_matrix
     to: alpha_exit_gate_scoreboard
     rationale: >
       Every claimed workflow and deployment row names a scoreboard row.
@@ -448,3 +559,22 @@ consumer_surfaces:
       - alpha_exit_gate_scoreboard
     command: python3 ci/check_benchmark_fixture_register.py --repo-root .
     report_ref: artifacts/milestones/m2/captures/benchmark_fixture_register_validation_capture.json
+
+  - consumer_id: external_alpha_launch_bundle_validator
+    title: External alpha launch-bundle validator and CLI gallery
+    reads:
+      - external_alpha_tsjs_launch_bundle_manifest
+      - external_alpha_python_launch_bundle_manifest
+      - external_alpha_archetype_seed_rows
+      - external_alpha_fixture_register
+      - alpha_wedge_matrix
+    command: python3 ci/check_alpha_launch_bundles.py --repo-root . --render-gallery
+    report_ref: artifacts/milestones/m2/captures/launch_bundle_validation_capture.json
+
+  - consumer_id: start_center_bundle_gallery
+    title: Start Center launch-bundle gallery projection
+    reads:
+      - external_alpha_tsjs_launch_bundle_manifest
+      - external_alpha_python_launch_bundle_manifest
+    command: cargo test -p aureline-shell start_center::tests::alpha_bundle_gallery_projects_manifest_rows_for_start_center
+    report_ref: crates/aureline-shell/src/start_center/mod.rs

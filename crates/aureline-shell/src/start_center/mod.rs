@@ -6,8 +6,11 @@
 //! resolves preflight/enablement status through the seeded command registry so
 //! every surface shares the same truth.
 
+use std::fmt;
+
 use aureline_commands::invocation::ArgumentProvenanceEntry;
 use aureline_commands::{CommandEnablementContext, CommandRegistry, PreflightDecision};
+use serde::Deserialize;
 
 /// Presentation label rendered for the Start Center surface.
 pub const START_CENTER_PRESENTATION_LABEL: &str = "Start Center";
@@ -220,6 +223,201 @@ pub fn build_action_rows(
     rows
 }
 
+const ALPHA_BUNDLE_MANIFESTS: &[(&str, &str)] = &[
+    (
+        "artifacts/bundles/tsjs_launch_bundle_alpha.yaml",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../artifacts/bundles/tsjs_launch_bundle_alpha.yaml"
+        )),
+    ),
+    (
+        "artifacts/bundles/python_launch_bundle_alpha.yaml",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../artifacts/bundles/python_launch_bundle_alpha.yaml"
+        )),
+    ),
+];
+
+/// Start Center projection for one external-alpha launch bundle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StartCenterBundleGalleryRow {
+    /// Stable launch bundle id from the canonical manifest.
+    pub bundle_id: String,
+    /// Persona and stack label rendered as one compact Start Center line.
+    pub persona_or_stack_label: String,
+    /// Signer label shown with the bundle source to keep provenance visible.
+    pub signer_label: String,
+    /// Source label shown next to the signer.
+    pub source_label: String,
+    /// Release channel the bundle belongs to.
+    pub channel: String,
+    /// Compatible Aureline version range copied from the manifest.
+    pub compatible_aureline_range: String,
+    /// Archetype seed row linked by this bundle.
+    pub archetype_seed_row_ref: String,
+    /// Current certification state; seed rows must not render as certified.
+    pub certification_state: String,
+    /// Combined online, mirror, and offline availability label.
+    pub mirror_availability_label: String,
+    /// Evidence packet opened by bundle or archetype badging.
+    pub evidence_packet_ref: String,
+    /// Explicit user choices supported by install/update and drift review.
+    pub available_actions: Vec<String>,
+}
+
+/// Error returned when the Start Center cannot project a checked-in bundle manifest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AlphaBundleGalleryError {
+    manifest_ref: &'static str,
+    message: String,
+}
+
+impl AlphaBundleGalleryError {
+    /// Returns the manifest path that failed to project.
+    pub const fn manifest_ref(&self) -> &'static str {
+        self.manifest_ref
+    }
+
+    /// Returns the parse or projection failure.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+}
+
+impl fmt::Display for AlphaBundleGalleryError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.manifest_ref, self.message)
+    }
+}
+
+impl std::error::Error for AlphaBundleGalleryError {}
+
+/// Builds the Start Center bundle-gallery rows from the canonical launch bundle manifests.
+///
+/// # Errors
+///
+/// Returns [`AlphaBundleGalleryError`] when one of the checked-in YAML manifests cannot
+/// be parsed or lacks a field required by the Start Center projection.
+pub fn build_alpha_bundle_gallery_rows(
+) -> Result<Vec<StartCenterBundleGalleryRow>, AlphaBundleGalleryError> {
+    ALPHA_BUNDLE_MANIFESTS
+        .iter()
+        .map(|(manifest_ref, contents)| project_alpha_bundle_manifest(manifest_ref, contents))
+        .collect()
+}
+
+/// Renders the Start Center bundle-gallery projection as deterministic plaintext.
+///
+/// # Errors
+///
+/// Returns [`AlphaBundleGalleryError`] when [`build_alpha_bundle_gallery_rows`] cannot
+/// project one of the canonical manifests.
+pub fn render_alpha_bundle_gallery_plaintext() -> Result<String, AlphaBundleGalleryError> {
+    let rows = build_alpha_bundle_gallery_rows()?;
+    let mut lines = vec![
+        "External alpha bundle gallery".to_string(),
+        "bundle_id | persona_or_stack | signer/source | channel | compatible_range | archetype_state | mirror".to_string(),
+    ];
+    for row in rows {
+        lines.push(format!(
+            "{} | {} | {} ({}) | {} | {} | {} | {}",
+            row.bundle_id,
+            row.persona_or_stack_label,
+            row.signer_label,
+            row.source_label,
+            row.channel,
+            row.compatible_aureline_range,
+            row.certification_state,
+            row.mirror_availability_label
+        ));
+    }
+    lines.push(String::new());
+    Ok(lines.join("\n"))
+}
+
+#[derive(Debug, Deserialize)]
+struct AlphaBundleManifestDoc {
+    bundle_id: String,
+    stack_identity: AlphaBundleStackIdentityDoc,
+    source: AlphaBundleSourceDoc,
+    mirror_availability: AlphaBundleMirrorAvailabilityDoc,
+    install_update_review: AlphaBundleInstallReviewDoc,
+    evidence_binding: AlphaBundleEvidenceBindingDoc,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlphaBundleStackIdentityDoc {
+    persona_label: String,
+    stack_label: String,
+    channel: String,
+    compatible_aureline_range: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlphaBundleSourceDoc {
+    source_label: String,
+    signer_label: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlphaBundleMirrorAvailabilityDoc {
+    online_source: String,
+    approved_mirror: String,
+    offline_bundle: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlphaBundleInstallReviewDoc {
+    action_vocabulary: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlphaBundleEvidenceBindingDoc {
+    archetype_seed_row_ref: String,
+    archetype_evidence_packet_ref: String,
+    certification_state: String,
+}
+
+fn project_alpha_bundle_manifest(
+    manifest_ref: &'static str,
+    contents: &str,
+) -> Result<StartCenterBundleGalleryRow, AlphaBundleGalleryError> {
+    let doc: AlphaBundleManifestDoc =
+        serde_yaml::from_str(contents).map_err(|err| AlphaBundleGalleryError {
+            manifest_ref,
+            message: err.to_string(),
+        })?;
+    if doc.install_update_review.action_vocabulary.is_empty() {
+        return Err(AlphaBundleGalleryError {
+            manifest_ref,
+            message: "install_update_review.action_vocabulary must not be empty".to_string(),
+        });
+    }
+    Ok(StartCenterBundleGalleryRow {
+        bundle_id: doc.bundle_id,
+        persona_or_stack_label: format!(
+            "{} - {}",
+            doc.stack_identity.persona_label, doc.stack_identity.stack_label
+        ),
+        signer_label: doc.source.signer_label,
+        source_label: doc.source.source_label,
+        channel: doc.stack_identity.channel,
+        compatible_aureline_range: doc.stack_identity.compatible_aureline_range,
+        archetype_seed_row_ref: doc.evidence_binding.archetype_seed_row_ref,
+        certification_state: doc.evidence_binding.certification_state,
+        mirror_availability_label: format!(
+            "{}/{}/{}",
+            doc.mirror_availability.online_source,
+            doc.mirror_availability.approved_mirror,
+            doc.mirror_availability.offline_bundle
+        ),
+        evidence_packet_ref: doc.evidence_binding.archetype_evidence_packet_ref,
+        available_actions: doc.install_update_review.action_vocabulary,
+    })
+}
+
 fn override_open_folder_scope_to_workspace_file(
     argument_provenance_map: &mut [ArgumentProvenanceEntry],
 ) {
@@ -279,7 +477,6 @@ mod tests {
     use super::*;
 
     use aureline_commands::registry::seeded_registry;
-    use serde::Deserialize;
     use std::path::Path;
 
     #[test]
@@ -372,5 +569,59 @@ mod tests {
             fixture.presentation_subtitle,
             START_CENTER_PRESENTATION_SUBTITLE
         );
+    }
+
+    #[test]
+    fn alpha_bundle_gallery_projects_manifest_rows_for_start_center() {
+        let rows = build_alpha_bundle_gallery_rows().expect("gallery rows project");
+        assert_eq!(rows.len(), 2);
+
+        let ts_web = rows
+            .iter()
+            .find(|row| row.bundle_id == "launch_bundle:typescript_web_app.seed")
+            .expect("typescript bundle row");
+        assert_eq!(ts_web.channel, "external_alpha");
+        assert_eq!(ts_web.certification_state, "seed_not_certified");
+        assert_eq!(
+            ts_web.archetype_seed_row_ref,
+            "archetype_certification_seed:ts_web_app_or_service"
+        );
+        assert!(ts_web
+            .mirror_availability_label
+            .contains("offline_metadata_and_docs_pack"));
+        assert!(ts_web
+            .available_actions
+            .iter()
+            .any(|action| action == "apply"));
+        assert!(ts_web
+            .available_actions
+            .iter()
+            .any(|action| action == "compare_again_later"));
+        assert!(ts_web
+            .evidence_packet_ref
+            .contains("launch_bundles_and_archetypes.md#typescript"));
+
+        let python = rows
+            .iter()
+            .find(|row| row.bundle_id == "launch_bundle:python_service_or_data_app.seed")
+            .expect("python bundle row");
+        assert_eq!(python.channel, "external_alpha");
+        assert_eq!(python.certification_state, "seed_not_certified");
+        assert_eq!(
+            python.archetype_seed_row_ref,
+            "archetype_certification_seed:python_service_or_data_app"
+        );
+    }
+
+    #[test]
+    fn alpha_bundle_gallery_plaintext_exposes_required_summary_fields() {
+        let text = render_alpha_bundle_gallery_plaintext().expect("gallery plaintext");
+        assert!(text.contains("External alpha bundle gallery"));
+        assert!(text.contains("launch_bundle:typescript_web_app.seed"));
+        assert!(text.contains("launch_bundle:python_service_or_data_app.seed"));
+        assert!(text.contains("Aureline project seed signer"));
+        assert!(text.contains(">=0.0.0-alpha <0.1.0"));
+        assert!(text.contains("seed_not_certified"));
+        assert!(text.contains("offline_metadata_and_docs_pack"));
     }
 }

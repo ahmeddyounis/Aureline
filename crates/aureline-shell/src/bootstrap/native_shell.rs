@@ -700,6 +700,7 @@ fn hex_nibble(byte: u8) -> Option<u8> {
 #[cfg(test)]
 mod native_shell_arg_tests {
     use super::*;
+    use std::fmt::Write as _;
 
     #[test]
     fn open_flag_canonicalizes_existing_folder() {
@@ -825,7 +826,11 @@ mod native_shell_arg_tests {
     }
 
     fn hex_encode(bytes: &[u8]) -> String {
-        bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+        let mut encoded = String::with_capacity(bytes.len().saturating_mul(2));
+        for byte in bytes {
+            write!(&mut encoded, "{byte:02x}").expect("hex encoding should write to string");
+        }
+        encoded
     }
 }
 
@@ -7075,7 +7080,7 @@ mod appearance_settings_runtime_tests {
             .last_command_label
             .as_deref()
             .is_some_and(|line| line.contains("settings write denied")));
-        assert!(activity_center.snapshot().len() > 0);
+        assert!(!activity_center.snapshot().is_empty());
         let Some(ShellOverlayState {
             kind: ShellOverlayKind::Settings(settings),
             ..
@@ -18909,6 +18914,84 @@ fn draw_start_center_surface(
         y = y.saturating_add(row_height).saturating_add(row_gap);
     }
 
+    if let Ok(bundle_rows) = crate::start_center::build_alpha_bundle_gallery_rows() {
+        if !bundle_rows.is_empty()
+            && y.saturating_add(row_height.saturating_mul(2))
+                < card.bottom().saturating_sub(content_padding)
+        {
+            let heading_h = draw_ui_text(
+                buffer,
+                width,
+                height,
+                header_x,
+                y,
+                "Launch bundles",
+                style.tokens.text_secondary,
+                13.0,
+                scale_bucket,
+                text_runtime,
+            );
+            y = y.saturating_add(heading_h).saturating_add(style.space_2);
+            let max_chars = (row_width / 7).max(24) as usize;
+            for bundle in bundle_rows.iter().take(2) {
+                let row_rect = Rect::new(header_x, y, row_width, row_height);
+                if row_rect.bottom().saturating_add(content_padding) > card.bottom() {
+                    break;
+                }
+                fill_rect(buffer, width, height, row_rect, style.tokens.bg_surface);
+                stroke_rect(
+                    buffer,
+                    width,
+                    height,
+                    row_rect,
+                    style.stroke_default,
+                    style.tokens.border_default,
+                );
+                let label = truncate_chars(
+                    &format!("{}   [{}]", bundle.persona_or_stack_label, bundle.channel),
+                    max_chars,
+                );
+                let detail = truncate_chars(
+                    &format!(
+                        "{} | {} | {}",
+                        bundle.bundle_id,
+                        bundle.certification_state,
+                        bundle.mirror_availability_label
+                    ),
+                    max_chars,
+                );
+                let label_y = row_rect
+                    .y
+                    .saturating_add(row_height.saturating_sub(text_block_h) / 2);
+                let label_h = draw_ui_text(
+                    buffer,
+                    width,
+                    height,
+                    row_rect.x.saturating_add(style.space_2),
+                    label_y,
+                    &label,
+                    style.tokens.text_secondary,
+                    14.0,
+                    scale_bucket,
+                    text_runtime,
+                );
+                draw_ui_text(
+                    buffer,
+                    width,
+                    height,
+                    row_rect.x.saturating_add(style.space_2),
+                    label_y.saturating_add(label_h),
+                    &detail,
+                    style.tokens.text_muted,
+                    12.0,
+                    scale_bucket,
+                    text_runtime,
+                );
+                y = y.saturating_add(row_height).saturating_add(row_gap);
+            }
+        }
+    }
+
     if y.saturating_add(22) < card.bottom() {
         draw_ui_text(
             buffer,
@@ -18930,6 +19013,21 @@ fn draw_start_center_surface(
         let accent = Rect::new(card.x, card.y, style.stroke_focus.max(2), card.height);
         fill_rect(buffer, width, height, accent, style.tokens.accent_brand);
     }
+}
+
+fn truncate_chars(input: &str, max_chars: usize) -> String {
+    if input.chars().count() <= max_chars {
+        return input.to_string();
+    }
+    if max_chars == 0 {
+        return String::new();
+    }
+    let mut clipped = input
+        .chars()
+        .take(max_chars.saturating_sub(1))
+        .collect::<String>();
+    clipped.push('~');
+    clipped
 }
 
 fn draw_docs_help_boundary_card(
