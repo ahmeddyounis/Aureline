@@ -120,6 +120,7 @@ use crate::windowing::display_safety::{
     materialize_adjustment_record, materialize_topology_record, write_display_safety_log,
     write_display_safety_topology_log, DisplaySafetyGuard,
 };
+use crate::windowing::folder_picker;
 use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSurface};
 use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
@@ -289,6 +290,7 @@ struct NativeShellArgs {
     hot_path_metrics: HotPathMetricsConfig,
     disable_clipboard: bool,
     renderer: ShellRendererChoice,
+    open_workspace_path: Option<PathBuf>,
     window_size: Option<(f64, f64)>,
     screenshot_path: Option<PathBuf>,
     theme_class: Option<ThemeClass>,
@@ -309,7 +311,15 @@ impl Default for ShellRendererChoice {
 }
 
 fn parse_native_shell_args() -> Result<NativeShellArgs, String> {
-    let mut iter = env::args().skip(1);
+    parse_native_shell_args_from(env::args().skip(1))
+}
+
+fn parse_native_shell_args_from<I, S>(argv: I) -> Result<NativeShellArgs, String>
+where
+    I: IntoIterator<Item = S>,
+    S: Into<String>,
+{
+    let mut iter = argv.into_iter().map(Into::into);
     let mut args = NativeShellArgs::default();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -327,6 +337,12 @@ fn parse_native_shell_args() -> Result<NativeShellArgs, String> {
             }
             "--exit-after-first-frame" => {
                 args.startup_trace.exit_after_first_frame = true;
+            }
+            "--open" => {
+                let path = iter
+                    .next()
+                    .ok_or_else(|| "--open requires a folder path".to_string())?;
+                args.open_workspace_path = Some(resolve_open_workspace_path(&path)?);
             }
             "--emit-screenshot" => {
                 let path = iter
@@ -373,7 +389,18 @@ fn parse_native_shell_args() -> Result<NativeShellArgs, String> {
                 };
             }
             "--help" | "-h" => return Err(usage()),
-            other => return Err(format!("unknown argument: {other}\n\n{}", usage())),
+            other if other.starts_with('-') => {
+                return Err(format!("unknown argument: {other}\n\n{}", usage()))
+            }
+            other => {
+                if args.open_workspace_path.is_some() {
+                    return Err(format!(
+                        "unexpected positional argument: {other}\n\n{}",
+                        usage()
+                    ));
+                }
+                args.open_workspace_path = Some(resolve_open_workspace_path(other)?);
+            }
         }
     }
     Ok(args)
@@ -383,11 +410,99 @@ fn usage() -> String {
     "aureline_shell — Aureline desktop shell\n\n\
      Usage:\n\
      \taureline_shell\n\
+     \taureline_shell --open <folder>\n\
+     \taureline_shell <folder>\n\
      \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n\
      \taureline_shell --emit-hot-path-metrics <path>\n\
      \taureline_shell --emit-screenshot <path> [--theme-class <token>] [--density-class <token>] [--reduced-motion-posture <token>] [--window-size <WxH>] [--renderer (gpu|software)]\n\
      \taureline_shell --renderer (gpu|software)\n"
         .to_string()
+}
+
+fn resolve_open_workspace_path(path: impl AsRef<Path>) -> Result<PathBuf, String> {
+    let path = path.as_ref();
+    let metadata = std::fs::metadata(path).map_err(|err| {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            format!("workspace path does not exist: {}", path.display())
+        } else {
+            format!(
+                "workspace path is not accessible: {} ({err})",
+                path.display()
+            )
+        }
+    })?;
+    if !metadata.is_dir() {
+        return Err(format!(
+            "workspace path is not a folder: {}",
+            path.display()
+        ));
+    }
+    path.canonicalize().map_err(|err| {
+        format!(
+            "workspace path could not be canonicalized: {} ({err})",
+            path.display()
+        )
+    })
+}
+
+#[cfg(test)]
+mod native_shell_arg_tests {
+    use super::*;
+
+    #[test]
+    fn open_flag_canonicalizes_existing_folder() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let parsed =
+            parse_native_shell_args_from(["--open", dir.path().to_str().expect("utf-8 temp path")])
+                .expect("parse args");
+
+        assert_eq!(
+            parsed.open_workspace_path,
+            Some(dir.path().canonicalize().expect("canonical tempdir"))
+        );
+    }
+
+    #[test]
+    fn positional_folder_canonicalizes_first_non_flag_argument() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let parsed = parse_native_shell_args_from([dir.path().to_str().expect("utf-8 temp path")])
+            .expect("parse args");
+
+        assert_eq!(
+            parsed.open_workspace_path,
+            Some(dir.path().canonicalize().expect("canonical tempdir"))
+        );
+    }
+
+    #[test]
+    fn open_flag_rejects_missing_path() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("missing");
+        let err =
+            parse_native_shell_args_from(vec!["--open".to_string(), missing.display().to_string()])
+                .expect_err("missing path should be rejected");
+
+        assert!(
+            err.contains("workspace path does not exist"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn duplicate_positional_folder_is_rejected() {
+        let first = tempfile::tempdir().expect("first tempdir");
+        let second = tempfile::tempdir().expect("second tempdir");
+        let err = parse_native_shell_args_from(vec![
+            first.path().display().to_string(),
+            second.path().display().to_string(),
+        ])
+        .expect_err("second positional path should be rejected");
+
+        assert!(
+            err.contains("unexpected positional argument"),
+            "unexpected error: {err}"
+        );
+    }
 }
 
 fn parse_window_size(value: &str) -> Result<(f64, f64), String> {
@@ -723,6 +838,19 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     }
     if let Some(err) = appearance.last_error.as_deref() {
         command_runtime.note_non_command_action(format!("appearance session unavailable — {err}"));
+    }
+    if let Some(open_workspace_path) = args.open_workspace_path.as_deref() {
+        open_local_folder_workspace(
+            open_workspace_path,
+            LocalFolderOpenSource::CliArgument,
+            &mut command_runtime,
+            &mut frame,
+            &mut editor_runtime,
+            &mut palette,
+            &enablement_runtime,
+            &mut workspace_lifecycle,
+            &mut recent_work,
+        );
     }
 
     scheduler.invalidate(DamageEvent::new(
@@ -3620,6 +3748,58 @@ fn workspace_id_for_local_folder(identity_key: &str) -> String {
     format!("ws-local-{:016x}", hash)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LocalFolderOpenSource {
+    CliArgument,
+    FolderPicker,
+}
+
+impl LocalFolderOpenSource {
+    const fn status_label(self) -> &'static str {
+        match self {
+            Self::CliArgument => "opened folder from CLI",
+            Self::FolderPicker => "opened folder",
+        }
+    }
+}
+
+fn open_local_folder_workspace(
+    path: &Path,
+    source: LocalFolderOpenSource,
+    command_runtime: &mut CommandRuntimeState,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    palette: &mut CommandPaletteState,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
+) {
+    let group = frame.focused_editor_group();
+    if let Some(tab) = frame.open_tab() {
+        editor_runtime.open_placeholder(group, tab);
+    }
+
+    let trust_state =
+        trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
+    recent_work.note_local_folder_opened(path, trust_state);
+    if let Some(active_id) = recent_work.active_recent_work_id.clone() {
+        editor_runtime.set_workspace_recovery_ref(active_id);
+    }
+    palette.set_workspace_root(path.to_path_buf());
+    let identity_key = path.to_string_lossy();
+    workspace_lifecycle
+        .open_local_folder(workspace_id_for_local_folder(&identity_key), trust_state);
+    if let Err(err) = recent_work.save() {
+        command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
+    } else {
+        command_runtime.note_non_command_action(format!(
+            "{} — {}",
+            source.status_label(),
+            path.display()
+        ));
+    }
+}
+
 fn mono_timestamp_now() -> String {
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -4055,12 +4235,6 @@ fn dispatch_registry_entry(
             true
         }
         "cmd:workspace.open_folder" => {
-            let invocation = invocation_and_result_open_folder_succeeded(&session);
-            command_runtime.record(invocation);
-            let group = frame.focused_editor_group();
-            if let Some(tab) = frame.open_tab() {
-                editor_runtime.open_placeholder(group, tab);
-            }
             let scope_ref = session
                 .argument_provenance_map
                 .iter()
@@ -4073,20 +4247,33 @@ fn dispatch_registry_entry(
                 return true;
             }
 
-            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            let trust_state =
-                trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
-            recent_work.note_local_folder_opened(&cwd, trust_state);
-            if let Some(active_id) = recent_work.active_recent_work_id.clone() {
-                editor_runtime.set_workspace_recovery_ref(active_id);
-            }
-            palette.set_workspace_root(cwd.clone());
-            let identity_key = cwd.to_string_lossy();
-            workspace_lifecycle
-                .open_local_folder(workspace_id_for_local_folder(&identity_key), trust_state);
-            if let Err(err) = recent_work.save() {
-                command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
-            }
+            let selected_path = match folder_picker::pick_folder() {
+                Some(path) => path,
+                None => {
+                    command_runtime.record(invocation_and_result_open_folder_cancelled(&session));
+                    command_runtime.note_non_command_action("open folder cancelled");
+                    return true;
+                }
+            };
+            let folder_path = match resolve_open_workspace_path(&selected_path) {
+                Ok(path) => path,
+                Err(err) => {
+                    command_runtime.note_non_command_action(format!("open folder failed — {err}"));
+                    return true;
+                }
+            };
+            command_runtime.record(invocation_and_result_open_folder_succeeded(&session));
+            open_local_folder_workspace(
+                &folder_path,
+                LocalFolderOpenSource::FolderPicker,
+                command_runtime,
+                frame,
+                editor_runtime,
+                palette,
+                enablement_runtime,
+                workspace_lifecycle,
+                recent_work,
+            );
             true
         }
         "cmd:workspace.clone_repository" => {
@@ -4312,6 +4499,12 @@ fn invocation_and_result_open_folder_succeeded(
         session_packet,
         result_packet,
     }
+}
+
+fn invocation_and_result_open_folder_cancelled(
+    session: &CommandInvocationSession,
+) -> RecordedCommandInvocation {
+    invocation_and_result_simple_success(session, "cancelled_by_user")
 }
 
 fn invocation_and_result_docs_open_in_browser_succeeded(
@@ -5416,9 +5609,14 @@ fn handle_key_event(
                         let Some(tab) = frame.open_tab() else {
                             return ShellDamageHint::None;
                         };
-                        let cwd = std::env::current_dir()
-                            .unwrap_or_else(|_| std::path::PathBuf::from("."));
-                        let path = cwd.join(&relative_path);
+                        let workspace_root = palette
+                            .workspace_root()
+                            .map(Path::to_path_buf)
+                            .unwrap_or_else(|| {
+                                std::env::current_dir()
+                                    .unwrap_or_else(|_| std::path::PathBuf::from("."))
+                            });
+                        let path = workspace_root.join(&relative_path);
                         if let Err(err) = editor_runtime.open_file(focused_group, tab, &path) {
                             hot_path_metrics.close_latest_span_as_error(
                                 clock.now().0,

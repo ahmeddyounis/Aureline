@@ -591,7 +591,9 @@ impl CommandPaletteState {
         self.text_input = TextInputSession::new();
         self.semantic_state = PaletteProviderStateClass::NotRequested;
         self.semantic_deadline = None;
-        self.set_workspace_root(cwd);
+        if self.file_index.is_none() {
+            self.set_workspace_root(cwd);
+        }
         self.recompute_groups(registry, &HashMap::new());
     }
 
