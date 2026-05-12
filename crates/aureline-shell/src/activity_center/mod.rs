@@ -52,9 +52,12 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::notifications::envelope::{
-    PrivacyClass, RedactionClass, ReopenTarget, SeverityClass, SourceSubsystem, StableAction,
+    NotificationEnvelope, PrivacyClass, RedactionClass, ReopenTarget, SeverityClass,
+    SourceSubsystem, StableAction,
 };
-use crate::notifications::router::{NotificationRoutingError, RoutedNotification};
+use crate::notifications::router::{
+    NotificationRouter, NotificationRoutingError, RoutedNotification,
+};
 
 /// Stable record-kind tag carried in serialized activity-center rows.
 pub const ACTIVITY_CENTER_ROW_RECORD_KIND: &str = "activity_center_row_record";
@@ -502,6 +505,18 @@ impl ActivityCenterStore {
             .expect("row inserted on this call must be present"))
     }
 
+    /// Rewrites the backing row file with the current store contents.
+    ///
+    /// File-backed stores persist on every [`ActivityCenterStore::record_observation`]
+    /// call already; this exists so shutdown paths can explicitly flush the
+    /// current snapshot. In-memory stores treat the flush as a no-op.
+    pub fn persist_now(&self) -> Result<(), ActivityCenterError> {
+        if let Some(path) = self.rows_path.as_deref() {
+            self.persist(path)?;
+        }
+        Ok(())
+    }
+
     /// Project the durable snapshot the chrome consumes. Rows are sorted
     /// by `minted_at` then `canonical_event_id` for deterministic
     /// support exports.
@@ -530,6 +545,73 @@ impl ActivityCenterStore {
         let bytes = serde_json::to_vec_pretty(&rows)?;
         fs::write(path, bytes)?;
         Ok(())
+    }
+}
+
+/// Live activity-center runtime used by the shell.
+///
+/// The runtime keeps the notification router and durable row store together so
+/// live callers route a typed [`NotificationEnvelope`] and persist the
+/// resulting activity row through the same path used by tests and fixtures.
+#[derive(Debug, Clone)]
+pub struct ActivityCenterRuntime {
+    router: NotificationRouter,
+    store: ActivityCenterStore,
+}
+
+impl ActivityCenterRuntime {
+    /// Builds an in-memory runtime for tests and non-persistent harnesses.
+    pub fn in_memory() -> Self {
+        Self {
+            router: NotificationRouter::new(),
+            store: ActivityCenterStore::in_memory(),
+        }
+    }
+
+    /// Opens a file-backed runtime, loading any existing durable rows first.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the row file cannot be read or deserialized.
+    pub fn file_backed(path: impl Into<PathBuf>) -> Result<Self, ActivityCenterError> {
+        Ok(Self {
+            router: NotificationRouter::new(),
+            store: ActivityCenterStore::file_backed(path)?,
+        })
+    }
+
+    /// Routes and records one activity lifecycle observation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the envelope is not routeable or when the
+    /// file-backed store cannot persist the updated row set.
+    pub fn record_observation(
+        &mut self,
+        envelope: &NotificationEnvelope,
+        observation: &DurableJobObservation,
+    ) -> Result<&ActivityCenterRow, ActivityCenterError> {
+        let routed = self.router.route(envelope)?;
+        self.store.record_observation(&routed, observation)
+    }
+
+    /// Returns the current durable row snapshot.
+    pub fn snapshot(&self) -> ActivityCenterSnapshot {
+        self.store.snapshot()
+    }
+
+    /// Finds a row by canonical event id.
+    pub fn find_by_canonical_event(&self, canonical_event_id: &str) -> Option<&ActivityCenterRow> {
+        self.store.find_by_canonical_event(canonical_event_id)
+    }
+
+    /// Explicitly flushes the current row set to disk when file-backed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the backing file cannot be written.
+    pub fn persist_now(&self) -> Result<(), ActivityCenterError> {
+        self.store.persist_now()
     }
 }
 

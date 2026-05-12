@@ -16,6 +16,10 @@ use crate::a11y::shell_bridge::{
     materialize_shell_accessibility_tree, write_shell_accessibility_tree_log,
     ShellA11yEnablementContext,
 };
+use crate::activity_center::{
+    ActivityCenterRow, ActivityCenterRuntime, ActivityCenterSnapshot, ActivityRowLifecycleClass,
+    ActivityRowRetryability, DurableJobObservation,
+};
 use crate::app_frame::desktop_frame::{
     DesktopFrame, EditorTabId, NewEditorGroupOutcome, SplitViolation,
 };
@@ -39,6 +43,11 @@ use crate::help::keybinding_inspector::build_inspector_lines;
 use crate::host_boundary_cues::{HostBoundaryCueCardRecord, HostBoundaryCueWedge};
 use crate::layout::split_tree::PaneId;
 use crate::layout::zone_registry::{Rect, ShellZoneId};
+use crate::notifications::{
+    DedupeKeyScheme, FanoutSurfaceClass, NotificationEnvelope, PrivacyClass, PrivacyPayloadClass,
+    QuietHoursMode, RedactionClass, ReopenTarget, ReopenTargetKind, SeverityClass, SourceSubsystem,
+    StableAction, SuppressionState, NOTIFICATION_ENVELOPE_SCHEMA_VERSION,
+};
 use crate::palette::preview::{
     argument_provenance_map_for, copy_payload_for, materialize_palette_preview_record,
     write_preview_log, PaletteCopyIntent, PalettePreviewRuntimeInputs, PalettePreviewSelection,
@@ -759,6 +768,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
     let mut recent_work = RecentWorkRuntimeState::load();
+    let mut activity_center = ActivityCenterRuntimeState::load(&recent_work.store_path);
     let mut workspace_lifecycle = WorkspaceLifecycleRuntimeState::new();
     let mut clipboard = ClipboardState::new(!args.disable_clipboard);
     let mut appearance = AppearanceRuntimeState::load();
@@ -844,6 +854,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         command_runtime
             .note_non_command_action(format!("recent work registry unavailable — {err}"));
     }
+    if let Some(err) = activity_center.last_error.as_deref() {
+        command_runtime.note_non_command_action(err.to_string());
+    }
     if let Some(err) = appearance.last_error.as_deref() {
         command_runtime.note_non_command_action(format!("appearance session unavailable — {err}"));
     }
@@ -858,6 +871,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
             &enablement_runtime,
             &mut workspace_lifecycle,
             &mut recent_work,
+            &mut activity_center,
         );
     }
 
@@ -991,6 +1005,26 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 );
             }
+            if let (Some(readiness), Some(root)) = (file_index_readiness, palette.workspace_root())
+            {
+                if activity_center.note_quick_open_file_index(
+                    recent_work.active_recent_work_id.as_deref(),
+                    root,
+                    readiness.hot_index_ready,
+                ) {
+                    enqueue_damage_hint(
+                        &mut scheduler,
+                        ShellDamageHint::Rect {
+                            layer: CompositionLayerId::WindowChromeBase,
+                            class: DamageClassId::TextReflowLocal,
+                            rect: to_physical_rect(
+                                frame.layout().activity_rail,
+                                window.scale_factor(),
+                            ),
+                        },
+                    );
+                }
+            }
 
             let workspace_root = workspace_lifecycle
                 .machine
@@ -1099,6 +1133,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
             WindowEvent::CloseRequested => {
                 let _ = hot_path_metrics.write_if_configured();
+                activity_center.persist_clean_shutdown();
                 editor_runtime
                     .terminal_pane
                     .close_active_workspace(&mono_timestamp_now(), Some("window_closed"));
@@ -1303,17 +1338,30 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 if button != winit::event::MouseButton::Left {
                     return;
                 }
+                let (x, y) = match last_cursor_pos {
+                    Some(pos) => pos,
+                    None => return,
+                };
+                if !palette.is_open()
+                    && overlay.is_none()
+                    && handle_activity_rail_click(
+                        &mut frame,
+                        &mut command_runtime,
+                        &activity_center,
+                        window.scale_factor(),
+                        x,
+                        y,
+                    )
+                {
+                    enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                    return;
+                }
                 if frame.focused_zone() != ShellZoneId::MainWorkspace
                     || palette.is_open()
                     || overlay.is_some()
                 {
                     return;
                 }
-
-                let (x, y) = match last_cursor_pos {
-                    Some(pos) => pos,
-                    None => return,
-                };
 
                 let focused = frame.focused_editor_group();
                 let has_tabs = frame
@@ -1412,6 +1460,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &mut enablement_runtime,
                     &mut workspace_lifecycle,
                     &mut recent_work,
+                    &mut activity_center,
                     &mut clipboard,
                     &mut appearance,
                     &mut hot_path_metrics,
@@ -1550,6 +1599,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &enablement_runtime,
                     &workspace_lifecycle,
                     &recent_work,
+                    &activity_center,
                     title_context_bar.record(),
                     &appearance,
                     &held_modifiers,
@@ -4115,6 +4165,315 @@ impl RecentWorkRuntimeState {
 }
 
 #[derive(Debug, Clone)]
+struct ActivityCenterRuntimeState {
+    store_path: PathBuf,
+    runtime: ActivityCenterRuntime,
+    file_index_ready_by_key: HashMap<String, bool>,
+    last_error: Option<String>,
+}
+
+impl ActivityCenterRuntimeState {
+    fn load(recent_work_store_path: &Path) -> Self {
+        let root = recent_work_store_path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from(".logs").join("recent_work"));
+        let store_path = root.join("activity_center_rows.json");
+        match ActivityCenterRuntime::file_backed(&store_path) {
+            Ok(runtime) => Self {
+                store_path,
+                runtime,
+                file_index_ready_by_key: HashMap::new(),
+                last_error: None,
+            },
+            Err(err) => Self {
+                store_path,
+                runtime: ActivityCenterRuntime::in_memory(),
+                file_index_ready_by_key: HashMap::new(),
+                last_error: Some(format!("activity center load failed: {err}")),
+            },
+        }
+    }
+
+    fn snapshot(&self) -> ActivityCenterSnapshot {
+        self.runtime.snapshot()
+    }
+
+    fn persist_clean_shutdown(&mut self) {
+        if let Err(err) = self.runtime.persist_now() {
+            self.last_error = Some(format!("activity center shutdown persist failed: {err}"));
+        }
+    }
+
+    fn note_workspace_opened(
+        &mut self,
+        recent_work_id: Option<&str>,
+        workspace_label: &str,
+        path: &Path,
+    ) {
+        let identity = recent_work_id.map(str::to_owned).unwrap_or_else(|| {
+            format!(
+                "local-folder-{:016x}",
+                fnv1a_64(&path.display().to_string())
+            )
+        });
+        let object_target_ref = format!("obj:workspace:{identity}");
+        let event_id = format!("ux:event:workspace-open:{identity}");
+        let source_event_ref = format!("shell:workspace-open:{identity}");
+        let detail = format!("Opened {}", path.display());
+
+        self.record_job(
+            ActivityJobRecord {
+                event_id: &event_id,
+                envelope_id: &format!("ux:notif-env:workspace-open:{identity}:running"),
+                source_subsystem: SourceSubsystem::Shell,
+                source_event_ref: &source_event_ref,
+                object_target_ref: &object_target_ref,
+                summary_label: &format!("Workspace opening: {workspace_label}"),
+                severity_class: SeverityClass::Info,
+                action_command_id: "cmd:activity.focus_origin",
+                action_label: "Focus workspace",
+                minted_at: now_rfc3339(),
+            },
+            DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
+        );
+        self.record_job(
+            ActivityJobRecord {
+                event_id: &event_id,
+                envelope_id: &format!("ux:notif-env:workspace-open:{identity}:completed"),
+                source_subsystem: SourceSubsystem::Shell,
+                source_event_ref: &source_event_ref,
+                object_target_ref: &object_target_ref,
+                summary_label: &format!("Workspace opened: {workspace_label}"),
+                severity_class: SeverityClass::Success,
+                action_command_id: "cmd:activity.focus_origin",
+                action_label: "Focus workspace",
+                minted_at: now_rfc3339(),
+            },
+            DurableJobObservation::completed(detail, Some(object_target_ref.clone())),
+        );
+    }
+
+    fn note_quick_open_file_index(
+        &mut self,
+        recent_work_id: Option<&str>,
+        root: &Path,
+        ready: bool,
+    ) -> bool {
+        let identity = recent_work_id
+            .map(str::to_owned)
+            .unwrap_or_else(|| format!("workspace-{:016x}", fnv1a_64(&root.display().to_string())));
+        let key = format!("quick-open-index:{identity}");
+        if self.file_index_ready_by_key.get(&key).copied() == Some(ready) {
+            return false;
+        }
+        self.file_index_ready_by_key.insert(key, ready);
+
+        let root_label = root
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| root.display().to_string());
+        let event_id = format!("ux:event:quick-open-index:{identity}");
+        let object_target_ref = format!("obj:quick-open-index:{identity}");
+        let source_event_ref = format!("palette:file-index:{identity}");
+
+        if ready {
+            self.record_job(
+                ActivityJobRecord {
+                    event_id: &event_id,
+                    envelope_id: &format!("ux:notif-env:quick-open-index:{identity}:completed"),
+                    source_subsystem: SourceSubsystem::Indexer,
+                    source_event_ref: &source_event_ref,
+                    object_target_ref: &object_target_ref,
+                    summary_label: &format!("Quick open index ready: {root_label}"),
+                    severity_class: SeverityClass::Success,
+                    action_command_id: "cmd:activity.focus_origin",
+                    action_label: "Focus workspace",
+                    minted_at: now_rfc3339(),
+                },
+                DurableJobObservation::completed(
+                    format!("File index completed for {}", root.display()),
+                    Some(object_target_ref.clone()),
+                ),
+            );
+        } else {
+            self.record_job(
+                ActivityJobRecord {
+                    event_id: &event_id,
+                    envelope_id: &format!("ux:notif-env:quick-open-index:{identity}:running"),
+                    source_subsystem: SourceSubsystem::Indexer,
+                    source_event_ref: &source_event_ref,
+                    object_target_ref: &object_target_ref,
+                    summary_label: &format!("Quick open index warming: {root_label}"),
+                    severity_class: SeverityClass::Info,
+                    action_command_id: "cmd:activity.focus_origin",
+                    action_label: "Focus workspace",
+                    minted_at: now_rfc3339(),
+                },
+                DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
+            );
+        }
+        true
+    }
+
+    fn next_save_operation_id(&self, label: &str) -> String {
+        let token = now_rfc3339();
+        format!(
+            "save-{:016x}-{}",
+            fnv1a_64(label),
+            sanitize_activity_id_component(&token)
+        )
+    }
+
+    fn note_save_running(&mut self, operation_id: &str, label: &str) {
+        self.record_save_transition(
+            operation_id,
+            label,
+            "running",
+            SeverityClass::Info,
+            DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, None),
+        );
+    }
+
+    fn note_save_completed(
+        &mut self,
+        operation_id: &str,
+        label: &str,
+        evidence_ref: Option<String>,
+    ) {
+        self.record_save_transition(
+            operation_id,
+            label,
+            "completed",
+            SeverityClass::Success,
+            DurableJobObservation::completed(format!("Saved {label}"), evidence_ref),
+        );
+    }
+
+    fn note_save_failed(&mut self, operation_id: &str, label: &str, detail: impl Into<String>) {
+        self.record_save_transition(
+            operation_id,
+            label,
+            "failed",
+            SeverityClass::Error,
+            DurableJobObservation::failed(ActivityRowRetryability::Available, detail.into(), None),
+        );
+    }
+
+    fn record_save_transition(
+        &mut self,
+        operation_id: &str,
+        label: &str,
+        phase: &str,
+        severity_class: SeverityClass,
+        observation: DurableJobObservation,
+    ) {
+        let event_id = format!("ux:event:save-fsync:{operation_id}");
+        let object_target_ref = format!("obj:save-fsync:{operation_id}");
+        let source_event_ref = format!("vfs-save:{operation_id}");
+        let summary_label = match phase {
+            "completed" => format!("Save completed: {label}"),
+            "failed" => format!("Save failed: {label}"),
+            _ => format!("Save fsync running: {label}"),
+        };
+        self.record_job(
+            ActivityJobRecord {
+                event_id: &event_id,
+                envelope_id: &format!("ux:notif-env:save-fsync:{operation_id}:{phase}"),
+                source_subsystem: SourceSubsystem::VfsSave,
+                source_event_ref: &source_event_ref,
+                object_target_ref: &object_target_ref,
+                summary_label: &summary_label,
+                severity_class,
+                action_command_id: "cmd:activity.focus_origin",
+                action_label: "Focus editor",
+                minted_at: now_rfc3339(),
+            },
+            observation,
+        );
+    }
+
+    fn record_job(&mut self, job: ActivityJobRecord<'_>, observation: DurableJobObservation) {
+        let envelope = activity_job_envelope(job);
+        if let Err(err) = self.runtime.record_observation(&envelope, &observation) {
+            self.last_error = Some(format!("activity center record failed: {err}"));
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ActivityJobRecord<'a> {
+    event_id: &'a str,
+    envelope_id: &'a str,
+    source_subsystem: SourceSubsystem,
+    source_event_ref: &'a str,
+    object_target_ref: &'a str,
+    summary_label: &'a str,
+    severity_class: SeverityClass,
+    action_command_id: &'a str,
+    action_label: &'a str,
+    minted_at: String,
+}
+
+fn activity_job_envelope(job: ActivityJobRecord<'_>) -> NotificationEnvelope {
+    NotificationEnvelope {
+        record_kind: "notification_envelope_record".to_string(),
+        notification_envelope_schema_version: NOTIFICATION_ENVELOPE_SCHEMA_VERSION,
+        notification_envelope_id: job.envelope_id.to_string(),
+        canonical_event_id: job.event_id.to_string(),
+        event_lineage_id_ref: format!("ux:lineage:{}", job.event_id),
+        source_subsystem: job.source_subsystem,
+        source_event_ref: job.source_event_ref.to_string(),
+        actor_identity_ref: "id:actor:system:shell".to_string(),
+        canonical_object_target_ref: job.object_target_ref.to_string(),
+        severity_class: job.severity_class,
+        privacy_class: PrivacyClass::WorkspaceSensitive,
+        privacy_payload_class: PrivacyPayloadClass::LockScreenSafeGeneric,
+        redaction_class: RedactionClass::OperatorOnlyRestricted,
+        dedupe_key_scheme: DedupeKeyScheme::CanonicalEventId,
+        dedupe_key_ref: job.event_id.to_string(),
+        grouped_burst_id_ref: None,
+        recommended_surfaces: vec![
+            FanoutSurfaceClass::DurableJobRow,
+            FanoutSurfaceClass::StatusItem,
+        ],
+        summary_label: job.summary_label.to_string(),
+        reopen_target: ReopenTarget {
+            reopen_target_ref: format!("ux:reopen:{}", job.event_id),
+            reopen_target_kind: ReopenTargetKind::DurableActivityRow,
+            exact_target_identity_ref: Some(job.object_target_ref.to_string()),
+            placeholder_announcement_label: None,
+            revalidation_required_reason_label: None,
+        },
+        actions: vec![StableAction {
+            action_id: format!("ux:action:open:{}", job.event_id),
+            label: job.action_label.to_string(),
+            command_id: job.action_command_id.to_string(),
+            target_identity_ref: job.object_target_ref.to_string(),
+            reopen_target_kind: ReopenTargetKind::DurableActivityRow,
+            is_destructive: false,
+        }],
+        suppression_state: SuppressionState {
+            active_modes_at_mint: vec![QuietHoursMode::ModeNone],
+            suppression_reasons: vec![],
+            suppressed: false,
+        },
+        fanout_receipts: vec![],
+        minted_at: job.minted_at,
+    }
+}
+
+fn sanitize_activity_id_component(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| match ch {
+            'a'..='z' | 'A'..='Z' | '0'..='9' => ch.to_ascii_lowercase(),
+            _ => '-',
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone)]
 struct AppearanceRuntimeState {
     store_path: PathBuf,
     policy_path: PathBuf,
@@ -4327,6 +4686,7 @@ fn open_local_folder_workspace(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
 ) {
     let group = frame.focused_editor_group();
     if let Some(tab) = frame.open_tab() {
@@ -4339,6 +4699,16 @@ fn open_local_folder_workspace(
     if let Some(active_id) = recent_work.active_recent_work_id.clone() {
         editor_runtime.set_workspace_recovery_ref(active_id);
     }
+    activity_center.note_workspace_opened(
+        recent_work.active_recent_work_id.as_deref(),
+        recent_work.active_workspace_label().unwrap_or("workspace"),
+        path,
+    );
+    activity_center.note_quick_open_file_index(
+        recent_work.active_recent_work_id.as_deref(),
+        path,
+        false,
+    );
     palette.set_workspace_root(path.to_path_buf());
     let identity_key = path.to_string_lossy();
     let workspace_id = workspace_id_for_local_folder(&identity_key);
@@ -4514,6 +4884,7 @@ fn dispatch_command_id(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
 ) -> bool {
     dispatch_command_id_with_arguments(
         command_runtime,
@@ -4528,6 +4899,7 @@ fn dispatch_command_id(
         enablement_runtime,
         workspace_lifecycle,
         recent_work,
+        activity_center,
         None,
     )
 }
@@ -4545,6 +4917,7 @@ fn dispatch_command_id_with_arguments(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
     argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
 ) -> bool {
     let Some(entry) = registry.get(command_id).cloned() else {
@@ -4563,6 +4936,7 @@ fn dispatch_command_id_with_arguments(
         enablement_runtime,
         workspace_lifecycle,
         recent_work,
+        activity_center,
         argument_provenance_map_override,
     )
 }
@@ -4580,6 +4954,7 @@ fn dispatch_registry_entry(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
     argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
 ) -> bool {
     let preview_record_ref: Option<String> = None;
@@ -4856,6 +5231,7 @@ fn dispatch_registry_entry(
                 enablement_runtime,
                 workspace_lifecycle,
                 recent_work,
+                activity_center,
             );
             true
         }
@@ -5436,6 +5812,7 @@ fn activate_recent_work_entry(
     editor_runtime: &mut EditorWorkspaceRuntimeState,
     frame: &mut DesktopFrame,
     command_runtime: &mut CommandRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
     mut entry: RecentWorkEntryRecord,
     trust_override: Option<TrustState>,
 ) {
@@ -5468,6 +5845,20 @@ fn activate_recent_work_entry(
         command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
     } else {
         command_runtime.note_non_command_action("workspace switch applied");
+    }
+
+    if let Some(active_id) = recent_work.active_recent_work_id.as_deref() {
+        if let Some(root) = recent_work
+            .find_entry(active_id)
+            .and_then(workspace_root_for_recent_work_entry)
+        {
+            activity_center.note_workspace_opened(
+                Some(active_id),
+                recent_work.active_workspace_label().unwrap_or("workspace"),
+                &root,
+            );
+            activity_center.note_quick_open_file_index(Some(active_id), &root, false);
+        }
     }
 }
 
@@ -5507,6 +5898,7 @@ fn apply_workspace_switcher_decision(
     command_runtime: &mut CommandRuntimeState,
     palette: &mut CommandPaletteState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
     decision: WorkspaceSwitcherDecision,
 ) {
     let window_dims = (window_size.width, window_size.height);
@@ -5540,6 +5932,7 @@ fn apply_workspace_switcher_decision(
                         editor_runtime,
                         frame,
                         command_runtime,
+                        activity_center,
                         entry,
                         Some(TrustState::Restricted),
                     );
@@ -5561,6 +5954,7 @@ fn apply_workspace_switcher_decision(
                         editor_runtime,
                         frame,
                         command_runtime,
+                        activity_center,
                         entry,
                         None,
                     );
@@ -5579,6 +5973,7 @@ fn apply_workspace_switcher_decision(
                         editor_runtime,
                         frame,
                         command_runtime,
+                        activity_center,
                         entry,
                         None,
                     );
@@ -5658,6 +6053,7 @@ fn apply_workspace_switcher_decision(
                     editor_runtime,
                     frame,
                     command_runtime,
+                    activity_center,
                     entry,
                     None,
                 );
@@ -5686,6 +6082,7 @@ fn apply_workspace_switcher_decision(
                     editor_runtime,
                     frame,
                     command_runtime,
+                    activity_center,
                     entry,
                     None,
                 );
@@ -5711,6 +6108,7 @@ fn apply_workspace_switcher_decision(
                     editor_runtime,
                     frame,
                     command_runtime,
+                    activity_center,
                     entry,
                     Some(TrustState::Restricted),
                 );
@@ -5739,6 +6137,7 @@ fn apply_workspace_switcher_decision(
                     editor_runtime,
                     frame,
                     command_runtime,
+                    activity_center,
                     entry,
                     None,
                 );
@@ -6043,6 +6442,7 @@ fn handle_key_event(
     enablement_runtime: &mut CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
     clipboard: &mut ClipboardState,
     appearance: &mut AppearanceRuntimeState,
     hot_path_metrics: &mut HotPathMetrics,
@@ -6187,6 +6587,7 @@ fn handle_key_event(
                             enablement_runtime,
                             workspace_lifecycle,
                             recent_work,
+                            activity_center,
                         );
                         if changed {
                             ShellDamageHint::FullWindow
@@ -6327,6 +6728,7 @@ fn handle_key_event(
                 command_runtime,
                 palette,
                 workspace_lifecycle,
+                activity_center,
                 decision,
             );
         }
@@ -6349,6 +6751,7 @@ fn handle_key_event(
                     enablement_runtime,
                     workspace_lifecycle,
                     recent_work,
+                    activity_center,
                     Some(decision.argument_provenance_map),
                 );
                 return if changed {
@@ -6377,6 +6780,7 @@ fn handle_key_event(
                 enablement_runtime,
                 workspace_lifecycle,
                 recent_work,
+                activity_center,
             );
             return if changed {
                 ShellDamageHint::FullWindow
@@ -6597,6 +7001,7 @@ fn handle_key_event(
                     enablement_runtime,
                     workspace_lifecycle,
                     recent_work,
+                    activity_center,
                 );
                 if !changed {
                     return ShellDamageHint::None;
@@ -6734,6 +7139,7 @@ fn handle_key_event(
                     enablement_runtime,
                     workspace_lifecycle,
                     recent_work,
+                    activity_center,
                 );
                 if changed {
                     ShellDamageHint::FullWindow
@@ -6887,9 +7293,20 @@ fn handle_key_event(
                 let Some(tab) = frame.active_tab_id(group) else {
                     return ShellDamageHint::None;
                 };
+                let save_label = editor_runtime
+                    .tab_render_info(group, tab)
+                    .map(|info| info.label)
+                    .unwrap_or_else(|| "Untitled".to_string());
+                let save_operation_id = activity_center.next_save_operation_id(&save_label);
+                activity_center.note_save_running(&save_operation_id, &save_label);
                 let mut overlay_opened = false;
                 match editor_runtime.save_tab(group, tab) {
                     Ok(SaveTabAttempt::Saved(result)) => {
+                        activity_center.note_save_completed(
+                            &save_operation_id,
+                            &save_label,
+                            Some(result.packet_id.clone()),
+                        );
                         command_runtime.note_non_command_action(format!(
                             "saved ({}) — outcome={} strategy={}",
                             result.packet_id,
@@ -6898,9 +7315,15 @@ fn handle_key_event(
                         ));
                     }
                     Ok(SaveTabAttempt::NoTarget) => {
+                        activity_center.note_save_completed(&save_operation_id, &save_label, None);
                         command_runtime.note_non_command_action("saved (no target)");
                     }
                     Ok(SaveTabAttempt::ReviewRequired { record, outcome }) => {
+                        activity_center.note_save_failed(
+                            &save_operation_id,
+                            &save_label,
+                            format!("Save requires review before commit ({})", outcome.as_str()),
+                        );
                         *overlay = Some(ShellOverlayState::save_review(
                             frame.focused_zone(),
                             frame.focused_editor_group(),
@@ -6913,6 +7336,11 @@ fn handle_key_event(
                         overlay_opened = true;
                     }
                     Err(err) => {
+                        activity_center.note_save_failed(
+                            &save_operation_id,
+                            &save_label,
+                            err.clone(),
+                        );
                         command_runtime.note_non_command_action(format!("save failed — {err}"));
                     }
                 }
@@ -7559,6 +7987,7 @@ fn draw(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
     recent_work: &RecentWorkRuntimeState,
+    activity_center: &ActivityCenterRuntimeState,
     title_context_bar: &TitleContextBarStateRecord,
     appearance: &AppearanceRuntimeState,
     held_modifiers: &HeldModifiers,
@@ -7629,6 +8058,7 @@ fn draw(
                 enablement_runtime,
                 workspace_lifecycle,
                 recent_work,
+                activity_center,
                 title_context_bar,
                 appearance,
                 &style,
@@ -7702,6 +8132,7 @@ fn draw(
                     enablement_runtime,
                     workspace_lifecycle,
                     recent_work,
+                    activity_center,
                     title_context_bar,
                     appearance,
                     &style,
@@ -7742,6 +8173,7 @@ fn rasterize_shell(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
     recent_work: &RecentWorkRuntimeState,
+    activity_center: &ActivityCenterRuntimeState,
     title_context_bar: &TitleContextBarStateRecord,
     appearance: &AppearanceRuntimeState,
     style: &ShellRenderStyle,
@@ -8063,6 +8495,25 @@ fn rasterize_shell(
                     }
                 }
             }
+            ShellZoneId::ActivityRail => {
+                let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
+                for (_slot_id, slot_rect) in
+                    frame.slot_rects_within_zone(zone, logical_rect, zone_inset_logical)
+                {
+                    let slot_rect = to_physical_rect(slot_rect, scale);
+                    if clip.is_some_and(|clip_rect| !rect_intersects(slot_rect, clip_rect)) {
+                        continue;
+                    }
+                    draw_activity_center_rail(
+                        buffer,
+                        width,
+                        height,
+                        slot_rect,
+                        &activity_center.snapshot(),
+                        &style,
+                    );
+                }
+            }
             _ => {
                 let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
                 for (slot_id, slot_rect) in
@@ -8218,11 +8669,13 @@ fn rasterize_shell(
             None => "unknown",
         };
         let recent_work_store = recent_work.store_path.display();
+        let activity_snapshot = activity_center.snapshot();
+        let activity_store = activity_center.store_path.display();
         let status_item_label = title_context_bar
             .projection_label(SurfaceKind::WorkspaceStatusItem)
             .unwrap_or("Workspace ready");
         let text = format!(
-            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   {} terminal   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
+            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   activity_rows: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   {} terminal   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}   activity: {}",
             status_item_label,
             theme_label,
             density_label,
@@ -8232,6 +8685,7 @@ fn rasterize_shell(
             workspace_lifecycle_token,
             watcher_health_token,
             hot_index_label,
+            activity_snapshot.len(),
             last,
             last_keybinding,
             enablement_trust_token,
@@ -8242,7 +8696,8 @@ fn rasterize_shell(
             palette_keys,
             terminal_keys,
             docs_keys,
-            recent_work_store
+            recent_work_store,
+            activity_store
         );
 
         let mut cursor_x = status.x.saturating_add(style.space_2);
@@ -8401,6 +8856,350 @@ fn rasterize_shell(
             style.tokens.text_muted,
         );
     }
+}
+
+fn draw_activity_center_rail(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    snapshot: &ActivityCenterSnapshot,
+    style: &ShellRenderStyle,
+) {
+    if rect.is_empty() || rect.width < 8 || rect.height < 8 {
+        return;
+    }
+
+    fill_rect(buffer, width, height, rect, style.tokens.bg_surface);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        rect,
+        style.stroke_default,
+        style.tokens.border_default,
+    );
+
+    let inset = style.space_2.max(2);
+    let max_x = rect.right().saturating_sub(inset).max(rect.x);
+    let mut y = rect.y.saturating_add(inset / 2);
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        rect.x.saturating_add(inset),
+        y,
+        1,
+        "Activity",
+        style.tokens.text_primary,
+        max_x,
+    );
+    y = y.saturating_add(14);
+
+    if snapshot.rows.is_empty() {
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            rect.x.saturating_add(inset),
+            y,
+            1,
+            "No rows",
+            style.tokens.text_muted,
+            max_x,
+        );
+        return;
+    }
+
+    let row_gap = style.space_2.max(2);
+    let row_h = 48u32;
+    for row in snapshot.rows.iter().rev() {
+        if y >= rect.bottom().saturating_sub(inset) {
+            break;
+        }
+        let available_h = rect.bottom().saturating_sub(y).saturating_sub(inset);
+        let row_rect = Rect::new(
+            rect.x.saturating_add(inset / 2),
+            y,
+            rect.width.saturating_sub(inset),
+            row_h.min(available_h),
+        );
+        if row_rect.height < 18 {
+            break;
+        }
+        draw_activity_center_row(buffer, width, height, row_rect, row, style);
+        y = y.saturating_add(row_rect.height).saturating_add(row_gap);
+    }
+}
+
+fn handle_activity_rail_click(
+    frame: &mut DesktopFrame,
+    command_runtime: &mut CommandRuntimeState,
+    activity_center: &ActivityCenterRuntimeState,
+    scale_factor: f64,
+    x: u32,
+    y: u32,
+) -> bool {
+    let rail = to_physical_rect(frame.layout().activity_rail, scale_factor);
+    if !point_in_rect(x, y, rail) {
+        return false;
+    }
+
+    let snapshot = activity_center.snapshot();
+    let Some(row) = activity_row_at_point(rail, &snapshot, x, y) else {
+        return false;
+    };
+
+    if let Some(zone) = originating_zone_for_activity_row(row) {
+        if frame.layout().zone(zone).is_some() {
+            frame.focus_zone(zone);
+            command_runtime
+                .note_non_command_action(format!("activity opened - {}", row.summary_label));
+            return true;
+        }
+    }
+
+    command_runtime.note_non_command_action(format!(
+        "activity selected - {} (origin unavailable)",
+        row.summary_label
+    ));
+    true
+}
+
+fn activity_row_at_point<'a>(
+    rect: Rect,
+    snapshot: &'a ActivityCenterSnapshot,
+    x: u32,
+    y: u32,
+) -> Option<&'a ActivityCenterRow> {
+    let inset = 4u32;
+    let mut row_y = rect.y.saturating_add(inset / 2).saturating_add(14);
+    let row_h = 48u32;
+    let row_gap = 4u32;
+    for row in snapshot.rows.iter().rev() {
+        let row_rect = Rect::new(
+            rect.x.saturating_add(inset / 2),
+            row_y,
+            rect.width.saturating_sub(inset),
+            row_h,
+        );
+        if point_in_rect(x, y, row_rect) {
+            return Some(row);
+        }
+        row_y = row_y.saturating_add(row_h).saturating_add(row_gap);
+    }
+    None
+}
+
+fn originating_zone_for_activity_row(row: &ActivityCenterRow) -> Option<ShellZoneId> {
+    match row.source_subsystem {
+        SourceSubsystem::Editor | SourceSubsystem::VfsSave | SourceSubsystem::Shell => {
+            Some(ShellZoneId::MainWorkspace)
+        }
+        SourceSubsystem::Indexer | SourceSubsystem::PaletteAndSearch => {
+            Some(ShellZoneId::MainWorkspace)
+        }
+        SourceSubsystem::Terminal
+        | SourceSubsystem::TaskRunner
+        | SourceSubsystem::TestRunner
+        | SourceSubsystem::BuildSystem
+        | SourceSubsystem::DebugSession => Some(ShellZoneId::BottomPanel),
+        SourceSubsystem::DocsHelpServiceHealth => Some(ShellZoneId::RightInspector),
+        _ => None,
+    }
+}
+
+fn point_in_rect(x: u32, y: u32, rect: Rect) -> bool {
+    x >= rect.x && x < rect.right() && y >= rect.y && y < rect.bottom()
+}
+
+fn draw_activity_center_row(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    row: &ActivityCenterRow,
+    style: &ShellRenderStyle,
+) {
+    fill_rect(buffer, width, height, rect, style.tokens.bg_raised);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        rect,
+        style.stroke_default,
+        activity_lifecycle_border(row.lifecycle_class, style),
+    );
+
+    let inset = style.space_2.max(2);
+    let x = rect.x.saturating_add(inset / 2);
+    let max_x = rect.right().saturating_sub(inset / 2).max(x);
+    let chip_y = rect.y.saturating_add(inset / 2);
+    draw_activity_chip(buffer, width, height, x, chip_y, max_x, row, style);
+
+    let label_y = chip_y.saturating_add(12);
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        x,
+        label_y,
+        1,
+        &row.summary_label,
+        style.tokens.text_secondary,
+        max_x,
+    );
+
+    let age_y = label_y.saturating_add(10);
+    if age_y.saturating_add(8) <= rect.bottom() {
+        let age = activity_age_label(&row.last_observed_at);
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            x,
+            age_y,
+            1,
+            &age,
+            style.tokens.text_muted,
+            max_x,
+        );
+    }
+}
+
+fn draw_activity_chip(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    x: u32,
+    y: u32,
+    max_x: u32,
+    row: &ActivityCenterRow,
+    style: &ShellRenderStyle,
+) {
+    if max_x <= x {
+        return;
+    }
+    let chip_rect = Rect::new(x, y, max_x.saturating_sub(x).min(92), 10);
+    let (fg, border, fill) = activity_lifecycle_colors(row.lifecycle_class, style);
+    fill_rect(buffer, width, height, chip_rect, fill);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        chip_rect,
+        style.stroke_default,
+        border,
+    );
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        chip_rect.x.saturating_add(2),
+        chip_rect.y.saturating_add(1),
+        1,
+        row.lifecycle_label.as_str(),
+        fg,
+        chip_rect.right().saturating_sub(2),
+    );
+}
+
+fn activity_lifecycle_border(
+    lifecycle: ActivityRowLifecycleClass,
+    style: &ShellRenderStyle,
+) -> ColorRgba {
+    let (_, border, _) = activity_lifecycle_colors(lifecycle, style);
+    border
+}
+
+fn activity_lifecycle_colors(
+    lifecycle: ActivityRowLifecycleClass,
+    style: &ShellRenderStyle,
+) -> (ColorRgba, ColorRgba, ColorRgba) {
+    match lifecycle {
+        ActivityRowLifecycleClass::Completed => (
+            style.status_success,
+            style.status_success_border,
+            style.status_success_fill,
+        ),
+        ActivityRowLifecycleClass::Failed | ActivityRowLifecycleClass::Cancelled => (
+            style.status_danger,
+            style.status_danger_border,
+            style.status_danger_fill,
+        ),
+        ActivityRowLifecycleClass::Preparing | ActivityRowLifecycleClass::Running => (
+            style.status_warning,
+            style.status_warning_border,
+            style.status_warning_fill,
+        ),
+    }
+}
+
+fn activity_age_label(observed_at: &str) -> String {
+    match rfc3339_epoch_seconds(observed_at) {
+        Some(observed) => {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
+            let elapsed = now.saturating_sub(observed).max(0);
+            format!("age {}", compact_duration_label(elapsed))
+        }
+        None => "age unknown".to_string(),
+    }
+}
+
+fn compact_duration_label(seconds: i64) -> String {
+    if seconds < 60 {
+        format!("{seconds}s")
+    } else if seconds < 3_600 {
+        format!("{}m", seconds / 60)
+    } else if seconds < 86_400 {
+        format!("{}h", seconds / 3_600)
+    } else {
+        format!("{}d", seconds / 86_400)
+    }
+}
+
+fn rfc3339_epoch_seconds(value: &str) -> Option<i64> {
+    if value.len() < 20 || !value.ends_with('Z') {
+        return None;
+    }
+    let year = value.get(0..4)?.parse::<i32>().ok()?;
+    let month = value.get(5..7)?.parse::<u32>().ok()?;
+    let day = value.get(8..10)?.parse::<u32>().ok()?;
+    let hour = value.get(11..13)?.parse::<u32>().ok()?;
+    let minute = value.get(14..16)?.parse::<u32>().ok()?;
+    let second = value.get(17..19)?.parse::<u32>().ok()?;
+    if value.as_bytes().get(4) != Some(&b'-')
+        || value.as_bytes().get(7) != Some(&b'-')
+        || value.as_bytes().get(10) != Some(&b'T')
+        || value.as_bytes().get(13) != Some(&b':')
+        || value.as_bytes().get(16) != Some(&b':')
+        || !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 60
+    {
+        return None;
+    }
+    let days = days_from_civil(year, month, day)?;
+    Some(days * 86_400 + i64::from(hour) * 3_600 + i64::from(minute) * 60 + i64::from(second))
+}
+
+fn days_from_civil(year: i32, month: u32, day: u32) -> Option<i64> {
+    let year = i64::from(year) - if month <= 2 { 1 } else { 0 };
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let yoe = year - era * 400;
+    let month = i64::from(month);
+    let day = i64::from(day);
+    let doy = (153 * (month + if month > 2 { -3 } else { 9 }) + 2) / 5 + day - 1;
+    if !(0..=365).contains(&doy) {
+        return None;
+    }
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some(era * 146_097 + doe - 719_468)
 }
 
 fn draw_shell_slot_placeholder_card(
