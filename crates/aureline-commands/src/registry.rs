@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn seeded_registry_loads() {
         let registry = seeded_registry();
-        assert_eq!(registry.entries().len(), 21);
+        assert_eq!(registry.entries().len(), 22);
         assert!(registry.get("cmd:workspace.open_folder").is_some());
         assert!(registry.get("cmd:command_palette.open").is_some());
         assert!(registry.get("cmd:explorer.toggle").is_some());
@@ -231,6 +231,7 @@ mod tests {
         assert!(registry.get("cmd:editor.find_next").is_some());
         assert!(registry.get("cmd:editor.find_previous").is_some());
         assert!(registry.get("cmd:quick_open.toggle").is_some());
+        assert!(registry.get("cmd:settings.open").is_some());
         assert!(registry.get("cmd:labs.open_wedge_inspector").is_some());
     }
 

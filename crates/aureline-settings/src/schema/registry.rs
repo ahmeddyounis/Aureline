@@ -157,6 +157,75 @@ impl SchemaRegistry {
             .expect("seed: shell.theme");
         registry
             .register(SettingDefinition {
+                setting_id: "ui.theme".to_owned(),
+                value_type: SettingValueType::Enum {
+                    allowed: vec!["light".into(), "dark".into(), "system".into()],
+                },
+                default_value: SettingValue::String("dark".into()),
+                allowed_scopes: vec![
+                    SettingScope::BuiltInDefault,
+                    SettingScope::ImportedProfileDefault,
+                    SettingScope::UserGlobal,
+                    SettingScope::MachineSpecific,
+                    SettingScope::Workspace,
+                    SettingScope::SessionOverride,
+                    SettingScope::AdminPolicyNarrowing,
+                ],
+                restart_posture: RestartPosture::NoRestart,
+                lifecycle_label: LifecycleLabel::Stable,
+                is_machine_specific: false,
+                is_policy_narrowable: true,
+                summary: "Active UI theme mode.".to_owned(),
+            })
+            .expect("seed: ui.theme");
+        registry
+            .register(SettingDefinition {
+                setting_id: "ui.density".to_owned(),
+                value_type: SettingValueType::Enum {
+                    allowed: vec!["compact".into(), "comfortable".into(), "spacious".into()],
+                },
+                default_value: SettingValue::String("comfortable".into()),
+                allowed_scopes: vec![
+                    SettingScope::BuiltInDefault,
+                    SettingScope::ImportedProfileDefault,
+                    SettingScope::UserGlobal,
+                    SettingScope::MachineSpecific,
+                    SettingScope::Workspace,
+                    SettingScope::SessionOverride,
+                    SettingScope::AdminPolicyNarrowing,
+                ],
+                restart_posture: RestartPosture::NoRestart,
+                lifecycle_label: LifecycleLabel::Stable,
+                is_machine_specific: false,
+                is_policy_narrowable: true,
+                summary: "Active UI density mode.".to_owned(),
+            })
+            .expect("seed: ui.density");
+        registry
+            .register(SettingDefinition {
+                setting_id: "ui.motion".to_owned(),
+                value_type: SettingValueType::Enum {
+                    allowed: vec!["full".into(), "reduced".into(), "none".into()],
+                },
+                default_value: SettingValue::String("full".into()),
+                allowed_scopes: vec![
+                    SettingScope::BuiltInDefault,
+                    SettingScope::ImportedProfileDefault,
+                    SettingScope::UserGlobal,
+                    SettingScope::MachineSpecific,
+                    SettingScope::Workspace,
+                    SettingScope::SessionOverride,
+                    SettingScope::AdminPolicyNarrowing,
+                ],
+                restart_posture: RestartPosture::NoRestart,
+                lifecycle_label: LifecycleLabel::Stable,
+                is_machine_specific: false,
+                is_policy_narrowable: true,
+                summary: "Active UI motion mode.".to_owned(),
+            })
+            .expect("seed: ui.motion");
+        registry
+            .register(SettingDefinition {
                 setting_id: "shell.labs.wedge_inspector_enabled".to_owned(),
                 value_type: SettingValueType::Boolean,
                 default_value: SettingValue::Boolean(false),
@@ -254,6 +323,9 @@ mod tests {
         assert!(registry.definition("editor.tab_size").is_some());
         assert!(registry.definition("editor.format_on_save").is_some());
         assert!(registry.definition("shell.theme").is_some());
+        assert!(registry.definition("ui.theme").is_some());
+        assert!(registry.definition("ui.density").is_some());
+        assert!(registry.definition("ui.motion").is_some());
         assert!(registry
             .definition("shell.labs.wedge_inspector_enabled")
             .is_some());
@@ -261,7 +333,7 @@ mod tests {
         assert!(registry
             .definition("vfs.watcher.fallback_polling_ms")
             .is_some());
-        assert_eq!(registry.len(), 6);
+        assert_eq!(registry.len(), 9);
     }
 
     #[test]

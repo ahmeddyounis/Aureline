@@ -265,11 +265,16 @@ pub fn preset_conflicts(
     Ok(packets)
 }
 
-const VS_CODE_SPECS: [PresetBindingSpec; 22] = [
+const VS_CODE_SPECS: [PresetBindingSpec; 23] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+P",
         other_sequence: "Ctrl+Shift+P",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:settings.open",
+        macos_sequence: "Cmd+,",
+        other_sequence: "Ctrl+,",
     },
     PresetBindingSpec {
         command_id: "cmd:terminal.toggle",
@@ -378,11 +383,16 @@ const VS_CODE_SPECS: [PresetBindingSpec; 22] = [
     },
 ];
 
-const INTELLIJ_SPECS: [PresetBindingSpec; 22] = [
+const INTELLIJ_SPECS: [PresetBindingSpec; 23] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+A",
         other_sequence: "Ctrl+Shift+A",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:settings.open",
+        macos_sequence: "Cmd+,",
+        other_sequence: "Ctrl+,",
     },
     PresetBindingSpec {
         command_id: "cmd:terminal.toggle",
@@ -491,11 +501,16 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 22] = [
     },
 ];
 
-const VIM_SPECS: [PresetBindingSpec; 23] = [
+const VIM_SPECS: [PresetBindingSpec; 24] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Ctrl+Shift+P",
         other_sequence: "Ctrl+Shift+P",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:settings.open",
+        macos_sequence: "Cmd+,",
+        other_sequence: "Ctrl+,",
     },
     PresetBindingSpec {
         command_id: "cmd:terminal.toggle",
@@ -611,11 +626,16 @@ const VIM_SPECS: [PresetBindingSpec; 23] = [
     },
 ];
 
-const EMACS_SPECS: [PresetBindingSpec; 22] = [
+const EMACS_SPECS: [PresetBindingSpec; 23] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Alt+X",
         other_sequence: "Alt+X",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:settings.open",
+        macos_sequence: "Cmd+,",
+        other_sequence: "Ctrl+,",
     },
     PresetBindingSpec {
         command_id: "cmd:terminal.toggle",

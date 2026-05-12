@@ -124,6 +124,10 @@ use aureline_runtime::{
     ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode, ScopeClass,
     TargetClass,
 };
+use aureline_settings::{
+    EffectiveSettingsResolver, EffectiveValue, SchemaRegistry, ScopeOverlay, SettingScope,
+    SettingValue, WriteAttemptOutcome, WriteDenialReason, WriteIntent,
+};
 use aureline_telemetry::hot_path_metrics::{
     HotPathMetrics, HotPathMetricsConfig, HotPathMetricsContext,
 };
@@ -135,8 +139,8 @@ use aureline_ui::components::{
 use aureline_ui::density::DensityProfile;
 use aureline_ui::motion::{ReducedMotionSubstitutionClass, OVERLAY_DIALOG_ENTER};
 use aureline_ui::themes::{
-    AccessibilityPostureClass, AppearanceSessionRecord, DensityClass, LiveFollowSystemPolicyRecord,
-    ReducedMotionSource,
+    AccessibilityPostureClass, AppearanceSessionRecord, ContrastMode, DensityClass,
+    LiveFollowSystemPolicyRecord, ReducedMotionSource,
 };
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
@@ -343,6 +347,9 @@ struct NativeShellArgs {
     theme_class: Option<ThemeClass>,
     density_class: Option<DensityClass>,
     reduced_motion_posture: Option<AccessibilityPostureClass>,
+    ui_theme: Option<String>,
+    ui_density: Option<String>,
+    ui_motion: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -453,6 +460,24 @@ where
                 })?;
                 args.reduced_motion_posture = Some(parse_accessibility_posture(&value)?);
             }
+            "--ui-theme" => {
+                let value = iter
+                    .next()
+                    .ok_or_else(|| "--ui-theme requires light | dark | system".to_string())?;
+                args.ui_theme = Some(parse_ui_theme_setting(&value)?.to_string());
+            }
+            "--ui-density" => {
+                let value = iter.next().ok_or_else(|| {
+                    "--ui-density requires compact | comfortable | spacious".to_string()
+                })?;
+                args.ui_density = Some(parse_ui_density_setting(&value)?.to_string());
+            }
+            "--ui-motion" => {
+                let value = iter
+                    .next()
+                    .ok_or_else(|| "--ui-motion requires full | reduced | none".to_string())?;
+                args.ui_motion = Some(parse_ui_motion_setting(&value)?.to_string());
+            }
             "--disable-clipboard" => args.disable_clipboard = true,
             "--renderer" => {
                 let value = iter.next().ok_or_else(|| {
@@ -493,7 +518,7 @@ fn usage() -> String {
      \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n\
      \taureline_shell --open <folder> --headless-test-edit-save <file> --headless-test-write-hex <hex> [--headless-test-report <path>]\n\
      \taureline_shell --emit-hot-path-metrics <path>\n\
-     \taureline_shell --emit-screenshot <path> [--theme-class <token>] [--density-class <token>] [--reduced-motion-posture <token>] [--window-size <WxH>] [--renderer (gpu|software)]\n\
+     \taureline_shell --emit-screenshot <path> [--theme-class <token>] [--density-class <token>] [--reduced-motion-posture <token>] [--ui-theme <light|dark|system>] [--ui-density <compact|comfortable|spacious>] [--ui-motion <full|reduced|none>] [--window-size <WxH>] [--renderer (gpu|software)]\n\
      \taureline_shell --renderer (gpu|software)\n"
         .to_string()
 }
@@ -866,6 +891,39 @@ fn parse_accessibility_posture(value: &str) -> Result<AccessibilityPostureClass,
     }
 }
 
+fn parse_ui_theme_setting(value: &str) -> Result<&'static str, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "light" => Ok(UI_THEME_LIGHT),
+        "dark" => Ok(UI_THEME_DARK),
+        "system" | "auto" => Ok(UI_THEME_SYSTEM),
+        _ => Err(format!(
+            "invalid UI theme setting: {value:?} (expected light | dark | system)"
+        )),
+    }
+}
+
+fn parse_ui_density_setting(value: &str) -> Result<&'static str, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "compact" => Ok(UI_DENSITY_COMPACT),
+        "comfortable" | "standard" => Ok(UI_DENSITY_COMFORTABLE),
+        "spacious" => Ok(UI_DENSITY_SPACIOUS),
+        _ => Err(format!(
+            "invalid UI density setting: {value:?} (expected compact | comfortable | spacious)"
+        )),
+    }
+}
+
+fn parse_ui_motion_setting(value: &str) -> Result<&'static str, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "full" | "motion_standard" => Ok(UI_MOTION_FULL),
+        "reduced" | "motion_reduced" => Ok(UI_MOTION_REDUCED),
+        "none" | "motion_low_motion" | "motion_critical_hot_path" => Ok(UI_MOTION_NONE),
+        _ => Err(format!(
+            "invalid UI motion setting: {value:?} (expected full | reduced | none)"
+        )),
+    }
+}
+
 #[derive(Debug)]
 enum ShellRenderBackend {
     Gpu {
@@ -1072,6 +1130,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         args.theme_class,
         args.density_class,
         args.reduced_motion_posture,
+        args.ui_theme.as_deref(),
+        args.ui_density.as_deref(),
+        args.ui_motion.as_deref(),
     );
     let docs_help_boundary_card =
         seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
@@ -6231,6 +6292,51 @@ impl ActivityCenterRuntimeState {
         );
     }
 
+    fn note_settings_write_denied(&mut self, outcome: &WriteAttemptOutcome) {
+        let Some(reason) = outcome.denial_reason.as_ref() else {
+            return;
+        };
+        let reason_label = settings_denial_reason_label(reason);
+        let setting_component = sanitize_activity_id_component(&outcome.setting_id);
+        let event_id = format!("ux:event:settings-write-denied:{setting_component}");
+        let object_target_ref = format!("obj:settings:{}", outcome.setting_id);
+        let source_event_ref = format!("settings-write:{}", outcome.setting_id);
+        let summary_label = format!(
+            "Settings write denied: {} ({})",
+            outcome.setting_id, reason_label
+        );
+        let detail = outcome
+            .effective_after
+            .as_ref()
+            .map(|effective| {
+                format!(
+                    "{} remains {} from {} ({})",
+                    effective.setting_id,
+                    effective.value.preview(),
+                    effective.winning_scope.as_str(),
+                    effective.source_label
+                )
+            })
+            .unwrap_or_else(|| "No effective setting value was changed.".to_string());
+
+        self.record_job(
+            ActivityJobRecord {
+                event_id: &event_id,
+                envelope_id: &format!("ux:notif-env:settings-write-denied:{setting_component}"),
+                source_subsystem: SourceSubsystem::PolicyResolver,
+                source_event_ref: &source_event_ref,
+                object_target_ref: &object_target_ref,
+                summary_label: &summary_label,
+                severity_class: SeverityClass::Warning,
+                action_command_id: "cmd:settings.open",
+                action_label: "Open settings",
+                attention_surface: Some(FanoutSurfaceClass::ContextualBanner),
+                minted_at: now_rfc3339(),
+            },
+            DurableJobObservation::failed(ActivityRowRetryability::DeniedByContext, detail, None),
+        );
+    }
+
     fn record_job(&mut self, job: ActivityJobRecord<'_>, observation: DurableJobObservation) {
         let envelope = activity_job_envelope(job);
         match self.notifications.route(envelope, Instant::now()) {
@@ -6344,23 +6450,48 @@ fn expand_tilde(value: &str) -> PathBuf {
     PathBuf::from(value)
 }
 
+const UI_THEME_SETTING_ID: &str = "ui.theme";
+const UI_DENSITY_SETTING_ID: &str = "ui.density";
+const UI_MOTION_SETTING_ID: &str = "ui.motion";
+const UI_THEME_LIGHT: &str = "light";
+const UI_THEME_DARK: &str = "dark";
+const UI_THEME_SYSTEM: &str = "system";
+const UI_DENSITY_COMPACT: &str = "compact";
+const UI_DENSITY_COMFORTABLE: &str = "comfortable";
+const UI_DENSITY_SPACIOUS: &str = "spacious";
+const UI_MOTION_FULL: &str = "full";
+const UI_MOTION_REDUCED: &str = "reduced";
+const UI_MOTION_NONE: &str = "none";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ThemeBaseMode {
+    Light,
+    Dark,
+}
+
 #[derive(Debug, Clone)]
 struct AppearanceRuntimeState {
     store_path: PathBuf,
     policy_path: PathBuf,
+    settings_path: PathBuf,
     session: AppearanceSessionRecord,
     policy: LiveFollowSystemPolicyRecord,
+    resolver: EffectiveSettingsResolver,
     last_error: Option<String>,
 }
 
 impl AppearanceRuntimeState {
     fn load() -> Self {
-        let store_path = PathBuf::from(".logs")
+        let state_root = appearance_state_root();
+        let store_path = state_root
             .join("appearance")
             .join("appearance_session.json");
-        let policy_path = PathBuf::from(".logs")
+        let policy_path = state_root
             .join("appearance")
             .join("live_follow_system_policy.json");
+        let settings_path = state_root
+            .join("settings")
+            .join("appearance_effective_settings.json");
 
         let mut last_error: Option<String> = None;
         let mut needs_persist = false;
@@ -6403,13 +6534,47 @@ impl AppearanceRuntimeState {
             }
         };
 
+        let mut resolver = appearance_settings_resolver_with_defaults();
+        let settings_loaded = match std::fs::read_to_string(&settings_path) {
+            Ok(payload) => match serde_json::from_str::<serde_json::Value>(&payload) {
+                Ok(value) => match resolver.import_state(&value) {
+                    Ok(()) => true,
+                    Err(err) => {
+                        last_error = Some(format!("appearance settings import failed: {err}"));
+                        needs_persist = true;
+                        false
+                    }
+                },
+                Err(err) => {
+                    last_error = Some(format!("appearance settings parse failed: {err}"));
+                    needs_persist = true;
+                    false
+                }
+            },
+            Err(err) => {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    last_error = Some(format!("appearance settings read failed: {err}"));
+                } else {
+                    needs_persist = true;
+                }
+                false
+            }
+        };
+
+        if !settings_loaded {
+            install_session_overlay_if_needed(&mut resolver, &session);
+        }
+
         let mut state = Self {
             store_path,
             policy_path,
+            settings_path,
             session,
             policy,
+            resolver,
             last_error,
         };
+        state.sync_session_from_effective_settings();
 
         if needs_persist {
             state.persist();
@@ -6418,16 +6583,23 @@ impl AppearanceRuntimeState {
         state
     }
 
-    const fn theme_class(&self) -> ThemeClass {
-        self.session.theme_class()
+    fn theme_class(&self) -> ThemeClass {
+        let theme = self.ui_theme_token();
+        theme_class_for_settings(
+            theme.as_str(),
+            self.session.contrast_mode,
+            self.session.theme_class(),
+        )
     }
 
-    const fn density_class(&self) -> DensityClass {
-        self.session.density_class()
+    fn density_class(&self) -> DensityClass {
+        let density = self.ui_density_token();
+        density_class_for_settings(density.as_str())
     }
 
-    const fn reduced_motion_posture(&self) -> AccessibilityPostureClass {
-        self.session.reduced_motion_posture
+    fn reduced_motion_posture(&self) -> AccessibilityPostureClass {
+        let motion = self.ui_motion_token();
+        motion_posture_for_settings(motion.as_str())
     }
 
     fn apply_cli_overrides(
@@ -6435,17 +6607,36 @@ impl AppearanceRuntimeState {
         theme_class: Option<ThemeClass>,
         density_class: Option<DensityClass>,
         reduced_motion_posture: Option<AccessibilityPostureClass>,
+        ui_theme: Option<&str>,
+        ui_density: Option<&str>,
+        ui_motion: Option<&str>,
     ) {
-        if theme_class.is_none() && density_class.is_none() && reduced_motion_posture.is_none() {
+        if theme_class.is_none()
+            && density_class.is_none()
+            && reduced_motion_posture.is_none()
+            && ui_theme.is_none()
+            && ui_density.is_none()
+            && ui_motion.is_none()
+        {
             return;
         }
 
         let minted_at = now_rfc3339();
         if let Some(theme) = theme_class {
             self.session.apply_theme_class(theme, minted_at.clone());
+            let _ = self.write_ui_setting(
+                UI_THEME_SETTING_ID,
+                ui_theme_for_theme_class(theme),
+                SettingScope::SessionOverride,
+            );
         }
         if let Some(density) = density_class {
             self.session.apply_density_class(density, minted_at.clone());
+            let _ = self.write_ui_setting(
+                UI_DENSITY_SETTING_ID,
+                ui_density_for_density_class(density),
+                SettingScope::SessionOverride,
+            );
         }
         if let Some(posture) = reduced_motion_posture {
             self.session.apply_reduced_motion_posture(
@@ -6453,32 +6644,160 @@ impl AppearanceRuntimeState {
                 ReducedMotionSource::UserSetting,
                 minted_at,
             );
+            let _ = self.write_ui_setting(
+                UI_MOTION_SETTING_ID,
+                ui_motion_for_posture(posture),
+                SettingScope::SessionOverride,
+            );
         }
-        self.persist();
+        if let Some(theme) = ui_theme {
+            let _ =
+                self.write_ui_setting(UI_THEME_SETTING_ID, theme, SettingScope::SessionOverride);
+        }
+        if let Some(density) = ui_density {
+            let _ = self.write_ui_setting(
+                UI_DENSITY_SETTING_ID,
+                density,
+                SettingScope::SessionOverride,
+            );
+        }
+        if let Some(motion) = ui_motion {
+            let _ =
+                self.write_ui_setting(UI_MOTION_SETTING_ID, motion, SettingScope::SessionOverride);
+        }
     }
 
-    fn toggle_light_dark(&mut self) {
-        let minted_at = now_rfc3339();
-        self.session.toggle_light_dark(minted_at);
-        self.persist();
+    fn toggle_light_dark(&mut self) -> WriteAttemptOutcome {
+        let theme = self.ui_theme_token();
+        let next = match theme.as_str() {
+            UI_THEME_LIGHT => UI_THEME_DARK,
+            _ => UI_THEME_LIGHT,
+        };
+        self.write_ui_setting(UI_THEME_SETTING_ID, next, SettingScope::UserGlobal)
     }
 
     fn toggle_high_contrast(&mut self) {
+        self.sync_session_from_effective_settings();
         let minted_at = now_rfc3339();
         self.session.toggle_high_contrast(minted_at);
         self.persist();
     }
 
-    fn cycle_density_class(&mut self) {
-        let minted_at = now_rfc3339();
-        self.session.cycle_density_class(minted_at);
-        self.persist();
+    fn cycle_density_class(&mut self) -> WriteAttemptOutcome {
+        let density = self.ui_density_token();
+        let next = match density.as_str() {
+            UI_DENSITY_COMPACT => UI_DENSITY_COMFORTABLE,
+            UI_DENSITY_COMFORTABLE => UI_DENSITY_SPACIOUS,
+            _ => UI_DENSITY_COMPACT,
+        };
+        self.write_ui_setting(UI_DENSITY_SETTING_ID, next, SettingScope::UserGlobal)
     }
 
-    fn cycle_reduced_motion_posture(&mut self) {
+    fn cycle_reduced_motion_posture(&mut self) -> WriteAttemptOutcome {
+        let motion = self.ui_motion_token();
+        let next = match motion.as_str() {
+            UI_MOTION_FULL => UI_MOTION_REDUCED,
+            UI_MOTION_REDUCED => UI_MOTION_NONE,
+            _ => UI_MOTION_FULL,
+        };
+        self.write_ui_setting(UI_MOTION_SETTING_ID, next, SettingScope::UserGlobal)
+    }
+
+    fn write_ui_setting(
+        &mut self,
+        setting_id: &str,
+        value: &str,
+        target_scope: SettingScope,
+    ) -> WriteAttemptOutcome {
+        let outcome = self.resolver.attempt_write(
+            setting_id,
+            target_scope,
+            SettingValue::String(value.to_string()),
+        );
+        if outcome.verdict == WriteIntent::Allowed {
+            self.sync_session_from_effective_settings();
+            self.persist();
+        }
+        outcome
+    }
+
+    fn resolved_ui_setting(&self, setting_id: &str) -> Option<EffectiveValue> {
+        self.resolver.resolve(setting_id).ok()
+    }
+
+    fn settings_rows(&self) -> Vec<SettingsOverlayRow> {
+        [
+            (UI_THEME_SETTING_ID, "Theme"),
+            (UI_DENSITY_SETTING_ID, "Density"),
+            (UI_MOTION_SETTING_ID, "Motion"),
+        ]
+        .into_iter()
+        .filter_map(|(setting_id, label)| {
+            let effective = self.resolved_ui_setting(setting_id)?;
+            Some(SettingsOverlayRow::from_effective(label, effective))
+        })
+        .collect()
+    }
+
+    #[cfg(test)]
+    fn lock_ui_setting_for_test(&mut self, setting_id: &str, value: &str) {
+        let mut policy = self
+            .resolver
+            .overlays()
+            .find(|overlay| overlay.scope == SettingScope::AdminPolicyNarrowing)
+            .cloned()
+            .unwrap_or_else(|| {
+                ScopeOverlay::new(
+                    SettingScope::AdminPolicyNarrowing,
+                    "Test managed settings policy",
+                )
+            });
+        policy.set_policy_constraint(
+            setting_id,
+            aureline_settings::PolicyConstraint::SingleValue {
+                value: SettingValue::String(value.to_string()),
+            },
+        );
+        self.resolver
+            .set_overlay(policy)
+            .expect("test policy lock must validate");
+        self.sync_session_from_effective_settings();
+    }
+
+    fn ui_theme_token(&self) -> String {
+        self.resolved_string_or_default(UI_THEME_SETTING_ID, UI_THEME_DARK)
+    }
+
+    fn ui_density_token(&self) -> String {
+        self.resolved_string_or_default(UI_DENSITY_SETTING_ID, UI_DENSITY_COMFORTABLE)
+    }
+
+    fn ui_motion_token(&self) -> String {
+        self.resolved_string_or_default(UI_MOTION_SETTING_ID, UI_MOTION_FULL)
+    }
+
+    fn resolved_string_or_default(&self, setting_id: &str, fallback: &str) -> String {
+        self.resolver
+            .resolve(setting_id)
+            .ok()
+            .and_then(|effective| match effective.value {
+                SettingValue::String(value) => Some(value),
+                _ => None,
+            })
+            .unwrap_or_else(|| fallback.to_string())
+    }
+
+    fn sync_session_from_effective_settings(&mut self) {
         let minted_at = now_rfc3339();
-        self.session.cycle_reduced_motion_posture(minted_at);
-        self.persist();
+        self.session
+            .apply_theme_class(self.theme_class(), minted_at.clone());
+        self.session
+            .apply_density_class(self.density_class(), minted_at.clone());
+        self.session.apply_reduced_motion_posture(
+            self.reduced_motion_posture(),
+            ReducedMotionSource::UserSetting,
+            minted_at,
+        );
     }
 
     fn persist(&mut self) {
@@ -6510,6 +6829,267 @@ impl AppearanceRuntimeState {
                 self.last_error = Some(format!("appearance policy serialize failed: {err}"));
             }
         }
+
+        if let Some(parent) = self.settings_path.parent() {
+            if let Err(err) = std::fs::create_dir_all(parent) {
+                self.last_error = Some(format!("appearance settings dir create failed: {err}"));
+                return;
+            }
+        }
+
+        match serde_json::to_string_pretty(&self.resolver.export_state()) {
+            Ok(payload) => {
+                if let Err(err) = std::fs::write(&self.settings_path, payload) {
+                    self.last_error = Some(format!("appearance settings write failed: {err}"));
+                }
+            }
+            Err(err) => {
+                self.last_error = Some(format!("appearance settings serialize failed: {err}"));
+            }
+        }
+    }
+}
+
+fn appearance_state_root() -> PathBuf {
+    env::var_os("AURELINE_APPEARANCE_STATE_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(".logs"))
+}
+
+fn appearance_settings_resolver_with_defaults() -> EffectiveSettingsResolver {
+    let mut resolver = EffectiveSettingsResolver::new(SchemaRegistry::with_seed_catalog());
+    let mut defaults = ScopeOverlay::new(SettingScope::BuiltInDefault, "Aureline shell defaults");
+    defaults.set_value(
+        UI_THEME_SETTING_ID,
+        SettingValue::String(UI_THEME_DARK.to_string()),
+    );
+    defaults.set_value(
+        UI_DENSITY_SETTING_ID,
+        SettingValue::String(UI_DENSITY_COMFORTABLE.to_string()),
+    );
+    defaults.set_value(
+        UI_MOTION_SETTING_ID,
+        SettingValue::String(UI_MOTION_FULL.to_string()),
+    );
+    resolver
+        .set_overlay(defaults)
+        .expect("appearance default settings must validate");
+    resolver
+}
+
+fn install_session_overlay_if_needed(
+    resolver: &mut EffectiveSettingsResolver,
+    session: &AppearanceSessionRecord,
+) {
+    let theme = ui_theme_for_theme_class(session.theme_class());
+    let density = ui_density_for_density_class(session.density_class());
+    let motion = ui_motion_for_posture(session.reduced_motion_posture);
+    if theme == UI_THEME_DARK && density == UI_DENSITY_COMFORTABLE && motion == UI_MOTION_FULL {
+        return;
+    }
+
+    let mut user = ScopeOverlay::new(SettingScope::UserGlobal, "Appearance session");
+    user.set_value(UI_THEME_SETTING_ID, SettingValue::String(theme.to_string()));
+    user.set_value(
+        UI_DENSITY_SETTING_ID,
+        SettingValue::String(density.to_string()),
+    );
+    user.set_value(
+        UI_MOTION_SETTING_ID,
+        SettingValue::String(motion.to_string()),
+    );
+    resolver
+        .set_overlay(user)
+        .expect("appearance session settings must validate");
+}
+
+fn ui_theme_for_theme_class(theme: ThemeClass) -> &'static str {
+    match theme {
+        ThemeClass::LightParity | ThemeClass::HighContrastLight => UI_THEME_LIGHT,
+        ThemeClass::DarkReference | ThemeClass::HighContrastDark => UI_THEME_DARK,
+    }
+}
+
+fn ui_density_for_density_class(density: DensityClass) -> &'static str {
+    match density {
+        DensityClass::Compact => UI_DENSITY_COMPACT,
+        DensityClass::Standard => UI_DENSITY_COMFORTABLE,
+        DensityClass::Comfortable => UI_DENSITY_SPACIOUS,
+    }
+}
+
+fn ui_motion_for_posture(posture: AccessibilityPostureClass) -> &'static str {
+    match posture {
+        AccessibilityPostureClass::MotionStandard => UI_MOTION_FULL,
+        AccessibilityPostureClass::MotionReduced => UI_MOTION_REDUCED,
+        AccessibilityPostureClass::MotionLowMotion
+        | AccessibilityPostureClass::MotionPowerSaver
+        | AccessibilityPostureClass::MotionCriticalHotPath => UI_MOTION_NONE,
+    }
+}
+
+fn theme_class_for_settings(
+    theme: &str,
+    contrast_mode: ContrastMode,
+    previous: ThemeClass,
+) -> ThemeClass {
+    let base = match theme {
+        UI_THEME_LIGHT => ThemeBaseMode::Light,
+        UI_THEME_SYSTEM => match previous {
+            ThemeClass::LightParity | ThemeClass::HighContrastLight => ThemeBaseMode::Light,
+            ThemeClass::DarkReference | ThemeClass::HighContrastDark => ThemeBaseMode::Dark,
+        },
+        _ => ThemeBaseMode::Dark,
+    };
+    let high_contrast = matches!(
+        contrast_mode,
+        ContrastMode::ContrastHigh | ContrastMode::ContrastForcedColors
+    );
+    match (base, high_contrast) {
+        (ThemeBaseMode::Light, false) => ThemeClass::LightParity,
+        (ThemeBaseMode::Dark, false) => ThemeClass::DarkReference,
+        (ThemeBaseMode::Light, true) => ThemeClass::HighContrastLight,
+        (ThemeBaseMode::Dark, true) => ThemeClass::HighContrastDark,
+    }
+}
+
+fn density_class_for_settings(density: &str) -> DensityClass {
+    match density {
+        UI_DENSITY_COMPACT => DensityClass::Compact,
+        UI_DENSITY_SPACIOUS => DensityClass::Comfortable,
+        _ => DensityClass::Standard,
+    }
+}
+
+fn motion_posture_for_settings(motion: &str) -> AccessibilityPostureClass {
+    match motion {
+        UI_MOTION_REDUCED => AccessibilityPostureClass::MotionReduced,
+        UI_MOTION_NONE => AccessibilityPostureClass::MotionLowMotion,
+        _ => AccessibilityPostureClass::MotionStandard,
+    }
+}
+
+#[cfg(test)]
+mod appearance_settings_runtime_tests {
+    use super::*;
+
+    fn appearance_state_for_test(name: &str) -> AppearanceRuntimeState {
+        let root = std::env::temp_dir().join(format!(
+            "aureline-appearance-settings-test-{}-{}",
+            name,
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let session = AppearanceSessionRecord::first_party_default(now_rfc3339());
+        let policy = LiveFollowSystemPolicyRecord::first_party_default(
+            session.appearance_session_id.clone(),
+            now_rfc3339(),
+        );
+        AppearanceRuntimeState {
+            store_path: root.join("appearance_session.json"),
+            policy_path: root.join("live_follow_system_policy.json"),
+            settings_path: root.join("appearance_effective_settings.json"),
+            session,
+            policy,
+            resolver: appearance_settings_resolver_with_defaults(),
+            last_error: None,
+        }
+    }
+
+    #[test]
+    fn appearance_reads_theme_from_effective_settings() {
+        let mut appearance = appearance_state_for_test("theme");
+        let outcome = appearance.write_ui_setting(
+            UI_THEME_SETTING_ID,
+            UI_THEME_LIGHT,
+            SettingScope::UserGlobal,
+        );
+
+        assert_eq!(outcome.verdict, WriteIntent::Allowed);
+        assert_eq!(appearance.theme_class(), ThemeClass::LightParity);
+        let theme = appearance
+            .resolved_ui_setting(UI_THEME_SETTING_ID)
+            .expect("theme resolves");
+        assert_eq!(
+            theme.value,
+            SettingValue::String(UI_THEME_LIGHT.to_string())
+        );
+        assert_eq!(theme.winning_scope, SettingScope::UserGlobal);
+    }
+
+    #[test]
+    fn policy_locked_theme_write_is_denied_without_changing_value() {
+        let mut appearance = appearance_state_for_test("policy");
+        appearance.lock_ui_setting_for_test(UI_THEME_SETTING_ID, UI_THEME_DARK);
+
+        let outcome = appearance.write_ui_setting(
+            UI_THEME_SETTING_ID,
+            UI_THEME_LIGHT,
+            SettingScope::UserGlobal,
+        );
+
+        assert_eq!(outcome.verdict, WriteIntent::Denied);
+        assert!(matches!(
+            outcome.denial_reason,
+            Some(WriteDenialReason::PolicyLocked)
+        ));
+        assert_eq!(appearance.theme_class(), ThemeClass::DarkReference);
+        let effective = appearance
+            .resolved_ui_setting(UI_THEME_SETTING_ID)
+            .expect("theme resolves");
+        assert_eq!(
+            effective.value,
+            SettingValue::String(UI_THEME_DARK.to_string())
+        );
+        assert_eq!(effective.lock_state.as_str(), "policy_locked");
+    }
+
+    #[test]
+    fn settings_overlay_denial_surfaces_status_and_notification() {
+        let mut appearance = appearance_state_for_test("overlay-denial");
+        appearance.lock_ui_setting_for_test(UI_THEME_SETTING_ID, UI_THEME_DARK);
+        let mut activity_center =
+            ActivityCenterRuntimeState::in_memory_with_quiet_hours(QuietHoursPosture::none());
+        let mut command_runtime = CommandRuntimeState::default();
+        let frame = DesktopFrame::new(1280, 720);
+        let mut overlay = Some(ShellOverlayState::settings(
+            ShellZoneId::MainWorkspace,
+            frame.focused_editor_group(),
+            &appearance,
+        ));
+
+        apply_settings_overlay_decision(
+            &mut appearance,
+            &mut activity_center,
+            &mut command_runtime,
+            &mut overlay,
+            SettingsOverlayDecision {
+                setting_id: UI_THEME_SETTING_ID.to_string(),
+                value: UI_THEME_LIGHT.to_string(),
+            },
+        );
+
+        assert!(command_runtime
+            .last_command_label
+            .as_deref()
+            .is_some_and(|line| line.contains("settings write denied")));
+        assert!(activity_center.snapshot().len() > 0);
+        let Some(ShellOverlayState {
+            kind: ShellOverlayKind::Settings(settings),
+            ..
+        }) = overlay
+        else {
+            panic!("settings overlay should remain open");
+        };
+        assert!(settings
+            .status_line
+            .as_deref()
+            .is_some_and(|line| line.contains("policy_locked")));
+        assert!(settings.rows.iter().any(|row| {
+            row.setting_id == UI_THEME_SETTING_ID && row.lock_state == "policy_locked"
+        }));
     }
 }
 
@@ -7328,6 +7908,7 @@ struct CommandDispatchRuntimeIo<'a> {
     window: Option<&'a winit::window::Window>,
     damage_geometry: Option<&'a ShellDamageGeometryCache>,
     clipboard: Option<&'a mut ClipboardState>,
+    appearance: Option<&'a mut AppearanceRuntimeState>,
 }
 
 fn focused_editor_target(
@@ -7786,6 +8367,7 @@ fn dispatch_registry_entry(
         "cmd:editor.find_next" => "navigate_search_match",
         "cmd:editor.find_previous" => "navigate_search_match",
         "cmd:quick_open.toggle" => "open_quick_open",
+        "cmd:settings.open" => "open_settings_overlay",
         _ => "query_only_no_mutation",
     };
 
@@ -7943,6 +8525,24 @@ fn dispatch_registry_entry(
             let invocation = invocation_and_result_simple_success(&session, "succeeded");
             command_runtime.record(invocation);
             true
+        }
+        "cmd:settings.open" => {
+            if let Some(appearance) = io.appearance.as_deref() {
+                *overlay = Some(ShellOverlayState::settings(
+                    frame.focused_zone(),
+                    frame.focused_editor_group(),
+                    appearance,
+                ));
+                frame.focus_zone(ShellZoneId::TransientOverlay);
+                let invocation = invocation_and_result_simple_success(&session, "succeeded");
+                command_runtime.record(invocation);
+                true
+            } else {
+                command_runtime.note_non_command_action("settings unavailable");
+                let invocation = invocation_and_result_simple_success(&session, "no_op");
+                command_runtime.record(invocation);
+                true
+            }
         }
         "cmd:docs.open_in_browser" => {
             let destination_anchor_ref = session
@@ -11043,6 +11643,7 @@ fn handle_key_event(
                             window: Some(window),
                             damage_geometry: Some(damage_geometry),
                             clipboard: Some(clipboard),
+                            appearance: Some(&mut *appearance),
                         };
                         let changed = dispatch_command_id_with_io(
                             command_runtime,
@@ -11171,6 +11772,7 @@ fn handle_key_event(
         };
 
         let entry_flow_decision = outcome.entry_flow_decision.clone();
+        let settings_decision = outcome.settings_decision.clone();
 
         if let Some(decision) = outcome.command_decision {
             finalize_command_overlay_decision(
@@ -11254,6 +11856,16 @@ fn handle_key_event(
                 } else {
                     ShellDamageHint::None
                 };
+            }
+            if let Some(decision) = settings_decision {
+                apply_settings_overlay_decision(
+                    appearance,
+                    activity_center,
+                    command_runtime,
+                    overlay,
+                    decision,
+                );
+                return ShellDamageHint::FullWindow;
             }
             return ShellDamageHint::FullWindow;
         }
@@ -11375,6 +11987,7 @@ fn handle_key_event(
                     window: Some(window),
                     damage_geometry: Some(damage_geometry),
                     clipboard: Some(clipboard),
+                    appearance: Some(&mut *appearance),
                 };
                 let changed = dispatch_command_id_with_io(
                     command_runtime,
@@ -11628,6 +12241,7 @@ fn handle_key_event(
                     window: Some(window),
                     damage_geometry: Some(damage_geometry),
                     clipboard: Some(clipboard),
+                    appearance: Some(&mut *appearance),
                 };
                 let changed = dispatch_command_id_with_io(
                     command_runtime,
@@ -11665,6 +12279,7 @@ fn handle_key_event(
                     window: Some(window),
                     damage_geometry: Some(damage_geometry),
                     clipboard: Some(clipboard),
+                    appearance: Some(&mut *appearance),
                 };
                 let changed = dispatch_command_id_with_io(
                     command_runtime,
@@ -11704,6 +12319,7 @@ fn handle_key_event(
                     window: Some(window),
                     damage_geometry: Some(damage_geometry),
                     clipboard: Some(clipboard),
+                    appearance: Some(&mut *appearance),
                 };
                 let changed = dispatch_command_id_with_io(
                     command_runtime,
@@ -11980,6 +12596,72 @@ fn handle_key_event(
             }
         }
         _ => ShellDamageHint::None,
+    }
+}
+
+fn apply_settings_overlay_decision(
+    appearance: &mut AppearanceRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    command_runtime: &mut CommandRuntimeState,
+    overlay: &mut Option<ShellOverlayState>,
+    decision: SettingsOverlayDecision,
+) {
+    let outcome = appearance.write_ui_setting(
+        decision.setting_id.as_str(),
+        decision.value.as_str(),
+        SettingScope::UserGlobal,
+    );
+    let status_line = match outcome.verdict {
+        WriteIntent::Allowed => {
+            let line = format!(
+                "applied {}={} at {}",
+                outcome.setting_id,
+                outcome.proposed_value.preview(),
+                outcome.target_scope.as_str()
+            );
+            command_runtime.note_non_command_action(format!("settings updated - {}", line));
+            line
+        }
+        WriteIntent::Denied => {
+            let reason = outcome
+                .denial_reason
+                .as_ref()
+                .map(settings_denial_reason_label)
+                .unwrap_or_else(|| "unknown".to_string());
+            let line = format!(
+                "denied {}={} - {}",
+                outcome.setting_id,
+                outcome.proposed_value.preview(),
+                reason
+            );
+            command_runtime.note_non_command_action(format!("settings write denied - {}", line));
+            activity_center.note_settings_write_denied(&outcome);
+            line
+        }
+    };
+
+    if let Some(ShellOverlayState {
+        kind: ShellOverlayKind::Settings(settings),
+        ..
+    }) = overlay.as_mut()
+    {
+        settings.refresh(appearance);
+        settings.status_line = Some(status_line);
+    }
+}
+
+fn settings_denial_reason_label(reason: &WriteDenialReason) -> String {
+    match reason {
+        WriteDenialReason::UnknownSetting { setting_id } => {
+            format!("unknown_setting:{setting_id}")
+        }
+        WriteDenialReason::ScopeNotAllowed => "scope_not_allowed".to_string(),
+        WriteDenialReason::PolicyLocked => "policy_locked".to_string(),
+        WriteDenialReason::PolicyConstrainedValue => "policy_constrained_value".to_string(),
+        WriteDenialReason::ValidationFailed { detail } => {
+            format!("validation_failed:{detail}")
+        }
+        WriteDenialReason::RetiredSetting => "retired_setting".to_string(),
     }
 }
 
@@ -14400,6 +15082,132 @@ struct CommandDiagnosticsOverlay {
 }
 
 #[derive(Debug, Clone)]
+struct SettingsOverlayRow {
+    setting_id: String,
+    label: &'static str,
+    value: String,
+    source_scope: String,
+    source_label: String,
+    lock_state: String,
+    lock_reason: String,
+}
+
+impl SettingsOverlayRow {
+    fn from_effective(label: &'static str, effective: EffectiveValue) -> Self {
+        Self {
+            setting_id: effective.setting_id,
+            label,
+            value: effective.value.preview(),
+            source_scope: effective.winning_scope.as_str().to_string(),
+            source_label: effective.source_label,
+            lock_state: effective.lock_state.as_str().to_string(),
+            lock_reason: effective.lock_reason.as_str().to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SettingsOverlay {
+    rows: Vec<SettingsOverlayRow>,
+    selection: usize,
+    status_line: Option<String>,
+}
+
+impl SettingsOverlay {
+    fn new(appearance: &AppearanceRuntimeState) -> Self {
+        Self {
+            rows: appearance.settings_rows(),
+            selection: 0,
+            status_line: None,
+        }
+    }
+
+    fn refresh(&mut self, appearance: &AppearanceRuntimeState) {
+        self.rows = appearance.settings_rows();
+        if self.rows.is_empty() {
+            self.selection = 0;
+        } else {
+            self.selection = self.selection.min(self.rows.len().saturating_sub(1));
+        }
+    }
+
+    fn select_next(&mut self) {
+        if self.rows.is_empty() {
+            return;
+        }
+        self.selection = (self.selection + 1).min(self.rows.len().saturating_sub(1));
+    }
+
+    fn select_prev(&mut self) {
+        self.selection = self.selection.saturating_sub(1);
+    }
+
+    fn selected_row(&self) -> Option<&SettingsOverlayRow> {
+        self.rows.get(self.selection)
+    }
+
+    fn next_value_decision(
+        &self,
+        direction: SettingsCycleDirection,
+    ) -> Option<SettingsOverlayDecision> {
+        let row = self.selected_row()?;
+        let next = next_setting_value(row.setting_id.as_str(), row.value.as_str(), direction)?;
+        Some(SettingsOverlayDecision {
+            setting_id: row.setting_id.clone(),
+            value: next.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SettingsCycleDirection {
+    Previous,
+    Next,
+}
+
+#[derive(Debug, Clone)]
+struct SettingsOverlayDecision {
+    setting_id: String,
+    value: String,
+}
+
+fn next_setting_value(
+    setting_id: &str,
+    current: &str,
+    direction: SettingsCycleDirection,
+) -> Option<&'static str> {
+    const THEME_VALUES: [&str; 3] = [UI_THEME_LIGHT, UI_THEME_DARK, UI_THEME_SYSTEM];
+    const DENSITY_VALUES: [&str; 3] = [
+        UI_DENSITY_COMPACT,
+        UI_DENSITY_COMFORTABLE,
+        UI_DENSITY_SPACIOUS,
+    ];
+    const MOTION_VALUES: [&str; 3] = [UI_MOTION_FULL, UI_MOTION_REDUCED, UI_MOTION_NONE];
+
+    let values: &[&str] = match setting_id {
+        UI_THEME_SETTING_ID => &THEME_VALUES,
+        UI_DENSITY_SETTING_ID => &DENSITY_VALUES,
+        UI_MOTION_SETTING_ID => &MOTION_VALUES,
+        _ => return None,
+    };
+    let idx = values
+        .iter()
+        .position(|value| *value == current)
+        .unwrap_or(0);
+    let next_idx = match direction {
+        SettingsCycleDirection::Next => (idx + 1) % values.len(),
+        SettingsCycleDirection::Previous => {
+            if idx == 0 {
+                values.len().saturating_sub(1)
+            } else {
+                idx - 1
+            }
+        }
+    };
+    values.get(next_idx).copied()
+}
+
+#[derive(Debug, Clone)]
 struct CommandInvocationPreviewOverlay {
     entry: CommandRegistryEntryRecord,
     record: CommandInvocationPreviewSheetRecord,
@@ -14859,6 +15667,7 @@ struct OverlayKeyOutcome {
     command_decision: Option<CommandOverlayDecision>,
     entry_flow_decision: Option<EntryFlowOverlayDecision>,
     workspace_switcher_decision: Option<WorkspaceSwitcherDecision>,
+    settings_decision: Option<SettingsOverlayDecision>,
 }
 
 #[derive(Debug, Clone)]
@@ -14878,6 +15687,7 @@ enum ShellOverlayKind {
     WedgeInspector(WedgeInspectorShellOverlay),
     StatusBarItemDetail(StatusBarItemDetailOverlay),
     WorkspaceSwitcher(WorkspaceSwitcherOverlay),
+    Settings(SettingsOverlay),
 }
 
 #[derive(Debug, Clone)]
@@ -15094,6 +15904,20 @@ impl ShellOverlayState {
         }
     }
 
+    fn settings(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        appearance: &AppearanceRuntimeState,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::Settings(SettingsOverlay::new(appearance)),
+            focus_return_zone,
+            focus_return_group,
+            opened_at: Instant::now(),
+            closed: false,
+        }
+    }
+
     fn close(&mut self, frame: &mut DesktopFrame) {
         self.closed = true;
         frame.focus_zone(self.focus_return_zone);
@@ -15114,6 +15938,7 @@ impl ShellOverlayState {
         let mut command_decision = None;
         let mut entry_flow_decision = None;
         let mut workspace_switcher_decision = None;
+        let mut settings_decision = None;
         let handled = match (&mut self.kind, code) {
             (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::Escape) => {
                 if matches!(switcher.mode, WorkspaceSwitcherOverlayMode::List) {
@@ -15121,6 +15946,29 @@ impl ShellOverlayState {
                 } else {
                     switcher.mode = WorkspaceSwitcherOverlayMode::List;
                 }
+                true
+            }
+            (ShellOverlayKind::Settings(_settings), KeyCode::Escape) => {
+                self.close(frame);
+                true
+            }
+            (ShellOverlayKind::Settings(settings), KeyCode::ArrowDown) => {
+                settings.select_next();
+                true
+            }
+            (ShellOverlayKind::Settings(settings), KeyCode::ArrowUp) => {
+                settings.select_prev();
+                true
+            }
+            (
+                ShellOverlayKind::Settings(settings),
+                KeyCode::ArrowRight | KeyCode::Enter | KeyCode::Space,
+            ) => {
+                settings_decision = settings.next_value_decision(SettingsCycleDirection::Next);
+                true
+            }
+            (ShellOverlayKind::Settings(settings), KeyCode::ArrowLeft) => {
+                settings_decision = settings.next_value_decision(SettingsCycleDirection::Previous);
                 true
             }
             (ShellOverlayKind::FindReplace(find), KeyCode::Escape) => {
@@ -15175,6 +16023,7 @@ impl ShellOverlayState {
                             command_decision,
                             entry_flow_decision,
                             workspace_switcher_decision,
+                            settings_decision,
                         };
                     }
                     match form.request() {
@@ -15200,6 +16049,7 @@ impl ShellOverlayState {
                             command_decision,
                             entry_flow_decision,
                             workspace_switcher_decision,
+                            settings_decision,
                         };
                     }
                     if form.applied {
@@ -15209,6 +16059,7 @@ impl ShellOverlayState {
                             command_decision,
                             entry_flow_decision,
                             workspace_switcher_decision,
+                            settings_decision,
                         };
                     }
                     if form.apply_enabled() {
@@ -15254,6 +16105,7 @@ impl ShellOverlayState {
                         command_decision,
                         entry_flow_decision,
                         workspace_switcher_decision,
+                        settings_decision,
                     };
                 };
 
@@ -15267,6 +16119,7 @@ impl ShellOverlayState {
                         command_decision,
                         entry_flow_decision,
                         workspace_switcher_decision,
+                        settings_decision,
                     };
                 }
 
@@ -15287,6 +16140,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         };
                         tab_session.ensure_fresh_snapshot();
@@ -15303,6 +16157,7 @@ impl ShellOverlayState {
                                         command_decision,
                                         entry_flow_decision,
                                         workspace_switcher_decision,
+                                        settings_decision,
                                     };
                                 }
                             };
@@ -15317,6 +16172,7 @@ impl ShellOverlayState {
                                         command_decision,
                                         entry_flow_decision,
                                         workspace_switcher_decision,
+                                        settings_decision,
                                     };
                                 }
                             };
@@ -15357,6 +16213,7 @@ impl ShellOverlayState {
                                     command_decision,
                                     entry_flow_decision,
                                     workspace_switcher_decision,
+                                    settings_decision,
                                 };
                             };
                             tab_session.ensure_fresh_snapshot();
@@ -15370,6 +16227,7 @@ impl ShellOverlayState {
                                     command_decision,
                                     entry_flow_decision,
                                     workspace_switcher_decision,
+                                    settings_decision,
                                 };
                             }
                             let Some(path) = auth.file_path.clone() else {
@@ -15379,6 +16237,7 @@ impl ShellOverlayState {
                                     command_decision,
                                     entry_flow_decision,
                                     workspace_switcher_decision,
+                                    settings_decision,
                                 };
                             };
                             let presentation_uri = match VfsUri::file_url_for_path(&path) {
@@ -15391,6 +16250,7 @@ impl ShellOverlayState {
                                         command_decision,
                                         entry_flow_decision,
                                         workspace_switcher_decision,
+                                        settings_decision,
                                     };
                                 }
                             };
@@ -15404,6 +16264,7 @@ impl ShellOverlayState {
                                         command_decision,
                                         entry_flow_decision,
                                         workspace_switcher_decision,
+                                        settings_decision,
                                     };
                                 }
                             };
@@ -15418,6 +16279,7 @@ impl ShellOverlayState {
                                         command_decision,
                                         entry_flow_decision,
                                         workspace_switcher_decision,
+                                        settings_decision,
                                     };
                                 }
                             };
@@ -15442,6 +16304,7 @@ impl ShellOverlayState {
                                     command_decision,
                                     entry_flow_decision,
                                     workspace_switcher_decision,
+                                    settings_decision,
                                 };
                             }
                         };
@@ -15517,6 +16380,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         };
                         tab_session.ensure_fresh_snapshot();
@@ -15533,6 +16397,7 @@ impl ShellOverlayState {
                                         command_decision,
                                         entry_flow_decision,
                                         workspace_switcher_decision,
+                                        settings_decision,
                                     };
                                 }
                             };
@@ -15547,6 +16412,7 @@ impl ShellOverlayState {
                                         command_decision,
                                         entry_flow_decision,
                                         workspace_switcher_decision,
+                                        settings_decision,
                                     };
                                 }
                             };
@@ -16129,6 +16995,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         };
 
@@ -16143,6 +17010,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         };
 
@@ -16167,6 +17035,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         }
 
@@ -16179,6 +17048,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         }
 
@@ -16221,6 +17091,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         };
 
@@ -16232,6 +17103,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         };
 
@@ -16267,6 +17139,7 @@ impl ShellOverlayState {
                             command_decision,
                             entry_flow_decision,
                             workspace_switcher_decision,
+                            settings_decision,
                         };
                     }
                     if let Some(text) = text {
@@ -16276,6 +17149,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         }
                     }
@@ -16286,6 +17160,7 @@ impl ShellOverlayState {
                             command_decision,
                             entry_flow_decision,
                             workspace_switcher_decision,
+                            settings_decision,
                         };
                     }
                     if let Some(text) = text {
@@ -16295,6 +17170,7 @@ impl ShellOverlayState {
                                 command_decision,
                                 entry_flow_decision,
                                 workspace_switcher_decision,
+                                settings_decision,
                             };
                         }
                     }
@@ -16308,6 +17184,7 @@ impl ShellOverlayState {
                         command_decision,
                         entry_flow_decision,
                         workspace_switcher_decision,
+                        settings_decision,
                     };
                 }
                 if let Some(text) = text {
@@ -16321,6 +17198,7 @@ impl ShellOverlayState {
                             command_decision,
                             entry_flow_decision,
                             workspace_switcher_decision,
+                            settings_decision,
                         };
                     }
                 }
@@ -16332,6 +17210,7 @@ impl ShellOverlayState {
             command_decision,
             entry_flow_decision,
             workspace_switcher_decision,
+            settings_decision,
         }
     }
 }
@@ -16797,6 +17676,96 @@ fn draw_shell_overlay(
                 };
                 draw_text_clamped(buffer, width, height, x, y, 1, line, color, max_x);
                 y = y.saturating_add(14);
+            }
+        }
+        ShellOverlayKind::Settings(settings) => {
+            let mut y = sheet_rect.y.saturating_add(style.space_3);
+            let x = sheet_rect.x.saturating_add(style.space_3);
+            let max_x = sheet_rect.right().saturating_sub(style.space_3).max(x);
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                "Settings - Esc closes",
+                fade(style.tokens.text_primary),
+                max_x,
+            );
+            y = y.saturating_add(18);
+
+            for (idx, row) in settings.rows.iter().enumerate() {
+                if y.saturating_add(34) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                    break;
+                }
+                if idx == settings.selection {
+                    let highlight = Rect::new(
+                        sheet_rect.x.saturating_add(style.space_2),
+                        y.saturating_sub(2),
+                        sheet_rect.width.saturating_sub(style.space_4),
+                        30,
+                    );
+                    fill_rect(
+                        buffer,
+                        width,
+                        height,
+                        highlight,
+                        fade(style.tokens.bg_hover),
+                    );
+                }
+                let summary = format!(
+                    "{}: {}   source: {}   lock: {}",
+                    row.label, row.value, row.source_scope, row.lock_state
+                );
+                draw_text_clamped(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    1,
+                    &summary,
+                    if idx == settings.selection {
+                        fade(style.tokens.text_primary)
+                    } else {
+                        fade(style.tokens.text_secondary)
+                    },
+                    max_x,
+                );
+                y = y.saturating_add(14);
+                let detail = format!(
+                    "{}   {}   reason: {}",
+                    row.setting_id, row.source_label, row.lock_reason
+                );
+                draw_text_clamped(
+                    buffer,
+                    width,
+                    height,
+                    x,
+                    y,
+                    1,
+                    &detail,
+                    fade(style.tokens.text_muted),
+                    max_x,
+                );
+                y = y.saturating_add(20);
+            }
+
+            if let Some(status) = settings.status_line.as_deref() {
+                if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
+                    draw_text_clamped(
+                        buffer,
+                        width,
+                        height,
+                        x,
+                        y,
+                        1,
+                        status,
+                        fade(style.status_warning),
+                        max_x,
+                    );
+                }
             }
         }
         ShellOverlayKind::SplitChoice {
@@ -19219,6 +20188,7 @@ fn key_string_for_keycode(code: KeyCode) -> Option<String> {
         KeyCode::KeyY => Some("Y".to_string()),
         KeyCode::KeyZ => Some("Z".to_string()),
         KeyCode::Backquote => Some("`".to_string()),
+        KeyCode::Comma => Some(",".to_string()),
         KeyCode::F3 => Some("F3".to_string()),
         KeyCode::Space => Some("Space".to_string()),
         _ => None,

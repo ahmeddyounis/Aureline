@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -32,6 +33,25 @@ class CaptureCase:
             self.reduced_motion_posture,
         ]
         return ".".join(parts) + ".png"
+
+    def ui_theme(self) -> str:
+        if self.theme_class in {"light_parity", "high_contrast_light"}:
+            return "light"
+        return "dark"
+
+    def ui_density(self) -> str:
+        if self.density_class == "compact":
+            return "compact"
+        if self.density_class == "comfortable":
+            return "spacious"
+        return "comfortable"
+
+    def ui_motion(self) -> str:
+        if self.reduced_motion_posture == "motion_reduced":
+            return "reduced"
+        if self.reduced_motion_posture in {"motion_low_motion", "motion_critical_hot_path"}:
+            return "none"
+        return "full"
 
 
 CASES: tuple[CaptureCase, ...] = (
@@ -59,7 +79,15 @@ def build_shell() -> Path:
     return binary
 
 
-def run_capture(binary: Path, *, out_path: Path, case: CaptureCase, window_size: str, renderer: str) -> None:
+def run_capture(
+    binary: Path,
+    *,
+    out_path: Path,
+    case: CaptureCase,
+    window_size: str,
+    renderer: str,
+    state_root: Path,
+) -> None:
     cmd = [
         str(binary),
         "--emit-screenshot",
@@ -74,8 +102,16 @@ def run_capture(binary: Path, *, out_path: Path, case: CaptureCase, window_size:
         case.density_class,
         "--reduced-motion-posture",
         case.reduced_motion_posture,
+        "--ui-theme",
+        case.ui_theme(),
+        "--ui-density",
+        case.ui_density(),
+        "--ui-motion",
+        case.ui_motion(),
     ]
-    subprocess.run(cmd, cwd=REPO_ROOT, check=True)
+    env = os.environ.copy()
+    env["AURELINE_APPEARANCE_STATE_ROOT"] = str(state_root)
+    subprocess.run(cmd, cwd=REPO_ROOT, env=env, check=True)
 
 
 def main(argv: list[str]) -> int:
@@ -102,9 +138,13 @@ def main(argv: list[str]) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     binary = build_shell()
+    state_dir = REPO_ROOT / "target" / "appearance-goldens" / "state"
 
     for case in CASES:
         out_path = out_dir / case.filename()
+        state_root = state_dir / case.case_id
+        if state_root.exists():
+            shutil.rmtree(state_root)
         print(f"[appearance-goldens] capturing {case.case_id} -> {out_path.relative_to(REPO_ROOT)}")
         run_capture(
             binary,
@@ -112,6 +152,7 @@ def main(argv: list[str]) -> int:
             case=case,
             window_size=args.window_size,
             renderer=args.renderer,
+            state_root=state_root,
         )
 
     print(f"[appearance-goldens] done: {out_dir.relative_to(REPO_ROOT)}")
@@ -120,4 +161,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
