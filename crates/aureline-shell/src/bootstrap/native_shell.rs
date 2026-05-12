@@ -25,6 +25,7 @@ use crate::app_frame::desktop_frame::{
 };
 use crate::bootstrap::startup_trace::{StartupMilestone, StartupTrace, StartupTraceConfig};
 use crate::chrome::title_context_bar::{
+    DeploymentProfileClass, HostStateClass, IdentityMode as TitleIdentityMode, ProfileModeClass,
     SurfaceKind, TitleContextBarRuntimeInputs, TitleContextBarRuntimeState,
     TitleContextBarStateRecord,
 };
@@ -71,6 +72,10 @@ use crate::start_center::{
     START_CENTER_PRESENTATION_SUBTITLE,
 };
 use crate::state_cards::{shell_slot_label, DegradedStateToken, ShellPlaceholderCard};
+use crate::status_bar::{
+    BackgroundStateSnapshot, EncodingSnapshot, ProfileSnapshot, StatusBarInputs, StatusBarItemKind,
+    StatusBarItemRecord, StatusBarSnapshot, TargetSnapshot,
+};
 use crate::terminal_pane::{TerminalPaneSnapshot, TerminalPaneTabRecord};
 use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
@@ -1364,6 +1369,26 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     Some(pos) => pos,
                     None => return,
                 };
+                if !palette.is_open()
+                    && overlay.is_none()
+                    && handle_status_bar_click(
+                        &mut frame,
+                        &mut overlay,
+                        &mut command_runtime,
+                        &editor_runtime,
+                        &enablement_runtime,
+                        &workspace_lifecycle,
+                        &recent_work,
+                        &activity_center,
+                        title_context_bar.record(),
+                        window.scale_factor(),
+                        x,
+                        y,
+                    )
+                {
+                    enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                    return;
+                }
                 if !palette.is_open()
                     && overlay.is_none()
                     && handle_activity_rail_click(
@@ -2908,6 +2933,17 @@ impl EditorWorkspaceRuntimeState {
         let group = self.groups.get(&group)?;
         let tab = group.tabs.get(&tab)?;
         Some(tab.render_info())
+    }
+
+    fn active_source_fidelity(
+        &self,
+        group: PaneId,
+        tab: Option<EditorTabId>,
+    ) -> Option<SourceFidelityRecord> {
+        let tab = tab?;
+        let group = self.groups.get(&group)?;
+        let tab = group.tabs.get(&tab)?;
+        tab.authority.borrow().source_fidelity.clone()
     }
 
     fn apply_action(
@@ -5395,6 +5431,126 @@ fn explorer_row_index_at(frame: &DesktopFrame, scale_factor: f64, x: u32, y: u32
     Some(((y - rows_y) / EXPLORER_ROW_HIT_HEIGHT_PX) as usize)
 }
 
+fn status_bar_slot_at(
+    frame: &DesktopFrame,
+    scale_factor: f64,
+    x: u32,
+    y: u32,
+) -> Option<&'static str> {
+    let zone_rect = frame.layout().zone(ShellZoneId::StatusBar)?;
+    frame
+        .slot_rects_within_zone(ShellZoneId::StatusBar, zone_rect, 0)
+        .into_iter()
+        .find_map(|(slot_id, slot_rect)| {
+            let physical = to_physical_rect(slot_rect, scale_factor);
+            point_in_rect(x, y, physical).then_some(slot_id)
+        })
+}
+
+fn handle_status_bar_click(
+    frame: &mut DesktopFrame,
+    overlay: &mut Option<ShellOverlayState>,
+    command_runtime: &mut CommandRuntimeState,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
+    recent_work: &RecentWorkRuntimeState,
+    activity_center: &ActivityCenterRuntimeState,
+    title_context_bar: &TitleContextBarStateRecord,
+    scale_factor: f64,
+    x: u32,
+    y: u32,
+) -> bool {
+    let Some(slot_id) = status_bar_slot_at(frame, scale_factor, x, y) else {
+        return false;
+    };
+    let snapshot = status_bar_snapshot_for_shell(
+        frame,
+        editor_runtime,
+        enablement_runtime,
+        workspace_lifecycle,
+        recent_work,
+        activity_center,
+        title_context_bar,
+    );
+
+    match status_bar_slot_activation(slot_id) {
+        StatusBarSlotActivation::WorkspaceSwitcher => {
+            *overlay = Some(ShellOverlayState::workspace_switcher(
+                frame.focused_zone(),
+                frame.focused_editor_group(),
+                &recent_work.registry,
+                enablement_runtime.workspace_trust_state.as_str(),
+            ));
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+            command_runtime.note_non_command_action("status target opened workspace switcher");
+            true
+        }
+        StatusBarSlotActivation::TrustReview => {
+            *overlay = Some(ShellOverlayState::status_bar_item_detail(
+                frame.focused_zone(),
+                frame.focused_editor_group(),
+                status_bar_detail_lines(
+                    "Workspace trust review",
+                    &snapshot,
+                    &[StatusBarItemKind::Trust, StatusBarItemKind::Profile],
+                ),
+            ));
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+            command_runtime.note_non_command_action("status trust opened workspace trust review");
+            true
+        }
+        StatusBarSlotActivation::WorkSummary => {
+            frame.focus_zone(ShellZoneId::ActivityRail);
+            command_runtime.note_non_command_action("status work summary opened activity center");
+            true
+        }
+        StatusBarSlotActivation::SourceFidelity => {
+            *overlay = Some(ShellOverlayState::status_bar_item_detail(
+                frame.focused_zone(),
+                frame.focused_editor_group(),
+                status_bar_detail_lines(
+                    "Source fidelity",
+                    &snapshot,
+                    &[StatusBarItemKind::Encoding],
+                ),
+            ));
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+            command_runtime.note_non_command_action("status encoding opened source fidelity");
+            true
+        }
+        StatusBarSlotActivation::RecoveryDetail => {
+            let kinds: Vec<StatusBarItemKind> = snapshot
+                .items
+                .iter()
+                .filter(|item| item.is_recovery_critical)
+                .map(|item| item.item_kind)
+                .collect();
+            if kinds.is_empty() {
+                frame.focus_zone(ShellZoneId::StatusBar);
+                command_runtime.note_non_command_action("status recovery slot focused");
+            } else {
+                *overlay = Some(ShellOverlayState::status_bar_item_detail(
+                    frame.focused_zone(),
+                    frame.focused_editor_group(),
+                    status_bar_detail_lines("Recovery status", &snapshot, &kinds),
+                ));
+                frame.focus_zone(ShellZoneId::TransientOverlay);
+                command_runtime.note_non_command_action("status recovery opened detail");
+            }
+            true
+        }
+        StatusBarSlotActivation::Fallback => {
+            frame.focus_zone(ShellZoneId::StatusBar);
+            command_runtime.note_non_command_action(format!(
+                "status fallback selected: {}",
+                shell_slot_label(slot_id)
+            ));
+            true
+        }
+    }
+}
+
 fn open_selected_explorer_file(
     editor_runtime: &mut EditorWorkspaceRuntimeState,
     frame: &mut DesktopFrame,
@@ -5557,6 +5713,396 @@ fn trust_state_for_recent_work(value: &str) -> TrustState {
         "pending_evaluation" => TrustState::PendingEvaluation,
         _ => TrustState::PendingEvaluation,
     }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatusBarSlotSource {
+    Recovery,
+    WorkspaceContext,
+    ExecutionContext,
+    WorkSummary,
+    FileMetadata,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatusBarSlotActivation {
+    RecoveryDetail,
+    TrustReview,
+    WorkspaceSwitcher,
+    WorkSummary,
+    SourceFidelity,
+    Fallback,
+}
+
+struct StatusBarSlotPaint {
+    label: String,
+    attention: bool,
+}
+
+#[cfg(test)]
+fn status_bar_slot_source(slot_id: &str) -> Option<StatusBarSlotSource> {
+    match slot_id {
+        "status.slot.recovery.primary" => Some(StatusBarSlotSource::Recovery),
+        "status.slot.context.workspace" => Some(StatusBarSlotSource::WorkspaceContext),
+        "status.slot.context.execution" => Some(StatusBarSlotSource::ExecutionContext),
+        "status.slot.work.summary" => Some(StatusBarSlotSource::WorkSummary),
+        "status.slot.metadata.file" => Some(StatusBarSlotSource::FileMetadata),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+fn status_bar_slot_has_documented_fallback(slot_id: &str) -> bool {
+    matches!(slot_id, "status.slot.extension.scoped")
+}
+
+fn status_bar_slot_activation(slot_id: &str) -> StatusBarSlotActivation {
+    match slot_id {
+        "status.slot.recovery.primary" => StatusBarSlotActivation::RecoveryDetail,
+        "status.slot.context.workspace" => StatusBarSlotActivation::TrustReview,
+        "status.slot.context.execution" => StatusBarSlotActivation::WorkspaceSwitcher,
+        "status.slot.work.summary" => StatusBarSlotActivation::WorkSummary,
+        "status.slot.metadata.file" => StatusBarSlotActivation::SourceFidelity,
+        _ => StatusBarSlotActivation::Fallback,
+    }
+}
+
+fn status_bar_snapshot_for_shell(
+    frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
+    recent_work: &RecentWorkRuntimeState,
+    activity_center: &ActivityCenterRuntimeState,
+    title_context_bar: &TitleContextBarStateRecord,
+) -> StatusBarSnapshot {
+    let activity_snapshot = activity_center.snapshot();
+    let active_owners = status_bar_active_background_owners(&activity_snapshot);
+    let observed_at = status_bar_observed_at(&activity_snapshot);
+    let active_fidelity = editor_runtime.active_source_fidelity(
+        frame.focused_editor_group(),
+        frame.active_tab_id(frame.focused_editor_group()),
+    );
+    let target_label = status_bar_target_label(recent_work, title_context_bar);
+    let workspace_id = workspace_lifecycle
+        .machine
+        .as_ref()
+        .map(|machine| machine.workspace_id())
+        .unwrap_or(title_context_bar.workspace_identity.workspace_ref.as_str());
+    let execution_context_ref = workspace_lifecycle.machine.as_ref().map(|machine| {
+        if machine.workspace_id().is_empty() {
+            "execution_context.local_desktop.empty_shell".to_string()
+        } else {
+            format!("execution_context.local_desktop.{}", machine.workspace_id())
+        }
+    });
+    let profile = &title_context_bar.profile_identity;
+
+    let inputs = StatusBarInputs {
+        workspace_id,
+        workspace_trust_state: trust_state_for_recent_work(
+            enablement_runtime.workspace_trust_state.as_str(),
+        ),
+        target: TargetSnapshot {
+            target_class_token: title_host_class_token(title_context_bar.host_identity.host_class),
+            target_label: target_label.as_str(),
+            reachability_token: workspace_reachability_token(workspace_lifecycle),
+            execution_context_ref: execution_context_ref.as_deref(),
+            has_degraded_field: workspace_lifecycle_has_degraded_field(workspace_lifecycle)
+                || matches!(
+                    title_context_bar.host_identity.host_state,
+                    HostStateClass::ReadOnlyDegraded
+                        | HostStateClass::Offline
+                        | HostStateClass::PolicyBlocked
+                        | HostStateClass::MissingDetails
+                        | HostStateClass::Mixed
+                ),
+        },
+        profile: ProfileSnapshot {
+            profile_label: profile.profile_label.as_str(),
+            profile_mode_token: profile_mode_token(profile.profile_mode),
+            deployment_profile_token: deployment_profile_token(profile.deployment_profile),
+            identity_mode_token: title_identity_mode_token(profile.identity_mode),
+        },
+        encoding: EncodingSnapshot {
+            source_fidelity: active_fidelity.as_ref(),
+        },
+        background: BackgroundStateSnapshot {
+            active_owners: &active_owners,
+            aggregate_degraded: status_bar_background_degraded(&activity_snapshot),
+            observed_at: observed_at.as_str(),
+        },
+    };
+    StatusBarSnapshot::project(&inputs)
+}
+
+fn status_bar_target_label(
+    recent_work: &RecentWorkRuntimeState,
+    title_context_bar: &TitleContextBarStateRecord,
+) -> String {
+    recent_work
+        .active_workspace_label()
+        .filter(|label| !label.trim().is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| title_context_bar.workspace_identity.display_label.clone())
+}
+
+fn workspace_reachability_token(
+    workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
+) -> &'static str {
+    match workspace_lifecycle
+        .machine
+        .as_ref()
+        .map(|machine| machine.state())
+    {
+        Some(WorkspaceLifecycleState::Ready | WorkspaceLifecycleState::PartiallyReady) => {
+            "reachable"
+        }
+        Some(
+            WorkspaceLifecycleState::Discovered
+            | WorkspaceLifecycleState::TrustEvaluating
+            | WorkspaceLifecycleState::Opening,
+        ) => "warming",
+        Some(WorkspaceLifecycleState::Degraded) => "degraded",
+        Some(WorkspaceLifecycleState::Closing | WorkspaceLifecycleState::Closed) => "unreachable",
+        None => "reachable",
+    }
+}
+
+fn workspace_lifecycle_has_degraded_field(
+    workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
+) -> bool {
+    let Some(machine) = workspace_lifecycle.machine.as_ref() else {
+        return false;
+    };
+    machine.state() == WorkspaceLifecycleState::Degraded
+        || machine
+            .watcher_health()
+            .is_some_and(|health| health.as_str() != "healthy")
+}
+
+fn title_host_class_token(host_class: crate::chrome::title_context_bar::HostClass) -> &'static str {
+    match host_class {
+        crate::chrome::title_context_bar::HostClass::Local => "local_host",
+        crate::chrome::title_context_bar::HostClass::RemoteHost => "remote_host",
+        crate::chrome::title_context_bar::HostClass::ContainerDevcontainer => {
+            "container_devcontainer"
+        }
+        crate::chrome::title_context_bar::HostClass::ManagedWorkspace => "managed_workspace",
+        crate::chrome::title_context_bar::HostClass::BrowserRuntimeBridge => {
+            "browser_runtime_bridge"
+        }
+        crate::chrome::title_context_bar::HostClass::ServicePlane => "service_plane",
+        crate::chrome::title_context_bar::HostClass::MixedLocalPlusRemote => {
+            "mixed_local_plus_remote"
+        }
+        crate::chrome::title_context_bar::HostClass::UnknownMissingDetails => {
+            "unknown_missing_details"
+        }
+    }
+}
+
+fn profile_mode_token(profile_mode: ProfileModeClass) -> &'static str {
+    match profile_mode {
+        ProfileModeClass::Standard => "standard",
+        ProfileModeClass::TemporarySession => "temporary_session",
+        ProfileModeClass::SafeMode => "safe_mode",
+        ProfileModeClass::ImportedProfile => "imported_profile",
+        ProfileModeClass::ManagedPolicyProfile => "managed_policy_profile",
+        ProfileModeClass::SupportRecovery => "support_recovery",
+    }
+}
+
+fn deployment_profile_token(deployment_profile: DeploymentProfileClass) -> &'static str {
+    match deployment_profile {
+        DeploymentProfileClass::IndividualLocal => "individual_local",
+        DeploymentProfileClass::SelfHosted => "self_hosted",
+        DeploymentProfileClass::EnterpriseOnline => "enterprise_online",
+        DeploymentProfileClass::AirGapped => "air_gapped",
+        DeploymentProfileClass::ManagedCloud => "managed_cloud",
+    }
+}
+
+fn title_identity_mode_token(identity_mode: TitleIdentityMode) -> &'static str {
+    match identity_mode {
+        TitleIdentityMode::AccountFreeLocal => "account_free_local",
+        TitleIdentityMode::SelfHostedOrg => "self_hosted_org",
+        TitleIdentityMode::ManagedWorkspace => "managed_workspace",
+    }
+}
+
+fn status_bar_active_background_owners(snapshot: &ActivityCenterSnapshot) -> Vec<&'static str> {
+    let mut owners = BTreeSet::new();
+    for row in &snapshot.rows {
+        if row.is_terminal {
+            continue;
+        }
+        owners.insert(source_subsystem_token(row.source_subsystem));
+    }
+    owners.into_iter().collect()
+}
+
+fn status_bar_background_degraded(snapshot: &ActivityCenterSnapshot) -> Option<DegradedStateToken> {
+    if snapshot.rows.iter().any(|row| {
+        !row.is_terminal
+            && matches!(
+                row.severity_class,
+                SeverityClass::Critical | SeverityClass::Blocking | SeverityClass::Error
+            )
+    }) {
+        return Some(DegradedStateToken::PolicyBlocked);
+    }
+    if snapshot.rows.iter().any(|row| {
+        !row.is_terminal
+            && matches!(
+                row.severity_class,
+                SeverityClass::Degraded | SeverityClass::Warning
+            )
+    }) {
+        return Some(DegradedStateToken::Limited);
+    }
+    None
+}
+
+fn status_bar_observed_at(snapshot: &ActivityCenterSnapshot) -> String {
+    snapshot
+        .rows
+        .iter()
+        .map(|row| row.last_observed_at.as_str())
+        .max()
+        .unwrap_or("mono:status_bar:no_activity")
+        .to_owned()
+}
+
+fn source_subsystem_token(source: SourceSubsystem) -> &'static str {
+    match source {
+        SourceSubsystem::Editor => "editor",
+        SourceSubsystem::Terminal => "terminal",
+        SourceSubsystem::ReviewAndDiff => "review_and_diff",
+        SourceSubsystem::PaletteAndSearch => "palette_and_search",
+        SourceSubsystem::InstallUpdateAttach => "install_update_attach",
+        SourceSubsystem::AiApply => "ai_apply",
+        SourceSubsystem::Collaboration => "collaboration",
+        SourceSubsystem::ProviderBearing => "provider_bearing",
+        SourceSubsystem::DocsHelpServiceHealth => "docs_help_service_health",
+        SourceSubsystem::SupportExport => "support_export",
+        SourceSubsystem::BuildSystem => "build_system",
+        SourceSubsystem::TestRunner => "test_runner",
+        SourceSubsystem::DebugSession => "debug_session",
+        SourceSubsystem::TaskRunner => "task_runner",
+        SourceSubsystem::Indexer => "indexer",
+        SourceSubsystem::VfsSave => "vfs_save",
+        SourceSubsystem::SyncMirror => "sync_mirror",
+        SourceSubsystem::NotebookKernel => "notebook_kernel",
+        SourceSubsystem::RemoteAgent => "remote_agent",
+        SourceSubsystem::ExtensionHost => "extension_host",
+        SourceSubsystem::WorkspaceTrust => "workspace_trust",
+        SourceSubsystem::PolicyResolver => "policy_resolver",
+        SourceSubsystem::AdminPolicy => "admin_policy",
+        SourceSubsystem::SecretBroker => "secret_broker",
+        SourceSubsystem::RuntimePowerManager => "runtime_power_manager",
+        SourceSubsystem::Shell => "shell",
+    }
+}
+
+fn status_bar_slot_paint(
+    slot_id: &str,
+    snapshot: &StatusBarSnapshot,
+    title_context_bar: &TitleContextBarStateRecord,
+) -> Option<StatusBarSlotPaint> {
+    let paint = match slot_id {
+        "status.slot.recovery.primary" => {
+            if let Some(item) = snapshot.items.iter().find(|item| item.is_recovery_critical) {
+                StatusBarSlotPaint {
+                    label: status_bar_item_label(item),
+                    attention: true,
+                }
+            } else {
+                StatusBarSlotPaint {
+                    label: title_context_bar
+                        .projection_label(SurfaceKind::WorkspaceStatusItem)
+                        .unwrap_or("Workspace ready")
+                        .to_owned(),
+                    attention: false,
+                }
+            }
+        }
+        "status.slot.context.workspace" => {
+            let trust = snapshot.item(StatusBarItemKind::Trust)?;
+            let profile = snapshot.item(StatusBarItemKind::Profile)?;
+            StatusBarSlotPaint {
+                label: format!(
+                    "{}: {} | {}: {}",
+                    trust.label,
+                    trust.current_value_label,
+                    profile.label,
+                    profile.current_value_label
+                ),
+                attention: status_bar_items_attention([trust, profile]),
+            }
+        }
+        "status.slot.context.execution" => {
+            let target = snapshot.item(StatusBarItemKind::Target)?;
+            StatusBarSlotPaint {
+                label: status_bar_item_label(target),
+                attention: status_bar_items_attention([target]),
+            }
+        }
+        "status.slot.work.summary" => {
+            let work = snapshot.item(StatusBarItemKind::BackgroundState)?;
+            StatusBarSlotPaint {
+                label: status_bar_item_label(work),
+                attention: status_bar_items_attention([work]),
+            }
+        }
+        "status.slot.metadata.file" => {
+            let encoding = snapshot.item(StatusBarItemKind::Encoding)?;
+            StatusBarSlotPaint {
+                label: status_bar_item_label(encoding),
+                attention: status_bar_items_attention([encoding]),
+            }
+        }
+        _ => return None,
+    };
+    Some(paint)
+}
+
+fn status_bar_items_attention<'a>(
+    items: impl IntoIterator<Item = &'a StatusBarItemRecord>,
+) -> bool {
+    items
+        .into_iter()
+        .any(|item| item.is_recovery_critical || item.degraded_token.is_some())
+}
+
+fn status_bar_item_label(item: &StatusBarItemRecord) -> String {
+    format!("{}: {}", item.label, item.current_value_label)
+}
+
+fn status_bar_detail_lines(
+    title: &str,
+    snapshot: &StatusBarSnapshot,
+    kinds: &[StatusBarItemKind],
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    lines.push(format!("{title} - Esc closes"));
+    lines.push(format!("workspace: {}", snapshot.workspace_id));
+    lines.push(format!("observed_at: {}", snapshot.observed_at));
+    for kind in kinds {
+        if let Some(item) = snapshot.item(*kind) {
+            lines.push(String::new());
+            lines.push(status_bar_item_label(item));
+            lines.push(format!("command: {}", item.primary_command_id));
+            lines.push(format!("opens: {}", item.opens_surface_ref));
+            lines.push(format!("truth: {}", item.truth_source_ref));
+            if let Some(token) = item.degraded_token.as_deref() {
+                lines.push(format!("degraded: {token}"));
+            }
+            lines.push(item.explanation.clone());
+        }
+    }
+    lines
 }
 
 fn alias_used_for(entry: &CommandRegistryEntryRecord, origin: DispatchOrigin) -> AliasUsedBlock {
@@ -9349,6 +9895,15 @@ fn rasterize_shell(
             }
             ShellZoneId::StatusBar => {
                 let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
+                let status_snapshot = status_bar_snapshot_for_shell(
+                    frame,
+                    editor_runtime,
+                    enablement_runtime,
+                    workspace_lifecycle,
+                    recent_work,
+                    activity_center,
+                    title_context_bar,
+                );
                 for (slot_id, slot_rect) in
                     frame.slot_rects_within_zone(zone, logical_rect, zone_inset_logical)
                 {
@@ -9367,31 +9922,42 @@ fn rasterize_shell(
                         style.tokens.border_default,
                     );
 
-                    if slot_id == "status.slot.recovery.primary" {
-                        let label = title_context_bar
-                            .projection_label(SurfaceKind::WorkspaceStatusItem)
-                            .unwrap_or("Workspace ready");
-                        draw_text(
+                    let x = slot_rect.x.saturating_add(style.space_2);
+                    let y = slot_rect
+                        .y
+                        .saturating_add(slot_rect.height.saturating_sub(8) / 2);
+                    let max_x = slot_rect.right().saturating_sub(style.space_2).max(x);
+                    if let Some(paint) =
+                        status_bar_slot_paint(slot_id, &status_snapshot, title_context_bar)
+                    {
+                        let color = if paint.attention {
+                            style.status_warning
+                        } else {
+                            style.tokens.text_primary
+                        };
+                        draw_text_clamped(
                             buffer,
                             width,
                             height,
-                            slot_rect.x.saturating_add(style.space_2),
-                            slot_rect.y.saturating_add(style.space_2 / 2),
+                            x,
+                            y,
                             1,
-                            label,
-                            style.tokens.text_primary,
+                            &paint.label,
+                            color,
+                            max_x,
                         );
                     } else {
                         let label = shell_slot_label(slot_id);
-                        draw_text(
+                        draw_text_clamped(
                             buffer,
                             width,
                             height,
-                            slot_rect.x.saturating_add(style.space_2),
-                            slot_rect.y.saturating_add(style.space_2 / 2),
+                            x,
+                            y,
                             1,
                             label,
                             style.tokens.text_muted,
+                            max_x,
                         );
                     }
                 }
@@ -10708,6 +11274,11 @@ struct CommandTraceOverlay {
 }
 
 #[derive(Debug, Clone)]
+struct StatusBarItemDetailOverlay {
+    lines: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
 struct EntryFlowSheetOverlay {
     outcome: EntryFlowOutcome,
     command_id: String,
@@ -10917,6 +11488,7 @@ enum ShellOverlayKind {
     CommandDiagnostics(CommandDiagnosticsOverlay),
     InvocationPreview(CommandInvocationPreviewOverlay),
     CommandTrace(CommandTraceOverlay),
+    StatusBarItemDetail(StatusBarItemDetailOverlay),
     WorkspaceSwitcher(WorkspaceSwitcherOverlay),
 }
 
@@ -11062,6 +11634,20 @@ impl ShellOverlayState {
     ) -> Self {
         Self {
             kind: ShellOverlayKind::CommandTrace(CommandTraceOverlay { lines }),
+            focus_return_zone,
+            focus_return_group,
+            opened_at: Instant::now(),
+            closed: false,
+        }
+    }
+
+    fn status_bar_item_detail(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        lines: Vec<String>,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::StatusBarItemDetail(StatusBarItemDetailOverlay { lines }),
             focus_return_zone,
             focus_return_group,
             opened_at: Instant::now(),
@@ -12611,6 +13197,23 @@ fn draw_shell_overlay(
                     "No invocations recorded yet.",
                     fade(style.tokens.text_muted),
                 );
+            }
+        }
+        ShellOverlayKind::StatusBarItemDetail(detail) => {
+            let mut y = sheet_rect.y.saturating_add(style.space_3);
+            let x = sheet_rect.x.saturating_add(style.space_3);
+            let max_x = sheet_rect.right().saturating_sub(style.space_3).max(x);
+            for (idx, line) in detail.lines.iter().enumerate() {
+                if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                    break;
+                }
+                let color = match idx {
+                    0 => fade(style.tokens.text_primary),
+                    1 | 2 => fade(style.tokens.text_secondary),
+                    _ => fade(style.tokens.text_muted),
+                };
+                draw_text_clamped(buffer, width, height, x, y, 1, line, color, max_x);
+                y = y.saturating_add(14);
             }
         }
         ShellOverlayKind::SplitChoice {
@@ -14826,6 +15429,40 @@ fn stroke_rect(
         ),
         color,
     );
+}
+
+#[cfg(test)]
+mod status_bar_shell_tests {
+    use super::*;
+
+    #[test]
+    fn status_bar_painted_slots_have_projection_or_documented_fallback() {
+        let frame = DesktopFrame::new(1280, 720);
+
+        for slot_id in frame.slot_ids_for_zone(ShellZoneId::StatusBar) {
+            assert!(
+                status_bar_slot_source(slot_id).is_some()
+                    || status_bar_slot_has_documented_fallback(slot_id),
+                "status slot {slot_id} must map to typed projection data or documented fallback"
+            );
+        }
+    }
+
+    #[test]
+    fn trust_slot_routes_to_trust_review_activation() {
+        assert_eq!(
+            status_bar_slot_activation("status.slot.context.workspace"),
+            StatusBarSlotActivation::TrustReview
+        );
+    }
+
+    #[test]
+    fn target_slot_routes_to_workspace_switcher_activation() {
+        assert_eq!(
+            status_bar_slot_activation("status.slot.context.execution"),
+            StatusBarSlotActivation::WorkspaceSwitcher
+        );
+    }
 }
 
 #[cfg(test)]

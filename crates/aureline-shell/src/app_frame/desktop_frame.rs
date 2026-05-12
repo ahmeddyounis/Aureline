@@ -423,6 +423,10 @@ impl DesktopFrame {
             ShellZoneId::BottomPanel => &["slot.bottom_panel.tool_panels"],
             ShellZoneId::StatusBar => &[
                 "status.slot.recovery.primary",
+                "status.slot.context.workspace",
+                "status.slot.context.execution",
+                "status.slot.work.summary",
+                "status.slot.metadata.file",
                 "status.slot.extension.scoped",
             ],
             ShellZoneId::TransientOverlay => &[
@@ -455,6 +459,23 @@ impl DesktopFrame {
         }
 
         let n = slots.len() as u32;
+        if zone == ShellZoneId::StatusBar {
+            let col_w = (inner.width / n).max(1);
+            return slots
+                .iter()
+                .enumerate()
+                .map(|(i, id)| {
+                    let x = inner.x.saturating_add(col_w.saturating_mul(i as u32));
+                    let width = if i + 1 == slots.len() {
+                        inner.right().saturating_sub(x)
+                    } else {
+                        col_w
+                    };
+                    (*id, Rect::new(x, inner.y, width, inner.height))
+                })
+                .collect();
+        }
+
         let row_h = (inner.height / n).max(1);
         slots
             .iter()
@@ -552,8 +573,26 @@ mod tests {
             frame.slot_ids_for_zone(ShellZoneId::StatusBar),
             &[
                 "status.slot.recovery.primary",
+                "status.slot.context.workspace",
+                "status.slot.context.execution",
+                "status.slot.work.summary",
+                "status.slot.metadata.file",
                 "status.slot.extension.scoped"
             ]
         );
+    }
+
+    #[test]
+    fn status_bar_slots_are_horizontal_slices() {
+        let frame = DesktopFrame::new(600, 240);
+        let rects =
+            frame.slot_rects_within_zone(ShellZoneId::StatusBar, Rect::new(10, 200, 480, 24), 0);
+
+        assert_eq!(rects.len(), 6);
+        assert!(rects.windows(2).all(|pair| pair[0].1.y == pair[1].1.y));
+        assert!(rects.windows(2).all(|pair| pair[0].1.x < pair[1].1.x));
+        assert!(rects.iter().all(|(_, rect)| rect.height == 24));
+        assert_eq!(rects.first().map(|(_, rect)| rect.x), Some(10));
+        assert_eq!(rects.last().map(|(_, rect)| rect.right()), Some(490));
     }
 }

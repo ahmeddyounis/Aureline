@@ -64,6 +64,10 @@ pub fn shell_slot_label(slot_id: &str) -> &'static str {
         "slot.right_inspector.contextual_detail" => "Right inspector contextual detail container",
         "slot.bottom_panel.tool_panels" => "Bottom panel tool panel container",
         "status.slot.recovery.primary" => "Status bar recovery-primary slot",
+        "status.slot.context.workspace" => "Status bar workspace-context slot",
+        "status.slot.context.execution" => "Status bar execution-context slot",
+        "status.slot.work.summary" => "Status bar work-summary slot",
+        "status.slot.metadata.file" => "Status bar file-metadata slot",
         "status.slot.extension.scoped" => "Status bar extension-scoped slot",
         "slot.overlay.command_palette" => "Command palette overlay slot",
         "slot.overlay.dialog_or_sheet" => "Dialog/sheet overlay slot",
@@ -84,6 +88,14 @@ mod tests {
         assert_eq!(
             shell_slot_label("status.slot.recovery.primary"),
             "Status bar recovery-primary slot"
+        );
+        assert_eq!(
+            shell_slot_label("status.slot.context.workspace"),
+            "Status bar workspace-context slot"
+        );
+        assert_eq!(
+            shell_slot_label("status.slot.metadata.file"),
+            "Status bar file-metadata slot"
         );
         assert_eq!(
             shell_slot_label("slot.overlay.command_palette"),
