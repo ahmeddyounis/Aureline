@@ -181,6 +181,7 @@ fn degraded_token_from(token: &str) -> DegradedStateToken {
         "PolicyBlocked" => DegradedStateToken::PolicyBlocked,
         "Limited" => DegradedStateToken::Limited,
         "Unsupported" => DegradedStateToken::Unsupported,
+        "Labs" => DegradedStateToken::Labs,
         "Experimental" => DegradedStateToken::Experimental,
         "RetestPending" => DegradedStateToken::RetestPending,
         other => panic!("unsupported degraded token: {other}"),

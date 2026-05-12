@@ -938,6 +938,7 @@ fn parse_degraded(token: &str) -> DegradedStateToken {
         "PolicyBlocked" => DegradedStateToken::PolicyBlocked,
         "Limited" => DegradedStateToken::Limited,
         "Unsupported" => DegradedStateToken::Unsupported,
+        "Labs" => DegradedStateToken::Labs,
         "Experimental" => DegradedStateToken::Experimental,
         "RetestPending" => DegradedStateToken::RetestPending,
         other => panic!("unknown degraded_token {other}"),

@@ -87,6 +87,9 @@ pub mod help_about;
 /// policy-blocked states. Reuses the
 /// [`crate::badges::target_origin`] vocabulary instead of forking it.
 pub mod host_boundary_cues;
+/// Import profile classifier and first-pass review records for external IDE
+/// configuration roots.
+pub mod import;
 /// Bounded install-review fact-grid wedge on one certified install-like
 /// action (extension-bearing). Projects the upstream
 /// [`aureline_extensions::manifest_baseline`] manifest, effective-

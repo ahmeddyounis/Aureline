@@ -52,6 +52,10 @@ use crate::explorer::{
 };
 use crate::help::keybinding_inspector::build_inspector_lines;
 use crate::host_boundary_cues::{HostBoundaryCueCardRecord, HostBoundaryCueWedge};
+use crate::import::{
+    write_import_review_log, CompetitorConfigClassifier, ImportReviewDecisionClass,
+    ImportReviewRecord,
+};
 use crate::layout::split_tree::PaneId;
 use crate::layout::zone_registry::{Rect, ShellZoneId};
 use crate::notifications::{
@@ -94,11 +98,12 @@ use aureline_buffer::{Buffer, RevisionId, Snapshot, TransactionId, TransactionSp
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
-    mint_preview_record_ref, now_rfc3339, AliasUsedBlock, ApprovalPostureBlock,
+    mint_preview_record_ref, now_rfc3339, ActivityRefEntry, AliasUsedBlock, ApprovalPostureBlock,
     ArgumentProvenanceEntry, ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord,
     ContextRefsBlock, EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock,
     InvocationContextSnapshot, InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock,
-    InvocationSessionPacketRecord, NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock,
+    InvocationSessionPacketRecord, NoBypassGuards, NotificationRefEntry, ResultBodyBlock,
+    RollbackHandleRefBlock,
 };
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{
@@ -5967,6 +5972,44 @@ impl ActivityCenterRuntimeState {
         );
     }
 
+    fn note_import_review_recorded(&mut self, review: &ImportReviewRecord) {
+        let event_id = format!("ux:event:import-review:{}", review.import_review_id);
+        let object_target_ref = format!("obj:import-review:{}", review.import_review_id);
+        let source_event_ref = format!("workspace-import:{}", review.import_review_id);
+        let summary_label = format!(
+            "Import review recorded: {}",
+            review.classification.display_label()
+        );
+        let detail = format!(
+            "{} for {} into {}",
+            review.discovered_item_count_label(),
+            review.source_path,
+            review.destination_workspace_target
+        );
+        let severity_class = match review.decision_class {
+            ImportReviewDecisionClass::ApplyAfterPreview => SeverityClass::Success,
+            ImportReviewDecisionClass::Decline | ImportReviewDecisionClass::Defer => {
+                SeverityClass::Warning
+            }
+        };
+        self.record_job(
+            ActivityJobRecord {
+                event_id: &event_id,
+                envelope_id: &format!("ux:notif-env:import-review:{}", review.import_review_id),
+                source_subsystem: SourceSubsystem::Shell,
+                source_event_ref: &source_event_ref,
+                object_target_ref: &object_target_ref,
+                summary_label: &summary_label,
+                severity_class,
+                action_command_id: "cmd:workspace.import_profile",
+                action_label: "Review import",
+                attention_surface: Some(FanoutSurfaceClass::Toast),
+                minted_at: now_rfc3339(),
+            },
+            DurableJobObservation::completed(detail, Some(object_target_ref.clone())),
+        );
+    }
+
     fn record_clone_transition(
         &mut self,
         operation_id: &str,
@@ -7720,6 +7763,31 @@ fn dispatch_registry_entry(
         return true;
     }
 
+    if entry.descriptor.command_id == "cmd:workspace.import_profile"
+        && import_source_path_from_argument_map(&session.argument_provenance_map).is_none()
+    {
+        let outcome = resolve_entry_flow(EntryFlowRequest {
+            entry_verb: EntryVerb::Import,
+            target: EntryFlowTarget::ExplicitTargetKind(TargetKind::CompetitorConfigRoot),
+            preferred_resulting_mode: Some(ResultingMode::ExtractThenReview),
+        });
+        *overlay = Some(ShellOverlayState::entry_flow_sheet(
+            frame.focused_zone(),
+            frame.focused_editor_group(),
+            outcome,
+            entry.descriptor.command_id.clone(),
+            origin,
+            session.argument_provenance_map.clone(),
+            Some(DegradedStateToken::Labs),
+            Some(
+                "Review is available; apply records the import plan without changing settings."
+                    .to_string(),
+            ),
+        ));
+        frame.focus_zone(ShellZoneId::TransientOverlay);
+        return true;
+    }
+
     let enablement_context = CommandEnablementContext {
         client_scope: "desktop_product".to_string(),
         workspace_trust_state: enablement_runtime.workspace_trust_state.clone(),
@@ -8084,14 +8152,8 @@ fn dispatch_registry_entry(
             true
         }
         "cmd:workspace.import_profile" => {
-            let invocation = invocation_and_result_unimplemented(&session);
-            command_runtime.record(invocation);
-            let group = frame.focused_editor_group();
-            if let Some(tab) = frame.open_tab() {
-                editor_runtime.open_placeholder(group, tab);
-            }
-            command_runtime
-                .note_non_command_action("import requested (import execution not implemented)");
+            let review = import_review_from_argument_map(&session.argument_provenance_map);
+            record_import_review_stub(command_runtime, activity_center, &session, &review);
             true
         }
         _ => {
@@ -9267,8 +9329,8 @@ fn finalize_command_overlay_decision(
         CommandOverlayDecision::PreviewApproved { entry, session } => {
             match entry.descriptor.command_id.as_str() {
                 "cmd:workspace.import_profile" => {
-                    command_runtime
-                        .record(invocation_and_result_import_profile_succeeded(&session));
+                    let review = import_review_from_argument_map(&session.argument_provenance_map);
+                    record_import_review_stub(command_runtime, activity_center, &session, &review);
                 }
                 "cmd:workspace.clone_repository" => {
                     let err = CloneError::new(
@@ -10176,8 +10238,11 @@ fn start_center_flow_tuple(
             EntryVerb::Import,
             TargetKind::CompetitorConfigRoot,
             ResultingMode::ExtractThenReview,
-            Some(DegradedStateToken::Unsupported),
-            Some("Import execution is not implemented yet.".to_string()),
+            Some(DegradedStateToken::Labs),
+            Some(
+                "Review is available; apply records the import plan without changing settings."
+                    .to_string(),
+            ),
         ),
     }
 }
@@ -10338,6 +10403,171 @@ fn submit_clone_from_entry_flow(
     true
 }
 
+fn submit_import_from_entry_flow(
+    command_runtime: &mut CommandRuntimeState,
+    registry: &CommandRegistry,
+    frame: &DesktopFrame,
+    overlay: &mut Option<ShellOverlayState>,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    decision: EntryFlowOverlayDecision,
+) -> bool {
+    let Some(entry) = registry.get(&decision.command_id).cloned() else {
+        set_import_sheet_status(
+            overlay,
+            None,
+            "import command is missing from the command registry".to_string(),
+            false,
+        );
+        return true;
+    };
+
+    let approval_ticket_ref = if entry.descriptor.approval_posture_class != "no_approval_required" {
+        Some(mint_approval_ticket_ref(&entry.descriptor.canonical_verb))
+    } else {
+        None
+    };
+    let mut session = make_session(
+        frame,
+        &entry,
+        decision.origin,
+        "apply_after_preview",
+        enablement_runtime.workspace_trust_state.as_str(),
+        decision.argument_provenance_map,
+        true,
+        Some(mint_preview_record_ref(&entry.descriptor.canonical_verb)),
+        "approval_granted",
+        approval_ticket_ref,
+    );
+
+    let enablement_context = CommandEnablementContext {
+        client_scope: "desktop_product".to_string(),
+        workspace_trust_state: enablement_runtime.workspace_trust_state.clone(),
+        execution_context_available: enablement_runtime.execution_context_available,
+        provider_linked: enablement_runtime.provider_linked,
+        credential_available: enablement_runtime.credential_available,
+        policy_disabled: enablement_runtime.policy_disabled,
+        policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        argument_provenance_map: session.argument_provenance_map.clone(),
+    };
+    let preflight = entry.preflight(&enablement_context);
+    let enablement_snapshot = preflight.enablement_snapshot.clone();
+    session.enablement_decision = EnablementDecisionBlock {
+        decision_class: enablement_snapshot.decision_class,
+        disabled_reason_code: enablement_snapshot.disabled_reason_code,
+        repair_hook_ref: enablement_snapshot.repair_hook_ref,
+    };
+
+    if matches!(
+        preflight.decision_class,
+        PreflightDecisionClass::BlockedByPolicy | PreflightDecisionClass::DisabledWithReason
+    ) {
+        let denied_code = session
+            .enablement_decision
+            .disabled_reason_code
+            .unwrap_or(DisabledReasonCode::PolicyBlockedInContext);
+        command_runtime.record(invocation_and_result_denied(&session, denied_code));
+        set_import_sheet_status(
+            overlay,
+            None,
+            format!("import denied: {}", denied_code.as_str()),
+            false,
+        );
+        return true;
+    }
+
+    let review = import_review_from_argument_map(&session.argument_provenance_map);
+    record_import_review_stub(command_runtime, activity_center, &session, &review);
+    let status = match review.decision_class {
+        ImportReviewDecisionClass::ApplyAfterPreview => {
+            format!(
+                "apply recorded without settings changes: {}",
+                review.import_review_id
+            )
+        }
+        ImportReviewDecisionClass::Decline => {
+            format!("import declined: {}", review.import_review_id)
+        }
+        ImportReviewDecisionClass::Defer => {
+            format!("import deferred: {}", review.status_line)
+        }
+    };
+    set_import_sheet_status(overlay, Some(review), status, true);
+    true
+}
+
+fn record_import_review_stub(
+    command_runtime: &mut CommandRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    session: &CommandInvocationSession,
+    review: &ImportReviewRecord,
+) {
+    write_import_review_log(review);
+    command_runtime.record(invocation_and_result_import_profile_review_recorded(
+        session, review,
+    ));
+    activity_center.note_import_review_recorded(review);
+    command_runtime.note_non_command_action(format!(
+        "import review recorded - {} ({})",
+        review.classification.variant_name(),
+        review.decision_class.as_str()
+    ));
+}
+
+fn import_review_from_argument_map(
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+) -> ImportReviewRecord {
+    let destination = import_destination_from_argument_map(argument_provenance_map)
+        .unwrap_or_else(|| "profile:default".to_string());
+    if let Some(source_path) = import_source_path_from_argument_map(argument_provenance_map) {
+        return CompetitorConfigClassifier::new()
+            .build_review(expand_tilde(&source_path), destination);
+    }
+    let source_ref = argument_resolved_value(argument_provenance_map, "import_source_ref")
+        .unwrap_or_else(|| "import-source:unresolved".to_string());
+    ImportReviewRecord::deferred_unresolved_source(source_ref, destination)
+}
+
+fn import_source_path_from_argument_map(
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+) -> Option<String> {
+    import_argument_value(argument_provenance_map, "import_source_ref", "path:")
+}
+
+fn import_destination_from_argument_map(
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+) -> Option<String> {
+    import_argument_value(
+        argument_provenance_map,
+        "destination_workspace_target_ref",
+        "workspace-target:",
+    )
+}
+
+fn import_argument_value(
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+    argument_name: &str,
+    prefix: &str,
+) -> Option<String> {
+    argument_resolved_value(argument_provenance_map, argument_name)?
+        .strip_prefix(prefix)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn argument_resolved_value(
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+    argument_name: &str,
+) -> Option<String> {
+    argument_provenance_map
+        .iter()
+        .find(|row| row.argument_name == argument_name)?
+        .resolved_value_ref
+        .as_deref()
+        .map(str::to_string)
+}
+
 fn clone_operation_id_for(request: &CloneRequest, suffix: &str) -> String {
     format!(
         "clone-{:016x}-{suffix}",
@@ -10362,6 +10592,27 @@ fn set_clone_sheet_status(
         if let Some(form) = sheet.clone_form.as_mut() {
             form.status_line = Some(status_line);
             form.running = running;
+        }
+    }
+}
+
+fn set_import_sheet_status(
+    overlay: &mut Option<ShellOverlayState>,
+    review: Option<ImportReviewRecord>,
+    status_line: String,
+    applied: bool,
+) {
+    if let Some(ShellOverlayState {
+        kind: ShellOverlayKind::EntryFlowSheet(sheet),
+        ..
+    }) = overlay.as_mut()
+    {
+        if let Some(form) = sheet.import_form.as_mut() {
+            if let Some(review) = review {
+                form.review_record = Some(review);
+            }
+            form.status_line = Some(status_line);
+            form.applied = applied;
         }
     }
 }
@@ -10438,92 +10689,68 @@ fn invocation_and_result_import_profile_cancelled(
     }
 }
 
-fn invocation_and_result_import_profile_succeeded(
+fn invocation_and_result_import_profile_review_recorded(
     session: &CommandInvocationSession,
+    review: &ImportReviewRecord,
 ) -> RecordedCommandInvocation {
     let preview_ref = session
         .preview_posture
         .preview_record_ref
         .clone()
-        .unwrap_or_else(|| mint_preview_record_ref(&session.canonical_verb));
-    let journal_entry_ref = session
-        .invocation_session_id
-        .replacen("inv:", "journal-entry:", 1);
-    let rollback_handle_id = session
-        .invocation_session_id
-        .replacen("inv:", "rollback-handle:", 1);
-    let audit_event_ref = session.invocation_session_id.replacen("inv:", "audit:", 1);
+        .unwrap_or_else(|| review.import_review_id.clone());
+    let import_review_ref = review.import_review_id.clone();
+    let activity_ref = format!("ux:event:import-review:{import_review_ref}");
+    let mut warning_codes = vec!["import_apply_stub_no_settings_changed".to_string()];
+    if review.decision_class == ImportReviewDecisionClass::Defer {
+        warning_codes.push("import_deferred_source_unrecognized".to_string());
+    }
 
     let outcome = InvocationOutcomeBlock {
         outcome_class: "succeeded".to_string(),
         disabled_reason_code: None,
-        warnings_summary_refs: Vec::new(),
+        warnings_summary_refs: warning_codes.clone(),
         partially_applied_artifact_refs: Vec::new(),
         unapplied_artifact_refs: Vec::new(),
     };
 
     let session_packet = session.invocation_session_packet(
         outcome,
-        vec![
-            InvocationCreatedArtifactRefEntry {
-                result_contract_class: "preview_record_emitted_ref".to_string(),
-                artifact_ref: preview_ref.clone(),
-            },
-            InvocationCreatedArtifactRefEntry {
-                result_contract_class: "journal_entry_appended_ref".to_string(),
-                artifact_ref: journal_entry_ref.clone(),
-            },
-            InvocationCreatedArtifactRefEntry {
-                result_contract_class: "rollback_ticket_emitted_ref".to_string(),
-                artifact_ref: rollback_handle_id.clone(),
-            },
-        ],
+        vec![InvocationCreatedArtifactRefEntry {
+            result_contract_class: "import_review_record_emitted_ref".to_string(),
+            artifact_ref: import_review_ref.clone(),
+        }],
         vec![
             EvidenceRefEntry {
                 evidence_ref_class: "preview_record_ref".to_string(),
                 evidence_id: preview_ref.clone(),
             },
             EvidenceRefEntry {
-                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
-                evidence_id: journal_entry_ref.clone(),
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "rollback_ticket_ref".to_string(),
-                evidence_id: rollback_handle_id.clone(),
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "audit_event_ref".to_string(),
-                evidence_id: audit_event_ref.clone(),
+                evidence_ref_class: "import_review_record_ref".to_string(),
+                evidence_id: import_review_ref.clone(),
             },
         ],
     );
 
     let result = ResultBodyBlock {
         outcome_code: "succeeded".to_string(),
-        warning_codes: Vec::new(),
+        warning_codes,
         error_codes: Vec::new(),
-        created_artifact_refs: vec![
-            ArtifactRefEntry {
-                result_contract_class: "preview_record_emitted_ref".to_string(),
-                artifact_ref: preview_ref.clone(),
-                artifact_role: "preview_record".to_string(),
-            },
-            ArtifactRefEntry {
-                result_contract_class: "journal_entry_appended_ref".to_string(),
-                artifact_ref: journal_entry_ref.clone(),
-                artifact_role: "side_effect_record".to_string(),
-            },
-            ArtifactRefEntry {
-                result_contract_class: "rollback_ticket_emitted_ref".to_string(),
-                artifact_ref: rollback_handle_id.clone(),
-                artifact_role: "rollback_ticket".to_string(),
-            },
-        ],
-        notification_refs: Vec::new(),
-        activity_refs: Vec::new(),
+        created_artifact_refs: vec![ArtifactRefEntry {
+            result_contract_class: "import_review_record_emitted_ref".to_string(),
+            artifact_ref: import_review_ref.clone(),
+            artifact_role: "import_review_record".to_string(),
+        }],
+        notification_refs: vec![NotificationRefEntry {
+            notification_ref: format!("ux:notif-env:import-review:{import_review_ref}"),
+            delivery_posture: "routed_to_activity_center".to_string(),
+        }],
+        activity_refs: vec![ActivityRefEntry {
+            activity_ref,
+            activity_role: "durable_import_review_row".to_string(),
+        }],
         rollback_handle_ref: RollbackHandleRefBlock {
-            rollback_handle_posture: "handle_available".to_string(),
-            rollback_handle_id: Some(rollback_handle_id.clone()),
+            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
+            rollback_handle_id: None,
         },
         checkpoint_refs: Vec::new(),
         evidence_refs: vec![
@@ -10532,12 +10759,8 @@ fn invocation_and_result_import_profile_succeeded(
                 evidence_id: preview_ref,
             },
             EvidenceRefEntry {
-                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
-                evidence_id: journal_entry_ref,
-            },
-            EvidenceRefEntry {
-                evidence_ref_class: "rollback_ticket_ref".to_string(),
-                evidence_id: rollback_handle_id,
+                evidence_ref_class: "import_review_record_ref".to_string(),
+                evidence_id: import_review_ref,
             },
         ],
         export_posture: ExportPostureBlock {
@@ -10898,6 +11121,16 @@ fn handle_key_event(
                         frame,
                         overlay,
                         clone_jobs,
+                        enablement_runtime,
+                        activity_center,
+                        decision,
+                    )
+                } else if decision.command_id == "cmd:workspace.import_profile" {
+                    submit_import_from_entry_flow(
+                        command_runtime,
+                        registry,
+                        frame,
+                        overlay,
                         enablement_runtime,
                         activity_center,
                         decision,
@@ -14094,6 +14327,7 @@ struct EntryFlowSheetOverlay {
     degraded_token: Option<DegradedStateToken>,
     note: Option<String>,
     clone_form: Option<CloneFlowForm>,
+    import_form: Option<ImportFlowForm>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14191,6 +14425,151 @@ impl CloneFlowForm {
             CloneFlowField::RemoteUrl => CloneFlowField::DestinationPath,
             CloneFlowField::DestinationPath => CloneFlowField::RemoteUrl,
         };
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ImportFlowField {
+    SourcePath,
+    DestinationWorkspaceTarget,
+}
+
+#[derive(Debug, Clone)]
+struct ImportFlowForm {
+    source_path: String,
+    destination_workspace_target: String,
+    focused_field: ImportFlowField,
+    review_record: Option<ImportReviewRecord>,
+    status_line: Option<String>,
+    applied: bool,
+}
+
+impl ImportFlowForm {
+    fn new() -> Self {
+        Self {
+            source_path: String::new(),
+            destination_workspace_target: "profile:default".to_string(),
+            focused_field: ImportFlowField::SourcePath,
+            review_record: None,
+            status_line: None,
+            applied: false,
+        }
+    }
+
+    fn review_enabled(&self) -> bool {
+        !self.source_path.trim().is_empty() && !self.destination_workspace_target.trim().is_empty()
+    }
+
+    fn apply_enabled(&self) -> bool {
+        !self.applied
+            && self.review_record.as_ref().is_some_and(|record| {
+                record.decision_class == ImportReviewDecisionClass::ApplyAfterPreview
+            })
+    }
+
+    fn review_source(&mut self) {
+        if !self.review_enabled() {
+            self.status_line = Some("source path and destination target are required".to_string());
+            return;
+        }
+        let source_path = expand_tilde(self.source_path.trim());
+        let review = CompetitorConfigClassifier::new()
+            .build_review(source_path, self.destination_workspace_target.trim());
+        self.status_line = Some(review.status_line.clone());
+        self.review_record = Some(review);
+        self.applied = false;
+    }
+
+    fn argument_provenance_map(&self) -> Vec<ArgumentProvenanceEntry> {
+        let review_ref = self
+            .review_record
+            .as_ref()
+            .map(|record| record.import_review_id.clone());
+        let classification = self
+            .review_record
+            .as_ref()
+            .map(|record| record.classification.as_str().to_string());
+        vec![
+            ArgumentProvenanceEntry {
+                argument_name: "import_source_ref".to_string(),
+                provenance: "user_typed_in_import_sheet".to_string(),
+                resolved_value_ref: Some(format!("path:{}", self.source_path.trim())),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "destination_workspace_target_ref".to_string(),
+                provenance: "user_typed_in_import_sheet".to_string(),
+                resolved_value_ref: Some(format!(
+                    "workspace-target:{}",
+                    self.destination_workspace_target.trim()
+                )),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "import_review_ref".to_string(),
+                provenance: "derived_from_import_sheet_review".to_string(),
+                resolved_value_ref: review_ref.map(|value| format!("import-review:{value}")),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "classification".to_string(),
+                provenance: "derived_from_import_classifier".to_string(),
+                resolved_value_ref: classification.map(|value| format!("enum:{value}")),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "apply_scope".to_string(),
+                provenance: "default_from_descriptor".to_string(),
+                resolved_value_ref: Some("enum:workspace.import_profile:profile_only".to_string()),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "create_restore_checkpoint".to_string(),
+                provenance: "default_from_descriptor".to_string(),
+                resolved_value_ref: Some("value:bool:false".to_string()),
+            },
+        ]
+    }
+
+    fn push_text(&mut self, text: &str) -> bool {
+        let mut changed = false;
+        for ch in text.chars() {
+            if ch.is_control() {
+                continue;
+            }
+            match self.focused_field {
+                ImportFlowField::SourcePath => self.source_path.push(ch),
+                ImportFlowField::DestinationWorkspaceTarget => {
+                    self.destination_workspace_target.push(ch)
+                }
+            }
+            changed = true;
+        }
+        if changed {
+            self.clear_review_after_edit();
+        }
+        changed
+    }
+
+    fn pop_char(&mut self) -> bool {
+        let changed = match self.focused_field {
+            ImportFlowField::SourcePath => self.source_path.pop().is_some(),
+            ImportFlowField::DestinationWorkspaceTarget => {
+                self.destination_workspace_target.pop().is_some()
+            }
+        };
+        if changed {
+            self.clear_review_after_edit();
+        }
+        changed
+    }
+
+    fn toggle_field(&mut self) {
+        self.focused_field = match self.focused_field {
+            ImportFlowField::SourcePath => ImportFlowField::DestinationWorkspaceTarget,
+            ImportFlowField::DestinationWorkspaceTarget => ImportFlowField::SourcePath,
+        };
+    }
+
+    fn clear_review_after_edit(&mut self) {
+        self.review_record = None;
+        self.status_line = None;
+        self.applied = false;
     }
 }
 
@@ -14493,6 +14872,15 @@ impl ShellOverlayState {
             }
             _ => None,
         };
+        let import_form = match &outcome {
+            EntryFlowOutcome::Resolved(resolved)
+                if resolved.sheet_class == OpenFlowSheetClass::ImportArtifact
+                    && command_id == "cmd:workspace.import_profile" =>
+            {
+                Some(ImportFlowForm::new())
+            }
+            _ => None,
+        };
         Self {
             kind: ShellOverlayKind::EntryFlowSheet(EntryFlowSheetOverlay {
                 outcome,
@@ -14502,6 +14890,7 @@ impl ShellOverlayState {
                 degraded_token,
                 note,
                 clone_form,
+                import_form,
             }),
             focus_return_zone,
             focus_return_group,
@@ -14633,6 +15022,8 @@ impl ShellOverlayState {
                                 .to_string(),
                         );
                     }
+                } else if sheet.import_form.as_ref().is_some_and(|form| form.applied) {
+                    self.close(frame);
                 } else {
                     self.close(frame);
                 }
@@ -14642,15 +15033,21 @@ impl ShellOverlayState {
                 if let Some(form) = sheet.clone_form.as_mut() {
                     form.toggle_field();
                     true
+                } else if let Some(form) = sheet.import_form.as_mut() {
+                    form.toggle_field();
+                    true
                 } else {
                     false
                 }
             }
             (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Backspace | KeyCode::Delete) => {
-                sheet
-                    .clone_form
-                    .as_mut()
-                    .is_some_and(CloneFlowForm::pop_char)
+                if let Some(form) = sheet.clone_form.as_mut() {
+                    form.pop_char()
+                } else if let Some(form) = sheet.import_form.as_mut() {
+                    form.pop_char()
+                } else {
+                    false
+                }
             }
             (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Enter) => {
                 if let Some(form) = sheet.clone_form.as_mut() {
@@ -14677,6 +15074,39 @@ impl ShellOverlayState {
                             form.status_line =
                                 Some(format!("{}: {}", err.class.as_str(), err.message));
                         }
+                    }
+                } else if let Some(form) = sheet.import_form.as_mut() {
+                    if form.review_record.is_none() {
+                        form.review_source();
+                        return OverlayKeyOutcome {
+                            handled: true,
+                            command_decision,
+                            entry_flow_decision,
+                            workspace_switcher_decision,
+                        };
+                    }
+                    if form.applied {
+                        form.status_line = Some("import apply already recorded".to_string());
+                        return OverlayKeyOutcome {
+                            handled: true,
+                            command_decision,
+                            entry_flow_decision,
+                            workspace_switcher_decision,
+                        };
+                    }
+                    if form.apply_enabled() {
+                        form.status_line = Some("import apply queued".to_string());
+                        entry_flow_decision = Some(EntryFlowOverlayDecision {
+                            command_id: sheet.command_id.clone(),
+                            origin: sheet.origin,
+                            argument_provenance_map: form.argument_provenance_map(),
+                        });
+                    } else if let Some(review) = form.review_record.as_ref() {
+                        form.status_line = Some(format!(
+                            "import {}: {}",
+                            review.decision_class.as_str(),
+                            review.status_line
+                        ));
                     }
                 } else {
                     if matches!(sheet.outcome, EntryFlowOutcome::Resolved(_)) {
@@ -15724,6 +16154,25 @@ impl ShellOverlayState {
                             };
                         }
                     }
+                } else if let Some(form) = sheet.import_form.as_mut() {
+                    if form.applied || modifiers.ctrl_or_logo() || modifiers.alt {
+                        return OverlayKeyOutcome {
+                            handled,
+                            command_decision,
+                            entry_flow_decision,
+                            workspace_switcher_decision,
+                        };
+                    }
+                    if let Some(text) = text {
+                        if form.push_text(text) {
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                entry_flow_decision,
+                                workspace_switcher_decision,
+                            };
+                        }
+                    }
                 }
             }
 
@@ -16443,6 +16892,10 @@ fn draw_shell_overlay(
                         cursor_y = draw_clone_form_lines(
                             buffer, width, height, cursor_x, cursor_y, sheet_rect, form, style,
                         );
+                    } else if let Some(form) = sheet.import_form.as_ref() {
+                        cursor_y = draw_import_form_lines(
+                            buffer, width, height, cursor_x, cursor_y, sheet_rect, form, style,
+                        );
                     }
                 }
                 EntryFlowOutcome::Denied(denied) => {
@@ -16824,6 +17277,193 @@ fn draw_clone_form_lines(
             y,
             1,
             &format!("submit: {state}"),
+            color,
+            max_x,
+        );
+        y = y.saturating_add(16);
+    }
+
+    if let Some(status) = form.status_line.as_deref() {
+        if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                status,
+                style.tokens.text_secondary,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
+    }
+
+    y
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_import_form_lines(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    x: u32,
+    mut y: u32,
+    sheet_rect: Rect,
+    form: &ImportFlowForm,
+    style: &ShellRenderStyle,
+) -> u32 {
+    let max_x = sheet_rect.right().saturating_sub(style.space_3).max(x);
+    let rows = [
+        (
+            ImportFlowField::SourcePath,
+            "source_path",
+            form.source_path.as_str(),
+        ),
+        (
+            ImportFlowField::DestinationWorkspaceTarget,
+            "destination_target",
+            form.destination_workspace_target.as_str(),
+        ),
+    ];
+
+    for (field, label, value) in rows {
+        if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+            return y;
+        }
+        let prefix = if form.focused_field == field {
+            ">"
+        } else {
+            " "
+        };
+        let display_value = if value.trim().is_empty() {
+            "(required)"
+        } else {
+            value
+        };
+        let color = if form.focused_field == field {
+            style.tokens.text_primary
+        } else {
+            style.tokens.text_muted
+        };
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            1,
+            &format!("{prefix} {label}: {display_value}"),
+            color,
+            max_x,
+        );
+        y = y.saturating_add(16);
+    }
+
+    if let Some(record) = form.review_record.as_ref() {
+        let review_lines = [
+            format!("classification: {}", record.classification.variant_name()),
+            format!("decision_class: {}", record.decision_class.as_str()),
+            format!("items: {}", record.discovered_item_count_label()),
+        ];
+        for line in review_lines {
+            if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                return y;
+            }
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                &line,
+                style.tokens.text_muted,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
+
+        for item in record.discovered_items.iter().take(5) {
+            if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                return y;
+            }
+            let line = format!(
+                "- {} [{}]",
+                item.source_relative_path,
+                item.item_kind.as_str()
+            );
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                &line,
+                style.tokens.text_secondary,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
+        if record.discovered_items.len() > 5
+            && y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3)
+        {
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                &format!("+ {} more", record.discovered_items.len() - 5),
+                style.tokens.text_muted,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
+    } else if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
+        let state = if form.review_enabled() {
+            "review_ready"
+        } else {
+            "waiting_for_source"
+        };
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            1,
+            &format!("review: {state}"),
+            style.tokens.text_muted,
+            max_x,
+        );
+        y = y.saturating_add(16);
+    }
+
+    if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
+        let apply_state = if form.applied {
+            "recorded"
+        } else if form.apply_enabled() {
+            "enabled"
+        } else {
+            "disabled"
+        };
+        let color = if form.apply_enabled() || form.applied {
+            style.status_success
+        } else {
+            style.tokens.text_muted
+        };
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            1,
+            &format!("apply_stub: {apply_state}"),
             color,
             max_x,
         );

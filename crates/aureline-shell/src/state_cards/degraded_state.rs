@@ -28,6 +28,8 @@ pub enum DegradedStateToken {
     Limited,
     /// Intentionally outside the current supported promise.
     Unsupported,
+    /// Available as an early Labs capability with an unstable contract.
+    Labs,
     /// Present but not yet stable or certified.
     Experimental,
     /// Compatibility evidence is stale and needs to be refreshed.
@@ -46,6 +48,7 @@ impl DegradedStateToken {
             Self::PolicyBlocked => "PolicyBlocked",
             Self::Limited => "Limited",
             Self::Unsupported => "Unsupported",
+            Self::Labs => "Labs",
             Self::Experimental => "Experimental",
             Self::RetestPending => "RetestPending",
         }
@@ -62,6 +65,7 @@ impl DegradedStateToken {
             Self::PolicyBlocked => "Policy blocked",
             Self::Limited => "Limited",
             Self::Unsupported => "Unsupported",
+            Self::Labs => "Labs",
             Self::Experimental => "Experimental",
             Self::RetestPending => "Retest pending",
         }
@@ -82,6 +86,7 @@ impl DegradedStateToken {
             Self::Unsupported => {
                 "This surface is not supported in the current environment or build."
             }
+            Self::Labs => "This capability is available through Labs with a narrower contract.",
             Self::Experimental => "This capability is available but not yet stable or certified.",
             Self::RetestPending => {
                 "Compatibility evidence is pending a refresh before it can be treated as current."
