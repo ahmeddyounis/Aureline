@@ -215,13 +215,22 @@ mod tests {
     #[test]
     fn seeded_registry_loads() {
         let registry = seeded_registry();
-        assert_eq!(registry.entries().len(), 11);
+        assert_eq!(registry.entries().len(), 20);
         assert!(registry.get("cmd:workspace.open_folder").is_some());
         assert!(registry.get("cmd:command_palette.open").is_some());
         assert!(registry.get("cmd:explorer.toggle").is_some());
         assert!(registry.get("cmd:terminal.toggle").is_some());
         assert!(registry.get("cmd:editor.find").is_some());
         assert!(registry.get("cmd:editor.replace").is_some());
+        assert!(registry.get("cmd:editor.save").is_some());
+        assert!(registry.get("cmd:editor.copy").is_some());
+        assert!(registry.get("cmd:editor.paste").is_some());
+        assert!(registry.get("cmd:editor.cut").is_some());
+        assert!(registry.get("cmd:editor.undo").is_some());
+        assert!(registry.get("cmd:editor.redo").is_some());
+        assert!(registry.get("cmd:editor.find_next").is_some());
+        assert!(registry.get("cmd:editor.find_previous").is_some());
+        assert!(registry.get("cmd:quick_open.toggle").is_some());
     }
 
     #[test]

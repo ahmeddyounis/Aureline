@@ -265,7 +265,7 @@ pub fn preset_conflicts(
     Ok(packets)
 }
 
-const VS_CODE_SPECS: [PresetBindingSpec; 11] = [
+const VS_CODE_SPECS: [PresetBindingSpec; 22] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+P",
@@ -285,6 +285,61 @@ const VS_CODE_SPECS: [PresetBindingSpec; 11] = [
         command_id: "cmd:editor.replace",
         macos_sequence: "Cmd+Alt+F",
         other_sequence: "Ctrl+H",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.save",
+        macos_sequence: "Cmd+S",
+        other_sequence: "Ctrl+S",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.copy",
+        macos_sequence: "Cmd+C",
+        other_sequence: "Ctrl+C",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.paste",
+        macos_sequence: "Cmd+V",
+        other_sequence: "Ctrl+V",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.cut",
+        macos_sequence: "Cmd+X",
+        other_sequence: "Ctrl+X",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.undo",
+        macos_sequence: "Cmd+Z",
+        other_sequence: "Ctrl+Z",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.redo",
+        macos_sequence: "Cmd+Shift+Z",
+        other_sequence: "Ctrl+Shift+Z",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_next",
+        macos_sequence: "Cmd+G",
+        other_sequence: "Ctrl+G",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_next",
+        macos_sequence: "F3",
+        other_sequence: "F3",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_previous",
+        macos_sequence: "Cmd+Shift+G",
+        other_sequence: "Ctrl+Shift+G",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_previous",
+        macos_sequence: "Shift+F3",
+        other_sequence: "Shift+F3",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:quick_open.toggle",
+        macos_sequence: "Cmd+P",
+        other_sequence: "Ctrl+P",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",
@@ -323,7 +378,7 @@ const VS_CODE_SPECS: [PresetBindingSpec; 11] = [
     },
 ];
 
-const INTELLIJ_SPECS: [PresetBindingSpec; 11] = [
+const INTELLIJ_SPECS: [PresetBindingSpec; 22] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+A",
@@ -343,6 +398,61 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 11] = [
         command_id: "cmd:editor.replace",
         macos_sequence: "Cmd+R",
         other_sequence: "Ctrl+R",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.save",
+        macos_sequence: "Cmd+S",
+        other_sequence: "Ctrl+S",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.copy",
+        macos_sequence: "Cmd+C",
+        other_sequence: "Ctrl+C",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.paste",
+        macos_sequence: "Cmd+V",
+        other_sequence: "Ctrl+V",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.cut",
+        macos_sequence: "Cmd+X",
+        other_sequence: "Ctrl+X",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.undo",
+        macos_sequence: "Cmd+Z",
+        other_sequence: "Ctrl+Z",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.redo",
+        macos_sequence: "Cmd+Shift+Z",
+        other_sequence: "Ctrl+Shift+Z",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_next",
+        macos_sequence: "Cmd+G",
+        other_sequence: "Ctrl+G",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_next",
+        macos_sequence: "F3",
+        other_sequence: "F3",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_previous",
+        macos_sequence: "Cmd+Shift+G",
+        other_sequence: "Ctrl+Shift+G",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_previous",
+        macos_sequence: "Shift+F3",
+        other_sequence: "Shift+F3",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:quick_open.toggle",
+        macos_sequence: "Cmd+P",
+        other_sequence: "Ctrl+P",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",
@@ -381,11 +491,11 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 11] = [
     },
 ];
 
-const VIM_SPECS: [PresetBindingSpec; 12] = [
+const VIM_SPECS: [PresetBindingSpec; 23] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
-        macos_sequence: "Ctrl+P",
-        other_sequence: "Ctrl+P",
+        macos_sequence: "Ctrl+Shift+P",
+        other_sequence: "Ctrl+Shift+P",
     },
     PresetBindingSpec {
         command_id: "cmd:terminal.toggle",
@@ -401,6 +511,61 @@ const VIM_SPECS: [PresetBindingSpec; 12] = [
         command_id: "cmd:editor.replace",
         macos_sequence: "Ctrl+H",
         other_sequence: "Ctrl+H",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.save",
+        macos_sequence: "Cmd+S",
+        other_sequence: "Ctrl+S",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.copy",
+        macos_sequence: "Cmd+C",
+        other_sequence: "Ctrl+C",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.paste",
+        macos_sequence: "Cmd+V",
+        other_sequence: "Ctrl+V",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.cut",
+        macos_sequence: "Cmd+X",
+        other_sequence: "Ctrl+X",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.undo",
+        macos_sequence: "Cmd+Z",
+        other_sequence: "Ctrl+Z",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.redo",
+        macos_sequence: "Cmd+Shift+Z",
+        other_sequence: "Ctrl+Shift+Z",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_next",
+        macos_sequence: "Cmd+G",
+        other_sequence: "Ctrl+G",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_next",
+        macos_sequence: "F3",
+        other_sequence: "F3",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_previous",
+        macos_sequence: "Cmd+Shift+G",
+        other_sequence: "Ctrl+Shift+G",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_previous",
+        macos_sequence: "Shift+F3",
+        other_sequence: "Shift+F3",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:quick_open.toggle",
+        macos_sequence: "Cmd+P",
+        other_sequence: "Ctrl+P",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",
@@ -446,7 +611,7 @@ const VIM_SPECS: [PresetBindingSpec; 12] = [
     },
 ];
 
-const EMACS_SPECS: [PresetBindingSpec; 11] = [
+const EMACS_SPECS: [PresetBindingSpec; 22] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Alt+X",
@@ -466,6 +631,61 @@ const EMACS_SPECS: [PresetBindingSpec; 11] = [
         command_id: "cmd:editor.replace",
         macos_sequence: "Ctrl+H",
         other_sequence: "Ctrl+H",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.save",
+        macos_sequence: "Cmd+S",
+        other_sequence: "Ctrl+S",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.copy",
+        macos_sequence: "Cmd+C",
+        other_sequence: "Ctrl+C",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.paste",
+        macos_sequence: "Cmd+V",
+        other_sequence: "Ctrl+V",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.cut",
+        macos_sequence: "Cmd+X",
+        other_sequence: "Ctrl+X",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.undo",
+        macos_sequence: "Cmd+Z",
+        other_sequence: "Ctrl+Z",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.redo",
+        macos_sequence: "Cmd+Shift+Z",
+        other_sequence: "Ctrl+Shift+Z",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_next",
+        macos_sequence: "Cmd+G",
+        other_sequence: "Ctrl+G",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_next",
+        macos_sequence: "F3",
+        other_sequence: "F3",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_previous",
+        macos_sequence: "Cmd+Shift+G",
+        other_sequence: "Ctrl+Shift+G",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find_previous",
+        macos_sequence: "Shift+F3",
+        other_sequence: "Shift+F3",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:quick_open.toggle",
+        macos_sequence: "Cmd+P",
+        other_sequence: "Ctrl+P",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",

@@ -6,11 +6,13 @@
 
 use aureline_commands::descriptor::RepairHookRef;
 use aureline_commands::enablement::{DisabledReasonCode, EnablementDecisionClass};
+use aureline_commands::invocation::ArgumentProvenanceEntry;
 use aureline_commands::CommandRegistryEntryRecord;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    materialize_command_review_packet, CommandReviewPacketRecord, CommandReviewRuntimeInputs,
+    materialize_command_review_packet, materialize_command_review_packet_with_arguments,
+    CommandReviewPacketRecord, CommandReviewRuntimeInputs,
 };
 
 /// Machine-readable record for a command diagnostics sheet instance.
@@ -54,6 +56,26 @@ pub fn materialize_command_diagnostics_sheet_record(
     runtime: CommandReviewRuntimeInputs<'_>,
 ) -> CommandDiagnosticsSheetRecord {
     let packet = materialize_command_review_packet(entry, runtime);
+    diagnostics_sheet_record_from_packet(entry, runtime, packet)
+}
+
+/// Materializes the diagnostics sheet record using the invocation argument
+/// provenance map that produced the disabled decision.
+pub fn materialize_command_diagnostics_sheet_record_with_arguments(
+    entry: &CommandRegistryEntryRecord,
+    runtime: CommandReviewRuntimeInputs<'_>,
+    argument_provenance_map: Vec<ArgumentProvenanceEntry>,
+) -> CommandDiagnosticsSheetRecord {
+    let packet =
+        materialize_command_review_packet_with_arguments(entry, runtime, argument_provenance_map);
+    diagnostics_sheet_record_from_packet(entry, runtime, packet)
+}
+
+fn diagnostics_sheet_record_from_packet(
+    entry: &CommandRegistryEntryRecord,
+    runtime: CommandReviewRuntimeInputs<'_>,
+    packet: CommandReviewPacketRecord,
+) -> CommandDiagnosticsSheetRecord {
     let disabled_reason_code = packet.preflight.enablement_snapshot.disabled_reason_code;
     let disabled_reason = disabled_reason_code.map(|code| {
         let record = entry

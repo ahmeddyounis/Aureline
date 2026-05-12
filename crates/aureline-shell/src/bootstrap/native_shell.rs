@@ -30,7 +30,7 @@ use crate::chrome::title_context_bar::{
     TitleContextBarStateRecord,
 };
 use crate::commands::diagnostics_sheet::{
-    diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record,
+    diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record_with_arguments,
     write_diagnostics_sheet_log, CommandDiagnosticsSheetRecord,
 };
 use crate::commands::invocation_preview::{
@@ -56,8 +56,9 @@ use crate::notifications::{
     SuppressionState, NOTIFICATION_ENVELOPE_SCHEMA_VERSION,
 };
 use crate::palette::preview::{
-    argument_provenance_map_for, copy_payload_for, materialize_palette_preview_record,
-    write_preview_log, PaletteCopyIntent, PalettePreviewRuntimeInputs, PalettePreviewSelection,
+    argument_provenance_map_for, copy_payload_for,
+    materialize_palette_preview_record_with_arguments, write_preview_log, PaletteCopyIntent,
+    PalettePreviewRuntimeInputs, PalettePreviewSelection,
 };
 use crate::palette::results_view::palette_view_rows;
 use crate::palette::{CommandPaletteCommit, CommandPaletteState};
@@ -6823,6 +6824,149 @@ fn status_bar_item_label(item: &StatusBarItemRecord) -> String {
     format!("{}: {}", item.label, item.current_value_label)
 }
 
+#[derive(Default)]
+struct CommandDispatchRuntimeIo<'a> {
+    window: Option<&'a winit::window::Window>,
+    damage_geometry: Option<&'a ShellDamageGeometryCache>,
+    clipboard: Option<&'a mut ClipboardState>,
+}
+
+fn focused_editor_target(
+    frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+) -> Option<(PaneId, EditorTabId)> {
+    if frame.focused_zone() != ShellZoneId::MainWorkspace {
+        return None;
+    }
+    let group = frame.focused_editor_group();
+    let tab = frame.active_tab_id(group)?;
+    editor_runtime
+        .groups
+        .get(&group)
+        .and_then(|group_session| group_session.tabs.get(&tab))
+        .map(|_| (group, tab))
+}
+
+fn focused_editor_authority(
+    frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+) -> Option<(PaneId, EditorTabId, Rc<RefCell<BufferAuthority>>)> {
+    let (group, tab) = focused_editor_target(frame, editor_runtime)?;
+    let authority = editor_runtime
+        .groups
+        .get(&group)
+        .and_then(|group_session| group_session.tabs.get(&tab))
+        .map(|session| session.authority.clone())?;
+    Some((group, tab, authority))
+}
+
+fn editor_target_ref(group: PaneId, tab: EditorTabId, suffix: &str) -> String {
+    format!("editor:{}:{}:{suffix}", group.value(), tab.0)
+}
+
+fn active_editor_ref(
+    frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+) -> Option<String> {
+    let (group, tab, _) = focused_editor_authority(frame, editor_runtime)?;
+    Some(editor_target_ref(group, tab, "active"))
+}
+
+fn writable_editor_ref(
+    frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+    require_file_backed: bool,
+) -> Option<String> {
+    let (group, tab, authority) = focused_editor_authority(frame, editor_runtime)?;
+    let auth = authority.borrow();
+    if auth.read_only != ReadOnlyState::Writable {
+        return None;
+    }
+    if require_file_backed && auth.file_path.is_none() {
+        return None;
+    }
+    Some(editor_target_ref(
+        group,
+        tab,
+        if require_file_backed {
+            "writable-file"
+        } else {
+            "writable"
+        },
+    ))
+}
+
+fn undo_stack_ref(
+    frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+    redo: bool,
+) -> Option<String> {
+    let (group, tab, authority) = focused_editor_authority(frame, editor_runtime)?;
+    let auth = authority.borrow();
+    let available = if redo {
+        aureline_editor::undo::next_redo(&auth.buffer).is_some()
+    } else {
+        aureline_editor::undo::next_undo(&auth.buffer).is_some()
+    };
+    available.then(|| editor_target_ref(group, tab, if redo { "redo" } else { "undo" }))
+}
+
+fn active_search_ref(
+    frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+) -> Option<String> {
+    let (group, tab, authority) = focused_editor_authority(frame, editor_runtime)?;
+    let auth = authority.borrow();
+    let active = auth.find_replace.mode() != FindReplaceMode::Hidden
+        && !auth.find_replace.query().trim().is_empty();
+    active.then(|| editor_target_ref(group, tab, "search"))
+}
+
+fn inferred_editor_argument(
+    argument_name: &str,
+    resolved_value_ref: Option<String>,
+) -> ArgumentProvenanceEntry {
+    ArgumentProvenanceEntry {
+        argument_name: argument_name.to_string(),
+        provenance: "inferred_from_focused_context".to_string(),
+        resolved_value_ref,
+    }
+}
+
+fn argument_provenance_map_for_shell(
+    entry: &CommandRegistryEntryRecord,
+    frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
+) -> Vec<ArgumentProvenanceEntry> {
+    match entry.descriptor.command_id.as_str() {
+        "cmd:editor.save" => vec![inferred_editor_argument(
+            "writable_file_backed_editor_ref",
+            writable_editor_ref(frame, editor_runtime, true),
+        )],
+        "cmd:editor.copy" => vec![inferred_editor_argument(
+            "active_editor_ref",
+            active_editor_ref(frame, editor_runtime),
+        )],
+        "cmd:editor.cut" | "cmd:editor.paste" => vec![inferred_editor_argument(
+            "writable_editor_ref",
+            writable_editor_ref(frame, editor_runtime, false),
+        )],
+        "cmd:editor.undo" => vec![inferred_editor_argument(
+            "undo_stack_ref",
+            undo_stack_ref(frame, editor_runtime, false),
+        )],
+        "cmd:editor.redo" => vec![inferred_editor_argument(
+            "redo_stack_ref",
+            undo_stack_ref(frame, editor_runtime, true),
+        )],
+        "cmd:editor.find_next" | "cmd:editor.find_previous" => vec![inferred_editor_argument(
+            "active_search_ref",
+            active_search_ref(frame, editor_runtime),
+        )],
+        _ => argument_provenance_map_for(entry),
+    }
+}
+
 fn status_bar_detail_lines(
     title: &str,
     snapshot: &StatusBarSnapshot,
@@ -6971,7 +7115,42 @@ fn dispatch_command_id(
     recent_work: &mut RecentWorkRuntimeState,
     activity_center: &mut ActivityCenterRuntimeState,
 ) -> bool {
-    dispatch_command_id_with_arguments(
+    let mut io = CommandDispatchRuntimeIo::default();
+    dispatch_command_id_with_io(
+        command_runtime,
+        registry,
+        frame,
+        editor_runtime,
+        palette,
+        palette_focus_return,
+        overlay,
+        command_id,
+        origin,
+        enablement_runtime,
+        workspace_lifecycle,
+        recent_work,
+        activity_center,
+        &mut io,
+    )
+}
+
+fn dispatch_command_id_with_io(
+    command_runtime: &mut CommandRuntimeState,
+    registry: &CommandRegistry,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    palette: &mut CommandPaletteState,
+    palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
+    overlay: &mut Option<ShellOverlayState>,
+    command_id: &str,
+    origin: DispatchOrigin,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    io: &mut CommandDispatchRuntimeIo<'_>,
+) -> bool {
+    dispatch_command_id_with_arguments_and_io(
         command_runtime,
         registry,
         frame,
@@ -6986,6 +7165,7 @@ fn dispatch_command_id(
         recent_work,
         activity_center,
         None,
+        io,
     )
 }
 
@@ -7005,6 +7185,43 @@ fn dispatch_command_id_with_arguments(
     activity_center: &mut ActivityCenterRuntimeState,
     argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
 ) -> bool {
+    let mut io = CommandDispatchRuntimeIo::default();
+    dispatch_command_id_with_arguments_and_io(
+        command_runtime,
+        registry,
+        frame,
+        editor_runtime,
+        palette,
+        palette_focus_return,
+        overlay,
+        command_id,
+        origin,
+        enablement_runtime,
+        workspace_lifecycle,
+        recent_work,
+        activity_center,
+        argument_provenance_map_override,
+        &mut io,
+    )
+}
+
+fn dispatch_command_id_with_arguments_and_io(
+    command_runtime: &mut CommandRuntimeState,
+    registry: &CommandRegistry,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    palette: &mut CommandPaletteState,
+    palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
+    overlay: &mut Option<ShellOverlayState>,
+    command_id: &str,
+    origin: DispatchOrigin,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
+    io: &mut CommandDispatchRuntimeIo<'_>,
+) -> bool {
     let Some(entry) = registry.get(command_id).cloned() else {
         return false;
     };
@@ -7023,6 +7240,7 @@ fn dispatch_command_id_with_arguments(
         recent_work,
         activity_center,
         argument_provenance_map_override,
+        io,
     )
 }
 
@@ -7041,6 +7259,7 @@ fn dispatch_registry_entry(
     recent_work: &mut RecentWorkRuntimeState,
     activity_center: &mut ActivityCenterRuntimeState,
     argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
+    io: &mut CommandDispatchRuntimeIo<'_>,
 ) -> bool {
     let preview_record_ref: Option<String> = None;
     let preview_shown = false;
@@ -7059,11 +7278,20 @@ fn dispatch_registry_entry(
         "cmd:workspace.import_profile" => "apply_after_preview",
         "cmd:explorer.toggle" => "focus_structural_navigation",
         "cmd:terminal.toggle" => "run_interactive_terminal",
+        "cmd:editor.save" => "save_active_editor",
+        "cmd:editor.copy" => "copy_editor_selection",
+        "cmd:editor.cut" => "cut_editor_selection",
+        "cmd:editor.paste" => "paste_into_editor",
+        "cmd:editor.undo" => "undo_editor_edit",
+        "cmd:editor.redo" => "redo_editor_edit",
+        "cmd:editor.find_next" => "navigate_search_match",
+        "cmd:editor.find_previous" => "navigate_search_match",
+        "cmd:quick_open.toggle" => "open_quick_open",
         _ => "query_only_no_mutation",
     };
 
-    let argument_provenance_map =
-        argument_provenance_map_override.unwrap_or_else(|| argument_provenance_map_for(entry));
+    let argument_provenance_map = argument_provenance_map_override
+        .unwrap_or_else(|| argument_provenance_map_for_shell(entry, frame, editor_runtime));
 
     let mut session = make_session(
         frame,
@@ -7117,7 +7345,11 @@ fn dispatch_registry_entry(
         let invocation = invocation_and_result_denied(&session, denied_code);
         command_runtime.record(invocation);
 
-        let record = materialize_command_diagnostics_sheet_record(entry, review_runtime);
+        let record = materialize_command_diagnostics_sheet_record_with_arguments(
+            entry,
+            review_runtime,
+            session.argument_provenance_map.clone(),
+        );
         write_diagnostics_sheet_log(&record);
         *overlay = Some(ShellOverlayState::command_diagnostics(
             frame.focused_zone(),
@@ -7242,6 +7474,77 @@ fn dispatch_registry_entry(
             frame.focus_zone(ShellZoneId::TransientOverlay);
             let invocation = invocation_and_result_simple_success(&session, "succeeded");
             command_runtime.record(invocation);
+            true
+        }
+        "cmd:editor.save" => dispatch_editor_save_command(
+            command_runtime,
+            frame,
+            editor_runtime,
+            overlay,
+            activity_center,
+            &session,
+        ),
+        "cmd:editor.copy" => dispatch_editor_clipboard_command(
+            command_runtime,
+            frame,
+            editor_runtime,
+            io,
+            &session,
+            EditorClipboardCommand::Copy,
+        ),
+        "cmd:editor.cut" => dispatch_editor_clipboard_command(
+            command_runtime,
+            frame,
+            editor_runtime,
+            io,
+            &session,
+            EditorClipboardCommand::Cut,
+        ),
+        "cmd:editor.paste" => dispatch_editor_clipboard_command(
+            command_runtime,
+            frame,
+            editor_runtime,
+            io,
+            &session,
+            EditorClipboardCommand::Paste,
+        ),
+        "cmd:editor.undo" => dispatch_editor_undo_redo_command(
+            command_runtime,
+            frame,
+            editor_runtime,
+            &session,
+            false,
+        ),
+        "cmd:editor.redo" => dispatch_editor_undo_redo_command(
+            command_runtime,
+            frame,
+            editor_runtime,
+            &session,
+            true,
+        ),
+        "cmd:editor.find_next" => dispatch_find_navigation_command(
+            command_runtime,
+            frame,
+            editor_runtime,
+            &session,
+            false,
+        ),
+        "cmd:editor.find_previous" => {
+            dispatch_find_navigation_command(command_runtime, frame, editor_runtime, &session, true)
+        }
+        "cmd:quick_open.toggle" => {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            if palette.is_open() {
+                palette.close();
+                if let Some(target) = palette_focus_return.pop() {
+                    target.apply(frame);
+                }
+            } else {
+                palette_focus_return.record_if_changed(ShellFocusReturnTarget::capture(frame));
+                palette.open(registry, cwd);
+                frame.focus_zone(ShellZoneId::TransientOverlay);
+            }
+            command_runtime.record(invocation_and_result_simple_success(&session, "succeeded"));
             true
         }
         "cmd:labs.open_command_trace" => {
@@ -7386,6 +7689,467 @@ fn dispatch_registry_entry(
             true
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EditorClipboardCommand {
+    Copy,
+    Cut,
+    Paste,
+}
+
+fn dispatch_editor_save_command(
+    command_runtime: &mut CommandRuntimeState,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    overlay: &mut Option<ShellOverlayState>,
+    activity_center: &mut ActivityCenterRuntimeState,
+    invocation_session: &CommandInvocationSession,
+) -> bool {
+    let group = frame.focused_editor_group();
+    let Some(tab) = frame.active_tab_id(group) else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        command_runtime.note_non_command_action("save: no active editor tab");
+        return true;
+    };
+    let save_label = editor_runtime
+        .tab_render_info(group, tab)
+        .map(|info| info.label)
+        .unwrap_or_else(|| "Untitled".to_string());
+    let save_operation_id = activity_center.next_save_operation_id(&save_label);
+    activity_center.note_save_running(&save_operation_id, &save_label);
+
+    match editor_runtime.save_tab(group, tab) {
+        Ok(SaveTabAttempt::Saved(result)) => {
+            activity_center.note_save_completed(
+                &save_operation_id,
+                &save_label,
+                Some(result.packet_id.clone()),
+            );
+            command_runtime.record(invocation_and_result_simple_success(
+                invocation_session,
+                "succeeded",
+            ));
+            command_runtime.note_non_command_action(format!(
+                "saved ({}) - outcome={} strategy={}",
+                result.packet_id,
+                result.manifest.outcome.as_str(),
+                result.write_strategy.as_str()
+            ));
+        }
+        Ok(SaveTabAttempt::NoTarget) => {
+            activity_center.note_save_completed(&save_operation_id, &save_label, None);
+            command_runtime.record(invocation_and_result_simple_success(
+                invocation_session,
+                "no_op",
+            ));
+            command_runtime.note_non_command_action("save: no file target");
+        }
+        Ok(SaveTabAttempt::ReviewRequired { record, outcome }) => {
+            activity_center.note_save_failed(
+                &save_operation_id,
+                &save_label,
+                format!("Save requires review before commit ({})", outcome.as_str()),
+            );
+            command_runtime.record(invocation_and_result_simple_success(
+                invocation_session,
+                "review_required",
+            ));
+            *overlay = Some(ShellOverlayState::save_review(
+                frame.focused_zone(),
+                frame.focused_editor_group(),
+                group,
+                tab,
+                record,
+                outcome,
+            ));
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+        }
+        Err(err) => {
+            activity_center.note_save_failed(&save_operation_id, &save_label, err.clone());
+            command_runtime.record(invocation_and_result_simple_success(
+                invocation_session,
+                "failed",
+            ));
+            command_runtime.note_non_command_action(format!("save failed - {err}"));
+        }
+    }
+    true
+}
+
+fn dispatch_editor_undo_redo_command(
+    command_runtime: &mut CommandRuntimeState,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    invocation_session: &CommandInvocationSession,
+    redo: bool,
+) -> bool {
+    let group = frame.focused_editor_group();
+    let Some(tab) = frame.active_tab_id(group) else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        return true;
+    };
+    if !editor_runtime.has_tab_session(group, tab) {
+        editor_runtime.open_placeholder(group, tab);
+    }
+    let Some(tab_session) = editor_runtime.tab_session_mut(group, tab) else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        return true;
+    };
+    tab_session.ensure_fresh_snapshot();
+
+    let (changed, summary) = {
+        let mut authority = tab_session.authority.borrow_mut();
+        let summary = if redo {
+            aureline_editor::undo::next_redo(&authority.buffer)
+        } else {
+            aureline_editor::undo::next_undo(&authority.buffer)
+        };
+        let outcome = if redo {
+            authority.buffer.redo()
+        } else {
+            authority.buffer.undo()
+        };
+        (outcome.is_some(), summary)
+    };
+    if !changed {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        return true;
+    }
+
+    tab_session.refresh_snapshot_and_cache();
+    tab_session.text_input.force_clear_composition();
+    tab_session.viewport.set_ime_composition(None);
+    tab_session.needs_text_repaint = true;
+    command_runtime.record(invocation_and_result_simple_success(
+        invocation_session,
+        "succeeded",
+    ));
+    if let Some(summary) = summary {
+        let verb = if redo { "redo" } else { "undo" };
+        command_runtime.note_non_command_action(format!(
+            "{verb}: {} ({})",
+            summary.label_or_class_id(),
+            summary.class_id
+        ));
+    }
+    true
+}
+
+fn focused_viewport_rect(io: &CommandDispatchRuntimeIo<'_>) -> Option<PixelRect> {
+    io.damage_geometry
+        .and_then(|damage| damage.focused_editor_viewport)
+        .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height))
+}
+
+fn refresh_ime_cursor_after_edit(
+    window: Option<&winit::window::Window>,
+    viewport: &EditorViewport,
+    viewport_rect: Option<PixelRect>,
+) {
+    if let (Some(window), Some(rect)) = (window, viewport_rect) {
+        update_ime_cursor_area_for_viewport(window, viewport, rect);
+    }
+}
+
+fn dispatch_editor_clipboard_command(
+    command_runtime: &mut CommandRuntimeState,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    io: &mut CommandDispatchRuntimeIo<'_>,
+    invocation_session: &CommandInvocationSession,
+    command: EditorClipboardCommand,
+) -> bool {
+    let window = io.window;
+    let viewport_rect = focused_viewport_rect(io);
+    let Some(clipboard) = io.clipboard.as_mut() else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "failed",
+        ));
+        command_runtime.note_non_command_action("clipboard unavailable");
+        return true;
+    };
+
+    let group = frame.focused_editor_group();
+    let Some(tab) = frame.active_tab_id(group) else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        return true;
+    };
+    let Some(tab_session) = editor_runtime.tab_session_mut(group, tab) else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        return true;
+    };
+    tab_session.ensure_fresh_snapshot();
+
+    match command {
+        EditorClipboardCommand::Copy => match aureline_editor::clipboard::plan_copy_default(
+            &tab_session.snapshot,
+            tab_session.viewport.selections(),
+        ) {
+            Ok(payload) => match clipboard.set_text(&payload.text) {
+                Ok(()) => {
+                    command_runtime.record(invocation_and_result_simple_success(
+                        invocation_session,
+                        "succeeded",
+                    ));
+                    let label = match payload.copy_variant_id {
+                        aureline_editor::clipboard::CopyVariantId::SelectionRaw => {
+                            "copied selection"
+                        }
+                        aureline_editor::clipboard::CopyVariantId::Line => "copied line",
+                    };
+                    command_runtime.note_non_command_action(label);
+                }
+                Err(err) => {
+                    command_runtime.record(invocation_and_result_simple_success(
+                        invocation_session,
+                        "failed",
+                    ));
+                    command_runtime.note_non_command_action(format!("copy failed - {err}"));
+                }
+            },
+            Err(err) => {
+                command_runtime.record(invocation_and_result_simple_success(
+                    invocation_session,
+                    "failed",
+                ));
+                command_runtime.note_non_command_action(format!("copy unavailable - {err}"));
+            }
+        },
+        EditorClipboardCommand::Cut => match aureline_editor::clipboard::plan_cut_default(
+            &tab_session.snapshot,
+            tab_session.viewport.selections(),
+        ) {
+            Ok(plan) => {
+                let aureline_editor::clipboard::CutPayload {
+                    payload,
+                    delete_ranges,
+                } = plan;
+                match clipboard.set_text(&payload.text) {
+                    Ok(()) => {
+                        let outcome = {
+                            let mut authority = tab_session.authority.borrow_mut();
+                            tab_session
+                                .viewport
+                                .selections_mut()
+                                .apply_delete_byte_ranges(
+                                    &mut authority.buffer,
+                                    &tab_session.snapshot,
+                                    delete_ranges,
+                                    aureline_editor::undo::originator::CUT,
+                                )
+                        };
+
+                        match outcome {
+                            Ok(Some(outcome)) => {
+                                tab_session.snapshot = outcome.snapshot;
+                                tab_session.last_seen_revision = outcome.revision;
+                                tab_session.refresh_document_cache();
+                                tab_session.viewport.set_ime_composition(None);
+                                tab_session.needs_text_repaint = true;
+                                refresh_ime_cursor_after_edit(
+                                    window,
+                                    &tab_session.viewport,
+                                    viewport_rect,
+                                );
+                                command_runtime.record(invocation_and_result_simple_success(
+                                    invocation_session,
+                                    "succeeded",
+                                ));
+                                command_runtime.note_non_command_action("cut");
+                            }
+                            Ok(None) => {
+                                command_runtime.record(invocation_and_result_simple_success(
+                                    invocation_session,
+                                    "no_op",
+                                ));
+                                command_runtime.note_non_command_action("cut: no-op");
+                            }
+                            Err(err) => {
+                                command_runtime.record(invocation_and_result_simple_success(
+                                    invocation_session,
+                                    "failed",
+                                ));
+                                command_runtime
+                                    .note_non_command_action(format!("cut failed - {err}"));
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        command_runtime.record(invocation_and_result_simple_success(
+                            invocation_session,
+                            "failed",
+                        ));
+                        command_runtime.note_non_command_action(format!("cut failed - {err}"));
+                    }
+                }
+            }
+            Err(err) => {
+                command_runtime.record(invocation_and_result_simple_success(
+                    invocation_session,
+                    "failed",
+                ));
+                command_runtime.note_non_command_action(format!("cut unavailable - {err}"));
+            }
+        },
+        EditorClipboardCommand::Paste => match clipboard.get_text() {
+            Ok(text) => {
+                let scope = if tab_session.viewport.caret_count() > 1
+                    && tab_session.viewport.ime_composition().is_some()
+                {
+                    aureline_editor::TextEditScope::PrimaryOnly
+                } else {
+                    aureline_editor::TextEditScope::AllCarets
+                };
+
+                let outcome = {
+                    let mut authority = tab_session.authority.borrow_mut();
+                    tab_session.viewport.selections_mut().apply_insert_text(
+                        &mut authority.buffer,
+                        &tab_session.snapshot,
+                        &text,
+                        aureline_editor::undo::originator::PASTE,
+                        scope,
+                    )
+                };
+
+                match outcome {
+                    Ok(Some(outcome)) => {
+                        tab_session.snapshot = outcome.snapshot;
+                        tab_session.last_seen_revision = outcome.revision;
+                        tab_session.refresh_document_cache();
+                        tab_session.viewport.set_ime_composition(None);
+                        tab_session.needs_text_repaint = true;
+                        refresh_ime_cursor_after_edit(window, &tab_session.viewport, viewport_rect);
+                        command_runtime.record(invocation_and_result_simple_success(
+                            invocation_session,
+                            "succeeded",
+                        ));
+                        command_runtime.note_non_command_action("pasted");
+                    }
+                    Ok(None) => {
+                        command_runtime.record(invocation_and_result_simple_success(
+                            invocation_session,
+                            "no_op",
+                        ));
+                        command_runtime.note_non_command_action("paste: no-op");
+                    }
+                    Err(err) => {
+                        command_runtime.record(invocation_and_result_simple_success(
+                            invocation_session,
+                            "failed",
+                        ));
+                        command_runtime.note_non_command_action(format!("paste failed - {err}"));
+                    }
+                }
+            }
+            Err(err) => {
+                command_runtime.record(invocation_and_result_simple_success(
+                    invocation_session,
+                    "failed",
+                ));
+                command_runtime.note_non_command_action(format!("paste unavailable - {err}"));
+            }
+        },
+    }
+    true
+}
+
+fn dispatch_find_navigation_command(
+    command_runtime: &mut CommandRuntimeState,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    invocation_session: &CommandInvocationSession,
+    previous: bool,
+) -> bool {
+    let group = frame.focused_editor_group();
+    let Some(tab) = frame.active_tab_id(group) else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        return true;
+    };
+    let Some(tab_session) = editor_runtime.tab_session_mut(group, tab) else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        return true;
+    };
+    tab_session.ensure_fresh_snapshot();
+    let caret = tab_session.viewport.caret();
+    let snapshot = tab_session.snapshot.clone();
+
+    let selected_range = {
+        let mut auth = tab_session.authority.borrow_mut();
+        let result = if previous {
+            auth.find_replace.select_prev(&snapshot, caret)
+        } else {
+            auth.find_replace.select_next(&snapshot, caret)
+        };
+        match result {
+            Ok(range) => range,
+            Err(err) => {
+                command_runtime.record(invocation_and_result_simple_success(
+                    invocation_session,
+                    "failed",
+                ));
+                command_runtime.note_non_command_action(format!("find navigation failed - {err}"));
+                return true;
+            }
+        }
+    };
+
+    let Some(range) = selected_range else {
+        command_runtime.record(invocation_and_result_simple_success(
+            invocation_session,
+            "no_op",
+        ));
+        command_runtime.note_non_command_action("find navigation: no matches");
+        return true;
+    };
+
+    if let Some((line, grapheme)) = snapshot.line_grapheme_for_byte_offset(range.start) {
+        let point = aureline_editor::TextPoint { line, grapheme };
+        tab_session.viewport.set_caret(point);
+        tab_session.viewport.clear_selection();
+        tab_session
+            .viewport
+            .reveal_line(point.line, tab_session.max_scroll_line());
+        let mut auth = tab_session.authority.borrow_mut();
+        let _ = auth.find_replace.sync_for_view(&snapshot, point);
+    }
+
+    command_runtime.record(invocation_and_result_simple_success(
+        invocation_session,
+        "succeeded",
+    ));
+    command_runtime.note_non_command_action(if previous {
+        "find previous"
+    } else {
+        "find next"
+    });
+    true
 }
 
 fn invocation_and_result_denied(
@@ -9009,11 +9773,15 @@ fn handle_key_event(
                     policy_disabled: enablement_runtime.policy_disabled,
                     policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
                 };
-                let preview = materialize_palette_preview_record(
+                let preview_arguments = palette
+                    .selected_entry(registry)
+                    .map(|entry| argument_provenance_map_for_shell(entry, frame, editor_runtime));
+                let preview = materialize_palette_preview_record_with_arguments(
                     palette.selected_key(),
                     registry,
                     &keybinding_runtime.shortcuts_by_command_id,
                     runtime,
+                    preview_arguments,
                 );
                 let PalettePreviewSelection::Command(command) = &preview.selection else {
                     command_runtime.note_non_command_action("copy: no command selected");
@@ -9074,7 +9842,11 @@ fn handle_key_event(
                     policy_disabled: enablement_runtime.policy_disabled,
                     policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
                 };
-                let record = materialize_command_diagnostics_sheet_record(entry, runtime);
+                let record = materialize_command_diagnostics_sheet_record_with_arguments(
+                    entry,
+                    runtime,
+                    argument_provenance_map_for_shell(entry, frame, editor_runtime),
+                );
                 write_diagnostics_sheet_log(&record);
 
                 palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
@@ -9102,7 +9874,12 @@ fn handle_key_event(
                 }
                 match commit {
                     Some(CommandPaletteCommit::CommandId(command_id)) => {
-                        let changed = dispatch_command_id(
+                        let mut io = CommandDispatchRuntimeIo {
+                            window: Some(window),
+                            damage_geometry: Some(damage_geometry),
+                            clipboard: Some(clipboard),
+                        };
+                        let changed = dispatch_command_id_with_io(
                             command_runtime,
                             registry,
                             frame,
@@ -9116,6 +9893,7 @@ fn handle_key_event(
                             workspace_lifecycle,
                             recent_work,
                             activity_center,
+                            &mut io,
                         );
                         if changed {
                             ShellDamageHint::FullWindow
@@ -9393,165 +10171,6 @@ fn handle_key_event(
         }
     }
 
-    if frame.focused_zone() == ShellZoneId::MainWorkspace
-        && modifiers.ctrl_or_logo()
-        && !modifiers.alt
-    {
-        match code {
-            KeyCode::KeyC | KeyCode::KeyX | KeyCode::KeyV => {
-                let focused = frame.focused_editor_group();
-                let has_tabs = frame
-                    .editor_group_layouts()
-                    .into_iter()
-                    .find(|g| g.group_id == focused)
-                    .is_some_and(|g| g.tab_count > 0);
-                if !has_tabs {
-                    return ShellDamageHint::None;
-                }
-
-                let Some(active_tab) = frame.active_tab_id(focused) else {
-                    return ShellDamageHint::None;
-                };
-                let Some(viewport_rect) = damage_geometry
-                    .focused_editor_viewport
-                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height))
-                else {
-                    return ShellDamageHint::None;
-                };
-
-                if !editor_runtime.has_tab_session(focused, active_tab) {
-                    editor_runtime.open_placeholder(focused, active_tab);
-                }
-                let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
-                    return ShellDamageHint::None;
-                };
-
-                session.ensure_fresh_snapshot();
-
-                match code {
-                    KeyCode::KeyC => match aureline_editor::clipboard::plan_copy_default(
-                        &session.snapshot,
-                        session.viewport.selections(),
-                    ) {
-                        Ok(payload) => match clipboard.set_text(&payload.text) {
-                            Ok(()) => {
-                                let label = match payload.copy_variant_id {
-                                    aureline_editor::clipboard::CopyVariantId::SelectionRaw => {
-                                        "copied selection"
-                                    }
-                                    aureline_editor::clipboard::CopyVariantId::Line => {
-                                        "copied line"
-                                    }
-                                };
-                                command_runtime.note_non_command_action(label);
-                            }
-                            Err(err) => command_runtime
-                                .note_non_command_action(format!("copy failed — {err}")),
-                        },
-                        Err(err) => command_runtime
-                            .note_non_command_action(format!("copy unavailable — {err}")),
-                    },
-                    KeyCode::KeyX => match aureline_editor::clipboard::plan_cut_default(
-                        &session.snapshot,
-                        session.viewport.selections(),
-                    ) {
-                        Ok(plan) => {
-                            let aureline_editor::clipboard::CutPayload {
-                                payload,
-                                delete_ranges,
-                            } = plan;
-                            match clipboard.set_text(&payload.text) {
-                                Ok(()) => {
-                                    let outcome = {
-                                        let mut authority = session.authority.borrow_mut();
-                                        session.viewport.selections_mut().apply_delete_byte_ranges(
-                                            &mut authority.buffer,
-                                            &session.snapshot,
-                                            delete_ranges,
-                                            aureline_editor::undo::originator::CUT,
-                                        )
-                                    };
-
-                                    match outcome {
-                                        Ok(Some(outcome)) => {
-                                            session.snapshot = outcome.snapshot;
-                                            session.last_seen_revision = outcome.revision;
-                                            session.refresh_document_cache();
-                                            session.viewport.set_ime_composition(None);
-                                            session.needs_text_repaint = true;
-                                            update_ime_cursor_area_for_viewport(
-                                                window,
-                                                &session.viewport,
-                                                viewport_rect,
-                                            );
-                                            command_runtime.note_non_command_action("cut");
-                                        }
-                                        Ok(None) => {
-                                            command_runtime.note_non_command_action("cut: no-op")
-                                        }
-                                        Err(err) => command_runtime
-                                            .note_non_command_action(format!("cut failed — {err}")),
-                                    }
-                                }
-                                Err(err) => command_runtime
-                                    .note_non_command_action(format!("cut failed — {err}")),
-                            }
-                        }
-                        Err(err) => command_runtime
-                            .note_non_command_action(format!("cut unavailable — {err}")),
-                    },
-                    KeyCode::KeyV => match clipboard.get_text() {
-                        Ok(text) => {
-                            let scope = if session.viewport.caret_count() > 1
-                                && session.viewport.ime_composition().is_some()
-                            {
-                                aureline_editor::TextEditScope::PrimaryOnly
-                            } else {
-                                aureline_editor::TextEditScope::AllCarets
-                            };
-
-                            let outcome = {
-                                let mut authority = session.authority.borrow_mut();
-                                session.viewport.selections_mut().apply_insert_text(
-                                    &mut authority.buffer,
-                                    &session.snapshot,
-                                    &text,
-                                    aureline_editor::undo::originator::PASTE,
-                                    scope,
-                                )
-                            };
-
-                            match outcome {
-                                Ok(Some(outcome)) => {
-                                    session.snapshot = outcome.snapshot;
-                                    session.last_seen_revision = outcome.revision;
-                                    session.refresh_document_cache();
-                                    session.viewport.set_ime_composition(None);
-                                    session.needs_text_repaint = true;
-                                    update_ime_cursor_area_for_viewport(
-                                        window,
-                                        &session.viewport,
-                                        viewport_rect,
-                                    );
-                                    command_runtime.note_non_command_action("pasted");
-                                }
-                                Ok(None) => command_runtime.note_non_command_action("paste: no-op"),
-                                Err(err) => command_runtime
-                                    .note_non_command_action(format!("paste failed — {err}")),
-                            }
-                        }
-                        Err(err) => command_runtime
-                            .note_non_command_action(format!("paste unavailable — {err}")),
-                    },
-                    _ => {}
-                }
-
-                return ShellDamageHint::FullWindow;
-            }
-            _ => {}
-        }
-    }
-
     if let Some((sequence, inspection_scope)) =
         keybinding_sequence_and_scope_from_shell(code, modifiers, frame)
     {
@@ -9564,7 +10183,12 @@ fn handle_key_event(
             && packet.winning_resolution.winner_kind == WinningResolutionKind::CommandCandidate
         {
             if let Some(candidate) = packet.winning_resolution.command_candidate.as_ref() {
-                let changed = dispatch_command_id(
+                let mut io = CommandDispatchRuntimeIo {
+                    window: Some(window),
+                    damage_geometry: Some(damage_geometry),
+                    clipboard: Some(clipboard),
+                };
+                let changed = dispatch_command_id_with_io(
                     command_runtime,
                     registry,
                     frame,
@@ -9578,6 +10202,7 @@ fn handle_key_event(
                     workspace_lifecycle,
                     recent_work,
                     activity_center,
+                    &mut io,
                 );
                 if !changed {
                     return ShellDamageHint::None;
@@ -9865,170 +10490,115 @@ fn handle_key_event(
         }
         KeyCode::KeyS => {
             if modifiers.ctrl_or_logo() && frame.focused_zone() == ShellZoneId::MainWorkspace {
-                let group = frame.focused_editor_group();
-                let Some(tab) = frame.active_tab_id(group) else {
-                    return ShellDamageHint::None;
+                let mut io = CommandDispatchRuntimeIo {
+                    window: Some(window),
+                    damage_geometry: Some(damage_geometry),
+                    clipboard: Some(clipboard),
                 };
-                let save_label = editor_runtime
-                    .tab_render_info(group, tab)
-                    .map(|info| info.label)
-                    .unwrap_or_else(|| "Untitled".to_string());
-                let save_operation_id = activity_center.next_save_operation_id(&save_label);
-                activity_center.note_save_running(&save_operation_id, &save_label);
-                let mut overlay_opened = false;
-                match editor_runtime.save_tab(group, tab) {
-                    Ok(SaveTabAttempt::Saved(result)) => {
-                        activity_center.note_save_completed(
-                            &save_operation_id,
-                            &save_label,
-                            Some(result.packet_id.clone()),
-                        );
-                        command_runtime.note_non_command_action(format!(
-                            "saved ({}) — outcome={} strategy={}",
-                            result.packet_id,
-                            result.manifest.outcome.as_str(),
-                            result.write_strategy.as_str()
-                        ));
-                    }
-                    Ok(SaveTabAttempt::NoTarget) => {
-                        activity_center.note_save_completed(&save_operation_id, &save_label, None);
-                        command_runtime.note_non_command_action("saved (no target)");
-                    }
-                    Ok(SaveTabAttempt::ReviewRequired { record, outcome }) => {
-                        activity_center.note_save_failed(
-                            &save_operation_id,
-                            &save_label,
-                            format!("Save requires review before commit ({})", outcome.as_str()),
-                        );
-                        *overlay = Some(ShellOverlayState::save_review(
-                            frame.focused_zone(),
-                            frame.focused_editor_group(),
-                            group,
-                            tab,
-                            record,
-                            outcome,
-                        ));
-                        frame.focus_zone(ShellZoneId::TransientOverlay);
-                        overlay_opened = true;
-                    }
-                    Err(err) => {
-                        activity_center.note_save_failed(
-                            &save_operation_id,
-                            &save_label,
-                            err.clone(),
-                        );
-                        command_runtime.note_non_command_action(format!("save failed — {err}"));
-                    }
+                let changed = dispatch_command_id_with_io(
+                    command_runtime,
+                    registry,
+                    frame,
+                    editor_runtime,
+                    palette,
+                    palette_focus_return,
+                    overlay,
+                    "cmd:editor.save",
+                    DispatchOrigin::KeybindingChord,
+                    enablement_runtime,
+                    workspace_lifecycle,
+                    recent_work,
+                    activity_center,
+                    &mut io,
+                );
+                if changed {
+                    ShellDamageHint::FullWindow
+                } else {
+                    ShellDamageHint::None
                 }
-                if overlay_opened {
-                    return ShellDamageHint::FullWindow;
-                }
-                ShellDamageHint::FullWindow
             } else {
                 ShellDamageHint::None
             }
         }
         KeyCode::KeyZ => {
             if modifiers.ctrl_or_logo() && frame.focused_zone() == ShellZoneId::MainWorkspace {
-                let group = frame.focused_editor_group();
-                let Some(tab) = frame.active_tab_id(group) else {
-                    return ShellDamageHint::None;
+                let command_id = if modifiers.shift {
+                    "cmd:editor.redo"
+                } else {
+                    "cmd:editor.undo"
                 };
-                if !editor_runtime.has_tab_session(group, tab) {
-                    editor_runtime.open_placeholder(group, tab);
-                }
-                let Some(session) = editor_runtime.tab_session_mut(group, tab) else {
-                    return ShellDamageHint::None;
+                let mut io = CommandDispatchRuntimeIo {
+                    window: Some(window),
+                    damage_geometry: Some(damage_geometry),
+                    clipboard: Some(clipboard),
                 };
-                session.ensure_fresh_snapshot();
-
-                let (changed, summary) = {
-                    let mut authority = session.authority.borrow_mut();
-                    let summary = if modifiers.shift {
-                        aureline_editor::undo::next_redo(&authority.buffer)
-                    } else {
-                        aureline_editor::undo::next_undo(&authority.buffer)
-                    };
-                    let outcome = if modifiers.shift {
-                        authority.buffer.redo()
-                    } else {
-                        authority.buffer.undo()
-                    };
-                    (outcome.is_some(), summary)
-                };
-                if !changed {
-                    return ShellDamageHint::None;
+                let changed = dispatch_command_id_with_io(
+                    command_runtime,
+                    registry,
+                    frame,
+                    editor_runtime,
+                    palette,
+                    palette_focus_return,
+                    overlay,
+                    command_id,
+                    DispatchOrigin::KeybindingChord,
+                    enablement_runtime,
+                    workspace_lifecycle,
+                    recent_work,
+                    activity_center,
+                    &mut io,
+                );
+                if changed {
+                    damage_geometry
+                        .focused_editor_group
+                        .map(|rect| ShellDamageHint::Rect {
+                            layer: CompositionLayerId::TextAndDecoration,
+                            class: DamageClassId::TextReflowLocal,
+                            rect,
+                        })
+                        .unwrap_or(ShellDamageHint::FullWindow)
+                } else {
+                    ShellDamageHint::None
                 }
-
-                session.refresh_snapshot_and_cache();
-                session.text_input.force_clear_composition();
-                session.viewport.set_ime_composition(None);
-                session.needs_text_repaint = true;
-                if let Some(summary) = summary {
-                    let verb = if modifiers.shift { "redo" } else { "undo" };
-                    command_runtime.note_non_command_action(format!(
-                        "{verb}: {} ({})",
-                        summary.label_or_class_id(),
-                        summary.class_id
-                    ));
-                }
-
-                damage_geometry
-                    .focused_editor_group
-                    .map(|rect| ShellDamageHint::Rect {
-                        layer: CompositionLayerId::TextAndDecoration,
-                        class: DamageClassId::TextReflowLocal,
-                        rect,
-                    })
-                    .unwrap_or(ShellDamageHint::FullWindow)
             } else {
                 ShellDamageHint::None
             }
         }
         KeyCode::KeyY => {
             if modifiers.ctrl_or_logo() && frame.focused_zone() == ShellZoneId::MainWorkspace {
-                let group = frame.focused_editor_group();
-                let Some(tab) = frame.active_tab_id(group) else {
-                    return ShellDamageHint::None;
+                let mut io = CommandDispatchRuntimeIo {
+                    window: Some(window),
+                    damage_geometry: Some(damage_geometry),
+                    clipboard: Some(clipboard),
                 };
-                if !editor_runtime.has_tab_session(group, tab) {
-                    editor_runtime.open_placeholder(group, tab);
+                let changed = dispatch_command_id_with_io(
+                    command_runtime,
+                    registry,
+                    frame,
+                    editor_runtime,
+                    palette,
+                    palette_focus_return,
+                    overlay,
+                    "cmd:editor.redo",
+                    DispatchOrigin::KeybindingChord,
+                    enablement_runtime,
+                    workspace_lifecycle,
+                    recent_work,
+                    activity_center,
+                    &mut io,
+                );
+                if changed {
+                    damage_geometry
+                        .focused_editor_group
+                        .map(|rect| ShellDamageHint::Rect {
+                            layer: CompositionLayerId::TextAndDecoration,
+                            class: DamageClassId::TextReflowLocal,
+                            rect,
+                        })
+                        .unwrap_or(ShellDamageHint::FullWindow)
+                } else {
+                    ShellDamageHint::None
                 }
-                let Some(session) = editor_runtime.tab_session_mut(group, tab) else {
-                    return ShellDamageHint::None;
-                };
-                session.ensure_fresh_snapshot();
-
-                let (changed, summary) = {
-                    let mut authority = session.authority.borrow_mut();
-                    let summary = aureline_editor::undo::next_redo(&authority.buffer);
-                    let changed = authority.buffer.redo().is_some();
-                    (changed, summary)
-                };
-                if !changed {
-                    return ShellDamageHint::None;
-                }
-
-                session.refresh_snapshot_and_cache();
-                session.text_input.force_clear_composition();
-                session.viewport.set_ime_composition(None);
-                session.needs_text_repaint = true;
-                if let Some(summary) = summary {
-                    command_runtime.note_non_command_action(format!(
-                        "redo: {} ({})",
-                        summary.label_or_class_id(),
-                        summary.class_id
-                    ));
-                }
-
-                damage_geometry
-                    .focused_editor_group
-                    .map(|rect| ShellDamageHint::Rect {
-                        layer: CompositionLayerId::TextAndDecoration,
-                        class: DamageClassId::TextReflowLocal,
-                        rect,
-                    })
-                    .unwrap_or(ShellDamageHint::FullWindow)
             } else {
                 ShellDamageHint::None
             }
@@ -11243,6 +11813,7 @@ fn rasterize_shell(
             now,
             registry,
             frame,
+            editor_runtime,
             palette,
             keybinding_runtime,
             enablement_runtime,
@@ -15591,6 +16162,7 @@ fn draw_command_palette_overlay(
     now: Instant,
     registry: &CommandRegistry,
     frame: &DesktopFrame,
+    editor_runtime: &EditorWorkspaceRuntimeState,
     palette: &CommandPaletteState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
@@ -15760,11 +16332,15 @@ fn draw_command_palette_overlay(
         policy_disabled: enablement_runtime.policy_disabled,
         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
     };
-    let preview = materialize_palette_preview_record(
+    let preview_arguments = palette
+        .selected_entry(registry)
+        .map(|entry| argument_provenance_map_for_shell(entry, frame, editor_runtime));
+    let preview = materialize_palette_preview_record_with_arguments(
         palette.selected_key(),
         registry,
         &keybinding_runtime.shortcuts_by_command_id,
         preview_runtime,
+        preview_arguments,
     );
 
     let selected_key = palette.selected_key().cloned();
@@ -15781,7 +16357,11 @@ fn draw_command_palette_overlay(
                 credential_available: enablement_runtime.credential_available,
                 policy_disabled: enablement_runtime.policy_disabled,
                 policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
-                argument_provenance_map: argument_provenance_map_for(entry),
+                argument_provenance_map: argument_provenance_map_for_shell(
+                    entry,
+                    frame,
+                    editor_runtime,
+                ),
             };
             let snapshot = entry.evaluate_enablement(&enablement_context);
             (snapshot.decision_class, snapshot.disabled_reason_code)
@@ -16678,6 +17258,7 @@ fn key_string_for_keycode(code: KeyCode) -> Option<String> {
         KeyCode::KeyY => Some("Y".to_string()),
         KeyCode::KeyZ => Some("Z".to_string()),
         KeyCode::Backquote => Some("`".to_string()),
+        KeyCode::F3 => Some("F3".to_string()),
         KeyCode::Space => Some("Space".to_string()),
         _ => None,
     }

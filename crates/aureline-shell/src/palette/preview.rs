@@ -190,6 +190,24 @@ pub fn materialize_palette_preview_record(
     shortcuts_by_command_id: &HashMap<String, Vec<String>>,
     runtime: PalettePreviewRuntimeInputs<'_>,
 ) -> PalettePreviewRecord {
+    materialize_palette_preview_record_with_arguments(
+        selection,
+        registry,
+        shortcuts_by_command_id,
+        runtime,
+        None,
+    )
+}
+
+/// Materializes a preview record with caller-supplied argument provenance for
+/// the selected command.
+pub fn materialize_palette_preview_record_with_arguments(
+    selection: Option<&PaletteItemKey>,
+    registry: &CommandRegistry,
+    shortcuts_by_command_id: &HashMap<String, Vec<String>>,
+    runtime: PalettePreviewRuntimeInputs<'_>,
+    argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
+) -> PalettePreviewRecord {
     let generated_at = aureline_commands::invocation::now_rfc3339();
     let selection = match selection {
         None => PalettePreviewSelection::None,
@@ -212,7 +230,8 @@ pub fn materialize_palette_preview_record(
                 .get(command_id)
                 .cloned()
                 .unwrap_or_default();
-            let argument_provenance_map = argument_provenance_map_for(entry);
+            let argument_provenance_map = argument_provenance_map_override
+                .unwrap_or_else(|| argument_provenance_map_for(entry));
             let context = CommandEnablementContext {
                 client_scope: runtime.client_scope.to_string(),
                 workspace_trust_state: runtime.workspace_trust_state.to_string(),
