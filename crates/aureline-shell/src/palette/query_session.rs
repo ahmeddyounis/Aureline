@@ -4,7 +4,7 @@
 //! provider readiness, and the grouped result materialization that drives the
 //! shell command palette surface.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -12,10 +12,18 @@ use std::time::{Duration, Instant};
 
 use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
 use aureline_input::text_input::{ImeComposition, ImeEvent, TextInputAction, TextInputSession};
+use aureline_reactive_state::ReadinessLabel;
+use aureline_search::{
+    LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalShell, LineageHintRecord,
+    ScopeClass as SearchScopeClass, WorkspaceSearchScope,
+};
 use aureline_vfs::{
     VfsChangeKind, WatcherEvent, WatcherHealth, WatcherService, WatcherServiceOptions,
 };
-use serde::Serialize;
+use aureline_workspace::{
+    ScopeClass as WorkspaceScopeClass, WorkspaceLifecycleMachine, WorkspaceReadinessInputs,
+};
+use serde::{Deserialize, Serialize};
 
 static PALETTE_SESSION_SEQ: AtomicUsize = AtomicUsize::new(1);
 
@@ -257,6 +265,532 @@ pub enum CommandPaletteSnapshotSelectedKey {
     Command { command_id: String },
     /// Selected file key.
     File { relative_path: String },
+}
+
+/// Maximum recent-target rows surfaced in the quick-open recents lane.
+pub const RECENTS_LANE_CAP: usize = 6;
+/// Maximum command rows surfaced in the quick-open commands lane.
+pub const COMMANDS_LANE_CAP: usize = 8;
+/// Maximum lexical-file rows surfaced per quick-open lexical lane.
+pub const LEXICAL_LANE_CAP: usize = 12;
+
+/// Source lane that produced a quick-open row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuickOpenSourceClass {
+    /// Locally tracked recent navigation target.
+    RecentTarget,
+    /// Command registry entry.
+    Command,
+    /// Lexical filename match.
+    LexicalFilename,
+    /// Lexical path match.
+    LexicalPath,
+}
+
+impl QuickOpenSourceClass {
+    /// Returns the stable snapshot token for this source lane.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RecentTarget => "recent_target",
+            Self::Command => "command",
+            Self::LexicalFilename => "lexical_filename",
+            Self::LexicalPath => "lexical_path",
+        }
+    }
+}
+
+/// Readiness state for a quick-open source lane.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuickOpenSourceState {
+    /// Source has not been requested.
+    NotRequested,
+    /// Source is warming and has not produced rows yet.
+    Warming,
+    /// Source has partial coverage.
+    Partial,
+    /// Source is ready for the current query.
+    Ready,
+    /// Source cannot answer in the current environment.
+    Unavailable,
+}
+
+impl QuickOpenSourceState {
+    /// Returns the stable snapshot token for this readiness state.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotRequested => "not_requested",
+            Self::Warming => "warming",
+            Self::Partial => "partial",
+            Self::Ready => "ready",
+            Self::Unavailable => "unavailable",
+        }
+    }
+}
+
+/// Recent-target projection supplied by the caller.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuickOpenRecentTarget {
+    pub recent_id: String,
+    pub display_label: String,
+    pub secondary_label: String,
+    pub relative_path: Option<String>,
+    pub target_kind_token: String,
+}
+
+/// Command projection supplied by the canonical command registry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuickOpenCommandRow {
+    pub command_id: String,
+    pub title: String,
+    pub summary: String,
+    pub dominant_side_effect_class: String,
+    pub invocation_preview_class: String,
+    pub disabled_reason_class: Option<String>,
+}
+
+/// Lexical row projection consumed by the quick-open session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuickOpenLexicalRow {
+    pub relative_path: String,
+    pub source_class: QuickOpenSourceClass,
+    pub match_kind_token: String,
+}
+
+/// Per-source summary in a quick-open snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuickOpenSnapshotSource {
+    pub source_class_token: String,
+    pub source_state_token: String,
+}
+
+/// One row in a quick-open snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuickOpenSnapshotRow {
+    pub row_kind_token: String,
+    pub source_class_token: String,
+    pub source_state_token: String,
+    pub display_label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disabled_reason_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invocation_preview_class: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relative_path: Option<String>,
+}
+
+/// Serializable snapshot of a quick-open query session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuickOpenSnapshot {
+    pub workspace_id: String,
+    pub scope_class_token: String,
+    pub scope_chip_label: String,
+    pub query: String,
+    pub held_modifiers: Vec<String>,
+    pub sources: Vec<QuickOpenSnapshotSource>,
+    pub lexical_partial_truth_causes: Vec<String>,
+    pub rows: Vec<QuickOpenSnapshotRow>,
+    pub observed_at: String,
+}
+
+/// Canonical quick-open projection hosted by the palette query session.
+#[derive(Debug, Clone)]
+pub struct QuickOpenQuerySession {
+    open: bool,
+    workspace_id: String,
+    scope_class: WorkspaceScopeClass,
+    workset_name: Option<String>,
+    query: String,
+    held_modifiers: BTreeSet<String>,
+    recents: Vec<QuickOpenRecentTarget>,
+    commands: Vec<QuickOpenCommandRow>,
+    lexical_rows: Vec<QuickOpenLexicalRow>,
+    recents_state: QuickOpenSourceState,
+    commands_state: QuickOpenSourceState,
+    lexical_state: QuickOpenSourceState,
+    lexical_partial_truth_causes: Vec<String>,
+    rows: Vec<QuickOpenSnapshotRow>,
+}
+
+impl QuickOpenQuerySession {
+    /// Constructs a closed quick-open session for a workspace and scope.
+    pub fn new(
+        workspace_id: impl Into<String>,
+        scope_class: WorkspaceScopeClass,
+        workset_name: Option<String>,
+    ) -> Self {
+        let workspace_id = workspace_id.into();
+        Self {
+            open: false,
+            workspace_id,
+            scope_class,
+            workset_name,
+            query: String::new(),
+            held_modifiers: BTreeSet::new(),
+            recents: Vec::new(),
+            commands: Vec::new(),
+            lexical_rows: Vec::new(),
+            recents_state: QuickOpenSourceState::NotRequested,
+            commands_state: QuickOpenSourceState::NotRequested,
+            lexical_state: QuickOpenSourceState::NotRequested,
+            lexical_partial_truth_causes: Vec::new(),
+            rows: Vec::new(),
+        }
+    }
+
+    /// Opens the session and materializes rows from the current inputs.
+    pub fn open(&mut self) {
+        self.open = true;
+        self.rebuild();
+    }
+
+    /// Replaces the active query string.
+    pub fn set_query(&mut self, query: impl Into<String>) {
+        self.query = query.into();
+        self.rebuild();
+    }
+
+    /// Replaces held modifier tokens captured by the invoking surface.
+    pub fn set_held_modifiers<I, S>(&mut self, modifiers: I)
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.held_modifiers = modifiers.into_iter().map(Into::into).collect();
+        self.rebuild();
+    }
+
+    /// Replaces recent targets from hot local state.
+    pub fn set_recents(&mut self, recents: Vec<QuickOpenRecentTarget>) {
+        self.recents_state = if recents.is_empty() {
+            QuickOpenSourceState::NotRequested
+        } else {
+            QuickOpenSourceState::Ready
+        };
+        self.recents = recents;
+        self.rebuild();
+    }
+
+    /// Replaces commands from an already projected command list.
+    pub fn set_commands(&mut self, commands: Vec<QuickOpenCommandRow>) {
+        self.commands_state = if commands.is_empty() {
+            QuickOpenSourceState::NotRequested
+        } else {
+            QuickOpenSourceState::Ready
+        };
+        self.commands = commands;
+        self.rebuild();
+    }
+
+    /// Replaces lexical rows and readiness projected from lexical search.
+    pub fn set_lexical(
+        &mut self,
+        rows: Vec<QuickOpenLexicalRow>,
+        state: QuickOpenSourceState,
+        partial_truth_causes: Vec<String>,
+    ) {
+        self.lexical_rows = rows;
+        self.lexical_state = state;
+        self.lexical_partial_truth_causes = partial_truth_causes;
+        self.rebuild();
+    }
+
+    /// Exports a portable quick-open snapshot.
+    pub fn export_snapshot(&self, observed_at: impl Into<String>) -> QuickOpenSnapshot {
+        let scope = SearchScopeClass::from_workspace(self.scope_class);
+        let sources = [
+            (QuickOpenSourceClass::RecentTarget, self.recents_state),
+            (QuickOpenSourceClass::Command, self.commands_state),
+            (QuickOpenSourceClass::LexicalFilename, self.lexical_state),
+            (QuickOpenSourceClass::LexicalPath, self.lexical_state),
+        ]
+        .into_iter()
+        .map(|(source, state)| QuickOpenSnapshotSource {
+            source_class_token: source.as_str().to_string(),
+            source_state_token: state.as_str().to_string(),
+        })
+        .collect();
+        QuickOpenSnapshot {
+            workspace_id: self.workspace_id.clone(),
+            scope_class_token: scope.as_str().to_string(),
+            scope_chip_label: project_scope_label(scope, self.workset_name.as_deref()),
+            query: self.query.clone(),
+            held_modifiers: self.held_modifiers.iter().cloned().collect(),
+            sources,
+            lexical_partial_truth_causes: self.lexical_partial_truth_causes.clone(),
+            rows: self.rows.clone(),
+            observed_at: observed_at.into(),
+        }
+    }
+
+    fn rebuild(&mut self) {
+        self.rows.clear();
+        if !self.open {
+            return;
+        }
+        let normalized = normalize_query(&self.query);
+        let mut taken_paths = BTreeSet::new();
+        for recent in self
+            .recents
+            .iter()
+            .filter(|recent| {
+                normalized.is_empty()
+                    || contains_case_insensitive(&recent.display_label, &normalized)
+                    || contains_case_insensitive(&recent.secondary_label, &normalized)
+                    || recent
+                        .relative_path
+                        .as_deref()
+                        .is_some_and(|path| contains_case_insensitive(path, &normalized))
+            })
+            .take(RECENTS_LANE_CAP)
+        {
+            if let Some(path) = &recent.relative_path {
+                taken_paths.insert(path.clone());
+            }
+            self.rows.push(QuickOpenSnapshotRow {
+                row_kind_token: "recent_target".to_string(),
+                source_class_token: QuickOpenSourceClass::RecentTarget.as_str().to_string(),
+                source_state_token: self.recents_state.as_str().to_string(),
+                display_label: recent.display_label.clone(),
+                command_id: None,
+                disabled_reason_class: None,
+                invocation_preview_class: None,
+                relative_path: recent.relative_path.clone(),
+            });
+        }
+        for command in self
+            .commands
+            .iter()
+            .filter(|command| {
+                normalized.is_empty()
+                    || contains_case_insensitive(&command.command_id, &normalized)
+                    || contains_case_insensitive(&command.title, &normalized)
+                    || contains_case_insensitive(&command.summary, &normalized)
+            })
+            .take(COMMANDS_LANE_CAP)
+        {
+            self.rows.push(QuickOpenSnapshotRow {
+                row_kind_token: "command".to_string(),
+                source_class_token: QuickOpenSourceClass::Command.as_str().to_string(),
+                source_state_token: self.commands_state.as_str().to_string(),
+                display_label: command.title.clone(),
+                command_id: Some(command.command_id.clone()),
+                disabled_reason_class: command.disabled_reason_class.clone(),
+                invocation_preview_class: Some(command.invocation_preview_class.clone()),
+                relative_path: None,
+            });
+        }
+        let mut filename_count = 0usize;
+        let mut path_count = 0usize;
+        for row in &self.lexical_rows {
+            if taken_paths.contains(&row.relative_path) {
+                continue;
+            }
+            match row.source_class {
+                QuickOpenSourceClass::LexicalFilename if filename_count < LEXICAL_LANE_CAP => {
+                    filename_count += 1;
+                }
+                QuickOpenSourceClass::LexicalPath if path_count < LEXICAL_LANE_CAP => {
+                    path_count += 1;
+                }
+                _ => continue,
+            }
+            taken_paths.insert(row.relative_path.clone());
+            let display_label = row
+                .relative_path
+                .rsplit_once('/')
+                .map(|(_, name)| name.to_string())
+                .unwrap_or_else(|| row.relative_path.clone());
+            self.rows.push(QuickOpenSnapshotRow {
+                row_kind_token: "file".to_string(),
+                source_class_token: row.source_class.as_str().to_string(),
+                source_state_token: self.lexical_state.as_str().to_string(),
+                display_label,
+                command_id: None,
+                disabled_reason_class: None,
+                invocation_preview_class: None,
+                relative_path: Some(row.relative_path.clone()),
+            });
+        }
+    }
+}
+
+/// Live lexical-search card projection hosted by the palette query session.
+#[derive(Debug, Clone)]
+pub struct WorkspaceSearchSurfaceState {
+    inner: LexicalShell,
+}
+
+impl WorkspaceSearchSurfaceState {
+    /// Opens a lexical search projection for the given workspace lifecycle.
+    pub fn open(
+        lifecycle: &WorkspaceLifecycleMachine,
+        readiness_label: ReadinessLabel,
+        scope_class: WorkspaceScopeClass,
+        workset_name: Option<&str>,
+        files: Vec<String>,
+    ) -> Self {
+        let inputs = lifecycle.readiness_inputs();
+        let scope = project_workspace_search_scope(&inputs.workspace_id, scope_class, workset_name);
+        let search_scope = SearchScopeClass::from_workspace(scope_class);
+        let index = build_lexical_index(inputs, readiness_label, files, Some(scope.clone()));
+        Self {
+            inner: LexicalShell::with_empty_query(
+                search_scope,
+                project_scope_label(search_scope, workset_name),
+                index,
+            ),
+        }
+    }
+
+    /// Sets the active lexical query.
+    pub fn set_query(&mut self, query: impl Into<String>) {
+        self.inner.set_query(LexicalQuery::new(query));
+    }
+
+    /// Materializes a render-ready search card.
+    pub fn render_card(&self) -> WorkspaceSearchSurfaceCard {
+        let results = self.inner.results();
+        WorkspaceSearchSurfaceCard {
+            readiness_class_token: results.readiness.as_str().to_string(),
+            total_rows: results.total_rows,
+            rows: results
+                .groups
+                .iter()
+                .map(|group| WorkspaceSearchSurfaceCardRow {
+                    source_class_token: group.source_class.as_str().to_string(),
+                    lane_label: group.label.clone(),
+                    lane_badge: group.source_class.badge().to_string(),
+                    items: group
+                        .items
+                        .iter()
+                        .map(|row| WorkspaceSearchSurfaceCardItem {
+                            relative_path: row.relative_path.clone(),
+                            match_kind_token: row.match_kind.as_str().to_string(),
+                            generated_artifact_hint: row
+                                .generated_artifact_hint
+                                .as_ref()
+                                .map(WorkspaceSearchSurfaceLineageHint::from_record),
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+}
+
+/// Render-ready search card projected from canonical lexical-search results.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceSearchSurfaceCard {
+    pub readiness_class_token: String,
+    pub rows: Vec<WorkspaceSearchSurfaceCardRow>,
+    pub total_rows: usize,
+}
+
+/// One source lane in a [`WorkspaceSearchSurfaceCard`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceSearchSurfaceCardRow {
+    pub source_class_token: String,
+    pub lane_label: String,
+    pub lane_badge: String,
+    pub items: Vec<WorkspaceSearchSurfaceCardItem>,
+}
+
+/// One row in a [`WorkspaceSearchSurfaceCardRow`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceSearchSurfaceCardItem {
+    pub relative_path: String,
+    pub match_kind_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_artifact_hint: Option<WorkspaceSearchSurfaceLineageHint>,
+}
+
+/// Generated-artifact lineage hint projected for search-card rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceSearchSurfaceLineageHint {
+    pub generated_class_token: String,
+    pub generated_class_label: String,
+    pub badge: String,
+    pub freshness_class_token: String,
+    pub freshness_label: String,
+    pub producer_id: String,
+    pub producer_label: String,
+    pub explainer: String,
+    pub rule_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_canonical_relative_path: Option<String>,
+}
+
+impl WorkspaceSearchSurfaceLineageHint {
+    /// Builds a chrome-facing lineage hint from a canonical record.
+    pub fn from_record(record: &LineageHintRecord) -> Self {
+        Self {
+            generated_class_token: record.generated_class.as_str().to_string(),
+            generated_class_label: record.generated_class.label().to_string(),
+            badge: record.generated_class.badge().to_string(),
+            freshness_class_token: record.freshness_class.as_str().to_string(),
+            freshness_label: record.freshness_class.label().to_string(),
+            producer_id: record.producer_id.clone(),
+            producer_label: record.producer_label.clone(),
+            explainer: record.explainer.clone(),
+            rule_id: record.rule_id.clone(),
+            source_canonical_relative_path: record.source_canonical_relative_path.clone(),
+        }
+    }
+}
+
+/// Projects a search scope label from the active scope and optional workset name.
+pub fn project_scope_label(scope: SearchScopeClass, workset_name: Option<&str>) -> String {
+    match scope {
+        SearchScopeClass::CurrentRepo | SearchScopeClass::FullWorkspace => {
+            scope.chip_label_family().to_string()
+        }
+        SearchScopeClass::SelectedWorkset
+        | SearchScopeClass::SparseSlice
+        | SearchScopeClass::PolicyLimitedView => match workset_name {
+            Some(name) if !name.trim().is_empty() => {
+                format!("{} · {}", scope.chip_label_family(), name)
+            }
+            _ => scope.chip_label_family().to_string(),
+        },
+    }
+}
+
+fn project_workspace_search_scope(
+    workspace_id: &str,
+    scope_class: WorkspaceScopeClass,
+    workset_name: Option<&str>,
+) -> WorkspaceSearchScope {
+    match scope_class {
+        WorkspaceScopeClass::FullWorkspace => {
+            WorkspaceSearchScope::for_full_workspace(workspace_id)
+        }
+        WorkspaceScopeClass::CurrentRepo => WorkspaceSearchScope::for_current_repo(workspace_id),
+        WorkspaceScopeClass::SelectedWorkset
+        | WorkspaceScopeClass::SparseSlice
+        | WorkspaceScopeClass::PolicyLimitedView => WorkspaceSearchScope::for_workset_stub(
+            workspace_id,
+            SearchScopeClass::from_workspace(scope_class),
+            workset_name,
+        ),
+    }
+}
+
+fn build_lexical_index(
+    readiness_inputs: WorkspaceReadinessInputs,
+    readiness_label: ReadinessLabel,
+    files: Vec<String>,
+    scope: Option<WorkspaceSearchScope>,
+) -> LexicalIndexState {
+    LexicalIndexState::from_inputs(LexicalIndexInputs {
+        readiness_inputs,
+        readiness_label,
+        files,
+        scope,
+    })
 }
 
 #[derive(Debug)]

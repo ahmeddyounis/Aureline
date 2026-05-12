@@ -14,9 +14,9 @@ The companion artifacts are:
     and [`WorksetArtifactRecord::project_chip`](../../crates/aureline-workspace/src/worksets/mod.rs)
     truth into the serializable `ScopeTruthChipCard` the chrome
     consumes.
-- [`/crates/aureline-shell/src/search_shell/state.rs`](../../crates/aureline-shell/src/search_shell/state.rs)
-  - the named protected-row consumer that wires the chip into the live
-    workspace search surface card.
+- [`/crates/aureline-shell/src/palette/query_session.rs`](../../crates/aureline-shell/src/palette/query_session.rs)
+  - the named protected-row consumer that owns the live palette and
+    quick-open search projections.
 - [`/fixtures/workspace/scope_truth_cases/`](../../fixtures/workspace/scope_truth_cases/)
   - seeded cases for full workspace, narrowed workset, sparse-slice
     partial index, policy-limited admin view, and outside-current-scope
@@ -115,12 +115,13 @@ aureline_shell::scope_truth::project_scope_truth_chip_card_for_artifact
 aureline_shell::scope_truth::ScopeTruthChipCard
         |
         v
-aureline_shell::search_shell::WorkspaceSearchSurfaceCard.scope_truth_chip
+aureline_shell::palette::WorkspaceSearchSurfaceCard
 ```
 
-The same card is consumed by the chrome and by support exports. Surfaces
-never inspect the underlying workset artifact directly to render
-additional labels; they render the card.
+Scope-aware surfaces consume this card together with
+`aureline_shell::scope_truth::ScopeTruthChipCard`. They never inspect the
+underlying workset artifact directly to render additional labels; they render
+the projected records.
 
 ## Protected walk
 

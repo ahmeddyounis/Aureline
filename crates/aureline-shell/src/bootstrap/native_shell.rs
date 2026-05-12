@@ -4104,11 +4104,8 @@ impl TerminalPaneRuntimeState {
             .collect();
         let mut changed = false;
         for id in ids {
-            match self.host.drain_output(&id, observed_at) {
-                Ok(drain) => {
-                    changed |= self.append_output(&id, &drain.bytes);
-                }
-                Err(_) => {}
+            if let Ok(drain) = self.host.drain_output(&id, observed_at) {
+                changed |= self.append_output(&id, &drain.bytes);
             }
         }
         changed
@@ -14470,7 +14467,7 @@ impl CloneFlowForm {
     fn request(&self) -> Result<CloneRequest, CloneError> {
         let request = CloneRequest::new(
             self.remote_url.trim().to_string(),
-            PathBuf::from(expand_tilde(self.destination_path.trim())),
+            expand_tilde(self.destination_path.trim()),
         );
         request.validate()?;
         Ok(request)

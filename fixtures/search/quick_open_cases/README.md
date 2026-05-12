@@ -10,8 +10,9 @@ Each `*.json` file in this directory describes one quick-open query session:
 
 The fixtures are exercised by
 `crates/aureline-shell/tests/quick_open_query_session_tests.rs`. The test
-loads each fixture, drives a [`QuickOpenQuerySession`] to the same inputs,
-and asserts the materialized snapshot matches `expected_snapshot` exactly.
+loads each fixture, drives `aureline_shell::palette::QuickOpenQuerySession`
+to the same inputs, and asserts the materialized snapshot matches
+`expected_snapshot` exactly.
 
 The fixtures intentionally cover both the protected-walk path (all sources
 ready) and the failure drill (lexical lane warming / unavailable while

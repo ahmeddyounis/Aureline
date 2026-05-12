@@ -62,7 +62,7 @@ The seeded catalog covers the cases the M1 spec calls out:
 | --- | --- |
 | Explorer node | `aureline_shell::explorer::GeneratedArtifactHint` projects the lineage record onto the node hint, including a `aureline-ws://…` URI for the canonical sibling when the workspace and root are known. |
 | Lexical search row | `aureline_search::ResultRow::generated_artifact_hint` carries the same `LineageHintRecord` so search rows label generated lanes distinctly. |
-| Search-shell card | `aureline_shell::search_shell::WorkspaceSearchSurfaceLineageHint` projects the row hint into chrome-friendly labels (badge, freshness label, explainer, source-canonical pointer). |
+| Palette search card | `aureline_shell::palette::WorkspaceSearchSurfaceLineageHint` projects the row hint into chrome-friendly labels (badge, freshness label, explainer, source-canonical pointer). |
 
 ## Browser handoff and freshness
 

@@ -72,14 +72,15 @@ the chrome showing the correct partial cause per lane.
 
 ## Row identity rules
 
-Every row carries a stable `QuickOpenRowKey`:
+Every snapshot row carries the identity field required for its row kind:
 
-- `RecentTarget { recent_id }` for recents,
-- `Command { command_id }` for commands,
-- `File { relative_path }` for lexical files.
+- recents carry the upstream recent-target identity in the source list,
+- commands quote `command_id`,
+- lexical files quote `relative_path`.
 
-Selection persists across query churn and partial streaming because the
-session re-resolves the selected key after every input change.
+The palette runtime resolves selection through its canonical
+`PaletteItemKey`; quick-open snapshots expose the persisted command and file
+identity fields directly so support exports do not scrape labels.
 
 ### Winning-source attribution
 

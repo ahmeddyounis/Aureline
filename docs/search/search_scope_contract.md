@@ -31,7 +31,7 @@ The scope resolver lives at
 | [`WorkspaceSearchScope`] | Workset/slice identity (`workset_id`, `workset_name`), scope class, root refs, include/exclude patterns, chip label, presentation state, partial-index note, and the partial-scope flag. |
 | [`ScopePatternRecord`] | One include / exclude pattern entry projected from the canonical workspace `PatternEntry`. |
 | [`ScopeFilterOutcome`] | Partition of one workspace file list into in-scope / out-of-scope buckets, with `all_workspace_count` and `in_scope_count` for chip count disclosure. |
-| [`WorkspaceSearchScopeMetadata`] | Serializable metadata snapshot attached to search-shell and quick-open exports. |
+| [`WorkspaceSearchScopeMetadata`] | Serializable metadata snapshot available to search replay/support exports. |
 
 The resolver consumes a `WorksetArtifactRecord` directly through
 `WorkspaceSearchScope::from_workset_artifact`, and offers
@@ -67,11 +67,10 @@ label, partition, or pattern projection.
    it matches an include. When no include patterns are present, every
    path that survives the exclude check is in scope.
 
-5. **Snapshots carry the scope metadata.** The search shell's
-   `WorkspaceSearchSurfaceCard` and the quick-open `QuickOpenSnapshot`
-   embed the canonical [`WorkspaceSearchScopeMetadata`] so an exported or
-   replayed session preserves the chip label, pattern fingerprint, and
-   partial-scope flag that produced the visible row set.
+5. **Snapshots preserve scope identity.** Search replay exports embed the
+   canonical [`WorkspaceSearchScopeMetadata`]. Palette-hosted quick-open
+   snapshots carry the scope-class token and chip label used for the visible
+   row set.
 
 ## Pattern vocabulary
 
@@ -116,8 +115,8 @@ The drill runs through:
 3. Switch to workset B (different include pattern).
 4. The chip updates to workset B's family + name in the same frame the
    filter is reapplied. Workset A's rows are dropped from the visible
-   set; the snapshot's `scope_metadata` field carries workset B's
-   `chip_label`, pattern fingerprint, and `partial_scope` flag.
+   set; replay exports carry workset B's chip label, pattern fingerprint,
+   and `partial_scope` flag.
 
 Fixture coverage for the drill lives at
 `fixtures/search/scope_cases/workset_switch_failure_drill.json`. The

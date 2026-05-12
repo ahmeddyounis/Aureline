@@ -76,14 +76,11 @@ contract](./search_query_session_contract.md) require the same disambiguation.
 
 ## Live-shell consumer
 
-The protected-row consumer is the workspace lexical search shell.
-`crates/aureline-shell/src/search_shell/state.rs` projects the canonical
-`ResultIdentity` into the chrome-facing
-`WorkspaceSearchSurfaceResultIdentity`, which carries the `result_id`, the
-ranking-reason tokens, the partiality class token, the `Authoritative` /
-`Warming` / `Partial` / `Stale` badge, and the `must_show_row_caveat` flag.
-The card is the same record support bundles and replay tools read; the chrome
-quotes it directly without re-deriving labels.
+The protected-row consumer is the palette-hosted lexical search projection.
+`crates/aureline-shell/src/palette/query_session.rs` consumes the canonical
+`aureline_search::ResultRow` projection, including the embedded
+`ResultIdentity` and lineage hints, and carries the chrome-facing row fields
+without re-deriving labels.
 
 ## Failure drill
 

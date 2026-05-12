@@ -22,7 +22,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use aureline_shell::quick_open::{
+use aureline_shell::palette::{
     QuickOpenCommandRow, QuickOpenLexicalRow, QuickOpenQuerySession, QuickOpenRecentTarget,
     QuickOpenSourceClass, QuickOpenSourceState,
 };

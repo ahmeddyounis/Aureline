@@ -2,16 +2,16 @@
 //!
 //! Builds a synthetic workspace with one canonical source (`Cargo.toml`) and
 //! one resolver-generated artifact (`Cargo.lock`). Then drives **both**
-//! protected-row consumers — the explorer and the workspace search shell —
-//! and asserts each surface labels the generated row distinctly without ever
-//! implying the lockfile is the canonical edit target.
+//! protected-row consumers — the explorer and the palette-hosted workspace
+//! search projection — and asserts each surface labels the generated row
+//! distinctly without ever implying the lockfile is the canonical edit target.
 
 use aureline_reactive_state::ReadinessLabel;
 use aureline_shell::explorer::{
     ExplorerNode, ExplorerNodeId, ExplorerNodeKind, ExplorerTree, GeneratedArtifactHint,
     NodeReadinessClass,
 };
-use aureline_shell::search_shell::WorkspaceSearchSurfaceState;
+use aureline_shell::palette::WorkspaceSearchSurfaceState;
 use aureline_workspace::{
     GeneratedArtifactClass, ScopeClass as WorkspaceScopeClass, TrustState,
     WorkspaceLifecycleMachine,
@@ -76,7 +76,7 @@ fn child_node(
 }
 
 #[test]
-fn explorer_and_search_shell_jointly_label_generated_lockfile() {
+fn explorer_and_palette_search_jointly_label_generated_lockfile() {
     // ---- Build the explorer tree ------------------------------------------
     let mut tree = ExplorerTree::new();
     let root = ExplorerNode::root_mount(
@@ -148,7 +148,7 @@ fn explorer_and_search_shell_jointly_label_generated_lockfile() {
         "canonical source must not carry a generated lineage hint",
     );
 
-    // ---- Drive the workspace search shell ---------------------------------
+    // ---- Drive the palette-hosted workspace search projection -------------
     let lifecycle = ready_lifecycle();
     let mut surface = WorkspaceSearchSurfaceState::open(
         &lifecycle,
@@ -175,7 +175,7 @@ fn explorer_and_search_shell_jointly_label_generated_lockfile() {
     let lockfile_hint = lockfile_item
         .generated_artifact_hint
         .as_ref()
-        .expect("lockfile row must carry a search-shell lineage hint");
+        .expect("lockfile row must carry a search-card lineage hint");
     assert_eq!(lockfile_hint.generated_class_token, "lockfile");
     assert_eq!(
         lockfile_hint.source_canonical_relative_path.as_deref(),
@@ -195,7 +195,7 @@ fn explorer_and_search_shell_jointly_label_generated_lockfile() {
         .expect("Cargo.toml row must surface in the search card");
     assert!(
         manifest_item.generated_artifact_hint.is_none(),
-        "canonical source row must NOT carry a search-shell lineage hint",
+        "canonical source row must NOT carry a search-card lineage hint",
     );
 
     // The cross-surface assertion: the URI the explorer points at MUST

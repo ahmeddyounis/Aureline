@@ -120,7 +120,7 @@ pub mod notebook_trust_badges;
 /// Notification routing: toast, banner, status, and durable-activity row
 /// projections derived from the typed notification envelope contract.
 pub mod notifications;
-/// Command palette query-session state and grouped result projections.
+/// Command palette, quick-open, and lexical file lookup query-session state.
 pub mod palette;
 /// Path-truth chip, alias inspector, and pre-write save-target review projections.
 pub mod path_truth;
@@ -132,8 +132,6 @@ pub mod path_truth;
 /// invariant set the chrome quotes verbatim — so the prompt cannot
 /// collapse to a generic "Allow?" button.
 pub mod permission_prompts;
-/// Quick-open query session: recent targets, commands, and lexical results.
-pub mod quick_open;
 /// Safe-mode entry, recovery-ladder rung stubs, and crash-loop containment offers.
 pub mod recovery;
 /// Release-center / provenance seed surface: thin projection over the
@@ -161,8 +159,6 @@ pub mod safe_preview_card;
 pub mod save_review;
 /// Scope-truth chip projections shared across open and search foundations.
 pub mod scope_truth;
-/// Workspace search shell: lexical filename/path surface with scope and partiality truth.
-pub mod search_shell;
 /// Start Center quick-action surface and entry projections.
 pub mod start_center;
 /// Shared placeholder/state-card vocabulary used across shell surfaces.
