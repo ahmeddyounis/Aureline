@@ -5,7 +5,7 @@
 
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::env;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -39,6 +39,10 @@ use crate::commands::invocation_preview::{
 use crate::commands::CommandReviewRuntimeInputs;
 use crate::embedded::boundary_card::EmbeddedBoundaryCardRecord;
 use crate::embedded::docs_help::{resolve_docs_help_handoff_url, seeded_docs_help_boundary_card};
+use crate::explorer::{
+    ExplorerNode, ExplorerNodeId, ExplorerNodeKind, ExplorerTree, ExplorerViewportRow,
+    GeneratedArtifactHint, NodeReadinessClass,
+};
 use crate::help::keybinding_inspector::build_inspector_lines;
 use crate::host_boundary_cues::{HostBoundaryCueCardRecord, HostBoundaryCueWedge};
 use crate::layout::split_tree::PaneId;
@@ -118,7 +122,8 @@ use aureline_ui::tokens::{
 use aureline_vfs::save::open_save_target;
 use aureline_vfs::{
     HookCounters, IdentityRecord as VfsIdentityRecord, LocalFilesystemRoot, SaveTargetToken,
-    VfsRoot, VfsUri, VirtualDocumentKind, VirtualDocumentRoot, VirtualDocumentSpec, WatcherHealth,
+    VfsChangeKind, VfsRoot, VfsUri, VirtualDocumentKind, VirtualDocumentRoot, VirtualDocumentSpec,
+    WatcherEvent, WatcherHealth,
 };
 use aureline_workspace::save::{
     detect_and_decode_for_buffer, encode_for_save, SaveResult, SourceFidelityRecord,
@@ -129,7 +134,7 @@ use aureline_workspace::{
     PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
     RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
     RestoreAvailability, ResultingMode, SafeRecoveryAction, TargetKind, TrustState,
-    WorkspaceLifecycleMachine, WorkspaceLifecycleState,
+    WorkspaceLifecycleMachine, WorkspaceLifecycleState, WorkspaceRootKind,
 };
 
 use crate::bootstrap::appearance_golden::write_png_0rgb;
@@ -991,6 +996,23 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     ));
                 }
             }
+            if editor_runtime
+                .explorer
+                .apply_watcher_events(palette.take_workspace_watcher_events())
+            {
+                if let Some(rect) = frame.layout().zone(ShellZoneId::LeftSidebar) {
+                    enqueue_damage_hint(
+                        &mut scheduler,
+                        ShellDamageHint::Rect {
+                            layer: CompositionLayerId::TextAndDecoration,
+                            class: DamageClassId::TextReflowLocal,
+                            rect: to_physical_rect(rect, window.scale_factor()),
+                        },
+                    );
+                } else {
+                    enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                }
+            }
             let file_index_readiness = palette.workspace_file_index_readiness();
             if workspace_lifecycle.update_from_file_index(
                 file_index_readiness.map(|v| v.watcher_health),
@@ -1355,6 +1377,22 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
                     return;
+                }
+                if !palette.is_open() && overlay.is_none() {
+                    if let Some(row_index) =
+                        explorer_row_index_at(&frame, window.scale_factor(), x, y)
+                    {
+                        frame.focus_zone(ShellZoneId::LeftSidebar);
+                        let changed = editor_runtime.explorer.toggle_row(row_index)
+                            || editor_runtime.explorer.select_row(row_index);
+                        if changed {
+                            enqueue_damage_hint(
+                                &mut scheduler,
+                                left_sidebar_damage_hint(&frame, window.scale_factor()),
+                            );
+                        }
+                        return;
+                    }
                 }
                 if frame.focused_zone() != ShellZoneId::MainWorkspace
                     || palette.is_open()
@@ -2482,6 +2520,7 @@ enum SaveTabAttempt {
 
 struct EditorWorkspaceRuntimeState {
     text_runtime: EditorTextRuntime,
+    explorer: ExplorerViewRuntime,
     terminal_pane: TerminalPaneRuntimeState,
     groups: HashMap<PaneId, EditorGroupSession>,
     buffers: BufferAuthorityStore,
@@ -2505,6 +2544,7 @@ impl EditorWorkspaceRuntimeState {
         let recovery_root = PathBuf::from(".logs").join("recovery");
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
+            explorer: ExplorerViewRuntime::new(),
             terminal_pane: TerminalPaneRuntimeState::new(),
             groups: HashMap::new(),
             buffers: BufferAuthorityStore::new(),
@@ -2522,6 +2562,7 @@ impl EditorWorkspaceRuntimeState {
         let recovery_root = PathBuf::from(".logs").join("recovery");
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
+            explorer: ExplorerViewRuntime::new(),
             terminal_pane: TerminalPaneRuntimeState::new(),
             groups: HashMap::new(),
             buffers,
@@ -3834,6 +3875,690 @@ mod terminal_routing_tests {
     }
 }
 
+const EXPLORER_ROOT_ID: &str = "root-local";
+const EXPLORER_ROW_HIT_HEIGHT_PX: u32 = 24;
+const EXPLORER_HEADER_HIT_HEIGHT_PX: u32 = 48;
+const EXPLORER_HIT_INSET_PX: u32 = 8;
+
+#[derive(Debug, Clone)]
+struct ExplorerViewRuntime {
+    tree: ExplorerTree,
+    workspace_id: Option<String>,
+    workspace_root: Option<PathBuf>,
+    root_node_id: Option<ExplorerNodeId>,
+    root_kind: WorkspaceRootKind,
+    loaded_dirs: BTreeSet<ExplorerNodeId>,
+    path_by_node_id: BTreeMap<ExplorerNodeId, PathBuf>,
+    node_id_by_path: BTreeMap<PathBuf, ExplorerNodeId>,
+    watcher_health: WatcherHealth,
+    last_error: Option<String>,
+}
+
+impl ExplorerViewRuntime {
+    fn new() -> Self {
+        Self {
+            tree: ExplorerTree::new(),
+            workspace_id: None,
+            workspace_root: None,
+            root_node_id: None,
+            root_kind: WorkspaceRootKind::LocalFolder,
+            loaded_dirs: BTreeSet::new(),
+            path_by_node_id: BTreeMap::new(),
+            node_id_by_path: BTreeMap::new(),
+            watcher_health: WatcherHealth::Warming,
+            last_error: None,
+        }
+    }
+
+    fn open_workspace(&mut self, root: PathBuf, workspace_id: String) -> Result<(), String> {
+        let root = root.canonicalize().unwrap_or(root);
+        let root_kind = if root.join(".git").is_dir() {
+            WorkspaceRootKind::LocalRepoRoot
+        } else {
+            WorkspaceRootKind::LocalFolder
+        };
+        let display_label = root
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| !name.trim().is_empty())
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| root.display().to_string());
+
+        let mut tree = ExplorerTree::new();
+        let root_node = ExplorerNode::root_mount(
+            &workspace_id,
+            EXPLORER_ROOT_ID,
+            root_kind,
+            display_label,
+            NodeReadinessClass::Loaded,
+        );
+        let root_node_id = root_node.node_id.clone();
+        tree.insert(root_node).map_err(|err| err.to_string())?;
+        tree.expand(&root_node_id).map_err(|err| err.to_string())?;
+
+        self.tree = tree;
+        self.workspace_id = Some(workspace_id);
+        self.workspace_root = Some(root.clone());
+        self.root_node_id = Some(root_node_id.clone());
+        self.root_kind = root_kind;
+        self.loaded_dirs.clear();
+        self.path_by_node_id.clear();
+        self.node_id_by_path.clear();
+        self.path_by_node_id
+            .insert(root_node_id.clone(), root.clone());
+        self.node_id_by_path.insert(root, root_node_id.clone());
+        self.loaded_dirs.insert(root_node_id.clone());
+        self.watcher_health = WatcherHealth::Warming;
+        self.last_error = None;
+
+        self.scan_children(&root_node_id)?;
+        self.select_first_meaningful_row();
+        Ok(())
+    }
+
+    fn clear_workspace(&mut self) {
+        *self = Self::new();
+    }
+
+    fn visible_rows(&self) -> Vec<ExplorerViewportRow> {
+        self.tree.visible_rows()
+    }
+
+    fn watcher_health(&self) -> WatcherHealth {
+        self.watcher_health
+    }
+
+    fn last_error(&self) -> Option<&str> {
+        self.last_error.as_deref()
+    }
+
+    fn selected_file_path(&self) -> Option<PathBuf> {
+        let id = self.tree.selected()?;
+        let node = self.tree.node(id)?;
+        if !node.kind.opens_in_editor() {
+            return None;
+        }
+        self.path_by_node_id.get(id).cloned()
+    }
+
+    fn activate_selected_directory(&mut self) -> bool {
+        let Some(id) = self.tree.selected().cloned() else {
+            return false;
+        };
+        let Some(node) = self.tree.node(&id) else {
+            return false;
+        };
+        if !node.kind.may_have_children() {
+            return false;
+        }
+        if self.tree.is_expanded(&id) && !node.is_persistent_mount() {
+            return self.tree.collapse(&id).is_ok();
+        }
+        self.expand_node(&id)
+    }
+
+    fn expand_node(&mut self, id: &ExplorerNodeId) -> bool {
+        let Some(node) = self.tree.node(id) else {
+            return false;
+        };
+        if !node.kind.may_have_children() {
+            return false;
+        }
+        let was_loaded = self.loaded_dirs.contains(id);
+        let was_expanded = self.tree.is_expanded(id);
+        if !was_loaded {
+            if let Err(err) = self.scan_children(id) {
+                self.last_error = Some(err);
+                return false;
+            }
+        }
+        self.tree.expand(id).is_ok() && (!was_loaded || !was_expanded)
+    }
+
+    fn collapse_or_select_parent(&mut self) -> bool {
+        let Some(id) = self.tree.selected().cloned() else {
+            return false;
+        };
+        let Some(node) = self.tree.node(&id).cloned() else {
+            return false;
+        };
+        if node.kind.may_have_children()
+            && self.tree.is_expanded(&id)
+            && !node.is_persistent_mount()
+        {
+            return self.tree.collapse(&id).is_ok();
+        }
+        let Some(parent) = node.parent_id else {
+            return false;
+        };
+        self.tree.select(&parent).is_ok()
+    }
+
+    fn select_next(&mut self) -> bool {
+        self.select_relative(1)
+    }
+
+    fn select_prev(&mut self) -> bool {
+        self.select_relative(-1)
+    }
+
+    fn select_relative(&mut self, delta: i32) -> bool {
+        let rows = self.visible_rows();
+        if rows.is_empty() {
+            return false;
+        }
+        let current = self
+            .tree
+            .selected()
+            .and_then(|id| rows.iter().position(|row| &row.node_id == id))
+            .unwrap_or(0);
+        let last = rows.len().saturating_sub(1) as i32;
+        let next = (current as i32 + delta).clamp(0, last) as usize;
+        if next == current {
+            return false;
+        }
+        self.tree.select(&rows[next].node_id).is_ok()
+    }
+
+    fn select_row(&mut self, row_index: usize) -> bool {
+        let rows = self.visible_rows();
+        let Some(row) = rows.get(row_index) else {
+            return false;
+        };
+        self.tree.select(&row.node_id).is_ok()
+    }
+
+    fn toggle_row(&mut self, row_index: usize) -> bool {
+        let rows = self.visible_rows();
+        let Some(row) = rows.get(row_index) else {
+            return false;
+        };
+        let id = row.node_id.clone();
+        if self.tree.select(&id).is_err() {
+            return false;
+        }
+        let Some(node) = self.tree.node(&id) else {
+            return true;
+        };
+        if !node.kind.may_have_children() {
+            return true;
+        }
+        self.activate_selected_directory()
+    }
+
+    fn apply_watcher_events(&mut self, events: Vec<WatcherEvent>) -> bool {
+        let mut changed = false;
+        for event in events {
+            match event {
+                WatcherEvent::Health(frame) => {
+                    if self.watcher_health != frame.watcher_health {
+                        self.watcher_health = frame.watcher_health;
+                        changed = true;
+                    }
+                }
+                WatcherEvent::Change(change) => {
+                    if change.root_id != EXPLORER_ROOT_ID {
+                        continue;
+                    }
+                    changed |= self.apply_change(change.kind);
+                }
+            }
+        }
+        changed
+    }
+
+    fn apply_change(&mut self, kind: VfsChangeKind) -> bool {
+        match kind {
+            VfsChangeKind::Created { uri } => {
+                let Some(path) = uri.file_path() else {
+                    return self.rescan_loaded_dirs();
+                };
+                self.add_path_if_parent_loaded(path)
+            }
+            VfsChangeKind::Deleted { uri } => {
+                let Some(path) = uri.file_path() else {
+                    return self.rescan_loaded_dirs();
+                };
+                self.remove_path(path)
+            }
+            VfsChangeKind::Renamed { from, to } => {
+                let removed = from.file_path().is_some_and(|path| self.remove_path(path));
+                let added = to
+                    .file_path()
+                    .is_some_and(|path| self.add_path_if_parent_loaded(path));
+                removed || added
+            }
+            VfsChangeKind::Modified { .. } => false,
+            VfsChangeKind::Rescan => self.rescan_loaded_dirs(),
+        }
+    }
+
+    fn rescan_loaded_dirs(&mut self) -> bool {
+        let loaded_paths: Vec<PathBuf> = self
+            .loaded_dirs
+            .iter()
+            .filter_map(|id| self.path_by_node_id.get(id).cloned())
+            .collect();
+        if loaded_paths.is_empty() {
+            return false;
+        }
+        let selected_path = self
+            .tree
+            .selected()
+            .and_then(|id| self.path_by_node_id.get(id).cloned());
+
+        let Some(root) = self.workspace_root.clone() else {
+            return false;
+        };
+        let Some(workspace_id) = self.workspace_id.clone() else {
+            return false;
+        };
+        if self.open_workspace(root, workspace_id).is_err() {
+            return false;
+        }
+        for path in loaded_paths {
+            if let Some(id) = self.node_id_by_path.get(&path).cloned() {
+                let _ = self.expand_node(&id);
+            }
+        }
+        if let Some(path) = selected_path {
+            if let Some(id) = self.node_id_by_path.get(&path).cloned() {
+                let _ = self.tree.select(&id);
+            }
+        }
+        true
+    }
+
+    fn scan_children(&mut self, parent_id: &ExplorerNodeId) -> Result<(), String> {
+        let parent_path = self
+            .path_by_node_id
+            .get(parent_id)
+            .cloned()
+            .ok_or_else(|| "explorer parent path missing".to_string())?;
+        let parent_node = self
+            .tree
+            .node(parent_id)
+            .cloned()
+            .ok_or_else(|| "explorer parent node missing".to_string())?;
+        if !parent_node.kind.may_have_children() {
+            return Ok(());
+        }
+
+        let removed = self
+            .tree
+            .clear_children(parent_id)
+            .map_err(|err| err.to_string())?;
+        for id in removed {
+            self.drop_path_mappings_for_subtree(&id);
+        }
+
+        let mut entries = Vec::new();
+        let read_dir = std::fs::read_dir(&parent_path)
+            .map_err(|err| format!("explorer scan failed for {}: {err}", parent_path.display()))?;
+        for entry in read_dir.flatten() {
+            let path = entry.path();
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            if file_type.is_dir() {
+                if let Some(name) = path.file_name().and_then(|name| name.to_str()) {
+                    if crate::palette::query_session::is_workspace_file_index_ignored_dir(name) {
+                        continue;
+                    }
+                }
+            } else if !file_type.is_file() {
+                continue;
+            }
+            entries.push((path, file_type.is_dir(), file_type.is_file()));
+        }
+        entries.sort_by(|(left_path, left_dir, _), (right_path, right_dir, _)| {
+            right_dir
+                .cmp(left_dir)
+                .then_with(|| explorer_path_label(left_path).cmp(&explorer_path_label(right_path)))
+        });
+
+        for (path, is_dir, is_file) in entries {
+            if let Some(node) = self.node_for_path(parent_id, &parent_node, path, is_dir, is_file) {
+                let id = node.node_id.clone();
+                let path = self.normalize_path_for_map(self.path_from_node(&node));
+                self.tree.insert(node).map_err(|err| err.to_string())?;
+                self.path_by_node_id.insert(id.clone(), path.clone());
+                self.node_id_by_path.insert(path, id);
+            }
+        }
+        self.loaded_dirs.insert(parent_id.clone());
+        let _ = self
+            .tree
+            .set_readiness(parent_id, NodeReadinessClass::Loaded);
+        Ok(())
+    }
+
+    fn add_path_if_parent_loaded(&mut self, path: PathBuf) -> bool {
+        let path = self.normalize_path_for_map(path);
+        if self.node_id_by_path.contains_key(&path) {
+            return false;
+        }
+        let Some(parent_path) = path
+            .parent()
+            .map(|p| self.normalize_path_for_map(p.to_path_buf()))
+        else {
+            return false;
+        };
+        let Some(parent_id) = self.node_id_by_path.get(&parent_path).cloned() else {
+            return false;
+        };
+        if !self.loaded_dirs.contains(&parent_id) {
+            return false;
+        }
+        let Ok(metadata) = std::fs::metadata(&path) else {
+            return false;
+        };
+        let is_dir = metadata.is_dir();
+        let is_file = metadata.is_file();
+        if !is_dir && !is_file {
+            return false;
+        }
+        if self.path_has_ignored_directory(&path, is_dir) {
+            return false;
+        }
+        let Some(parent_node) = self.tree.node(&parent_id).cloned() else {
+            return false;
+        };
+        let Some(node) =
+            self.node_for_path(&parent_id, &parent_node, path.clone(), is_dir, is_file)
+        else {
+            return false;
+        };
+        let id = node.node_id.clone();
+        if self.tree.insert(node).is_err() {
+            return false;
+        }
+        self.path_by_node_id.insert(id.clone(), path.clone());
+        self.node_id_by_path.insert(path, id);
+        true
+    }
+
+    fn remove_path(&mut self, path: PathBuf) -> bool {
+        let path = self.normalize_path_for_map(path);
+        let Some(id) = self.node_id_by_path.get(&path).cloned() else {
+            return false;
+        };
+        let descendants = self.descendant_ids_for_path(&path);
+        if self.tree.remove_subtree(&id).is_err() {
+            return false;
+        }
+        for descendant in descendants {
+            if let Some(mapped_path) = self.path_by_node_id.remove(&descendant) {
+                self.node_id_by_path.remove(&mapped_path);
+            }
+            self.loaded_dirs.remove(&descendant);
+        }
+        if self.tree.selected().is_none() {
+            self.select_first_meaningful_row();
+        }
+        true
+    }
+
+    fn node_for_path(
+        &self,
+        parent_id: &ExplorerNodeId,
+        parent_node: &ExplorerNode,
+        path: PathBuf,
+        is_dir: bool,
+        is_file: bool,
+    ) -> Option<ExplorerNode> {
+        let root = self.workspace_root.as_ref()?;
+        let workspace_id = self.workspace_id.as_ref()?;
+        let relative_path = path.strip_prefix(root).ok()?;
+        let relative = relative_path.to_string_lossy().replace('\\', "/");
+        if relative.is_empty() {
+            return None;
+        }
+        let logical_uri = join_explorer_logical(&self.root_logical_uri()?, &relative);
+        let display_label = explorer_path_label(&path);
+        let canonical_uri = VfsUri::file_url_for_path(&path)
+            .or_else(|| VfsUri::file_url_for_path_lossy(&path))
+            .map(|uri| uri.into_string())
+            .unwrap_or_else(|| logical_uri.clone());
+        let generated_artifact_hint = if is_dir {
+            None
+        } else {
+            GeneratedArtifactHint::detect_for(&relative, Some(workspace_id), Some(EXPLORER_ROOT_ID))
+        };
+        let kind = if is_dir {
+            ExplorerNodeKind::Directory
+        } else if is_file && generated_artifact_hint.is_some() {
+            ExplorerNodeKind::GeneratedArtifact
+        } else if is_file {
+            ExplorerNodeKind::File
+        } else {
+            return None;
+        };
+        Some(ExplorerNode {
+            node_id: ExplorerNodeId::from_logical(workspace_id, EXPLORER_ROOT_ID, &logical_uri),
+            workspace_id: workspace_id.clone(),
+            root_id: EXPLORER_ROOT_ID.to_string(),
+            root_kind: self.root_kind,
+            kind,
+            depth: parent_node.depth.saturating_add(1),
+            display_label,
+            presentation_uri: canonical_uri.clone(),
+            canonical_uri,
+            logical_uri,
+            root_badge: parent_node.root_badge.clone(),
+            parent_id: Some(parent_id.clone()),
+            readiness: if is_dir {
+                NodeReadinessClass::ManifestKnown
+            } else {
+                NodeReadinessClass::Loaded
+            },
+            generated_artifact_hint,
+            special_file_hint: None,
+        })
+    }
+
+    fn root_logical_uri(&self) -> Option<String> {
+        let id = self.root_node_id.as_ref()?;
+        self.tree.node(id).map(|node| node.logical_uri.clone())
+    }
+
+    fn path_from_node(&self, node: &ExplorerNode) -> PathBuf {
+        self.workspace_root
+            .as_ref()
+            .and_then(|root| {
+                let root_logical = self.root_logical_uri()?;
+                let relative = node.logical_uri.strip_prefix(&root_logical)?;
+                Some(root.join(relative))
+            })
+            .unwrap_or_else(|| PathBuf::from(&node.presentation_uri))
+    }
+
+    fn normalize_path_for_map(&self, path: PathBuf) -> PathBuf {
+        path.canonicalize().unwrap_or(path)
+    }
+
+    fn path_has_ignored_directory(&self, path: &Path, path_is_dir: bool) -> bool {
+        let Some(root) = self.workspace_root.as_ref() else {
+            return true;
+        };
+        let Ok(relative) = path.strip_prefix(root) else {
+            return true;
+        };
+        let ignored_component_count = if path_is_dir {
+            relative.components().count()
+        } else {
+            relative.components().count().saturating_sub(1)
+        };
+        relative
+            .components()
+            .take(ignored_component_count)
+            .any(|component| {
+                let label = component.as_os_str().to_string_lossy();
+                crate::palette::query_session::is_workspace_file_index_ignored_dir(&label)
+            })
+    }
+
+    fn descendant_ids_for_path(&self, path: &Path) -> Vec<ExplorerNodeId> {
+        self.node_id_by_path
+            .iter()
+            .filter_map(|(candidate_path, id)| {
+                candidate_path.starts_with(path).then_some(id.clone())
+            })
+            .collect()
+    }
+
+    fn drop_path_mappings_for_subtree(&mut self, id: &ExplorerNodeId) {
+        let Some(path) = self.path_by_node_id.get(id).cloned() else {
+            return;
+        };
+        for descendant in self.descendant_ids_for_path(&path) {
+            if let Some(mapped_path) = self.path_by_node_id.remove(&descendant) {
+                self.node_id_by_path.remove(&mapped_path);
+            }
+            self.loaded_dirs.remove(&descendant);
+        }
+    }
+
+    fn select_first_meaningful_row(&mut self) {
+        let rows = self.visible_rows();
+        let selected = rows
+            .iter()
+            .find(|row| row.depth > 0)
+            .or_else(|| rows.first());
+        if let Some(row) = selected {
+            let _ = self.tree.select(&row.node_id);
+        }
+    }
+}
+
+fn join_explorer_logical(root_logical_uri: &str, relative: &str) -> String {
+    let relative = relative.trim_start_matches('/');
+    if root_logical_uri.ends_with('/') {
+        format!("{root_logical_uri}{relative}")
+    } else {
+        format!("{root_logical_uri}/{relative}")
+    }
+}
+
+fn explorer_path_label(path: &Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.trim().is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| path.display().to_string())
+}
+
+#[cfg(test)]
+mod explorer_view_runtime_tests {
+    use super::*;
+
+    use std::fs;
+
+    use aureline_vfs::VfsChangeEvent;
+
+    fn fixture_root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/repos/m1/nested_source_tree")
+            .canonicalize()
+            .expect("nested source fixture should exist")
+    }
+
+    fn labels(explorer: &ExplorerViewRuntime) -> Vec<String> {
+        explorer
+            .visible_rows()
+            .into_iter()
+            .map(|row| row.display_label)
+            .collect()
+    }
+
+    fn selected_label(explorer: &ExplorerViewRuntime) -> Option<String> {
+        let selected = explorer.tree.selected()?;
+        explorer
+            .tree
+            .node(selected)
+            .map(|node| node.display_label.clone())
+    }
+
+    #[test]
+    fn scans_fixture_root_one_level_and_expands_directories_lazily() {
+        let root = fixture_root();
+        let mut explorer = ExplorerViewRuntime::new();
+        explorer
+            .open_workspace(root.clone(), "workspace:test".to_string())
+            .expect("fixture workspace should scan");
+
+        let root_labels = labels(&explorer);
+        assert!(root_labels.iter().any(|label| label == "app"));
+        assert!(root_labels.iter().any(|label| label == "src"));
+        assert!(root_labels.iter().any(|label| label == "README.md"));
+        assert!(!root_labels.iter().any(|label| label == "home.md"));
+
+        let app_id = explorer
+            .node_id_by_path
+            .get(&root.join("app").canonicalize().expect("app dir"))
+            .cloned()
+            .expect("app node should be indexed");
+        assert!(explorer.expand_node(&app_id));
+        let app_labels = labels(&explorer);
+        assert!(app_labels.iter().any(|label| label == "pages"));
+        assert!(app_labels.iter().any(|label| label == "routes.ts"));
+        assert!(!app_labels.iter().any(|label| label == "home.md"));
+
+        let pages_id = explorer
+            .node_id_by_path
+            .get(&root.join("app/pages").canonicalize().expect("pages dir"))
+            .cloned()
+            .expect("pages node should be indexed after expanding app");
+        assert!(explorer.expand_node(&pages_id));
+        let pages_labels = labels(&explorer);
+        assert!(pages_labels.iter().any(|label| label == "home.md"));
+        assert!(pages_labels.iter().any(|label| label == "about.md"));
+    }
+
+    #[test]
+    fn selection_navigation_reaches_files_for_editor_activation() {
+        let root = fixture_root();
+        let mut explorer = ExplorerViewRuntime::new();
+        explorer
+            .open_workspace(root.clone(), "workspace:test".to_string())
+            .expect("fixture workspace should scan");
+
+        assert_eq!(selected_label(&explorer).as_deref(), Some("app"));
+        assert!(explorer.select_next());
+        assert_eq!(selected_label(&explorer).as_deref(), Some("src"));
+        assert!(explorer.select_next());
+        assert_eq!(selected_label(&explorer).as_deref(), Some("README.md"));
+        assert_eq!(explorer.selected_file_path(), Some(root.join("README.md")));
+    }
+
+    #[test]
+    fn watcher_created_file_event_updates_loaded_parent_without_rescan() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().join("workspace");
+        fs::create_dir(&root).expect("workspace dir");
+        fs::write(root.join("README.md"), "fixture\n").expect("seed file");
+
+        let mut explorer = ExplorerViewRuntime::new();
+        explorer
+            .open_workspace(root.clone(), "workspace:test".to_string())
+            .expect("temp workspace should scan");
+
+        let created_path = root.join("created.rs");
+        fs::write(&created_path, "fn main() {}\n").expect("created file");
+        let uri = VfsUri::file_url_for_path(&created_path)
+            .or_else(|| VfsUri::file_url_for_path_lossy(&created_path))
+            .expect("file URI");
+
+        let changed = explorer.apply_watcher_events(vec![WatcherEvent::Change(VfsChangeEvent {
+            root_id: EXPLORER_ROOT_ID.to_string(),
+            kind: VfsChangeKind::Created { uri },
+        })]);
+
+        assert!(changed);
+        assert!(labels(&explorer).iter().any(|label| label == "created.rs"));
+    }
+}
+
 #[derive(Debug, Clone)]
 struct CommandEnablementRuntimeState {
     workspace_trust_state: String,
@@ -3864,10 +4589,6 @@ impl CommandEnablementRuntimeState {
         } else {
             "trusted".to_string()
         };
-    }
-
-    fn toggle_execution_context(&mut self) {
-        self.execution_context_available = !self.execution_context_available;
     }
 
     fn toggle_policy_blocked(&mut self) {
@@ -4642,6 +5363,75 @@ impl AppearanceRuntimeState {
     }
 }
 
+fn left_sidebar_damage_hint(frame: &DesktopFrame, scale_factor: f64) -> ShellDamageHint {
+    frame
+        .layout()
+        .zone(ShellZoneId::LeftSidebar)
+        .map(|rect| ShellDamageHint::Rect {
+            layer: CompositionLayerId::TextAndDecoration,
+            class: DamageClassId::TextReflowLocal,
+            rect: to_physical_rect(rect, scale_factor),
+        })
+        .unwrap_or(ShellDamageHint::FullWindow)
+}
+
+fn explorer_row_index_at(frame: &DesktopFrame, scale_factor: f64, x: u32, y: u32) -> Option<usize> {
+    let zone = to_physical_rect(frame.layout().zone(ShellZoneId::LeftSidebar)?, scale_factor);
+    let inner = Rect::new(
+        zone.x.saturating_add(EXPLORER_HIT_INSET_PX),
+        zone.y.saturating_add(EXPLORER_HIT_INSET_PX),
+        zone.width
+            .saturating_sub(EXPLORER_HIT_INSET_PX.saturating_mul(2)),
+        zone.height
+            .saturating_sub(EXPLORER_HIT_INSET_PX.saturating_mul(2)),
+    );
+    if x < inner.x || x >= inner.right() || y < inner.y || y >= inner.bottom() {
+        return None;
+    }
+    let rows_y = inner.y.saturating_add(EXPLORER_HEADER_HIT_HEIGHT_PX);
+    if y < rows_y {
+        return None;
+    }
+    Some(((y - rows_y) / EXPLORER_ROW_HIT_HEIGHT_PX) as usize)
+}
+
+fn open_selected_explorer_file(
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    frame: &mut DesktopFrame,
+    command_runtime: &mut CommandRuntimeState,
+    hot_path_metrics: &mut HotPathMetrics,
+    clock: &WallClock,
+) -> ShellDamageHint {
+    let Some(path) = editor_runtime.explorer.selected_file_path() else {
+        return ShellDamageHint::None;
+    };
+    let focused_group = frame.focused_editor_group();
+    let tick = clock.now().0;
+    if frame.active_tab_id(focused_group).is_some() {
+        hot_path_metrics.note_file_switch_to_paint_requested(tick);
+    } else {
+        hot_path_metrics.note_file_open_to_paint_requested(tick);
+    }
+    let Some(tab) = frame.open_tab_in_group(focused_group) else {
+        return ShellDamageHint::None;
+    };
+    match editor_runtime.open_file(focused_group, tab, &path) {
+        Ok(()) => {
+            command_runtime
+                .note_non_command_action(format!("opened file from explorer — {}", path.display()));
+            ShellDamageHint::FullWindow
+        }
+        Err(err) => {
+            hot_path_metrics
+                .close_latest_span_as_error(clock.now().0, format!("open file failed — {err}"));
+            command_runtime.note_non_command_action(format!("open file failed — {err}"));
+            let _ = frame.close_active_tab(focused_group);
+            editor_runtime.close_tab(focused_group, tab);
+            ShellDamageHint::FullWindow
+        }
+    }
+}
+
 fn fnv1a_64(value: &str) -> u64 {
     let mut hash: u64 = 0xcbf29ce484222325;
     for byte in value.as_bytes() {
@@ -4712,6 +5502,12 @@ fn open_local_folder_workspace(
     palette.set_workspace_root(path.to_path_buf());
     let identity_key = path.to_string_lossy();
     let workspace_id = workspace_id_for_local_folder(&identity_key);
+    if let Err(err) = editor_runtime
+        .explorer
+        .open_workspace(path.to_path_buf(), workspace_id.clone())
+    {
+        command_runtime.note_non_command_action(format!("explorer unavailable — {err}"));
+    }
     workspace_lifecycle.open_local_folder(workspace_id.clone(), trust_state);
     editor_runtime.terminal_pane.open_workspace(
         workspace_id,
@@ -4972,6 +5768,7 @@ fn dispatch_registry_entry(
         "cmd:workspace.clone_repository" => "apply_after_preview",
         "cmd:workspace.restore_from_checkpoint" => "apply_after_preview",
         "cmd:workspace.import_profile" => "apply_after_preview",
+        "cmd:explorer.toggle" => "focus_structural_navigation",
         "cmd:terminal.toggle" => "run_interactive_terminal",
         _ => "query_only_no_mutation",
     };
@@ -5168,6 +5965,21 @@ fn dispatch_registry_entry(
             frame.focus_zone(ShellZoneId::TransientOverlay);
             let invocation = invocation_and_result_simple_success(&session, "succeeded");
             command_runtime.record(invocation);
+            true
+        }
+        "cmd:explorer.toggle" => {
+            if frame.layout().zone(ShellZoneId::LeftSidebar).is_some() {
+                if frame.focused_zone() == ShellZoneId::LeftSidebar {
+                    frame.focus_zone(ShellZoneId::MainWorkspace);
+                } else {
+                    frame.focus_zone(ShellZoneId::LeftSidebar);
+                }
+                command_runtime.note_non_command_action("explorer toggled");
+                command_runtime.record(invocation_and_result_simple_success(&session, "succeeded"));
+            } else {
+                command_runtime.note_non_command_action("explorer unavailable at this width");
+                command_runtime.record(invocation_and_result_simple_success(&session, "no_op"));
+            }
             true
         }
         "cmd:terminal.toggle" => {
@@ -5824,13 +6636,21 @@ fn activate_recent_work_entry(
     *workspace_trust_state = trust_state.as_str().to_string();
     if let Some(root) = workspace_root_for_recent_work_entry(&entry) {
         let identity_key = root.to_string_lossy();
+        let workspace_id = workspace_id_for_local_folder(&identity_key);
+        if let Err(err) = editor_runtime
+            .explorer
+            .open_workspace(root.clone(), workspace_id.clone())
+        {
+            command_runtime.note_non_command_action(format!("explorer unavailable — {err}"));
+        }
         editor_runtime.terminal_pane.open_workspace(
-            workspace_id_for_local_folder(&identity_key),
+            workspace_id,
             root,
             trust_state,
             &mono_timestamp_now(),
         );
     } else {
+        editor_runtime.explorer.clear_workspace();
         editor_runtime
             .terminal_pane
             .close_active_workspace(&mono_timestamp_now(), Some("workspace_closed"));
@@ -5870,12 +6690,14 @@ fn workspace_root_for_recent_work_entry(entry: &RecentWorkEntryRecord) -> Option
 }
 
 fn sync_workspace_activation_runtime(
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     palette: &mut CommandPaletteState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     workspace_trust_state: &str,
     workspace_root: Option<PathBuf>,
 ) {
     let Some(root) = workspace_root else {
+        editor_runtime.explorer.clear_workspace();
         workspace_lifecycle.machine = None;
         workspace_lifecycle.last_logged = None;
         return;
@@ -5883,8 +6705,15 @@ fn sync_workspace_activation_runtime(
 
     palette.set_workspace_root(root.clone());
     let identity_key = root.to_string_lossy();
+    let workspace_id = workspace_id_for_local_folder(&identity_key);
+    if let Err(err) = editor_runtime
+        .explorer
+        .open_workspace(root, workspace_id.clone())
+    {
+        editor_runtime.explorer.last_error = Some(err);
+    }
     workspace_lifecycle.open_local_folder(
-        workspace_id_for_local_folder(&identity_key),
+        workspace_id,
         trust_state_for_recent_work(workspace_trust_state),
     );
 }
@@ -5937,6 +6766,7 @@ fn apply_workspace_switcher_decision(
                         Some(TrustState::Restricted),
                     );
                     sync_workspace_activation_runtime(
+                        editor_runtime,
                         palette,
                         workspace_lifecycle,
                         workspace_trust_state.as_str(),
@@ -5959,6 +6789,7 @@ fn apply_workspace_switcher_decision(
                         None,
                     );
                     sync_workspace_activation_runtime(
+                        editor_runtime,
                         palette,
                         workspace_lifecycle,
                         workspace_trust_state.as_str(),
@@ -5978,6 +6809,7 @@ fn apply_workspace_switcher_decision(
                         None,
                     );
                     sync_workspace_activation_runtime(
+                        editor_runtime,
                         palette,
                         workspace_lifecycle,
                         workspace_trust_state.as_str(),
@@ -6058,6 +6890,7 @@ fn apply_workspace_switcher_decision(
                     None,
                 );
                 sync_workspace_activation_runtime(
+                    editor_runtime,
                     palette,
                     workspace_lifecycle,
                     workspace_trust_state.as_str(),
@@ -6087,6 +6920,7 @@ fn apply_workspace_switcher_decision(
                     None,
                 );
                 sync_workspace_activation_runtime(
+                    editor_runtime,
                     palette,
                     workspace_lifecycle,
                     workspace_trust_state.as_str(),
@@ -6113,6 +6947,7 @@ fn apply_workspace_switcher_decision(
                     Some(TrustState::Restricted),
                 );
                 sync_workspace_activation_runtime(
+                    editor_runtime,
                     palette,
                     workspace_lifecycle,
                     workspace_trust_state.as_str(),
@@ -6142,6 +6977,7 @@ fn apply_workspace_switcher_decision(
                     None,
                 );
                 sync_workspace_activation_runtime(
+                    editor_runtime,
                     palette,
                     workspace_lifecycle,
                     workspace_trust_state.as_str(),
@@ -6814,6 +7650,53 @@ fn handle_key_event(
                     rect: to_physical_rect(rect, window.scale_factor()),
                 })
                 .unwrap_or(ShellDamageHint::FullWindow);
+        }
+    }
+
+    if frame.focused_zone() == ShellZoneId::LeftSidebar {
+        match code {
+            KeyCode::ArrowDown => {
+                if editor_runtime.explorer.select_next() {
+                    return left_sidebar_damage_hint(frame, window.scale_factor());
+                }
+                return ShellDamageHint::None;
+            }
+            KeyCode::ArrowUp => {
+                if editor_runtime.explorer.select_prev() {
+                    return left_sidebar_damage_hint(frame, window.scale_factor());
+                }
+                return ShellDamageHint::None;
+            }
+            KeyCode::ArrowRight => {
+                if let Some(selected) = editor_runtime.explorer.tree.selected().cloned() {
+                    if editor_runtime.explorer.expand_node(&selected) {
+                        return left_sidebar_damage_hint(frame, window.scale_factor());
+                    }
+                }
+                return ShellDamageHint::None;
+            }
+            KeyCode::ArrowLeft => {
+                if editor_runtime.explorer.collapse_or_select_parent() {
+                    return left_sidebar_damage_hint(frame, window.scale_factor());
+                }
+                return ShellDamageHint::None;
+            }
+            KeyCode::Enter => {
+                if editor_runtime.explorer.selected_file_path().is_some() {
+                    return open_selected_explorer_file(
+                        editor_runtime,
+                        frame,
+                        command_runtime,
+                        hot_path_metrics,
+                        clock,
+                    );
+                }
+                if editor_runtime.explorer.activate_selected_directory() {
+                    return left_sidebar_damage_hint(frame, window.scale_factor());
+                }
+                return ShellDamageHint::None;
+            }
+            _ => {}
         }
     }
 
@@ -7642,8 +8525,26 @@ fn handle_key_event(
         }
         KeyCode::KeyE => {
             if modifiers.ctrl_or_logo() && modifiers.shift {
-                enablement_runtime.toggle_execution_context();
-                ShellDamageHint::FullWindow
+                let changed = dispatch_command_id(
+                    command_runtime,
+                    registry,
+                    frame,
+                    editor_runtime,
+                    palette,
+                    palette_focus_return,
+                    overlay,
+                    "cmd:explorer.toggle",
+                    DispatchOrigin::KeybindingChord,
+                    enablement_runtime,
+                    workspace_lifecycle,
+                    recent_work,
+                    activity_center,
+                );
+                if changed {
+                    ShellDamageHint::FullWindow
+                } else {
+                    ShellDamageHint::None
+                }
             } else {
                 ShellDamageHint::None
             }
@@ -8514,6 +9415,27 @@ fn rasterize_shell(
                     );
                 }
             }
+            ShellZoneId::LeftSidebar => {
+                let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
+                for (_slot_id, slot_rect) in
+                    frame.slot_rects_within_zone(zone, logical_rect, zone_inset_logical)
+                {
+                    let slot_rect = to_physical_rect(slot_rect, scale);
+                    if clip.is_some_and(|clip_rect| !rect_intersects(slot_rect, clip_rect)) {
+                        continue;
+                    }
+                    draw_explorer_sidebar(
+                        buffer,
+                        width,
+                        height,
+                        slot_rect,
+                        &editor_runtime.explorer,
+                        keybinding_runtime,
+                        &style,
+                        zone == frame.focused_zone(),
+                    );
+                }
+            }
             _ => {
                 let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
                 for (slot_id, slot_rect) in
@@ -8675,7 +9597,7 @@ fn rasterize_shell(
             .projection_label(SurfaceKind::WorkspaceStatusItem)
             .unwrap_or("Workspace ready");
         let text = format!(
-            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   activity_rows: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   {} terminal   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}   activity: {}",
+            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   activity_rows: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   {} explorer   {} terminal   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}   activity: {}",
             status_item_label,
             theme_label,
             density_label,
@@ -8694,6 +9616,7 @@ fn rasterize_shell(
             keybinding_runtime.active_preset.display_name(),
             keybinding_runtime.active_preset.preset_ref(),
             palette_keys,
+            keybinding_runtime.shortcuts_label("cmd:explorer.toggle"),
             terminal_keys,
             docs_keys,
             recent_work_store,
@@ -9273,6 +10196,178 @@ fn draw_shell_slot_placeholder_card(
         if cursor_x >= max_x {
             break;
         }
+    }
+}
+
+fn draw_explorer_sidebar(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    explorer: &ExplorerViewRuntime,
+    keybinding_runtime: &KeybindingRuntimeState,
+    style: &ShellRenderStyle,
+    focused: bool,
+) {
+    if rect.is_empty() || rect.width < 8 || rect.height < 8 {
+        return;
+    }
+    fill_rect(buffer, width, height, rect, style.tokens.bg_surface);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        rect,
+        style.stroke_default,
+        style.tokens.border_default,
+    );
+
+    let padding = style.density_panel_padding.min(rect.width / 3);
+    let inner = Rect::new(
+        rect.x.saturating_add(padding),
+        rect.y.saturating_add(padding),
+        rect.width.saturating_sub(padding.saturating_mul(2)),
+        rect.height.saturating_sub(padding.saturating_mul(2)),
+    );
+    if inner.is_empty() {
+        return;
+    }
+
+    let max_x = inner.right();
+    let mut y = inner.y;
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        inner.x,
+        y,
+        2,
+        "Explorer",
+        style.tokens.text_primary,
+        max_x,
+    );
+    y = y.saturating_add(18);
+
+    let shortcut = keybinding_runtime.shortcuts_label("cmd:explorer.toggle");
+    let status = if let Some(root) = explorer.workspace_root.as_ref() {
+        format!(
+            "{}   watcher:{}",
+            root.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("workspace"),
+            explorer.watcher_health().as_str()
+        )
+    } else {
+        format!("No folder open   {}", shortcut)
+    };
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        inner.x,
+        y,
+        1,
+        &status,
+        style.tokens.text_muted,
+        max_x,
+    );
+    y = y.saturating_add(12).saturating_add(style.density_gutter);
+
+    let row_h = style.density_row_height.max(18);
+    let glyph_y_offset = row_h.saturating_sub(8) / 2;
+    let rows = explorer.visible_rows();
+    if rows.is_empty() {
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            inner.x,
+            y,
+            1,
+            "Workspace tree unavailable",
+            style.tokens.text_muted,
+            max_x,
+        );
+        return;
+    }
+
+    for row in rows {
+        if y.saturating_add(row_h) > inner.bottom() {
+            break;
+        }
+        let row_rect = Rect::new(inner.x, y, inner.width, row_h);
+        if row.is_selected {
+            let chrome_state = if focused {
+                ComponentStates::SELECTED | ComponentStates::FOCUS_VISIBLE
+            } else {
+                ComponentStates::SELECTED
+            };
+            let chrome = style
+                .component_states
+                .chrome_style(ComponentSurfaceTone::Surface, chrome_state);
+            fill_rect(buffer, width, height, row_rect, chrome.fill);
+            stroke_rect(
+                buffer,
+                width,
+                height,
+                row_rect,
+                chrome.border_stroke_px,
+                chrome.border,
+            );
+        }
+
+        let indent = row.depth.saturating_mul(style.space_3).min(inner.width / 2);
+        let marker = match row.kind {
+            ExplorerNodeKind::RootMount | ExplorerNodeKind::Directory => {
+                if row.is_expanded {
+                    "v"
+                } else {
+                    ">"
+                }
+            }
+            ExplorerNodeKind::GeneratedArtifact => "G",
+            ExplorerNodeKind::SpecialFile => "S",
+            ExplorerNodeKind::VirtualDocument => "V",
+            ExplorerNodeKind::File => "-",
+        };
+        let readiness = if row.readiness.is_partial() {
+            format!(" [{}]", row.readiness.as_str())
+        } else {
+            String::new()
+        };
+        let label = format!("{marker} {}{}", row.display_label, readiness);
+        let text_x = inner.x.saturating_add(indent);
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            text_x,
+            y.saturating_add(glyph_y_offset),
+            1,
+            &label,
+            if row.is_selected {
+                style.tokens.text_primary
+            } else {
+                style.tokens.text_secondary
+            },
+            max_x,
+        );
+        y = y.saturating_add(row_h);
+    }
+
+    if let Some(err) = explorer.last_error() {
+        let footer_y = inner.bottom().saturating_sub(10);
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            inner.x,
+            footer_y,
+            1,
+            err,
+            style.status_danger,
+            max_x,
+        );
     }
 }
 

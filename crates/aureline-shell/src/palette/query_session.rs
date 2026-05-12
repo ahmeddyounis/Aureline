@@ -271,6 +271,7 @@ struct FileIndexWorker {
     watcher_health: WatcherHealth,
     watcher_source: Option<String>,
     needs_rescan: bool,
+    last_watcher_events: Vec<WatcherEvent>,
 }
 
 /// Readiness signals derived from the workspace file index worker.
@@ -288,7 +289,7 @@ enum FileIndexMessage {
     Complete,
 }
 
-fn is_ignored_dir(name: &str) -> bool {
+pub(crate) fn is_workspace_file_index_ignored_dir(name: &str) -> bool {
     if name.starts_with('.') {
         return true;
     }
@@ -326,6 +327,7 @@ fn spawn_file_index_worker(root: PathBuf) -> FileIndexWorker {
         watcher_health,
         watcher_source: None,
         needs_rescan: false,
+        last_watcher_events: Vec::new(),
     }
 }
 
@@ -372,7 +374,7 @@ fn scan_files(root: PathBuf, tx: std::sync::mpsc::Sender<FileIndexMessage>) {
             };
             if file_type.is_dir() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if is_ignored_dir(name) {
+                    if is_workspace_file_index_ignored_dir(name) {
                         continue;
                     }
                 }
@@ -634,9 +636,19 @@ impl CommandPaletteState {
                     .unwrap_or(WatcherHealth::Unavailable);
                 worker.watcher_source = None;
                 worker.needs_rescan = false;
+                worker.last_watcher_events.clear();
                 restart_file_index_scan(worker, now);
             }
         }
+    }
+
+    /// Takes watcher events observed since the last tick so sibling views can
+    /// consume the same VFS watcher stream without starting their own watcher.
+    pub(crate) fn take_workspace_watcher_events(&mut self) -> Vec<WatcherEvent> {
+        self.file_index
+            .as_mut()
+            .map(|worker| std::mem::take(&mut worker.last_watcher_events))
+            .unwrap_or_default()
     }
 
     /// Returns the latest readiness signals derived from the file index worker.
@@ -984,6 +996,9 @@ impl CommandPaletteState {
                 }
                 if !pending.is_empty() {
                     changed = true;
+                    file_index
+                        .last_watcher_events
+                        .extend(pending.iter().cloned());
                     for event in pending {
                         apply_watcher_event(file_index, event);
                     }

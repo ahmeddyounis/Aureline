@@ -265,7 +265,7 @@ pub fn preset_conflicts(
     Ok(packets)
 }
 
-const VS_CODE_SPECS: [PresetBindingSpec; 10] = [
+const VS_CODE_SPECS: [PresetBindingSpec; 11] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+P",
@@ -290,6 +290,11 @@ const VS_CODE_SPECS: [PresetBindingSpec; 10] = [
         command_id: "cmd:workspace.open_folder",
         macos_sequence: "Cmd+Shift+O",
         other_sequence: "Ctrl+Shift+O",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:explorer.toggle",
+        macos_sequence: "Cmd+Shift+E",
+        other_sequence: "Ctrl+Shift+E",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.clone_repository",
@@ -318,7 +323,7 @@ const VS_CODE_SPECS: [PresetBindingSpec; 10] = [
     },
 ];
 
-const INTELLIJ_SPECS: [PresetBindingSpec; 10] = [
+const INTELLIJ_SPECS: [PresetBindingSpec; 11] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+A",
@@ -343,6 +348,11 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 10] = [
         command_id: "cmd:workspace.open_folder",
         macos_sequence: "Cmd+Shift+O",
         other_sequence: "Ctrl+Shift+O",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:explorer.toggle",
+        macos_sequence: "Cmd+Shift+E",
+        other_sequence: "Ctrl+Shift+E",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.clone_repository",
@@ -371,7 +381,7 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 10] = [
     },
 ];
 
-const VIM_SPECS: [PresetBindingSpec; 11] = [
+const VIM_SPECS: [PresetBindingSpec; 12] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Ctrl+P",
@@ -396,6 +406,11 @@ const VIM_SPECS: [PresetBindingSpec; 11] = [
         command_id: "cmd:workspace.open_folder",
         macos_sequence: "Ctrl+Shift+O",
         other_sequence: "Ctrl+Shift+O",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:explorer.toggle",
+        macos_sequence: "Cmd+Shift+E",
+        other_sequence: "Ctrl+Shift+E",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.clone_repository",
@@ -431,7 +446,7 @@ const VIM_SPECS: [PresetBindingSpec; 11] = [
     },
 ];
 
-const EMACS_SPECS: [PresetBindingSpec; 10] = [
+const EMACS_SPECS: [PresetBindingSpec; 11] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Alt+X",
@@ -456,6 +471,11 @@ const EMACS_SPECS: [PresetBindingSpec; 10] = [
         command_id: "cmd:workspace.open_folder",
         macos_sequence: "Ctrl+Shift+O",
         other_sequence: "Ctrl+Shift+O",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:explorer.toggle",
+        macos_sequence: "Cmd+Shift+E",
+        other_sequence: "Ctrl+Shift+E",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.clone_repository",

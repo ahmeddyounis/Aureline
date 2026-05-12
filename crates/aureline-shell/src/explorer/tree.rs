@@ -344,6 +344,32 @@ impl ExplorerTree {
         Ok(())
     }
 
+    /// Remove all children below `id`, preserving the parent node itself.
+    ///
+    /// Returns the root ids of the removed child subtrees. Selection and
+    /// expansion entries for removed descendants are cleared by
+    /// [`Self::remove_subtree`].
+    pub fn clear_children(
+        &mut self,
+        id: &ExplorerNodeId,
+    ) -> Result<Vec<ExplorerNodeId>, ExplorerTreeError> {
+        let node = self
+            .nodes
+            .get(id)
+            .ok_or_else(|| ExplorerTreeError::UnknownNode(id.clone()))?;
+        if !node.kind.may_have_children() {
+            return Err(ExplorerTreeError::LeafCannotHaveChildren(id.clone()));
+        }
+
+        let removed = self.children_of(id).to_vec();
+        for child in &removed {
+            if self.nodes.contains_key(child) {
+                self.remove_subtree(child)?;
+            }
+        }
+        Ok(removed)
+    }
+
     /// Materialize all currently visible rows in document order, honoring
     /// expansion and filter. Filter matches are tracked per row but the row
     /// is included whenever any descendant matches so the filtered view does
