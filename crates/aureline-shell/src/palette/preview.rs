@@ -35,6 +35,8 @@ pub struct PalettePreviewRuntimeInputs<'a> {
     pub policy_disabled: bool,
     /// Whether the command is blocked in the current context by policy.
     pub policy_blocked_in_context: bool,
+    /// Whether Labs commands are explicitly enabled for this local session.
+    pub labs_enabled: bool,
 }
 
 /// Copy intent classes surfaced by the palette footer.
@@ -240,6 +242,7 @@ pub fn materialize_palette_preview_record_with_arguments(
                 credential_available: runtime.credential_available,
                 policy_disabled: runtime.policy_disabled,
                 policy_blocked_in_context: runtime.policy_blocked_in_context,
+                labs_enabled: runtime.labs_enabled,
                 argument_provenance_map: argument_provenance_map.clone(),
             };
             let preflight = entry.preflight(&context);
@@ -356,6 +359,7 @@ mod tests {
             credential_available: None,
             policy_disabled: false,
             policy_blocked_in_context: false,
+            labs_enabled: false,
         };
 
         for entry in std::fs::read_dir(&root).expect("fixture directory must exist") {

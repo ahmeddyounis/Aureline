@@ -250,6 +250,7 @@ mod tests {
             credential_available: None,
             policy_disabled: false,
             policy_blocked_in_context: false,
+            labs_enabled: false,
         };
 
         for entry in std::fs::read_dir(&root).expect("fixture directory must exist") {

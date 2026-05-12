@@ -38,6 +38,8 @@ pub struct CommandReviewRuntimeInputs<'a> {
     pub policy_disabled: bool,
     /// Whether the command is blocked in the current context by policy.
     pub policy_blocked_in_context: bool,
+    /// Whether Labs commands are explicitly enabled for this local session.
+    pub labs_enabled: bool,
 }
 
 /// Canonical packet shared by the command diagnostics sheet and invocation
@@ -191,6 +193,7 @@ pub fn materialize_command_review_packet_with_arguments(
         credential_available: runtime.credential_available,
         policy_disabled: runtime.policy_disabled,
         policy_blocked_in_context: runtime.policy_blocked_in_context,
+        labs_enabled: runtime.labs_enabled,
         argument_provenance_map: argument_provenance_map.clone(),
     };
 

@@ -101,6 +101,8 @@ pub struct StartCenterRuntimeInputs<'a> {
     pub policy_disabled: bool,
     /// Whether commands are blocked in the current context by policy.
     pub policy_blocked_in_context: bool,
+    /// Whether Labs commands are explicitly enabled for this local session.
+    pub labs_enabled: bool,
 }
 
 /// One Start Center action row projected from the canonical command registry.
@@ -202,6 +204,7 @@ pub fn build_action_rows(
             credential_available: runtime.credential_available,
             policy_disabled: runtime.policy_disabled,
             policy_blocked_in_context: runtime.policy_blocked_in_context,
+            labs_enabled: runtime.labs_enabled,
             argument_provenance_map: argument_provenance_map.clone(),
         };
 
@@ -290,6 +293,7 @@ mod tests {
             credential_available: None,
             policy_disabled: false,
             policy_blocked_in_context: false,
+            labs_enabled: false,
         };
 
         let rows = build_action_rows(&registry, runtime);
@@ -313,6 +317,7 @@ mod tests {
             credential_available: None,
             policy_disabled: false,
             policy_blocked_in_context: false,
+            labs_enabled: false,
         };
 
         let rows = build_action_rows(&registry, runtime);

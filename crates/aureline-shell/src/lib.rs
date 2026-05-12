@@ -72,8 +72,8 @@ pub mod embedded;
 /// Virtualized file-tree model with stable node ids and explorer actions.
 pub mod explorer;
 /// Target graph state card: graph-readiness truth on one bounded prototype
-/// wedge. Reuses the workspace-graph and readiness vocabularies; live
-/// surface, not a mock.
+/// wedge. Reuses the workspace-graph and readiness vocabularies behind
+/// explicit Labs inspection until promoted.
 pub mod graph_state_card;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
@@ -150,9 +150,9 @@ pub mod restore;
 pub mod review_preview;
 /// Runtime projections shared by terminal, task, and debug-prep seed surfaces.
 pub mod runtime;
-/// Representation-labeled safe-preview and copy/export card: live shell
-/// consumer of the bounded [`aureline_preview`] safe-preview wedge. Projects
-/// the canonical preview record into a card snapshot the chrome quotes
+/// Representation-labeled safe-preview and copy/export card: shell projection
+/// over the bounded [`aureline_preview`] safe-preview wedge. Projects the
+/// canonical preview record into a card snapshot the chrome quotes
 /// verbatim — including the prototype label chip, the currently visible
 /// representation, the paired copy/export options, and the explicit
 /// representation-honesty invariants.
@@ -178,6 +178,8 @@ pub mod support_seed;
 pub mod tasks_seed;
 /// Bottom-panel terminal pane: snapshots and tab projections from the canonical PTY host.
 pub mod terminal_pane;
+/// Labs-only inspector projection over bounded wedge plaintext panels.
+pub mod wedge_inspector;
 /// Platform windowing adapters used by the native desktop shell.
 pub mod windowing;
 /// Workspace switcher projections for recent-work entries and workspace transitions.

@@ -514,6 +514,7 @@ pub struct CommandPaletteState {
 
     recent_command_ids: VecDeque<String>,
     visible_command_ids: Vec<String>,
+    labs_enabled: bool,
 
     groups: Vec<PaletteResultGroup>,
     flat_item_keys: Vec<PaletteItemKey>,
@@ -538,6 +539,7 @@ impl CommandPaletteState {
             selected_key: None,
             recent_command_ids: VecDeque::new(),
             visible_command_ids: Vec::new(),
+            labs_enabled: false,
             groups: Vec::new(),
             flat_item_keys: Vec::new(),
             semantic_state: PaletteProviderStateClass::NotRequested,
@@ -559,9 +561,26 @@ impl CommandPaletteState {
                     .iter()
                     .any(|scope| scope == "desktop_product")
                     && entry.descriptor.palette_visibility != "hidden_palette_callable_only"
+                    && (entry.descriptor.palette_visibility != "developer_only"
+                        || self.labs_enabled)
             })
             .map(|entry| entry.command_id().to_string())
             .collect();
+    }
+
+    /// Enables or disables Labs-only palette rows and refreshes the visible index.
+    pub fn set_labs_enabled(&mut self, registry: &CommandRegistry, enabled: bool) {
+        if self.labs_enabled == enabled {
+            return;
+        }
+        self.labs_enabled = enabled;
+        self.rebuild_visible_entries(registry);
+        self.recompute_groups(registry, &HashMap::new());
+    }
+
+    /// Returns whether Labs-only palette rows are currently visible.
+    pub const fn labs_enabled(&self) -> bool {
+        self.labs_enabled
     }
 
     pub fn is_open(&self) -> bool {

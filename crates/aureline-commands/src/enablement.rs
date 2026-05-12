@@ -149,6 +149,8 @@ pub struct CommandEnablementContext {
     #[serde(default)]
     pub policy_blocked_in_context: bool,
     #[serde(default)]
+    pub labs_enabled: bool,
+    #[serde(default)]
     pub argument_provenance_map: Vec<ArgumentProvenanceEntry>,
 }
 
@@ -318,6 +320,15 @@ pub fn evaluate_enablement(
         ) {
             return snapshot;
         }
+    }
+
+    if descriptor_lifecycle_state == "labs"
+        && context.labs_enabled
+        && seed_enablement_snapshot.decision_class == EnablementDecisionClass::DisabledWithReason
+        && seed_enablement_snapshot.disabled_reason_code
+            == Some(DisabledReasonCode::CapabilityDisabledByPolicy)
+    {
+        return EnablementSnapshot::enabled();
     }
 
     seed_enablement_snapshot.clone()

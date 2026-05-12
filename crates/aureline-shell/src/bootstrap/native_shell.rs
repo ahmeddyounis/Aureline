@@ -90,6 +90,9 @@ use crate::status_bar::{
     StatusBarItemRecord, StatusBarSnapshot, TargetSnapshot,
 };
 use crate::terminal_pane::{TerminalPaneSnapshot, TerminalPaneTabRecord};
+use crate::wedge_inspector::{
+    WedgeInspectorInputs, WedgeInspectorOverlay, WEDGE_INSPECTOR_COMMAND_ID,
+};
 use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
@@ -1059,6 +1062,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut clone_jobs = CloneJobRuntimeState::new(clone_startup_probe);
     let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
+    palette.set_labs_enabled(registry, enablement_runtime.labs_enabled);
     let mut recent_work = RecentWorkRuntimeState::load();
     let mut activity_center = ActivityCenterRuntimeState::load(&recent_work.store_path);
     let mut workspace_lifecycle = WorkspaceLifecycleRuntimeState::new();
@@ -1207,6 +1211,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
             credential_available: enablement_runtime.credential_available,
             policy_disabled: enablement_runtime.policy_disabled,
             policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+            labs_enabled: enablement_runtime.labs_enabled,
         };
 
         let snapshot = materialize_shell_accessibility_tree(
@@ -1751,6 +1756,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                         credential_available: enablement_runtime.credential_available,
                         policy_disabled: enablement_runtime.policy_disabled,
                         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+                        labs_enabled: enablement_runtime.labs_enabled,
                     };
                     let rows = start_center_action_rows(registry, runtime);
                     if let Ok(token_registry) = seeded_token_registry(appearance.theme_class()) {
@@ -5180,6 +5186,7 @@ struct CommandEnablementRuntimeState {
     credential_available: Option<bool>,
     policy_disabled: bool,
     policy_blocked_in_context: bool,
+    labs_enabled: bool,
 }
 
 impl Default for CommandEnablementRuntimeState {
@@ -5191,6 +5198,7 @@ impl Default for CommandEnablementRuntimeState {
             credential_available: None,
             policy_disabled: false,
             policy_blocked_in_context: false,
+            labs_enabled: load_labs_wedge_inspector_enabled(),
         }
     }
 }
@@ -5207,6 +5215,65 @@ impl CommandEnablementRuntimeState {
     fn toggle_policy_blocked(&mut self) {
         self.policy_blocked_in_context = !self.policy_blocked_in_context;
     }
+}
+
+fn load_labs_wedge_inspector_enabled() -> bool {
+    if let Ok(value) = env::var("AURELINE_LABS_WEDGE_INSPECTOR") {
+        if let Some(enabled) = parse_bool_token(&value) {
+            return enabled;
+        }
+    }
+    if let Ok(value) = env::var("AURELINE_LABS_ENABLED") {
+        if let Some(enabled) = parse_bool_token(&value) {
+            return enabled;
+        }
+    }
+
+    [
+        PathBuf::from(".aureline").join("settings.json"),
+        PathBuf::from(".aureline").join("settings.jsonc"),
+        PathBuf::from(".logs").join("settings").join("labs.json"),
+    ]
+    .into_iter()
+    .any(|path| {
+        std::fs::read_to_string(path)
+            .ok()
+            .and_then(|raw| setting_bool(&raw, "shell.labs.wedge_inspector_enabled"))
+            .unwrap_or(false)
+    })
+}
+
+fn parse_bool_token(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" | "enabled" => Some(true),
+        "0" | "false" | "no" | "off" | "disabled" => Some(false),
+        _ => None,
+    }
+}
+
+fn setting_bool(raw: &str, setting_id: &str) -> Option<bool> {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) {
+        return value
+            .get(setting_id)
+            .and_then(serde_json::Value::as_bool)
+            .or_else(|| {
+                value
+                    .get("labs")
+                    .and_then(|labs| labs.get("wedge_inspector_enabled"))
+                    .and_then(serde_json::Value::as_bool)
+            });
+    }
+
+    let compact: String = raw.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let flat_key = format!("\"{setting_id}\":true");
+    if compact.contains(&flat_key) {
+        return Some(true);
+    }
+    let nested_key = "\"wedge_inspector_enabled\":true";
+    if compact.contains(nested_key) {
+        return Some(true);
+    }
+    None
 }
 
 #[derive(Debug, Clone)]
@@ -7796,6 +7863,7 @@ fn dispatch_registry_entry(
         credential_available: enablement_runtime.credential_available,
         policy_disabled: enablement_runtime.policy_disabled,
         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        labs_enabled: enablement_runtime.labs_enabled,
         argument_provenance_map: session.argument_provenance_map.clone(),
     };
     let preflight = entry.preflight(&enablement_context);
@@ -7814,6 +7882,7 @@ fn dispatch_registry_entry(
         credential_available: enablement_runtime.credential_available,
         policy_disabled: enablement_runtime.policy_disabled,
         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        labs_enabled: enablement_runtime.labs_enabled,
     };
 
     if matches!(
@@ -8035,6 +8104,32 @@ fn dispatch_registry_entry(
                 frame.focused_zone(),
                 frame.focused_editor_group(),
                 lines,
+            ));
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+            let invocation = invocation_and_result_simple_success(&session, "succeeded");
+            command_runtime.record(invocation);
+            true
+        }
+        WEDGE_INSPECTOR_COMMAND_ID => {
+            let workspace_id = editor_runtime
+                .terminal_pane
+                .active_workspace_id()
+                .or_else(|| recent_work.active_workspace_label())
+                .unwrap_or("workspace:wedge_inspector")
+                .to_string();
+            let inspector = WedgeInspectorOverlay::new(WedgeInspectorInputs {
+                host_boundary_card: editor_runtime.terminal_pane.active_host_boundary_card(),
+                workspace_lifecycle_state_token: workspace_lifecycle
+                    .status_badge_token()
+                    .map(str::to_string),
+                install_review_card: None,
+                observed_at: mono_timestamp_now(),
+                workspace_id,
+            });
+            *overlay = Some(ShellOverlayState::wedge_inspector(
+                frame.focused_zone(),
+                frame.focused_editor_group(),
+                inspector,
             ));
             frame.focus_zone(ShellZoneId::TransientOverlay);
             let invocation = invocation_and_result_simple_success(&session, "succeeded");
@@ -10325,6 +10420,7 @@ fn submit_clone_from_entry_flow(
         credential_available: enablement_runtime.credential_available,
         policy_disabled: enablement_runtime.policy_disabled,
         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        labs_enabled: enablement_runtime.labs_enabled,
         argument_provenance_map: session.argument_provenance_map.clone(),
     };
     let preflight = entry.preflight(&enablement_context);
@@ -10448,6 +10544,7 @@ fn submit_import_from_entry_flow(
         credential_available: enablement_runtime.credential_available,
         policy_disabled: enablement_runtime.policy_disabled,
         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        labs_enabled: enablement_runtime.labs_enabled,
         argument_provenance_map: session.argument_provenance_map.clone(),
     };
     let preflight = entry.preflight(&enablement_context);
@@ -10841,6 +10938,7 @@ fn handle_key_event(
                     credential_available: enablement_runtime.credential_available,
                     policy_disabled: enablement_runtime.policy_disabled,
                     policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+                    labs_enabled: enablement_runtime.labs_enabled,
                 };
                 let preview_arguments = palette
                     .selected_entry(registry)
@@ -10910,6 +11008,7 @@ fn handle_key_event(
                     credential_available: enablement_runtime.credential_available,
                     policy_disabled: enablement_runtime.policy_disabled,
                     policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+                    labs_enabled: enablement_runtime.labs_enabled,
                 };
                 let record = materialize_command_diagnostics_sheet_record_with_arguments(
                     entry,
@@ -11322,6 +11421,7 @@ fn handle_key_event(
             credential_available: enablement_runtime.credential_available,
             policy_disabled: enablement_runtime.policy_disabled,
             policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+            labs_enabled: enablement_runtime.labs_enabled,
         };
         let rows = start_center_action_rows(registry, runtime);
         let row_count = rows.len();
@@ -14314,6 +14414,11 @@ struct CommandTraceOverlay {
 }
 
 #[derive(Debug, Clone)]
+struct WedgeInspectorShellOverlay {
+    inspector: WedgeInspectorOverlay,
+}
+
+#[derive(Debug, Clone)]
 struct StatusBarItemDetailOverlay {
     lines: Vec<String>,
 }
@@ -14773,6 +14878,7 @@ enum ShellOverlayKind {
     CommandDiagnostics(CommandDiagnosticsOverlay),
     InvocationPreview(CommandInvocationPreviewOverlay),
     CommandTrace(CommandTraceOverlay),
+    WedgeInspector(WedgeInspectorShellOverlay),
     StatusBarItemDetail(StatusBarItemDetailOverlay),
     WorkspaceSwitcher(WorkspaceSwitcherOverlay),
 }
@@ -14938,6 +15044,20 @@ impl ShellOverlayState {
     ) -> Self {
         Self {
             kind: ShellOverlayKind::CommandTrace(CommandTraceOverlay { lines }),
+            focus_return_zone,
+            focus_return_group,
+            opened_at: Instant::now(),
+            closed: false,
+        }
+    }
+
+    fn wedge_inspector(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        inspector: WedgeInspectorOverlay,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::WedgeInspector(WedgeInspectorShellOverlay { inspector }),
             focus_return_zone,
             focus_return_group,
             opened_at: Instant::now(),
@@ -15488,6 +15608,14 @@ impl ShellOverlayState {
                 } else {
                     review.selection = (review.selection + count - 1) % count;
                 }
+                true
+            }
+            (ShellOverlayKind::WedgeInspector(sheet), KeyCode::ArrowDown) => {
+                sheet.inspector.select_next();
+                true
+            }
+            (ShellOverlayKind::WedgeInspector(sheet), KeyCode::ArrowUp) => {
+                sheet.inspector.select_prev();
                 true
             }
             (_, KeyCode::Escape) => {
@@ -16640,6 +16768,23 @@ fn draw_shell_overlay(
                 );
             }
         }
+        ShellOverlayKind::WedgeInspector(sheet) => {
+            let mut y = sheet_rect.y.saturating_add(style.space_3);
+            let x = sheet_rect.x.saturating_add(style.space_3);
+            let max_x = sheet_rect.right().saturating_sub(style.space_3).max(x);
+            for (idx, line) in sheet.inspector.render_lines().iter().enumerate() {
+                if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                    break;
+                }
+                let color = match idx {
+                    0 => fade(style.tokens.text_primary),
+                    1 => fade(style.tokens.text_secondary),
+                    _ => fade(style.tokens.text_muted),
+                };
+                draw_text_clamped(buffer, width, height, x, y, 1, line, color, max_x);
+                y = y.saturating_add(14);
+            }
+        }
         ShellOverlayKind::StatusBarItemDetail(detail) => {
             let mut y = sheet_rect.y.saturating_add(style.space_3);
             let x = sheet_rect.x.saturating_add(style.space_3);
@@ -17704,6 +17849,7 @@ fn draw_start_center_surface(
         credential_available: enablement_runtime.credential_available,
         policy_disabled: enablement_runtime.policy_disabled,
         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        labs_enabled: enablement_runtime.labs_enabled,
     };
     let rows = start_center_action_rows(registry, runtime);
     let selected = start_center.selection().min(rows.len().saturating_sub(1));
@@ -18147,6 +18293,7 @@ fn draw_command_palette_overlay(
         credential_available: enablement_runtime.credential_available,
         policy_disabled: enablement_runtime.policy_disabled,
         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        labs_enabled: enablement_runtime.labs_enabled,
     };
     let preview_arguments = palette
         .selected_entry(registry)
@@ -18173,6 +18320,7 @@ fn draw_command_palette_overlay(
                 credential_available: enablement_runtime.credential_available,
                 policy_disabled: enablement_runtime.policy_disabled,
                 policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+                labs_enabled: enablement_runtime.labs_enabled,
                 argument_provenance_map: argument_provenance_map_for_shell(
                     entry,
                     frame,

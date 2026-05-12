@@ -36,6 +36,7 @@ pub struct ShellA11yEnablementContext<'a> {
     pub credential_available: Option<bool>,
     pub policy_disabled: bool,
     pub policy_blocked_in_context: bool,
+    pub labs_enabled: bool,
 }
 
 impl<'a> ShellA11yEnablementContext<'a> {}
@@ -503,6 +504,7 @@ fn materialize_start_center_nodes(
         credential_available: enablement.credential_available,
         policy_disabled: enablement.policy_disabled,
         policy_blocked_in_context: enablement.policy_blocked_in_context,
+        labs_enabled: enablement.labs_enabled,
     };
     let rows = start_center_action_rows(registry, runtime);
     let selected = start_center.selection().min(rows.len().saturating_sub(1));
@@ -1068,6 +1070,7 @@ fn materialize_palette_nodes(
                         credential_available: enablement.credential_available,
                         policy_disabled: enablement.policy_disabled,
                         policy_blocked_in_context: enablement.policy_blocked_in_context,
+                        labs_enabled: enablement.labs_enabled,
                         argument_provenance_map: crate::commands::argument_provenance_map_for(
                             entry,
                         ),
@@ -1298,6 +1301,7 @@ mod tests {
             credential_available: None,
             policy_disabled: false,
             policy_blocked_in_context: false,
+            labs_enabled: false,
         };
 
         let snapshot = materialize_shell_accessibility_tree(
@@ -1353,6 +1357,7 @@ mod tests {
             credential_available: None,
             policy_disabled: false,
             policy_blocked_in_context: false,
+            labs_enabled: false,
         };
 
         let snapshot = materialize_shell_accessibility_tree(

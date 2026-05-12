@@ -157,6 +157,25 @@ impl SchemaRegistry {
             .expect("seed: shell.theme");
         registry
             .register(SettingDefinition {
+                setting_id: "shell.labs.wedge_inspector_enabled".to_owned(),
+                value_type: SettingValueType::Boolean,
+                default_value: SettingValue::Boolean(false),
+                allowed_scopes: vec![
+                    SettingScope::BuiltInDefault,
+                    SettingScope::UserGlobal,
+                    SettingScope::Workspace,
+                    SettingScope::SessionOverride,
+                    SettingScope::AdminPolicyNarrowing,
+                ],
+                restart_posture: RestartPosture::NoRestart,
+                lifecycle_label: LifecycleLabel::Experimental,
+                is_machine_specific: false,
+                is_policy_narrowable: true,
+                summary: "Enable the Labs wedge inspector overlay.".to_owned(),
+            })
+            .expect("seed: shell.labs.wedge_inspector_enabled");
+        registry
+            .register(SettingDefinition {
                 setting_id: "security.ai.egress_policy".to_owned(),
                 value_type: SettingValueType::Enum {
                     allowed: vec![
@@ -235,11 +254,14 @@ mod tests {
         assert!(registry.definition("editor.tab_size").is_some());
         assert!(registry.definition("editor.format_on_save").is_some());
         assert!(registry.definition("shell.theme").is_some());
+        assert!(registry
+            .definition("shell.labs.wedge_inspector_enabled")
+            .is_some());
         assert!(registry.definition("security.ai.egress_policy").is_some());
         assert!(registry
             .definition("vfs.watcher.fallback_polling_ms")
             .is_some());
-        assert_eq!(registry.len(), 5);
+        assert_eq!(registry.len(), 6);
     }
 
     #[test]
