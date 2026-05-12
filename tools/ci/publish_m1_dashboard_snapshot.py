@@ -28,6 +28,7 @@ from typing import Any
 
 DEFAULT_DASHBOARD_REL = "artifacts/dashboards/m1_protected_functions.json"
 DEFAULT_INDEX_REL = "artifacts/milestones/m1/artifact_index.yaml"
+DEFAULT_BUILD_IDENTITY_REL = "artifacts/build/build_identity.json"
 
 
 @dataclass
@@ -54,6 +55,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dashboard", default=DEFAULT_DASHBOARD_REL)
     parser.add_argument("--index", default=DEFAULT_INDEX_REL)
     parser.add_argument(
+        "--build-identity",
+        default=DEFAULT_BUILD_IDENTITY_REL,
+        help="Read build_timestamp_utc from this repo-relative build identity artifact.",
+    )
+    parser.add_argument(
         "--snapshot",
         default=None,
         help="Write a machine-readable dashboard snapshot to this repo-relative path.",
@@ -66,8 +72,18 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def utc_now_iso() -> str:
-    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+def parse_iso_datetime(value: str, label: str) -> dt.datetime:
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise SystemExit(f"{label} must be an ISO-8601 timestamp, got {value!r}") from exc
+    if parsed.tzinfo is None:
+        raise SystemExit(f"{label} must include a timezone, got {value!r}")
+    return parsed.astimezone(dt.timezone.utc).replace(microsecond=0)
+
+
+def iso_z(value: dt.datetime) -> str:
+    return value.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def ensure_dict(value: Any, label: str) -> dict[str, Any]:
@@ -99,6 +115,12 @@ def parse_iso_date(value: str, label: str) -> dt.date:
         return dt.date.fromisoformat(value)
     except ValueError as exc:
         raise SystemExit(f"{label} must be a YYYY-MM-DD date, got {value!r}") from exc
+
+
+def load_build_generated_at(repo_root: Path, build_identity_ref: str) -> str:
+    payload = ensure_dict(load_json(repo_root / build_identity_ref), "build_identity")
+    build_timestamp = ensure_str(payload.get("build_timestamp_utc"), "build_identity.build_timestamp_utc")
+    return iso_z(parse_iso_datetime(build_timestamp, "build_identity.build_timestamp_utc"))
 
 
 def strip_fragment(ref: str) -> str:
@@ -154,6 +176,42 @@ def validate_owner_handle(value: str, label: str, findings: list[Finding]) -> No
                 check_id=f"{label}.owner.format",
                 message=f"{label} owner does not look like a handle: {value!r}",
                 remediation="Use an @handle so review routing is explicit.",
+            )
+        )
+
+
+def validate_latest_capture_block(
+    repo_root: Path,
+    value: Any,
+    label: str,
+    findings: list[Finding],
+    ref: str,
+) -> None:
+    if value is None:
+        return
+    if not isinstance(value, dict):
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{label}.latest_capture.invalid",
+                message=f"{label}.latest_capture must be an object when present",
+                remediation="Use captured_at, command, and report_ref so the row can deep-link to a concrete capture.",
+                ref=ref,
+            )
+        )
+        return
+    captured_at = ensure_str(value.get("captured_at"), f"{label}.latest_capture.captured_at")
+    parse_iso_datetime(captured_at, f"{label}.latest_capture.captured_at")
+    ensure_str(value.get("command"), f"{label}.latest_capture.command")
+    report_ref = ensure_str(value.get("report_ref"), f"{label}.latest_capture.report_ref")
+    if not path_exists(repo_root, report_ref):
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{label}.latest_capture.report_ref.missing",
+                message=f"{label}.latest_capture.report_ref does not exist: {report_ref}",
+                remediation="Point report_ref at a checked-in capture or trace artifact.",
+                ref=report_ref,
             )
         )
 
@@ -299,6 +357,14 @@ def validate_dashboard_definition(
                     )
                 )
 
+        validate_latest_capture_block(
+            repo_root,
+            row.get("latest_capture"),
+            f"dashboard.rows[{idx}]",
+            findings,
+            row_id,
+        )
+
     return {"vocab": vocab, "precedence": precedence, "thresholds": thresholds}
 
 
@@ -389,6 +455,8 @@ def build_snapshot(
     index: dict[str, Any],
     index_ref: str,
     meta: dict[str, Any],
+    generated_at: str,
+    build_identity_ref: str,
     findings: list[Finding],
 ) -> dict[str, Any]:
     lanes = index.get("proof_lanes", [])
@@ -401,8 +469,14 @@ def build_snapshot(
 
     rows = ensure_list(dashboard.get("rows"), "dashboard.rows")
     out_rows: list[dict[str, Any]] = []
-    row_counts_by_state: dict[str, int] = {}
-    row_counts_by_panel: dict[str, int] = {}
+    row_counts_by_state: dict[str, int] = {state: 0 for state in meta["vocab"]}
+    row_counts_by_panel: dict[str, int] = {
+        "pass": 0,
+        "warn": 0,
+        "fail": 0,
+        "gap": 0,
+        "unknown": 0,
+    }
 
     precedence = meta["precedence"]
     thresholds = meta["thresholds"]
@@ -451,21 +525,23 @@ def build_snapshot(
         row_counts_by_state[row_state] = row_counts_by_state.get(row_state, 0) + 1
         row_counts_by_panel[panel_state] = row_counts_by_panel.get(panel_state, 0) + 1
 
-        out_rows.append(
-            {
-                "row_id": row_id,
-                "title": title,
-                "state": row_state,
-                "panel_state": panel_state,
-                "proof_lane_summaries": lane_summaries,
-                "evidence_refs": row.get("evidence_refs", []),
-            }
-        )
+        row_payload = {
+            "row_id": row_id,
+            "title": title,
+            "state": row_state,
+            "panel_state": panel_state,
+            "proof_lane_summaries": lane_summaries,
+            "evidence_refs": row.get("evidence_refs", []),
+        }
+        if isinstance(row.get("latest_capture"), dict):
+            row_payload["latest_capture"] = row.get("latest_capture")
+        out_rows.append(row_payload)
 
     return {
         "schema_version": 1,
         "dashboard_id": dashboard.get("dashboard_id"),
-        "generated_at": utc_now_iso(),
+        "generated_at": generated_at,
+        "build_identity_ref": build_identity_ref,
         "dashboard_definition_ref": dashboard_ref,
         "artifact_index_ref": index_ref,
         "row_count_by_state": row_counts_by_state,
@@ -508,9 +584,11 @@ def main() -> int:
     repo_root = Path(args.repo_root).resolve()
     dashboard_ref = ensure_str(args.dashboard, "args.dashboard")
     index_ref = ensure_str(args.index, "args.index")
+    build_identity_ref = ensure_str(args.build_identity, "args.build_identity")
 
     dashboard_path = repo_root / dashboard_ref
     index_path = repo_root / index_ref
+    generated_at = load_build_generated_at(repo_root, build_identity_ref)
 
     dashboard = ensure_dict(load_json(dashboard_path), "dashboard")
     index = ensure_dict(render_yaml_as_json(index_path), "artifact_index")
@@ -518,7 +596,17 @@ def main() -> int:
     findings: list[Finding] = []
     meta = validate_dashboard_definition(repo_root, dashboard, dashboard_ref, findings)
 
-    snapshot = build_snapshot(repo_root, dashboard, dashboard_ref, index, index_ref, meta, findings)
+    snapshot = build_snapshot(
+        repo_root,
+        dashboard,
+        dashboard_ref,
+        index,
+        index_ref,
+        meta,
+        generated_at,
+        build_identity_ref,
+        findings,
+    )
     print_summary(findings, snapshot)
 
     has_error = any(finding.severity == "error" for finding in findings)
@@ -538,9 +626,10 @@ def main() -> int:
             "check_id": "m1_proof_dashboards_snapshot",
             "finding_counts": counts,
             "findings": [finding.as_report() for finding in findings],
-            "generated_at": utc_now_iso(),
+            "generated_at": generated_at,
             "dashboard_ref": dashboard_ref,
             "index_ref": index_ref,
+            "build_identity_ref": build_identity_ref,
             "snapshot_ref": args.snapshot,
         }
         write_json(repo_root / report_ref, report)

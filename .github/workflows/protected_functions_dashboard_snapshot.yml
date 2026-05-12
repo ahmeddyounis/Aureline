@@ -1,0 +1,52 @@
+name: protected_functions_dashboard_snapshot
+
+on:
+  schedule:
+    # 07:41 UTC daily, offset from other scheduled evidence lanes.
+    - cron: "41 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: protected-functions-dashboard-snapshot-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh protected-functions dashboard snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Regenerate dashboard snapshot
+        run: |
+          python3 tools/ci/publish_m1_dashboard_snapshot.py \
+            --repo-root . \
+            --report artifacts/milestones/m1/captures/proof_dashboards_validation_capture.json \
+            --snapshot artifacts/milestones/m1/captures/proof_dashboards_snapshot.json
+
+      - name: Validate proof artifact index
+        run: python3 ci/check_m1_artifact_index.py --repo-root .
+
+      - name: Open pull request when regenerated files changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: Refresh protected-functions dashboard snapshot
+          branch: automation/protected-functions-dashboard-snapshot
+          delete-branch: true
+          title: Refresh protected-functions dashboard snapshot
+          body: |
+            Runs the canonical protected-functions dashboard publisher and proof artifact index validator.
+
+            This scheduled lane is expected to be a no-op when the checked-in evidence is already current.
