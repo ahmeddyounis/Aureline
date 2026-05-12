@@ -17,6 +17,9 @@ alpha wedge matrix.
 - Known-limits contract: `docs/product/known_limits_contract.md`
 - Launch bundle manifests: `artifacts/bundles/tsjs_launch_bundle_alpha.yaml`, `artifacts/bundles/python_launch_bundle_alpha.yaml`
 - Archetype seed rows: `artifacts/certification/m2_archetype_seed_rows.yaml`
+- Migration parity scoreboard: `artifacts/migration/m2_parity_scoreboard.yaml`
+- Import-gap taxonomy: `artifacts/migration/import_gap_taxonomy.yaml`
+- Retained import diagnostics packet: `docs/migration/import_diagnostics_packet.md`
 
 ## Active Known Limits
 
@@ -28,6 +31,10 @@ alpha wedge matrix.
 | `known_limit:external_alpha.browser_mobile_companion_out` | `platform_narrowed` | `major` | browser and mobile companion surfaces | Browser or mobile companion parity is out of scope for alpha task completion. |
 | `known_limit:external_alpha.support_export_redaction_required` | `support_export_narrowed` | `blocking` | support exports, traces, screenshots, logs, transcripts | Privacy-sensitive artifacts must pass redaction review before partners are asked to share them. |
 | `known_limit:external_alpha.migration_evidence_seeded` | `migration_path_limited` | `moderate` | migration, import, and first-run parity reports | Migration feedback may enter alpha evidence, but it cannot widen switching claims without a current migration packet. |
+| `known_limit:external_alpha.migration_bridged_parity_not_native` | `migration_path_limited` | `moderate` | extension/provider continuity, bridge-backed rows, native-alternative recommendations | Bridge-backed or replacement rows must stay labeled as bridge/replacement continuity and must not be described as native parity. |
+| `known_limit:external_alpha.migration_lossy_mapping_visible` | `migration_path_limited` | `moderate` | keymaps, launch/debug configs, theme/token mappings, settings aliases | Lossy mappings are allowed only when the original source, mapped target, caveat, and retained diagnostics remain visible. |
+| `known_limit:external_alpha.migration_unsupported_runtime_explicit` | `migration_path_limited` | `major` | webview-heavy extensions, arbitrary Lua runtime, arbitrary Elisp runtime, plugin-managed source state | Unsupported runtime or plugin state remains visible as unsupported and cannot be hidden under a broad import-success claim. |
+| `known_limit:external_alpha.migration_manual_followup_required` | `migration_path_limited` | `major` | imported tasks, run/debug configs, execution-context mappings, conflict rows | Manual follow-up rows must remain open until the user accepts, edits, rejects, or rolls them back; they cannot count as migrated workflow parity. |
 | `known_limit:external_alpha.no_raw_partner_content` | `corpus_narrowed` | `blocking` | partner repositories, support bundles, traces, screenshots, terminal transcripts | Raw partner content is never required for initial filing and must not enter public packets without clearance. |
 | `known_limit:external_alpha.launch_bundle_seed_not_certified` | `workflow_narrowed` | `major` | launch bundles, archetype badges, Start Center bundle gallery, mirror/offline install review | Bundle rows are setup seeds only. Badges must open the underlying evidence packet and may not imply certified or replacement-grade status. |
 
@@ -46,6 +53,9 @@ alpha wedge matrix.
 - Any launch-bundle or archetype badge must open the linked manifest,
   certification seed row, or proof packet. It must not behave as an ungrounded
   marketing label.
+- Any migration issue below native parity must cite the parity scoreboard row,
+  import-gap taxonomy row, retained diagnostics refs, and known-limit id rather
+  than using screenshots or summary prose as the source of truth.
 
 ## Rollback Posture
 

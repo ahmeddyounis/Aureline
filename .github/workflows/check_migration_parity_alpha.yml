@@ -1,0 +1,63 @@
+# External alpha migration-parity gate.
+
+name: check_migration_parity_alpha
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_migration_parity_alpha.yml"
+      - "ci/check_migration_parity_alpha.py"
+      - "artifacts/migration/m2_parity_scoreboard.yaml"
+      - "artifacts/migration/import_gap_taxonomy.yaml"
+      - "docs/migration/import_diagnostics_packet.md"
+      - "fixtures/migration/parity_alpha_cases/**"
+      - "artifacts/feedback/external_alpha_known_limits.md"
+      - "artifacts/milestones/m2/alpha_wedge_matrix.yaml"
+      - "artifacts/milestones/m2/exit_gate_scoreboard.yaml"
+      - "artifacts/milestones/m2/artifact_index.yaml"
+      - "artifacts/milestones/m2/proof_packets/migration_parity.md"
+      - "artifacts/milestones/m2/captures/migration_parity_validation_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-migration-parity-alpha-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  migration_parity:
+    name: Alpha migration parity
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run migration parity validator
+        run: |
+          python3 ci/check_migration_parity_alpha.py --repo-root . --report target/migration-parity-alpha/report.json --render-retained-diagnostics
+
+      - name: Upload migration parity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-parity-alpha-${{ github.run_id }}
+          path: target/migration-parity-alpha
+          if-no-files-found: error
+          retention-days: 30
