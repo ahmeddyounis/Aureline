@@ -1,0 +1,85 @@
+# Protected capability-lifecycle registry fixture manifest.
+
+schema_version: 1
+as_of: "2026-05-12"
+owner: "@ahmeddyounis"
+
+fixture_manifest_id: capability_lifecycle_registry_cases
+registry_ref: artifacts/governance/capability_lifecycle_registry.yaml
+validator_ref: ci/check_capability_lifecycle_registry.py
+
+acceptance_cases:
+  - case_id: claimed_alpha_surface_coverage
+    registry_fixture_ref: artifacts/governance/capability_lifecycle_registry.yaml#surface_rows
+    exercised_states:
+      - Preview
+      - Stable
+      - DisabledByPolicy
+    expected_validator_check_ids:
+      - registry.coverage.claimed_surface_missing
+      - registry.coverage.scoreboard_row_missing
+    passing_condition: >
+      Every claimed launch wedge, protected workflow, deployment claim, launch
+      bundle, archetype row, and marketed scoreboard row from the alpha wedge
+      matrix is covered by a lifecycle row.
+
+  - case_id: dependency_marker_disclosure
+    registry_fixture_ref: artifacts/governance/capability_lifecycle_registry.yaml#dependency_markers
+    exercised_artifact_classes:
+      - profile_artifact
+      - workspace_manifest
+      - saved_view
+      - export
+      - migration_packet
+      - bundle_claim
+      - archetype_claim
+    expected_validator_check_ids:
+      - registry.markers.required_artifact_class_missing
+      - registry.rows.dependency_marker_refs.unknown
+    passing_condition: >
+      Non-stable dependency markers cover profile artifacts, workspace
+      manifests, saved views, exports, migration packets, bundle claims, and
+      archetype claims, and every marker is rendered by at least one row.
+
+  - case_id: no_lifecycle_unknown
+    registry_fixture_ref: artifacts/governance/capability_lifecycle_registry.yaml#lifecycle_vocabulary
+    exercised_states:
+      - Labs
+      - Preview
+      - Beta
+      - Stable
+      - Deprecated
+      - DisabledByPolicy
+      - Retired
+    expected_validator_check_ids:
+      - registry.rows.lifecycle_state.invalid
+      - registry.vocabulary.lifecycle_mismatch
+    passing_condition: >
+      Registry rows and markers use only the closed lifecycle vocabulary and no
+      marketed row remains unknown, blank, or locally renamed.
+
+  - case_id: policy_disable_blocks_claim
+    registry_fixture_ref: artifacts/governance/capability_lifecycle_registry.yaml#capability_lifecycle:alpha.managed_cloud_disabled
+    exercised_states:
+      - DisabledByPolicy
+    expected_validator_check_ids:
+      - registry.rows.disabled_by_policy_missing_marker
+      - registry.rows.disabled_by_policy_missing_policy_ref
+    passing_condition: >
+      Managed-cloud daily-driver parity remains DisabledByPolicy with a policy
+      disable marker and scope-review path.
+
+  - case_id: consumer_projection_fields
+    registry_fixture_ref: artifacts/governance/capability_lifecycle_registry.yaml#first_consumers
+    exercised_projection: alpha_lifecycle_help_projection
+    expected_rendered_fields:
+      - row_id
+      - surface_ref
+      - effective_lifecycle_state
+      - owner
+      - review_or_expiry_date
+      - dependency_markers
+    passing_condition: >
+      The first consumer can render lifecycle state, owner, review or expiry,
+      and dependency markers directly from the registry without local status
+      text.

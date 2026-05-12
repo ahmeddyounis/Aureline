@@ -1,0 +1,62 @@
+# External alpha capability-lifecycle registry gate.
+
+name: check_capability_lifecycle_registry
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_capability_lifecycle_registry.yml"
+      - "ci/check_capability_lifecycle_registry.py"
+      - "artifacts/governance/capability_lifecycle_registry.yaml"
+      - "schemas/governance/dependency_marker.schema.json"
+      - "docs/governance/m2_capability_lifecycle.md"
+      - "fixtures/governance/capability_lifecycle_registry_cases/**"
+      - "artifacts/milestones/m2/alpha_wedge_matrix.yaml"
+      - "artifacts/milestones/m2/exit_gate_scoreboard.yaml"
+      - "artifacts/milestones/m2/artifact_index.yaml"
+      - "artifacts/milestones/m2/proof_packets/capability_lifecycle_registry.md"
+      - "artifacts/milestones/m2/captures/capability_lifecycle_registry_validation_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-capability-lifecycle-registry-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  capability_lifecycle_registry:
+    name: Capability lifecycle registry
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run capability-lifecycle registry validator
+        run: |
+          python3 ci/check_capability_lifecycle_registry.py --repo-root . --report target/capability-lifecycle-registry/report.json --render-help-projection
+
+      - name: Upload capability-lifecycle registry report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capability-lifecycle-registry-${{ github.run_id }}
+          path: target/capability-lifecycle-registry
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,695 @@
+# External alpha capability-lifecycle registry.
+#
+# Canonical registry for launch-wedge capability posture and dependency
+# markers. Product, docs, Help/About, settings, diagnostics, marketplace, and
+# support-export projections consume these rows instead of restating lifecycle
+# labels locally.
+
+schema_version: 1
+as_of: "2026-05-12"
+owner: "@ahmeddyounis"
+
+registry_id: external_alpha_capability_lifecycle_registry
+human_entrypoint_ref: docs/governance/m2_capability_lifecycle.md
+dependency_marker_schema_ref: schemas/governance/dependency_marker.schema.json
+alpha_wedge_matrix_ref: artifacts/milestones/m2/alpha_wedge_matrix.yaml
+alpha_exit_scoreboard_ref: artifacts/milestones/m2/exit_gate_scoreboard.yaml
+known_limits_ref: artifacts/feedback/external_alpha_known_limits.md
+
+validator:
+  script_ref: ci/check_capability_lifecycle_registry.py
+  command: python3 ci/check_capability_lifecycle_registry.py --repo-root .
+  consumer_projection_command: python3 ci/check_capability_lifecycle_registry.py --repo-root . --render-help-projection
+
+lifecycle_vocabulary:
+  - Labs
+  - Preview
+  - Beta
+  - Stable
+  - Deprecated
+  - DisabledByPolicy
+  - Retired
+
+schema_projection:
+  Labs: labs
+  Preview: preview
+  Beta: beta
+  Stable: stable
+  Deprecated: deprecated
+  DisabledByPolicy: disabled_by_policy
+  Retired: retired
+
+default_posture_vocabulary:
+  - visible_with_lifecycle_badge
+  - visible_with_marker_disclosure
+  - enabled_when_fixture_current
+  - disabled_until_scope_review
+
+support_promise_vocabulary:
+  - alpha_limited_support
+  - alpha_best_effort
+  - internal_contract_only
+  - no_external_support
+
+marker_artifact_class_vocabulary:
+  - profile_artifact
+  - workspace_manifest
+  - saved_view
+  - export
+  - migration_packet
+  - bundle_claim
+  - archetype_claim
+  - hosted_integration
+  - helper_internal
+  - policy_disable
+
+source_contract_refs:
+  - artifacts/milestones/m2/alpha_wedge_matrix.yaml
+  - artifacts/milestones/m2/exit_gate_scoreboard.yaml
+  - artifacts/bundles/tsjs_launch_bundle_alpha.yaml
+  - artifacts/bundles/python_launch_bundle_alpha.yaml
+  - artifacts/certification/m2_archetype_seed_rows.yaml
+  - artifacts/migration/m2_parity_scoreboard.yaml
+  - artifacts/feedback/external_alpha_known_limits.md
+  - docs/governance/capability_lifecycle_projection_matrix.md
+  - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+
+publication_rules:
+  - rule_id: capability_lifecycle_registry_rule:effective_state_wins
+    summary: >
+      Consumers render effective_lifecycle_state. declared_lifecycle_state is
+      only shown in details when a marker narrows or gates the row.
+  - rule_id: capability_lifecycle_registry_rule:no_hidden_preview_dependencies
+    summary: >
+      A row with a non-stable dependency marker must render the marker on
+      Help/About, settings, diagnostics, marketplace, docs, and support-export
+      surfaces before it can be cited as alpha-ready.
+  - rule_id: capability_lifecycle_registry_rule:policy_disabled_requires_repair
+    summary: >
+      DisabledByPolicy rows stay visible with a typed disable reason,
+      policy-disable reference, and scope-review or repair route.
+
+first_consumers:
+  - consumer_id: alpha_lifecycle_help_projection
+    surface_class: help_about_diagnostics_projection
+    consumer_ref: ci/check_capability_lifecycle_registry.py
+    command: python3 ci/check_capability_lifecycle_registry.py --repo-root . --render-help-projection
+    required_rendered_fields:
+      - row_id
+      - surface_ref
+      - effective_lifecycle_state
+      - owner
+      - review_or_expiry_date
+      - dependency_markers
+    output_contract: >
+      The projection is export-safe JSON suitable for Help/About, settings,
+      diagnostics, marketplace, and support-export consumers. It carries marker
+      ids and disclosure summaries, not raw paths, tokens, provider secrets, or
+      workspace content.
+
+surface_rows:
+  - row_id: capability_lifecycle:alpha.ts_js.launch_wedge
+    surface_ref: alpha_wedge:typescript_javascript
+    surface_kind: launch_wedge
+    title: TypeScript / JavaScript external alpha launch wedge
+    declared_lifecycle_state: Preview
+    effective_lifecycle_state: Preview
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: persona:p0.typescript_web_app_developer
+    default_posture: visible_with_lifecycle_badge
+    migration_note: >
+      VS Code profile and workflow imports are seeded through the migration
+      parity scoreboard; unsupported extension and task gaps remain visible.
+    support_promise: alpha_limited_support
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.lifecycle.ts_js_wedge.disable
+    source_scope_refs:
+      - alpha_wedge:typescript_javascript
+      - workflow.alpha.ts_js.open_to_first_useful_result
+      - workflow.alpha.ts_js.rename_preview
+      - workflow.alpha.ts_js.test_debug_loop
+      - workflow.alpha.ts_js.git_review_basics
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.ts_js_navigation
+      - scoreboard_row:alpha_scope.ts_js_run_test_debug
+      - scoreboard_row:alpha_scope.ts_js_git_review
+    dependency_marker_refs:
+      - dependency_marker:alpha.ts_js.workspace_manifest_seed
+    consumer_surfaces:
+      - docs
+      - help_about
+      - settings
+      - diagnostics
+      - support_export
+
+  - row_id: capability_lifecycle:alpha.python.launch_wedge
+    surface_ref: alpha_wedge:python
+    surface_kind: launch_wedge
+    title: Python external alpha launch wedge
+    declared_lifecycle_state: Preview
+    effective_lifecycle_state: Preview
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: persona:p0.python_service_or_data_app_developer
+    default_posture: visible_with_lifecycle_badge
+    migration_note: >
+      VS Code profile imports are seeded; notebook behavior is a handoff
+      disclosure and not a daily-driver notebook claim.
+    support_promise: alpha_limited_support
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.lifecycle.python_wedge.disable
+    source_scope_refs:
+      - alpha_wedge:python
+      - workflow.alpha.python.interpreter_and_tests
+      - workflow.alpha.python.debug_and_refactor
+      - workflow.alpha.python.git_review_basics
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.python_environment_tests
+      - scoreboard_row:alpha_scope.python_debug_refactor
+    dependency_marker_refs:
+      - dependency_marker:alpha.python.workspace_manifest_seed
+    consumer_surfaces:
+      - docs
+      - help_about
+      - settings
+      - diagnostics
+      - support_export
+
+  - row_id: capability_lifecycle:alpha.ts_js.bundle_and_archetype
+    surface_ref: launch_bundle:typescript_web_app.seed
+    surface_kind: launch_bundle_and_archetype_claim
+    title: TypeScript / JavaScript launch bundle and archetype seed
+    declared_lifecycle_state: Preview
+    effective_lifecycle_state: Preview
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: workflow.alpha.ts_js.open_to_first_useful_result
+    default_posture: visible_with_marker_disclosure
+    migration_note: >
+      Profile presets, task recipes, docs packs, scaffold references, and
+      rollback checkpoints are reviewable bundle deltas rather than silent
+      profile mutations.
+    support_promise: alpha_best_effort
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.lifecycle.ts_js_bundle.disable
+    source_scope_refs:
+      - launch_bundle:typescript_web_app.seed
+      - archetype_row:ts_web_app_or_service
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.benchmark_fixtures
+      - scoreboard_row:alpha_scope.docs_known_limits
+      - scoreboard_row:alpha_scope.migration_parity
+    dependency_marker_refs:
+      - dependency_marker:alpha.ts_js.profile_preset_preview
+      - dependency_marker:alpha.ts_js.bundle_claim_seed
+      - dependency_marker:alpha.ts_js.archetype_seed_not_certified
+    consumer_surfaces:
+      - marketplace
+      - start_center
+      - docs
+      - help_about
+      - support_export
+
+  - row_id: capability_lifecycle:alpha.python.bundle_and_archetype
+    surface_ref: launch_bundle:python_service_or_data_app.seed
+    surface_kind: launch_bundle_and_archetype_claim
+    title: Python launch bundle and archetype seed
+    declared_lifecycle_state: Preview
+    effective_lifecycle_state: Preview
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: workflow.alpha.python.interpreter_and_tests
+    default_posture: visible_with_marker_disclosure
+    migration_note: >
+      Profile presets, interpreter/test/debug settings, docs packs, scaffold
+      references, and rollback checkpoints are reviewable bundle deltas.
+    support_promise: alpha_best_effort
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.lifecycle.python_bundle.disable
+    source_scope_refs:
+      - launch_bundle:python_service_or_data_app.seed
+      - archetype_row:python_service_or_data_app
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.benchmark_fixtures
+      - scoreboard_row:alpha_scope.docs_known_limits
+      - scoreboard_row:alpha_scope.migration_parity
+    dependency_marker_refs:
+      - dependency_marker:alpha.python.profile_preset_preview
+      - dependency_marker:alpha.python.bundle_claim_seed
+      - dependency_marker:alpha.python.archetype_seed_not_certified
+    consumer_surfaces:
+      - marketplace
+      - start_center
+      - docs
+      - help_about
+      - support_export
+
+  - row_id: capability_lifecycle:alpha.local_deployment
+    surface_ref: deployment.alpha.local_desktop
+    surface_kind: deployment_claim
+    title: Local desktop deployment claim
+    declared_lifecycle_state: Stable
+    effective_lifecycle_state: Preview
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: workflow.alpha.shared.local_desktop
+    default_posture: enabled_when_fixture_current
+    migration_note: >
+      Local desktop remains the default entry path; imported profiles and
+      workspace manifests still carry preview markers until parity evidence is
+      current.
+    support_promise: alpha_limited_support
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.lifecycle.local_deployment.disable
+    source_scope_refs:
+      - deployment.alpha.ts_js.local_desktop
+      - deployment.alpha.python.local_desktop
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.local_deployment
+    dependency_marker_refs:
+      - dependency_marker:alpha.local_deployment.evidence_preview
+    consumer_surfaces:
+      - settings
+      - help_about
+      - diagnostics
+      - support_export
+
+  - row_id: capability_lifecycle:alpha.helper_backed_deployment
+    surface_ref: deployment.alpha.helper_backed_local
+    surface_kind: deployment_claim
+    title: Helper-backed local deployment claim
+    declared_lifecycle_state: Preview
+    effective_lifecycle_state: Preview
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: workflow.alpha.shared.helper_backed_services
+    default_posture: visible_with_marker_disclosure
+    migration_note: >
+      Helper-backed rows cover local parser, language, task, Git, interpreter,
+      and debug helpers; they do not imply managed workspace parity.
+    support_promise: alpha_best_effort
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.lifecycle.helper_backed.disable
+    source_scope_refs:
+      - deployment.alpha.ts_js.helper_backed_language_services
+      - deployment.alpha.python.devcontainer_helper
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.helper_backed_deployment
+    dependency_marker_refs:
+      - dependency_marker:alpha.helper_backed_service_preview
+    consumer_surfaces:
+      - settings
+      - help_about
+      - diagnostics
+      - support_export
+
+  - row_id: capability_lifecycle:alpha.migration_packets
+    surface_ref: scoreboard_row:alpha_scope.migration_parity
+    surface_kind: migration_packet_claim
+    title: Migration parity packets and retained diagnostics
+    declared_lifecycle_state: Preview
+    effective_lifecycle_state: Preview
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: workflow.alpha.shared.import_and_switch
+    default_posture: visible_with_marker_disclosure
+    migration_note: >
+      Migration diagnostics are retained and exportable by reference; lossy,
+      bridged, unsupported, and manual-follow-up rows must stay visible.
+    support_promise: alpha_limited_support
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.lifecycle.migration_packets.disable
+    source_scope_refs:
+      - scoreboard_row:alpha_scope.migration_parity
+      - artifacts/migration/m2_parity_scoreboard.yaml
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.migration_parity
+    dependency_marker_refs:
+      - dependency_marker:alpha.migration_packet_seed
+    consumer_surfaces:
+      - docs
+      - help_about
+      - diagnostics
+      - support_export
+
+  - row_id: capability_lifecycle:alpha.docs_known_limits_support
+    surface_ref: scoreboard_row:alpha_scope.docs_known_limits
+    surface_kind: docs_help_support_claim
+    title: Docs, known limits, Help/About, and support-export claim floor
+    declared_lifecycle_state: Preview
+    effective_lifecycle_state: Preview
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: workflow.alpha.shared.docs_support_truth
+    default_posture: visible_with_marker_disclosure
+    migration_note: >
+      Docs, Help/About, known limits, and support exports must cite the same
+      lifecycle rows before claim copy widens.
+    support_promise: alpha_limited_support
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.lifecycle.docs_support.disable
+    source_scope_refs:
+      - scoreboard_row:alpha_scope.docs_known_limits
+      - scoreboard_row:alpha_scope.supportability
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.docs_known_limits
+      - scoreboard_row:alpha_scope.supportability
+    dependency_marker_refs:
+      - dependency_marker:alpha.support_export_seed
+      - dependency_marker:alpha.saved_views_seed
+    consumer_surfaces:
+      - docs
+      - help_about
+      - diagnostics
+      - support_export
+
+  - row_id: capability_lifecycle:alpha.managed_cloud_disabled
+    surface_ref: deployment.alpha.managed_cloud_daily_driver
+    surface_kind: policy_disabled_claim
+    title: Managed-cloud daily-driver parity
+    declared_lifecycle_state: DisabledByPolicy
+    effective_lifecycle_state: DisabledByPolicy
+    owner: "@ahmeddyounis"
+    target_persona_or_workflow: workflow.alpha.out_of_scope.managed_cloud
+    default_posture: disabled_until_scope_review
+    migration_note: >
+      Managed-cloud daily-driver and broad hosted notebook/kernel parity are
+      outside the external alpha claim set until a scope review adds evidence,
+      known limits, support copy, and rollback or narrowing paths.
+    support_promise: no_external_support
+    review_or_expiry_date: "2026-06-09"
+    kill_switch_or_policy_disable_ref: policy:alpha.scope.managed_cloud_out_of_scope
+    source_scope_refs:
+      - out_of_scope.alpha.ts_js.managed_cloud_daily_driver
+      - out_of_scope.alpha.python.managed_cloud_daily_driver
+    scoreboard_row_refs: []
+    dependency_marker_refs:
+      - dependency_marker:alpha.managed_cloud_policy_disabled
+    consumer_surfaces:
+      - docs
+      - help_about
+      - diagnostics
+      - support_export
+
+dependency_markers:
+  - marker_id: dependency_marker:alpha.ts_js.workspace_manifest_seed
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.ts_js.launch_wedge
+    artifact_classes:
+      - workspace_manifest
+    dependency_ref: fixtures/reference_workspaces/m2/ts_web_app_workflows.yaml
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The TypeScript / JavaScript workspace manifest and workflow packets are
+      preview evidence. Surfaces may show the wedge as alpha-ready only with a
+      preview marker and current fixture review.
+    repair_or_review_ref: artifacts/benchmarks/m2_fixture_register.yaml#fixture_register:external_alpha.ts_web_app_reference
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/benchmarks/m2_fixture_register.yaml
+      - fixtures/reference_workspaces/m2/ts_web_app_workflows.yaml
+
+  - marker_id: dependency_marker:alpha.python.workspace_manifest_seed
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.python.launch_wedge
+    artifact_classes:
+      - workspace_manifest
+    dependency_ref: fixtures/reference_workspaces/m2/python_service_data_workflows.yaml
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The Python workspace manifest and workflow packets are preview evidence.
+      Notebook adjacency remains a handoff disclosure, not a certified notebook
+      claim.
+    repair_or_review_ref: artifacts/benchmarks/m2_fixture_register.yaml#fixture_register:external_alpha.python_service_data_reference
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/benchmarks/m2_fixture_register.yaml
+      - fixtures/reference_workspaces/m2/python_service_data_workflows.yaml
+
+  - marker_id: dependency_marker:alpha.ts_js.profile_preset_preview
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.ts_js.bundle_and_archetype
+    artifact_classes:
+      - profile_artifact
+    dependency_ref: profile_preset:external_alpha.typescript_web
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The TypeScript / JavaScript bundle proposes profile and settings deltas
+      through a review sheet. Consumers must not describe the preset as a
+      stable profile import.
+    repair_or_review_ref: artifacts/bundles/tsjs_launch_bundle_alpha.yaml#settings_profile_preset
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/bundles/tsjs_launch_bundle_alpha.yaml
+
+  - marker_id: dependency_marker:alpha.python.profile_preset_preview
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.python.bundle_and_archetype
+    artifact_classes:
+      - profile_artifact
+    dependency_ref: profile_preset:external_alpha.python_service_data
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The Python bundle proposes interpreter, test, debug, and notebook-handoff
+      settings through a review sheet. Consumers must not describe the preset
+      as a stable profile import.
+    repair_or_review_ref: artifacts/bundles/python_launch_bundle_alpha.yaml#settings_profile_preset
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/bundles/python_launch_bundle_alpha.yaml
+
+  - marker_id: dependency_marker:alpha.saved_views_seed
+    marker_schema_version: 1
+    marker_kind: FreshnessFloorDependency
+    parent_row_ref: capability_lifecycle:alpha.docs_known_limits_support
+    artifact_classes:
+      - saved_view
+    dependency_ref: saved_view:alpha.lifecycle.claim_filters
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: freshness_floor_unmet
+    disclosure_summary: >
+      Help/About, diagnostics, and support exports may project saved claim
+      filters, but those saved views are preview snapshots until the registry
+      validator refreshes the capture.
+    repair_or_review_ref: artifacts/milestones/m2/captures/capability_lifecycle_registry_validation_capture.json
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/governance/capability_lifecycle_registry.yaml
+
+  - marker_id: dependency_marker:alpha.local_deployment.evidence_preview
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.local_deployment
+    artifact_classes:
+      - workspace_manifest
+      - saved_view
+    dependency_ref: artifacts/milestones/m2/alpha_wedge_matrix.yaml#claimed_deployment_rows
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The local desktop deployment path is the internally stable default, but
+      its current alpha claim still depends on preview workspace manifests,
+      saved claim filters, and fixture freshness.
+    repair_or_review_ref: artifacts/milestones/m2/captures/capability_lifecycle_registry_validation_capture.json
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/milestones/m2/alpha_wedge_matrix.yaml
+      - artifacts/governance/capability_lifecycle_registry.yaml
+
+  - marker_id: dependency_marker:alpha.support_export_seed
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.docs_known_limits_support
+    artifact_classes:
+      - export
+    dependency_ref: docs/support/support_bundle_contract.md
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      Support-export projection is a preview contract. Export rows carry
+      lifecycle and marker summaries, not raw workspace content or provider
+      secrets.
+    repair_or_review_ref: docs/support/support_bundle_contract.md
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - docs/support/support_bundle_contract.md
+
+  - marker_id: dependency_marker:alpha.migration_packet_seed
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.migration_packets
+    artifact_classes:
+      - migration_packet
+    dependency_ref: artifacts/migration/m2_parity_scoreboard.yaml
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      Migration parity packets are seeded and retained for review. Surfaces
+      must show lossy, bridged, unsupported, or manual-follow-up rows before
+      implying native migration parity.
+    repair_or_review_ref: docs/migration/import_diagnostics_packet.md
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/migration/m2_parity_scoreboard.yaml
+      - docs/migration/import_diagnostics_packet.md
+
+  - marker_id: dependency_marker:alpha.ts_js.bundle_claim_seed
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.ts_js.bundle_and_archetype
+    artifact_classes:
+      - bundle_claim
+    dependency_ref: artifacts/bundles/tsjs_launch_bundle_alpha.yaml
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The TypeScript / JavaScript launch bundle is a preview setup seed and
+      cannot render as Certified, Stable, or replacement-grade.
+    repair_or_review_ref: artifacts/milestones/m2/proof_packets/launch_bundles_and_archetypes.md#typescript-javascript-web-app-or-service
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/bundles/tsjs_launch_bundle_alpha.yaml
+
+  - marker_id: dependency_marker:alpha.python.bundle_claim_seed
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.python.bundle_and_archetype
+    artifact_classes:
+      - bundle_claim
+    dependency_ref: artifacts/bundles/python_launch_bundle_alpha.yaml
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The Python launch bundle is a preview setup seed and cannot render as
+      Certified, Stable, or replacement-grade.
+    repair_or_review_ref: artifacts/milestones/m2/proof_packets/launch_bundles_and_archetypes.md#python-service-or-data-app
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/bundles/python_launch_bundle_alpha.yaml
+
+  - marker_id: dependency_marker:alpha.ts_js.archetype_seed_not_certified
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.ts_js.bundle_and_archetype
+    artifact_classes:
+      - archetype_claim
+    dependency_ref: archetype_certification_seed:ts_web_app_or_service
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The TypeScript / JavaScript archetype row is a seed, not a certified
+      compatibility claim. Badge projections must open the underlying evidence.
+    repair_or_review_ref: artifacts/certification/m2_archetype_seed_rows.yaml#archetype_certification_seed:ts_web_app_or_service
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/certification/m2_archetype_seed_rows.yaml
+
+  - marker_id: dependency_marker:alpha.python.archetype_seed_not_certified
+    marker_schema_version: 1
+    marker_kind: NonStableCapabilityDependency
+    parent_row_ref: capability_lifecycle:alpha.python.bundle_and_archetype
+    artifact_classes:
+      - archetype_claim
+    dependency_ref: archetype_certification_seed:python_service_or_data_app
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    disclosure_summary: >
+      The Python archetype row is a seed, not a certified compatibility claim.
+      Badge projections must open the underlying evidence.
+    repair_or_review_ref: artifacts/certification/m2_archetype_seed_rows.yaml#archetype_certification_seed:python_service_or_data_app
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/certification/m2_archetype_seed_rows.yaml
+
+  - marker_id: dependency_marker:alpha.helper_backed_service_preview
+    marker_schema_version: 1
+    marker_kind: HostedIntegrationDependency
+    parent_row_ref: capability_lifecycle:alpha.helper_backed_deployment
+    artifact_classes:
+      - hosted_integration
+      - helper_internal
+    dependency_ref: artifacts/remote/host_boundary_matrix.yaml
+    dependency_lifecycle_state: Preview
+    effect_on_parent: NarrowsLifecycle
+    reason_code: provider_connection_unhealthy
+    disclosure_summary: >
+      Helper-backed language, task, Git, interpreter, and debug services are
+      preview dependencies. They may narrow support or freshness and never
+      imply managed-cloud parity.
+    repair_or_review_ref: artifacts/remote/host_boundary_matrix.yaml
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/remote/host_boundary_matrix.yaml
+
+  - marker_id: dependency_marker:alpha.managed_cloud_policy_disabled
+    marker_schema_version: 1
+    marker_kind: DisabledByPolicyDependency
+    parent_row_ref: capability_lifecycle:alpha.managed_cloud_disabled
+    artifact_classes:
+      - policy_disable
+      - hosted_integration
+    dependency_ref: policy:alpha.scope.managed_cloud_out_of_scope
+    dependency_lifecycle_state: DisabledByPolicy
+    effect_on_parent: GatesCapability
+    reason_code: dependency_disabled_by_policy
+    disclosure_summary: >
+      Managed-cloud daily-driver parity is policy-disabled for the external
+      alpha claim set. A scope review must add evidence, known limits, support
+      copy, and rollback or narrowing paths before any surface can enable it.
+    repair_or_review_ref: artifacts/milestones/m2/alpha_wedge_matrix.yaml#change_control
+    review_or_expiry_date: "2026-06-09"
+    export_visibility: export_safe_summary
+    source_refs:
+      - artifacts/milestones/m2/alpha_wedge_matrix.yaml
+
+acceptance_state_coverage:
+  - case_id: claimed_alpha_surfaces_have_lifecycle_rows
+    exercises_state: claimed_alpha_surface_coverage
+    fixture_ref: fixtures/governance/capability_lifecycle_registry_cases/manifest.yaml#claimed_alpha_surface_coverage
+    expected_validator_result: pass
+
+  - case_id: non_stable_dependencies_render_markers
+    exercises_state: dependency_marker_disclosure
+    fixture_ref: fixtures/governance/capability_lifecycle_registry_cases/manifest.yaml#dependency_marker_disclosure
+    expected_validator_result: pass
+
+  - case_id: marketed_rows_not_lifecycle_unknown
+    exercises_state: no_lifecycle_unknown
+    fixture_ref: fixtures/governance/capability_lifecycle_registry_cases/manifest.yaml#no_lifecycle_unknown
+    expected_validator_result: pass
+
+  - case_id: disabled_by_policy_blocks_claim
+    exercises_state: policy_disable_blocks_claim
+    fixture_ref: fixtures/governance/capability_lifecycle_registry_cases/manifest.yaml#policy_disable_blocks_claim
+    expected_validator_result: pass
+
+  - case_id: help_projection_renders_owner_expiry_and_markers
+    exercises_state: consumer_projection_fields
+    fixture_ref: fixtures/governance/capability_lifecycle_registry_cases/manifest.yaml#consumer_projection_fields
+    expected_validator_result: pass
