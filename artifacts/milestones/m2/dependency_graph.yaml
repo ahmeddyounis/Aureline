@@ -148,6 +148,31 @@ nodes:
     required: true
     artifact_ref: artifacts/milestones/m2/proof_packets/alpha_scope.md
 
+  - node_id: alpha_proof_artifact_index
+    kind: canonical_proof_index
+    required: true
+    artifact_ref: artifacts/milestones/m2/artifact_index.yaml
+
+  - node_id: alpha_review_packet_template
+    kind: review_packet_template
+    required: true
+    artifact_ref: docs/review/m2_review_packet_template.md
+
+  - node_id: alpha_truth_update_workflow
+    kind: governance_workflow
+    required: true
+    artifact_ref: docs/governance/m2_truth_update_workflow.md
+
+  - node_id: alpha_proof_artifact_index_validator
+    kind: first_consumer
+    required: true
+    artifact_ref: ci/check_alpha_proof_artifact_index.py
+
+  - node_id: alpha_proof_artifact_index_packet
+    kind: proof_packet
+    required: true
+    artifact_ref: artifacts/milestones/m2/proof_packets/artifact_index.md
+
 edges:
   - from: workflow_bundle_register
     to: alpha_wedge_matrix
@@ -324,6 +349,48 @@ edges:
       The reviewer-facing page links the proof packet, validator, and canonical
       artifacts together.
 
+  - from: alpha_exit_gate_scoreboard
+    to: alpha_proof_artifact_index
+    rationale: >
+      Proof lanes cite scoreboard rows before moving alpha claim or go/no-go
+      state.
+
+  - from: alpha_wedge_matrix
+    to: alpha_proof_artifact_index
+    rationale: >
+      The proof index consumes wedge and workflow scope rather than restating
+      launch claims locally.
+
+  - from: known_limits_contract
+    to: alpha_truth_update_workflow
+    rationale: >
+      Same-change-set review keeps known-limit copy aligned with docs,
+      migration, Help/About, and support-export truth.
+
+  - from: alpha_proof_artifact_index
+    to: alpha_review_packet_template
+    rationale: >
+      Review packets take their owner, freshness, exact-build, and truth-ref
+      fields from the canonical index contract.
+
+  - from: alpha_proof_artifact_index
+    to: alpha_truth_update_workflow
+    rationale: >
+      The workflow defines when index changes require docs, migration,
+      Help/About, known-limit, and support-export refs in the same change.
+
+  - from: alpha_proof_artifact_index
+    to: alpha_proof_artifact_index_validator
+    rationale: >
+      The validator is the first consumer and fails when proof lanes, freshness
+      metadata, or same-change truth refs drift.
+
+  - from: alpha_proof_artifact_index_packet
+    to: alpha_review_packet_template
+    rationale: >
+      The proof packet links the index, validator, capture, and review packet
+      template into one protected proof path.
+
   - from: external_alpha_design_partner_proof_packet
     to: external_alpha_design_partner_guide
     rationale: >
@@ -359,6 +426,16 @@ consumer_surfaces:
       - alpha_exit_gate_scoreboard
     command: python3 ci/check_design_partner_alpha.py --repo-root .
     report_ref: artifacts/milestones/m2/captures/design_partner_intake_validation_capture.json
+
+  - consumer_id: alpha_proof_artifact_index_validator
+    title: External alpha proof artifact index validator
+    reads:
+      - alpha_proof_artifact_index
+      - alpha_exit_gate_scoreboard
+      - alpha_review_packet_template
+      - alpha_truth_update_workflow
+    command: python3 ci/check_alpha_proof_artifact_index.py --repo-root .
+    report_ref: artifacts/milestones/m2/captures/artifact_index_validation_capture.json
 
   - consumer_id: external_alpha_fixture_register_validator
     title: External alpha benchmark fixture-register validator

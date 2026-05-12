@@ -19,6 +19,12 @@ cite those rows instead of copying scope text.
 - Benchmark fixture register: `artifacts/benchmarks/m2_fixture_register.yaml`
 - Privacy-cleared corpus workflow: `docs/benchmarks/privacy_cleared_corpus_workflow.md`
 - Benchmark fixture proof packet: `artifacts/milestones/m2/proof_packets/benchmark_fixture_register.md`
+- Proof artifact index: `artifacts/milestones/m2/artifact_index.yaml`
+- Review packet template: `docs/review/m2_review_packet_template.md`
+- Same-change truth workflow: `docs/governance/m2_truth_update_workflow.md`
+- Proof artifact index packet: `artifacts/milestones/m2/proof_packets/artifact_index.md`
+- Proof artifact index validator: `ci/check_alpha_proof_artifact_index.py`
+- Latest proof artifact index capture: `artifacts/milestones/m2/captures/artifact_index_validation_capture.json`
 - Latest validation capture: `artifacts/milestones/m2/captures/alpha_scope_validation_capture.json`
 - Latest benchmark fixture capture: `artifacts/milestones/m2/captures/benchmark_fixture_register_validation_capture.json`
 - Validator: `ci/check_alpha_scope.py`
@@ -73,6 +79,10 @@ External alpha benchmark fixture-register validation:
 
 `python3 ci/check_benchmark_fixture_register.py --repo-root . --report target/benchmark-fixture-register/report.json`
 
+External alpha proof artifact index validation:
+
+`python3 ci/check_alpha_proof_artifact_index.py --repo-root . --report target/alpha-proof-artifact-index/report.json`
+
 ## Update Rules
 
 1. Update `artifacts/milestones/m2/alpha_wedge_matrix.yaml` first.
@@ -80,6 +90,8 @@ External alpha benchmark fixture-register validation:
    `artifacts/milestones/m2/exit_gate_scoreboard.yaml`.
 3. Update `artifacts/milestones/m2/dependency_graph.yaml` when a source,
    fixture, consumer, or proof root changes.
-4. Update the proof packet and known-limits section when the user-visible claim
+4. Register proof evidence in `artifacts/milestones/m2/artifact_index.yaml`
+   with owner, freshness, exact-build identity, and same-change truth refs.
+5. Update the proof packet and known-limits section when the user-visible claim
    surface changes.
-5. Run the validator and refresh the capture when the artifact set changes.
+6. Run the validator and refresh the capture when the artifact set changes.

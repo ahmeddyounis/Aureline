@@ -1,0 +1,61 @@
+# External alpha proof artifact index gate.
+
+name: check_alpha_proof_artifact_index
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_alpha_proof_artifact_index.yml"
+      - "ci/check_alpha_proof_artifact_index.py"
+      - "docs/review/m2_review_packet_template.md"
+      - "docs/governance/m2_truth_update_workflow.md"
+      - "docs/milestones/m2_alpha_scope.md"
+      - "artifacts/milestones/m2/artifact_index.yaml"
+      - "artifacts/milestones/m2/dependency_graph.yaml"
+      - "artifacts/milestones/m2/exit_gate_scoreboard.yaml"
+      - "artifacts/milestones/m2/proof_packets/artifact_index.md"
+      - "artifacts/milestones/m2/captures/artifact_index_validation_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-alpha-proof-artifact-index-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  artifact_index:
+    name: Alpha proof artifact index
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run alpha proof artifact index validator
+        run: |
+          python3 ci/check_alpha_proof_artifact_index.py --repo-root . --report target/alpha-proof-artifact-index/report.json
+
+      - name: Upload alpha proof artifact index report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpha-proof-artifact-index-${{ github.run_id }}
+          path: target/alpha-proof-artifact-index
+          if-no-files-found: error
+          retention-days: 30
