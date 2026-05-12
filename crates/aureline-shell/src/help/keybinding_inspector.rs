@@ -6,6 +6,8 @@ use aureline_commands::CommandRegistry;
 use aureline_input::keybindings::PlatformClass;
 use aureline_input::presets::{preset_binding_rows, preset_conflicts, KeymapPresetId};
 
+use super::keyboard_gap_audit::build_audit_summary_lines;
+
 fn stable_sort_key(command_id: &str, title: &str) -> (String, String) {
     (title.to_lowercase(), command_id.to_string())
 }
@@ -75,23 +77,24 @@ pub fn build_inspector_lines(
     lines.push("Conflicts (requires review)".to_string());
     if conflicts.is_empty() {
         lines.push("- none".to_string());
-        return lines;
-    }
-
-    for conflict in conflicts {
-        lines.push(format!(
-            "- {}  —  {}",
-            conflict.inspected_sequence.literal_sequence, conflict.conflict_review_id
-        ));
-        for losing in conflict.losing_candidates.iter() {
-            let command_id = losing.candidate.command.command_id.as_str();
-            let title = registry
-                .get(command_id)
-                .map(|entry| entry.title.as_str())
-                .unwrap_or("<unknown command>");
-            lines.push(format!("  * {}  —  {}", title, command_id));
+    } else {
+        for conflict in conflicts {
+            lines.push(format!(
+                "- {}  —  {}",
+                conflict.inspected_sequence.literal_sequence, conflict.conflict_review_id
+            ));
+            for losing in conflict.losing_candidates.iter() {
+                let command_id = losing.candidate.command.command_id.as_str();
+                let title = registry
+                    .get(command_id)
+                    .map(|entry| entry.title.as_str())
+                    .unwrap_or("<unknown command>");
+                lines.push(format!("  * {}  —  {}", title, command_id));
+            }
         }
     }
+
+    lines.extend(build_audit_summary_lines(registry, preset, platform));
 
     lines
 }
