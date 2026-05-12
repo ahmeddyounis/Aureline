@@ -1,0 +1,228 @@
+# Feedback taxonomy for external alpha design-partner reports.
+#
+# This file is the canonical routing surface for partner feedback, blocker
+# severity, privacy posture, and known-limit linkage. Downstream dashboards,
+# issue templates, support exports, and proof packets should consume these ids
+# instead of creating one-off labels.
+
+schema_version: 1
+as_of: "2026-05-12"
+owner: "@ahmeddyounis"
+
+taxonomy_id: external_alpha_design_partner_feedback
+human_entrypoint_ref: docs/alpha/design_partner_guide.md
+
+inputs:
+  alpha_wedge_matrix_ref: artifacts/milestones/m2/alpha_wedge_matrix.yaml
+  exit_gate_scoreboard_ref: artifacts/milestones/m2/exit_gate_scoreboard.yaml
+  intake_packet_ref: artifacts/milestones/m2/design_partner_intake_packet.md
+  task_pack_ref: artifacts/milestones/m2/design_partner_task_pack.md
+  known_limits_packet_ref: artifacts/feedback/external_alpha_known_limits.md
+  issue_routing_matrix_ref: artifacts/governance/issue_routing.yaml
+  design_partner_intake_checklist_ref: artifacts/program/design_partner_intake_checklist.yaml
+  support_bundle_contract_ref: docs/support/support_bundle_contract.md
+
+severity_vocabulary:
+  - external_alpha_blocker
+  - task_blocking
+  - scoped_workaround
+  - clarity_gap
+  - observation
+
+privacy_review_state_vocabulary:
+  - redaction_review_not_required
+  - redaction_review_required
+  - redaction_cleared
+  - raw_content_blocked
+  - partner_consent_required
+
+pass_fail_state_vocabulary:
+  - pass
+  - pass_with_scoped_workaround
+  - blocked_pending_packet
+  - known_limit
+  - fail
+
+required_issue_fields:
+  - partner_role
+  - stack_profile
+  - wedge_ref
+  - workflow_id
+  - task_script_id
+  - blocker_severity
+  - privacy_review_state
+  - redaction_review_ref
+  - reproducibility_packet_ref
+  - evidence_refs
+  - known_limit_refs
+
+feedback_categories:
+  - category_id: task_completion
+    title: Task completion
+    description: >
+      Partner completed or partially completed a declared task script and is
+      reporting outcome, friction, timing, or workaround notes.
+    default_route_class: private_partner_channel
+    default_issue_labels:
+      - alpha:task-completion
+    severity_floor: observation
+    requires_known_limit_ref: false
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.ts_js_navigation
+      - scoreboard_row:alpha_scope.ts_js_run_test_debug
+      - scoreboard_row:alpha_scope.ts_js_git_review
+      - scoreboard_row:alpha_scope.python_environment_tests
+      - scoreboard_row:alpha_scope.python_debug_refactor
+
+  - category_id: alpha_task_blocker
+    title: Alpha task blocker
+    description: >
+      A claimed task script cannot complete safely on a required fixture or
+      privacy-cleared partner workspace.
+    default_route_class: private_partner_channel
+    default_issue_labels:
+      - alpha:task-blocker
+    severity_floor: task_blocking
+    requires_known_limit_ref: false
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.design_partner_intake
+      - scoreboard_row:alpha_scope.supportability
+
+  - category_id: scope_or_known_limit
+    title: Scope or known limit
+    description: >
+      The report asks for or reveals unsupported wedge, platform, migration,
+      notebook, browser/mobile companion, or managed-cloud scope.
+    default_route_class: governance_packet_queue
+    default_issue_labels:
+      - alpha:known-limit
+    severity_floor: clarity_gap
+    requires_known_limit_ref: true
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.scope_change_control
+      - scoreboard_row:alpha_scope.docs_known_limits
+
+  - category_id: privacy_redaction
+    title: Privacy or redaction review
+    description: >
+      The report includes or requests partner-derived artifacts, support
+      bundles, logs, traces, screenshots, transcripts, paths, names, or other
+      content that needs review before sharing.
+    default_route_class: private_partner_channel
+    default_issue_labels:
+      - alpha:privacy-redaction
+    severity_floor: task_blocking
+    requires_known_limit_ref: true
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.design_partner_intake
+      - scoreboard_row:alpha_scope.supportability
+      - scoreboard_row:alpha_scope.docs_known_limits
+
+  - category_id: support_export_or_diagnostics
+    title: Support export or diagnostics
+    description: >
+      Support export, Project Doctor, exact-build, route, or diagnostic evidence
+      cannot reconstruct the task safely or omits required context.
+    default_route_class: private_support_channel
+    default_issue_labels:
+      - alpha:supportability
+    severity_floor: task_blocking
+    requires_known_limit_ref: false
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.supportability
+
+  - category_id: docs_or_copy_truth
+    title: Docs or copy truth
+    description: >
+      Partner-facing guide, docs, task pack, known-limit text, or support copy
+      disagrees with observed alpha behavior.
+    default_route_class: public_issue_tracker
+    default_issue_labels:
+      - alpha:docs-truth
+    severity_floor: clarity_gap
+    requires_known_limit_ref: false
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.docs_known_limits
+
+  - category_id: migration_import_gap
+    title: Migration or import gap
+    description: >
+      Import, migration, first-run, or incumbent-workflow parity is incomplete,
+      ambiguous, or narrower than the task or partner expectation.
+    default_route_class: private_partner_channel
+    default_issue_labels:
+      - alpha:migration-gap
+    severity_floor: clarity_gap
+    requires_known_limit_ref: true
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.migration_parity
+
+  - category_id: benchmark_fixture_gap
+    title: Benchmark or fixture gap
+    description: >
+      Required fixture, task script, corpus row, or reference-workspace shape
+      does not support the intended partner task or proof lane.
+    default_route_class: benchmark_council_queue
+    default_issue_labels:
+      - alpha:fixture-gap
+    severity_floor: task_blocking
+    requires_known_limit_ref: false
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.benchmark_fixtures
+
+  - category_id: trust_security_boundary
+    title: Trust, security, or boundary
+    description: >
+      Report concerns trust gating, suspicious content, secret exposure, route
+      boundary, policy posture, or security disclosure.
+    default_route_class: private_security_channel
+    default_issue_labels:
+      - alpha:trust-boundary
+    severity_floor: external_alpha_blocker
+    requires_known_limit_ref: false
+    requires_redaction_review_before_raw_artifacts: true
+    scoreboard_row_refs:
+      - scoreboard_row:alpha_scope.supportability
+      - scoreboard_row:alpha_scope.docs_known_limits
+
+known_limit_routing:
+  - category_id: scope_or_known_limit
+    required_known_limit_refs:
+      - known_limit:external_alpha.scope.claimed_wedges_only
+      - known_limit:external_alpha.deployment.local_or_helper_only
+      - known_limit:external_alpha.notebook_handoff_only
+      - known_limit:external_alpha.browser_mobile_companion_out
+  - category_id: privacy_redaction
+    required_known_limit_refs:
+      - known_limit:external_alpha.support_export_redaction_required
+      - known_limit:external_alpha.no_raw_partner_content
+  - category_id: migration_import_gap
+    required_known_limit_refs:
+      - known_limit:external_alpha.migration_evidence_seeded
+
+route_rules:
+  - rule_id: raw_artifacts_block_until_redaction_clears
+    summary: >
+      Reports with privacy_review_state redaction_review_required,
+      raw_content_blocked, or partner_consent_required must not attach raw
+      partner artifacts. Route metadata-first through the private partner,
+      support, or security lane.
+  - rule_id: known_limit_reports_cite_packet
+    summary: >
+      Reports in categories requiring known-limit refs must cite
+      artifacts/feedback/external_alpha_known_limits.md and at least one
+      known_limit:external_alpha.* id.
+  - rule_id: public_routes_require_safe_content
+    summary: >
+      Public issue tracker reports may include only public-safe or
+      redaction-cleared content. Otherwise the default route narrows to the
+      private partner channel.
+

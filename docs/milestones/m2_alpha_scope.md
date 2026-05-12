@@ -11,8 +11,14 @@ cite those rows instead of copying scope text.
 - Go/no-go scoreboard: `artifacts/milestones/m2/exit_gate_scoreboard.yaml`
 - Dependency graph: `artifacts/milestones/m2/dependency_graph.yaml`
 - Proof packet: `artifacts/milestones/m2/proof_packets/alpha_scope.md`
+- Design-partner guide: `docs/alpha/design_partner_guide.md`
+- Design-partner intake packet: `artifacts/milestones/m2/design_partner_intake_packet.md`
+- Design-partner task pack: `artifacts/milestones/m2/design_partner_task_pack.md`
+- Design-partner feedback taxonomy: `artifacts/feedback/design_partner_feedback_taxonomy.yaml`
+- External alpha known limits: `artifacts/feedback/external_alpha_known_limits.md`
 - Latest validation capture: `artifacts/milestones/m2/captures/alpha_scope_validation_capture.json`
 - Validator: `ci/check_alpha_scope.py`
+- Design-partner validator: `ci/check_design_partner_alpha.py`
 
 ## Definition of Green
 
@@ -54,6 +60,10 @@ Optional machine-readable report:
 
 `python3 ci/check_alpha_scope.py --repo-root . --report target/alpha-scope/report.json`
 
+External alpha design-partner packet validation:
+
+`python3 ci/check_design_partner_alpha.py --repo-root . --report target/design-partner-alpha/report.json`
+
 ## Update Rules
 
 1. Update `artifacts/milestones/m2/alpha_wedge_matrix.yaml` first.
@@ -64,4 +74,3 @@ Optional machine-readable report:
 4. Update the proof packet and known-limits section when the user-visible claim
    surface changes.
 5. Run the validator and refresh the capture when the artifact set changes.
-

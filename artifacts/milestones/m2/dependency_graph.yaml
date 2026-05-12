@@ -58,6 +58,46 @@ nodes:
     required: true
     artifact_ref: artifacts/program/design_partner_intake_checklist.yaml
 
+  - node_id: external_alpha_design_partner_guide
+    kind: human_entrypoint
+    required: true
+    artifact_ref: docs/alpha/design_partner_guide.md
+
+  - node_id: external_alpha_design_partner_intake_packet
+    kind: intake_packet
+    required: true
+    artifact_ref: artifacts/milestones/m2/design_partner_intake_packet.md
+
+  - node_id: external_alpha_design_partner_task_pack
+    kind: task_pack
+    required: true
+    artifact_ref: artifacts/milestones/m2/design_partner_task_pack.md
+
+  - node_id: external_alpha_feedback_taxonomy
+    kind: feedback_taxonomy
+    required: true
+    artifact_ref: artifacts/feedback/design_partner_feedback_taxonomy.yaml
+
+  - node_id: external_alpha_known_limits
+    kind: known_limits_packet
+    required: true
+    artifact_ref: artifacts/feedback/external_alpha_known_limits.md
+
+  - node_id: external_alpha_feedback_cases
+    kind: protected_fixture_root
+    required: true
+    artifact_ref: fixtures/feedback/external_alpha_cases/
+
+  - node_id: external_alpha_design_partner_validator
+    kind: first_consumer
+    required: true
+    artifact_ref: ci/check_design_partner_alpha.py
+
+  - node_id: external_alpha_design_partner_proof_packet
+    kind: proof_packet
+    required: true
+    artifact_ref: artifacts/milestones/m2/proof_packets/design_partner_intake.md
+
   - node_id: benchmark_corpus_manifest
     kind: protected_fixture_register
     required: true
@@ -125,6 +165,60 @@ edges:
       External alpha inputs enter through the governed intake checklist before
       they become fixture, support, benchmark, or publication evidence.
 
+  - from: design_partner_intake
+    to: external_alpha_design_partner_intake_packet
+    rationale: >
+      The external alpha packet applies the shared intake checklist to partner
+      role, stack, privacy posture, task script, completion, and blocker fields.
+
+  - from: alpha_wedge_matrix
+    to: external_alpha_design_partner_task_pack
+    rationale: >
+      The task pack derives its task scripts from the protected workflows and
+      fixtures already named by the alpha wedge matrix.
+
+  - from: alpha_exit_gate_scoreboard
+    to: external_alpha_feedback_taxonomy
+    rationale: >
+      Partner feedback routes to existing scoreboard rows rather than creating
+      local issue labels or proof states.
+
+  - from: known_limits_contract
+    to: external_alpha_known_limits
+    rationale: >
+      External alpha caveats use the shared known-limits contract and narrow
+      public/support copy through one packet.
+
+  - from: external_alpha_design_partner_intake_packet
+    to: external_alpha_design_partner_validator
+    rationale: >
+      The validator checks that the intake packet carries the required partner,
+      privacy, task, severity, and rollback fields.
+
+  - from: external_alpha_design_partner_task_pack
+    to: external_alpha_design_partner_validator
+    rationale: >
+      The validator checks that every protected alpha workflow has a task script
+      and fixture binding.
+
+  - from: external_alpha_feedback_taxonomy
+    to: external_alpha_design_partner_validator
+    rationale: >
+      The validator checks feedback categories, route classes, severity
+      vocabulary, and known-limit routing.
+
+  - from: external_alpha_known_limits
+    to: external_alpha_design_partner_validator
+    rationale: >
+      The validator checks that scope, deployment, notebook, companion,
+      migration, support-export, and raw-content known limits exist.
+
+  - from: external_alpha_feedback_cases
+    to: external_alpha_design_partner_validator
+    rationale: >
+      Protected feedback cases exercise task completion, redaction blocking, and
+      known-limit routing states.
+
   - from: benchmark_corpus_manifest
     to: alpha_exit_gate_scoreboard
     rationale: >
@@ -154,6 +248,12 @@ edges:
       The reviewer-facing page links the proof packet, validator, and canonical
       artifacts together.
 
+  - from: external_alpha_design_partner_proof_packet
+    to: external_alpha_design_partner_guide
+    rationale: >
+      The guide links the partner-facing packet, task pack, feedback taxonomy,
+      known limits, validator, and capture into one onboarding path.
+
 consumer_surfaces:
   - consumer_id: alpha_scope_validator
     title: Alpha scope artifact validator
@@ -171,3 +271,15 @@ consumer_surfaces:
     command: cite scoreboard_row values before adding local scope text
     report_ref: artifacts/milestones/m2/exit_gate_scoreboard.yaml
 
+  - consumer_id: external_alpha_design_partner_validator
+    title: External alpha design-partner intake validator
+    reads:
+      - external_alpha_design_partner_intake_packet
+      - external_alpha_design_partner_task_pack
+      - external_alpha_feedback_taxonomy
+      - external_alpha_known_limits
+      - external_alpha_feedback_cases
+      - alpha_wedge_matrix
+      - alpha_exit_gate_scoreboard
+    command: python3 ci/check_design_partner_alpha.py --repo-root .
+    report_ref: artifacts/milestones/m2/captures/design_partner_intake_validation_capture.json
