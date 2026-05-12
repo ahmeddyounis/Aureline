@@ -49,7 +49,8 @@
 //!
 //! - Only the bottom-panel terminal pane is the certified wedge entry
 //!   point in M1. Task / debug / provider lanes consume the shared
-//!   [`TargetOriginBadgeSet`] projection but do not own a handoff record
+//!   [`TargetOriginBadgeSet`](crate::badges::target_origin::TargetOriginBadgeSet)
+//!   projection but do not own a handoff record
 //!   here; the wedge's [`HostBoundaryClaimLimit::SingleCertifiedWedgeOnly`]
 //!   row is always rendered to make this explicit.
 //! - The wedge does not start, attach, or reconnect real PTY transport.

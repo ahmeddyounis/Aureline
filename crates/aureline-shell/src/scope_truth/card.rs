@@ -118,7 +118,7 @@ pub struct ScopeTruthChipCard {
     pub emitted_at: String,
 }
 
-/// Project a scope-truth chip card from a workspace [`ScopeClass`] alone.
+/// Project a scope-truth chip card from a workspace [`aureline_runtime::ScopeClass`] alone.
 ///
 /// Use this when the active scope is the bare `current_repo` or
 /// `full_workspace` family with no workset artifact in play, and when

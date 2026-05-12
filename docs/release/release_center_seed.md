@@ -1,9 +1,9 @@
 # Release center / provenance seed: running build, exact-build identity, and support-export linkage
 
 This is the reviewer-facing landing page for the release-center / provenance
-skeleton in the live Aureline shell. The seed mints a single inspectable
+skeleton in the Aureline shell crate. The seed mints a single inspectable
 surface that joins the running build's exact-build identity, channel,
-provenance row scaffold, and the live support-bundle preview before any
+provenance row scaffold, and the support-bundle preview before any
 publication, advisory, or rollback subsystem comes online.
 
 If this document disagrees with the boundary contracts and schemas under
@@ -18,11 +18,11 @@ never invents private field shapes.
   [`/docs/release/release_center_provenance_linkage.md`](./release_center_provenance_linkage.md)
 - Provenance crosswalk schema:
   [`/schemas/release/release_provenance_crosswalk.schema.json`](../../schemas/release/release_provenance_crosswalk.schema.json)
-- Support-bundle manifest schema (live linkage target):
+- Support-bundle manifest schema (support linkage target):
   [`/schemas/support/support_bundle_manifest.schema.json`](../../schemas/support/support_bundle_manifest.schema.json)
 - Companion Help/About seed (shared install-mode and provenance row vocabulary):
   [`/docs/help/help_about_truth_source.md`](../help/help_about_truth_source.md)
-- Companion support-bundle seed (the live linkage consumer):
+- Companion support-bundle seed (the linkage surface):
   [`/docs/support/support_bundle_seed.md`](../support/support_bundle_seed.md)
 - Exact-build identity model:
   [`/docs/build/exact_build_identity_model.md`](../build/exact_build_identity_model.md)
@@ -30,7 +30,7 @@ never invents private field shapes.
 ## What this seed owns
 
 - `aureline-shell` crate, `release_center` module:
-  - `ReleaseCenterSurface` — the canonical Rust record the shell renders
+  - `ReleaseCenterSurface` — the canonical Rust record the seed projects
     to answer "what is the running build, where did it come from, and
     where does support pull the receipts?". One projection feeds
     plaintext copy, the running release-candidate row, the provenance
@@ -38,7 +38,7 @@ never invents private field shapes.
   - `ReleaseCenterInputs` — the input bundle the projection consumes:
     the build-info `BuildIdentityRecord`, the release-channel-class
     token, the exact-build identity ref, and an optional reference to a
-    live `SupportSeedSurface`.
+    `SupportSeedSurface`.
   - `ReleaseCandidateRoleClass`, `ReleaseCenterActionClass`,
     `ProvenanceLinkState`, and `OriginPostureClass` — closed enums that
     pin the surface's row and action vocabulary so the chrome cannot
@@ -46,7 +46,7 @@ never invents private field shapes.
 
 ## What this seed does NOT own
 
-- Live publication, promotion, rollback, revocation, or yank flows.
+- Publication, promotion, rollback, revocation, or yank flows.
   Those rows are reserved on the action set with stable tokens so the
   later milestone can light them without renaming.
 - The full release-candidate index, staged-candidate browsing, or the
@@ -62,12 +62,12 @@ never invents private field shapes.
 
 ## Protected walk
 
-1. Open the release / provenance view from the shell. The chrome reads
-   `ReleaseCenterSurface::project(...)` with the running build's
+1. Project the release / provenance view through the seed harness.
+   `ReleaseCenterSurface::project(...)` reads the running build's
    `BuildIdentityRecord`, the
    `aureline_build_info::release_channel_class()` token, the
    `aureline_build_info::exact_build_identity_ref()` value, and the
-   live `SupportSeedSurface` from `aureline-shell::support_seed`.
+   `SupportSeedSurface` from `aureline-shell::support_seed`.
 2. Inspect the running-build row. The row carries a non-empty
    `exact_build_identity_ref`, the canonical channel token, a
    deterministic provenance line, and the linkage row's state. The
@@ -104,7 +104,7 @@ against
    `blocked_by_missing_linkage` so the chrome cannot route to a preview
    that does not match the running build. The
    `copy_provenance_line_for_support` and `view_exact_build_identity`
-   actions stay live so a reviewer can still hand the running build's
+   actions stay available so a reviewer can still hand the running build's
    identity to support during the drill.
 4. The plaintext block surfaces "Missing chain" and "Honesty marker:
    present" so a copy-for-support hand-off cannot accidentally claim
@@ -131,8 +131,8 @@ and the fixture replay
   through `aureline_support::bundle::ReleaseChannelClass` so the
   release-center surface and the support-bundle manifest land on the
   same closed enum.
-- **Support-export linkage.** The seed reads the live
-  `SupportSeedSurface` from `aureline-shell::support_seed`. The
+- **Support-export linkage.** The seed reads the `SupportSeedSurface`
+  from `aureline-shell::support_seed`. The
   manifest's `build_identity.exact_build_refs` is the join key; the
   release-center surface never invents its own support-export model.
 

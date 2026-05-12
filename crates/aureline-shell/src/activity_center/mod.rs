@@ -200,7 +200,8 @@ pub struct ActivityRowDetail {
 ///
 /// The activity center never reads task state from a local widget timer;
 /// the caller computes this observation from the upstream task object
-/// (e.g., a [`RestoreProposal`]) and passes it in verbatim.
+/// (e.g., a [`aureline_recovery::session_restore::RestoreProposal`]) and
+/// passes it in verbatim.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DurableJobObservation {
     pub lifecycle_class: ActivityRowLifecycleClass,

@@ -2,7 +2,7 @@
 
 Purpose: anchor proof captures for the release-center / provenance
 skeleton that links the running build's exact-build identity to the
-live support-bundle preview.
+support-bundle preview.
 
 Reviewer entry point: [`/docs/release/release_center_seed.md`](../../../../docs/release/release_center_seed.md).
 
@@ -15,7 +15,7 @@ Canonical sources (non-exhaustive):
 - `schemas/release/release_center_object.schema.json`
 - `artifacts/release/release_support_crosswalk.yaml`
 
-Live shell consumer:
+Shell status: bounded prototype not yet wired into the running shell.
 
 - `crates/aureline-shell/src/release_center/`
 
@@ -26,8 +26,7 @@ Upstream dependencies:
   reads.
 - `crates/aureline-shell/src/help_about/` — shared install-mode and
   provenance row vocabulary.
-- `crates/aureline-shell/src/support_seed/` — live support-seed surface
-  the linkage row consumes.
+- `crates/aureline-shell/src/support_seed/` — bounded prototype not yet wired into the running shell; the linkage row consumes this surface.
 
 Validation captures:
 

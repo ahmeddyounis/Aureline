@@ -1,4 +1,4 @@
-//! Deep-link entry validator for the live shell.
+//! Deep-link entry validator: bounded prototype not yet wired into the running shell.
 //!
 //! Aureline accepts deep links (protocol handler activations, default-browser
 //! callbacks, system-share targets) only after a small set of admission rules
@@ -173,7 +173,7 @@ pub enum DeepLinkDenialClass {
     ReplayConsumed,
     /// The route would raise a boundary the validator cannot satisfy without
     /// a reviewed sheet but the surface refused review (recorded for audit
-    /// purposes; the live consumer turns this into a reviewed-sheet redirect
+    /// purposes; the shell caller turns this into a reviewed-sheet redirect
     /// rather than a hard denial).
     BoundaryRaisingWithoutReview,
     /// Handler ownership was lost (another app claims this protocol).
@@ -196,7 +196,7 @@ impl DeepLinkDenialClass {
 /// Successful admission of a deep-link intent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeepLinkAdmission {
-    /// True when the live shell MUST reopen the reviewed entry-flow sheet
+    /// True when a shell caller MUST reopen the reviewed entry-flow sheet
     /// before executing the inferred command.
     pub reviewed_sheet_required: bool,
     /// Reason the reviewed sheet is required (or "none" when not required).
@@ -246,8 +246,8 @@ pub struct DeepLinkValidationRecord {
 
 /// Validates an inbound deep-link intent.
 ///
-/// The validator never replays the intent; it only decides whether the live
-/// shell should reopen a reviewed entry-flow sheet or fail closed with a
+/// The validator never replays the intent; it only decides whether a shell
+/// caller should reopen a reviewed entry-flow sheet or fail closed with a
 /// recovery-aware denial.
 pub fn validate_deep_link_intent(intent: &DeepLinkIntent) -> DeepLinkValidationOutcome {
     if intent.origin_class == DeepLinkOriginClass::UnknownUntrusted {

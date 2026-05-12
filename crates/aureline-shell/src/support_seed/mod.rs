@@ -1,9 +1,10 @@
-//! Live shell consumer for the support-bundle manifest seed.
+//! Support-bundle manifest seed: bounded prototype not yet wired into the running shell.
 //!
-//! This module wires [`aureline_support::bundle`] into the shell so the
-//! protected walk — open support export, preview bundle contents and
+//! This module projects [`aureline_support::bundle`] into the shell crate so
+//! the protected walk — open support export, preview bundle contents and
 //! redactions locally, verify exact-build identity is captured before
-//! export — runs on a real surface rather than a one-off demo. The
+//! export — has a durable Rust surface while native-shell wiring is still
+//! pending. The
 //! reviewer-facing landing page lives at
 //! `/docs/support/support_bundle_seed.md`; this is the in-shell
 //! projection that drives it.
@@ -51,10 +52,10 @@ pub const SUPPORT_SEED_SURFACE_SCHEMA_VERSION: u32 = 1;
 /// Reviewer-facing notice quoted on every support-seed surface so the
 /// lane's depth is not overstated.
 pub const SUPPORT_SEED_SCOPE_NOTICE: &str =
-    "Support-bundle seed surface: the chrome renders the live preview minted by \
-     aureline-support. The local-first redaction defaults, exact-build identity capture, and \
-     reopen-after-export path are real; live byte-level redaction, upload transport, hosted \
-     intake, and ticket routing are reserved for a later milestone.";
+    "Support-bundle seed surface: bounded prototype not yet wired into the running shell. \
+     The local-first redaction defaults, exact-build identity capture, and \
+     reopen-after-export path are real; byte-level redaction, upload transport, hosted intake, \
+     and ticket routing are reserved for a later milestone.";
 
 /// Stable command id the chrome routes to when the reviewer asks to
 /// preview the local support bundle. The id is held verbatim so the
@@ -66,9 +67,8 @@ pub const COMMAND_ID_OPEN_LOCAL_PREVIEW: &str = "cmd:support.open_local_preview"
 /// own.
 pub const COMMAND_ID_COPY_MANIFEST_JSON: &str = "cmd:support.copy_manifest_json";
 
-/// Live shell-facing action available on the support-seed surface. Held
-/// as a closed enum so the chrome cannot fabricate live action paths
-/// the seed has not promised.
+/// Seed action available on the support-seed surface. Held as a closed enum
+/// so callers cannot fabricate enabled action paths the seed has not promised.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SupportSeedActionKind {
@@ -107,12 +107,12 @@ impl SupportSeedActionKind {
         }
     }
 
-    /// True when the action is wired to a live command in this seed.
+    /// True when the action is wired to an enabled command in this seed.
     pub const fn is_live(self) -> bool {
         matches!(self, Self::OpenLocalPreview | Self::CopyManifestJson)
     }
 
-    /// Stable command id when the action is live; `None` for reserved
+    /// Stable command id when the action is enabled; `None` for reserved
     /// rows so the chrome cannot accidentally route them.
     pub const fn command_id(self) -> Option<&'static str> {
         match self {
@@ -156,10 +156,10 @@ impl SupportSeedAction {
     }
 }
 
-/// Live shell-facing surface that wraps a built
-/// [`SupportBundlePreview`]. The chrome reads this record to render the
-/// support pane; nothing on this record fabricates state the underlying
-/// preview does not already carry.
+/// Support-seed surface record: bounded prototype not yet wired into the running shell.
+/// Wraps a built [`SupportBundlePreview`]; callers read this
+/// record without fabricating state the underlying preview does not already
+/// carry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SupportSeedSurface {
     pub record_kind: String,
@@ -195,8 +195,8 @@ impl SupportSeedSurface {
 
     /// The default local preview every dogfood build can mint without
     /// extra inputs: the exact-build identity row and the policy/trust
-    /// metadata row. This is the live consumer the protected walk
-    /// drives.
+    /// metadata row. This is the seed projection the protected walk
+    /// exercises.
     ///
     /// `generated_at` is held as a parameter so callers can pin a
     /// deterministic timestamp in tests.

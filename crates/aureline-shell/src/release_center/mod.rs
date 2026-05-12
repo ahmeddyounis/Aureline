@@ -1,11 +1,11 @@
-//! Release-center / provenance skeleton with support/export linkage.
+//! Release-center / provenance skeleton: bounded prototype not yet wired into the running shell.
 //!
 //! This is the M1 seed for the canonical "what shipped, where did it come
 //! from, and how does support pull the receipts" surface. Today it is a
-//! protected-row entry point a reviewer can open from a dogfood build to
-//! confirm that the running build's exact-build identity, channel, and
-//! provenance row scaffold are linked to the live support-bundle preview
-//! instead of forking into a different vocabulary per surface.
+//! bounded prototype a reviewer can inspect through fixtures and proof
+//! packets to confirm that the running build's exact-build identity,
+//! channel, and provenance row scaffold are linked to the support-bundle
+//! preview instead of forking into a different vocabulary per surface.
 //!
 //! ## Why one truth model, not several
 //!
@@ -18,7 +18,7 @@
 //! bundle quotes a stale label. This module mints one
 //! [`ReleaseCenterSurface`] record that joins the canonical
 //! [`aureline_build_info::BuildIdentityRecord`], the release-channel-class
-//! token, and the live [`crate::support_seed::SupportSeedSurface`] preview
+//! token, and the [`crate::support_seed::SupportSeedSurface`] preview
 //! whose manifest already carries the seed's exact-build refs verbatim.
 //!
 //! ## What the seed surface carries
@@ -38,15 +38,15 @@
 //!   the Help/About provenance scaffold so the same vocabulary lights both
 //!   surfaces.
 //! - **Support/export linkage** — the running release-candidate row quotes
-//!   the live support-seed surface's manifest exact-build refs. When the
+//!   the support-seed surface's manifest exact-build refs. When the
 //!   support manifest carries no exact-build refs (failure drill), the
 //!   linkage row's state flips to `missing_chain` so the chrome's banner
 //!   cannot fabricate "linked" while the chain is broken.
 //! - **Closed action set** — `open_local_support_preview`,
 //!   `copy_provenance_line_for_support`, and `view_exact_build_identity`
-//!   are live; publish / promote / rollback / revoke / yank rows are
-//!   reserved with stable tokens so the chrome cannot silently activate
-//!   them.
+//!   are marked available in the seed; publish / promote / rollback /
+//!   revoke / yank rows are reserved with stable tokens so the chrome
+//!   cannot silently activate them.
 //!
 //! ## Failure-drill posture
 //!
@@ -54,7 +54,7 @@
 //! support-seed surface's manifest carries no exact-build refs, or the
 //! running build's exact-build identity is empty, the surface's linkage
 //! row reports `missing_chain`, the seed lights `honesty_marker_present`,
-//! and the support-export action stays live so a reviewer can still copy
+//! and the support-export action stays available so a reviewer can still copy
 //! the surface for a support packet.
 
 use serde::{Deserialize, Serialize};
@@ -74,8 +74,9 @@ pub const RELEASE_CENTER_SURFACE_SCHEMA_VERSION: u32 = 1;
 /// Reviewer-facing notice rendered on every release-center surface so the
 /// lane's depth is not overstated.
 pub const RELEASE_CENTER_SEED_SCOPE_NOTICE: &str =
-    "Release center seed: live rows quote the running build's exact-build identity, the resolved \
-     release-channel class, and the linked support-bundle preview. Provenance row state, \
+    "Release center seed: bounded prototype not yet wired into the running shell. Rows quote the \
+     running build's exact-build identity, the resolved release-channel class, and the linked \
+     support-bundle preview. Provenance row state, \
      publish / promote / rollback / revoke / yank actions, and full release-candidate browsing \
      are reserved for a later milestone.";
 
@@ -266,7 +267,7 @@ impl ReleaseCenterActionClass {
         }
     }
 
-    /// True when the action is wired to a live command in this seed.
+    /// True when the action is wired to an enabled command in this seed.
     pub const fn is_live(self) -> bool {
         matches!(
             self,
@@ -276,7 +277,7 @@ impl ReleaseCenterActionClass {
         )
     }
 
-    /// Stable command id when the action is live; `None` for reserved rows
+    /// Stable command id when the action is enabled; `None` for reserved rows
     /// so the chrome cannot silently route them.
     pub const fn command_id(self) -> Option<&'static str> {
         match self {
@@ -477,14 +478,14 @@ pub struct ReleaseCenterProvenanceSection {
     pub honesty_marker_present: bool,
 }
 
-/// Support/export linkage section. Quotes the live support-seed manifest's
+/// Support/export linkage section. Quotes the support-seed manifest's
 /// exact-build refs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReleaseCenterSupportLinkageSection {
     pub link_state: ProvenanceLinkState,
     pub link_state_token: String,
     pub link_state_label: String,
-    /// Stable command id for the live "open local support preview" action
+    /// Stable command id for the enabled "open local support preview" action
     /// when the link is wired. `None` when reserved or blocked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub open_preview_command_id: Option<String>,
@@ -894,7 +895,7 @@ fn derive_availability(
     }
     // The "open local support preview" action depends on a healthy support
     // linkage. Copying the provenance line and viewing the exact-build
-    // identity stay live so a reviewer can still hand the running build's
+    // identity stay available so a reviewer can still hand the running build's
     // identity to support during a missing-chain failure drill.
     if matches!(class, ReleaseCenterActionClass::OpenLocalSupportPreview) {
         return match link_state {

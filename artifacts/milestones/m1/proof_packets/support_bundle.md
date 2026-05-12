@@ -18,7 +18,7 @@ Canonical sources (non-exhaustive):
 - `fixtures/support/redaction_profiles/local_first_default.yaml`
 - `artifacts/support/redaction_accuracy_checks.yaml`
 
-Live shell consumer:
+Shell status: bounded prototype not yet wired into the running shell.
 
 - `crates/aureline-shell/src/support_seed/`
 
@@ -37,4 +37,4 @@ Reviewer fixtures:
 
 Refresh: re-emit fixtures and re-run the validation lane after a change
 to the manifest schema, the local-first redaction profile, the
-exact-build capture path, or the live shell consumer.
+exact-build capture path, or the support-seed surface.
