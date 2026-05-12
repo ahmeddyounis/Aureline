@@ -1,0 +1,93 @@
+# Protected schema/record registry alpha fixture manifest.
+
+schema_version: 1
+as_of: "2026-05-12"
+owner: "@ahmeddyounis"
+
+fixture_manifest_id: schema_record_registry_alpha_cases
+schema_registry_ref: artifacts/governance/schema_registry_alpha.yaml
+record_registry_ref: artifacts/governance/record_class_registry_alpha.yaml
+validator_ref: ci/check_schema_record_registry_alpha.py
+
+acceptance_cases:
+  - case_id: durable_state_classes_named
+    exercises_state: durable_state_schema_and_record_coverage
+    fixture_ref: artifacts/governance/schema_registry_alpha.yaml#schema_alpha:durable_state.workspace_manifest
+    required_class_scopes:
+      - durable_state
+    expected_validator_check_ids:
+      - registry.coverage.required_class_scope_missing
+      - schema.rows.missing_owner_or_schema
+    passing_condition: >
+      Durable workspace state has owned schema rows, record rows, local
+      authority, retention label, delete semantics, and export semantics.
+
+  - case_id: support_bundle_export_packet_semantics
+    exercises_state: support_bundle_export_packet_coverage
+    fixture_ref: artifacts/governance/record_class_registry_alpha.yaml#record_alpha:support_bundle_archive
+    required_class_scopes:
+      - support_bundle
+    expected_validator_check_ids:
+      - record.rows.semantic_block_missing
+      - record.rows.schema_ref_unknown
+    passing_condition: >
+      Support bundle archive rows carry support schema refs, manifest-required
+      export semantics, local-vs-managed delete distinction, and hold blockers.
+
+  - case_id: portable_package_semantics
+    exercises_state: portable_package_export_coverage
+    fixture_ref: artifacts/governance/record_class_registry_alpha.yaml#record_alpha:portable_state_package
+    required_class_scopes:
+      - portable_package
+    expected_validator_check_ids:
+      - registry.coverage.required_class_scope_missing
+      - record.rows.export_semantics_missing
+    passing_condition: >
+      Portable state packages are generated export packets with manifest
+      schemas, owners, delete behavior, and local export-copy disclosure.
+
+  - case_id: managed_copy_classes_named
+    exercises_state: managed_copy_schema_placeholder_and_record_coverage
+    fixture_ref: artifacts/governance/schema_registry_alpha.yaml#schema_alpha:managed_copy.index_entry
+    required_class_scopes:
+      - managed_copy
+    expected_validator_check_ids:
+      - schema.rows.placeholder_missing_owner
+      - record.rows.managed_copy_posture_invalid
+    passing_condition: >
+      Managed copies have at least one owned placeholder or implemented schema,
+      and record rows distinguish managed authority from local cache or local
+      export copies.
+
+  - case_id: receipt_delete_completion_semantics
+    exercises_state: delete_export_hold_semantics
+    fixture_ref: artifacts/governance/record_class_registry_alpha.yaml#record_alpha:destruction_receipt_record
+    required_class_scopes:
+      - receipt
+    expected_validator_check_ids:
+      - record.rows.delete_semantics_missing
+      - record.rows.hold_semantics_missing
+    passing_condition: >
+      Receipt rows preserve retained-subset and hold semantics instead of
+      implying hidden payload deletion or total erasure.
+
+  - case_id: support_export_projection_fields
+    exercises_state: first_consumer_projection
+    fixture_ref: artifacts/governance/record_class_registry_alpha.yaml#first_consumers
+    expected_rendered_fields:
+      - record_class_id
+      - class_scope
+      - owner_dri
+      - schema_rows
+      - local_truth_authority
+      - managed_copy_posture
+      - retention_label
+      - export_semantics
+      - delete_semantics
+      - hold_semantics
+    expected_validator_check_ids:
+      - registry.first_consumers.missing
+      - projection.required_field_missing
+    passing_condition: >
+      The first consumer renders support/export-safe JSON from the registries
+      without copying status text into a separate surface.

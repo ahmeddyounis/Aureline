@@ -1,0 +1,704 @@
+# External alpha record-class registry for local truth, export packets, and
+# managed copies.
+#
+# This alpha registry narrows the existing record-class and state/export
+# contracts into the subset support, docs, product-boundary, and CLI/export
+# consumers need before runtime features hard-code lifecycle wording.
+
+schema_version: 1
+as_of: "2026-05-12"
+owner: "@ahmeddyounis"
+
+registry_id: alpha_record_class_registry_state_support_export_managed_copy_truth
+human_entrypoint_ref: docs/governance/managed_copy_vs_local_truth.md
+schema_registry_ref: artifacts/governance/schema_registry_alpha.yaml
+base_record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+alpha_wedge_matrix_ref: artifacts/milestones/m2/alpha_wedge_matrix.yaml
+alpha_exit_scoreboard_ref: artifacts/milestones/m2/exit_gate_scoreboard.yaml
+
+validator:
+  script_ref: ci/check_schema_record_registry_alpha.py
+  command: python3 ci/check_schema_record_registry_alpha.py --repo-root .
+  consumer_projection_command: python3 ci/check_schema_record_registry_alpha.py --repo-root . --render-support-export-projection
+
+source_registry_refs:
+  - artifacts/governance/record_class_registry.yaml
+  - artifacts/governance/schema_registry_alpha.yaml
+  - artifacts/governance/portability_artifact_matrix.yaml
+  - artifacts/governance/storage_modes.yaml
+  - artifacts/service/retention_rows.yaml
+  - docs/governance/record_class_governance.md
+  - docs/governance/record_state_and_policy_simulation_models.md
+  - docs/governance/retention_deletion_matrix_contract.md
+  - docs/governance/data_portability_and_exit_matrix.md
+  - docs/support/support_bundle_contract.md
+  - docs/state/portable_state_package_contract.md
+
+class_scope_vocabulary:
+  - durable_state
+  - support_bundle
+  - portable_package
+  - managed_copy
+  - export_packet
+  - receipt
+
+authority_class_vocabulary:
+  - local_authoritative
+  - generated_packet_authoritative
+  - managed_authoritative
+  - mixed_local_managed
+  - local_cache_only
+
+managed_copy_posture_vocabulary:
+  - forbidden
+  - optional_opt_in
+  - required_when_managed
+  - managed_authoritative
+
+retention_label_vocabulary:
+  - local_user_owned_until_cleared
+  - local_user_owned_until_export_or_delete
+  - support_case_retention
+  - managed_policy_retained
+  - generated_packet_delivery_window
+  - receipt_metadata_retained
+
+delete_semantic_vocabulary:
+  - local_delete_only
+  - distinct_local_managed_delete
+  - managed_delete_with_receipt
+  - hold_blocks_completion
+  - not_deletable_receipt
+  - local_invalidate_only
+
+export_semantic_vocabulary:
+  - not_exportable
+  - exportable_on_request
+  - manifest_required
+  - packet_is_export
+  - receipt_emitted_on_action
+  - inventory_only
+
+first_consumers:
+  - consumer_id: alpha_record_registry_support_export_projection
+    surface_class: cli_support_export_projection
+    consumer_ref: ci/check_schema_record_registry_alpha.py
+    command: python3 ci/check_schema_record_registry_alpha.py --repo-root . --render-support-export-projection
+    required_rendered_fields:
+      - record_class_id
+      - class_scope
+      - owner_dri
+      - schema_rows
+      - local_truth_authority
+      - managed_copy_posture
+      - retention_label
+      - export_semantics
+      - delete_semantics
+      - hold_semantics
+    output_contract: >
+      The projection is suitable for support bundle preview, docs tables,
+      product-boundary reviews, and CLI/headless export explainers. The
+      projection is metadata only and carries no raw content.
+
+record_classes:
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:durable_workspace_state
+    record_class_id: durable_workspace_state
+    title: Durable workspace and restore state
+    class_scope: durable_state
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs: []
+    placeholder_record_class: true
+    placeholder_exit_criteria: >
+      Promote to the base record-class registry once the state-object inventory
+      and portable-state package writer share one runtime row shape.
+    schema_row_refs:
+      - schema_alpha:durable_state.workspace_manifest
+      - schema_alpha:durable_state.restore_provenance
+      - schema_alpha:durable_state.pane_tree
+      - schema_alpha:record_truth.record_state
+    local_truth:
+      authority_class: local_authoritative
+      local_materialization: required_local_authoritative
+      managed_copy_posture: optional_opt_in
+      managed_copy_label: >
+        Optional sync, backup, or support mirrors may reference this state, but
+        local workspace state remains the authoritative source until a user
+        exports, imports, or deletes it.
+    retention:
+      retention_label: local_user_owned_until_cleared
+      local_owner_ref: local_user
+      managed_owner_ref: local_user
+      trigger_class: user_clear_workspace_or_profile_reset
+      retention_artifact_refs:
+        - docs/state/state_object_inventory.md
+        - docs/state/portable_state_package_contract.md
+    hold_semantics:
+      eligible: false
+      hold_classes: []
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: false
+      hold_blocks_completion: false
+      completion_evidence: tombstone_or_summary
+      semantic_classes:
+        - local_delete_only
+      blocker_classes: []
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - yaml
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/state/state_object_inventory.md
+      - docs/state/portable_state_package_contract.md
+    docs_refs:
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:portable_state_package
+    record_class_id: portable_state_package
+    title: Portable state package
+    class_scope: portable_package
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs: []
+    placeholder_record_class: true
+    placeholder_exit_criteria: >
+      Promote to the base record-class registry once profile, workspace,
+      restore-provenance, and redaction manifests are emitted by one package
+      assembler.
+    schema_row_refs:
+      - schema_alpha:portable_package.state_manifest
+      - schema_alpha:portable_package.profile
+      - schema_alpha:record_truth.record_state
+    local_truth:
+      authority_class: generated_packet_authoritative
+      local_materialization: local_export_copy_only
+      managed_copy_posture: forbidden
+      managed_copy_label: >
+        The generated package is user-controlled output. A managed service may
+        ingest a copy only through a separate support or offboarding class.
+    retention:
+      retention_label: generated_packet_delivery_window
+      local_owner_ref: local_user
+      managed_owner_ref: local_user
+      trigger_class: export_delivery_or_user_delete
+      retention_artifact_refs:
+        - docs/state/portable_state_package_contract.md
+        - docs/governance/data_portability_and_exit_matrix.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - export_pending
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: false
+      hold_blocks_completion: false
+      completion_evidence: tombstone_or_summary
+      semantic_classes:
+        - local_delete_only
+      blocker_classes: []
+    export_semantics:
+      availability: packet_is_export
+      default_formats:
+        - json
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - packet_is_export
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/state/portable_state_package_contract.md
+      - docs/governance/data_portability_and_exit_matrix.md
+    docs_refs:
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:support_bundle_archive
+    record_class_id: support_bundle_archive
+    title: Support bundle archive
+    class_scope: support_bundle
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs:
+      - support_bundle_archive
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:support_export.bundle_manifest
+      - schema_alpha:support_export.bundle_record
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: local_authoritative
+      local_materialization: required_local_authoritative
+      managed_copy_posture: optional_opt_in
+      managed_copy_label: >
+        The local bundle file is authoritative for user review. A managed case
+        copy is separate and must be disclosed as a managed retained copy.
+    retention:
+      retention_label: support_case_retention
+      local_owner_ref: local_user
+      managed_owner_ref: support_export
+      trigger_class: packet_expiry_or_case_close
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#support_bundle_archive
+        - docs/support/support_bundle_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+        - export_pending
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - support_investigation
+        - retention_minimum
+    export_semantics:
+      availability: packet_is_export
+      default_formats:
+        - json
+        - manifest_bundle
+        - tar_gz_archive
+      manifest_required: true
+      semantic_classes:
+        - packet_is_export
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+      - docs/support/support_bundle_preview_contract.md
+    product_surface_refs:
+      - docs/product/boundary_manifest_strawman.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:managed_copy_index_entry
+    record_class_id: managed_copy_index_entry
+    title: Managed-copy index entry
+    class_scope: managed_copy
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs: []
+    placeholder_record_class: true
+    placeholder_exit_criteria: >
+      Promote once managed support copies, case copies, admin exports, and
+      offboarding packets converge on one reference index schema.
+    schema_row_refs:
+      - schema_alpha:managed_copy.index_entry
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: managed_authoritative
+      local_materialization: local_preview_or_cache
+      managed_copy_posture: managed_authoritative
+      managed_copy_label: >
+        The managed index entry records which managed copy remains after local
+        delete, export, or upload. It is not a replacement for the local source
+        body.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: case_close_policy_timer_or_access_end
+      retention_artifact_refs:
+        - docs/governance/retention_deletion_matrix_contract.md
+        - artifacts/service/retention_rows.yaml
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+        - provider_backlog
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - signed_json
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - inventory_only
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/product/boundary_manifest_strawman.md
+      - docs/governance/retention_deletion_matrix_contract.md
+    docs_refs:
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:managed_workspace_lifecycle_copy
+    record_class_id: managed_workspace_lifecycle_copy
+    title: Managed workspace lifecycle copy
+    class_scope: managed_copy
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs: []
+    placeholder_record_class: true
+    placeholder_exit_criteria: >
+      Promote once managed workspace lifecycle events are represented in the
+      base record-class registry with the same delete and export semantics.
+    schema_row_refs:
+      - schema_alpha:managed_copy.workspace_lifecycle
+      - schema_alpha:managed_copy.index_entry
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: managed_authoritative
+      local_materialization: local_preview_or_cache
+      managed_copy_posture: managed_authoritative
+      managed_copy_label: >
+        Local UI may cache lifecycle rows for continuity, but managed workspace
+        lifecycle history remains authoritative in the managed control plane.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: workspace_closure_or_org_offboarding
+      retention_artifact_refs:
+        - docs/managed/managed_workspace_lifecycle_contract.md
+        - docs/governance/retention_deletion_matrix_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+    export_semantics:
+      availability: exportable_on_request
+      default_formats:
+        - json
+        - signed_json
+      manifest_required: true
+      semantic_classes:
+        - exportable_on_request
+        - inventory_only
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/managed/managed_workspace_lifecycle_contract.md
+      - docs/product/boundary_manifest_strawman.md
+    docs_refs:
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:entitlement_usage_export_packet
+    record_class_id: entitlement_usage_export_packet
+    title: Entitlement and usage export packet
+    class_scope: export_packet
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs:
+      - entitlement_usage_export_packet
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:export.usage_packet
+      - schema_alpha:managed_copy.index_entry
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: generated_packet_authoritative
+      local_materialization: local_export_copy_only
+      managed_copy_posture: required_when_managed
+      managed_copy_label: >
+        The exported packet is user-visible proof. Managed aggregates remain
+        distinct and may outlive the downloaded export under policy.
+    retention:
+      retention_label: generated_packet_delivery_window
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: billing_period_close_or_policy_event
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#entitlement_usage_export_packet
+        - docs/governance/usage_export_and_offboarding_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+    export_semantics:
+      availability: packet_is_export
+      default_formats:
+        - csv
+        - json
+        - signed_json
+      manifest_required: true
+      semantic_classes:
+        - packet_is_export
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/governance/usage_export_and_offboarding_contract.md
+      - docs/managed/metering_and_usage_export_contract.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:offboarding_exit_packet
+    record_class_id: offboarding_exit_packet
+    title: Offboarding and access-end packet
+    class_scope: export_packet
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs:
+      - offboarding_exit_packet
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:export.offboarding_exit_packet
+      - schema_alpha:export.usage_packet
+      - schema_alpha:managed_copy.index_entry
+      - schema_alpha:receipt.destruction_receipt
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: generated_packet_authoritative
+      local_materialization: local_export_copy_only
+      managed_copy_posture: required_when_managed
+      managed_copy_label: >
+        The exit packet inventories what was exported, what remains held, and
+        which local-only captures stay outside the managed access-end action.
+    retention:
+      retention_label: generated_packet_delivery_window
+      local_owner_ref: local_user
+      managed_owner_ref: operator_admin
+      trigger_class: export_delivery_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#offboarding_exit_packet
+        - docs/governance/usage_export_and_offboarding_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+        - outside_platform_scope
+    export_semantics:
+      availability: packet_is_export
+      default_formats:
+        - json
+        - markdown
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - packet_is_export
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/governance/usage_export_and_offboarding_contract.md
+      - docs/governance/data_portability_and_exit_matrix.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:destruction_receipt_record
+    record_class_id: destruction_receipt_record
+    title: Destruction receipt
+    class_scope: receipt
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs:
+      - destruction_receipt_record
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:receipt.destruction_receipt
+      - schema_alpha:record_truth.delete_request_state
+      - schema_alpha:record_truth.record_state
+    local_truth:
+      authority_class: generated_packet_authoritative
+      local_materialization: local_export_copy_only
+      managed_copy_posture: managed_authoritative
+      managed_copy_label: >
+        The receipt may be retained as append-only metadata even when the
+        underlying payload was deleted, redacted, skipped, or held.
+    retention:
+      retention_label: receipt_metadata_retained
+      local_owner_ref: local_user
+      managed_owner_ref: governance_packets
+      trigger_class: delete_action_completion
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#destruction_receipt_record
+        - docs/governance/retention_deletion_matrix_contract.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: tombstone_or_summary
+      semantic_classes:
+        - not_deletable_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - retention_minimum
+    export_semantics:
+      availability: receipt_emitted_on_action
+      default_formats:
+        - json
+        - markdown
+        - signed_json
+      manifest_required: true
+      semantic_classes:
+        - receipt_emitted_on_action
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/governance/retention_deletion_matrix_contract.md
+    docs_refs:
+      - docs/governance/record_class_governance.md
+      - docs/governance/managed_copy_vs_local_truth.md
+
+  - row_kind: alpha_record_class_row
+    row_version: 1
+    row_id: record_alpha:ai_retained_evidence_packet
+    record_class_id: ai_retained_evidence_packet
+    title: AI retained evidence packet
+    class_scope: managed_copy
+    owner_dri: "@ahmeddyounis"
+    base_record_class_refs:
+      - ai_retained_evidence_packet
+    placeholder_record_class: false
+    schema_row_refs:
+      - schema_alpha:support_export.ai_evidence_packet
+      - schema_alpha:managed_copy.index_entry
+      - schema_alpha:record_truth.record_state
+      - schema_alpha:record_truth.delete_request_state
+    local_truth:
+      authority_class: mixed_local_managed
+      local_materialization: optional_local_copy
+      managed_copy_posture: required_when_managed
+      managed_copy_label: >
+        Local and managed evidence copies are distinct. Managed retention is
+        enabled only where the AI evidence posture says it exists.
+    retention:
+      retention_label: managed_policy_retained
+      local_owner_ref: local_user
+      managed_owner_ref: governance_packets
+      trigger_class: case_close_policy_timer_or_access_end
+      retention_artifact_refs:
+        - artifacts/governance/record_class_registry.yaml#ai_retained_evidence_packet
+        - docs/governance/record_state_and_policy_simulation_models.md
+    hold_semantics:
+      eligible: true
+      hold_classes:
+        - administrative_legal
+        - support_investigation
+        - retention_minimum
+    delete_semantics:
+      request_supported: true
+      local_and_managed_actions_are_distinct: true
+      hold_blocks_completion: true
+      completion_evidence: destruction_receipt_with_retained_subset
+      semantic_classes:
+        - distinct_local_managed_delete
+        - managed_delete_with_receipt
+        - hold_blocks_completion
+      blocker_classes:
+        - legal_hold
+        - policy_retention
+        - omitted_by_redaction
+    export_semantics:
+      availability: packet_is_export
+      default_formats:
+        - json
+        - markdown
+        - manifest_bundle
+      manifest_required: true
+      semantic_classes:
+        - packet_is_export
+        - manifest_required
+      local_export_copy_disclosed: true
+    support_surface_refs:
+      - docs/support/support_bundle_contract.md
+    product_surface_refs:
+      - docs/governance/record_class_governance.md
+    docs_refs:
+      - docs/governance/managed_copy_vs_local_truth.md

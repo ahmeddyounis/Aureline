@@ -755,6 +755,11 @@ of narrowing — claim contraction, never reclassification.
 4. If the row introduces or changes a retained/exported/offboarding
    artifact class, add or update the corresponding record-class row in
    [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
+   and, for alpha-facing support/export or managed-copy claims, the
+   schema and record alpha registries
+   [`/artifacts/governance/schema_registry_alpha.yaml`](../../artifacts/governance/schema_registry_alpha.yaml)
+   and
+   [`/artifacts/governance/record_class_registry_alpha.yaml`](../../artifacts/governance/record_class_registry_alpha.yaml)
    in the same change.
 5. When an ADR ratifies the classification, set the row's status to
    `accepted` and link the ADR from the row's `linked_decisions`

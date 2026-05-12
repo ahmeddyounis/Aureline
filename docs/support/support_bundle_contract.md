@@ -54,6 +54,12 @@ Companion artifacts:
   [`/docs/governance/record_class_governance.md`](../governance/record_class_governance.md)
   — class-level retention/export posture the bundle must quote rather
   than re-labelling privately.
+- [`/artifacts/governance/schema_registry_alpha.yaml`](../../artifacts/governance/schema_registry_alpha.yaml),
+  [`/artifacts/governance/record_class_registry_alpha.yaml`](../../artifacts/governance/record_class_registry_alpha.yaml),
+  and
+  [`/docs/governance/managed_copy_vs_local_truth.md`](../governance/managed_copy_vs_local_truth.md)
+  — alpha join point for support/export schema rows, local-vs-managed
+  copy posture, and delete/export/hold semantics.
 - [`/docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md`](../adr/0007-secret-broker-credential-handle-trust-store-redaction.md)
   — secret/redaction defaults the bundle inherits for secret-bearing
   data classes.
