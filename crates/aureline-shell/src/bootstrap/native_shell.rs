@@ -10,6 +10,8 @@ use std::env;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::mpsc::{self, Receiver};
+use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::a11y::shell_bridge::{
@@ -18,7 +20,7 @@ use crate::a11y::shell_bridge::{
 };
 use crate::activity_center::{
     ActivityCenterRow, ActivityCenterRuntime, ActivityCenterSnapshot, ActivityRowLifecycleClass,
-    ActivityRowRetryability, DurableJobObservation,
+    ActivityRowProgress, ActivityRowRetryability, DurableJobObservation,
 };
 use crate::app_frame::desktop_frame::{
     DesktopFrame, EditorTabId, NewEditorGroupOutcome, SplitViolation,
@@ -28,6 +30,10 @@ use crate::chrome::title_context_bar::{
     DeploymentProfileClass, HostStateClass, IdentityMode as TitleIdentityMode, ProfileModeClass,
     SurfaceKind, TitleContextBarRuntimeInputs, TitleContextBarRuntimeState,
     TitleContextBarStateRecord,
+};
+use crate::clone::{
+    CloneError, CloneErrorClass, CloneProgressEvent, CloneProgressPhase, CloneRequest,
+    GitCloneBackend, GitProbe, SystemGitCloneBackend,
 };
 use crate::commands::diagnostics_sheet::{
     diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record_with_arguments,
@@ -139,10 +145,10 @@ use aureline_workspace::save::{
 };
 use aureline_workspace::{
     resolve_entry_flow, EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb,
-    PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
-    RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
-    RestoreAvailability, ResultingMode, SafeRecoveryAction, TargetKind, TrustState,
-    WorkspaceLifecycleMachine, WorkspaceLifecycleState, WorkspaceRootKind,
+    OpenFlowSheetClass, PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind,
+    RecentWorkRegistry, RecentWorkRegistryError, RecentWorkRegistryRecordKind,
+    RecentWorkTargetState, RestoreAvailability, ResultingMode, SafeRecoveryAction, TargetKind,
+    TrustState, WorkspaceLifecycleMachine, WorkspaceLifecycleState, WorkspaceRootKind,
 };
 
 use crate::bootstrap::appearance_golden::write_png_0rgb;
@@ -1037,6 +1043,15 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut start_center = StartCenterState::new();
     let mut overlay: Option<ShellOverlayState> = None;
     let mut command_runtime = CommandRuntimeState::default();
+    let clone_startup_probe = SystemGitCloneBackend::default().probe();
+    if let Err(err) = clone_startup_probe.as_ref() {
+        command_runtime.note_non_command_action(format!(
+            "clone unavailable - {} ({})",
+            err.class.as_str(),
+            err.message
+        ));
+    }
+    let mut clone_jobs = CloneJobRuntimeState::new(clone_startup_probe);
     let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
     let mut recent_work = RecentWorkRuntimeState::load();
@@ -1366,12 +1381,33 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
                 }
             }
+            if poll_clone_jobs(
+                &mut clone_jobs,
+                &mut command_runtime,
+                &mut frame,
+                &mut editor_runtime,
+                &mut palette,
+                &mut overlay,
+                &enablement_runtime,
+                &mut workspace_lifecycle,
+                &mut recent_work,
+                &mut activity_center,
+            ) {
+                enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+            }
             let mut next_deadline = palette.next_wake_deadline(now);
             if editor_runtime.terminal_pane.has_live_sessions() {
                 let terminal_poll_deadline = now + Duration::from_millis(50);
                 next_deadline = Some(match next_deadline {
                     Some(existing) => existing.min(terminal_poll_deadline),
                     None => terminal_poll_deadline,
+                });
+            }
+            if clone_jobs.has_active() {
+                let clone_poll_deadline = now + Duration::from_millis(50);
+                next_deadline = Some(match next_deadline {
+                    Some(existing) => existing.min(clone_poll_deadline),
+                    None => clone_poll_deadline,
                 });
             }
             let animation_frame = now + Duration::from_millis(16);
@@ -1701,6 +1737,51 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                         return;
                     }
                 }
+                if !palette.is_open() && overlay.is_none() {
+                    let runtime = StartCenterRuntimeInputs {
+                        client_scope: "desktop_product",
+                        workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
+                        execution_context_available: enablement_runtime.execution_context_available,
+                        provider_linked: enablement_runtime.provider_linked,
+                        credential_available: enablement_runtime.credential_available,
+                        policy_disabled: enablement_runtime.policy_disabled,
+                        policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+                    };
+                    let rows = start_center_action_rows(registry, runtime);
+                    if let Ok(token_registry) = seeded_token_registry(appearance.theme_class()) {
+                        if let Ok(style) = ShellRenderStyle::load(
+                            token_registry,
+                            appearance.density_class(),
+                            window.scale_factor(),
+                        ) {
+                            if let Some((group, row_index)) = start_center_action_at_point(
+                                &frame,
+                                window.scale_factor(),
+                                &style,
+                                &mut text_runtime,
+                                rows.len(),
+                                x,
+                                y,
+                            ) {
+                                start_center.select_index(row_index, rows.len());
+                                frame.focus_zone(ShellZoneId::MainWorkspace);
+                                frame.focus_editor_group(group);
+                                if let Some(row) = rows.get(row_index) {
+                                    open_start_center_entry_flow_sheet(
+                                        &mut frame,
+                                        &mut overlay,
+                                        row,
+                                    );
+                                    enqueue_damage_hint(
+                                        &mut scheduler,
+                                        ShellDamageHint::FullWindow,
+                                    );
+                                }
+                                return;
+                            }
+                        }
+                    }
+                }
                 if frame.focused_zone() != ShellZoneId::MainWorkspace
                     || palette.is_open()
                     || overlay.is_some()
@@ -1801,6 +1882,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &mut start_center,
                     &mut overlay,
                     &mut command_runtime,
+                    &mut clone_jobs,
                     &mut keybinding_runtime,
                     &mut enablement_runtime,
                     &mut workspace_lifecycle,
@@ -2095,6 +2177,91 @@ impl CommandRuntimeState {
         if let Ok(json) = invocation.result_packet.to_pretty_json() {
             let _ = std::fs::write(root.join(result_name), json);
         }
+    }
+}
+
+#[derive(Debug)]
+struct CloneJobRuntimeState {
+    startup_probe: Result<GitProbe, CloneError>,
+    active: Option<CloneJobHandle>,
+    next_seq: usize,
+}
+
+#[derive(Debug)]
+struct CloneJobHandle {
+    operation_id: String,
+    request: CloneRequest,
+    session: CommandInvocationSession,
+    receiver: Receiver<CloneWorkerMessage>,
+}
+
+#[derive(Debug, Clone)]
+enum CloneWorkerMessage {
+    Progress(CloneProgressEvent),
+    Completed(Result<(), CloneError>),
+}
+
+impl CloneJobRuntimeState {
+    fn new(startup_probe: Result<GitProbe, CloneError>) -> Self {
+        Self {
+            startup_probe,
+            active: None,
+            next_seq: 1,
+        }
+    }
+
+    fn has_active(&self) -> bool {
+        self.active.is_some()
+    }
+
+    fn next_operation_id(&mut self, request: &CloneRequest) -> String {
+        let seq = self.next_seq;
+        self.next_seq = self.next_seq.saturating_add(1);
+        format!(
+            "clone-{:016x}-{:02}",
+            fnv1a_64(&format!(
+                "{}\n{}",
+                request.remote_url,
+                request.destination_path.display()
+            )),
+            seq
+        )
+    }
+
+    fn start(
+        &mut self,
+        request: CloneRequest,
+        session: CommandInvocationSession,
+    ) -> Result<String, CloneError> {
+        if let Err(err) = &self.startup_probe {
+            return Err(err.clone());
+        }
+        if self.active.is_some() {
+            return Err(CloneError::new(
+                CloneErrorClass::InvalidInput,
+                "another clone is already running",
+            ));
+        }
+
+        request.validate()?;
+        let operation_id = self.next_operation_id(&request);
+        let worker_request = request.clone();
+        let (sender, receiver) = mpsc::channel();
+        thread::spawn(move || {
+            let backend = SystemGitCloneBackend::default();
+            let result = backend.clone_repository(&worker_request, &mut |event| {
+                let _ = sender.send(CloneWorkerMessage::Progress(event));
+            });
+            let _ = sender.send(CloneWorkerMessage::Completed(result));
+        });
+
+        self.active = Some(CloneJobHandle {
+            operation_id: operation_id.clone(),
+            request,
+            session,
+            receiver,
+        });
+        Ok(operation_id)
     }
 }
 
@@ -5739,6 +5906,107 @@ impl ActivityCenterRuntimeState {
         true
     }
 
+    fn note_clone_running(
+        &mut self,
+        operation_id: &str,
+        remote_url: &str,
+        destination_path: &Path,
+        progress_label: Option<String>,
+    ) {
+        let progress = progress_label.map(|label| ActivityRowProgress::new(label, 0, 0));
+        self.record_clone_transition(
+            operation_id,
+            remote_url,
+            destination_path,
+            "running",
+            SeverityClass::Info,
+            DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, progress),
+            None,
+        );
+    }
+
+    fn note_clone_completed(
+        &mut self,
+        operation_id: &str,
+        remote_url: &str,
+        destination_path: &Path,
+    ) {
+        self.record_clone_transition(
+            operation_id,
+            remote_url,
+            destination_path,
+            "completed",
+            SeverityClass::Success,
+            DurableJobObservation::completed(
+                format!("Cloned into {}", destination_path.display()),
+                Some(format!("obj:clone:{operation_id}")),
+            ),
+            Some(FanoutSurfaceClass::Toast),
+        );
+    }
+
+    fn note_clone_failed(
+        &mut self,
+        operation_id: &str,
+        remote_url: &str,
+        destination_path: &Path,
+        error: &CloneError,
+    ) {
+        self.record_clone_transition(
+            operation_id,
+            remote_url,
+            destination_path,
+            "failed",
+            SeverityClass::Error,
+            DurableJobObservation::failed(
+                ActivityRowRetryability::Available,
+                format!("{}: {}", error.class.as_str(), error.message),
+                Some(format!("obj:clone:{operation_id}")),
+            ),
+            Some(FanoutSurfaceClass::ContextualBanner),
+        );
+    }
+
+    fn record_clone_transition(
+        &mut self,
+        operation_id: &str,
+        _remote_url: &str,
+        destination_path: &Path,
+        phase: &str,
+        severity_class: SeverityClass,
+        observation: DurableJobObservation,
+        attention_surface: Option<FanoutSurfaceClass>,
+    ) {
+        let destination_label = destination_path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| destination_path.display().to_string());
+        let event_id = format!("ux:event:clone-repository:{operation_id}");
+        let object_target_ref = format!("obj:clone:{operation_id}");
+        let source_event_ref = format!("workspace-clone:{operation_id}");
+        let summary_label = match phase {
+            "completed" => format!("Clone completed: {destination_label}"),
+            "failed" => format!("Clone failed: {destination_label}"),
+            _ => format!("Clone running: {destination_label}"),
+        };
+        self.record_job(
+            ActivityJobRecord {
+                event_id: &event_id,
+                envelope_id: &format!("ux:notif-env:clone-repository:{operation_id}:{phase}"),
+                source_subsystem: SourceSubsystem::Shell,
+                source_event_ref: &source_event_ref,
+                object_target_ref: &object_target_ref,
+                summary_label: &summary_label,
+                severity_class,
+                action_command_id: "cmd:activity.focus_origin",
+                action_label: "Focus clone",
+                attention_surface,
+                minted_at: now_rfc3339(),
+            },
+            observation,
+        );
+    }
+
     fn next_save_operation_id(&self, label: &str) -> String {
         let token = now_rfc3339();
         format!(
@@ -5953,6 +6221,20 @@ fn sanitize_activity_id_component(value: &str) -> String {
             _ => '-',
         })
         .collect()
+}
+
+fn expand_tilde(value: &str) -> PathBuf {
+    if value == "~" {
+        return env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(value));
+    }
+    if let Some(rest) = value.strip_prefix("~/") {
+        if let Some(home) = env::var_os("HOME") {
+            return PathBuf::from(home).join(rest);
+        }
+    }
+    PathBuf::from(value)
 }
 
 #[derive(Debug, Clone)]
@@ -6335,6 +6617,7 @@ fn workspace_id_for_local_folder(identity_key: &str) -> String {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LocalFolderOpenSource {
     CliArgument,
+    CloneRepository,
     FolderPicker,
 }
 
@@ -6342,6 +6625,7 @@ impl LocalFolderOpenSource {
     const fn status_label(self) -> &'static str {
         match self {
             Self::CliArgument => "opened folder from CLI",
+            Self::CloneRepository => "opened cloned repository",
             Self::FolderPicker => "opened folder",
         }
     }
@@ -6404,6 +6688,114 @@ fn open_local_folder_workspace(
             source.status_label(),
             path.display()
         ));
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn poll_clone_jobs(
+    clone_jobs: &mut CloneJobRuntimeState,
+    command_runtime: &mut CommandRuntimeState,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    palette: &mut CommandPaletteState,
+    overlay: &mut Option<ShellOverlayState>,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+) -> bool {
+    let Some(job) = clone_jobs.active.as_mut() else {
+        return false;
+    };
+
+    let mut changed = false;
+    let mut completed: Option<Result<(), CloneError>> = None;
+    while let Ok(message) = job.receiver.try_recv() {
+        changed = true;
+        match message {
+            CloneWorkerMessage::Progress(event) => {
+                let label = clone_progress_label(&event);
+                activity_center.note_clone_running(
+                    &job.operation_id,
+                    &job.request.remote_url,
+                    &job.request.destination_path,
+                    Some(label.clone()),
+                );
+                set_clone_sheet_status(overlay, label.clone(), true);
+                command_runtime.note_non_command_action(format!("clone progress - {label}"));
+            }
+            CloneWorkerMessage::Completed(result) => {
+                completed = Some(result);
+                break;
+            }
+        }
+    }
+
+    let Some(result) = completed else {
+        return changed;
+    };
+
+    let job = clone_jobs
+        .active
+        .take()
+        .expect("clone job exists after completed message");
+    match result {
+        Ok(()) => {
+            activity_center.note_clone_completed(
+                &job.operation_id,
+                &job.request.remote_url,
+                &job.request.destination_path,
+            );
+            command_runtime.record(invocation_and_result_clone_succeeded(
+                &job.session,
+                &job.request.destination_path,
+            ));
+            set_clone_sheet_status(overlay, "clone completed".to_string(), false);
+            open_local_folder_workspace(
+                &job.request.destination_path,
+                LocalFolderOpenSource::CloneRepository,
+                command_runtime,
+                frame,
+                editor_runtime,
+                palette,
+                enablement_runtime,
+                workspace_lifecycle,
+                recent_work,
+                activity_center,
+            );
+            if let Some(state) = overlay.as_mut() {
+                state.close(frame);
+            }
+            *overlay = None;
+        }
+        Err(err) => {
+            activity_center.note_clone_failed(
+                &job.operation_id,
+                &job.request.remote_url,
+                &job.request.destination_path,
+                &err,
+            );
+            command_runtime.record(invocation_and_result_clone_failed(&job.session, &err));
+            command_runtime.note_non_command_action(format!(
+                "clone failed - {} ({})",
+                err.class.as_str(),
+                err.message
+            ));
+            set_clone_sheet_status(
+                overlay,
+                format!("{}: {}", err.class.as_str(), err.message),
+                false,
+            );
+        }
+    }
+    true
+}
+
+fn clone_progress_label(event: &CloneProgressEvent) -> String {
+    match event.phase {
+        CloneProgressPhase::Starting => "Starting clone".to_string(),
+        CloneProgressPhase::Completed => "Clone completed".to_string(),
+        CloneProgressPhase::Progress => event.message.clone(),
     }
 }
 
@@ -7306,6 +7698,28 @@ fn dispatch_registry_entry(
         approval_ticket_ref.clone(),
     );
 
+    if entry.descriptor.command_id == "cmd:workspace.clone_repository"
+        && clone_request_from_argument_map(&session.argument_provenance_map).is_err()
+    {
+        let outcome = resolve_entry_flow(EntryFlowRequest {
+            entry_verb: EntryVerb::Clone,
+            target: EntryFlowTarget::ExplicitTargetKind(TargetKind::RemoteRepository),
+            preferred_resulting_mode: Some(ResultingMode::CloneThenReview),
+        });
+        *overlay = Some(ShellOverlayState::entry_flow_sheet(
+            frame.focused_zone(),
+            frame.focused_editor_group(),
+            outcome,
+            entry.descriptor.command_id.clone(),
+            origin,
+            session.argument_provenance_map.clone(),
+            None,
+            None,
+        ));
+        frame.focus_zone(ShellZoneId::TransientOverlay);
+        return true;
+    }
+
     let enablement_context = CommandEnablementContext {
         client_scope: "desktop_product".to_string(),
         workspace_trust_state: enablement_runtime.workspace_trust_state.clone(),
@@ -7640,15 +8054,12 @@ fn dispatch_registry_entry(
             true
         }
         "cmd:workspace.clone_repository" => {
-            let invocation = invocation_and_result_unimplemented(&session);
-            command_runtime.record(invocation);
-            let group = frame.focused_editor_group();
-            if let Some(tab) = frame.open_tab() {
-                editor_runtime.open_placeholder(group, tab);
-            }
-            command_runtime.note_non_command_action(
-                "clone repository requested (clone materialization not implemented)",
+            let err = CloneError::new(
+                CloneErrorClass::InvalidInput,
+                "clone requires the clone flow sheet",
             );
+            command_runtime.record(invocation_and_result_clone_failed(&session, &err));
+            command_runtime.note_non_command_action("clone requires the clone flow sheet");
             true
         }
         "cmd:workspace.restore_from_checkpoint" => {
@@ -8341,6 +8752,178 @@ fn invocation_and_result_open_folder_cancelled(
     invocation_and_result_simple_success(session, "cancelled_by_user")
 }
 
+fn invocation_and_result_clone_succeeded(
+    session: &CommandInvocationSession,
+    destination_path: &Path,
+) -> RecordedCommandInvocation {
+    let preview_ref = session
+        .preview_posture
+        .preview_record_ref
+        .clone()
+        .unwrap_or_else(|| mint_preview_record_ref(&session.canonical_verb));
+    let journal_entry_ref = session
+        .invocation_session_id
+        .replacen("inv:", "journal-entry:", 1);
+    let artifact_ref = format!("workspace-root:{}", destination_path.display());
+
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "succeeded".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(
+        outcome,
+        vec![
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "preview_record_emitted_ref".to_string(),
+                artifact_ref: preview_ref.clone(),
+            },
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "journal_entry_appended_ref".to_string(),
+                artifact_ref: journal_entry_ref.clone(),
+            },
+        ],
+        vec![
+            EvidenceRefEntry {
+                evidence_ref_class: "preview_record_ref".to_string(),
+                evidence_id: preview_ref.clone(),
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+                evidence_id: journal_entry_ref.clone(),
+            },
+        ],
+    );
+
+    let result = ResultBodyBlock {
+        outcome_code: "succeeded".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: Vec::new(),
+        created_artifact_refs: vec![
+            ArtifactRefEntry {
+                result_contract_class: "preview_record_emitted_ref".to_string(),
+                artifact_ref: preview_ref,
+                artifact_role: "preview_record".to_string(),
+            },
+            ArtifactRefEntry {
+                result_contract_class: "journal_entry_appended_ref".to_string(),
+                artifact_ref: journal_entry_ref.clone(),
+                artifact_role: "side_effect_record".to_string(),
+            },
+            ArtifactRefEntry {
+                result_contract_class: "workspace_opened_ref".to_string(),
+                artifact_ref,
+                artifact_role: "workspace_root".to_string(),
+            },
+        ],
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_reversible_by_contract".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: vec![EvidenceRefEntry {
+            evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+            evidence_id: journal_entry_ref,
+        }],
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        "parity-expectation:workspace.clone_repository:result-contract:01".to_string(),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn invocation_and_result_clone_failed(
+    session: &CommandInvocationSession,
+    error: &CloneError,
+) -> RecordedCommandInvocation {
+    let preview_ref = session
+        .preview_posture
+        .preview_record_ref
+        .clone()
+        .unwrap_or_else(|| mint_preview_record_ref(&session.canonical_verb));
+
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "failed_with_typed_error".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(
+        outcome,
+        vec![InvocationCreatedArtifactRefEntry {
+            result_contract_class: "preview_record_emitted_ref".to_string(),
+            artifact_ref: preview_ref.clone(),
+        }],
+        vec![EvidenceRefEntry {
+            evidence_ref_class: "preview_record_ref".to_string(),
+            evidence_id: preview_ref.clone(),
+        }],
+    );
+
+    let result = ResultBodyBlock {
+        outcome_code: "failed_with_typed_error".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: vec![error.class.as_str().to_string()],
+        created_artifact_refs: vec![ArtifactRefEntry {
+            result_contract_class: "preview_record_emitted_ref".to_string(),
+            artifact_ref: preview_ref.clone(),
+            artifact_role: "preview_record".to_string(),
+        }],
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: vec![EvidenceRefEntry {
+            evidence_ref_class: "preview_record_ref".to_string(),
+            evidence_id: preview_ref,
+        }],
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        "parity-expectation:workspace.clone_repository:result-contract:01".to_string(),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
 fn invocation_and_result_restore_from_checkpoint(
     session: &CommandInvocationSession,
     outcome: &RestoreOutcome,
@@ -8688,9 +9271,13 @@ fn finalize_command_overlay_decision(
                         .record(invocation_and_result_import_profile_succeeded(&session));
                 }
                 "cmd:workspace.clone_repository" => {
-                    command_runtime.record(invocation_and_result_unimplemented(&session));
+                    let err = CloneError::new(
+                        CloneErrorClass::InvalidInput,
+                        "clone requires a remote URL and destination path",
+                    );
+                    command_runtime.record(invocation_and_result_clone_failed(&session, &err));
                     command_runtime.note_non_command_action(
-                        "clone repository approved (clone materialization not implemented)",
+                        "clone requires a remote URL and destination path",
                     );
                 }
                 "cmd:workspace.restore_from_checkpoint" => {
@@ -9521,6 +10108,264 @@ fn apply_workspace_switcher_decision(
     }
 }
 
+fn open_start_center_entry_flow_sheet(
+    frame: &mut DesktopFrame,
+    overlay: &mut Option<ShellOverlayState>,
+    row: &crate::start_center::StartCenterActionRow,
+) {
+    let (entry_verb, target_kind, preferred_resulting_mode, degraded_token, note) =
+        start_center_flow_tuple(row.action_id);
+    let outcome = resolve_entry_flow(EntryFlowRequest {
+        entry_verb,
+        target: EntryFlowTarget::ExplicitTargetKind(target_kind),
+        preferred_resulting_mode: Some(preferred_resulting_mode),
+    });
+
+    *overlay = Some(ShellOverlayState::entry_flow_sheet(
+        frame.focused_zone(),
+        frame.focused_editor_group(),
+        outcome,
+        row.command_id.to_string(),
+        DispatchOrigin::StartCenter,
+        row.argument_provenance_map.clone(),
+        degraded_token,
+        note,
+    ));
+    frame.focus_zone(ShellZoneId::TransientOverlay);
+}
+
+fn start_center_flow_tuple(
+    action_id: StartCenterPrimaryActionId,
+) -> (
+    EntryVerb,
+    TargetKind,
+    ResultingMode,
+    Option<DegradedStateToken>,
+    Option<String>,
+) {
+    match action_id {
+        StartCenterPrimaryActionId::OpenFolder => (
+            EntryVerb::Open,
+            TargetKind::LocalFolder,
+            ResultingMode::Folder,
+            None,
+            None,
+        ),
+        StartCenterPrimaryActionId::OpenWorkspace => (
+            EntryVerb::Open,
+            TargetKind::WorkspaceManifest,
+            ResultingMode::WorkspaceWithRoots,
+            Some(DegradedStateToken::Unsupported),
+            Some("Workspace-file selection is not implemented yet.".to_string()),
+        ),
+        StartCenterPrimaryActionId::CloneRepository => (
+            EntryVerb::Clone,
+            TargetKind::RemoteRepository,
+            ResultingMode::CloneThenReview,
+            None,
+            None,
+        ),
+        StartCenterPrimaryActionId::RestoreLastSession => (
+            EntryVerb::Restore,
+            TargetKind::RecoveryCheckpoint,
+            ResultingMode::RestoreLastSession,
+            None,
+            None,
+        ),
+        StartCenterPrimaryActionId::ImportFrom => (
+            EntryVerb::Import,
+            TargetKind::CompetitorConfigRoot,
+            ResultingMode::ExtractThenReview,
+            Some(DegradedStateToken::Unsupported),
+            Some("Import execution is not implemented yet.".to_string()),
+        ),
+    }
+}
+
+fn clone_request_from_argument_map(
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+) -> Result<CloneRequest, CloneError> {
+    let remote_url =
+        clone_argument_value(argument_provenance_map, "remote_repository_ref", "git-url:")
+            .ok_or_else(|| {
+                CloneError::new(CloneErrorClass::InvalidInput, "remote URL is required")
+            })?;
+    let destination_path =
+        clone_argument_value(argument_provenance_map, "destination_root_ref", "path:").ok_or_else(
+            || {
+                CloneError::new(
+                    CloneErrorClass::InvalidInput,
+                    "destination path is required",
+                )
+            },
+        )?;
+    let request = CloneRequest::new(remote_url, expand_tilde(&destination_path));
+    request.validate()?;
+    Ok(request)
+}
+
+fn clone_argument_value(
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+    argument_name: &str,
+    prefix: &str,
+) -> Option<String> {
+    let raw = argument_provenance_map
+        .iter()
+        .find(|row| row.argument_name == argument_name)?
+        .resolved_value_ref
+        .as_deref()?;
+    raw.strip_prefix(prefix)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn submit_clone_from_entry_flow(
+    command_runtime: &mut CommandRuntimeState,
+    registry: &CommandRegistry,
+    frame: &DesktopFrame,
+    overlay: &mut Option<ShellOverlayState>,
+    clone_jobs: &mut CloneJobRuntimeState,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    decision: EntryFlowOverlayDecision,
+) -> bool {
+    let Some(entry) = registry.get(&decision.command_id).cloned() else {
+        set_clone_sheet_status(
+            overlay,
+            "clone command is missing from the command registry".to_string(),
+            false,
+        );
+        return true;
+    };
+
+    let mut session = make_session(
+        frame,
+        &entry,
+        decision.origin,
+        "apply_after_preview",
+        enablement_runtime.workspace_trust_state.as_str(),
+        decision.argument_provenance_map,
+        true,
+        Some(mint_preview_record_ref(&entry.descriptor.canonical_verb)),
+        "not_required",
+        None,
+    );
+
+    let enablement_context = CommandEnablementContext {
+        client_scope: "desktop_product".to_string(),
+        workspace_trust_state: enablement_runtime.workspace_trust_state.clone(),
+        execution_context_available: enablement_runtime.execution_context_available,
+        provider_linked: enablement_runtime.provider_linked,
+        credential_available: enablement_runtime.credential_available,
+        policy_disabled: enablement_runtime.policy_disabled,
+        policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        argument_provenance_map: session.argument_provenance_map.clone(),
+    };
+    let preflight = entry.preflight(&enablement_context);
+    let enablement_snapshot = preflight.enablement_snapshot.clone();
+    session.enablement_decision = EnablementDecisionBlock {
+        decision_class: enablement_snapshot.decision_class,
+        disabled_reason_code: enablement_snapshot.disabled_reason_code,
+        repair_hook_ref: enablement_snapshot.repair_hook_ref,
+    };
+
+    if matches!(
+        preflight.decision_class,
+        PreflightDecisionClass::BlockedByPolicy | PreflightDecisionClass::DisabledWithReason
+    ) {
+        let denied_code = session
+            .enablement_decision
+            .disabled_reason_code
+            .unwrap_or(DisabledReasonCode::PolicyBlockedInContext);
+        command_runtime.record(invocation_and_result_denied(&session, denied_code));
+        set_clone_sheet_status(
+            overlay,
+            format!("clone denied: {}", denied_code.as_str()),
+            false,
+        );
+        return true;
+    }
+
+    let request = match clone_request_from_argument_map(&session.argument_provenance_map) {
+        Ok(request) => request,
+        Err(err) => {
+            command_runtime.record(invocation_and_result_clone_failed(&session, &err));
+            set_clone_sheet_status(
+                overlay,
+                format!("{}: {}", err.class.as_str(), err.message),
+                false,
+            );
+            return true;
+        }
+    };
+
+    match clone_jobs.start(request.clone(), session.clone()) {
+        Ok(operation_id) => {
+            activity_center.note_clone_running(
+                &operation_id,
+                &request.remote_url,
+                &request.destination_path,
+                Some("Starting clone".to_string()),
+            );
+            command_runtime.note_non_command_action(format!(
+                "clone started - {}",
+                request.destination_path.display()
+            ));
+            set_clone_sheet_status(overlay, "clone running".to_string(), true);
+        }
+        Err(err) => {
+            let operation_id = clone_operation_id_for(&request, "failed");
+            activity_center.note_clone_failed(
+                &operation_id,
+                &request.remote_url,
+                &request.destination_path,
+                &err,
+            );
+            command_runtime.record(invocation_and_result_clone_failed(&session, &err));
+            command_runtime.note_non_command_action(format!(
+                "clone failed - {} ({})",
+                err.class.as_str(),
+                err.message
+            ));
+            set_clone_sheet_status(
+                overlay,
+                format!("{}: {}", err.class.as_str(), err.message),
+                false,
+            );
+        }
+    }
+    true
+}
+
+fn clone_operation_id_for(request: &CloneRequest, suffix: &str) -> String {
+    format!(
+        "clone-{:016x}-{suffix}",
+        fnv1a_64(&format!(
+            "{}\n{}",
+            request.remote_url,
+            request.destination_path.display()
+        ))
+    )
+}
+
+fn set_clone_sheet_status(
+    overlay: &mut Option<ShellOverlayState>,
+    status_line: String,
+    running: bool,
+) {
+    if let Some(ShellOverlayState {
+        kind: ShellOverlayKind::EntryFlowSheet(sheet),
+        ..
+    }) = overlay.as_mut()
+    {
+        if let Some(form) = sheet.clone_form.as_mut() {
+            form.status_line = Some(status_line);
+            form.running = running;
+        }
+    }
+}
+
 fn invocation_and_result_import_profile_cancelled(
     session: &CommandInvocationSession,
 ) -> RecordedCommandInvocation {
@@ -9730,6 +10575,7 @@ fn handle_key_event(
     start_center: &mut StartCenterState,
     overlay: &mut Option<ShellOverlayState>,
     command_runtime: &mut CommandRuntimeState,
+    clone_jobs: &mut CloneJobRuntimeState,
     keybinding_runtime: &mut KeybindingRuntimeState,
     enablement_runtime: &mut CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
@@ -10045,22 +10891,35 @@ fn handle_key_event(
                 *overlay = None;
             }
             if let Some(decision) = entry_flow_decision {
-                let changed = dispatch_command_id_with_arguments(
-                    command_runtime,
-                    registry,
-                    frame,
-                    editor_runtime,
-                    palette,
-                    palette_focus_return,
-                    overlay,
-                    &decision.command_id,
-                    decision.origin,
-                    enablement_runtime,
-                    workspace_lifecycle,
-                    recent_work,
-                    activity_center,
-                    Some(decision.argument_provenance_map),
-                );
+                let changed = if decision.command_id == "cmd:workspace.clone_repository" {
+                    submit_clone_from_entry_flow(
+                        command_runtime,
+                        registry,
+                        frame,
+                        overlay,
+                        clone_jobs,
+                        enablement_runtime,
+                        activity_center,
+                        decision,
+                    )
+                } else {
+                    dispatch_command_id_with_arguments(
+                        command_runtime,
+                        registry,
+                        frame,
+                        editor_runtime,
+                        palette,
+                        palette_focus_return,
+                        overlay,
+                        &decision.command_id,
+                        decision.origin,
+                        enablement_runtime,
+                        workspace_lifecycle,
+                        recent_work,
+                        activity_center,
+                        Some(decision.argument_provenance_map),
+                    )
+                };
                 return if changed {
                     ShellDamageHint::FullWindow
                 } else {
@@ -10262,62 +11121,7 @@ fn handle_key_event(
                 let Some(row) = rows.get(idx) else {
                     return ShellDamageHint::None;
                 };
-                let (entry_verb, target_kind, preferred_resulting_mode, degraded_token, note) =
-                    match row.action_id {
-                        StartCenterPrimaryActionId::OpenFolder => (
-                            EntryVerb::Open,
-                            TargetKind::LocalFolder,
-                            ResultingMode::Folder,
-                            None,
-                            None,
-                        ),
-                        StartCenterPrimaryActionId::OpenWorkspace => (
-                            EntryVerb::Open,
-                            TargetKind::WorkspaceManifest,
-                            ResultingMode::WorkspaceWithRoots,
-                            Some(DegradedStateToken::Unsupported),
-                            Some("Workspace-file selection is not implemented yet.".to_string()),
-                        ),
-                        StartCenterPrimaryActionId::CloneRepository => (
-                            EntryVerb::Clone,
-                            TargetKind::RemoteRepository,
-                            ResultingMode::CloneThenReview,
-                            Some(DegradedStateToken::Unsupported),
-                            Some("Clone materialization is not implemented yet.".to_string()),
-                        ),
-                        StartCenterPrimaryActionId::RestoreLastSession => (
-                            EntryVerb::Restore,
-                            TargetKind::RecoveryCheckpoint,
-                            ResultingMode::RestoreLastSession,
-                            None,
-                            None,
-                        ),
-                        StartCenterPrimaryActionId::ImportFrom => (
-                            EntryVerb::Import,
-                            TargetKind::CompetitorConfigRoot,
-                            ResultingMode::ExtractThenReview,
-                            Some(DegradedStateToken::Unsupported),
-                            Some("Import execution is not implemented yet.".to_string()),
-                        ),
-                    };
-
-                let outcome = resolve_entry_flow(EntryFlowRequest {
-                    entry_verb,
-                    target: EntryFlowTarget::ExplicitTargetKind(target_kind),
-                    preferred_resulting_mode: Some(preferred_resulting_mode),
-                });
-
-                *overlay = Some(ShellOverlayState::entry_flow_sheet(
-                    frame.focused_zone(),
-                    frame.focused_editor_group(),
-                    outcome,
-                    row.command_id.to_string(),
-                    DispatchOrigin::StartCenter,
-                    row.argument_provenance_map.clone(),
-                    degraded_token,
-                    note,
-                ));
-                frame.focus_zone(ShellZoneId::TransientOverlay);
+                open_start_center_entry_flow_sheet(frame, overlay, row);
                 return ShellDamageHint::FullWindow;
             }
             _ => {}
@@ -12407,6 +13211,82 @@ fn activity_row_at_point<'a>(
     None
 }
 
+fn start_center_action_at_point(
+    frame: &DesktopFrame,
+    scale_factor: f64,
+    style: &ShellRenderStyle,
+    text_runtime: &mut ShellTextRuntime,
+    row_count: usize,
+    x: u32,
+    y: u32,
+) -> Option<(PaneId, usize)> {
+    for group in frame.editor_group_layouts() {
+        if group.tab_count != 0 {
+            continue;
+        }
+        let group_rect = to_physical_rect(group.rect, scale_factor);
+        if !point_in_rect(x, y, group_rect) {
+            continue;
+        }
+        let rects = start_center_action_row_rects(group_rect, style, text_runtime, row_count);
+        for (idx, rect) in rects.into_iter().enumerate() {
+            if point_in_rect(x, y, rect) {
+                return Some((group.group_id, idx));
+            }
+        }
+    }
+    None
+}
+
+fn start_center_action_row_rects(
+    rect: Rect,
+    style: &ShellRenderStyle,
+    text_runtime: &mut ShellTextRuntime,
+    row_count: usize,
+) -> Vec<Rect> {
+    let padding = style.density_zone_inset;
+    let card = Rect::new(
+        rect.x.saturating_add(padding),
+        rect.y.saturating_add(padding),
+        rect.width.saturating_sub(padding.saturating_mul(2)),
+        rect.height.saturating_sub(padding.saturating_mul(2)),
+    );
+    if card.is_empty() {
+        return Vec::new();
+    }
+
+    let content_padding = style.density_panel_padding;
+    let header_x = card.x.saturating_add(content_padding);
+    let mut y = card.y.saturating_add(content_padding);
+    let (_, header_h) = ui_primary_ascent_and_height(text_runtime, 20.0);
+    y = y.saturating_add(header_h).saturating_add(style.space_2);
+    let (_, subtitle_h) = ui_primary_ascent_and_height(text_runtime, 14.0);
+    y = y
+        .saturating_add(subtitle_h)
+        .saturating_add(style.density_gutter);
+
+    let (_, label_h) = ui_primary_ascent_and_height(text_runtime, 14.0);
+    let (_, detail_h) = ui_primary_ascent_and_height(text_runtime, 12.0);
+    let text_block_h = label_h.saturating_add(detail_h);
+    let row_height = style
+        .density_row_height
+        .saturating_mul(2)
+        .max(text_block_h.saturating_add(style.space_2.saturating_mul(2)));
+    let row_gap = style.density_gutter;
+    let row_width = card.width.saturating_sub(content_padding.saturating_mul(2));
+
+    let mut rects = Vec::new();
+    for _ in 0..row_count {
+        let row_rect = Rect::new(header_x, y, row_width, row_height);
+        if row_rect.bottom().saturating_add(content_padding) > card.bottom() {
+            break;
+        }
+        rects.push(row_rect);
+        y = y.saturating_add(row_height).saturating_add(row_gap);
+    }
+    rects
+}
+
 fn originating_zone_for_activity_row(row: &ActivityCenterRow) -> Option<ShellZoneId> {
     match row.source_subsystem {
         SourceSubsystem::Editor | SourceSubsystem::VfsSave | SourceSubsystem::Shell => {
@@ -13213,6 +14093,105 @@ struct EntryFlowSheetOverlay {
     argument_provenance_map: Vec<ArgumentProvenanceEntry>,
     degraded_token: Option<DegradedStateToken>,
     note: Option<String>,
+    clone_form: Option<CloneFlowForm>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CloneFlowField {
+    RemoteUrl,
+    DestinationPath,
+}
+
+#[derive(Debug, Clone)]
+struct CloneFlowForm {
+    remote_url: String,
+    destination_path: String,
+    focused_field: CloneFlowField,
+    status_line: Option<String>,
+    running: bool,
+}
+
+impl CloneFlowForm {
+    fn new() -> Self {
+        Self {
+            remote_url: String::new(),
+            destination_path: String::new(),
+            focused_field: CloneFlowField::RemoteUrl,
+            status_line: None,
+            running: false,
+        }
+    }
+
+    fn submit_enabled(&self) -> bool {
+        !self.running
+            && !self.remote_url.trim().is_empty()
+            && !self.destination_path.trim().is_empty()
+    }
+
+    fn request(&self) -> Result<CloneRequest, CloneError> {
+        let request = CloneRequest::new(
+            self.remote_url.trim().to_string(),
+            PathBuf::from(expand_tilde(self.destination_path.trim())),
+        );
+        request.validate()?;
+        Ok(request)
+    }
+
+    fn argument_provenance_map(&self) -> Vec<ArgumentProvenanceEntry> {
+        vec![
+            ArgumentProvenanceEntry {
+                argument_name: "remote_repository_ref".to_string(),
+                provenance: "user_typed_in_clone_sheet".to_string(),
+                resolved_value_ref: Some(format!("git-url:{}", self.remote_url.trim())),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "destination_root_ref".to_string(),
+                provenance: "user_typed_in_clone_sheet".to_string(),
+                resolved_value_ref: Some(format!("path:{}", self.destination_path.trim())),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "open_after_clone".to_string(),
+                provenance: "default_from_descriptor".to_string(),
+                resolved_value_ref: Some("value:bool:true".to_string()),
+            },
+        ]
+    }
+
+    fn push_text(&mut self, text: &str) -> bool {
+        let mut changed = false;
+        for ch in text.chars() {
+            if ch.is_control() {
+                continue;
+            }
+            match self.focused_field {
+                CloneFlowField::RemoteUrl => self.remote_url.push(ch),
+                CloneFlowField::DestinationPath => self.destination_path.push(ch),
+            }
+            changed = true;
+        }
+        if changed {
+            self.status_line = None;
+        }
+        changed
+    }
+
+    fn pop_char(&mut self) -> bool {
+        let changed = match self.focused_field {
+            CloneFlowField::RemoteUrl => self.remote_url.pop().is_some(),
+            CloneFlowField::DestinationPath => self.destination_path.pop().is_some(),
+        };
+        if changed {
+            self.status_line = None;
+        }
+        changed
+    }
+
+    fn toggle_field(&mut self) {
+        self.focused_field = match self.focused_field {
+            CloneFlowField::RemoteUrl => CloneFlowField::DestinationPath,
+            CloneFlowField::DestinationPath => CloneFlowField::RemoteUrl,
+        };
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -13506,6 +14485,14 @@ impl ShellOverlayState {
         degraded_token: Option<DegradedStateToken>,
         note: Option<String>,
     ) -> Self {
+        let clone_form = match &outcome {
+            EntryFlowOutcome::Resolved(resolved)
+                if resolved.sheet_class == OpenFlowSheetClass::CloneRemoteTarget =>
+            {
+                Some(CloneFlowForm::new())
+            }
+            _ => None,
+        };
         Self {
             kind: ShellOverlayKind::EntryFlowSheet(EntryFlowSheetOverlay {
                 outcome,
@@ -13514,6 +14501,7 @@ impl ShellOverlayState {
                 argument_provenance_map,
                 degraded_token,
                 note,
+                clone_form,
             }),
             focus_return_zone,
             focus_return_group,
@@ -13637,15 +14625,69 @@ impl ShellOverlayState {
                 self.close(frame);
                 true
             }
-            (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Enter) => {
-                if matches!(sheet.outcome, EntryFlowOutcome::Resolved(_)) {
-                    entry_flow_decision = Some(EntryFlowOverlayDecision {
-                        command_id: sheet.command_id.clone(),
-                        origin: sheet.origin,
-                        argument_provenance_map: sheet.argument_provenance_map.clone(),
-                    });
+            (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Escape) => {
+                if sheet.clone_form.as_ref().is_some_and(|form| form.running) {
+                    if let Some(form) = sheet.clone_form.as_mut() {
+                        form.status_line = Some(
+                            "clone is running; this build does not support cancellation"
+                                .to_string(),
+                        );
+                    }
+                } else {
+                    self.close(frame);
                 }
-                self.close(frame);
+                true
+            }
+            (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Tab) => {
+                if let Some(form) = sheet.clone_form.as_mut() {
+                    form.toggle_field();
+                    true
+                } else {
+                    false
+                }
+            }
+            (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Backspace | KeyCode::Delete) => {
+                sheet
+                    .clone_form
+                    .as_mut()
+                    .is_some_and(CloneFlowForm::pop_char)
+            }
+            (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Enter) => {
+                if let Some(form) = sheet.clone_form.as_mut() {
+                    if form.running {
+                        form.status_line = Some("clone is already running".to_string());
+                        return OverlayKeyOutcome {
+                            handled: true,
+                            command_decision,
+                            entry_flow_decision,
+                            workspace_switcher_decision,
+                        };
+                    }
+                    match form.request() {
+                        Ok(_) => {
+                            form.running = true;
+                            form.status_line = Some("clone queued".to_string());
+                            entry_flow_decision = Some(EntryFlowOverlayDecision {
+                                command_id: sheet.command_id.clone(),
+                                origin: sheet.origin,
+                                argument_provenance_map: form.argument_provenance_map(),
+                            });
+                        }
+                        Err(err) => {
+                            form.status_line =
+                                Some(format!("{}: {}", err.class.as_str(), err.message));
+                        }
+                    }
+                } else {
+                    if matches!(sheet.outcome, EntryFlowOutcome::Resolved(_)) {
+                        entry_flow_decision = Some(EntryFlowOverlayDecision {
+                            command_id: sheet.command_id.clone(),
+                            origin: sheet.origin,
+                            argument_provenance_map: sheet.argument_provenance_map.clone(),
+                        });
+                    }
+                    self.close(frame);
+                }
                 true
             }
             (ShellOverlayKind::SaveReview(review), KeyCode::Escape) => {
@@ -14662,6 +15704,29 @@ impl ShellOverlayState {
         };
 
         if !handled {
+            if let ShellOverlayKind::EntryFlowSheet(sheet) = &mut self.kind {
+                if let Some(form) = sheet.clone_form.as_mut() {
+                    if form.running || modifiers.ctrl_or_logo() || modifiers.alt {
+                        return OverlayKeyOutcome {
+                            handled,
+                            command_decision,
+                            entry_flow_decision,
+                            workspace_switcher_decision,
+                        };
+                    }
+                    if let Some(text) = text {
+                        if form.push_text(text) {
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                entry_flow_decision,
+                                workspace_switcher_decision,
+                            };
+                        }
+                    }
+                }
+            }
+
             if let ShellOverlayKind::WorkspaceSwitcher(switcher) = &mut self.kind {
                 if !matches!(switcher.mode, WorkspaceSwitcherOverlayMode::List) {
                     return OverlayKeyOutcome {
@@ -15373,6 +16438,12 @@ fn draw_shell_overlay(
                         );
                         cursor_y = cursor_y.saturating_add(16);
                     }
+
+                    if let Some(form) = sheet.clone_form.as_ref() {
+                        cursor_y = draw_clone_form_lines(
+                            buffer, width, height, cursor_x, cursor_y, sheet_rect, form, style,
+                        );
+                    }
                 }
                 EntryFlowOutcome::Denied(denied) => {
                     let line = format!("denial_code: {}", denied.denial_code.as_str());
@@ -15672,6 +16743,111 @@ fn draw_shell_overlay(
             }
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_clone_form_lines(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    x: u32,
+    mut y: u32,
+    sheet_rect: Rect,
+    form: &CloneFlowForm,
+    style: &ShellRenderStyle,
+) -> u32 {
+    let max_x = sheet_rect.right().saturating_sub(style.space_3).max(x);
+    let rows = [
+        (
+            CloneFlowField::RemoteUrl,
+            "remote_url",
+            form.remote_url.as_str(),
+        ),
+        (
+            CloneFlowField::DestinationPath,
+            "destination_path",
+            form.destination_path.as_str(),
+        ),
+    ];
+
+    for (field, label, value) in rows {
+        if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+            return y;
+        }
+        let prefix = if form.focused_field == field {
+            ">"
+        } else {
+            " "
+        };
+        let display_value = if value.trim().is_empty() {
+            "(required)"
+        } else {
+            value
+        };
+        let color = if form.focused_field == field {
+            style.tokens.text_primary
+        } else {
+            style.tokens.text_muted
+        };
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            1,
+            &format!("{prefix} {label}: {display_value}"),
+            color,
+            max_x,
+        );
+        y = y.saturating_add(16);
+    }
+
+    if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
+        let state = if form.running {
+            "running"
+        } else if form.submit_enabled() {
+            "enabled"
+        } else {
+            "disabled"
+        };
+        let color = if form.submit_enabled() || form.running {
+            style.status_success
+        } else {
+            style.tokens.text_muted
+        };
+        draw_text_clamped(
+            buffer,
+            width,
+            height,
+            x,
+            y,
+            1,
+            &format!("submit: {state}"),
+            color,
+            max_x,
+        );
+        y = y.saturating_add(16);
+    }
+
+    if let Some(status) = form.status_line.as_deref() {
+        if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                status,
+                style.tokens.text_secondary,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
+    }
+
+    y
 }
 
 fn to_physical_rect(rect: Rect, scale_factor: f64) -> Rect {

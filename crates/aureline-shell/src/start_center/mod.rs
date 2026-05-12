@@ -131,6 +131,15 @@ impl StartCenterState {
         self.selection
     }
 
+    /// Selects a row by index, clamping to the available row count.
+    pub fn select_index(&mut self, index: usize, row_count: usize) {
+        if row_count == 0 {
+            self.selection = 0;
+        } else {
+            self.selection = index.min(row_count - 1);
+        }
+    }
+
     /// Advances the selection by one, wrapping at `row_count`.
     pub fn select_next(&mut self, row_count: usize) {
         if row_count == 0 {

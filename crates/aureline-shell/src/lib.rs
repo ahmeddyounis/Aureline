@@ -56,6 +56,8 @@ pub mod bootstrap;
 pub mod breadcrumbs;
 /// Title/context bar, status surfaces, and canonical identity tuple wiring.
 pub mod chrome;
+/// Background repository clone execution and typed Git failure mapping.
+pub mod clone;
 /// Command review-sheet projections for diagnostics and invocation previews.
 pub mod commands;
 /// Debug-prep seed surface: thin projection over the shared execution-context
