@@ -172,8 +172,10 @@ use winit::event::{ElementState, Event, Ime, KeyEvent, MouseScrollDelta, WindowE
 use winit::event_loop::{ControlFlow, EventLoop};
 
 use aureline_recovery::crash_journal::{CrashJournalStore, CrashMarkerGuard};
-use aureline_recovery::session_restore::records::RestoreClass;
-use aureline_recovery::session_restore::{RestoreProposal, SessionRestoreStore};
+use aureline_recovery::session_restore::{
+    RestoreDirtyBufferReplay, RestoreOutcome, RestorePaneExecutionKind, RestoreProposal,
+    RestoreRuntime, SessionRestoreStore,
+};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[derive(Debug, Clone)]
@@ -2030,6 +2032,41 @@ impl BufferAuthority {
     }
 }
 
+fn replay_recovered_bytes_into_authority(
+    authority: &mut BufferAuthority,
+    bytes: &[u8],
+) -> Result<(), String> {
+    authority.large_file_doc = None;
+    authority.large_file_override = None;
+    authority.find_replace = FindReplaceState::new();
+    authority.last_recorded_mutation_transaction_id = None;
+    authority.last_recorded_mutation_id = None;
+    authority.last_recorded_crash_journal_revision = None;
+
+    match std::str::from_utf8(bytes) {
+        Ok(text) => {
+            let len = authority.buffer.len();
+            let spec =
+                TransactionSpec::new(UndoClass::DecodeRecoveryChange, "crash_journal_restore")
+                    .with_label("Recovered from crash journal");
+            let mut tx = authority
+                .buffer
+                .begin(spec)
+                .map_err(|err| format!("dirty-buffer replay failed — {err}"))?;
+            tx.replace(0..len, text)
+                .map_err(|err| format!("dirty-buffer replay failed — {err}"))?;
+            tx.commit()
+                .map_err(|err| format!("dirty-buffer replay failed — {err}"))?;
+        }
+        Err(_) => {
+            authority.buffer = Buffer::from_bytes(bytes);
+            authority.saved_revision = RevisionId(u64::MAX);
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 struct TabRenderInfo {
     label: String,
@@ -2665,6 +2702,19 @@ impl EditorWorkspaceRuntimeState {
         self.ensure_tab_session(group, tab, authority);
     }
 
+    fn open_restore_placeholder(
+        &mut self,
+        group: PaneId,
+        tab: EditorTabId,
+        label: impl Into<String>,
+        detail: impl AsRef<str>,
+    ) {
+        let label = label.into();
+        let text = format!("{}\n\n{}\n", label, detail.as_ref());
+        let authority = self.buffers.placeholder_authority(label, &text);
+        self.ensure_tab_session(group, tab, authority);
+    }
+
     fn open_file(&mut self, group: PaneId, tab: EditorTabId, path: &Path) -> Result<(), String> {
         let authority = self.buffers.open_file_authority(path)?;
         let view_state = authority
@@ -2677,6 +2727,36 @@ impl EditorWorkspaceRuntimeState {
         if let Some(view_state) = view_state {
             session.apply_viewport_snapshot(&view_state);
         }
+        Ok(())
+    }
+
+    fn open_recovered_dirty_buffer(
+        &mut self,
+        group: PaneId,
+        tab: EditorTabId,
+        replay: &RestoreDirtyBufferReplay,
+        file_path: Option<&Path>,
+    ) -> Result<(), String> {
+        let label = replay
+            .presentation_hint
+            .clone()
+            .unwrap_or_else(|| "Recovered buffer".to_string());
+        let authority = match file_path {
+            Some(path) => match self.buffers.open_file_authority(path) {
+                Ok(authority) => authority,
+                Err(_) => self.buffers.placeholder_authority(label.clone(), ""),
+            },
+            None => self.buffers.placeholder_authority(label.clone(), ""),
+        };
+
+        {
+            let mut auth = authority.borrow_mut();
+            replay_recovered_bytes_into_authority(&mut auth, &replay.bytes)?;
+        }
+
+        let session = self.ensure_tab_session(group, tab, authority);
+        session.refresh_snapshot_and_cache();
+        session.needs_text_repaint = true;
         Ok(())
     }
 
@@ -6048,6 +6128,16 @@ fn write_restore_proposal_log(
     Ok(())
 }
 
+fn write_restore_outcome_log(recovery_root: &Path, outcome: &RestoreOutcome) -> Result<(), String> {
+    std::fs::create_dir_all(recovery_root)
+        .map_err(|err| format!("create recovery root failed: {err}"))?;
+    let path = recovery_root.join("restore_outcome_latest.json");
+    let json = serde_json::to_string_pretty(outcome)
+        .map_err(|err| format!("serialize restore outcome failed: {err}"))?;
+    std::fs::write(&path, json).map_err(|err| format!("write {} failed: {err}", path.display()))?;
+    Ok(())
+}
+
 fn trust_state_for_recent_work(value: &str) -> TrustState {
     match value {
         "trusted" => TrustState::Trusted,
@@ -6957,14 +7047,24 @@ fn dispatch_registry_entry(
             true
         }
         "cmd:workspace.restore_from_checkpoint" => {
-            let invocation = invocation_and_result_unimplemented(&session);
-            command_runtime.record(invocation);
-            let group = frame.focused_editor_group();
-            if let Some(tab) = frame.open_tab() {
-                editor_runtime.open_placeholder(group, tab);
+            let recovery_root = PathBuf::from(".logs").join("recovery");
+            let mut direct_session_store = SessionRestoreStore::new(&recovery_root);
+            let changed = apply_restore_from_checkpoint(
+                command_runtime,
+                frame,
+                editor_runtime,
+                &mut direct_session_store,
+                palette,
+                enablement_runtime,
+                workspace_lifecycle,
+                recent_work,
+                activity_center,
+                &session,
+            );
+            if !changed {
+                command_runtime
+                    .note_non_command_action("restore requested but no restorable state was found");
             }
-            command_runtime
-                .note_non_command_action("restore requested (restore execution not implemented)");
             true
         }
         "cmd:workspace.import_profile" => {
@@ -7175,6 +7275,147 @@ fn invocation_and_result_open_folder_cancelled(
     invocation_and_result_simple_success(session, "cancelled_by_user")
 }
 
+fn invocation_and_result_restore_from_checkpoint(
+    session: &CommandInvocationSession,
+    outcome: &RestoreOutcome,
+) -> RecordedCommandInvocation {
+    let outcome_ref = session
+        .invocation_session_id
+        .replacen("inv:", "restore-outcome:", 1);
+    let outcome_code = if outcome.is_empty() {
+        "no_op"
+    } else if outcome.manual_repair_required || !outcome.dirty_buffer_failures.is_empty() {
+        "completed_with_warnings"
+    } else {
+        "succeeded"
+    };
+
+    let mut warning_codes = Vec::new();
+    if outcome.manual_repair_required {
+        warning_codes.push("manual_repair_required".to_string());
+    }
+    if !outcome.dirty_buffer_failures.is_empty() {
+        warning_codes.push("dirty_buffer_replay_partial".to_string());
+    }
+    if outcome.blocked_side_effectful_count() > 0 {
+        warning_codes.push("side_effectful_surfaces_restored_inactive".to_string());
+    }
+
+    let outcome_block = InvocationOutcomeBlock {
+        outcome_class: outcome_code.to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: warning_codes.clone(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: outcome
+            .dirty_buffer_failures
+            .iter()
+            .map(|failure| failure.journal_entry_id.clone())
+            .collect(),
+    };
+    let session_packet = session.invocation_session_packet(
+        outcome_block,
+        vec![InvocationCreatedArtifactRefEntry {
+            result_contract_class: "restore_outcome_ref".to_string(),
+            artifact_ref: outcome_ref.clone(),
+        }],
+        vec![EvidenceRefEntry {
+            evidence_ref_class: "restore_outcome_ref".to_string(),
+            evidence_id: outcome_ref.clone(),
+        }],
+    );
+
+    let result = ResultBodyBlock {
+        outcome_code: outcome_code.to_string(),
+        warning_codes,
+        error_codes: Vec::new(),
+        created_artifact_refs: vec![ArtifactRefEntry {
+            result_contract_class: "restore_outcome_ref".to_string(),
+            artifact_ref: outcome_ref.clone(),
+            artifact_role: "restore_execution_record".to_string(),
+        }],
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_reversible_by_contract".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: vec![EvidenceRefEntry {
+            evidence_ref_class: "restore_outcome_ref".to_string(),
+            evidence_id: outcome_ref,
+        }],
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        "parity-expectation:workspace.restore_from_checkpoint:result-contract:01".to_string(),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn invocation_and_result_restore_from_checkpoint_failed(
+    session: &CommandInvocationSession,
+    error_detail: String,
+) -> RecordedCommandInvocation {
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "failed_with_typed_error".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(outcome, Vec::new(), Vec::new());
+
+    let result = ResultBodyBlock {
+        outcome_code: "failed_with_typed_error".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: vec!["restore_execution_failed".to_string(), error_detail],
+        created_artifact_refs: Vec::new(),
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_reversible_by_contract".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: Vec::new(),
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        "parity-expectation:workspace.restore_from_checkpoint:result-contract:01".to_string(),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
 fn invocation_and_result_docs_open_in_browser_succeeded(
     session: &CommandInvocationSession,
     browser_handoff_packet_ref: &str,
@@ -7370,6 +7611,7 @@ fn finalize_command_overlay_decision(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
     decision: CommandOverlayDecision,
 ) {
     match decision {
@@ -7398,6 +7640,7 @@ fn finalize_command_overlay_decision(
                         enablement_runtime,
                         workspace_lifecycle,
                         recent_work,
+                        activity_center,
                         &session,
                     );
                     if !changed {
@@ -7435,19 +7678,36 @@ fn apply_restore_from_checkpoint_preview_approved(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
     session: &CommandInvocationSession,
 ) -> bool {
-    let _ = (
-        registry,
+    let _ = (registry, palette_focus_return, overlay);
+    apply_restore_from_checkpoint(
+        command_runtime,
         frame,
         editor_runtime,
+        session_restore_store,
         palette,
-        palette_focus_return,
-        overlay,
         enablement_runtime,
         workspace_lifecycle,
         recent_work,
-    );
+        activity_center,
+        session,
+    )
+}
+
+fn apply_restore_from_checkpoint(
+    command_runtime: &mut CommandRuntimeState,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    session_restore_store: &mut SessionRestoreStore,
+    palette: &mut CommandPaletteState,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    session: &CommandInvocationSession,
+) -> bool {
     let recovery_root = PathBuf::from(".logs").join("recovery");
     let crash_journal_reader = CrashJournalStore::new(&recovery_root);
     let proposal = match RestoreProposal::build(session_restore_store, &crash_journal_reader, false)
@@ -7456,7 +7716,10 @@ fn apply_restore_from_checkpoint_preview_approved(
         Err(err) => {
             command_runtime
                 .note_non_command_action(format!("restore proposal unavailable — {err}"));
-            command_runtime.record(invocation_and_result_unimplemented(session));
+            command_runtime.record(invocation_and_result_restore_from_checkpoint_failed(
+                session,
+                err.to_string(),
+            ));
             return false;
         }
     };
@@ -7465,20 +7728,16 @@ fn apply_restore_from_checkpoint_preview_approved(
         command_runtime.note_non_command_action(
             "restore approved but proposal is empty (no restorable state)",
         );
-        command_runtime.record(invocation_and_result_unimplemented(session));
+        let mut runtime = RestoreRuntime::new(session_restore_store, &crash_journal_reader);
+        let outcome = proposal.execute(&mut runtime);
+        if let Err(err) = write_restore_outcome_log(&recovery_root, &outcome) {
+            command_runtime
+                .note_non_command_action(format!("restore outcome log unavailable — {err}"));
+        }
+        command_runtime.record(invocation_and_result_restore_from_checkpoint(
+            session, &outcome,
+        ));
         return false;
-    }
-
-    if matches!(proposal.restore_class, RestoreClass::EvidenceOnly) {
-        command_runtime.note_non_command_action(format!(
-            "restore approved as evidence-only — {}",
-            proposal.summary_line()
-        ));
-    } else {
-        command_runtime.note_non_command_action(format!(
-            "restore skeleton applied (no auto-rerun) — {}",
-            proposal.summary_line()
-        ));
     }
 
     if let Err(err) = write_restore_proposal_log(&recovery_root, &proposal) {
@@ -7486,8 +7745,242 @@ fn apply_restore_from_checkpoint_preview_approved(
             .note_non_command_action(format!("restore proposal log unavailable — {err}"));
     }
 
-    command_runtime.record(invocation_and_result_unimplemented(session));
+    let mut runtime = RestoreRuntime::new(session_restore_store, &crash_journal_reader);
+    let outcome = proposal.execute(&mut runtime);
+    if let Err(err) = write_restore_outcome_log(&recovery_root, &outcome) {
+        command_runtime.note_non_command_action(format!("restore outcome log unavailable — {err}"));
+    }
+    let applied = apply_restore_outcome_to_shell(
+        &outcome,
+        frame,
+        editor_runtime,
+        palette,
+        enablement_runtime,
+        workspace_lifecycle,
+        recent_work,
+        activity_center,
+        command_runtime,
+    );
+
+    command_runtime.note_non_command_action(format!(
+        "restore applied (no auto-rerun) — panes={panes}; dirty_buffers={dirty}; blocked_side_effectful={blocked}; failures={failures} — {summary}",
+        panes = applied.panes_opened,
+        dirty = applied.dirty_buffers_replayed,
+        blocked = outcome.blocked_side_effectful_count(),
+        failures = outcome.dirty_buffer_failures.len(),
+        summary = outcome.summary_line,
+    ));
+    command_runtime.record(invocation_and_result_restore_from_checkpoint(
+        session, &outcome,
+    ));
     true
+}
+
+#[derive(Debug, Default)]
+struct RestoreShellApplySummary {
+    panes_opened: usize,
+    dirty_buffers_replayed: usize,
+}
+
+fn apply_restore_outcome_to_shell(
+    outcome: &RestoreOutcome,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    palette: &mut CommandPaletteState,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    command_runtime: &mut CommandRuntimeState,
+) -> RestoreShellApplySummary {
+    let mut summary = RestoreShellApplySummary::default();
+    let workspace_root = restore_workspace_root_for_outcome(outcome, recent_work, palette);
+    if let Some(root) = workspace_root.as_ref() {
+        ensure_restore_workspace_runtime(
+            root,
+            editor_runtime,
+            palette,
+            enablement_runtime,
+            workspace_lifecycle,
+            recent_work,
+            activity_center,
+            command_runtime,
+        );
+    }
+
+    for pane in &outcome.pane_outcomes {
+        if pane.execution_kind == RestorePaneExecutionKind::EvidenceOnly {
+            continue;
+        }
+        if pane.execution_kind == RestorePaneExecutionKind::Reopened
+            && outcome
+                .dirty_buffer_replays
+                .iter()
+                .any(|replay| replay.presentation_hint.as_deref() == pane.title_hint.as_deref())
+        {
+            continue;
+        }
+        let Some(tab) = frame.open_tab() else {
+            continue;
+        };
+        let group = frame.focused_editor_group();
+        let label = pane
+            .title_hint
+            .clone()
+            .unwrap_or_else(|| "Restored pane".to_string());
+        editor_runtime.open_restore_placeholder(group, tab, label, &pane.note);
+        summary.panes_opened += 1;
+    }
+
+    for replay in &outcome.dirty_buffer_replays {
+        let file_path =
+            restore_file_path_for_object_ref(&replay.object_ref, workspace_root.as_ref());
+        let file_path = file_path.as_deref().filter(|path| path.exists());
+        let Some(tab) = frame.open_tab() else {
+            continue;
+        };
+        let group = frame.focused_editor_group();
+        match editor_runtime.open_recovered_dirty_buffer(group, tab, replay, file_path) {
+            Ok(()) => {
+                summary.dirty_buffers_replayed += 1;
+            }
+            Err(err) => {
+                command_runtime.note_non_command_action(format!(
+                    "dirty-buffer restore failed for {} — {err}",
+                    replay.object_ref
+                ));
+            }
+        }
+    }
+
+    summary
+}
+
+fn restore_workspace_root_for_outcome(
+    outcome: &RestoreOutcome,
+    recent_work: &RecentWorkRuntimeState,
+    palette: &CommandPaletteState,
+) -> Option<PathBuf> {
+    if let Some(root) = palette.workspace_root() {
+        return Some(root.to_path_buf());
+    }
+
+    if let Some(active_id) = recent_work.active_recent_work_id.as_deref() {
+        if let Some(root) = recent_work
+            .find_entry(active_id)
+            .and_then(workspace_root_for_recent_work_entry)
+        {
+            return Some(root);
+        }
+    }
+
+    if let Some(root) = outcome
+        .dirty_buffer_replays
+        .iter()
+        .find_map(|replay| restore_file_path_for_object_ref(&replay.object_ref, None))
+        .and_then(|path| path.parent().map(Path::to_path_buf))
+    {
+        return Some(root);
+    }
+
+    recent_work
+        .registry
+        .entries
+        .iter()
+        .filter(|entry| matches!(entry.target_kind, TargetKind::LocalFolder))
+        .max_by(|left, right| left.last_opened_at.cmp(&right.last_opened_at))
+        .and_then(workspace_root_for_recent_work_entry)
+}
+
+fn ensure_restore_workspace_runtime(
+    root: &Path,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    palette: &mut CommandPaletteState,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
+    activity_center: &mut ActivityCenterRuntimeState,
+    command_runtime: &mut CommandRuntimeState,
+) {
+    let entry = recent_work
+        .registry
+        .entries
+        .iter()
+        .find(|entry| {
+            workspace_root_for_recent_work_entry(entry)
+                .as_deref()
+                .is_some_and(|candidate| candidate == root)
+        })
+        .cloned();
+
+    let trust_state = entry
+        .as_ref()
+        .map(|entry| entry.trust_state)
+        .unwrap_or_else(|| {
+            trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str())
+        });
+
+    if let Some(entry) = entry {
+        recent_work.active_recent_work_id = Some(entry.recent_work_id.clone());
+        recent_work.active_workspace_label = Some(entry.presentation_label.clone());
+        editor_runtime.set_workspace_recovery_ref(entry.recent_work_id);
+    }
+
+    palette.set_workspace_root(root.to_path_buf());
+    let identity_key = root.to_string_lossy();
+    let workspace_id = workspace_id_for_local_folder(&identity_key);
+    if recent_work.active_recent_work_id.is_none() {
+        editor_runtime.set_workspace_recovery_ref(workspace_id.clone());
+    }
+    if let Err(err) = editor_runtime
+        .explorer
+        .open_workspace(root.to_path_buf(), workspace_id.clone())
+    {
+        command_runtime.note_non_command_action(format!("explorer unavailable — {err}"));
+    }
+    workspace_lifecycle.open_local_folder(workspace_id.clone(), trust_state);
+    editor_runtime.terminal_pane.open_workspace(
+        workspace_id,
+        root.to_path_buf(),
+        trust_state,
+        &mono_timestamp_now(),
+    );
+    activity_center.note_workspace_opened(
+        recent_work.active_recent_work_id.as_deref(),
+        recent_work.active_workspace_label().unwrap_or("workspace"),
+        root,
+    );
+    activity_center.note_quick_open_file_index(
+        recent_work.active_recent_work_id.as_deref(),
+        root,
+        false,
+    );
+}
+
+fn restore_file_path_for_object_ref(
+    object_ref: &str,
+    workspace_root: Option<&PathBuf>,
+) -> Option<PathBuf> {
+    let uri = VfsUri::parse(object_ref.to_string()).ok()?;
+    if let Some(path) = uri.file_path() {
+        return Some(path);
+    }
+    if uri.scheme() != "aureline-ws" {
+        return None;
+    }
+
+    let root = workspace_root?;
+    let hierarchical = uri.split_hierarchical()?;
+    let logical_path = hierarchical.path.trim_start_matches('/');
+    let relative = logical_path
+        .split_once('/')
+        .map(|(_, relative)| relative)
+        .unwrap_or("");
+    if relative.is_empty() {
+        Some(root.clone())
+    } else {
+        Some(root.join(relative))
+    }
 }
 
 fn normalize_entry_pin_actions(entry: &mut RecentWorkEntryRecord) {
@@ -8447,6 +8940,7 @@ fn handle_key_event(
                 enablement_runtime,
                 workspace_lifecycle,
                 recent_work,
+                activity_center,
                 decision,
             );
         }
@@ -8868,8 +9362,8 @@ fn handle_key_event(
                             EntryVerb::Restore,
                             TargetKind::RecoveryCheckpoint,
                             ResultingMode::RestoreLastSession,
-                            Some(DegradedStateToken::Unsupported),
-                            Some("Restore execution is not implemented yet.".to_string()),
+                            None,
+                            None,
                         ),
                         StartCenterPrimaryActionId::ImportFrom => (
                             EntryVerb::Import,

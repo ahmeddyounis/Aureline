@@ -14,9 +14,10 @@ pub mod records;
 mod store;
 
 pub use proposal::{
-    RestoreProposal, RestoreProposalArtifactRefs, RestoreProposalCounts,
-    RestoreProposalDirtyBufferEntry, RestoreProposalPanePlan, RestoreProposalPlanKind,
-    RestoreProposalSchemaVersion,
+    RestoreDirtyBufferFailure, RestoreDirtyBufferFailureKind, RestoreDirtyBufferReplay,
+    RestoreOutcome, RestorePaneExecutionKind, RestorePaneOutcome, RestoreProposal,
+    RestoreProposalArtifactRefs, RestoreProposalCounts, RestoreProposalDirtyBufferEntry,
+    RestoreProposalPanePlan, RestoreProposalPlanKind, RestoreProposalSchemaVersion, RestoreRuntime,
 };
 pub use store::{
     SessionRestoreCaptureInput, SessionRestoreError, SessionRestoreLatestRefs, SessionRestoreStore,

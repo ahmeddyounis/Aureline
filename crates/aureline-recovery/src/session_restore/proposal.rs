@@ -26,8 +26,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::crash_journal::{
-    AutosaveJournalEntryRecord, CrashJournalStore, FrameIntegrityState, GuidedChoiceClass,
-    ReplayPostureClass,
+    AutosaveJournalEntryRecord, ChecksumAlgorithm, CrashJournalStore, FrameIntegrityState,
+    GuidedChoiceClass, ReplayPostureClass,
 };
 
 use super::records::{
@@ -119,6 +119,129 @@ pub struct RestoreProposal {
     pub auto_rerun_forbidden: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+}
+
+/// Runtime dependencies used while applying a [`RestoreProposal`].
+///
+/// The runtime owns no shell state. It only provides access to the persisted
+/// session-restore and crash-journal stores so execution can resolve the
+/// proposal into concrete pane and dirty-buffer replay requests.
+#[derive(Debug)]
+pub struct RestoreRuntime<'a> {
+    session_store: &'a SessionRestoreStore,
+    crash_store: &'a CrashJournalStore,
+}
+
+impl<'a> RestoreRuntime<'a> {
+    /// Creates a restore runtime over the active workspace recovery stores.
+    pub fn new(session_store: &'a SessionRestoreStore, crash_store: &'a CrashJournalStore) -> Self {
+        Self {
+            session_store,
+            crash_store,
+        }
+    }
+}
+
+/// Execution posture for one pane in a restore outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RestorePaneExecutionKind {
+    /// Reopen the pane as a lightweight, non-mutating shell surface.
+    Reopened,
+    /// Recreate the pane as a placeholder that requires user action to hydrate.
+    Placeholder,
+    /// Retain the pane as restore evidence without opening a live surface.
+    EvidenceOnly,
+    /// Keep a side-effectful surface inactive so no command or authority reruns.
+    BlockedSideEffectful,
+}
+
+/// Result of executing a single pane plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestorePaneOutcome {
+    pub pane_id: String,
+    pub surface_role: SurfaceRole,
+    pub surface_class: SurfaceClass,
+    pub execution_kind: RestorePaneExecutionKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_hint: Option<String>,
+    pub note: String,
+}
+
+/// Dirty-buffer body resolved from the crash journal for live replay.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestoreDirtyBufferReplay {
+    pub journal_entry_id: String,
+    pub journal_id: String,
+    pub object_ref: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presentation_hint: Option<String>,
+    pub body_object_ref: String,
+    pub bytes: Vec<u8>,
+    pub replay_posture: ReplayPostureClass,
+    pub frame_integrity: FrameIntegrityState,
+    pub recommended_choice: GuidedChoiceClass,
+}
+
+/// Typed reason a dirty-buffer entry could not be replayed automatically.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RestoreDirtyBufferFailureKind {
+    /// The proposal or journal marks the frame unsafe for automatic replay.
+    ManualRepairRequired,
+    /// The journal entry referenced by the proposal is missing.
+    MissingJournalEntry,
+    /// The journal entry has no available body object.
+    MissingJournalBody,
+    /// The body object checksum no longer matches the journal integrity record.
+    ChecksumMismatch,
+    /// The crash-journal store could not be read.
+    StoreUnavailable,
+}
+
+/// Dirty-buffer entry retained for review because replay was not safe.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestoreDirtyBufferFailure {
+    pub journal_entry_id: String,
+    pub journal_id: String,
+    pub object_ref: String,
+    pub failure_kind: RestoreDirtyBufferFailureKind,
+    pub detail: String,
+}
+
+/// Outcome produced by [`RestoreProposal::execute`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestoreOutcome {
+    pub record_kind: String,
+    pub restore_class: RestoreClass,
+    pub pane_outcomes: Vec<RestorePaneOutcome>,
+    pub dirty_buffer_replays: Vec<RestoreDirtyBufferReplay>,
+    pub dirty_buffer_failures: Vec<RestoreDirtyBufferFailure>,
+    pub manual_repair_required: bool,
+    pub auto_rerun_forbidden: bool,
+    pub summary_line: String,
+}
+
+impl RestoreOutcome {
+    /// True when execution found no panes, dirty buffers, or retained failures.
+    pub fn is_empty(&self) -> bool {
+        self.pane_outcomes.is_empty()
+            && self.dirty_buffer_replays.is_empty()
+            && self.dirty_buffer_failures.is_empty()
+    }
+
+    /// True when all replayable work completed without typed failures.
+    pub fn succeeded_without_failures(&self) -> bool {
+        self.dirty_buffer_failures.is_empty()
+    }
+
+    /// Number of side-effectful panes restored only as inactive surfaces.
+    pub fn blocked_side_effectful_count(&self) -> usize {
+        self.pane_outcomes
+            .iter()
+            .filter(|pane| pane.execution_kind == RestorePaneExecutionKind::BlockedSideEffectful)
+            .count()
+    }
 }
 
 impl RestoreProposal {
@@ -268,6 +391,219 @@ impl RestoreProposal {
             evidence = self.counts.evidence_packets,
             recovery = self.counts.recovery_packets,
         )
+    }
+
+    /// Executes this proposal against the provided recovery runtime.
+    ///
+    /// Execution reopens only non-mutating pane skeletons and resolves verified
+    /// dirty-buffer journal bodies into replay requests. It never saves the
+    /// recovered bytes and never reruns side-effectful surfaces such as
+    /// terminals, debuggers, notebooks, or AI panels.
+    pub fn execute(self, runtime: &mut RestoreRuntime<'_>) -> RestoreOutcome {
+        let summary_line = self.summary_line();
+        let mut outcome = RestoreOutcome {
+            record_kind: "restore_outcome_record".to_string(),
+            restore_class: self.restore_class,
+            pane_outcomes: Vec::new(),
+            dirty_buffer_replays: Vec::new(),
+            dirty_buffer_failures: Vec::new(),
+            manual_repair_required: self
+                .downgrade_triggers
+                .contains(&DowngradeTriggerClass::ManualRepairRequired),
+            auto_rerun_forbidden: true,
+            summary_line,
+        };
+
+        if self.is_empty() {
+            return outcome;
+        }
+
+        if let Some(snapshot_id) = self.artifact_refs.snapshot_id.as_deref() {
+            if runtime
+                .session_store
+                .load_pane_tree_body(snapshot_id)
+                .is_err()
+            {
+                outcome.manual_repair_required = true;
+            }
+        }
+
+        let evidence_only_restore = matches!(
+            self.restore_class,
+            RestoreClass::EvidenceOnly | RestoreClass::NoRestore
+        );
+
+        outcome.pane_outcomes = self
+            .pane_plans
+            .into_iter()
+            .map(|plan| execute_pane_plan(plan, evidence_only_restore))
+            .collect();
+
+        if self.dirty_buffer_entries.is_empty() {
+            return outcome;
+        }
+
+        let crash_entries = match runtime.crash_store.load_entries() {
+            Ok(entries) => entries,
+            Err(err) => {
+                outcome.manual_repair_required = true;
+                for entry in self.dirty_buffer_entries {
+                    outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                        &entry,
+                        RestoreDirtyBufferFailureKind::StoreUnavailable,
+                        err.to_string(),
+                    ));
+                }
+                return outcome;
+            }
+        };
+        let crash_entries_by_id: HashMap<&str, &AutosaveJournalEntryRecord> = crash_entries
+            .iter()
+            .map(|entry| (entry.journal_entry_id.as_str(), entry))
+            .collect();
+
+        for entry in self.dirty_buffer_entries {
+            if evidence_only_restore
+                || !matches!(entry.frame_integrity, FrameIntegrityState::Verified)
+            {
+                outcome.manual_repair_required = true;
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::ManualRepairRequired,
+                    "dirty-buffer frame requires manual repair".to_string(),
+                ));
+                continue;
+            }
+
+            let Some(record) = crash_entries_by_id.get(entry.journal_entry_id.as_str()) else {
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::MissingJournalEntry,
+                    "journal entry referenced by proposal is missing".to_string(),
+                ));
+                continue;
+            };
+
+            if !record.capture_descriptor.body_available {
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::MissingJournalBody,
+                    "journal entry body is not available".to_string(),
+                ));
+                continue;
+            }
+
+            let Some(body_object_ref) = record.capture_descriptor.body_object_refs.first() else {
+                outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                    &entry,
+                    RestoreDirtyBufferFailureKind::MissingJournalBody,
+                    "journal entry has no body object reference".to_string(),
+                ));
+                continue;
+            };
+
+            let bytes = match runtime.crash_store.read_body_object(body_object_ref) {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                        &entry,
+                        RestoreDirtyBufferFailureKind::MissingJournalBody,
+                        err.to_string(),
+                    ));
+                    continue;
+                }
+            };
+
+            if matches!(
+                record.integrity.checksum_algorithm,
+                ChecksumAlgorithm::Blake3
+            ) {
+                let actual = blake3::hash(&bytes).to_hex().to_string();
+                if actual != record.integrity.checksum_ref {
+                    outcome.dirty_buffer_failures.push(dirty_failure_from_entry(
+                        &entry,
+                        RestoreDirtyBufferFailureKind::ChecksumMismatch,
+                        "journal body checksum mismatch".to_string(),
+                    ));
+                    continue;
+                }
+            }
+
+            outcome.dirty_buffer_replays.push(RestoreDirtyBufferReplay {
+                journal_entry_id: entry.journal_entry_id,
+                journal_id: entry.journal_id,
+                object_ref: entry.object_ref,
+                presentation_hint: entry.presentation_hint,
+                body_object_ref: body_object_ref.clone(),
+                bytes,
+                replay_posture: entry.replay_posture,
+                frame_integrity: entry.frame_integrity,
+                recommended_choice: entry.recommended_choice,
+            });
+        }
+
+        outcome
+    }
+}
+
+fn execute_pane_plan(
+    plan: RestoreProposalPanePlan,
+    evidence_only_restore: bool,
+) -> RestorePaneOutcome {
+    let execution_kind = if matches!(
+        plan.plan_kind,
+        RestoreProposalPlanKind::BlockedSideEffectful
+    ) {
+        RestorePaneExecutionKind::BlockedSideEffectful
+    } else if evidence_only_restore
+        || matches!(plan.plan_kind, RestoreProposalPlanKind::EvidenceOnly)
+    {
+        RestorePaneExecutionKind::EvidenceOnly
+    } else {
+        match plan.plan_kind {
+            RestoreProposalPlanKind::LiveSkeleton => RestorePaneExecutionKind::Reopened,
+            RestoreProposalPlanKind::PlaceholderOnly => RestorePaneExecutionKind::Placeholder,
+            RestoreProposalPlanKind::EvidenceOnly => RestorePaneExecutionKind::EvidenceOnly,
+            RestoreProposalPlanKind::BlockedSideEffectful => {
+                RestorePaneExecutionKind::BlockedSideEffectful
+            }
+        }
+    };
+    let note = match execution_kind {
+        RestorePaneExecutionKind::Reopened => {
+            "pane reopened as lightweight restore skeleton".to_string()
+        }
+        RestorePaneExecutionKind::Placeholder => {
+            "pane restored as placeholder; no automatic hydration".to_string()
+        }
+        RestorePaneExecutionKind::EvidenceOnly => {
+            "pane retained as evidence only; not reopened".to_string()
+        }
+        RestorePaneExecutionKind::BlockedSideEffectful => {
+            "side-effectful surface restored inactive; no commands rerun".to_string()
+        }
+    };
+    RestorePaneOutcome {
+        pane_id: plan.pane_id,
+        surface_role: plan.surface_role,
+        surface_class: plan.surface_class,
+        execution_kind,
+        title_hint: plan.title_hint,
+        note,
+    }
+}
+
+fn dirty_failure_from_entry(
+    entry: &RestoreProposalDirtyBufferEntry,
+    failure_kind: RestoreDirtyBufferFailureKind,
+    detail: String,
+) -> RestoreDirtyBufferFailure {
+    RestoreDirtyBufferFailure {
+        journal_entry_id: entry.journal_entry_id.clone(),
+        journal_id: entry.journal_id.clone(),
+        object_ref: entry.object_ref.clone(),
+        failure_kind,
+        detail,
     }
 }
 
