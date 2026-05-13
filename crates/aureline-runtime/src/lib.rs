@@ -6,7 +6,9 @@
 //! for launch-capable surfaces, a canonical [`tasks::TaskEventStream`] for
 //! task/test/debug lifecycle truth, and [`tests::TestAttemptAlphaPacket`] for
 //! launch-wedge test identity, session, attempt, watch, and imported-CI truth.
-//! Downstream event and export lanes carry
+//! [`managed_alpha::ManagedWorkspaceAlphaRecord`] adds the bounded
+//! managed-workspace suspend/resume/reattach inspection lane. Downstream event
+//! and export lanes carry
 //! [`provenance::ExecutionEventProvenance`] so target truth survives after the
 //! live run surface is gone.
 //!
@@ -27,6 +29,7 @@ pub mod detectors;
 pub mod discovery;
 pub mod execution_context;
 pub mod language_hosts;
+pub mod managed_alpha;
 pub mod provenance;
 pub mod rerun;
 pub mod targets;
@@ -88,6 +91,17 @@ pub use language_hosts::{
     LanguageHostSnapshot, LanguageHostSupervisor, LanguageHostSupervisorConfig,
     LanguageHostSupervisorError, LanguageHostSupervisorEvent, LanguageHostSupportPacket,
     LANGUAGE_HOST_SUPERVISION_SCHEMA_VERSION,
+};
+pub use managed_alpha::{
+    ManagedReachabilityClass, ManagedReapprovalRequirementClass, ManagedRerunPostureClass,
+    ManagedRuntimeInspectionLabel, ManagedRuntimePlacementClass, ManagedTargetFreshnessClass,
+    ManagedWorkspaceAlphaRecord, ManagedWorkspaceAlphaViolation, ManagedWorkspaceBoundary,
+    ManagedWorkspaceContinuity, ManagedWorkspaceInspectionSurface, ManagedWorkspaceLaneScope,
+    ManagedWorkspaceLifecycleState, ManagedWorkspaceRuntimeInspection, ManagedWorkspaceStateClass,
+    ManagedWorkspaceSupportExport, ManagedWorkspaceTransition, ManagedWorkspaceTransitionReason,
+    MANAGED_WORKSPACE_ALPHA_LANE_ID, MANAGED_WORKSPACE_ALPHA_RECORD_KIND,
+    MANAGED_WORKSPACE_ALPHA_SCHEMA_VERSION, MANAGED_WORKSPACE_RUNTIME_INSPECTION_RECORD_KIND,
+    MANAGED_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use provenance::{
     dedupe_context_provenance, ExecutionEventProvenance, ExecutionProvenanceEvent,
