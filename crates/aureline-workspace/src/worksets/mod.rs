@@ -14,6 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::roots::WorkspaceRootKind;
+
 /// Schema version for the seeded workset-artifact payload shape.
 pub type WorksetArtifactSchemaVersion = u32;
 
@@ -78,6 +80,30 @@ impl ScopeClass {
             Self::FullWorkspace => "Full workspace",
             Self::PolicyLimitedView => "Policy-limited view",
         }
+    }
+}
+
+/// Whether the scope materializes complete roots or a sparse subset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeMode {
+    Full,
+    Sparse,
+}
+
+impl ScopeMode {
+    /// Returns the stable string vocabulary for this scope mode.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Full => "full",
+            Self::Sparse => "sparse",
+        }
+    }
+}
+
+impl Default for ScopeMode {
+    fn default() -> Self {
+        Self::Full
     }
 }
 
@@ -217,6 +243,16 @@ pub struct MemberRef {
     pub presentation_label: Option<String>,
 }
 
+/// Root entry included by a workset or slice.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IncludedRootRef {
+    pub root_ref: String,
+    pub root_kind: WorkspaceRootKind,
+    pub partial_truth: PartialTruthLabel,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presentation_label: Option<String>,
+}
+
 /// Portability metadata attached to the workset artifact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PortabilityMetadata {
@@ -258,13 +294,19 @@ pub struct WorksetArtifactRecord {
     pub record_kind: WorksetArtifactRecordKind,
     pub workset_artifact_schema_version: WorksetArtifactSchemaVersion,
     pub workset_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_id: Option<String>,
     pub workset_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presentation_subtitle: Option<String>,
     pub scope_class: ScopeClass,
     #[serde(default)]
+    pub scope_mode: ScopeMode,
+    #[serde(default)]
     pub workspace_ref: Option<String>,
     pub root_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub included_roots: Vec<IncludedRootRef>,
     pub patterns: Vec<PatternEntry>,
     pub membership_policy: MembershipPolicy,
     pub member_refs: Vec<MemberRef>,
@@ -287,9 +329,19 @@ pub struct WorksetArtifactRecord {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorksetArtifactError {
     EmptyWorksetId,
+    EmptyScopeId,
     EmptyWorksetName,
     EmptyRootRefs,
     DuplicateRootRef(String),
+    MissingIncludedRootRef(String),
+    IncludedRootNotInRootRefs(String),
+    DuplicateIncludedRootRef(String),
+    SparseSliceRequiresPattern,
+    ScopeModeMismatch {
+        scope_class: ScopeClass,
+        scope_mode: ScopeMode,
+    },
+    ReadyStateRequiresKnownHiddenCount,
     PolicyLimitationRequired,
     PolicyLimitationForbidden,
     PolicyExposesAdminHiddenList(NarrowingCause),
@@ -302,9 +354,35 @@ impl std::fmt::Display for WorksetArtifactError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EmptyWorksetId => write!(f, "workset_id must not be empty"),
+            Self::EmptyScopeId => write!(f, "scope_id must not be empty when present"),
             Self::EmptyWorksetName => write!(f, "workset_name must not be empty"),
             Self::EmptyRootRefs => write!(f, "root_refs must contain at least one root"),
             Self::DuplicateRootRef(r) => write!(f, "duplicate root_ref: {r}"),
+            Self::MissingIncludedRootRef(r) => write!(
+                f,
+                "included_roots must carry root kind and result-state truth for root_ref {r}"
+            ),
+            Self::IncludedRootNotInRootRefs(r) => {
+                write!(f, "included root {r} is not declared in root_refs")
+            }
+            Self::DuplicateIncludedRootRef(r) => write!(f, "duplicate included root: {r}"),
+            Self::SparseSliceRequiresPattern => {
+                write!(
+                    f,
+                    "sparse_slice scope requires at least one include/exclude pattern"
+                )
+            }
+            Self::ScopeModeMismatch {
+                scope_class,
+                scope_mode,
+            } => write!(
+                f,
+                "scope_class {scope_class:?} cannot use scope_mode {scope_mode:?}"
+            ),
+            Self::ReadyStateRequiresKnownHiddenCount => write!(
+                f,
+                "ready workset artifacts must state whether hidden result counts are known"
+            ),
             Self::PolicyLimitationRequired => {
                 write!(
                     f,
@@ -364,6 +442,9 @@ impl WorksetArtifactRecord {
         if self.workset_id.is_empty() {
             return Err(WorksetArtifactError::EmptyWorksetId);
         }
+        if self.scope_id.as_deref().is_some_and(str::is_empty) {
+            return Err(WorksetArtifactError::EmptyScopeId);
+        }
         if self.workset_name.is_empty() {
             return Err(WorksetArtifactError::EmptyWorksetName);
         }
@@ -376,6 +457,57 @@ impl WorksetArtifactRecord {
                 return Err(WorksetArtifactError::DuplicateRootRef(r.clone()));
             }
             seen.push(r);
+        }
+        let mut seen_included_roots: Vec<&str> = Vec::with_capacity(self.included_roots.len());
+        for root in &self.included_roots {
+            if !self.root_refs.iter().any(|r| r == &root.root_ref) {
+                return Err(WorksetArtifactError::IncludedRootNotInRootRefs(
+                    root.root_ref.clone(),
+                ));
+            }
+            if seen_included_roots
+                .iter()
+                .any(|r| *r == root.root_ref.as_str())
+            {
+                return Err(WorksetArtifactError::DuplicateIncludedRootRef(
+                    root.root_ref.clone(),
+                ));
+            }
+            seen_included_roots.push(root.root_ref.as_str());
+        }
+        for root_ref in &self.root_refs {
+            if !self
+                .included_roots
+                .iter()
+                .any(|root| root.root_ref == *root_ref)
+            {
+                return Err(WorksetArtifactError::MissingIncludedRootRef(
+                    root_ref.clone(),
+                ));
+            }
+        }
+        match (self.scope_class, self.scope_mode) {
+            (ScopeClass::FullWorkspace | ScopeClass::CurrentRepo, ScopeMode::Sparse) => {
+                return Err(WorksetArtifactError::ScopeModeMismatch {
+                    scope_class: self.scope_class,
+                    scope_mode: self.scope_mode,
+                });
+            }
+            (ScopeClass::SparseSlice, ScopeMode::Full) => {
+                return Err(WorksetArtifactError::ScopeModeMismatch {
+                    scope_class: self.scope_class,
+                    scope_mode: self.scope_mode,
+                });
+            }
+            _ => {}
+        }
+        if self.scope_class == ScopeClass::SparseSlice && self.patterns.is_empty() {
+            return Err(WorksetArtifactError::SparseSliceRequiresPattern);
+        }
+        if self.readiness.readiness_state == ReadinessState::Ready
+            && !self.readiness.hidden_result_count_known
+        {
+            return Err(WorksetArtifactError::ReadyStateRequiresKnownHiddenCount);
         }
         for pattern in &self.patterns {
             if let Some(scoped) = pattern.applies_to_root_ref.as_deref() {
@@ -431,6 +563,21 @@ impl WorksetArtifactRecord {
     /// Returns true when the active scope is narrower than the workspace.
     pub fn is_narrowed_scope(&self) -> bool {
         !self.is_full_workspace()
+    }
+
+    /// Returns the stable scope identity every consumer must preserve.
+    pub fn stable_scope_id(&self) -> &str {
+        self.scope_id.as_deref().unwrap_or(&self.workset_id)
+    }
+
+    /// Returns whether this scope is materialized as full or sparse.
+    pub const fn scope_mode(&self) -> ScopeMode {
+        self.scope_mode
+    }
+
+    /// Returns the included roots with root-kind and result-state truth.
+    pub fn included_roots(&self) -> &[IncludedRootRef] {
+        &self.included_roots
     }
 
     /// Returns true when `root_ref` is a declared member of this workset.
@@ -530,10 +677,13 @@ impl WorksetArtifactRecord {
             workset_artifact_schema_version: 1,
             chip_id: chip_id.into(),
             surface_class,
+            stable_scope_id: self.stable_scope_id().to_string(),
             workset_ref: self.workset_id.clone(),
             scope_class: self.scope_class,
+            scope_mode: self.scope_mode,
             chip_presentation_state: presentation_state,
             chip_label,
+            included_roots: self.included_roots.clone(),
             member_count: Some(self.member_refs.len() as u32),
             root_count: Some(self.root_refs.len() as u32),
             hidden_result_summary: hidden_summary,
@@ -558,10 +708,13 @@ impl WorksetArtifactRecord {
             workset_artifact_schema_version: 1,
             chip_id: chip_id.into(),
             surface_class,
+            stable_scope_id: self.stable_scope_id().to_string(),
             workset_ref: self.workset_id.clone(),
             scope_class: self.scope_class,
+            scope_mode: self.scope_mode,
             chip_presentation_state: ChipPresentationState::OutsideCurrentScope,
             chip_label: "Outside current scope".to_string(),
+            included_roots: self.included_roots.clone(),
             member_count: None,
             root_count: None,
             hidden_result_summary: None,
@@ -692,10 +845,14 @@ pub struct ScopeTruthChipRecord {
     pub workset_artifact_schema_version: WorksetArtifactSchemaVersion,
     pub chip_id: String,
     pub surface_class: ChipSurfaceClass,
+    pub stable_scope_id: String,
     pub workset_ref: String,
     pub scope_class: ScopeClass,
+    pub scope_mode: ScopeMode,
     pub chip_presentation_state: ChipPresentationState,
     pub chip_label: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub included_roots: Vec<IncludedRootRef>,
     #[serde(default)]
     pub member_count: Option<u32>,
     #[serde(default)]
@@ -711,6 +868,144 @@ pub struct ScopeTruthChipRecord {
     pub notes: Option<String>,
 }
 
+/// Consumer class that projects a workset/scope binding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorksetScopeConsumerClass {
+    LocalUi,
+    RemoteUi,
+    Headless,
+    SupportExport,
+    Navigation,
+    RefactorScope,
+}
+
+impl WorksetScopeConsumerClass {
+    /// Stable token used in UI, headless, and support-export records.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalUi => "local_ui",
+            Self::RemoteUi => "remote_ui",
+            Self::Headless => "headless",
+            Self::SupportExport => "support_export",
+            Self::Navigation => "navigation",
+            Self::RefactorScope => "refactor_scope",
+        }
+    }
+}
+
+/// Whether a saved workset/slice reopened exactly for a consumer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeReopenState {
+    Exact,
+    Degraded,
+}
+
+impl ScopeReopenState {
+    /// Stable token used in exported scope bindings.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Exact => "exact",
+            Self::Degraded => "degraded",
+        }
+    }
+}
+
+/// Explicit reason a saved scope could not reopen exactly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeDegradedReason {
+    MissingRoot,
+    RootKindUnsupported,
+    RebindingRequired,
+    RemoteUnavailable,
+    ManagedProviderUnavailable,
+    ManifestUnavailable,
+    PolicyLimited,
+}
+
+impl ScopeDegradedReason {
+    /// Stable token used in exported scope bindings.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::MissingRoot => "missing_root",
+            Self::RootKindUnsupported => "root_kind_unsupported",
+            Self::RebindingRequired => "rebinding_required",
+            Self::RemoteUnavailable => "remote_unavailable",
+            Self::ManagedProviderUnavailable => "managed_provider_unavailable",
+            Self::ManifestUnavailable => "manifest_unavailable",
+            Self::PolicyLimited => "policy_limited",
+        }
+    }
+}
+
+/// Reopen posture requested by a scope consumer projection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScopeReopenPosture {
+    Exact,
+    Degraded(ScopeDegradedReason),
+}
+
+/// Exportable scope binding consumed by UI, remote, headless, support, navigation, and refactor surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorksetScopeConsumerBinding {
+    pub record_kind: String,
+    pub schema_version: u32,
+    pub stable_scope_id: String,
+    pub workset_ref: String,
+    pub workset_name: String,
+    pub scope_class: ScopeClass,
+    pub scope_mode: ScopeMode,
+    pub consumer_class: WorksetScopeConsumerClass,
+    pub reopen_state: ScopeReopenState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degraded_reason: Option<ScopeDegradedReason>,
+    pub included_roots: Vec<IncludedRootRef>,
+    pub patterns: Vec<PatternEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewable_artifact_ref: Option<String>,
+    pub emitted_at: String,
+}
+
+impl WorksetScopeConsumerBinding {
+    /// Stable record-kind tag carried in serialized consumer bindings.
+    pub const RECORD_KIND: &'static str = "workset_scope_consumer_binding";
+    /// Schema version for serialized consumer bindings.
+    pub const SCHEMA_VERSION: u32 = 1;
+}
+
+impl WorksetArtifactRecord {
+    /// Projects an exportable binding for a concrete consumer.
+    pub fn project_consumer_binding(
+        &self,
+        consumer_class: WorksetScopeConsumerClass,
+        reopen_posture: ScopeReopenPosture,
+        emitted_at: impl Into<String>,
+    ) -> WorksetScopeConsumerBinding {
+        let (reopen_state, degraded_reason) = match reopen_posture {
+            ScopeReopenPosture::Exact => (ScopeReopenState::Exact, None),
+            ScopeReopenPosture::Degraded(reason) => (ScopeReopenState::Degraded, Some(reason)),
+        };
+        WorksetScopeConsumerBinding {
+            record_kind: WorksetScopeConsumerBinding::RECORD_KIND.to_string(),
+            schema_version: WorksetScopeConsumerBinding::SCHEMA_VERSION,
+            stable_scope_id: self.stable_scope_id().to_string(),
+            workset_ref: self.workset_id.clone(),
+            workset_name: self.workset_name.clone(),
+            scope_class: self.scope_class,
+            scope_mode: self.scope_mode,
+            consumer_class,
+            reopen_state,
+            degraded_reason,
+            included_roots: self.included_roots.clone(),
+            patterns: self.patterns.clone(),
+            reviewable_artifact_ref: self.manifest_source_ref.clone(),
+            emitted_at: emitted_at.into(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -720,11 +1015,27 @@ mod tests {
             record_kind: WorksetArtifactRecordKind::WorksetArtifactRecord,
             workset_artifact_schema_version: 1,
             workset_id: "wks:test:hot:0".to_string(),
+            scope_id: Some("scope:test:hot:0".to_string()),
             workset_name: "Hot path".to_string(),
             presentation_subtitle: None,
             scope_class: ScopeClass::SelectedWorkset,
+            scope_mode: ScopeMode::Sparse,
             workspace_ref: Some("wksp:test".to_string()),
             root_refs: vec!["fs-r-0".to_string(), "fs-r-1".to_string()],
+            included_roots: vec![
+                IncludedRootRef {
+                    root_ref: "fs-r-0".to_string(),
+                    root_kind: WorkspaceRootKind::LocalRepoRoot,
+                    partial_truth: PartialTruthLabel::Loaded,
+                    presentation_label: Some("repo-a".to_string()),
+                },
+                IncludedRootRef {
+                    root_ref: "fs-r-1".to_string(),
+                    root_kind: WorkspaceRootKind::RemoteRepository,
+                    partial_truth: PartialTruthLabel::Cached,
+                    presentation_label: Some("repo-b".to_string()),
+                },
+            ],
             patterns: vec![PatternEntry {
                 pattern_kind: PatternKind::Include,
                 pattern: "src/**".to_string(),
@@ -775,6 +1086,8 @@ mod tests {
         assert!(artifact.is_multi_root());
         assert!(!artifact.is_full_workspace());
         assert!(artifact.is_narrowed_scope());
+        assert_eq!(artifact.stable_scope_id(), "scope:test:hot:0");
+        assert_eq!(artifact.scope_mode(), ScopeMode::Sparse);
     }
 
     #[test]
@@ -845,6 +1158,9 @@ mod tests {
             ChipPresentationState::ActivePartial
         );
         assert_eq!(chip.root_count, Some(2));
+        assert_eq!(chip.stable_scope_id, "scope:test:hot:0");
+        assert_eq!(chip.scope_mode, ScopeMode::Sparse);
+        assert_eq!(chip.included_roots.len(), 2);
         assert_eq!(chip.scope_class, ScopeClass::SelectedWorkset);
         assert!(chip.chip_label.starts_with("Selected workset"));
         assert!(chip.offered_actions.contains(&ChipAction::WidenWithReview));
@@ -866,5 +1182,30 @@ mod tests {
             ChipPresentationState::OutsideCurrentScope
         );
         assert_eq!(chip.chip_label, "Outside current scope");
+    }
+
+    #[test]
+    fn consumer_bindings_preserve_identity_and_degrade_reason() {
+        let artifact = fixture_artifact();
+        let local = artifact.project_consumer_binding(
+            WorksetScopeConsumerClass::LocalUi,
+            ScopeReopenPosture::Exact,
+            "mono:2",
+        );
+        let support = artifact.project_consumer_binding(
+            WorksetScopeConsumerClass::SupportExport,
+            ScopeReopenPosture::Degraded(ScopeDegradedReason::RebindingRequired),
+            "mono:3",
+        );
+
+        assert_eq!(local.stable_scope_id, support.stable_scope_id);
+        assert_eq!(local.workset_ref, support.workset_ref);
+        assert_eq!(local.included_roots, support.included_roots);
+        assert_eq!(local.reopen_state, ScopeReopenState::Exact);
+        assert_eq!(support.reopen_state, ScopeReopenState::Degraded);
+        assert_eq!(
+            support.degraded_reason,
+            Some(ScopeDegradedReason::RebindingRequired)
+        );
     }
 }

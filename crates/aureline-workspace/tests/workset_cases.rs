@@ -165,7 +165,28 @@ fn fixtures_validate_against_seed_invariants() {
                 fixture.workspace.contains_root(root_ref),
                 "artifact references root {root_ref} not in workspace at {path:?}"
             );
+            assert!(
+                fixture
+                    .artifact
+                    .included_roots()
+                    .iter()
+                    .any(|root| &root.root_ref == root_ref),
+                "artifact root {root_ref} is missing an included_roots state row at {path:?}"
+            );
         }
+        assert_eq!(
+            fixture.artifact.stable_scope_id(),
+            fixture
+                .artifact
+                .scope_id
+                .as_deref()
+                .unwrap_or(&fixture.artifact.workset_id),
+            "stable scope id must be restored from the saved artifact in {path:?}"
+        );
+        assert!(
+            !fixture.artifact.scope_mode().as_str().is_empty(),
+            "artifact must disclose sparse/full mode in {path:?}"
+        );
     }
 }
 
@@ -260,6 +281,20 @@ fn projected_chips_match_expectations() {
             chip.root_count,
             Some(fixture.expect.chip.root_count),
             "chip root_count mismatch in {path:?}"
+        );
+        assert_eq!(
+            chip.stable_scope_id,
+            fixture.artifact.stable_scope_id(),
+            "chip stable_scope_id mismatch in {path:?}"
+        );
+        assert_eq!(
+            chip.scope_mode,
+            fixture.artifact.scope_mode(),
+            "chip scope_mode mismatch in {path:?}"
+        );
+        assert_eq!(
+            chip.included_roots, fixture.artifact.included_roots,
+            "chip included_roots mismatch in {path:?}"
         );
         assert_eq!(
             chip.outside_current_scope_marker_visible,

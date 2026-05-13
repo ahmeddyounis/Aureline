@@ -10,7 +10,7 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_workspace::{
-    ChipAction, ChipPresentationState, ChipSurfaceClass, HiddenResultCountClass,
+    ChipAction, ChipPresentationState, ChipSurfaceClass, HiddenResultCountClass, IncludedRootRef,
     ScopeClass as WorkspaceScopeClass, ScopeTruthChipRecord, WorksetArtifactRecord,
 };
 
@@ -31,6 +31,8 @@ pub enum ScopeTruthSurfaceClass {
     DocsBrowser,
     OpenFlowSheet,
     SupportPacket,
+    RefactorScopeFooter,
+    ExportScopeFooter,
 }
 
 impl ScopeTruthSurfaceClass {
@@ -43,6 +45,8 @@ impl ScopeTruthSurfaceClass {
             Self::DocsBrowser => "docs_browser",
             Self::OpenFlowSheet => "open_flow_sheet",
             Self::SupportPacket => "support_packet",
+            Self::RefactorScopeFooter => "refactor_scope_footer",
+            Self::ExportScopeFooter => "export_scope_footer",
         }
     }
 
@@ -57,8 +61,20 @@ impl ScopeTruthSurfaceClass {
             Self::DocsBrowser => ChipSurfaceClass::ScopeBanner,
             Self::OpenFlowSheet => ChipSurfaceClass::OpenFlowTrustCard,
             Self::SupportPacket => ChipSurfaceClass::SupportPacketHeader,
+            Self::RefactorScopeFooter => ChipSurfaceClass::RefactorScopeFooter,
+            Self::ExportScopeFooter => ChipSurfaceClass::ExportScopeFooter,
         }
     }
+}
+
+/// Shell-facing root state row carried by a scope-truth chip.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeTruthRootStateRow {
+    pub root_ref: String,
+    pub root_kind_token: String,
+    pub result_state_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presentation_label: Option<String>,
 }
 
 /// Shell-facing scope-truth chip card.
@@ -73,6 +89,8 @@ pub struct ScopeTruthChipCard {
     pub workspace_id: String,
     pub surface_class_token: String,
     pub scope_class_token: String,
+    pub stable_scope_id: String,
+    pub scope_mode_token: String,
     pub chip_label: String,
     pub presentation_state_token: String,
     /// Workset id when a workset artifact narrows scope; `None` when the
@@ -91,6 +109,9 @@ pub struct ScopeTruthChipCard {
     /// Number of declared member refs in the active scope.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub member_count: Option<u32>,
+    /// Included roots with canonical root-kind and result-state labels.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub included_root_states: Vec<ScopeTruthRootStateRow>,
     /// True when the active scope is narrower than the workspace OR the
     /// active scope's readiness is below ready. The chrome SHOULD render a
     /// `Partial` cue alongside this chip when the flag is true.
@@ -132,23 +153,33 @@ pub fn project_scope_truth_chip_card(
     counts: ScopeCountsRecord,
     emitted_at: impl Into<String>,
 ) -> ScopeTruthChipCard {
+    let workspace_id = workspace_id.into();
     let chip_label = build_chip_label(scope_class, workset_name);
     let presentation_state = derive_simple_presentation_state(scope_class, &counts);
     let offered_actions = simple_offered_actions(scope_class);
     let partial_scope = scope_class.is_narrowed() || !counts.readiness_is_ready;
+    let stable_scope_id = format!(
+        "scope:{}:{}:{}",
+        workspace_id.replace(':', "_"),
+        scope_class.as_str(),
+        simple_label_hash(workset_name.unwrap_or(scope_class.chip_label_family()))
+    );
 
     ScopeTruthChipCard {
         record_kind: SCOPE_TRUTH_CHIP_RECORD_KIND.to_string(),
         schema_version: SCOPE_TRUTH_CHIP_SCHEMA_VERSION,
-        workspace_id: workspace_id.into(),
+        workspace_id,
         surface_class_token: surface_class.as_str().to_string(),
         scope_class_token: scope_class.as_str().to_string(),
+        stable_scope_id,
+        scope_mode_token: default_scope_mode(scope_class).to_string(),
         chip_label,
         presentation_state_token: presentation_state.as_token().to_string(),
         workset_id: None,
         workset_name: workset_name.map(|s| s.to_string()),
         root_count: None,
         member_count: None,
+        included_root_states: Vec::new(),
         partial_scope,
         partial_index_note: None,
         hidden_result_count_class: None,
@@ -249,6 +280,30 @@ pub fn render_scope_truth_chip_lines(card: &ScopeTruthChipCard) -> Vec<String> {
         _ => format!("scope: {}", card.scope_class_token),
     };
     lines.push(scope_summary);
+    lines.push(format!(
+        "scope_identity: {id}   mode: {mode}",
+        id = card.stable_scope_id,
+        mode = card.scope_mode_token,
+    ));
+    if !card.included_root_states.is_empty() {
+        let roots = card
+            .included_root_states
+            .iter()
+            .map(|root| {
+                let label = root
+                    .presentation_label
+                    .as_deref()
+                    .unwrap_or(root.root_ref.as_str());
+                format!(
+                    "{label} ({kind}, {state})",
+                    kind = root.root_kind_token,
+                    state = root.result_state_token,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        lines.push(format!("roots: {roots}"));
+    }
     let mut counts_line = format!("counts: visible={}", card.counts.visible_in_view);
     counts_line.push_str(&format!(
         "  loaded_in_scope={}",
@@ -347,6 +402,8 @@ fn chip_card_from_record(
         workspace_id,
         surface_class_token: surface_class.as_str().to_string(),
         scope_class_token: artifact.scope_class.as_str().to_string(),
+        stable_scope_id: chip_record.stable_scope_id.clone(),
+        scope_mode_token: chip_record.scope_mode.as_str().to_string(),
         chip_label: chip_record.chip_label.clone(),
         presentation_state_token: presentation_state_token(chip_record.chip_presentation_state)
             .to_string(),
@@ -354,6 +411,11 @@ fn chip_card_from_record(
         workset_name,
         root_count: chip_record.root_count,
         member_count: chip_record.member_count,
+        included_root_states: chip_record
+            .included_roots
+            .iter()
+            .map(root_state_row)
+            .collect(),
         partial_scope,
         partial_index_note,
         hidden_result_count_class: resolved_hidden_class,
@@ -368,6 +430,33 @@ fn chip_card_from_record(
         counts,
         emitted_at,
     }
+}
+
+fn root_state_row(root: &IncludedRootRef) -> ScopeTruthRootStateRow {
+    ScopeTruthRootStateRow {
+        root_ref: root.root_ref.clone(),
+        root_kind_token: root.root_kind.as_str().to_string(),
+        result_state_token: root.partial_truth.as_str().to_string(),
+        presentation_label: root.presentation_label.clone(),
+    }
+}
+
+const fn default_scope_mode(scope: WorkspaceScopeClass) -> &'static str {
+    match scope {
+        WorkspaceScopeClass::CurrentRepo | WorkspaceScopeClass::FullWorkspace => "full",
+        WorkspaceScopeClass::SelectedWorkset
+        | WorkspaceScopeClass::SparseSlice
+        | WorkspaceScopeClass::PolicyLimitedView => "sparse",
+    }
+}
+
+fn simple_label_hash(label: &str) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in label.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{hash:016x}")
 }
 
 fn partial_index_class_for(artifact: &WorksetArtifactRecord) -> Option<String> {
@@ -483,10 +572,10 @@ mod tests {
     use super::*;
     use crate::scope_truth::counts::ScopeCountsInputs;
     use aureline_workspace::{
-        MemberRef, MemberRefKind, MembershipPolicy, NarrowingCause, PartialTruthLabel,
-        PatternEntry, PatternKind, PolicyLimitation, PortabilityMetadata, ReadinessMetadata,
-        ReadinessState, SourceClass, WorksetArtifactRecordKind,
-        WorksetPortabilityClass as WksPortabilityClass,
+        IncludedRootRef, MemberRef, MemberRefKind, MembershipPolicy, NarrowingCause,
+        PartialTruthLabel, PatternEntry, PatternKind, PolicyLimitation, PortabilityMetadata,
+        ReadinessMetadata, ReadinessState, ScopeMode, SourceClass, WorksetArtifactRecordKind,
+        WorksetPortabilityClass as WksPortabilityClass, WorkspaceRootKind,
     };
 
     fn ready_globally_authoritative_counts() -> ScopeCountsRecord {
@@ -524,11 +613,27 @@ mod tests {
             record_kind: WorksetArtifactRecordKind::WorksetArtifactRecord,
             workset_artifact_schema_version: 1,
             workset_id: "wks:full".to_string(),
+            scope_id: Some("scope:full".to_string()),
             workset_name: "Full payments workspace".to_string(),
             presentation_subtitle: None,
             scope_class: WorkspaceScopeClass::FullWorkspace,
+            scope_mode: ScopeMode::Full,
             workspace_ref: Some("wksp:test".to_string()),
             root_refs: vec!["fs-r-0".to_string(), "fs-r-1".to_string()],
+            included_roots: vec![
+                IncludedRootRef {
+                    root_ref: "fs-r-0".to_string(),
+                    root_kind: WorkspaceRootKind::LocalRepoRoot,
+                    partial_truth: PartialTruthLabel::Loaded,
+                    presentation_label: Some("repo-a".to_string()),
+                },
+                IncludedRootRef {
+                    root_ref: "fs-r-1".to_string(),
+                    root_kind: WorkspaceRootKind::LocalRepoRoot,
+                    partial_truth: PartialTruthLabel::Loaded,
+                    presentation_label: Some("repo-b".to_string()),
+                },
+            ],
             patterns: Vec::new(),
             membership_policy: MembershipPolicy::ExplicitRootList,
             member_refs: vec![
@@ -573,11 +678,19 @@ mod tests {
             record_kind: WorksetArtifactRecordKind::WorksetArtifactRecord,
             workset_artifact_schema_version: 1,
             workset_id: "wks:sparse".to_string(),
+            scope_id: Some("scope:sparse".to_string()),
             workset_name: "Frontend slice".to_string(),
             presentation_subtitle: Some("Sparse slice".to_string()),
             scope_class: WorkspaceScopeClass::SparseSlice,
+            scope_mode: ScopeMode::Sparse,
             workspace_ref: Some("wksp:test".to_string()),
             root_refs: vec!["fs-r-0".to_string()],
+            included_roots: vec![IncludedRootRef {
+                root_ref: "fs-r-0".to_string(),
+                root_kind: WorkspaceRootKind::LocalRepoRoot,
+                partial_truth: PartialTruthLabel::ManifestKnown,
+                presentation_label: Some("repo-a".to_string()),
+            }],
             patterns: vec![
                 PatternEntry {
                     pattern_kind: PatternKind::Include,
@@ -625,11 +738,19 @@ mod tests {
             record_kind: WorksetArtifactRecordKind::WorksetArtifactRecord,
             workset_artifact_schema_version: 1,
             workset_id: "wks:policy".to_string(),
+            scope_id: Some("scope:policy".to_string()),
             workset_name: "Restricted view".to_string(),
             presentation_subtitle: None,
             scope_class: WorkspaceScopeClass::PolicyLimitedView,
+            scope_mode: ScopeMode::Sparse,
             workspace_ref: Some("wksp:test".to_string()),
             root_refs: vec!["fs-r-0".to_string()],
+            included_roots: vec![IncludedRootRef {
+                root_ref: "fs-r-0".to_string(),
+                root_kind: WorkspaceRootKind::ManagedCloudRoot,
+                partial_truth: PartialTruthLabel::Loaded,
+                presentation_label: Some("repo-a".to_string()),
+            }],
             patterns: Vec::new(),
             membership_policy: MembershipPolicy::ExplicitRootList,
             member_refs: vec![MemberRef {
@@ -679,6 +800,9 @@ mod tests {
             "mono:1",
         );
         assert_eq!(card.scope_class_token, "full_workspace");
+        assert_eq!(card.stable_scope_id, "scope:full");
+        assert_eq!(card.scope_mode_token, "full");
+        assert_eq!(card.included_root_states.len(), 2);
         assert_eq!(card.chip_label, "Full workspace");
         assert!(!card.partial_scope);
         assert_eq!(card.counts.counts_class_token, "globally_authoritative");
@@ -699,6 +823,16 @@ mod tests {
             "mono:1",
         );
         assert_eq!(card.scope_class_token, "sparse_slice");
+        assert_eq!(card.stable_scope_id, "scope:sparse");
+        assert_eq!(card.scope_mode_token, "sparse");
+        assert_eq!(
+            card.included_root_states[0].root_kind_token,
+            "local_repo_root"
+        );
+        assert_eq!(
+            card.included_root_states[0].result_state_token,
+            "manifest_known"
+        );
         assert!(card.chip_label.starts_with("Sparse slice · "));
         assert!(card.partial_scope);
         assert_eq!(card.presentation_state_token, "active_partial");
@@ -736,6 +870,7 @@ mod tests {
         );
         assert_eq!(card.presentation_state_token, "active_policy_limited");
         assert_eq!(card.scope_class_token, "policy_limited_view");
+        assert_eq!(card.scope_mode_token, "sparse");
         assert_eq!(
             card.hidden_result_count_class.as_deref(),
             Some("policy_hidden")
@@ -769,6 +904,30 @@ mod tests {
     }
 
     #[test]
+    fn refactor_footer_preserves_scope_identity_and_root_states() {
+        let card = project_scope_truth_chip_card_for_artifact(
+            "ws-test",
+            ScopeTruthSurfaceClass::RefactorScopeFooter,
+            &sparse_slice_artifact(),
+            narrowed_partial_counts(),
+            "chip:refactor",
+            "mono:1",
+        );
+        assert_eq!(card.surface_class_token, "refactor_scope_footer");
+        assert_eq!(card.stable_scope_id, "scope:sparse");
+        assert_eq!(card.scope_mode_token, "sparse");
+        assert_eq!(card.included_root_states.len(), 1);
+        assert_eq!(
+            card.included_root_states[0].result_state_token,
+            "manifest_known"
+        );
+        assert!(card
+            .offered_action_tokens
+            .iter()
+            .any(|token| token == "open_scope_diff"));
+    }
+
+    #[test]
     fn bare_scope_class_card_uses_workset_name_when_provided() {
         let card = project_scope_truth_chip_card(
             "ws-test",
@@ -779,6 +938,10 @@ mod tests {
             "mono:1",
         );
         assert_eq!(card.chip_label, "Selected workset · Hot path");
+        assert!(card
+            .stable_scope_id
+            .starts_with("scope:ws-test:selected_workset:"));
+        assert_eq!(card.scope_mode_token, "sparse");
         assert!(card.partial_scope);
         assert_eq!(card.workset_name.as_deref(), Some("Hot path"));
         assert!(card.workset_id.is_none());
@@ -795,6 +958,7 @@ mod tests {
             "mono:1",
         );
         assert_eq!(card.chip_label, "Full workspace");
+        assert_eq!(card.scope_mode_token, "full");
         assert!(card.partial_scope);
         assert_eq!(card.presentation_state_token, "active_partial");
     }
@@ -818,6 +982,12 @@ mod tests {
         assert!(counts_line.contains("loaded_in_scope=8"));
         assert!(counts_line.contains("all_matching=45"));
         assert!(counts_line.contains("class=partial_truth"));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("scope_identity: scope:sparse")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("repo-a (local_repo_root, manifest_known)")));
     }
 
     #[test]

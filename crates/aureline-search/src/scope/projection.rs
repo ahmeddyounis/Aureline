@@ -18,8 +18,8 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_workspace::{
-    ChipPresentationState as WorkspaceChipPresentationState, ScopeClass as WorkspaceScopeClass,
-    WorksetArtifactRecord,
+    ChipPresentationState as WorkspaceChipPresentationState, IncludedRootRef,
+    ScopeClass as WorkspaceScopeClass, ScopeMode, WorksetArtifactRecord,
 };
 
 use crate::lexical::ScopeClass;
@@ -77,12 +77,15 @@ impl ScopePresentationState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceSearchScope {
     workspace_id: String,
+    stable_scope_id: String,
     scope_class: ScopeClass,
+    scope_mode: ScopeMode,
     workset_id: Option<String>,
     workset_name: Option<String>,
     chip_label: String,
     presentation_state: ScopePresentationState,
     root_refs: Vec<String>,
+    included_roots: Vec<IncludedRootRef>,
     patterns: Vec<ScopePatternRecord>,
     partial_index_note: Option<String>,
     is_policy_limited: bool,
@@ -97,17 +100,21 @@ impl WorkspaceSearchScope {
         let scope_class = ScopeClass::FullWorkspace;
         Self {
             workspace_id: workspace_id.into(),
+            stable_scope_id: String::new(),
             scope_class,
+            scope_mode: ScopeMode::Full,
             workset_id: None,
             workset_name: None,
             chip_label: scope_class.chip_label_family().to_string(),
             presentation_state: ScopePresentationState::ActiveNarrowSafe,
             root_refs: Vec::new(),
+            included_roots: Vec::new(),
             patterns: Vec::new(),
             partial_index_note: None,
             is_policy_limited: false,
             has_partial_member_truth: false,
         }
+        .with_default_stable_scope_id()
     }
 
     /// Construct a scope projection for a narrowed scope class without a
@@ -131,19 +138,29 @@ impl WorkspaceSearchScope {
                 .map(|s| s.to_string())
                 .filter(|s| !s.trim().is_empty()),
         };
+        let scope_mode = match scope_class {
+            ScopeClass::CurrentRepo | ScopeClass::FullWorkspace => ScopeMode::Full,
+            ScopeClass::SelectedWorkset
+            | ScopeClass::SparseSlice
+            | ScopeClass::PolicyLimitedView => ScopeMode::Sparse,
+        };
         Self {
             workspace_id: workspace_id.into(),
+            stable_scope_id: String::new(),
             scope_class,
+            scope_mode,
             workset_id: None,
             workset_name,
             chip_label,
             presentation_state,
             root_refs: Vec::new(),
+            included_roots: Vec::new(),
             patterns: Vec::new(),
             partial_index_note: None,
             is_policy_limited: matches!(scope_class, ScopeClass::PolicyLimitedView),
             has_partial_member_truth: false,
         }
+        .with_default_stable_scope_id()
     }
 
     /// Construct a scope projection for the bare current-repo case (no
@@ -153,17 +170,21 @@ impl WorkspaceSearchScope {
         let scope_class = ScopeClass::CurrentRepo;
         Self {
             workspace_id: workspace_id.into(),
+            stable_scope_id: String::new(),
             scope_class,
+            scope_mode: ScopeMode::Full,
             workset_id: None,
             workset_name: None,
             chip_label: scope_class.chip_label_family().to_string(),
             presentation_state: ScopePresentationState::ActiveNarrowSafe,
             root_refs: Vec::new(),
+            included_roots: Vec::new(),
             patterns: Vec::new(),
             partial_index_note: None,
             is_policy_limited: false,
             has_partial_member_truth: false,
         }
+        .with_default_stable_scope_id()
     }
 
     /// Project a [`WorkspaceSearchScope`] from a workset artifact. The
@@ -189,6 +210,7 @@ impl WorkspaceSearchScope {
             .map(ScopePatternRecord::from_workspace)
             .collect();
         let root_refs = artifact.root_refs.clone();
+        let included_roots = artifact.included_roots.clone();
         let is_policy_limited =
             matches!(artifact.scope_class, WorkspaceScopeClass::PolicyLimitedView);
         let workset_name = if matches!(
@@ -201,12 +223,15 @@ impl WorkspaceSearchScope {
         };
         Self {
             workspace_id,
+            stable_scope_id: artifact.stable_scope_id().to_string(),
             scope_class,
+            scope_mode: artifact.scope_mode(),
             workset_id: Some(artifact.workset_id.clone()),
             workset_name,
             chip_label,
             presentation_state,
             root_refs,
+            included_roots,
             patterns,
             partial_index_note: artifact.readiness.partial_index_note.clone(),
             is_policy_limited,
@@ -214,14 +239,35 @@ impl WorkspaceSearchScope {
         }
     }
 
+    fn with_default_stable_scope_id(mut self) -> Self {
+        if self.stable_scope_id.is_empty() {
+            self.stable_scope_id = format!(
+                "scope:{}:{}",
+                self.workspace_id.replace(':', "_"),
+                self.scope_class.as_str()
+            );
+        }
+        self
+    }
+
     /// Workspace identity bound to this scope.
     pub fn workspace_id(&self) -> &str {
         &self.workspace_id
     }
 
+    /// Stable scope identity bound to this projection.
+    pub fn stable_scope_id(&self) -> &str {
+        &self.stable_scope_id
+    }
+
     /// Active scope class.
     pub const fn scope_class(&self) -> ScopeClass {
         self.scope_class
+    }
+
+    /// Sparse/full materialization mode.
+    pub const fn scope_mode(&self) -> ScopeMode {
+        self.scope_mode
     }
 
     /// Workset id when a workset narrows scope.
@@ -247,6 +293,11 @@ impl WorkspaceSearchScope {
     /// Root references the active scope spans.
     pub fn root_refs(&self) -> &[String] {
         &self.root_refs
+    }
+
+    /// Included roots with root-kind and result-state labels.
+    pub fn included_roots(&self) -> &[IncludedRootRef] {
+        &self.included_roots
     }
 
     /// Active include / exclude pattern set.
@@ -332,12 +383,15 @@ impl WorkspaceSearchScope {
             .count() as u32;
         WorkspaceSearchScopeMetadata {
             workspace_id: self.workspace_id.clone(),
+            stable_scope_id: self.stable_scope_id.clone(),
             scope_class_token: self.scope_class.as_str().to_string(),
+            scope_mode_token: self.scope_mode.as_str().to_string(),
             workset_id: self.workset_id.clone(),
             workset_name: self.workset_name.clone(),
             chip_label: self.chip_label.clone(),
             presentation_state_token: self.presentation_state.as_str().to_string(),
             root_refs: self.root_refs.clone(),
+            included_roots: self.included_roots.clone(),
             partial_scope: self.is_partial_scope(),
             partial_index_note: self.partial_index_note.clone(),
             is_policy_limited: self.is_policy_limited,
@@ -355,7 +409,9 @@ impl WorkspaceSearchScope {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceSearchScopeMetadata {
     pub workspace_id: String,
+    pub stable_scope_id: String,
     pub scope_class_token: String,
+    pub scope_mode_token: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workset_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -363,6 +419,8 @@ pub struct WorkspaceSearchScopeMetadata {
     pub chip_label: String,
     pub presentation_state_token: String,
     pub root_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub included_roots: Vec<IncludedRootRef>,
     pub partial_scope: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub partial_index_note: Option<String>,
@@ -392,10 +450,11 @@ fn build_chip_label(scope: ScopeClass, workset_name: Option<&str>) -> String {
 mod tests {
     use super::*;
     use aureline_workspace::{
-        MemberRef, MemberRefKind, MembershipPolicy, NarrowingCause, PartialTruthLabel,
-        PatternEntry, PatternKind, PolicyLimitation, PortabilityMetadata, ReadinessMetadata,
-        ReadinessState, SourceClass as WksSourceClass, WorksetArtifactRecord,
-        WorksetArtifactRecordKind, WorksetPortabilityClass,
+        IncludedRootRef, MemberRef, MemberRefKind, MembershipPolicy, NarrowingCause,
+        PartialTruthLabel, PatternEntry, PatternKind, PolicyLimitation, PortabilityMetadata,
+        ReadinessMetadata, ReadinessState, ScopeMode, SourceClass as WksSourceClass,
+        WorksetArtifactRecord, WorksetArtifactRecordKind, WorksetPortabilityClass,
+        WorkspaceRootKind,
     };
 
     fn fixture_artifact(scope: WorkspaceScopeClass) -> WorksetArtifactRecord {
@@ -403,11 +462,24 @@ mod tests {
             record_kind: WorksetArtifactRecordKind::WorksetArtifactRecord,
             workset_artifact_schema_version: 1,
             workset_id: "wks:test:hot:0".to_string(),
+            scope_id: Some("scope:test:hot:0".to_string()),
             workset_name: "Hot path".to_string(),
             presentation_subtitle: None,
             scope_class: scope,
+            scope_mode: match scope {
+                WorkspaceScopeClass::CurrentRepo | WorkspaceScopeClass::FullWorkspace => {
+                    ScopeMode::Full
+                }
+                _ => ScopeMode::Sparse,
+            },
             workspace_ref: Some("wksp:test".to_string()),
             root_refs: vec!["fs-r-0".to_string()],
+            included_roots: vec![IncludedRootRef {
+                root_ref: "fs-r-0".to_string(),
+                root_kind: WorkspaceRootKind::LocalRepoRoot,
+                partial_truth: PartialTruthLabel::Loaded,
+                presentation_label: Some("repo-a".to_string()),
+            }],
             patterns: vec![
                 PatternEntry {
                     pattern_kind: PatternKind::Include,
@@ -486,6 +558,9 @@ mod tests {
         let artifact = fixture_artifact(WorkspaceScopeClass::SelectedWorkset);
         let scope = WorkspaceSearchScope::from_workset_artifact("ws-test", &artifact);
         assert_eq!(scope.chip_label(), "Selected workset · Hot path");
+        assert_eq!(scope.stable_scope_id(), "scope:test:hot:0");
+        assert_eq!(scope.scope_mode(), ScopeMode::Sparse);
+        assert_eq!(scope.included_roots().len(), 1);
         assert_eq!(scope.workset_id(), Some("wks:test:hot:0"));
         assert_eq!(scope.workset_name(), Some("Hot path"));
         assert!(scope.is_partial_scope());
@@ -529,8 +604,11 @@ mod tests {
         let artifact = fixture_artifact(WorkspaceScopeClass::SparseSlice);
         let scope = WorkspaceSearchScope::from_workset_artifact("ws-test", &artifact);
         let metadata = scope.project_metadata();
+        assert_eq!(metadata.stable_scope_id, "scope:test:hot:0");
         assert_eq!(metadata.scope_class_token, "sparse_slice");
+        assert_eq!(metadata.scope_mode_token, "sparse");
         assert_eq!(metadata.chip_label, "Sparse slice · Hot path");
+        assert_eq!(metadata.included_roots.len(), 1);
         assert!(metadata.partial_scope);
         assert_eq!(metadata.include_pattern_count, 1);
         assert_eq!(metadata.exclude_pattern_count, 1);

@@ -79,19 +79,25 @@ Freezing the artifact, the chip, and the diff record here means:
 
 ## Scope
 
-This packet freezes three record kinds inside one schema:
+This packet freezes four record kinds inside one schema:
 
 1. `workset_artifact_record` — the durable, portable, nameable
-   artifact. One artifact per stable `workset_id`. Includes
-   include/exclude patterns, root refs, membership policy, resolved
-   member refs, portability metadata, readiness metadata, and an
-   optional policy-limitation block.
+   artifact. One artifact per stable `workset_id` and `scope_id`.
+   Includes sparse/full mode, include/exclude patterns, root refs,
+   root-kind/result-state rows, membership policy, resolved member
+   refs, portability metadata, readiness metadata, and an optional
+   policy-limitation block.
 2. `scope_truth_chip_record` — the chip projection every open,
    search, support, AI, refactor, and export surface renders. The
-   chip quotes `workset_id`; it never mints a parallel scope id.
+   chip quotes `workset_id` and `scope_id`; it never mints a
+   parallel scope id.
 3. `scope_widen_diff_record` — the typed diff between two
    artifacts (or between an active artifact and a candidate
    widening). Powers the scope-diff review sheet.
+4. `workset_scope_consumer_binding` — the non-UI binding that
+   proves local, remote, headless, support-export, navigation, and
+   refactor consumers preserved the same scope identity or degraded
+   with an explicit reason.
 
 Out of scope:
 
@@ -123,6 +129,9 @@ derive a parallel stable id for the same scope.
   Every downstream chip, diff, search packet, support bundle, AI
   context snapshot, refactor preview, and export footer references
   this id.
+- `scope_id` — stable opaque scope identity. Restore, remote,
+  headless, support-export, navigation, and refactor consumers
+  quote this id when they bind the saved scope.
 - `workset_name` — human-readable name. Redaction-aware.
 - `presentation_subtitle` — optional subtitle (e.g. `Payments
   backend hot path`). Redaction-aware, optional.
@@ -181,6 +190,13 @@ Rules (frozen):
 - `root_refs` — one or more filesystem-root refs. Opaque pointers
   to ADR-0006 filesystem-identity records; raw absolute paths are
   never inlined.
+- `scope_mode` — `full` or `sparse`. Full-workspace/current-repo
+  artifacts use `full`; workset, sparse, and policy-narrowed
+  projections use `sparse` when results are intentionally bounded.
+- `included_roots` — one row per `root_refs` entry. Each row
+  carries `root_kind` plus the result-state label (`loaded`,
+  `manifest_known`, `cached`, or `unavailable`) that search,
+  navigation, refactor, export, and support surfaces render.
 - `patterns` — ordered include/exclude rows. Order is stable;
   conflicts are surfaced on a diff record, not silently resolved.
 - `membership_policy` — one of `explicit_root_list`,

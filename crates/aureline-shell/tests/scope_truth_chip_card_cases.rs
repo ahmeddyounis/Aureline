@@ -80,6 +80,10 @@ struct FixtureCountsInput {
 #[derive(Debug, Clone, Deserialize)]
 struct ExpectBlock {
     scope_class_token: String,
+    #[serde(default)]
+    stable_scope_id: Option<String>,
+    #[serde(default)]
+    scope_mode_token: Option<String>,
     presentation_state_token: String,
     chip_label: String,
     partial_scope: bool,
@@ -98,10 +102,19 @@ struct ExpectBlock {
     hidden_result_count: Option<u64>,
     #[serde(default)]
     partial_index_note: Option<String>,
+    #[serde(default)]
+    included_root_states: Vec<ExpectRootStateRow>,
     must_offer_action_tokens: Vec<String>,
     #[serde(default)]
     must_not_offer_action_tokens: Vec<String>,
     counts: ExpectCountsBlock,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ExpectRootStateRow {
+    root_ref: String,
+    root_kind_token: String,
+    result_state_token: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -126,6 +139,8 @@ fn surface_class_from(token: &str) -> ScopeTruthSurfaceClass {
         "docs_browser" => ScopeTruthSurfaceClass::DocsBrowser,
         "open_flow_sheet" => ScopeTruthSurfaceClass::OpenFlowSheet,
         "support_packet" => ScopeTruthSurfaceClass::SupportPacket,
+        "refactor_scope_footer" => ScopeTruthSurfaceClass::RefactorScopeFooter,
+        "export_scope_footer" => ScopeTruthSurfaceClass::ExportScopeFooter,
         other => panic!("unsupported surface_class token: {other}"),
     }
 }
@@ -207,6 +222,20 @@ fn assert_fixture(path: &Path, fixture: &ScopeTruthFixture) {
         "scope_class_token mismatch in {path:?} ({})",
         fixture.case_name
     );
+    if let Some(expected) = fixture.expect.stable_scope_id.as_deref() {
+        assert_eq!(
+            card.stable_scope_id, expected,
+            "stable_scope_id mismatch in {path:?} ({})",
+            fixture.case_name
+        );
+    }
+    if let Some(expected) = fixture.expect.scope_mode_token.as_deref() {
+        assert_eq!(
+            card.scope_mode_token, expected,
+            "scope_mode_token mismatch in {path:?} ({})",
+            fixture.case_name
+        );
+    }
     assert_eq!(
         card.presentation_state_token, fixture.expect.presentation_state_token,
         "presentation_state_token mismatch in {path:?} ({})",
@@ -263,6 +292,36 @@ fn assert_fixture(path: &Path, fixture: &ScopeTruthFixture) {
         "partial_index_note mismatch in {path:?} ({})",
         fixture.case_name
     );
+    if !fixture.expect.included_root_states.is_empty() {
+        assert_eq!(
+            card.included_root_states.len(),
+            fixture.expect.included_root_states.len(),
+            "included_root_states length mismatch in {path:?} ({})",
+            fixture.case_name
+        );
+        for expected in &fixture.expect.included_root_states {
+            let actual = card
+                .included_root_states
+                .iter()
+                .find(|row| row.root_ref == expected.root_ref)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing included_root_state {} in {path:?} ({})",
+                        expected.root_ref, fixture.case_name
+                    )
+                });
+            assert_eq!(
+                actual.root_kind_token, expected.root_kind_token,
+                "root_kind_token mismatch for {} in {path:?}",
+                expected.root_ref
+            );
+            assert_eq!(
+                actual.result_state_token, expected.result_state_token,
+                "result_state_token mismatch for {} in {path:?}",
+                expected.root_ref
+            );
+        }
+    }
     for token in &fixture.expect.must_offer_action_tokens {
         assert!(
             card.offered_action_tokens.iter().any(|t| t == token),

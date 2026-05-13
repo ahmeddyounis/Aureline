@@ -9,6 +9,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::lexical::scope::ScopeClass;
+use crate::scope::WorkspaceSearchScopeMetadata;
 
 /// Schema version for the alpha query-session record.
 pub const SEARCH_QUERY_SESSION_SCHEMA_VERSION: u32 = 1;
@@ -80,6 +81,13 @@ pub struct SearchQuerySession {
     pub query_hash: Option<String>,
     /// Scope class active when the planner pass began.
     pub scope_class: ScopeClass,
+    /// Stable scope identity active when the planner pass began.
+    pub stable_scope_id: String,
+    /// Sparse/full mode active when the planner pass began.
+    pub scope_mode: String,
+    /// Workset id when the scope was bound to a saved workset/slice artifact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workset_id: Option<String>,
     /// Human-readable scope chip label captured for replay/export.
     pub scope_label: String,
     /// Planner version expected to answer this session.
@@ -112,6 +120,7 @@ impl SearchQuerySession {
         observed_at: impl Into<String>,
     ) -> Self {
         let query_text = query_text.into();
+        let scope_label = scope_label.into();
         Self {
             record_kind: Self::RECORD_KIND.to_string(),
             schema_version: SEARCH_QUERY_SESSION_SCHEMA_VERSION,
@@ -121,7 +130,10 @@ impl SearchQuerySession {
             query_hash: Some(stable_query_hash(&query_text)),
             query_text: Some(query_text),
             scope_class,
-            scope_label: scope_label.into(),
+            stable_scope_id: default_stable_scope_id(scope_class, &scope_label),
+            scope_mode: default_scope_mode(scope_class).to_string(),
+            workset_id: None,
+            scope_label,
             planner_version: planner_version.into(),
             readiness_state: readiness_state.into(),
             index_epoch: None,
@@ -141,6 +153,7 @@ impl SearchQuerySession {
         readiness_state: impl Into<String>,
         observed_at: impl Into<String>,
     ) -> Self {
+        let scope_label = scope_label.into();
         Self {
             record_kind: Self::RECORD_KIND.to_string(),
             schema_version: SEARCH_QUERY_SESSION_SCHEMA_VERSION,
@@ -150,13 +163,25 @@ impl SearchQuerySession {
             query_text: None,
             query_hash: Some(query_hash.into()),
             scope_class,
-            scope_label: scope_label.into(),
+            stable_scope_id: default_stable_scope_id(scope_class, &scope_label),
+            scope_mode: default_scope_mode(scope_class).to_string(),
+            workset_id: None,
+            scope_label,
             planner_version: planner_version.into(),
             readiness_state: readiness_state.into(),
             index_epoch: None,
             graph_epoch: None,
             observed_at: observed_at.into(),
         }
+    }
+
+    /// Attaches canonical workset/slice metadata projected by the search scope resolver.
+    pub fn with_scope_metadata(mut self, metadata: &WorkspaceSearchScopeMetadata) -> Self {
+        self.stable_scope_id = metadata.stable_scope_id.clone();
+        self.scope_mode = metadata.scope_mode_token.clone();
+        self.workset_id = metadata.workset_id.clone();
+        self.scope_label = metadata.chip_label.clone();
+        self
     }
 }
 
@@ -171,6 +196,23 @@ pub fn stable_query_hash(query: &str) -> String {
         hash = hash.wrapping_mul(FNV_PRIME);
     }
     format!("fnv1a64:{hash:016x}")
+}
+
+fn default_stable_scope_id(scope_class: ScopeClass, scope_label: &str) -> String {
+    format!(
+        "scope:{}:{}",
+        scope_class.as_str(),
+        stable_query_hash(scope_label)
+    )
+}
+
+fn default_scope_mode(scope_class: ScopeClass) -> &'static str {
+    match scope_class {
+        ScopeClass::CurrentRepo | ScopeClass::FullWorkspace => "full",
+        ScopeClass::SelectedWorkset | ScopeClass::SparseSlice | ScopeClass::PolicyLimitedView => {
+            "sparse"
+        }
+    }
 }
 
 #[cfg(test)]
@@ -191,6 +233,8 @@ mod tests {
         );
         assert_eq!(session.record_kind, SearchQuerySession::RECORD_KIND);
         assert_eq!(session.query_text.as_deref(), Some("main"));
+        assert_eq!(session.scope_mode, "full");
+        assert!(session.workset_id.is_none());
         let expected_hash = stable_query_hash("main");
         assert_eq!(session.query_hash.as_deref(), Some(expected_hash.as_str()));
     }

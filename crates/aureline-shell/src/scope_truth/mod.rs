@@ -38,6 +38,7 @@ pub mod counts;
 pub use card::{
     project_outside_scope_truth_chip_card, project_scope_truth_chip_card,
     project_scope_truth_chip_card_for_artifact, render_scope_truth_chip_lines, ScopeTruthChipCard,
-    ScopeTruthSurfaceClass, SCOPE_TRUTH_CHIP_RECORD_KIND, SCOPE_TRUTH_CHIP_SCHEMA_VERSION,
+    ScopeTruthRootStateRow, ScopeTruthSurfaceClass, SCOPE_TRUTH_CHIP_RECORD_KIND,
+    SCOPE_TRUTH_CHIP_SCHEMA_VERSION,
 };
 pub use counts::{ScopeCountsClass, ScopeCountsInputs, ScopeCountsRecord};

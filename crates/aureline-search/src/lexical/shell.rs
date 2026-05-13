@@ -18,6 +18,7 @@ use super::index::LexicalIndexState;
 use super::query::{run_query, LexicalQuery, LexicalSearchResults};
 use super::scope::ScopeClass;
 use super::source::SourceClass;
+use crate::scope::WorkspaceSearchScopeMetadata;
 
 /// Live workspace lexical-search shell state.
 #[derive(Debug, Clone)]
@@ -137,12 +138,29 @@ impl LexicalShell {
             })
             .collect();
 
+        let scope_metadata = self.index.scope().map(|scope| scope.project_metadata());
+        let stable_scope_id = scope_metadata
+            .as_ref()
+            .map(|metadata| metadata.stable_scope_id.clone())
+            .unwrap_or_else(|| default_stable_scope_id(self.scope_class, &self.scope_label));
+        let scope_mode = scope_metadata
+            .as_ref()
+            .map(|metadata| metadata.scope_mode_token.clone())
+            .unwrap_or_else(|| default_scope_mode(self.scope_class).to_string());
+        let workset_id = scope_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.workset_id.clone());
+
         LexicalShellSnapshot {
             record_kind: LexicalShellSnapshot::RECORD_KIND.to_string(),
             schema_version: 1,
             workspace_id: self.workspace_id.clone(),
             scope_class: self.scope_class.as_str().to_string(),
+            stable_scope_id,
+            scope_mode,
+            workset_id,
             scope_label: self.scope_label.clone(),
+            scope_metadata,
             query: self.query.query.clone(),
             readiness_class: self.results.readiness.as_str().to_string(),
             readiness_banner: self.results.readiness.banner_label().to_string(),
@@ -168,7 +186,13 @@ pub struct LexicalShellSnapshot {
     pub schema_version: u32,
     pub workspace_id: String,
     pub scope_class: String,
+    pub stable_scope_id: String,
+    pub scope_mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workset_id: Option<String>,
     pub scope_label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_metadata: Option<WorkspaceSearchScopeMetadata>,
     pub query: String,
     pub readiness_class: String,
     pub readiness_banner: String,
@@ -198,6 +222,23 @@ pub struct LexicalShellSnapshotItem {
     pub relative_path: String,
     pub source_class: String,
     pub match_kind: String,
+}
+
+fn default_stable_scope_id(scope_class: ScopeClass, scope_label: &str) -> String {
+    format!(
+        "scope:{}:{}",
+        scope_class.as_str(),
+        crate::stable_query_hash(scope_label)
+    )
+}
+
+fn default_scope_mode(scope_class: ScopeClass) -> &'static str {
+    match scope_class {
+        ScopeClass::CurrentRepo | ScopeClass::FullWorkspace => "full",
+        ScopeClass::SelectedWorkset | ScopeClass::SparseSlice | ScopeClass::PolicyLimitedView => {
+            "sparse"
+        }
+    }
 }
 
 #[cfg(test)]
@@ -261,6 +302,8 @@ mod tests {
         assert_eq!(parsed.workspace_id, "ws-test");
         assert_eq!(parsed.readiness_class, "ready");
         assert_eq!(parsed.scope_class, "current_repo");
+        assert_eq!(parsed.scope_mode, "full");
+        assert!(parsed.stable_scope_id.starts_with("scope:current_repo:"));
     }
 
     #[test]

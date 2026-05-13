@@ -13,10 +13,10 @@ use serde::Deserialize;
 
 use aureline_search::{glob_matches_relative_path, WorkspaceSearchScope};
 use aureline_workspace::{
-    MemberRef, MemberRefKind, MembershipPolicy, NarrowingCause, PartialTruthLabel, PatternEntry,
-    PatternKind, PolicyLimitation, PortabilityMetadata, ReadinessMetadata, ReadinessState,
-    SourceClass as WksSourceClass, WorksetArtifactRecord, WorksetArtifactRecordKind,
-    WorksetPortabilityClass,
+    IncludedRootRef, MemberRef, MemberRefKind, MembershipPolicy, NarrowingCause, PartialTruthLabel,
+    PatternEntry, PatternKind, PolicyLimitation, PortabilityMetadata, ReadinessMetadata,
+    ReadinessState, ScopeMode, SourceClass as WksSourceClass, WorksetArtifactRecord,
+    WorksetArtifactRecordKind, WorksetPortabilityClass, WorkspaceRootKind,
 };
 
 #[derive(Debug, Deserialize)]
@@ -162,11 +162,29 @@ fn build_artifact(fixture: &WorksetArtifactFixture) -> WorksetArtifactRecord {
         record_kind: WorksetArtifactRecordKind::WorksetArtifactRecord,
         workset_artifact_schema_version: 1,
         workset_id: fixture.workset_id.clone(),
+        scope_id: Some(format!("scope:{}", fixture.workset_id)),
         workset_name: fixture.workset_name.clone(),
         presentation_subtitle: None,
         scope_class,
+        scope_mode: match scope_class {
+            aureline_workspace::ScopeClass::CurrentRepo
+            | aureline_workspace::ScopeClass::FullWorkspace => ScopeMode::Full,
+            aureline_workspace::ScopeClass::SelectedWorkset
+            | aureline_workspace::ScopeClass::SparseSlice
+            | aureline_workspace::ScopeClass::PolicyLimitedView => ScopeMode::Sparse,
+        },
         workspace_ref: Some("wksp:test".to_string()),
         root_refs: fixture.root_refs.clone(),
+        included_roots: fixture
+            .root_refs
+            .iter()
+            .map(|root_id| IncludedRootRef {
+                root_ref: root_id.clone(),
+                root_kind: WorkspaceRootKind::LocalRepoRoot,
+                partial_truth: member_partial,
+                presentation_label: Some(root_id.clone()),
+            })
+            .collect(),
         patterns: fixture.patterns.iter().map(pattern_entry).collect(),
         membership_policy: parse_membership_policy(&fixture.membership_policy),
         member_refs: fixture
@@ -316,6 +334,21 @@ fn verify_single(fixture: &CaseFixture, path: &Path) {
     );
 
     let metadata = scope.project_metadata();
+    assert_eq!(
+        metadata.stable_scope_id,
+        scope.stable_scope_id(),
+        "stable_scope_id mismatch in {path:?}"
+    );
+    assert_eq!(
+        metadata.scope_mode_token,
+        scope.scope_mode().as_str(),
+        "scope_mode_token mismatch in {path:?}"
+    );
+    assert_eq!(
+        metadata.included_roots.len(),
+        scope.included_roots().len(),
+        "included_roots mismatch in {path:?}"
+    );
     assert_eq!(
         metadata.include_pattern_count, expected.include_pattern_count,
         "include_pattern_count mismatch in {path:?}"

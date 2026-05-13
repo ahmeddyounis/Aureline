@@ -112,10 +112,11 @@ pub use generated_artifacts::{
 
 pub use worksets::{
     ChipAction, ChipPresentationState, ChipSurfaceClass, HiddenResultCountClass,
-    HiddenResultSummary, MemberRef, MemberRefKind, MembershipDecision, MembershipPolicy,
-    NarrowingCause, PartialTruthLabel, PatternEntry, PatternKind, PolicyLimitation,
-    PortabilityClass as WorksetPortabilityClass, PortabilityMetadata, ReadinessMetadata,
-    ReadinessState, ScopeClass, ScopeTruthChipRecord, ScopeTruthChipRecordKind, SourceClass,
-    WorksetArtifactError, WorksetArtifactRecord, WorksetArtifactRecordKind,
-    WorksetArtifactSchemaVersion,
+    HiddenResultSummary, IncludedRootRef, MemberRef, MemberRefKind, MembershipDecision,
+    MembershipPolicy, NarrowingCause, PartialTruthLabel, PatternEntry, PatternKind,
+    PolicyLimitation, PortabilityClass as WorksetPortabilityClass, PortabilityMetadata,
+    ReadinessMetadata, ReadinessState, ScopeClass, ScopeDegradedReason, ScopeMode,
+    ScopeReopenPosture, ScopeReopenState, ScopeTruthChipRecord, ScopeTruthChipRecordKind,
+    SourceClass, WorksetArtifactError, WorksetArtifactRecord, WorksetArtifactRecordKind,
+    WorksetArtifactSchemaVersion, WorksetScopeConsumerBinding, WorksetScopeConsumerClass,
 };

@@ -19,7 +19,7 @@ use crate::lexical::query::LexicalQuery;
 use crate::lexical::scope::ScopeClass;
 use crate::lexical::shell::{LexicalShell, LexicalShellSnapshot};
 use crate::lexical::ReadinessClass;
-use crate::scope::WorkspaceSearchScope;
+use crate::scope::{WorkspaceSearchScope, WorkspaceSearchScopeMetadata};
 
 /// Inputs for one first-useful indexing scheduler pass.
 #[derive(Debug, Clone)]
@@ -99,6 +99,17 @@ pub struct FirstUsefulNavigationSnapshot {
     pub schema_version: u32,
     /// Workspace identity for the scheduler pass.
     pub workspace_id: String,
+    /// Stable scope identity active for first-useful navigation.
+    pub stable_scope_id: String,
+    /// Scope-class token active for first-useful navigation.
+    pub scope_class: String,
+    /// Sparse/full scope mode active for first-useful navigation.
+    pub scope_mode: String,
+    /// User-visible scope label active for first-useful navigation.
+    pub scope_label: String,
+    /// Canonical workset/slice metadata when the scheduler was bound to an artifact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_metadata: Option<WorkspaceSearchScopeMetadata>,
     /// Search-readiness token projected from the hot-set plan.
     pub readiness_state: String,
     /// User-visible readiness label.
@@ -159,6 +170,8 @@ impl IndexSchedulerAlpha {
         let lexical_files = lexical_files_for_plan(&plan, &inputs.discovered_files);
         let readiness = lexical_readiness_for_plan(plan.readiness_state);
         let causes = lexical_causes_for_plan(&plan, &inputs.readiness_inputs);
+        let navigation_snapshot =
+            FirstUsefulNavigationSnapshot::from_plan(&plan, inputs.scope.as_ref());
         let lexical_index = LexicalIndexState::from_scheduled_files(
             workspace_id,
             observed_at,
@@ -168,7 +181,6 @@ impl IndexSchedulerAlpha {
             inputs.scope,
             inputs.discovered_files.len() as u64,
         );
-        let navigation_snapshot = FirstUsefulNavigationSnapshot::from_plan(&plan);
 
         IndexSchedulerOutput {
             plan,
@@ -199,11 +211,38 @@ impl FirstUsefulNavigationSnapshot {
     pub const RECORD_KIND: &'static str = "first_useful_navigation_snapshot";
 
     /// Builds an exportable scheduler snapshot from a hot-set plan.
-    pub fn from_plan(plan: &HotSetPlan) -> Self {
+    pub fn from_plan(plan: &HotSetPlan, scope: Option<&WorkspaceSearchScope>) -> Self {
+        let scope_metadata = scope.map(WorkspaceSearchScope::project_metadata);
+        let stable_scope_id = scope_metadata
+            .as_ref()
+            .map(|metadata| metadata.stable_scope_id.clone())
+            .unwrap_or_else(|| {
+                format!(
+                    "scope:{}:full_workspace",
+                    plan.workspace_id.replace(':', "_")
+                )
+            });
+        let scope_class = scope_metadata
+            .as_ref()
+            .map(|metadata| metadata.scope_class_token.clone())
+            .unwrap_or_else(|| "full_workspace".to_string());
+        let scope_mode = scope_metadata
+            .as_ref()
+            .map(|metadata| metadata.scope_mode_token.clone())
+            .unwrap_or_else(|| "full".to_string());
+        let scope_label = scope_metadata
+            .as_ref()
+            .map(|metadata| metadata.chip_label.clone())
+            .unwrap_or_else(|| "Full workspace".to_string());
         Self {
             record_kind: Self::RECORD_KIND.to_string(),
             schema_version: 1,
             workspace_id: plan.workspace_id.clone(),
+            stable_scope_id,
+            scope_class,
+            scope_mode,
+            scope_label,
+            scope_metadata,
             readiness_state: plan.readiness_state.as_str().to_string(),
             readiness_banner: plan.readiness_state.banner_label().to_string(),
             full_index_complete: plan.full_index_complete,
