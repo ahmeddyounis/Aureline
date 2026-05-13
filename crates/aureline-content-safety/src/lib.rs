@@ -36,6 +36,7 @@
 
 pub mod detector;
 pub mod records;
+pub mod representation_copy_export;
 pub mod suspicious_text;
 pub mod transfer;
 
@@ -46,6 +47,18 @@ pub use detector::{
 pub use records::{
     LabelExamples, SurfaceFamily, SurfaceTrustResolutionRecord, SuspiciousContentCaseRecord,
     SuspiciousContentClass, SuspiciousContentFindingRecord, TrustClass,
+};
+pub use representation_copy_export::{
+    CopyExportActionKind, CopyExportLabelClass, CopyPayloadMode, InteractionPolicyContext,
+    InteractionRepresentationClass, InteractionSafetyCopyExportRecord, ProtectedCopySurfaceKind,
+    RepresentationCopyExportActionInput, RepresentationCopyExportActionProjection,
+    RepresentationCopyExportAlphaPacket, RepresentationCopyExportCase,
+    RepresentationCopyExportSurfaceInput, RepresentationCopyExportSurfaceProjection,
+    RepresentationCopyExportValidationReport, RepresentationCopyExportViolation,
+    INTERACTION_SAFETY_COPY_EXPORT_RECORD_KIND, INTERACTION_SAFETY_SCHEMA_VERSION,
+    PROTECTED_COPY_EXPORT_SURFACES, REPRESENTATION_COPY_EXPORT_ALPHA_PACKET_RECORD_KIND,
+    REPRESENTATION_COPY_EXPORT_ALPHA_SCHEMA_VERSION,
+    REPRESENTATION_COPY_EXPORT_VALIDATION_REPORT_RECORD_KIND,
 };
 pub use suspicious_text::{
     project_suspicious_text_core_surfaces, SuspiciousTextAnchor, SuspiciousTextLocationKind,
