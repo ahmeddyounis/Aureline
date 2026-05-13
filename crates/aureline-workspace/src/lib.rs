@@ -18,6 +18,7 @@ pub mod profiles;
 pub mod recent_work;
 pub mod roots;
 pub mod save;
+pub mod state_packages;
 pub mod worksets;
 
 pub use recent_work::{
@@ -46,6 +47,18 @@ pub use profiles::{
     SyncDeviceRegistryAlphaRecord, SyncTransportState, WideningVector,
     CONFLICT_REVIEW_ALPHA_SCHEMA_VERSION, DEVICE_REGISTRY_ALPHA_SCHEMA_VERSION,
     PORTABLE_PROFILE_ALPHA_SCHEMA_VERSION,
+};
+
+pub use state_packages::{
+    DisplayAdjustmentClass, ExclusionSubstituteClass, ExportMode, LinkedProfileArtifactRef,
+    MachineLocalExclusion, MachineLocalExclusionReason, NoRerunGuardrail, PaneRestorePosture,
+    PersistenceClassification, PlaceholderAction, PlaceholderCard, PlaceholderReason,
+    PortableStateAlphaPackage, PortableStateAlphaRecordKind, PortableStateAlphaValidationError,
+    PortableStateClassRecord, PortableStateRestoreProvenance, RedactionManifest,
+    RedactionRuleClass, RememberedStateAction, RememberedStateActionKind, RememberedStateInspector,
+    RememberedStateInspectorRow, RestoreCandidateClass, SerializedStateClass, StateSchemaBinding,
+    SurfaceRestorePosture, TopologyAdjustment, PANE_TREE_SCHEMA_REF, PORTABLE_PROFILE_SCHEMA_REF,
+    PORTABLE_STATE_ALPHA_SCHEMA_REF, PORTABLE_STATE_ALPHA_SCHEMA_VERSION,
 };
 
 pub use entry_flows::{

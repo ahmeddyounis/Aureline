@@ -28,9 +28,16 @@ The machine-readable schema lives at:
 
 - [`/schemas/state/portable_state_manifest.schema.json`](../../schemas/state/portable_state_manifest.schema.json)
 
+The workspace-specific alpha package body for core workspace,
+window-topology, profile-default, local-session, and machine-local hint
+classes lives at:
+
+- [`/schemas/workspace/portable_state_alpha.schema.json`](../../schemas/workspace/portable_state_alpha.schema.json)
+
 Worked fixtures live under:
 
 - [`/fixtures/state/portable_state_packages/`](../../fixtures/state/portable_state_packages/)
+- [`/fixtures/workspace/portable_state_alpha/`](../../fixtures/workspace/portable_state_alpha/)
 
 This contract composes with:
 
