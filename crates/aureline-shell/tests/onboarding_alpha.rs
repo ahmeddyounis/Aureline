@@ -129,6 +129,18 @@ fn help_search_fixture_proves_locale_fallback_and_pack_posture() {
             .expect("command id")
     );
     assert!(!fallback.citation_refs.is_empty());
+    assert_eq!(
+        fallback.docs_node_id.as_deref(),
+        Some("docs-node:onboarding.keymap-bridge")
+    );
+    assert_eq!(
+        fallback.source_pack_revision_ref.as_deref(),
+        Some("pack-rev:project:aureline:2026.05.13-01")
+    );
+    assert_eq!(
+        fallback.citation_drawer_ref.as_deref(),
+        Some("citation-drawer:docs-pack:onboarding.keymap-bridge")
+    );
 
     let pack_states = surface
         .help_search

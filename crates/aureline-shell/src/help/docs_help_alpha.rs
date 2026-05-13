@@ -11,6 +11,11 @@ use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
 use serde::{Deserialize, Serialize};
 
 use crate::embedded::boundary_card::{FreshnessClass, SourceClass, VersionMatchState};
+use crate::help::docs_pack::{
+    current_docs_pack_manifest, DocsPackAlphaManifest, DocsPackClientScope, DocsPackFreshnessClass,
+    DocsPackInstallState, DocsPackLocaleAvailability, DocsPackLocalityState, DocsPackNode,
+    DocsPackSupportClass, DocsPackVersionMatchState, CURRENT_DOCS_PACK_MANIFEST_PATH,
+};
 use crate::help_about::HelpAboutSurface;
 
 /// Stable record-kind tag for [`HelpAlphaCatalog`] payloads.
@@ -260,6 +265,8 @@ pub enum HelpAlphaLocaleAvailability {
     RequestedLocalePartial,
     /// The source falls back to the primary language.
     RequestedLocaleMissingFallbackToPrimary,
+    /// The requested locale is referenced but not installed.
+    RequestedLocaleNotInstalled,
     /// Locale does not apply to the row.
     LocaleNotApplicableToRow,
 }
@@ -273,6 +280,7 @@ impl HelpAlphaLocaleAvailability {
             Self::RequestedLocaleMissingFallbackToPrimary => {
                 "requested_locale_missing_fallback_to_primary"
             }
+            Self::RequestedLocaleNotInstalled => "requested_locale_not_installed",
             Self::LocaleNotApplicableToRow => "locale_not_applicable_to_row",
         }
     }
@@ -793,6 +801,7 @@ impl HelpAlphaCatalog {
         build_identity_ref: impl Into<String>,
     ) -> Self {
         let build_identity_ref = build_identity_ref.into();
+        let docs_manifest = current_docs_pack_manifest().ok();
         Self {
             record_kind: HELP_ALPHA_CATALOG_RECORD_KIND.to_owned(),
             schema_version: HELP_ALPHA_CATALOG_SCHEMA_VERSION,
@@ -800,8 +809,15 @@ impl HelpAlphaCatalog {
             running_build_identity_ref: build_identity_ref.clone(),
             release_channel: "preview".to_owned(),
             generated_at: now_rfc3339(),
-            search_results: seeded_search_results(registry, &build_identity_ref),
-            about_service_rows: seeded_about_service_rows(&build_identity_ref),
+            search_results: seeded_search_results(
+                registry,
+                &build_identity_ref,
+                docs_manifest.as_ref(),
+            ),
+            about_service_rows: seeded_about_service_rows(
+                &build_identity_ref,
+                docs_manifest.as_ref(),
+            ),
         }
     }
 
@@ -811,6 +827,7 @@ impl HelpAlphaCatalog {
         surface: &HelpAboutSurface,
     ) -> Self {
         let build_identity_ref = surface.build_identity.exact_build_identity_ref.clone();
+        let docs_manifest = current_docs_pack_manifest().ok();
         Self {
             record_kind: HELP_ALPHA_CATALOG_RECORD_KIND.to_owned(),
             schema_version: HELP_ALPHA_CATALOG_SCHEMA_VERSION,
@@ -818,8 +835,12 @@ impl HelpAlphaCatalog {
             running_build_identity_ref: build_identity_ref.clone(),
             release_channel: surface.build_identity.release_channel_class_token.clone(),
             generated_at: now_rfc3339(),
-            search_results: seeded_search_results(registry, &build_identity_ref),
-            about_service_rows: project_about_service_rows(surface),
+            search_results: seeded_search_results(
+                registry,
+                &build_identity_ref,
+                docs_manifest.as_ref(),
+            ),
+            about_service_rows: project_about_service_rows(surface, docs_manifest.as_ref()),
         }
     }
 
@@ -991,18 +1012,30 @@ impl HelpAlphaSupportAboutServiceRow {
 }
 
 /// Projects About and service-health rows from the existing Help / About surface.
-pub fn project_about_service_rows(surface: &HelpAboutSurface) -> Vec<HelpAlphaAboutServiceRow> {
+pub fn project_about_service_rows(
+    surface: &HelpAboutSurface,
+    docs_manifest: Option<&DocsPackAlphaManifest>,
+) -> Vec<HelpAlphaAboutServiceRow> {
     let build_ref = surface.build_identity.exact_build_identity_ref.clone();
     let build_version = surface.build_identity.workspace_version.clone();
-    let docs_source_class = surface
-        .docs_help_truth
-        .source_class
-        .unwrap_or(SourceClass::GeneratedReference);
-    let docs_freshness = surface
-        .docs_help_truth
-        .freshness_class
-        .unwrap_or(FreshnessClass::Unverified);
-    let docs_version_match = surface.docs_help_truth.version_match_state;
+    let manifest_pack = if surface.docs_help_truth.source_class.is_some() {
+        None
+    } else {
+        docs_manifest.and_then(|manifest| manifest.pack("pack:project:aureline:alpha"))
+    };
+    let docs_source_class = surface.docs_help_truth.source_class.unwrap_or_else(|| {
+        manifest_pack
+            .map(|pack| pack.source_class.to_boundary_source_class())
+            .unwrap_or(SourceClass::GeneratedReference)
+    });
+    let docs_freshness = surface.docs_help_truth.freshness_class.unwrap_or_else(|| {
+        manifest_pack
+            .map(|pack| pack.freshness_class.to_boundary_freshness_class())
+            .unwrap_or(FreshnessClass::Unverified)
+    });
+    let docs_version_match = surface.docs_help_truth.version_match_state.or_else(|| {
+        manifest_pack.map(|pack| pack.version_match_state.to_boundary_version_match_state())
+    });
     let docs_contract_state = contract_state_for_docs_truth(
         surface.docs_help_truth.source_missing,
         docs_freshness,
@@ -1079,30 +1112,44 @@ pub fn project_about_service_rows(surface: &HelpAboutSurface) -> Vec<HelpAlphaAb
             ],
             source: source_descriptor(HelpAlphaSourceDescriptorInput {
                 source_class: docs_source_class,
-                source_ref: "service-health:docs-help-descriptor".to_owned(),
-                source_revision_ref: surface
-                    .docs_help_truth
-                    .running_build_identity_ref
-                    .clone()
+                source_ref: manifest_pack
+                    .map(|pack| pack.pack_id.clone())
+                    .unwrap_or_else(|| "service-health:docs-help-descriptor".to_owned()),
+                source_revision_ref: manifest_pack
+                    .map(|pack| pack.pack_revision_ref.clone())
+                    .or_else(|| surface.docs_help_truth.running_build_identity_ref.clone())
                     .unwrap_or_else(|| "docs-help:source:missing".to_owned()),
-                display_source_version: build_version,
+                display_source_version: manifest_pack
+                    .map(|pack| pack.display_version.clone())
+                    .unwrap_or(build_version),
                 running_build_identity_ref: Some(build_ref),
                 version_match_state: docs_version_match,
                 freshness_class: docs_freshness,
-                support_class: HelpAlphaSupportClass::Supported,
-                client_scopes: vec![
-                    HelpAlphaClientScope::DesktopProduct,
-                    HelpAlphaClientScope::Cli,
-                ],
+                support_class: manifest_pack
+                    .map(|pack| help_support_class_from_docs_pack(pack.support_class))
+                    .unwrap_or(HelpAlphaSupportClass::Supported),
+                client_scopes: manifest_pack
+                    .map(|pack| {
+                        pack.client_scopes
+                            .iter()
+                            .copied()
+                            .map(help_client_scope_from_docs_pack)
+                            .collect()
+                    })
+                    .unwrap_or_else(|| {
+                        vec![
+                            HelpAlphaClientScope::DesktopProduct,
+                            HelpAlphaClientScope::Cli,
+                        ]
+                    }),
                 destination_trust_class: HelpAlphaDestinationTrustClass::LocalOnly,
                 contract_state: docs_contract_state,
                 publish_boundary_state: HelpAlphaPublishBoundaryState::LocalReviewReady,
                 exact_build_or_channel: surface.build_identity.release_channel_class_token.clone(),
                 deployment_mode: "individual_local".to_owned(),
                 provenance_ref: "provenance:docs-help:descriptor".to_owned(),
-                docs_pack_manifest_ref: Some(
-                    "docs-pack-manifest:project:aureline:alpha".to_owned(),
-                ),
+                docs_pack_manifest_ref: manifest_pack
+                    .map(|pack| docs_pack_manifest_ref(&pack.pack_id, &pack.pack_revision_ref)),
                 help_status_badge_ref: surface
                     .docs_help_truth
                     .source_missing
@@ -1110,9 +1157,11 @@ pub fn project_about_service_rows(surface: &HelpAboutSurface) -> Vec<HelpAlphaAb
                 destination_descriptor_ref: Some("dest:docs:project-docs:local-pack".to_owned()),
                 browser_handoff_reason: None,
                 locale: locale_authoritative("en"),
-                offline: offline_local_only(
-                    "Help descriptors can be copied locally when service refresh is unavailable.",
-                ),
+                offline: manifest_pack
+                    .map(|pack| offline_state_from_pack(pack, "Help descriptors can be copied locally when service refresh is unavailable."))
+                    .unwrap_or_else(|| offline_local_only(
+                        "Help descriptors can be copied locally when service refresh is unavailable.",
+                    )),
             }),
             exact_reopen: target(
                 HelpAlphaTargetKind::EvidenceCard,
@@ -1133,12 +1182,14 @@ pub fn project_about_service_rows(surface: &HelpAboutSurface) -> Vec<HelpAlphaAb
 fn seeded_search_results(
     registry: &CommandRegistry,
     build_identity_ref: &str,
+    docs_manifest: Option<&DocsPackAlphaManifest>,
 ) -> Vec<HelpAlphaSearchResult> {
     let mut rows = Vec::new();
     if let Some(entry) = registry.get("cmd:workspace.open_folder") {
         rows.push(command_backed_result(
             entry,
             build_identity_ref,
+            docs_manifest,
             HelpAlphaContentClass::CanonicalHelp,
             "help-result:workspace.open-folder",
             "Open a local folder without sign-in",
@@ -1153,6 +1204,7 @@ fn seeded_search_results(
         rows.push(command_backed_result(
             entry,
             build_identity_ref,
+            docs_manifest,
             HelpAlphaContentClass::MigrationHint,
             "help-result:workspace.clone-repository",
             "Clone without granting workspace trust",
@@ -1167,6 +1219,7 @@ fn seeded_search_results(
         rows.push(command_backed_result(
             entry,
             build_identity_ref,
+            docs_manifest,
             HelpAlphaContentClass::PublishBoundaryHandoff,
             "help-result:docs.open-in-browser",
             "Open external docs through governed handoff",
@@ -1176,13 +1229,28 @@ fn seeded_search_results(
             FreshnessClass::WarmCached,
             HelpAlphaSupportClass::Limited,
         ));
-        rows.push(generated_suggestion_result(entry, build_identity_ref));
-        rows.push(stale_example_result(entry, build_identity_ref));
+        rows.push(generated_suggestion_result(
+            entry,
+            build_identity_ref,
+            docs_manifest,
+        ));
+        rows.push(stale_example_result(
+            entry,
+            build_identity_ref,
+            docs_manifest,
+        ));
     }
     rows
 }
 
-fn seeded_about_service_rows(build_identity_ref: &str) -> Vec<HelpAlphaAboutServiceRow> {
+fn seeded_about_service_rows(
+    build_identity_ref: &str,
+    docs_manifest: Option<&DocsPackAlphaManifest>,
+) -> Vec<HelpAlphaAboutServiceRow> {
+    let project_manifest_ref = docs_manifest
+        .and_then(|manifest| manifest.pack("pack:project:aureline:alpha"))
+        .map(|pack| docs_pack_manifest_ref(&pack.pack_id, &pack.pack_revision_ref));
+
     vec![
         HelpAlphaAboutServiceRow {
             row_id: "about:alpha-build-channel".to_owned(),
@@ -1268,9 +1336,9 @@ fn seeded_about_service_rows(build_identity_ref: &str) -> Vec<HelpAlphaAboutServ
                 exact_build_or_channel: "preview".to_owned(),
                 deployment_mode: "individual_local_offline".to_owned(),
                 provenance_ref: "provenance:service-health:docs-help-local-only".to_owned(),
-                docs_pack_manifest_ref: Some(
-                    "docs-pack-manifest:project:aureline:alpha".to_owned(),
-                ),
+                docs_pack_manifest_ref: project_manifest_ref
+                    .clone()
+                    .or_else(|| Some("docs-pack-manifest:project:aureline:alpha".to_owned())),
                 help_status_badge_ref: Some(
                     "help-status-badge:service:docs-help-local-only".to_owned(),
                 ),
@@ -1376,6 +1444,7 @@ fn seeded_about_service_rows(build_identity_ref: &str) -> Vec<HelpAlphaAboutServ
 fn command_backed_result(
     entry: &CommandRegistryEntryRecord,
     build_identity_ref: &str,
+    docs_manifest: Option<&DocsPackAlphaManifest>,
     content_class: HelpAlphaContentClass,
     result_id: &str,
     title: &str,
@@ -1386,6 +1455,11 @@ fn command_backed_result(
     support_class: HelpAlphaSupportClass,
 ) -> HelpAlphaSearchResult {
     let anchor = &entry.descriptor.docs_help_anchor_ref;
+    let manifest_node = docs_manifest
+        .and_then(|manifest| manifest.node(docs_node_id))
+        .or_else(|| {
+            docs_manifest.and_then(|manifest| manifest.node_for_help_anchor(&anchor.anchor_id))
+        });
     let browser_handoff_reason = (entry.descriptor.command_id == "cmd:docs.open_in_browser")
         .then_some(HelpAlphaBrowserHandoffReason::ExternalDocsOrRunbook);
     let destination_descriptor_ref = if entry.descriptor.command_id == "cmd:docs.open_in_browser" {
@@ -1398,42 +1472,64 @@ fn command_backed_result(
     } else {
         HelpAlphaTargetKind::Command
     };
-    let source = source_descriptor(HelpAlphaSourceDescriptorInput {
-        source_class: SourceClass::ProjectDocs,
-        source_ref: anchor.pack_id.clone(),
-        source_revision_ref: format!("docs-pack-rev:{}", anchor.pack_id),
-        display_source_version: "alpha-help-2026.05".to_owned(),
-        running_build_identity_ref: Some(build_identity_ref.to_owned()),
-        version_match_state: Some(VersionMatchState::ExactBuildMatch),
-        freshness_class,
-        support_class,
-        client_scopes: entry
-            .descriptor
-            .client_scopes
-            .iter()
-            .filter_map(|scope| parse_client_scope(scope))
-            .collect(),
-        destination_trust_class: HelpAlphaDestinationTrustClass::OfficialPublic,
-        contract_state: HelpAlphaContractState::Ready,
-        publish_boundary_state,
-        exact_build_or_channel: entry.descriptor.release_channel.clone(),
-        deployment_mode: "individual_local".to_owned(),
-        provenance_ref: format!("provenance:command:{}", entry.descriptor.command_id),
-        docs_pack_manifest_ref: Some(format!("docs-pack-manifest:{}", anchor.pack_id)),
-        help_status_badge_ref: Some(format!("help-status-badge:{}", entry.descriptor.command_id)),
-        destination_descriptor_ref: destination_descriptor_ref.clone(),
-        browser_handoff_reason,
-        locale: locale_authoritative("en"),
-        offline: HelpAlphaOfflineState {
-            posture: HelpAlphaOfflinePosture::WarmCached,
-            posture_token: HelpAlphaOfflinePosture::WarmCached.as_str().to_owned(),
-            last_refreshed_at: Some("2026-05-13T03:42:00Z".to_owned()),
-            offline_expiration_at: Some("2026-05-27T03:42:00Z".to_owned()),
-            local_only_continuity_limit: Some(
-                "Search result remains openable from the local docs pack.".to_owned(),
-            ),
-        },
-    });
+    let source = manifest_node
+        .map(|node| {
+            source_descriptor_from_docs_node(
+                node,
+                docs_manifest,
+                build_identity_ref,
+                publish_boundary_state,
+                HelpAlphaDestinationTrustClass::OfficialPublic,
+                &entry.descriptor.release_channel,
+                "individual_local",
+                format!("provenance:command:{}", entry.descriptor.command_id),
+                Some(format!("help-status-badge:{}", entry.descriptor.command_id)),
+                destination_descriptor_ref.clone(),
+                browser_handoff_reason,
+                "Search result remains openable from the local docs pack.",
+            )
+        })
+        .unwrap_or_else(|| {
+            source_descriptor(HelpAlphaSourceDescriptorInput {
+                source_class: SourceClass::ProjectDocs,
+                source_ref: anchor.pack_id.clone(),
+                source_revision_ref: format!("docs-pack-rev:{}", anchor.pack_id),
+                display_source_version: "alpha-help-2026.05".to_owned(),
+                running_build_identity_ref: Some(build_identity_ref.to_owned()),
+                version_match_state: Some(VersionMatchState::ExactBuildMatch),
+                freshness_class,
+                support_class,
+                client_scopes: entry
+                    .descriptor
+                    .client_scopes
+                    .iter()
+                    .filter_map(|scope| parse_client_scope(scope))
+                    .collect(),
+                destination_trust_class: HelpAlphaDestinationTrustClass::OfficialPublic,
+                contract_state: HelpAlphaContractState::Ready,
+                publish_boundary_state,
+                exact_build_or_channel: entry.descriptor.release_channel.clone(),
+                deployment_mode: "individual_local".to_owned(),
+                provenance_ref: format!("provenance:command:{}", entry.descriptor.command_id),
+                docs_pack_manifest_ref: Some(format!("docs-pack-manifest:{}", anchor.pack_id)),
+                help_status_badge_ref: Some(format!(
+                    "help-status-badge:{}",
+                    entry.descriptor.command_id
+                )),
+                destination_descriptor_ref: destination_descriptor_ref.clone(),
+                browser_handoff_reason,
+                locale: locale_authoritative("en"),
+                offline: HelpAlphaOfflineState {
+                    posture: HelpAlphaOfflinePosture::WarmCached,
+                    posture_token: HelpAlphaOfflinePosture::WarmCached.as_str().to_owned(),
+                    last_refreshed_at: Some("2026-05-13T03:42:00Z".to_owned()),
+                    offline_expiration_at: Some("2026-05-27T03:42:00Z".to_owned()),
+                    local_only_continuity_limit: Some(
+                        "Search result remains openable from the local docs pack.".to_owned(),
+                    ),
+                },
+            })
+        });
     let exact_reopen = target(
         target_kind,
         if target_kind == HelpAlphaTargetKind::Command {
@@ -1452,7 +1548,11 @@ fn command_backed_result(
         summary: summary.to_owned(),
         content_class,
         content_class_token: content_class.as_str().to_owned(),
-        docs_node_id: Some(docs_node_id.to_owned()),
+        docs_node_id: Some(
+            manifest_node
+                .map(|node| node.doc_node_id.clone())
+                .unwrap_or_else(|| docs_node_id.to_owned()),
+        ),
         help_anchor_id: anchor.anchor_id.clone(),
         owning_command_id: Some(entry.descriptor.command_id.clone()),
         command_revision_ref: Some(entry.descriptor.command_revision_ref.clone()),
@@ -1469,8 +1569,11 @@ fn command_backed_result(
 fn generated_suggestion_result(
     entry: &CommandRegistryEntryRecord,
     build_identity_ref: &str,
+    docs_manifest: Option<&DocsPackAlphaManifest>,
 ) -> HelpAlphaSearchResult {
     let anchor = &entry.descriptor.docs_help_anchor_ref;
+    let manifest_pack =
+        docs_manifest.and_then(|manifest| manifest.pack("pack:project:aureline:alpha"));
     HelpAlphaSearchResult {
         result_id: "help-result:docs-suggestion.review-before-publish".to_owned(),
         title: "Review README and changelog suggestions before publish".to_owned(),
@@ -1505,7 +1608,9 @@ fn generated_suggestion_result(
             exact_build_or_channel: "preview".to_owned(),
             deployment_mode: "individual_local".to_owned(),
             provenance_ref: "provenance:docs-suggestion:readme-changelog-alpha".to_owned(),
-            docs_pack_manifest_ref: Some("docs-pack-manifest:project:aureline:alpha".to_owned()),
+            docs_pack_manifest_ref: manifest_pack
+                .map(|pack| docs_pack_manifest_ref(&pack.pack_id, &pack.pack_revision_ref))
+                .or_else(|| Some("docs-pack-manifest:project:aureline:alpha".to_owned())),
             help_status_badge_ref: Some("help-status-badge:docs-suggestion:alpha".to_owned()),
             destination_descriptor_ref: Some("dest:docs:project-docs:local-pack".to_owned()),
             browser_handoff_reason: None,
@@ -1535,8 +1640,11 @@ fn generated_suggestion_result(
 fn stale_example_result(
     entry: &CommandRegistryEntryRecord,
     build_identity_ref: &str,
+    docs_manifest: Option<&DocsPackAlphaManifest>,
 ) -> HelpAlphaSearchResult {
     let anchor = &entry.descriptor.docs_help_anchor_ref;
+    let manifest_node = docs_manifest
+        .and_then(|manifest| manifest.node("docs-node:docs-maintenance.stale-example-warning"));
     HelpAlphaSearchResult {
         result_id: "help-result:stale-example.publish-boundary-warning".to_owned(),
         title: "Stale example warning before external publish".to_owned(),
@@ -1552,42 +1660,67 @@ fn stale_example_result(
         owning_command_id: Some(entry.descriptor.command_id.clone()),
         command_revision_ref: Some(entry.descriptor.command_revision_ref.clone()),
         product_surface_id: Some("surface:docs-maintenance:stale-example-row".to_owned()),
-        source: source_descriptor(HelpAlphaSourceDescriptorInput {
-            source_class: SourceClass::CuratedKnowledgePack,
-            source_ref: "docs-pack:curated:stale-examples-alpha".to_owned(),
-            source_revision_ref: "docs-pack-rev:curated:stale-examples-alpha:2026-05-13".to_owned(),
-            display_source_version: "stale-example-ledger-2026.05".to_owned(),
-            running_build_identity_ref: Some(build_identity_ref.to_owned()),
-            version_match_state: Some(VersionMatchState::CompatibleMinorDrift),
-            freshness_class: FreshnessClass::Stale,
-            support_class: HelpAlphaSupportClass::Limited,
-            client_scopes: vec![
-                HelpAlphaClientScope::DesktopProduct,
-                HelpAlphaClientScope::Cli,
-            ],
-            destination_trust_class: HelpAlphaDestinationTrustClass::OfficialPublic,
-            contract_state: HelpAlphaContractState::Stale,
-            publish_boundary_state: HelpAlphaPublishBoundaryState::BlockedPendingValidation,
-            exact_build_or_channel: "preview".to_owned(),
-            deployment_mode: "individual_local".to_owned(),
-            provenance_ref: "provenance:docs-stale-example:alpha".to_owned(),
-            docs_pack_manifest_ref: Some(
-                "docs-pack-manifest:curated:stale-examples-alpha".to_owned(),
-            ),
-            help_status_badge_ref: Some("help-status-badge:stale-example:alpha".to_owned()),
-            destination_descriptor_ref: Some("dest:docs:mirrored-reference:offline".to_owned()),
-            browser_handoff_reason: Some(HelpAlphaBrowserHandoffReason::ExternalDocsOrRunbook),
-            locale: locale_with_source_fallback("en", "fr"),
-            offline: HelpAlphaOfflineState {
-                posture: HelpAlphaOfflinePosture::MirroredOffline,
-                posture_token: HelpAlphaOfflinePosture::MirroredOffline.as_str().to_owned(),
-                last_refreshed_at: Some("2026-05-13T03:42:00Z".to_owned()),
-                offline_expiration_at: Some("2026-05-20T03:42:00Z".to_owned()),
-                local_only_continuity_limit: Some(
-                    "The warning is useful offline, but validation cannot be refreshed.".to_owned(),
-                ),
-            },
-        }),
+        source: manifest_node
+            .map(|node| {
+                source_descriptor_from_docs_node(
+                    node,
+                    docs_manifest,
+                    build_identity_ref,
+                    HelpAlphaPublishBoundaryState::BlockedPendingValidation,
+                    HelpAlphaDestinationTrustClass::OfficialPublic,
+                    "preview",
+                    "individual_local",
+                    "provenance:docs-stale-example:alpha".to_owned(),
+                    Some("help-status-badge:stale-example:alpha".to_owned()),
+                    Some("dest:docs:mirrored-reference:offline".to_owned()),
+                    Some(HelpAlphaBrowserHandoffReason::ExternalDocsOrRunbook),
+                    "The warning is useful offline, but validation cannot be refreshed.",
+                )
+            })
+            .unwrap_or_else(|| {
+                source_descriptor(HelpAlphaSourceDescriptorInput {
+                    source_class: SourceClass::CuratedKnowledgePack,
+                    source_ref: "docs-pack:curated:stale-examples-alpha".to_owned(),
+                    source_revision_ref: "docs-pack-rev:curated:stale-examples-alpha:2026-05-13"
+                        .to_owned(),
+                    display_source_version: "stale-example-ledger-2026.05".to_owned(),
+                    running_build_identity_ref: Some(build_identity_ref.to_owned()),
+                    version_match_state: Some(VersionMatchState::CompatibleMinorDrift),
+                    freshness_class: FreshnessClass::Stale,
+                    support_class: HelpAlphaSupportClass::Limited,
+                    client_scopes: vec![
+                        HelpAlphaClientScope::DesktopProduct,
+                        HelpAlphaClientScope::Cli,
+                    ],
+                    destination_trust_class: HelpAlphaDestinationTrustClass::OfficialPublic,
+                    contract_state: HelpAlphaContractState::Stale,
+                    publish_boundary_state: HelpAlphaPublishBoundaryState::BlockedPendingValidation,
+                    exact_build_or_channel: "preview".to_owned(),
+                    deployment_mode: "individual_local".to_owned(),
+                    provenance_ref: "provenance:docs-stale-example:alpha".to_owned(),
+                    docs_pack_manifest_ref: Some(
+                        "docs-pack-manifest:curated:stale-examples-alpha".to_owned(),
+                    ),
+                    help_status_badge_ref: Some("help-status-badge:stale-example:alpha".to_owned()),
+                    destination_descriptor_ref: Some(
+                        "dest:docs:mirrored-reference:offline".to_owned(),
+                    ),
+                    browser_handoff_reason: Some(
+                        HelpAlphaBrowserHandoffReason::ExternalDocsOrRunbook,
+                    ),
+                    locale: locale_with_source_fallback("en", "fr"),
+                    offline: HelpAlphaOfflineState {
+                        posture: HelpAlphaOfflinePosture::MirroredOffline,
+                        posture_token: HelpAlphaOfflinePosture::MirroredOffline.as_str().to_owned(),
+                        last_refreshed_at: Some("2026-05-13T03:42:00Z".to_owned()),
+                        offline_expiration_at: Some("2026-05-20T03:42:00Z".to_owned()),
+                        local_only_continuity_limit: Some(
+                            "The warning is useful offline, but validation cannot be refreshed."
+                                .to_owned(),
+                        ),
+                    },
+                })
+            }),
         exact_reopen: target(
             HelpAlphaTargetKind::BrowserHandoff,
             "browser-handoff:docs:stale-example-warning",
@@ -1629,6 +1762,191 @@ struct HelpAlphaSourceDescriptorInput {
     browser_handoff_reason: Option<HelpAlphaBrowserHandoffReason>,
     locale: HelpAlphaLocaleState,
     offline: HelpAlphaOfflineState,
+}
+
+fn source_descriptor_from_docs_node(
+    node: &DocsPackNode,
+    manifest: Option<&DocsPackAlphaManifest>,
+    build_identity_ref: &str,
+    publish_boundary_state: HelpAlphaPublishBoundaryState,
+    destination_trust_class: HelpAlphaDestinationTrustClass,
+    exact_build_or_channel: &str,
+    deployment_mode: &str,
+    provenance_ref: String,
+    help_status_badge_ref: Option<String>,
+    destination_descriptor_ref: Option<String>,
+    browser_handoff_reason: Option<HelpAlphaBrowserHandoffReason>,
+    offline_limit: &str,
+) -> HelpAlphaSourceDescriptor {
+    let pack = manifest.and_then(|manifest| manifest.pack(&node.source_pack_ref));
+    source_descriptor(HelpAlphaSourceDescriptorInput {
+        source_class: node.source_class.to_boundary_source_class(),
+        source_ref: node.source_pack_ref.clone(),
+        source_revision_ref: node.source_pack_revision_ref.clone(),
+        display_source_version: pack
+            .map(|pack| pack.display_version.clone())
+            .unwrap_or_else(|| node.version_or_revision.clone()),
+        running_build_identity_ref: Some(build_identity_ref.to_owned()),
+        version_match_state: Some(node.version_match_state.to_boundary_version_match_state()),
+        freshness_class: node.freshness_class.to_boundary_freshness_class(),
+        support_class: help_support_class_from_docs_pack(node.support_class),
+        client_scopes: node
+            .client_scopes
+            .iter()
+            .copied()
+            .map(help_client_scope_from_docs_pack)
+            .collect(),
+        destination_trust_class,
+        contract_state: contract_state_for_docs_node(node),
+        publish_boundary_state,
+        exact_build_or_channel: exact_build_or_channel.to_owned(),
+        deployment_mode: deployment_mode.to_owned(),
+        provenance_ref,
+        docs_pack_manifest_ref: Some(docs_pack_manifest_ref(
+            &node.source_pack_ref,
+            &node.source_pack_revision_ref,
+        )),
+        help_status_badge_ref,
+        destination_descriptor_ref,
+        browser_handoff_reason,
+        locale: locale_state_from_docs_node(node),
+        offline: pack
+            .map(|pack| offline_state_from_pack(pack, offline_limit))
+            .unwrap_or_else(|| offline_state_from_docs_node(node, offline_limit)),
+    })
+}
+
+fn docs_pack_manifest_ref(pack_id: &str, pack_revision_ref: &str) -> String {
+    format!("{CURRENT_DOCS_PACK_MANIFEST_PATH}#{pack_id}@{pack_revision_ref}")
+}
+
+fn help_support_class_from_docs_pack(class: DocsPackSupportClass) -> HelpAlphaSupportClass {
+    match class {
+        DocsPackSupportClass::Certified => HelpAlphaSupportClass::Certified,
+        DocsPackSupportClass::Supported => HelpAlphaSupportClass::Supported,
+        DocsPackSupportClass::Limited
+        | DocsPackSupportClass::RetestPending
+        | DocsPackSupportClass::EvidenceStale => HelpAlphaSupportClass::Limited,
+        DocsPackSupportClass::Community => HelpAlphaSupportClass::Community,
+        DocsPackSupportClass::Experimental => HelpAlphaSupportClass::Experimental,
+    }
+}
+
+fn help_client_scope_from_docs_pack(scope: DocsPackClientScope) -> HelpAlphaClientScope {
+    match scope {
+        DocsPackClientScope::DesktopProduct => HelpAlphaClientScope::DesktopProduct,
+        DocsPackClientScope::Cli => HelpAlphaClientScope::Cli,
+        DocsPackClientScope::CompanionSurface => HelpAlphaClientScope::CompanionSurface,
+        DocsPackClientScope::RemoteAgent => HelpAlphaClientScope::RemoteAgent,
+        DocsPackClientScope::SdkOrApi => HelpAlphaClientScope::SdkOrApi,
+        DocsPackClientScope::ManagedAdminSurface => HelpAlphaClientScope::ManagedAdminSurface,
+    }
+}
+
+fn locale_state_from_docs_node(node: &DocsPackNode) -> HelpAlphaLocaleState {
+    let availability = match node.locale_availability {
+        DocsPackLocaleAvailability::RequestedLocaleAuthoritative => {
+            HelpAlphaLocaleAvailability::RequestedLocaleAuthoritative
+        }
+        DocsPackLocaleAvailability::RequestedLocalePartial => {
+            HelpAlphaLocaleAvailability::RequestedLocalePartial
+        }
+        DocsPackLocaleAvailability::RequestedLocaleMissingFallbackToPrimary => {
+            HelpAlphaLocaleAvailability::RequestedLocaleMissingFallbackToPrimary
+        }
+        DocsPackLocaleAvailability::RequestedLocaleNotInstalled => {
+            HelpAlphaLocaleAvailability::RequestedLocaleNotInstalled
+        }
+    };
+    let source_language_fallback = match node.locale_availability {
+        DocsPackLocaleAvailability::RequestedLocaleAuthoritative => {
+            HelpAlphaSourceLanguageFallback::NotNeeded
+        }
+        DocsPackLocaleAvailability::RequestedLocalePartial
+        | DocsPackLocaleAvailability::RequestedLocaleMissingFallbackToPrimary => {
+            HelpAlphaSourceLanguageFallback::SourceLanguageFallbackAvailable
+        }
+        DocsPackLocaleAvailability::RequestedLocaleNotInstalled => {
+            HelpAlphaSourceLanguageFallback::SourceLanguageFallbackUnavailable
+        }
+    };
+
+    HelpAlphaLocaleState {
+        primary_locale: node.primary_locale.clone(),
+        requested_locale: node.requested_locale.clone(),
+        effective_locale: node.effective_locale.clone(),
+        availability,
+        availability_token: availability.as_str().to_owned(),
+        source_language_fallback,
+        source_language_fallback_token: source_language_fallback.as_str().to_owned(),
+    }
+}
+
+fn offline_state_from_docs_node(node: &DocsPackNode, limit: &str) -> HelpAlphaOfflineState {
+    let posture = offline_posture_from_docs_pack(node.locality_state, node.install_state);
+    HelpAlphaOfflineState {
+        posture,
+        posture_token: posture.as_str().to_owned(),
+        last_refreshed_at: None,
+        offline_expiration_at: None,
+        local_only_continuity_limit: Some(limit.to_owned()),
+    }
+}
+
+fn offline_state_from_pack(
+    pack: &crate::help::docs_pack::DocsPackSummary,
+    limit: &str,
+) -> HelpAlphaOfflineState {
+    let posture = offline_posture_from_docs_pack(pack.locality_state, pack.install_state);
+    HelpAlphaOfflineState {
+        posture,
+        posture_token: posture.as_str().to_owned(),
+        last_refreshed_at: pack.last_refreshed_at.clone(),
+        offline_expiration_at: pack.offline_expiration_at.clone(),
+        local_only_continuity_limit: Some(limit.to_owned()),
+    }
+}
+
+fn offline_posture_from_docs_pack(
+    locality: DocsPackLocalityState,
+    install: DocsPackInstallState,
+) -> HelpAlphaOfflinePosture {
+    match (locality, install) {
+        (DocsPackLocalityState::LiveInstalledCurrent, DocsPackInstallState::Installed) => {
+            HelpAlphaOfflinePosture::LiveOnline
+        }
+        (DocsPackLocalityState::MirrorOnly, _) => HelpAlphaOfflinePosture::MirroredOffline,
+        (DocsPackLocalityState::NotInstalled, _) | (_, DocsPackInstallState::NotInstalled) => {
+            HelpAlphaOfflinePosture::UnavailableOffline
+        }
+        (DocsPackLocalityState::LocalOnly, _) => HelpAlphaOfflinePosture::AirGappedLocalOnly,
+        (DocsPackLocalityState::WarmLocalCache, _) | (_, DocsPackInstallState::CachedOnly) => {
+            HelpAlphaOfflinePosture::WarmCached
+        }
+        _ => HelpAlphaOfflinePosture::WarmCached,
+    }
+}
+
+fn contract_state_for_docs_node(node: &DocsPackNode) -> HelpAlphaContractState {
+    if !node.renderable || node.install_state == DocsPackInstallState::NotInstalled {
+        return HelpAlphaContractState::Unavailable;
+    }
+    if matches!(
+        node.version_match_state,
+        DocsPackVersionMatchState::IncompatibleDriftDetected
+            | DocsPackVersionMatchState::UnknownTargetBuild
+    ) {
+        return HelpAlphaContractState::ContractMismatch;
+    }
+    match node.freshness_class {
+        DocsPackFreshnessClass::AuthoritativeLive | DocsPackFreshnessClass::WarmCached => {
+            HelpAlphaContractState::Ready
+        }
+        DocsPackFreshnessClass::DegradedCached => HelpAlphaContractState::Degraded,
+        DocsPackFreshnessClass::Stale | DocsPackFreshnessClass::Unverified => {
+            HelpAlphaContractState::Stale
+        }
+    }
 }
 
 fn source_descriptor(input: HelpAlphaSourceDescriptorInput) -> HelpAlphaSourceDescriptor {

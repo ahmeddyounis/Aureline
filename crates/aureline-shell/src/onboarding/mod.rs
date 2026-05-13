@@ -13,6 +13,10 @@ use aureline_input::keybindings::PlatformClass;
 use aureline_input::presets::{preset_binding_rows, KeymapPresetId};
 use serde::{Deserialize, Serialize};
 
+use crate::help::docs_pack::{
+    current_docs_pack_manifest, DocsPackAlphaManifest, DocsPackInstallState,
+    DocsPackLocaleAvailability, DocsPackLocalityState, DocsPackNode,
+};
 use crate::start_center::{
     build_action_rows, StartCenterPrimaryActionId, StartCenterRuntimeInputs,
 };
@@ -327,6 +331,21 @@ pub struct OnboardingHelpSearchItem {
     pub pack_install_state: PackInstallState,
     /// Citation anchors visible from the item.
     pub citation_refs: Vec<String>,
+    /// Docs-node id that supplied this onboarding item.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_node_id: Option<String>,
+    /// Pack revision ref preserved for support export and reopen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_pack_revision_ref: Option<String>,
+    /// Source strip ref opened from docs-node metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_strip_ref: Option<String>,
+    /// Citation drawer ref opened from docs-node metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citation_drawer_ref: Option<String>,
+    /// Exact reopen ref preserving pack revision and locale.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_reopen_ref: Option<String>,
 }
 
 /// Portable user/profile state projected by onboarding.
@@ -715,6 +734,7 @@ pub fn build_onboarding_alpha_surface(
     generated_at: impl Into<String>,
 ) -> OnboardingAlphaSurfaceRecord {
     let registry = seeded_registry();
+    let docs_manifest = current_docs_pack_manifest().ok();
     OnboardingAlphaSurfaceRecord {
         record_kind: "onboarding_alpha_surface_record".to_string(),
         onboarding_alpha_schema_version: ONBOARDING_ALPHA_SCHEMA_VERSION,
@@ -730,9 +750,9 @@ pub fn build_onboarding_alpha_surface(
         entry_verbs: entry_verb_rows(registry),
         recommendation_cards: recommendation_cards(registry),
         teaching_cards: teaching_cards(registry),
-        help_search: help_search_projection(registry),
+        help_search: help_search_projection(registry, docs_manifest.as_ref()),
         portable_state: portable_state_projection(),
-        learning_digest: learning_digest_projection(),
+        learning_digest: learning_digest_projection(docs_manifest.as_ref()),
     }
 }
 
@@ -957,7 +977,14 @@ fn teaching_cards(registry: &CommandRegistry) -> Vec<OnboardingTeachingCard> {
     ]
 }
 
-fn help_search_projection(registry: &CommandRegistry) -> OnboardingHelpSearchProjection {
+fn help_search_projection(
+    registry: &CommandRegistry,
+    docs_manifest: Option<&DocsPackAlphaManifest>,
+) -> OnboardingHelpSearchProjection {
+    if let Some(projection) = manifest_help_search_projection(registry, docs_manifest) {
+        return projection;
+    }
+
     OnboardingHelpSearchProjection {
         projection_id: "discoverability:onboarding_alpha:first_run".to_string(),
         help_search_command: OnboardingCommandAnchor::alpha_owned(
@@ -1006,6 +1033,11 @@ fn help_search_projection(registry: &CommandRegistry) -> OnboardingHelpSearchPro
                     SourceLanguageFallbackClass::NoFallbackPrimaryLocaleOnly,
                 pack_install_state: PackInstallState::LocalOnlyStarter,
                 citation_refs: vec!["docs:anchor:onboarding_alpha:open_folder".to_string()],
+                docs_node_id: None,
+                source_pack_revision_ref: None,
+                source_strip_ref: None,
+                citation_drawer_ref: None,
+                exact_reopen_ref: None,
             },
             OnboardingHelpSearchItem {
                 item_id: "help:onboarding_alpha:keymap_source_language_fallback".to_string(),
@@ -1021,6 +1053,11 @@ fn help_search_projection(registry: &CommandRegistry) -> OnboardingHelpSearchPro
                     "docs:anchor:onboarding_alpha:keymap_bridge".to_string(),
                     "docs:anchor:onboarding_alpha:source_language_fallback".to_string(),
                 ],
+                docs_node_id: None,
+                source_pack_revision_ref: None,
+                source_strip_ref: None,
+                citation_drawer_ref: None,
+                exact_reopen_ref: None,
             },
             OnboardingHelpSearchItem {
                 item_id: "help:onboarding_alpha:learning_digest_not_installed".to_string(),
@@ -1037,9 +1074,172 @@ fn help_search_projection(registry: &CommandRegistry) -> OnboardingHelpSearchPro
                     SourceLanguageFallbackClass::FallbackBlockedPackMissing,
                 pack_install_state: PackInstallState::NotInstalled,
                 citation_refs: Vec::new(),
+                docs_node_id: None,
+                source_pack_revision_ref: None,
+                source_strip_ref: None,
+                citation_drawer_ref: None,
+                exact_reopen_ref: None,
             },
         ],
         support_export_reconstructable: true,
+    }
+}
+
+fn manifest_help_search_projection(
+    registry: &CommandRegistry,
+    docs_manifest: Option<&DocsPackAlphaManifest>,
+) -> Option<OnboardingHelpSearchProjection> {
+    let manifest = docs_manifest?;
+    let local_node = manifest.node("docs-node:project-entry.open-folder")?;
+    let fallback_node = manifest.node("docs-node:onboarding.keymap-bridge")?;
+    let missing_node = manifest.node("docs-node:onboarding.deep-dive.not-installed")?;
+
+    Some(OnboardingHelpSearchProjection {
+        projection_id: "discoverability:onboarding_alpha:first_run".to_string(),
+        help_search_command: OnboardingCommandAnchor::alpha_owned(
+            "cmd:help.search",
+            "Cmd/Ctrl+Shift+H",
+            "docs:anchor:onboarding_alpha:help_search",
+        ),
+        pack_states: vec![
+            onboarding_pack_state_from_node(local_node, PackRole::FirstRunStarterPack),
+            onboarding_pack_state_from_node(fallback_node, PackRole::MigrationWelcomePack),
+            onboarding_pack_state_from_node(missing_node, PackRole::GuidedContentPack),
+        ],
+        items: vec![
+            onboarding_help_item_from_node(
+                local_node,
+                registry,
+                "help:onboarding_alpha:open_folder",
+                HelpSurfaceClass::HelpSearch,
+            ),
+            onboarding_help_item_from_node(
+                fallback_node,
+                registry,
+                "help:onboarding_alpha:keymap_source_language_fallback",
+                HelpSurfaceClass::SourceLanguageFallback,
+            ),
+            onboarding_help_item_from_node(
+                missing_node,
+                registry,
+                "help:onboarding_alpha:learning_digest_not_installed",
+                HelpSurfaceClass::ContextualTip,
+            ),
+        ],
+        support_export_reconstructable: true,
+    })
+}
+
+fn onboarding_pack_state_from_node(
+    node: &DocsPackNode,
+    pack_role: PackRole,
+) -> OnboardingPackState {
+    OnboardingPackState {
+        pack_id: node.source_pack_ref.clone(),
+        pack_role,
+        source_version_ref: node.source_pack_revision_ref.clone(),
+        install_state: pack_install_state_from_docs_node(node),
+        locale_availability: locale_availability_from_docs_node(node),
+        offline_posture: offline_posture_from_docs_node(node),
+        citations_exportable: node.has_citation_anchor(),
+    }
+}
+
+fn onboarding_help_item_from_node(
+    node: &DocsPackNode,
+    registry: &CommandRegistry,
+    item_id: &str,
+    surface_class: HelpSurfaceClass,
+) -> OnboardingHelpSearchItem {
+    OnboardingHelpSearchItem {
+        item_id: item_id.to_string(),
+        pack_id: node.source_pack_ref.clone(),
+        surface_class,
+        command: command_anchor_from_docs_node(node, registry),
+        requested_locale: node.requested_locale.clone(),
+        effective_locale: node.effective_locale.clone(),
+        source_language_fallback_class: source_language_fallback_from_docs_node(node),
+        pack_install_state: pack_install_state_from_docs_node(node),
+        citation_refs: node.citation_anchor_refs.clone(),
+        docs_node_id: Some(node.doc_node_id.clone()),
+        source_pack_revision_ref: Some(node.source_pack_revision_ref.clone()),
+        source_strip_ref: Some(node.source_strip_ref.clone()),
+        citation_drawer_ref: Some(node.citation_drawer_ref.clone()),
+        exact_reopen_ref: Some(node.exact_reopen_ref.clone()),
+    }
+}
+
+fn command_anchor_from_docs_node(
+    node: &DocsPackNode,
+    registry: &CommandRegistry,
+) -> OnboardingCommandAnchor {
+    let command_id = node.command_id.as_deref().unwrap_or("cmd:help.search");
+    if registry.get(command_id).is_some() {
+        return OnboardingCommandAnchor::registry(command_id, registry);
+    }
+
+    OnboardingCommandAnchor::alpha_owned(
+        command_id,
+        "Cmd/Ctrl+Shift+H",
+        node.help_anchor_id
+            .clone()
+            .unwrap_or_else(|| format!("docs:anchor:{}", node.doc_node_id)),
+    )
+}
+
+fn pack_install_state_from_docs_node(node: &DocsPackNode) -> PackInstallState {
+    match (node.locality_state, node.install_state) {
+        (DocsPackLocalityState::NotInstalled, _) | (_, DocsPackInstallState::NotInstalled) => {
+            PackInstallState::NotInstalled
+        }
+        (DocsPackLocalityState::WarmLocalCache, _)
+        | (DocsPackLocalityState::MirrorOnly, _)
+        | (_, DocsPackInstallState::CachedOnly)
+        | (_, DocsPackInstallState::MirrorOnlyVerified) => PackInstallState::CachedSnapshotCurrent,
+        _ => PackInstallState::LocalOnlyStarter,
+    }
+}
+
+fn locale_availability_from_docs_node(node: &DocsPackNode) -> LocaleAvailability {
+    match node.locale_availability {
+        DocsPackLocaleAvailability::RequestedLocaleAuthoritative => {
+            LocaleAvailability::LocaleAvailableReviewed
+        }
+        DocsPackLocaleAvailability::RequestedLocalePartial
+        | DocsPackLocaleAvailability::RequestedLocaleMissingFallbackToPrimary => {
+            LocaleAvailability::LocaleMissingFallbackToPrimary
+        }
+        DocsPackLocaleAvailability::RequestedLocaleNotInstalled => {
+            LocaleAvailability::LocaleMissingNotInstalled
+        }
+    }
+}
+
+fn offline_posture_from_docs_node(node: &DocsPackNode) -> OfflinePosture {
+    match (node.locality_state, node.install_state) {
+        (DocsPackLocalityState::NotInstalled, _) | (_, DocsPackInstallState::NotInstalled) => {
+            OfflinePosture::NotAvailableOffline
+        }
+        (DocsPackLocalityState::WarmLocalCache, _)
+        | (DocsPackLocalityState::MirrorOnly, _)
+        | (_, DocsPackInstallState::CachedOnly)
+        | (_, DocsPackInstallState::MirrorOnlyVerified) => OfflinePosture::CachedSnapshotOffline,
+        _ => OfflinePosture::FullyAvailableOfflineLocalBuild,
+    }
+}
+
+fn source_language_fallback_from_docs_node(node: &DocsPackNode) -> SourceLanguageFallbackClass {
+    match node.locale_availability {
+        DocsPackLocaleAvailability::RequestedLocaleAuthoritative => {
+            SourceLanguageFallbackClass::NoFallbackPrimaryLocaleOnly
+        }
+        DocsPackLocaleAvailability::RequestedLocalePartial
+        | DocsPackLocaleAvailability::RequestedLocaleMissingFallbackToPrimary => {
+            SourceLanguageFallbackClass::FallbackToSourceLanguageDisclosed
+        }
+        DocsPackLocaleAvailability::RequestedLocaleNotInstalled => {
+            SourceLanguageFallbackClass::FallbackBlockedPackMissing
+        }
     }
 }
 
@@ -1098,16 +1298,34 @@ fn state_item(
     }
 }
 
-fn learning_digest_projection() -> LearningDigestProjection {
+fn learning_digest_projection(
+    docs_manifest: Option<&DocsPackAlphaManifest>,
+) -> LearningDigestProjection {
+    let missing_node = docs_manifest
+        .and_then(|manifest| manifest.node("docs-node:onboarding.deep-dive.not-installed"));
     LearningDigestProjection {
         digest_ref: "learning_digest:onboarding_alpha:not_installed".to_string(),
         availability_class: LearningDigestAvailability::NotInstalledPlaceholder,
-        open_or_placeholder_command: OnboardingCommandAnchor::alpha_owned(
-            "cmd:help.search",
-            "Cmd/Ctrl+Shift+H",
-            "docs:anchor:onboarding_alpha:learning_digest_not_installed",
-        ),
-        pack_id: "pack:onboarding_alpha:learning_digest".to_string(),
+        open_or_placeholder_command: missing_node
+            .map(|node| {
+                OnboardingCommandAnchor::alpha_owned(
+                    node.command_id.as_deref().unwrap_or("cmd:help.search"),
+                    "Cmd/Ctrl+Shift+H",
+                    node.help_anchor_id.clone().unwrap_or_else(|| {
+                        "docs:anchor:onboarding_alpha:learning_digest_not_installed".to_string()
+                    }),
+                )
+            })
+            .unwrap_or_else(|| {
+                OnboardingCommandAnchor::alpha_owned(
+                    "cmd:help.search",
+                    "Cmd/Ctrl+Shift+H",
+                    "docs:anchor:onboarding_alpha:learning_digest_not_installed",
+                )
+            }),
+        pack_id: missing_node
+            .map(|node| node.source_pack_ref.clone())
+            .unwrap_or_else(|| "pack:onboarding_alpha:learning_digest".to_string()),
         no_account_continuity_preserved: true,
         exact_reopen_preserves_anchors: true,
     }
