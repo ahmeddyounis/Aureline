@@ -310,6 +310,7 @@ pub struct DiffOpenTarget {
 
 impl DiffOpenTarget {
     /// Builds a diff-open target from public change-list row fields.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_change_list_row_parts(
         workspace_ref: &str,
         truth_source_ref: &str,

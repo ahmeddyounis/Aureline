@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/anchor_id_alpha.schema.json",
+  "title": "Aureline review anchor ID alpha record",
+  "description": "Boundary schema for the alpha review anchor ID record consumed by crates/aureline-review. One record pins a provider-neutral, deterministic anchor ID for a protected diff row inside a review workspace. The record cites the review-workspace, path-truth, compare-target, review-surface, and diff-row refs it was derived from, carries a fallback context hash for drift explanation, and explicitly excludes hosted-provider object identity from the anchor hash so later provider review publication can reuse the same anchor semantics. Raw source bodies, raw provider URLs, raw provider payloads, raw author identity strings, and raw absolute paths never cross this boundary; records carry opaque refs, closed vocabulary tokens, line numbers, and short reviewable summaries only. Adding a new record_kind, anchor_target_kind, review_artifact_class, review_surface_class, line_kind, anchor_drift_state, or anchor_drift_required_user_action value is additive-minor and bumps schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_anchor_id_alpha_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the alpha review anchor ID record."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "review_anchor_id_alpha_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in review/support/export records. Raw absolute paths, raw provider URLs, raw provider payloads, raw author identity strings, and raw source bodies never appear here."
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewable label safe for support/export surfaces."
+    },
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16}$"
+    },
+    "anchor_target_kind": {
+      "type": "string",
+      "enum": [
+        "text_line_range_anchor"
+      ],
+      "description": "Alpha review-workspace anchors cover line-oriented diff rows only. Structured, cell-aware, image, evidence, whole-artifact, and revision anchors resolve through the existing schemas/vcs/review_anchor.schema.json vocabulary when those surfaces land."
+    },
+    "review_artifact_class": {
+      "type": "string",
+      "enum": [
+        "line_oriented_source_artifact"
+      ]
+    },
+    "review_surface_class": {
+      "type": "string",
+      "enum": [
+        "line_oriented_compare_viewer"
+      ]
+    },
+    "line_kind": {
+      "type": "string",
+      "enum": [
+        "context",
+        "addition",
+        "deletion"
+      ]
+    },
+    "anchor_drift_state": {
+      "type": "string",
+      "enum": [
+        "anchor_bound_exact"
+      ]
+    },
+    "anchor_drift_required_user_action": {
+      "type": "string",
+      "enum": [
+        "no_user_action_required_anchor_bound_or_remapped"
+      ]
+    },
+    "stable_identity_field": {
+      "type": "string",
+      "enum": [
+        "review_workspace_id_ref",
+        "path_truth_ref",
+        "compare_target_ref",
+        "anchor_target_kind",
+        "line_kind",
+        "old_line_number",
+        "new_line_number",
+        "fallback_context_hash"
+      ],
+      "description": "Field admitted into the provider-neutral anchor hash. Provider object ids, hosted thread ids, row indices, and raw source bodies are intentionally excluded."
+    },
+    "review_anchor_id_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "anchor_id",
+        "review_workspace_id_ref",
+        "diff_surface_ref",
+        "target_ref",
+        "path_truth_ref",
+        "compare_target_ref",
+        "anchor_target_kind",
+        "review_artifact_class",
+        "review_surface_class",
+        "line_kind",
+        "old_line_number",
+        "new_line_number",
+        "fallback_context_hash",
+        "stable_identity_fields",
+        "provider_excluded_from_anchor_hash",
+        "anchor_drift_state",
+        "anchor_drift_required_user_action",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "anchor_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable anchor id derived from the stable_identity_fields. The hosted-provider object id MUST NOT be part of this id."
+        },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "diff_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "path_truth_ref": { "$ref": "#/$defs/opaque_id" },
+        "compare_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_target_kind": { "$ref": "#/$defs/anchor_target_kind" },
+        "review_artifact_class": { "$ref": "#/$defs/review_artifact_class" },
+        "review_surface_class": { "$ref": "#/$defs/review_surface_class" },
+        "line_kind": { "$ref": "#/$defs/line_kind" },
+        "old_line_number": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ]
+        },
+        "new_line_number": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ]
+        },
+        "fallback_context_hash": { "$ref": "#/$defs/hex_hash" },
+        "stable_identity_fields": {
+          "type": "array",
+          "minItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_identity_field" }
+        },
+        "provider_excluded_from_anchor_hash": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST remain true so local, imported, and hosted-provider review paths share anchor semantics."
+        },
+        "anchor_drift_state": { "$ref": "#/$defs/anchor_drift_state" },
+        "anchor_drift_required_user_action": {
+          "$ref": "#/$defs/anchor_drift_required_user_action"
+        },
+        "summary_label": { "$ref": "#/$defs/short_label" }
+      },
+      "description": "Provider-neutral anchor ID record for one protected line-oriented diff row."
+    }
+  }
+}

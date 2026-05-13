@@ -3,11 +3,13 @@
 //! This crate owns the first review-lane data model for Aureline. It projects
 //! local Git change-list rows into inspectable diff-open targets and renders
 //! alpha diff packets with syntax labels, suspicious-text cues, representation
-//! safe copy actions, exact path truth, and reopen continuity records.
+//! safe copy actions, exact path truth, reopen continuity records, review
+//! workspace seeds, stable row anchors, and work-item relation projections.
 
 #![doc(html_root_url = "https://docs.rs/aureline-review/0.0.0")]
 
 pub mod diff;
+pub mod workspace;
 
 pub use diff::{
     DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,
@@ -16,4 +18,12 @@ pub use diff::{
     DiffScrollAnchor, DiffSuspiciousCue, DiffSyntaxClass, DiffSyntaxProjection, DiffViewMode,
     DiffViewSurfacePacket, DIFF_CLOSED_SESSION_RECORD_KIND, DIFF_OPEN_TARGET_RECORD_KIND,
     DIFF_REOPEN_PROJECTION_RECORD_KIND, DIFF_VIEW_SURFACE_PACKET_RECORD_KIND,
+};
+pub use workspace::{
+    ReviewAnchorIdAlphaRecord, ReviewLocalLocator, ReviewPolicyContext, ReviewProviderOverlay,
+    ReviewProviderOverlayInput, ReviewWorkItemLinkInput, ReviewWorkItemLinkageRecord,
+    ReviewWorkspaceDiffEntry, ReviewWorkspaceInspectionRecord, ReviewWorkspaceRecord,
+    ReviewWorkspaceSeedInput, ReviewWorkspaceSeedPacket, REVIEW_ANCHOR_ID_ALPHA_RECORD_KIND,
+    REVIEW_WORKSPACE_INSPECTION_RECORD_KIND, REVIEW_WORKSPACE_RECORD_KIND,
+    REVIEW_WORKSPACE_SEED_PACKET_RECORD_KIND, REVIEW_WORK_ITEM_LINKAGE_RECORD_KIND,
 };
