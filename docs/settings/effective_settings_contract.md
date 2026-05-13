@@ -17,6 +17,10 @@ The canonical truth lives in two crate modules:
   — the precedence engine, the shadow-chain projection, and the
   typed `attempt_write` flow that returns a verdict plus typed
   denial reason instead of dropping the request silently.
+- [`/crates/aureline-settings/src/inspector/`](../../crates/aureline-settings/src/inspector/)
+  — the alpha inspector projection consumed by CLI inspection,
+  settings UI rows, help deep links, write previews, and support
+  export. See [`docs/settings/inspector_alpha.md`](./inspector_alpha.md).
 
 Composed contracts (truth source for vocabulary and shape):
 
@@ -151,7 +155,7 @@ required to capture or replay settings state. Support packets and
 fixtures should embed the exported overlay set rather than recording
 ad-hoc snapshots.
 
-## Out of scope (M1)
+## Out of scope for this seed
 
 - Sync transport, conflict packets, or device-binding lifecycle —
   see [`docs/settings/sync_and_device_registry_seed.md`](./sync_and_device_registry_seed.md).
@@ -161,12 +165,10 @@ ad-hoc snapshots.
   lands in a follow-up row.
 - Remote/container settings authority and target-aware resolution
   — the resolver intentionally does not model `remote_target`
-  scope yet; M2+ adds that lane.
+  scope yet; later work adds that lane.
 
 ## Where to register evidence
 
 Validation-lane captures, build identity, owner, and artifact links
-register under
-[`/artifacts/milestones/m1/`](../../artifacts/milestones/m1/) and the
-`artifact_index.yaml` packet. Use this page as the reviewer-facing
-landing point when a human-readable link is needed.
+register in the release evidence index. Use this page as the
+reviewer-facing landing point when a human-readable link is needed.

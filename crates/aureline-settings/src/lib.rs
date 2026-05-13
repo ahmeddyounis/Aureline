@@ -11,10 +11,11 @@
 //!
 //! - [`schema`] — stable [`SettingDefinition`](schema::SettingDefinition)
 //!   rows: `setting_id`, value type, default, allowed scopes,
-//!   restart posture, lifecycle. The
+//!   aliases, migrations, restart posture, lifecycle, redaction, and
+//!   capability dependencies. The
 //!   [`SchemaRegistry`](schema::SchemaRegistry) is the catalog of
 //!   record; [`SchemaRegistry::with_seed_catalog`](schema::SchemaRegistry::with_seed_catalog)
-//!   ships the small M1 seed used by protected dogfood walks.
+//!   ships the small seed used by protected dogfood walks.
 //! - [`resolver`] — the precedence engine and the locked-write
 //!   flow. Given the registry plus a stack of per-scope overlays,
 //!   [`EffectiveSettingsResolver::resolve`](resolver::EffectiveSettingsResolver::resolve)
@@ -30,6 +31,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-settings/0.0.0")]
 
+pub mod inspector;
 pub mod resolver;
 pub mod schema;
 
@@ -39,6 +41,8 @@ pub use resolver::{
     WriteDenialReason, WriteIntent,
 };
 pub use schema::{
-    LifecycleLabel, RestartPosture, SchemaRegistry, SchemaRegistryError, SettingDefinition,
-    SettingScope, SettingValue, SettingValueType, ValueValidationError,
+    AliasDirection, CapabilityDependency, CapabilityDependencyKind, LifecycleLabel, MigrationRule,
+    MigrationTransformClass, PreviewClass, RedactionClass, RestartPosture, SchemaRegistry,
+    SchemaRegistryError, SensitivityClass, SettingAlias, SettingDefinition, SettingScope,
+    SettingValue, SettingValueType, ValueValidationError,
 };
