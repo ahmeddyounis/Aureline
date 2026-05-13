@@ -42,6 +42,7 @@ alpha wedge matrix.
 | `known_limit:external_alpha.launch_bundle_seed_not_certified` | `workflow_narrowed` | `major` | launch bundles, archetype badges, Start Center bundle gallery, mirror/offline install review | Bundle rows are setup seeds only. Badges must open the underlying evidence packet and may not imply certified or replacement-grade status. |
 | `known_limit:external_alpha.reference_workspace_dry_run_synthetic_only` | `corpus_narrowed` | `moderate` | reference-workspace dry runs, benchmark packets, public-proof rehearsals | The first dry run uses synthetic described-byte fixtures, not partner repositories or materialized benchmark workspaces. |
 | `known_limit:external_alpha.publication_rehearsal_methodology_only` | `competitor_parity_narrowed` | `major` | benchmark/publication rehearsal, public-proof packets, release evidence | The rehearsal is methodology-only and cannot publish benchmark, competitor-comparison, certified, or replacement-grade claims. |
+| `known_limit:external_alpha.search_alpha_synthetic_and_partial_index_only` | `corpus_narrowed` | `moderate` | quick open, symbol search, ranking-reason cards, keyboard review | Search alpha validation covers protected synthetic fixtures and partial-index drills. It is not partner-repository ranking proof, all-language parity, or complete graph explainer coverage. |
 
 ## Routing Rules
 
@@ -65,6 +66,10 @@ alpha wedge matrix.
   `artifacts/milestones/m2/known_limits_alpha.yaml` and keep publication
   wording methodology-only until materialized benchmark and support-export proof
   exist.
+- Any search alpha review or support export that cites ranking-reason,
+  keyboard, or partial-index evidence must also cite
+  `known_limit:external_alpha.search_alpha_synthetic_and_partial_index_only`
+  until partner-repository ranking and full graph explainer evidence exists.
 
 ## Rollback Posture
 
