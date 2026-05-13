@@ -32,6 +32,9 @@ change-list diff-open targets while preserving the same `truth_source_ref`.
 The mutation review projection in `docs/git/mutation_review_alpha.md` uses the
 same status truth before stage, unstage, discard, and checkpoint restore
 commands can apply.
+The commit projection in `docs/git/commit_alpha.md` uses the same status truth
+to disclose author identity, staged scope, amend/squash guardrails, and
+publish-later readiness before a local commit can apply.
 
 ## Degraded Behavior
 
@@ -62,3 +65,6 @@ by `cargo test -p aureline-git`.
 
 Mutation review fixtures live under `fixtures/git/mutation_review_alpha/` and
 are covered by `cargo test -p aureline-git --test mutation_review_alpha`.
+
+Commit fixtures live under `fixtures/git/commit_alpha/` and are covered by
+`cargo test -p aureline-git --test commit_alpha`.
