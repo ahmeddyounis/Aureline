@@ -38,6 +38,7 @@ fn inspector_lists_all_wedges_and_each_panel_renders_claim_limits() {
         "notebook_trust_badges",
         "install_review_fact_grid",
         "permission_prompts",
+        "restricted_mode_launch_wedge",
         "review_preview",
         "safe_preview_card",
         "graph_state_card",
@@ -73,6 +74,18 @@ fn inspector_lists_all_wedges_and_each_panel_renders_claim_limits() {
         assert!(rendered.iter().any(|line| line.contains(&row.display_name)));
         inspector.select_next();
     }
+
+    let restricted_row = inspector
+        .rows()
+        .iter()
+        .find(|row| row.wedge_id == "restricted_mode_launch_wedge")
+        .expect("restricted mode row");
+    assert!(restricted_row.panel_plaintext.contains("editor_read_write"));
+    assert!(restricted_row.panel_plaintext.contains("tasks_run"));
+    assert!(restricted_row.panel_plaintext.contains("blocked_or_review"));
+    assert!(restricted_row
+        .panel_plaintext
+        .contains("visible_after_open=true"));
 }
 
 #[test]

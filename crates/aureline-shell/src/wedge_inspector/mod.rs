@@ -13,6 +13,11 @@ use aureline_ai::{
     MentionKind, MentionResolutionState, SelectionReasonClass, SourceClass as AiSourceClass,
     TrustPosture,
 };
+use aureline_auth::{
+    IdentityModeAlias, RememberedDecisionScopeClass, RestrictedModeAlphaPacket,
+    RestrictedModeEntryTransitionClass, RestrictedModeTrustStateClass,
+    StageRestrictedModeLaunchRequest, TrustDecisionSourceClass, TrustReasonClass,
+};
 use aureline_content_safety::{detect_suspicious_content, TrustClass};
 use aureline_extensions::manifest_baseline::{
     DeclaredVsEffectiveDiffEntry, EffectivePermissionBaselineRecord, EffectivePermissionDiffClass,
@@ -251,6 +256,7 @@ fn build_rows(inputs: WedgeInspectorInputs) -> Vec<WedgeInspectorRow> {
         notebook_trust_row(&inputs),
         install_review_row(&install_review_card),
         permission_prompt_row(&install_review_card),
+        restricted_mode_row(&inputs),
         review_preview_row(&inputs),
         safe_preview_row(),
         graph_state_row(&inputs),
@@ -523,6 +529,63 @@ fn permission_prompt_row(install_review: &InstallReviewFactGridRecord) -> WedgeI
         format!("install_review_fact_grid:{}", card.install_review_card_ref),
         claim_limits,
         card.render_plaintext(),
+    )
+}
+
+fn restricted_mode_row(inputs: &WedgeInspectorInputs) -> WedgeInspectorRow {
+    let packet = RestrictedModeAlphaPacket::stage_launch_wedge(StageRestrictedModeLaunchRequest {
+        packet_id: "restricted-mode:launch-wedge:inspector",
+        workspace_root_ref: &inputs.workspace_id,
+        workspace_display_scope: "Current workspace opened in restricted mode",
+        identity_mode: IdentityModeAlias::AccountFreeLocal,
+        prior_trust_state: Some(RestrictedModeTrustStateClass::UntrustedUnknown),
+        effective_trust_state: RestrictedModeTrustStateClass::Restricted,
+        entry_transition: RestrictedModeEntryTransitionClass::OpenInRestrictedMode,
+        source_class: TrustDecisionSourceClass::LocalUser,
+        source_ref: "trust-decision:inspector:open-restricted",
+        source_label: "Local user chose restricted mode for this workspace.",
+        reason_class: TrustReasonClass::ExplicitUserDecline,
+        remembered_decision_scope: RememberedDecisionScopeClass::NeverRemembered,
+        policy_epoch_ref: Some("policy-epoch:local-default"),
+        source_reason_refs: &["trust-source:no-remembered-decision"],
+        recovery_action_ref: None,
+        issued_at: &inputs.observed_at,
+    });
+    let disclosure = packet.launch_wedge_disclosure();
+    let mut claim_limits = vec![
+        WedgeInspectorClaimLimit::new(
+            "restricted_floor_available",
+            "Read, edit, search, local Git inspection, policy read, and support export stay available.",
+        ),
+        WedgeInspectorClaimLimit::new(
+            "execution_mutation_gated",
+            "Tasks, debug, repo launchers, extension activation, AI apply, and install helpers stay gated.",
+        ),
+        WedgeInspectorClaimLimit::new(
+            "source_scope_recovery_disclosed",
+            "Every blocked or review-needed row names source, scope, and recovery action.",
+        ),
+        WedgeInspectorClaimLimit::new(
+            "sticky_after_open",
+            "Trust gates remain visible after the workspace opens.",
+        ),
+    ];
+    claim_limits.push(WedgeInspectorClaimLimit::new(
+        "allowed_count",
+        disclosure.allowed_capabilities.len().to_string(),
+    ));
+    claim_limits.push(WedgeInspectorClaimLimit::new(
+        "blocked_or_review_count",
+        disclosure.blocked_or_review_capabilities.len().to_string(),
+    ));
+    WedgeInspectorRow::new(
+        "restricted_mode_launch_wedge",
+        "Restricted Mode Launch Wedge",
+        disclosure.prototype_label_token.clone(),
+        disclosure.prototype_label_display.clone(),
+        "aureline_auth::trust::RestrictedModeAlphaPacket",
+        claim_limits,
+        disclosure.render_plaintext(),
     )
 }
 

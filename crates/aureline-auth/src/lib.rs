@@ -46,6 +46,7 @@
 pub mod browser_callback;
 pub mod credential_state;
 pub mod system_browser;
+pub mod trust;
 
 pub use browser_callback::{
     AccountBoundaryClass, AuthFlowClass, BrowserCallbackHandoff, BrowserCallbackPacket,
@@ -74,4 +75,14 @@ pub use system_browser::{
     ClaimedIdentitySurfaceRow, StageClaimedIdentityRowRequest, SystemBrowserAlphaPacket,
     CLAIMED_IDENTITY_ROW_RECORD_KIND, SYSTEM_BROWSER_ALPHA_PACKET_RECORD_KIND,
     SYSTEM_BROWSER_ALPHA_SCHEMA_VERSION,
+};
+
+pub use trust::{
+    CapabilityAuthorityClass, CapabilityDecisionSource, CapabilityDisclosureRow, CapabilityScope,
+    ExternalEffectClass, LaunchWedgeCapabilityFamily, RememberedDecisionScopeClass,
+    RestrictedModeAlphaPacket, RestrictedModeEntryTransitionClass,
+    RestrictedModeLaunchWedgeDisclosure, RestrictedModeTrustSource, RestrictedModeTrustStateClass,
+    RestrictedModeValidationError, StageRestrictedModeLaunchRequest, TrustAuditEventClass,
+    TrustDecisionSourceClass, TrustEscalationCueClass, TrustReasonClass, TrustRecoveryActionClass,
+    RESTRICTED_MODE_ALPHA_PACKET_RECORD_KIND, RESTRICTED_MODE_ALPHA_SCHEMA_VERSION,
 };
