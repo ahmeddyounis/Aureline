@@ -349,6 +349,7 @@ struct NativeShellArgs {
     disable_clipboard: bool,
     renderer: ShellRendererChoice,
     open_workspace_path: Option<PathBuf>,
+    emit_onboarding_alpha_path: Option<PathBuf>,
     headless_edit_save: HeadlessEditSaveArgs,
     window_size: Option<(f64, f64)>,
     screenshot_path: Option<PathBuf>,
@@ -409,6 +410,12 @@ where
                     "--emit-hot-path-metrics requires an output file path".to_string()
                 })?;
                 args.hot_path_metrics.output_path = Some(path);
+            }
+            "--emit-onboarding-alpha" => {
+                let path = iter.next().ok_or_else(|| {
+                    "--emit-onboarding-alpha requires an output file path".to_string()
+                })?;
+                args.emit_onboarding_alpha_path = Some(PathBuf::from(path));
             }
             "--exit-after-first-frame" => {
                 args.startup_trace.exit_after_first_frame = true;
@@ -524,6 +531,7 @@ fn usage() -> String {
      \taureline_shell --open <folder>\n\
      \taureline_shell <folder>\n\
      \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n\
+     \taureline_shell --emit-onboarding-alpha <path>\n\
      \taureline_shell --open <folder> --headless-test-edit-save <file> --headless-test-write-hex <hex> [--headless-test-report <path>]\n\
      \taureline_shell --emit-hot-path-metrics <path>\n\
      \taureline_shell --emit-screenshot <path> [--theme-class <token>] [--density-class <token>] [--reduced-motion-posture <token>] [--ui-theme <light|dark|system>] [--ui-density <compact|comfortable|spacious>] [--ui-motion <full|reduced|none>] [--window-size <WxH>] [--renderer (gpu|software)]\n\
@@ -1020,6 +1028,12 @@ impl ShellFocusReturnTarget {
 pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_native_shell_args()
         .map_err(|message| -> Box<dyn std::error::Error> { message.into() })?;
+    if let Some(path) = args.emit_onboarding_alpha_path.as_ref() {
+        return crate::onboarding::write_onboarding_alpha_export(
+            path,
+            aureline_commands::invocation::now_rfc3339(),
+        );
+    }
     if args.headless_edit_save.is_requested() {
         return run_headless_edit_save(&args)
             .map_err(|message| -> Box<dyn std::error::Error> { message.into() });

@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/user/onboarding_progress_alpha.schema.json",
+  "title": "Aureline onboarding alpha progress and help projection",
+  "description": "Portable first-run onboarding alpha boundary. The record keeps Open, Clone, Import, Restore, and Recent work distinct; preserves a no-account local-work path; stores dismissals, completed tasks, deferred setup, protected recovery recommendations, and imported-profile history in portable user/profile state; and exposes help-pack install, locale fallback, citation, keyboard-route, and learning-digest availability without raw paths, URLs, credentials, or docs bodies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "onboarding_alpha_schema_version",
+    "generated_at",
+    "launch_context",
+    "no_account_path",
+    "entry_verbs",
+    "recommendation_cards",
+    "teaching_cards",
+    "help_search",
+    "portable_state",
+    "learning_digest"
+  ],
+  "properties": {
+    "record_kind": { "const": "onboarding_alpha_surface_record" },
+    "onboarding_alpha_schema_version": { "type": "integer", "const": 1 },
+    "generated_at": { "type": "string", "minLength": 1 },
+    "launch_context": { "$ref": "#/$defs/launch_context" },
+    "no_account_path": { "$ref": "#/$defs/no_account_path" },
+    "entry_verbs": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/entry_verb_row" }
+    },
+    "recommendation_cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/recommendation_card" }
+    },
+    "teaching_cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/teaching_card" }
+    },
+    "help_search": { "$ref": "#/$defs/help_search" },
+    "portable_state": { "$ref": "#/$defs/portable_state" },
+    "learning_digest": { "$ref": "#/$defs/learning_digest" }
+  },
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "command_id": { "type": "string", "pattern": "^cmd:[a-z0-9_.]+$" },
+    "entry_verb_class": {
+      "type": "string",
+      "enum": ["open", "clone", "import", "restore", "recent_work"]
+    },
+    "state_kind": {
+      "type": "string",
+      "enum": [
+        "dismissed_hint",
+        "completed_task",
+        "deferred_setup",
+        "protected_recovery_recommendation",
+        "imported_profile_history"
+      ]
+    },
+    "pack_install_state": {
+      "type": "string",
+      "enum": ["local_only_starter", "cached_snapshot_current", "not_installed"]
+    },
+    "source_language_fallback_class": {
+      "type": "string",
+      "enum": [
+        "no_fallback_primary_locale_only",
+        "fallback_to_source_language_disclosed",
+        "fallback_blocked_pack_missing"
+      ]
+    },
+    "command_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "keyboard_route", "anchor_source"],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "keyboard_route": { "type": "string", "minLength": 1 },
+        "anchor_source": {
+          "type": "string",
+          "enum": ["seeded_command_registry", "onboarding_alpha_owned"]
+        },
+        "registry_entry_id": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "docs_anchor_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        }
+      }
+    },
+    "launch_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "deployment_profile",
+        "profile_scope",
+        "account_prompt_class",
+        "account_content_secondary"
+      ],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "deployment_profile": { "const": "individual_local" },
+        "profile_scope": { "$ref": "#/$defs/opaque_id" },
+        "account_prompt_class": { "enum": ["no_prompt", "optional_prompt"] },
+        "account_content_secondary": { "type": "boolean", "const": true }
+      }
+    },
+    "no_account_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_work_available",
+        "service_setup_optional",
+        "preserved_entry_verbs",
+        "local_command_ids"
+      ],
+      "properties": {
+        "local_work_available": { "type": "boolean", "const": true },
+        "service_setup_optional": { "type": "boolean", "const": true },
+        "preserved_entry_verbs": {
+          "type": "array",
+          "contains": { "const": "open" },
+          "items": { "$ref": "#/$defs/entry_verb_class" }
+        },
+        "local_command_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_id" }
+        }
+      }
+    },
+    "entry_verb_row": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "entry_verb_class",
+        "command",
+        "no_account_allowed",
+        "review_required_before_mutation",
+        "setup_or_trust_deferred"
+      ],
+      "properties": {
+        "entry_verb_class": { "$ref": "#/$defs/entry_verb_class" },
+        "command": { "$ref": "#/$defs/command_anchor" },
+        "no_account_allowed": { "type": "boolean", "const": true },
+        "review_required_before_mutation": { "type": "boolean" },
+        "setup_or_trust_deferred": { "type": "boolean" }
+      }
+    },
+    "recommendation_card": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "card_id",
+        "actions",
+        "remembered_choice_effect",
+        "review_required_on_later_open",
+        "can_silently_install",
+        "can_silently_widen_trust"
+      ],
+      "properties": {
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "actions": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "type": "object",
+            "required": ["action_class", "command"],
+            "properties": {
+              "action_class": {
+                "enum": ["apply", "compare", "dismiss", "open_minimal", "set_up_later"]
+              },
+              "command": { "$ref": "#/$defs/command_anchor" }
+            }
+          }
+        },
+        "remembered_choice_effect": { "const": "preference_only_no_authority_change" },
+        "review_required_on_later_open": { "type": "boolean", "const": true },
+        "can_silently_install": { "type": "boolean", "const": false },
+        "can_silently_widen_trust": { "type": "boolean", "const": false }
+      }
+    },
+    "teaching_card": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["card_id", "card_kind", "command", "hidden_mutation_allowed"],
+      "properties": {
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "card_kind": {
+          "enum": ["onboarding_card", "migration_hint", "keymap_bridge", "contextual_tip"]
+        },
+        "command": { "$ref": "#/$defs/command_anchor" },
+        "hidden_mutation_allowed": { "type": "boolean", "const": false }
+      }
+    },
+    "help_search": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["help_search_command", "pack_states", "items", "support_export_reconstructable"],
+      "properties": {
+        "help_search_command": { "$ref": "#/$defs/command_anchor" },
+        "pack_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["pack_id", "source_version_ref", "install_state"],
+            "properties": {
+              "pack_id": { "$ref": "#/$defs/opaque_id" },
+              "source_version_ref": { "$ref": "#/$defs/opaque_id" },
+              "install_state": { "$ref": "#/$defs/pack_install_state" }
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "item_id",
+              "command",
+              "requested_locale",
+              "effective_locale",
+              "source_language_fallback_class",
+              "pack_install_state"
+            ],
+            "properties": {
+              "item_id": { "$ref": "#/$defs/opaque_id" },
+              "command": { "$ref": "#/$defs/command_anchor" },
+              "requested_locale": { "type": "string", "minLength": 2 },
+              "effective_locale": { "type": "string", "minLength": 2 },
+              "source_language_fallback_class": {
+                "$ref": "#/$defs/source_language_fallback_class"
+              },
+              "pack_install_state": { "$ref": "#/$defs/pack_install_state" }
+            }
+          }
+        },
+        "support_export_reconstructable": { "type": "boolean", "const": true }
+      }
+    },
+    "portable_state": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "items",
+        "any_workspace_local_hidden_store",
+        "portable_profile_exportable"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "type": "object",
+            "required": ["state_item_id", "state_kind", "storage_lane"],
+            "properties": {
+              "state_item_id": { "$ref": "#/$defs/opaque_id" },
+              "state_kind": { "$ref": "#/$defs/state_kind" },
+              "storage_lane": { "const": "portable_user_profile_state" }
+            }
+          }
+        },
+        "any_workspace_local_hidden_store": { "type": "boolean", "const": false },
+        "portable_profile_exportable": { "type": "boolean", "const": true }
+      }
+    },
+    "learning_digest": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "availability_class",
+        "open_or_placeholder_command",
+        "no_account_continuity_preserved",
+        "exact_reopen_preserves_anchors"
+      ],
+      "properties": {
+        "availability_class": { "const": "not_installed_placeholder" },
+        "open_or_placeholder_command": { "$ref": "#/$defs/command_anchor" },
+        "no_account_continuity_preserved": { "type": "boolean", "const": true },
+        "exact_reopen_preserves_anchors": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}
