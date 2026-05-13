@@ -36,6 +36,7 @@
 
 pub mod detector;
 pub mod records;
+pub mod suspicious_text;
 pub mod transfer;
 
 pub use detector::{
@@ -45,6 +46,13 @@ pub use detector::{
 pub use records::{
     LabelExamples, SurfaceFamily, SurfaceTrustResolutionRecord, SuspiciousContentCaseRecord,
     SuspiciousContentClass, SuspiciousContentFindingRecord, TrustClass,
+};
+pub use suspicious_text::{
+    project_suspicious_text_core_surfaces, SuspiciousTextAnchor, SuspiciousTextLocationKind,
+    SuspiciousTextProjectionSeed, SuspiciousTextSafeExport, SuspiciousTextSurfaceKind,
+    SuspiciousTextSurfacePacket, SuspiciousTextSurfaceProjection, SuspiciousTextTransferChoice,
+    SuspiciousTextWarning, SuspiciousTextWarningAction, CORE_SOURCE_SURFACES,
+    SUSPICIOUS_TEXT_SURFACE_PACKET_SCHEMA_VERSION,
 };
 pub use transfer::{
     BodyPosture, RepresentationActionId, RepresentationClass, RepresentationTransferRecord,
