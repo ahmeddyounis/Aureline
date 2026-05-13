@@ -12,6 +12,7 @@ pub mod code_actions;
 pub mod diagnostics;
 pub mod invalidation;
 pub mod lsp_router;
+pub mod packs;
 pub mod python;
 pub mod symbol_snapshot;
 pub mod tree_sitter;
@@ -64,6 +65,14 @@ pub use lsp_router::{
     ScopeClaimClass as RouterScopeClaimClass, ScopeLimitClass, SupportClass as RouterSupportClass,
     SurfaceClass as RouterSurfaceClass, SurfaceReport as RouterSurfaceReport, SurfaceSupportClass,
     SurfaceSupportClassRow, WorkspaceLocalRouterRequest, ROUTER_DECISION_SCHEMA_VERSION,
+};
+pub use packs::{
+    TsJsWebClaimDepthClass, TsJsWebDiagnosticsDefault, TsJsWebDocsPackRef, TsJsWebEnablementFlow,
+    TsJsWebIconRow, TsJsWebKnownGapRow, TsJsWebLanguagePack, TsJsWebLanguagePackEnablementRequest,
+    TsJsWebLanguagePackEnablementSnapshot, TsJsWebLanguagePackEnablementStateClass,
+    TsJsWebLanguagePackManifest, TsJsWebLanguagePackSchemaVersion, TsJsWebLanguageRow,
+    TsJsWebLanguageSupportClass, TsJsWebProviderRoute, TsJsWebToolHook,
+    TsJsWebTrustAndIntegrityPolicy, TSJS_WEB_LANGUAGE_PACK_SCHEMA_VERSION,
 };
 pub use python::{
     PythonAccessKindClass, PythonAmbiguityDescriptor, PythonAnchorRef, PythonAnswerLayerClass,
