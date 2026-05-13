@@ -69,6 +69,7 @@ pub mod save_review;
 pub mod scope_truth;
 pub mod start_center;
 pub mod state_cards;
+pub mod status;
 pub mod status_bar;
 pub mod support_seed;
 pub mod tasks_seed;

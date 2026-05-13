@@ -23,6 +23,9 @@
 //! - [`planner::SearchPlannerAlpha`] chooses lexical, structural, cached, or
 //!   graph-backed paths for quick open, file search, and symbol search while
 //!   preserving explicit fallback explanations.
+//! - [`readiness::IndexedLaneState`] projects warming, partial, cached, stale,
+//!   and paused indexed-data states into one vocabulary for status chrome,
+//!   result panes, graph/docs disclosures, and support artifacts.
 //! - [`lexical::ScopeClass`] mirrors the
 //!   [`aureline_workspace::ScopeClass`] so the search shell projects scope
 //!   chips through the same vocabulary the workset surface uses.
@@ -38,6 +41,7 @@ pub mod index_scheduler;
 pub mod lexical;
 pub mod planner;
 pub mod query_session;
+pub mod readiness;
 pub mod results;
 pub mod scope;
 
@@ -68,6 +72,12 @@ pub use planner::{
 pub use query_session::{
     stable_query_hash, QueryTextMode, SearchQuerySession, SearchSurface,
     SEARCH_QUERY_SESSION_SCHEMA_VERSION,
+};
+
+pub use readiness::{
+    IndexedLaneKind, IndexedLaneState, IndexedLaneStateInput, IndexedLaneSupportRow,
+    IndexedStateClass, IndexedStateReason, IndexedStateSupportArtifact,
+    INDEXED_LANE_STATE_SCHEMA_VERSION, INDEXED_STATE_SUPPORT_ARTIFACT_SCHEMA_VERSION,
 };
 
 pub use results::{
