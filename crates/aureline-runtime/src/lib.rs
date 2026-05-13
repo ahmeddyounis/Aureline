@@ -20,6 +20,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-runtime/0.0.0")]
 
 pub mod detectors;
+pub mod discovery;
 pub mod execution_context;
 pub mod language_hosts;
 pub mod tasks;
@@ -40,6 +41,17 @@ pub use detectors::python::{
     PythonEnvironmentResolutionState, PythonEnvironmentSourceKind, PythonEnvironmentSubject,
     PythonInterpreterResolution, PYTHON_ENVIRONMENT_DETECTION_RECORD_KIND,
     PYTHON_ENVIRONMENT_DETECTION_SCHEMA_VERSION, PYTHON_ENVIRONMENT_DETECTOR_VERSION,
+};
+pub use discovery::package_scripts::{
+    PackageScriptBlockReason, PackageScriptDescriptor, PackageScriptDiscoverer,
+    PackageScriptDiscovererConfig, PackageScriptDiscovery, PackageScriptDiscoveryState,
+    PackageScriptDispatch, PackageScriptLaunchReadiness, PackageScriptLifecycleHook,
+    PackageScriptMissingRuntimeState, PackageScriptRerunLineage, PackageScriptRerunMode,
+    PackageScriptRunContract, PackageScriptRunner, PackageScriptRuntimeStatus,
+    PackageScriptShellMode, PackageScriptSource, PackageScriptSourceKind,
+    PackageScriptWarningClass, PACKAGE_SCRIPT_DISCOVERER_VERSION,
+    PACKAGE_SCRIPT_DISCOVERY_RECORD_KIND, PACKAGE_SCRIPT_DISCOVERY_SCHEMA_VERSION,
+    PACKAGE_SCRIPT_RUN_CONTRACT_RECORD_KIND,
 };
 pub use execution_context::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,

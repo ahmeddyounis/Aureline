@@ -1106,6 +1106,29 @@ impl<'a> ExecutionContextRequest<'a> {
         }
     }
 
+    /// Convenience constructor for a package-script task request that asks for
+    /// a package-manager runner against the workspace default working
+    /// directory.
+    pub fn package_script_task_seed(
+        command_id: &'a str,
+        trust_state: TrustState,
+        observed_at: &'a str,
+    ) -> Self {
+        Self {
+            command_id,
+            surface: SurfaceClass::Task,
+            actor_class: ActorClass::UserCommand,
+            trust_state,
+            observed_at,
+            requested_target_class: Some(TargetClass::LocalHost),
+            requested_working_directory: None,
+            requested_toolchain_class: Some(ToolchainClass::PackageManagerRunner),
+            override_target_class: None,
+            override_working_directory: None,
+            override_toolchain_class: None,
+        }
+    }
+
     /// Convenience constructor for a test-run seed request that asks for a
     /// test-runner runtime against the workspace default working directory.
     pub fn test_seed(command_id: &'a str, trust_state: TrustState, observed_at: &'a str) -> Self {
@@ -2109,23 +2132,28 @@ mod tests {
             TrustState::Trusted,
             "mono:1",
         ));
+        let package_script = resolver.resolve(ExecutionContextRequest::package_script_task_seed(
+            "task.run.package_script",
+            TrustState::Trusted,
+            "mono:2",
+        ));
         let debug = resolver.resolve(ExecutionContextRequest::debug_prep_seed(
             "debug.prep.attach",
             TrustState::Trusted,
-            "mono:2",
+            "mono:3",
         ));
         let test = resolver.resolve(ExecutionContextRequest::test_seed(
             "test.run.changed",
             TrustState::Trusted,
-            "mono:3",
+            "mono:4",
         ));
         let ai = resolver.resolve(ExecutionContextRequest::ai_tool_call_seed(
             "ai.apply.preview",
             TrustState::Trusted,
-            "mono:4",
+            "mono:5",
         ));
 
-        for ctx in [&terminal, &task, &debug, &test, &ai] {
+        for ctx in [&terminal, &task, &package_script, &debug, &test, &ai] {
             assert_eq!(ctx.record_kind, EXECUTION_CONTEXT_RECORD_KIND);
             assert_eq!(ctx.schema_version, EXECUTION_CONTEXT_SCHEMA_VERSION);
             assert_eq!(ctx.invocation_subject.workspace_id, "ws-test");
@@ -2146,12 +2174,14 @@ mod tests {
             (
                 terminal.invocation_subject.surface,
                 task.invocation_subject.surface,
+                package_script.invocation_subject.surface,
                 debug.invocation_subject.surface,
                 test.invocation_subject.surface,
                 ai.invocation_subject.surface,
             ),
             (
                 SurfaceClass::Terminal,
+                SurfaceClass::Task,
                 SurfaceClass::Task,
                 SurfaceClass::Debug,
                 SurfaceClass::Test,
@@ -2162,6 +2192,7 @@ mod tests {
             (
                 terminal.toolchain_identity.toolchain_class,
                 task.toolchain_identity.toolchain_class,
+                package_script.toolchain_identity.toolchain_class,
                 debug.toolchain_identity.toolchain_class,
                 test.toolchain_identity.toolchain_class,
                 ai.toolchain_identity.toolchain_class,
@@ -2169,6 +2200,7 @@ mod tests {
             (
                 ToolchainClass::LoginShell,
                 ToolchainClass::BuildDriverRuntime,
+                ToolchainClass::PackageManagerRunner,
                 ToolchainClass::DebugAdapterRuntime,
                 ToolchainClass::TestRunnerRuntime,
                 ToolchainClass::AiToolRuntime,
@@ -2179,7 +2211,14 @@ mod tests {
             terminal.execution_context_id, task.execution_context_id,
             "every resolved context carries a unique id"
         );
-        assert_ne!(task.execution_context_id, debug.execution_context_id);
+        assert_ne!(
+            task.execution_context_id,
+            package_script.execution_context_id
+        );
+        assert_ne!(
+            package_script.execution_context_id,
+            debug.execution_context_id
+        );
         assert_ne!(debug.execution_context_id, test.execution_context_id);
         assert_ne!(test.execution_context_id, ai.execution_context_id);
     }
