@@ -43,6 +43,7 @@ alpha wedge matrix.
 | `known_limit:external_alpha.reference_workspace_dry_run_synthetic_only` | `corpus_narrowed` | `moderate` | reference-workspace dry runs, benchmark packets, public-proof rehearsals | The first dry run uses synthetic described-byte fixtures, not partner repositories or materialized benchmark workspaces. |
 | `known_limit:external_alpha.publication_rehearsal_methodology_only` | `competitor_parity_narrowed` | `major` | benchmark/publication rehearsal, public-proof packets, release evidence | The rehearsal is methodology-only and cannot publish benchmark, competitor-comparison, certified, or replacement-grade claims. |
 | `known_limit:external_alpha.search_alpha_synthetic_and_partial_index_only` | `corpus_narrowed` | `moderate` | quick open, symbol search, ranking-reason cards, keyboard review | Search alpha validation covers protected synthetic fixtures and partial-index drills. It is not partner-repository ranking proof, all-language parity, or complete graph explainer coverage. |
+| `known_limit:external_alpha.language_surface_accessibility_synthetic_only` | `corpus_narrowed` | `moderate` | diagnostics, completion assistance, rename/refactor preview accessibility review | Language-surface accessibility validation covers protected synthetic fixtures and source-model review for TS/JS and Python. It is not partner-repository assistive-technology proof, all-language parity, or replacement-grade accessibility certification. |
 
 ## Routing Rules
 
@@ -70,6 +71,11 @@ alpha wedge matrix.
   keyboard, or partial-index evidence must also cite
   `known_limit:external_alpha.search_alpha_synthetic_and_partial_index_only`
   until partner-repository ranking and full graph explainer evidence exists.
+- Any language-surface accessibility review or support export that cites
+  diagnostics, completion assistance, or refactor-preview accessibility
+  evidence must also cite
+  `known_limit:external_alpha.language_surface_accessibility_synthetic_only`
+  until current partner-repository assistive-technology evidence exists.
 
 ## Rollback Posture
 
