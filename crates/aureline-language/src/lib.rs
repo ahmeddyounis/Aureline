@@ -8,11 +8,21 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-language/0.0.0")]
 
+pub mod diagnostics;
 pub mod invalidation;
 pub mod lsp_router;
 pub mod symbol_snapshot;
 pub mod tree_sitter;
 
+pub use diagnostics::{
+    DiagnosticAnchor, DiagnosticAnchorRemapStateClass, DiagnosticBus, DiagnosticBusAggregateCounts,
+    DiagnosticBusSchemaVersion, DiagnosticBusSnapshot, DiagnosticBusSnapshotRequest,
+    DiagnosticEnvelope, DiagnosticEvidencePlaneClass, DiagnosticEvidenceRef,
+    DiagnosticEvidenceRoleClass, DiagnosticFreshness, DiagnosticFreshnessClass,
+    DiagnosticOriginClass, DiagnosticProviderAvailabilityRow, DiagnosticScope,
+    DiagnosticSeverityClass, DiagnosticSourceDescriptor, DiagnosticSourceFamily,
+    DiagnosticSurfaceClass, DiagnosticSurfaceProjection, DIAGNOSTIC_BUS_SCHEMA_VERSION,
+};
 pub use invalidation::{
     EditOperationRecord, EditWorkloadClass, IncrementalParseBuffer,
     IncrementalParseInvalidationRecord, IncrementalParseUpdate, InvalidationBenchmarkSample,

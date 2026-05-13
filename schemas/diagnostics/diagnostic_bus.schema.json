@@ -1,0 +1,545 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/diagnostics/diagnostic_bus.schema.json",
+  "title": "Aureline diagnostic bus envelope and projection contract",
+  "description": "Boundary schema for the diagnostic bus that normalizes compiler, language-server, linter, scanner-import, cached, and partial diagnostics while preserving source family, origin, freshness, scope completeness, provider availability, and export-safe surface projections. Raw source text, raw provider payloads, raw logs, raw command lines, raw absolute paths, raw URLs, and secret material never cross this boundary; records carry opaque refs, typed vocabulary, counts, timestamps, and export-safe summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/diagnostic_bus_envelope_record" },
+    { "$ref": "#/$defs/diagnostic_provider_availability_row" },
+    { "$ref": "#/$defs/diagnostic_bus_snapshot_record" },
+    { "$ref": "#/$defs/diagnostic_surface_projection_record" }
+  ],
+  "$defs": {
+    "diagnostic_bus_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for diagnostic bus payloads."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640,
+      "description": "Export-safe human-readable summary. Raw source text, raw paths, raw URLs, raw logs, command lines, and secret material never appear here."
+    },
+    "source_family": {
+      "type": "string",
+      "enum": [
+        "editor_structural",
+        "compiler_or_build",
+        "language_server",
+        "linter_formatter_style",
+        "framework_or_schema_analyzer",
+        "runtime_test_or_debug",
+        "scanner_import",
+        "policy_trust_or_security",
+        "project_graph",
+        "heuristic"
+      ]
+    },
+    "evidence_plane_class": {
+      "type": "string",
+      "enum": [
+        "static_analysis",
+        "build_time_execution",
+        "runtime_or_test_execution",
+        "policy_or_trust_evaluation",
+        "imported_snapshot_evidence",
+        "heuristic_fallback"
+      ]
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_local_session",
+        "live_remote_session",
+        "managed_provider_live",
+        "imported_snapshot",
+        "replayed_support_bundle",
+        "local_cache"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["error", "warning", "notice", "hint"]
+    },
+    "diagnostic_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "recent",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "superseded",
+        "imported_snapshot",
+        "unverified"
+      ]
+    },
+    "anchor_remap_state_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "contextual",
+        "stale",
+        "unmapped",
+        "imported_static",
+        "not_applicable"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["editor_inline", "search_index", "support_export", "cli_json"]
+    },
+    "evidence_role_class": {
+      "type": "string",
+      "enum": [
+        "primary_source",
+        "router_decision",
+        "provider_status",
+        "producer_session",
+        "remap_evidence",
+        "support_replay"
+      ]
+    },
+    "provider_kind": {
+      "type": "string",
+      "enum": [
+        "syntax_parser",
+        "language_server",
+        "debug_adapter",
+        "formatter_adapter",
+        "linter_adapter",
+        "test_adapter",
+        "build_adapter",
+        "framework_pack",
+        "native_analyzer",
+        "project_graph",
+        "generated_source_bridge",
+        "ai_assist"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": ["authoritative", "advisory", "fallback_only", "inspect_only", "unsupported"]
+    },
+    "provider_health_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "warming",
+        "degraded",
+        "cached_only",
+        "policy_blocked",
+        "capability_missing",
+        "crash_loop_quarantined",
+        "unavailable"
+      ]
+    },
+    "router_freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "scope_claim_class": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "notebook_cell",
+        "loaded_slice",
+        "active_workset",
+        "whole_workspace",
+        "target_graph",
+        "test_tree",
+        "debug_session",
+        "unavailable"
+      ]
+    },
+    "completeness_class": {
+      "type": "string",
+      "enum": [
+        "complete_for_claimed_scope",
+        "partial_for_claimed_scope",
+        "unavailable_for_claimed_scope"
+      ]
+    },
+    "scope_limit_class": {
+      "type": "string",
+      "enum": [
+        "single_file_only",
+        "active_workset_only",
+        "unloaded_roots_omitted",
+        "generated_overlay_only",
+        "generated_candidates_omitted",
+        "notebook_cell_projection_only",
+        "cross_cell_context_unavailable",
+        "diff_or_review_slice_only",
+        "policy_narrowed",
+        "remote_shard_unreachable"
+      ]
+    },
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "imported_snapshot"
+      ]
+    },
+    "fault_domain_id": {
+      "type": "string",
+      "enum": [
+        "shell_interaction_core",
+        "workspace_knowledge_workers",
+        "session_scoped_execution_hosts",
+        "extension_and_tool_hosts",
+        "ai_and_external_tool_brokers",
+        "remote_connectors",
+        "policy_entitlement_and_verifier_helpers"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "diagnostic_evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_ref", "evidence_role_class", "summary"],
+      "properties": {
+        "evidence_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_role_class": { "$ref": "#/$defs/evidence_role_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_descriptor_id",
+        "source_family",
+        "evidence_plane_class",
+        "origin_class",
+        "producer_ref",
+        "producer_version_ref",
+        "provider_id",
+        "router_host_ref",
+        "locality_class",
+        "support_class",
+        "summary"
+      ],
+      "properties": {
+        "source_descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "source_family": { "$ref": "#/$defs/source_family" },
+        "evidence_plane_class": { "$ref": "#/$defs/evidence_plane_class" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "producer_ref": { "$ref": "#/$defs/opaque_ref" },
+        "producer_version_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "provider_id": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "router_host_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "locality_class": { "$ref": "#/$defs/locality_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness_class", "observed_at", "epoch_ref", "invalidation_ref", "summary"],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/diagnostic_freshness_class" },
+        "observed_at": { "$ref": "#/$defs/timestamp" },
+        "epoch_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "invalidation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_claim_class",
+        "completeness_class",
+        "scope_limit_classes",
+        "target_ref",
+        "execution_context_id",
+        "summary"
+      ],
+      "properties": {
+        "scope_claim_class": { "$ref": "#/$defs/scope_claim_class" },
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "scope_limit_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_limit_class" },
+          "uniqueItems": true
+        },
+        "target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_family_id",
+        "current_anchor_ref",
+        "path_ref",
+        "remap_state_class",
+        "summary"
+      ],
+      "properties": {
+        "anchor_family_id": { "$ref": "#/$defs/opaque_id" },
+        "current_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "path_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "remap_state_class": { "$ref": "#/$defs/anchor_remap_state_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_bus_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_bus_schema_version",
+        "diagnostic_id",
+        "collection_id",
+        "workspace_id",
+        "source",
+        "severity_class",
+        "rule_id_ref",
+        "category_ref",
+        "freshness",
+        "scope",
+        "anchor",
+        "evidence_refs",
+        "provider_status_refs",
+        "router_decision_ref",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "diagnostic_bus_envelope_record" },
+        "diagnostic_bus_schema_version": { "$ref": "#/$defs/diagnostic_bus_schema_version" },
+        "diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "collection_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "source": { "$ref": "#/$defs/diagnostic_source_descriptor" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "rule_id_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "category_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "freshness": { "$ref": "#/$defs/diagnostic_freshness" },
+        "scope": { "$ref": "#/$defs/diagnostic_scope" },
+        "anchor": { "$ref": "#/$defs/diagnostic_anchor" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic_evidence_ref" }
+        },
+        "provider_status_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "router_decision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_provider_availability_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id",
+        "provider_display_label",
+        "source_family",
+        "provider_kind",
+        "support_class",
+        "health_state",
+        "freshness_class",
+        "scope_claim_class",
+        "completeness_class",
+        "scope_limit_classes",
+        "locality_class",
+        "fault_domain_id",
+        "restart_strike_count",
+        "quarantine_ref",
+        "router_decision_ref",
+        "summary"
+      ],
+      "properties": {
+        "provider_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_display_label": { "$ref": "#/$defs/short_sentence" },
+        "source_family": { "$ref": "#/$defs/source_family" },
+        "provider_kind": { "$ref": "#/$defs/provider_kind" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "health_state": { "$ref": "#/$defs/provider_health_state" },
+        "freshness_class": { "$ref": "#/$defs/router_freshness_class" },
+        "scope_claim_class": { "$ref": "#/$defs/scope_claim_class" },
+        "completeness_class": { "$ref": "#/$defs/completeness_class" },
+        "scope_limit_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_limit_class" },
+          "uniqueItems": true
+        },
+        "locality_class": { "$ref": "#/$defs/locality_class" },
+        "fault_domain_id": { "$ref": "#/$defs/fault_domain_id" },
+        "restart_strike_count": { "type": "integer", "minimum": 0 },
+        "quarantine_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "router_decision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "aggregate_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_count",
+        "error_count",
+        "warning_count",
+        "notice_count",
+        "hint_count",
+        "local_count",
+        "imported_count",
+        "cached_count",
+        "partial_count",
+        "stale_or_unverified_count",
+        "unavailable_provider_count"
+      ],
+      "properties": {
+        "total_count": { "type": "integer", "minimum": 0 },
+        "error_count": { "type": "integer", "minimum": 0 },
+        "warning_count": { "type": "integer", "minimum": 0 },
+        "notice_count": { "type": "integer", "minimum": 0 },
+        "hint_count": { "type": "integer", "minimum": 0 },
+        "local_count": { "type": "integer", "minimum": 0 },
+        "imported_count": { "type": "integer", "minimum": 0 },
+        "cached_count": { "type": "integer", "minimum": 0 },
+        "partial_count": { "type": "integer", "minimum": 0 },
+        "stale_or_unverified_count": { "type": "integer", "minimum": 0 },
+        "unavailable_provider_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostic_bus_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_bus_schema_version",
+        "snapshot_id",
+        "workspace_id",
+        "collection_id",
+        "diagnostics",
+        "provider_availability_rows",
+        "aggregate_counts",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "diagnostic_bus_snapshot_record" },
+        "diagnostic_bus_schema_version": { "$ref": "#/$defs/diagnostic_bus_schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "collection_id": { "$ref": "#/$defs/opaque_id" },
+        "diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic_bus_envelope_record" }
+        },
+        "provider_availability_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic_provider_availability_row" }
+        },
+        "aggregate_counts": { "$ref": "#/$defs/aggregate_counts" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_surface_projection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_bus_schema_version",
+        "projection_id",
+        "snapshot_id",
+        "surface_class",
+        "included_diagnostic_ids",
+        "inline_diagnostic_ids",
+        "withheld_diagnostic_ids",
+        "provider_availability_refs",
+        "disclosure_required",
+        "freshness_summary_class",
+        "completeness_summary_class",
+        "visible_count",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "diagnostic_surface_projection_record" },
+        "diagnostic_bus_schema_version": { "$ref": "#/$defs/diagnostic_bus_schema_version" },
+        "projection_id": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "included_diagnostic_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "inline_diagnostic_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "withheld_diagnostic_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "provider_availability_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "disclosure_required": { "type": "boolean" },
+        "freshness_summary_class": { "$ref": "#/$defs/diagnostic_freshness_class" },
+        "completeness_summary_class": { "$ref": "#/$defs/completeness_class" },
+        "visible_count": { "type": "integer", "minimum": 0 },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}
