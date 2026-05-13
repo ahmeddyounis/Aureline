@@ -1,0 +1,96 @@
+record_kind: task_event_retention_alpha_artifact
+schema_version: 1
+canonical_contract:
+  rust_module: crates/aureline-runtime/src/tasks/mod.rs
+  boundary_schema: schemas/runtime/task_event.schema.json
+  fixture_root: fixtures/runtime/task_event_alpha
+consumer_paths:
+  shell:
+    projection_record_kind: task_event_shell_projection_record
+    consumes:
+      - event_id
+      - task_id
+      - workspace_id
+      - execution_context_ref
+      - target_id
+      - event_kind
+      - state_after
+      - payload_kind_token
+      - raw_envelope_ref
+  activity_center:
+    projection_record_kind: task_event_activity_projection_record
+    consumes:
+      - task_id
+      - workspace_id
+      - trace_id
+      - execution_context_ref
+      - target_id
+      - state
+      - progress
+      - input_request
+      - block_reason
+      - support_pack_item_id
+  support_bundle_export:
+    projection_record_kind: task_event_support_export_record
+    consumes:
+      - typed_event_rows
+      - raw_envelopes
+      - redaction_class
+      - payload_digest
+      - reconstruction_fields
+retention_rules:
+  - source_kind: native
+    default_retention_state: retained_inline_redacted
+    default_redaction_class: metadata_safe_default
+    support_export_material: typed_event_row_plus_raw_envelope
+  - source_kind: bsp
+    default_retention_state: retained_inline_redacted
+    default_redaction_class: metadata_safe_default
+    support_export_material: typed_event_row_plus_raw_envelope
+  - source_kind: structured_output
+    default_retention_state: retained_by_reference
+    default_redaction_class: operator_only_restricted
+    support_export_material: typed_event_row_plus_digest_and_ref
+  - source_kind: heuristic_parser
+    default_retention_state: retained_by_reference
+    default_redaction_class: operator_only_restricted
+    support_export_material: typed_event_row_plus_digest_and_confidence
+  - source_kind: support_bundle_replay
+    default_retention_state: metadata_digest_only
+    default_redaction_class: internal_support_restricted
+    support_export_material: replay_metadata_only
+acceptance_evidence:
+  state_model:
+    fixture: fixtures/runtime/task_event_alpha/state_coverage_stream.json
+    states:
+      - queued
+      - running
+      - blocked
+      - completed
+      - failed
+      - cancelled
+      - waiting_for_input
+  shared_grammar:
+    fixture: fixtures/runtime/task_event_alpha/multi_wedge_stream.json
+    wedges:
+      - build
+      - test
+      - debug
+  raw_envelope_identity:
+    required_fields:
+      - task_id
+      - workspace_id
+      - trace_id
+      - source_kind
+      - adapter_origin_event_id
+      - redaction_class
+      - retention_state
+      - payload_digest
+      - reconstruction_fields
+failure_drills:
+  - name: raw_envelope_identity_mismatch
+    expected_result: stream_ingest_rejects_event
+  - name: out_of_order_delivery
+    expected_result: stream_ingest_rejects_non_increasing_sequence
+  - name: low_confidence_heuristic_event
+    expected_result: support_export_preserves_confidence_and_raw_ref

@@ -1,0 +1,526 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/task_event.schema.json",
+  "title": "Aureline canonical task-event stream",
+  "description": "Boundary schema for the canonical task model, typed task-event stream, and raw-envelope retention path. Build, test, debug, terminal-backed, notebook, package, and AI-tool task lanes use this grammar so shell rows, activity-center rows, and support exports consume one lifecycle truth. Raw adapter-origin envelopes are retained with task, workspace, trace, source, and redaction identity; payload bodies may be retained inline only after redaction, retained by reference, reduced to digest metadata, or omitted by policy.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/task_event_record" },
+    { "$ref": "#/$defs/task_event_stream_record" },
+    { "$ref": "#/$defs/task_event_support_export_record" },
+    { "$ref": "#/$defs/raw_task_event_envelope_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque identifier safe for logs, RPC, fixtures, and support exports."
+    },
+    "optional_string": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    },
+    "date_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "task_state_class": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "blocked",
+        "completed",
+        "failed",
+        "cancelled",
+        "waiting_for_input"
+      ]
+    },
+    "task_event_kind": {
+      "type": "string",
+      "enum": [
+        "task_queued",
+        "task_started",
+        "task_blocked",
+        "input_requested",
+        "progress_updated",
+        "output_appended",
+        "diagnostic_emitted",
+        "artifact_published",
+        "task_completed",
+        "task_failed",
+        "task_cancelled"
+      ]
+    },
+    "task_wedge_class": {
+      "type": "string",
+      "enum": [
+        "build",
+        "test",
+        "debug",
+        "terminal",
+        "package",
+        "notebook",
+        "ai_tool",
+        "generic"
+      ]
+    },
+    "task_event_source_kind": {
+      "type": "string",
+      "enum": [
+        "native",
+        "bsp",
+        "bazel_bep",
+        "structured_output",
+        "heuristic_parser",
+        "support_bundle_replay"
+      ]
+    },
+    "task_event_confidence": {
+      "type": "string",
+      "enum": ["high", "medium_high", "medium", "low"]
+    },
+    "task_event_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "raw_envelope_retention_state": {
+      "type": "string",
+      "enum": [
+        "retained_inline_redacted",
+        "retained_by_reference",
+        "metadata_digest_only",
+        "omitted_policy_prohibited"
+      ]
+    },
+    "task_output_stream_class": {
+      "type": "string",
+      "enum": ["stdout", "stderr", "system", "adapter"]
+    },
+    "task_diagnostic_severity": {
+      "type": "string",
+      "enum": ["info", "warning", "error", "fatal"]
+    },
+    "task_input_class": {
+      "type": "string",
+      "enum": ["plain_text", "secret", "confirmation", "choice", "file_path"]
+    },
+    "task_block_reason": {
+      "type": "string",
+      "enum": [
+        "queue_capacity",
+        "trust_review",
+        "policy_review",
+        "target_unavailable",
+        "dependency_missing",
+        "approval_required"
+      ]
+    },
+    "task_artifact_kind": {
+      "type": "string",
+      "enum": [
+        "build_output",
+        "coverage",
+        "test_report",
+        "log_slice",
+        "profile",
+        "debug_artifact"
+      ]
+    },
+    "task_failure_class": {
+      "type": "string",
+      "enum": [
+        "exit_code",
+        "signal",
+        "adapter_error",
+        "target_lost",
+        "policy_denied",
+        "cancelled_by_user",
+        "unknown"
+      ]
+    },
+    "task_consumer_surface_class": {
+      "type": "string",
+      "enum": ["shell", "activity_center", "support_bundle_export"]
+    },
+    "task_event_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "run_id",
+        "attempt_id",
+        "workspace_id",
+        "trace_id",
+        "execution_context_id",
+        "target_id",
+        "wedge"
+      ],
+      "properties": {
+        "task_id": { "$ref": "#/$defs/opaque_id" },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "trace_id": { "$ref": "#/$defs/opaque_id" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "wedge": { "$ref": "#/$defs/task_wedge_class" }
+      }
+    },
+    "task_event_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "source_adapter_id",
+        "adapter_version",
+        "confidence"
+      ],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/task_event_source_kind" },
+        "source_adapter_id": { "$ref": "#/$defs/opaque_id" },
+        "adapter_version": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_revision": { "$ref": "#/$defs/optional_string" },
+        "confidence": { "$ref": "#/$defs/task_event_confidence" }
+      }
+    },
+    "raw_task_event_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "raw_envelope_ref",
+        "task_id",
+        "workspace_id",
+        "trace_id",
+        "source_kind",
+        "adapter_origin_event_id",
+        "redaction_class",
+        "retention_state",
+        "payload_digest",
+        "retained_at",
+        "reconstruction_fields"
+      ],
+      "properties": {
+        "record_kind": { "const": "raw_task_event_envelope_record" },
+        "raw_envelope_ref": { "$ref": "#/$defs/opaque_id" },
+        "task_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "trace_id": { "$ref": "#/$defs/opaque_id" },
+        "source_kind": { "$ref": "#/$defs/task_event_source_kind" },
+        "adapter_origin_event_id": { "$ref": "#/$defs/opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/task_event_redaction_class" },
+        "retention_state": { "$ref": "#/$defs/raw_envelope_retention_state" },
+        "payload_digest": { "$ref": "#/$defs/non_empty_string" },
+        "retained_payload": {
+          "type": "object",
+          "description": "Optional redacted adapter-origin payload. Secret-bearing raw bodies must not be retained inline."
+        },
+        "retained_at": { "$ref": "#/$defs/date_time" },
+        "reconstruction_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "task_progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["completed_units", "total_units", "unit_label", "label"],
+      "properties": {
+        "completed_units": { "type": "integer", "minimum": 0 },
+        "total_units": { "type": "integer", "minimum": 0 },
+        "unit_label": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "task_input_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_id", "input_class", "source_label", "scope_ref"],
+      "properties": {
+        "request_id": { "$ref": "#/$defs/opaque_id" },
+        "input_class": { "$ref": "#/$defs/task_input_class" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "expires_at": { "$ref": "#/$defs/optional_string" }
+      }
+    },
+    "task_exit_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exit_code": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "null" }
+          ]
+        },
+        "failure_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/task_failure_class" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "task_event_payload": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payload_kind"],
+          "properties": {
+            "payload_kind": { "const": "lifecycle" },
+            "lifecycle_reason": { "$ref": "#/$defs/optional_string" },
+            "exit_status": { "$ref": "#/$defs/task_exit_status" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payload_kind", "progress"],
+          "properties": {
+            "payload_kind": { "const": "progress" },
+            "progress": { "$ref": "#/$defs/task_progress" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payload_kind", "stream", "chunk_ref", "line_count", "byte_count"],
+          "properties": {
+            "payload_kind": { "const": "output" },
+            "stream": { "$ref": "#/$defs/task_output_stream_class" },
+            "chunk_ref": { "$ref": "#/$defs/opaque_id" },
+            "line_count": { "type": "integer", "minimum": 0 },
+            "byte_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payload_kind", "diagnostic_ref", "severity", "tool_ref"],
+          "properties": {
+            "payload_kind": { "const": "diagnostic" },
+            "diagnostic_ref": { "$ref": "#/$defs/opaque_id" },
+            "severity": { "$ref": "#/$defs/task_diagnostic_severity" },
+            "tool_ref": { "$ref": "#/$defs/opaque_id" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payload_kind", "artifact_ref", "artifact_kind", "retention_ref"],
+          "properties": {
+            "payload_kind": { "const": "artifact" },
+            "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+            "artifact_kind": { "$ref": "#/$defs/task_artifact_kind" },
+            "retention_ref": { "$ref": "#/$defs/opaque_id" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payload_kind", "request"],
+          "properties": {
+            "payload_kind": { "const": "input_request" },
+            "request": { "$ref": "#/$defs/task_input_request" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payload_kind", "reason"],
+          "properties": {
+            "payload_kind": { "const": "blocked" },
+            "reason": { "$ref": "#/$defs/task_block_reason" },
+            "unblock_ref": { "$ref": "#/$defs/optional_string" }
+          }
+        }
+      ]
+    },
+    "task_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_event_schema_version",
+        "event_id",
+        "stream_id",
+        "stream_sequence",
+        "identity",
+        "event_kind",
+        "state_after",
+        "occurred_at",
+        "summary",
+        "payload",
+        "provenance",
+        "raw_envelope"
+      ],
+      "properties": {
+        "record_kind": { "const": "task_event_record" },
+        "task_event_schema_version": { "$ref": "#/$defs/schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "stream_id": { "$ref": "#/$defs/opaque_id" },
+        "stream_sequence": { "type": "integer", "minimum": 0 },
+        "identity": { "$ref": "#/$defs/task_event_identity" },
+        "event_kind": { "$ref": "#/$defs/task_event_kind" },
+        "state_after": { "$ref": "#/$defs/task_state_class" },
+        "occurred_at": { "$ref": "#/$defs/date_time" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "payload": { "$ref": "#/$defs/task_event_payload" },
+        "provenance": { "$ref": "#/$defs/task_event_provenance" },
+        "raw_envelope": { "$ref": "#/$defs/raw_task_event_envelope_record" }
+      }
+    },
+    "task_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_event_schema_version",
+        "identity",
+        "current_state",
+        "state_token",
+        "last_event_id",
+        "first_seen_at",
+        "last_observed_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "task_state_record" },
+        "task_event_schema_version": { "$ref": "#/$defs/schema_version" },
+        "identity": { "$ref": "#/$defs/task_event_identity" },
+        "current_state": { "$ref": "#/$defs/task_state_class" },
+        "state_token": { "$ref": "#/$defs/task_state_class" },
+        "last_event_id": { "$ref": "#/$defs/opaque_id" },
+        "first_seen_at": { "$ref": "#/$defs/date_time" },
+        "last_observed_at": { "$ref": "#/$defs/date_time" },
+        "progress": { "$ref": "#/$defs/task_progress" },
+        "input_request": { "$ref": "#/$defs/task_input_request" },
+        "block_reason": { "$ref": "#/$defs/task_block_reason" },
+        "exit_status": { "$ref": "#/$defs/task_exit_status" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "task_event_stream_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_event_schema_version",
+        "stream_id",
+        "workspace_id",
+        "trace_id",
+        "events"
+      ],
+      "properties": {
+        "record_kind": { "const": "task_event_stream_record" },
+        "task_event_schema_version": { "$ref": "#/$defs/schema_version" },
+        "stream_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "trace_id": { "$ref": "#/$defs/opaque_id" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/task_event_record" }
+        },
+        "task_states": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/task_state_record" }
+        }
+      }
+    },
+    "task_support_event_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "task_id",
+        "run_id",
+        "attempt_id",
+        "execution_context_ref",
+        "target_id",
+        "wedge",
+        "event_kind",
+        "state_after",
+        "source_kind",
+        "confidence",
+        "redaction_class",
+        "raw_envelope_ref",
+        "payload_digest",
+        "summary"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "task_id": { "$ref": "#/$defs/opaque_id" },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "wedge": { "$ref": "#/$defs/task_wedge_class" },
+        "event_kind": { "$ref": "#/$defs/task_event_kind" },
+        "state_after": { "$ref": "#/$defs/task_state_class" },
+        "source_kind": { "$ref": "#/$defs/task_event_source_kind" },
+        "confidence": { "$ref": "#/$defs/task_event_confidence" },
+        "redaction_class": { "$ref": "#/$defs/task_event_redaction_class" },
+        "raw_envelope_ref": { "$ref": "#/$defs/opaque_id" },
+        "payload_digest": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "task_event_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_event_schema_version",
+        "export_id",
+        "workspace_id",
+        "trace_id",
+        "generated_at",
+        "consumer_surfaces",
+        "events",
+        "raw_envelopes"
+      ],
+      "properties": {
+        "record_kind": { "const": "task_event_support_export_record" },
+        "task_event_schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "trace_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/task_consumer_surface_class" },
+          "uniqueItems": true
+        },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/task_support_event_row" }
+        },
+        "raw_envelopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/raw_task_event_envelope_record" }
+        }
+      }
+    }
+  }
+}
