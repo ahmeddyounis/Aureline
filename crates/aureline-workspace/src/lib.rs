@@ -14,6 +14,7 @@ pub mod admission;
 pub mod entry_flows;
 pub mod generated_artifacts;
 pub mod lifecycle;
+pub mod profiles;
 pub mod recent_work;
 pub mod roots;
 pub mod save;
@@ -32,6 +33,19 @@ pub use recent_work::{
 pub use lifecycle::{
     WorkspaceLifecycleMachine, WorkspaceLifecycleSnapshot, WorkspaceLifecycleSnapshotRecordKind,
     WorkspaceLifecycleState, WorkspaceLifecycleTransitionFrame, WorkspaceReadinessInputs,
+};
+
+pub use profiles::{
+    project_device_registry_surface, review_non_widening_import, ArtifactOwnerScope,
+    ArtifactPortabilityLabel, ArtifactPortabilityProjection, ArtifactPrivacyClass,
+    CapabilityDependency, ConflictAction, ConflictActionOffer, ConflictArtifactClass,
+    ConflictFieldDiff, ConflictReviewPacketAlpha, ConflictRevision, DeviceRegistrySurfaceRow,
+    ImportApplyDecision, ImportApplyRequest, ImportApplyReview, LocalFallbackPosture,
+    NonPortableExclusionReason, NonWideningVerdict, PortableArtifactClass, PortableProfileArtifact,
+    PortableProfileExport, ProfileAlphaValidationError, StateSourcePosture, SyncConflictClassAlpha,
+    SyncDeviceRegistryAlphaRecord, SyncTransportState, WideningVector,
+    CONFLICT_REVIEW_ALPHA_SCHEMA_VERSION, DEVICE_REGISTRY_ALPHA_SCHEMA_VERSION,
+    PORTABLE_PROFILE_ALPHA_SCHEMA_VERSION,
 };
 
 pub use entry_flows::{

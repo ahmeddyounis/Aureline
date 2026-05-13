@@ -72,6 +72,16 @@ registry seed (`scope_id`, `redaction_class`, `actor_class`,
 `widening_vector`, `preview_class`, `identity_mode`, `trust_state`)
 and binds together via the shared `settings_schema_version` integer.
 
+Alpha profile/keymap/saved-view review surfaces also consume
+[`schemas/sync/device_registry_alpha.schema.json`](../../schemas/sync/device_registry_alpha.schema.json)
+and
+[`schemas/sync/conflict_packet_alpha.schema.json`](../../schemas/sync/conflict_packet_alpha.schema.json).
+Those schemas project the same device and conflict truth into the profile
+export/import lane with artifact owner scope, privacy class, portability labels,
+per-source revision attribution, explicit `Keep local`, `Keep synced`, and
+`Compare` actions, and local-only fallback when transport, policy, or capability
+checks fail.
+
 ## Publishing conventions
 
 ### `$id` and `$schema` URIs

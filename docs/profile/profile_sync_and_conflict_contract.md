@@ -147,6 +147,14 @@ Minimum conflict journal:
 - preview, rollback, approval, mutation-journal, and support-export
   refs.
 
+Keymap and saved-view conflicts use the alpha review packet documented at
+[`docs/settings/sync_conflict_review_alpha.md`](../settings/sync_conflict_review_alpha.md).
+Those packets keep the same local-authoritative and non-widening rules while
+adding artifact owner scope, privacy class, portability label, per-device
+revision attribution, and explicit `Keep local`, `Keep synced`, and `Compare`
+actions. Saved-view packets must not serialize transient selection, stale
+provider cursors, or secret-bearing parameters as portable state.
+
 Sync metadata and conflict journals are not themselves portable
 profile content. Support bundles may include their metadata under the
 declared redaction class, but raw secret material, raw machine paths,

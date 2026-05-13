@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/profiles/portable_profile.schema.json",
+  "title": "Aureline alpha portable profile export projection",
+  "description": "Alpha export-review projection for portable profiles. The long-lived profile body remains schemas/profile/portable_profile.schema.json; this projection is the keymap- and saved-view-inclusive surface consumed by workspace import/export review before apply. It carries schema version, explicit profile scope, source revision/device attribution, capability dependencies, artifact owner scope, privacy class, portability labels, and non-portable exclusions. Raw secrets, delegated credentials, trust grants, admin policy payloads, transient selection, stale provider cursors, and secret-bearing parameters never appear.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "profile_scope",
+    "profile_revision_ref",
+    "source_device_ref",
+    "artifacts",
+    "non_portable_exclusions"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile_scope": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Explicit import/export scope selected by the user or policy."
+    },
+    "profile_revision_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_device_ref": {
+      "type": "string",
+      "pattern": "^dev-[A-Za-z0-9_-]{8,}$"
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/artifact" },
+      "allOf": [
+        {
+          "contains": {
+            "properties": { "artifact_class": { "const": "keymap" } },
+            "required": ["artifact_class"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "artifact_class": { "const": "saved_view" } },
+            "required": ["artifact_class"]
+          }
+        }
+      ]
+    },
+    "non_portable_exclusions": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/non_portable_exclusion_reason" },
+      "uniqueItems": true,
+      "allOf": [
+        { "contains": { "const": "secret_material" } },
+        { "contains": { "const": "delegated_credential" } }
+      ],
+      "description": "Non-portable state classes named by the export manifest."
+    }
+  },
+  "$defs": {
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "setting",
+        "keymap",
+        "saved_view",
+        "snippet",
+        "theme",
+        "extension_selection",
+        "layout_preset",
+        "ai_preset",
+        "terminal_preference"
+      ]
+    },
+    "owner_scope": {
+      "type": "string",
+      "enum": ["user", "workspace", "shared", "policy_pinned", "provider_owned"]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "secret_bearing_excluded"
+      ]
+    },
+    "portability_label": {
+      "type": "string",
+      "enum": ["portable", "local_only", "downgraded", "excluded"]
+    },
+    "source_posture": {
+      "type": "string",
+      "enum": ["local_only", "synced", "imported", "policy_pinned", "provider_owned"]
+    },
+    "non_portable_exclusion_reason": {
+      "type": "string",
+      "enum": [
+        "secret_material",
+        "delegated_credential",
+        "machine_local_binding",
+        "trust_grant",
+        "admin_policy",
+        "transient_selection",
+        "stale_provider_cursor",
+        "secret_bearing_parameter",
+        "missing_capability",
+        "provider_owned_unsupported",
+        "policy_locked"
+      ]
+    },
+    "capability_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_id",
+        "required",
+        "present",
+        "fallback_portability",
+        "fallback_note"
+      ],
+      "properties": {
+        "capability_id": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean" },
+        "present": { "type": "boolean" },
+        "fallback_portability": { "$ref": "#/$defs/portability_label" },
+        "fallback_note": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "required": { "const": true },
+              "present": { "const": false }
+            },
+            "required": ["required", "present"]
+          },
+          "then": {
+            "properties": {
+              "fallback_portability": {
+                "enum": ["local_only", "downgraded", "excluded"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "artifact_class",
+        "owner_scope",
+        "privacy_class",
+        "portability_label",
+        "source_posture",
+        "source_ref",
+        "source_revision_ref",
+        "capability_dependencies",
+        "exclusion_reasons",
+        "captures_transient_selection",
+        "captures_stale_provider_cursor",
+        "captures_secret_bearing_parameters",
+        "portability_note"
+      ],
+      "properties": {
+        "artifact_id": { "type": "string", "minLength": 1 },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "owner_scope": { "$ref": "#/$defs/owner_scope" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "portability_label": { "$ref": "#/$defs/portability_label" },
+        "source_posture": { "$ref": "#/$defs/source_posture" },
+        "source_device_ref": {
+          "type": ["string", "null"],
+          "pattern": "^dev-[A-Za-z0-9_-]{8,}$"
+        },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "source_revision_ref": { "type": "string", "minLength": 1 },
+        "capability_dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_dependency" }
+        },
+        "exclusion_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_portable_exclusion_reason" },
+          "uniqueItems": true
+        },
+        "captures_transient_selection": { "type": "boolean" },
+        "captures_stale_provider_cursor": { "type": "boolean" },
+        "captures_secret_bearing_parameters": { "type": "boolean" },
+        "portability_note": { "type": "string", "minLength": 1, "maxLength": 2048 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "artifact_class": { "const": "saved_view" }
+            },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "properties": {
+              "captures_transient_selection": { "const": false },
+              "captures_stale_provider_cursor": { "const": false },
+              "captures_secret_bearing_parameters": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "privacy_class": { "const": "secret_bearing_excluded" }
+            },
+            "required": ["privacy_class"]
+          },
+          "then": {
+            "properties": {
+              "portability_label": { "const": "excluded" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "portability_label": { "enum": ["local_only", "downgraded", "excluded"] }
+            },
+            "required": ["portability_label"]
+          },
+          "then": {
+            "properties": {
+              "exclusion_reasons": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

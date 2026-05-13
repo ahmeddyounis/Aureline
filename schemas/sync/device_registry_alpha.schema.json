@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/sync/device_registry_alpha.schema.json",
+  "title": "Aureline alpha sync device-registry surface row",
+  "description": "Alpha-facing device-registry projection consumed by workspace profile export/import and conflict-review surfaces. The packet composes with schemas/settings/sync_device_record.schema.json and carries only export-safe identity, revision, transport state, identity mode, and local-only fallback posture. Raw hostnames, serials, IP addresses, device secrets, credentials, and machine-local paths never appear.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "device_id",
+    "device_label",
+    "device_revision_ref",
+    "transport_state",
+    "local_fallback_posture",
+    "identity_mode"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "device_id": {
+      "type": "string",
+      "pattern": "^dev-[A-Za-z0-9_-]{8,}$",
+      "description": "Opaque device id. Never a raw hostname, serial, MAC address, or account id."
+    },
+    "device_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "description": "Redaction-aware user-visible label."
+    },
+    "device_revision_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque revision or lineage cursor safe for support and review surfaces."
+    },
+    "transport_state": {
+      "type": "string",
+      "enum": ["available", "degraded", "unavailable", "refused"],
+      "description": "Transport state rendered independently from device identity."
+    },
+    "local_fallback_posture": {
+      "type": "string",
+      "enum": ["synced", "local_only_authoritative", "manual_continuity", "refused"],
+      "description": "Fallback posture. Any degraded, unavailable, or refused transport resolves to local-only authoritative, manual continuity, or refused; it never pretends the device is synced."
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": ["account_free_local", "self_hosted_org", "managed_convenience"],
+      "description": "Identity mode at registration. A profile import or sync apply may not use this value to widen local trust."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "transport_state": { "enum": ["degraded", "unavailable", "refused"] }
+        },
+        "required": ["transport_state"]
+      },
+      "then": {
+        "properties": {
+          "local_fallback_posture": {
+            "enum": ["local_only_authoritative", "manual_continuity", "refused"]
+          }
+        }
+      }
+    }
+  ]
+}

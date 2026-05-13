@@ -134,7 +134,7 @@ Every state class answers **who owns this?** The set is closed:
 
 - `user_authored_durable_truth` — the user typed it or accepted it via
   a preview. Losing it requires an explicit delete. Examples: user-
-  global settings, keybindings, snippets, themes, extension selection,
+  global settings, keybindings, saved views, snippets, themes, extension selection,
   AI preset selection, terminal preferences, workspace manifest,
   workset manifest, tasks and launch configs.
 - `user_owned_recovery_state` — the product held it on the user's
@@ -306,6 +306,7 @@ schema's `state_map_row_record` fields.
 |---|---|---|---|---|---|---|---|---|---|
 | `user_global_settings` | `AURELINE_CONFIG` | `settings.jsonc` | `user_authored_durable_truth` | `portable` | `durable_until_user_deletes` | `synced_opt_in` | `included_metadata_only` | `clear_requires_preview_and_rollback` | `ui_string_only` |
 | `keybindings` | `AURELINE_CONFIG` | `keybindings.jsonc` | `user_authored_durable_truth` | `portable` | `durable_until_user_deletes` | `synced_opt_in` | `included_by_default` | `clear_requires_preview_and_rollback` | `none` |
+| `saved_views` | `AURELINE_CONFIG` | `collections/saved_views/*.jsonc` | `user_authored_durable_truth` | `portable` | `durable_until_user_deletes` | `synced_opt_in` | `included_metadata_only` | `clear_requires_preview` | `redact_value_preserve_shape` |
 | `snippets` | `AURELINE_CONFIG` | `snippets/*` | `user_authored_durable_truth` | `portable` | `durable_until_user_deletes` | `synced_opt_in` | `opt_in_only` | `clear_requires_preview` | `ui_string_only` |
 | `themes_and_design_tokens` | `AURELINE_CONFIG` | `themes/*` | `user_authored_durable_truth` | `portable` | `durable_until_user_deletes` | `synced_opt_in` | `included_metadata_only` | `clear_allowed` | `none` |
 | `command_aliases` | `AURELINE_CONFIG` | `aliases.jsonc` | `user_authored_durable_truth` | `portable` | `durable_until_user_deletes` | `synced_opt_in` | `included_metadata_only` | `clear_requires_preview` | `none` |
