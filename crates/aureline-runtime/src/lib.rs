@@ -29,6 +29,7 @@ pub mod execution_context;
 pub mod language_hosts;
 pub mod provenance;
 pub mod rerun;
+pub mod targets;
 pub mod tasks;
 pub mod tests;
 
@@ -102,6 +103,13 @@ pub use rerun::{
     RERUN_COMMAND_BINDING_RECORD_KIND, RERUN_LAST_LAUNCH_RECORD_KIND, RERUN_LAST_TASK_COMMAND_ID,
     RERUN_LAST_TEST_COMMAND_ID, RERUN_LOOP_SCHEMA_VERSION, RERUN_PREPARED_ATTEMPT_RECORD_KIND,
     RERUN_SUPPORT_EXPORT_RECORD_KIND, RERUN_TARGET_COMPARISON_RECORD_KIND,
+};
+pub use targets::{
+    HostBoundaryCueClass, TargetConfidenceCard, TargetConfidenceExplanationRow,
+    TargetConfidenceLaneClass, TargetConfidenceReviewPacket, TargetConfidenceReviewRow,
+    TargetConfidenceSupportExport, TargetDiscoveryConfidenceClass, TargetHostBoundaryRow,
+    TARGET_CONFIDENCE_ALPHA_SCHEMA_VERSION, TARGET_CONFIDENCE_CARD_RECORD_KIND,
+    TARGET_CONFIDENCE_REVIEW_PACKET_RECORD_KIND, TARGET_CONFIDENCE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use tasks::{
     RawEnvelopeRetentionState, RawTaskEventEnvelope, TaskActivityProjection, TaskArtifactKind,
