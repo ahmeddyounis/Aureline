@@ -1,0 +1,557 @@
+# Python service/data, Markdown, and local Git launch language-pack alpha.
+#
+# Canonical artifact for the Python service/data launch-language lane. Runtime,
+# support, launch-bundle, docs, and review surfaces should consume this packet
+# instead of cloning pack state into per-file setup logic.
+
+record_kind: python_service_language_pack_alpha
+schema_version: 1
+pack_id: language_pack:python_service.alpha
+pack_revision: 1
+display_name: Python service/data alpha language pack
+channel: external_alpha
+claim_depth_class: alpha_limited
+support_claim: >
+  Enables Python service/data-app assistance with interpreter-sensitive
+  routing, Markdown docs authoring, local Git review summaries, diagnostics
+  defaults, quality-tool hooks, icons, docs, and explicit fallback labels.
+claim_boundary: >
+  This alpha pack does not claim framework-expert depth, debugger parity,
+  notebook daily-driver parity, stable broad refactors, risky Git history
+  mutation, or certified archetype status. Interpreter, Markdown preview,
+  generated, external, stale, or partial provider state must remain labeled and
+  mutating actions route through preview.
+
+source_refs:
+  - crates/aureline-language/src/tree_sitter/registry.rs
+  - crates/aureline-language/src/lsp_router/
+  - crates/aureline-language/src/python/
+  - crates/aureline-language/src/python/quality/
+  - docs/language/python_wedge_alpha.md
+  - docs/language/python_quality_alpha.md
+  - docs/language/python_service_language_pack_alpha.md
+  - artifacts/bundles/python_launch_bundle_alpha.yaml
+  - artifacts/feedback/external_alpha_known_limits.md
+
+language_rows:
+  - language_id: language:python
+    display_name: Python
+    grammar_id: grammar:python
+    grammar_registry_ref: tree-sitter:launch-language-registry
+    file_extensions: [py]
+    support_class: alpha_standard
+    default_provider_ref: provider:lsp:python:alpha
+    diagnostics_profile_ref: diagnostics_profile:python_service.language_service
+    formatter_hook_ref: tool_hook:black.format_python_document
+    icon_ref: icon:file.python
+    docs_pack_refs:
+      - docs_pack:python_service.assistance_alpha
+      - docs_pack:python_service.quality_alpha
+      - docs_pack:python_service.markdown_git_alpha
+    known_gap_refs:
+      - known_gap:python_service.framework_expert_depth_not_claimed
+      - known_gap:python_service.broad_refactor_not_claimed
+      - known_gap:python_service.notebook_handoff_only
+    fallback_label: Python semantic assistance falls back to syntax-local answers when the interpreter or language service is unavailable.
+
+  - language_id: language:markdown
+    display_name: Markdown
+    grammar_id: grammar:markdown
+    grammar_registry_ref: tree-sitter:launch-language-registry
+    file_extensions: [md]
+    support_class: alpha_basic
+    default_provider_ref: provider:docs:markdown_commonmark:alpha
+    diagnostics_profile_ref: diagnostics_profile:python_service.markdown_docs
+    formatter_hook_ref: null
+    icon_ref: icon:file.markdown
+    docs_pack_refs:
+      - docs_pack:python_service.pack_scope
+      - docs_pack:python_service.markdown_git_alpha
+      - docs_pack:python_service.known_limits
+    known_gap_refs:
+      - known_gap:python_service.markdown_safe_preview_only
+      - known_gap:python_service.git_history_mutation_not_claimed
+    fallback_label: Markdown authoring is source-first and safe-preview scoped; active rich content is sanitized or blocked.
+
+provider_routes:
+  - provider_ref: provider:syntax:tree_sitter:python_service
+    provider_kind: syntax_parser
+    provider_display_label: Tree-sitter syntax engine
+    language_ids:
+      - language:python
+      - language:markdown
+    capability_classes: [hover, definition, reference, completion, diagnostics, code_action, provenance_explanation]
+    surface_classes: [hover, definition, reference, completion, diagnostic, code_action]
+    support_class: fallback_only
+    expected_health_state: ready
+    locality_class: local_in_process
+    scope_claim_class: single_file
+    scope_limit_classes: [single_file_only]
+    fallback_class: no_fallback
+    fault_domain_id: shell_interaction_core
+    summary: Syntax fallback stays available for Python and Markdown without claiming semantic breadth.
+
+  - provider_ref: provider:lsp:python:alpha
+    provider_kind: language_server
+    provider_display_label: Python language service
+    language_ids:
+      - language:python
+    capability_classes: [hover, definition, reference, rename, completion, diagnostics, signature_help, code_action]
+    surface_classes: [hover, definition, reference, rename, completion, diagnostic, signature_help, code_action]
+    support_class: authoritative
+    expected_health_state: ready
+    locality_class: local_sidecar
+    scope_claim_class: active_workset
+    scope_limit_classes: [active_workset_only, unloaded_roots_omitted, generated_candidates_omitted]
+    fallback_class: protocol_to_text
+    fault_domain_id: session_scoped_execution_hosts
+    summary: Python language service owns alpha semantic answers only for the selected interpreter and active workset.
+
+  - provider_ref: provider:environment:python:alpha
+    provider_kind: native_analyzer
+    provider_display_label: Python interpreter resolver
+    language_ids:
+      - language:python
+    capability_classes: [diagnostics, build_target_discovery, provenance_explanation]
+    surface_classes: [diagnostic, build_target_discovery]
+    support_class: authoritative
+    expected_health_state: ready
+    locality_class: local_sidecar
+    scope_claim_class: active_workset
+    scope_limit_classes: [active_workset_only, policy_narrowed]
+    fallback_class: unsupported_no_fallback
+    fault_domain_id: policy_entitlement_and_verifier_helpers
+    summary: Interpreter selection is a first-class route and cannot silently fall back to a random system Python.
+
+  - provider_ref: provider:formatter:black:python_alpha
+    provider_kind: formatter_adapter
+    provider_display_label: Black formatter hook
+    language_ids:
+      - language:python
+    capability_classes: [formatting]
+    surface_classes: [formatting]
+    support_class: authoritative
+    expected_health_state: ready
+    locality_class: local_sidecar
+    scope_claim_class: single_file
+    scope_limit_classes: [single_file_only]
+    fallback_class: unsupported_no_fallback
+    fault_domain_id: extension_and_tool_hosts
+    summary: Formatter hook is interpreter-bound and requires structured-diff preview for whole-document mutation.
+
+  - provider_ref: provider:linter:ruff:python_alpha
+    provider_kind: linter_adapter
+    provider_display_label: Ruff diagnostics hook
+    language_ids:
+      - language:python
+    capability_classes: [diagnostics, code_action]
+    surface_classes: [diagnostic, code_action]
+    support_class: authoritative
+    expected_health_state: ready
+    locality_class: local_sidecar
+    scope_claim_class: active_workset
+    scope_limit_classes: [active_workset_only]
+    fallback_class: structured_to_heuristic
+    fault_domain_id: extension_and_tool_hosts
+    summary: Ruff diagnostics normalize into the shared diagnostic bus and preserve missing-tool labels.
+
+  - provider_ref: provider:test:pytest:python_alpha
+    provider_kind: test_adapter
+    provider_display_label: pytest adapter hook
+    language_ids:
+      - language:python
+    capability_classes: [test_discovery, test_run]
+    surface_classes: [test_discovery, test_run]
+    support_class: authoritative
+    expected_health_state: ready
+    locality_class: local_sidecar
+    scope_claim_class: test_tree
+    scope_limit_classes: [active_workset_only]
+    fallback_class: unsupported_no_fallback
+    fault_domain_id: session_scoped_execution_hosts
+    summary: pytest hooks expose rerunnable task-event refs while keeping debugger parity out of the language-pack claim.
+
+  - provider_ref: provider:docs:markdown_commonmark:alpha
+    provider_kind: syntax_parser
+    provider_display_label: CommonMark safe-preview route
+    language_ids:
+      - language:markdown
+    capability_classes: [hover, diagnostics, provenance_explanation]
+    surface_classes: [hover, diagnostic]
+    support_class: advisory
+    expected_health_state: ready
+    locality_class: local_in_process
+    scope_claim_class: single_file
+    scope_limit_classes: [single_file_only]
+    fallback_class: protocol_to_text
+    fault_domain_id: shell_interaction_core
+    summary: Markdown preview remains CommonMark-baseline, sanitized, and raw/rendered copy-aware.
+
+  - provider_ref: provider:git:local_review_packet:alpha
+    provider_kind: native_analyzer
+    provider_display_label: Local Git review packet bridge
+    language_ids:
+      - language:python
+      - language:markdown
+    capability_classes: [diagnostics, code_action, provenance_explanation]
+    surface_classes: [diagnostic, code_action]
+    support_class: advisory
+    expected_health_state: ready
+    locality_class: local_sidecar
+    scope_claim_class: loaded_slice
+    scope_limit_classes: [diff_or_review_slice_only]
+    fallback_class: live_to_cached
+    fault_domain_id: workspace_knowledge_workers
+    summary: Local Git remains authoritative for diffs while Python diagnostics and Markdown review summaries stay source-labeled.
+
+diagnostics_defaults:
+  - diagnostics_profile_ref: diagnostics_profile:python_service.language_service
+    language_ids: ["language:python"]
+    source_family: language_server
+    default_severity_class: warning
+    default_freshness_class: current
+    surface_classes: [editor_inline, search_index, support_export, cli_json]
+    summary: Python language-service diagnostics stay interpreter-labeled, fresh-or-stale, and support-export visible.
+
+  - diagnostics_profile_ref: diagnostics_profile:python_service.interpreter
+    language_ids: ["language:python"]
+    source_family: policy_trust_or_security
+    default_severity_class: notice
+    default_freshness_class: current
+    surface_classes: [editor_inline, support_export, cli_json]
+    summary: Interpreter selection and activator decisions remain visible where Python assistance, tasks, tests, and notebooks consume them.
+
+  - diagnostics_profile_ref: diagnostics_profile:python_service.quality_tools
+    language_ids: ["language:python"]
+    source_family: linter_formatter_style
+    default_severity_class: warning
+    default_freshness_class: current
+    surface_classes: [editor_inline, support_export, cli_json]
+    summary: Formatter and linter findings enter the shared diagnostic bus with provider and quality-profile refs.
+
+  - diagnostics_profile_ref: diagnostics_profile:python_service.tests
+    language_ids: ["language:python"]
+    source_family: runtime_test_or_debug
+    default_severity_class: error
+    default_freshness_class: current
+    surface_classes: [support_export, cli_json]
+    summary: pytest signals remain runtime/test evidence and do not impersonate static analysis.
+
+  - diagnostics_profile_ref: diagnostics_profile:python_service.markdown_docs
+    language_ids: ["language:markdown"]
+    source_family: editor_structural
+    default_severity_class: notice
+    default_freshness_class: current
+    surface_classes: [editor_inline, support_export, cli_json]
+    summary: Markdown diagnostics prioritize safe-preview, raw/rendered divergence, and suspicious-text cues.
+
+  - diagnostics_profile_ref: diagnostics_profile:python_service.git_review
+    language_ids: ["language:python", "language:markdown"]
+    source_family: heuristic
+    default_severity_class: notice
+    default_freshness_class: current
+    surface_classes: [support_export, cli_json]
+    summary: Git review bridge findings stay labeled as review-slice evidence and cannot replace local Git truth.
+
+tool_hooks:
+  - tool_hook_ref: tool_hook:black.format_python_document
+    tool_kind_class: formatter
+    action_class: format_document
+    trigger_class: manual_command
+    provider_ref: provider:formatter:black:python_alpha
+    canonical_command_id: cmd:quality.format_document
+    language_ids: ["language:python"]
+    rerun_posture_class: rerunnable_after_preview_review
+    preview_requirement_class: structured_diff
+    safety_class: trivia_safe
+    summary: Black format-document hook must disclose whole-file rewrite posture before mutation.
+
+  - tool_hook_ref: tool_hook:ruff.lint_workset
+    tool_kind_class: linter
+    action_class: lint_check
+    trigger_class: manual_command
+    provider_ref: provider:linter:ruff:python_alpha
+    canonical_command_id: cmd:quality.lint_workset
+    language_ids: ["language:python"]
+    rerun_posture_class: rerunnable_from_execution_plane
+    preview_requirement_class: not_required
+    safety_class: read_only_no_mutation
+    summary: Ruff read-only diagnostics may rerun from the execution plane when the provider and interpreter are ready.
+
+  - tool_hook_ref: tool_hook:pytest.discover_tests
+    tool_kind_class: test_adapter
+    action_class: test_discovery
+    trigger_class: test_discovery
+    provider_ref: provider:test:pytest:python_alpha
+    canonical_command_id: cmd:testing.discover_current_scope
+    language_ids: ["language:python"]
+    rerun_posture_class: rerunnable_from_execution_plane
+    preview_requirement_class: not_required
+    safety_class: read_only_no_mutation
+    summary: Test discovery is execution-context bound and emits normalized task-event refs.
+
+  - tool_hook_ref: tool_hook:pytest.run_current_scope
+    tool_kind_class: test_adapter
+    action_class: test_run
+    trigger_class: test_run
+    provider_ref: provider:test:pytest:python_alpha
+    canonical_command_id: cmd:testing.run_current_scope
+    language_ids: ["language:python"]
+    rerun_posture_class: rerunnable_from_execution_plane
+    preview_requirement_class: not_required
+    safety_class: read_only_no_mutation
+    summary: Test runs preserve runtime/test diagnostic provenance and rerun posture.
+
+icon_rows:
+  - icon_ref: icon:file.python
+    language_ids: ["language:python"]
+    icon_symbol: file-type-python
+    theme_token_ref: color.icon.language.python
+    summary: Python file icon for tabs, file tree, and quick open.
+  - icon_ref: icon:file.markdown
+    language_ids: ["language:markdown"]
+    icon_symbol: file-type-markdown
+    theme_token_ref: color.icon.language.markdown
+    summary: Markdown document icon for docs and review-summary rows.
+
+docs_pack_refs:
+  - pack_ref: docs_pack:python_service.pack_scope
+    label: Python service language-pack alpha scope
+    source_ref: docs/language/python_service_language_pack_alpha.md
+    mirrorable: true
+    summary: Reviewer-facing page for this pack artifact and first runtime consumer.
+  - pack_ref: docs_pack:python_service.assistance_alpha
+    label: Python assistance alpha
+    source_ref: docs/language/python_wedge_alpha.md
+    mirrorable: true
+    summary: Hover, definition, references, and rename-preview contract consumed by the pack.
+  - pack_ref: docs_pack:python_service.quality_alpha
+    label: Python quality alpha
+    source_ref: docs/language/python_quality_alpha.md
+    mirrorable: true
+    summary: Formatter, linter, and test-adapter contract consumed by the pack.
+  - pack_ref: docs_pack:python_service.markdown_git_alpha
+    label: Python Markdown and Git review alpha
+    source_ref: docs/language/python_service_language_pack_alpha.md
+    mirrorable: true
+    summary: Markdown safe-preview and local Git review integration contract consumed by the pack.
+  - pack_ref: docs_pack:python_service.launch_bundle
+    label: Python service external-alpha launch bundle
+    source_ref: artifacts/bundles/python_launch_bundle_alpha.yaml
+    mirrorable: true
+    summary: Setup bundle that references this language pack without duplicating pack state.
+  - pack_ref: docs_pack:python_service.known_limits
+    label: External alpha known limits
+    source_ref: artifacts/feedback/external_alpha_known_limits.md
+    mirrorable: true
+    summary: Known-limit packet that prevents pack badges from implying certified depth.
+
+trust_and_integrity:
+  default_trust_class: RawText
+  surface_families:
+    - editor_content
+    - docs_help_page
+    - review_surface
+    - rich_preview
+    - support_export_surface
+  suspicious_content_classes:
+    - bidi_control
+    - invisible_formatting
+    - mixed_script_confusable
+    - raw_rendered_divergence
+  copy_export_action_refs:
+    - copy_raw_markdown
+    - copy_rendered_markdown
+    - copy_git_review_summary
+    - export_sanitized_snapshot
+  support_export_preserves_labels: true
+  suspicious_text_fix_requires_preview: true
+  summary: Python source, Markdown preview, Git review, and support-export surfaces preserve raw/rendered, suspicious-text, and trust-class labels.
+
+known_gap_rows:
+  - gap_ref: known_gap:python_service.framework_expert_depth_not_claimed
+    applies_to_ref: language_pack:python_service.alpha
+    support_effect: FastAPI, Django, route graphs, generators, and framework convention diagnostics remain explicit future overlays.
+    fallback_label: Framework-specific answers remain advisory or unavailable unless a later framework pack provides evidence.
+    docs_ref: artifacts/feedback/external_alpha_known_limits.md
+  - gap_ref: known_gap:python_service.broad_refactor_not_claimed
+    applies_to_ref: provider:lsp:python:alpha
+    support_effect: Rename preview is available, but stable broad refactor breadth is not claimed.
+    fallback_label: Multi-file or partial-scope mutations require preview and may be blocked pending refresh or scope review.
+    docs_ref: docs/language/python_wedge_alpha.md
+  - gap_ref: known_gap:python_service.notebook_handoff_only
+    applies_to_ref: language:python
+    support_effect: Notebook adjacency is limited to handoff disclosure; kernel parity and round-trip depth are not claimed by this pack.
+    fallback_label: Notebook files may open through handoff disclosure, but notebook execution and repair are outside this pack.
+    docs_ref: artifacts/feedback/external_alpha_known_limits.md
+  - gap_ref: known_gap:python_service.markdown_safe_preview_only
+    applies_to_ref: language:markdown
+    support_effect: Markdown is CommonMark-baseline, sanitized, and raw/rendered copy-aware; active rich extensions are not claimed.
+    fallback_label: Markdown preview falls back to raw source or sanitized static rendering when trust or extension state is uncertain.
+    docs_ref: docs/language/python_service_language_pack_alpha.md
+  - gap_ref: known_gap:python_service.git_history_mutation_not_claimed
+    applies_to_ref: provider:git:local_review_packet:alpha
+    support_effect: Local Git status, diff, review packets, and commit-message docs are integrated; risky history mutation is out of scope.
+    fallback_label: Rebase, force-push, stash mutation, and history editing must use later Git surfaces with their own preview and recovery proof.
+    docs_ref: docs/language/python_service_language_pack_alpha.md
+  - gap_ref: known_gap:python_service.external_process_execution_seeded
+    applies_to_ref: provider:formatter:black:python_alpha
+    support_effect: Tool hooks are canonical records; real process execution remains the execution adapter path.
+    fallback_label: Missing or blocked tools preserve diagnostics and do not prevent other pack lanes from staying usable.
+    docs_ref: docs/language/python_quality_alpha.md
+
+git_surface_rows:
+  - git_surface_ref: git_surface:python_service.diff_review_markdown_summary
+    git_surface_class: diff_review
+    title: Python diff review with Markdown summary
+    linked_language_ids: ["language:python", "language:markdown"]
+    required_provider_refs:
+      - provider:git:local_review_packet:alpha
+      - provider:syntax:tree_sitter:python_service
+      - provider:lsp:python:alpha
+    required_docs_pack_refs:
+      - docs_pack:python_service.pack_scope
+      - docs_pack:python_service.markdown_git_alpha
+    local_git_truth_required: true
+    markdown_representation_required: true
+    preview_required_before_mutation: true
+    fallback_label: Diff review stays local-Git authoritative and degrades to raw Markdown summaries if preview state is uncertain.
+    summary: Python diagnostics and rename-preview evidence may decorate local diffs, but Git remains the source of patch truth.
+
+  - git_surface_ref: git_surface:python_service.commit_message_context
+    git_surface_class: commit_message
+    title: Commit message context for Python service changes
+    linked_language_ids: ["language:python", "language:markdown"]
+    required_provider_refs:
+      - provider:git:local_review_packet:alpha
+      - provider:docs:markdown_commonmark:alpha
+    required_docs_pack_refs:
+      - docs_pack:python_service.markdown_git_alpha
+      - docs_pack:python_service.known_limits
+    local_git_truth_required: true
+    markdown_representation_required: true
+    preview_required_before_mutation: true
+    fallback_label: Commit-message helpers may propose Markdown text, but writing commit metadata remains an explicit Git action.
+    summary: Commit-message assistance can cite Python files, tests, and docs without becoming a hidden commit operation.
+
+  - git_surface_ref: git_surface:python_service.changed_test_loop
+    git_surface_class: change_summary
+    title: Changed Python test loop with review notes
+    linked_language_ids: ["language:python", "language:markdown"]
+    required_provider_refs:
+      - provider:git:local_review_packet:alpha
+      - provider:test:pytest:python_alpha
+    required_docs_pack_refs:
+      - docs_pack:python_service.quality_alpha
+      - docs_pack:python_service.markdown_git_alpha
+    local_git_truth_required: true
+    markdown_representation_required: true
+    preview_required_before_mutation: true
+    fallback_label: Changed-test recommendations remain review-slice scoped and do not imply all tests or all roots were inspected.
+    summary: Changed Python files can route to pytest hooks while Markdown review notes preserve scope and freshness labels.
+
+  - git_surface_ref: git_surface:python_service.review_packet_export
+    git_surface_class: review_packet
+    title: Portable review packet export for Python service changes
+    linked_language_ids: ["language:python", "language:markdown"]
+    required_provider_refs:
+      - provider:git:local_review_packet:alpha
+      - provider:docs:markdown_commonmark:alpha
+    required_docs_pack_refs:
+      - docs_pack:python_service.launch_bundle
+      - docs_pack:python_service.known_limits
+    local_git_truth_required: true
+    markdown_representation_required: true
+    preview_required_before_mutation: true
+    fallback_label: Review packet export preserves raw Markdown and local Git refs and does not publish without a separate user action.
+    summary: Review packets can include Python diagnostics and Markdown summaries while keeping local Git, redaction, and known-limit refs visible.
+
+launch_bundle_report_refs:
+  - report_ref: launch_report:python_service.bundle_and_archetype_alpha
+    launch_bundle_ref: launch_bundle:python_service_or_data_app.seed
+    bundle_manifest_ref: artifacts/bundles/python_launch_bundle_alpha.yaml
+    archetype_row_ref: archetype_row:python_service_or_data_app
+    archetype_seed_row_ref: archetype_certification_seed:python_service_or_data_app
+    benchmark_fixture_ref: fixture_register:external_alpha.python_service_data_reference
+    proof_packet_ref: artifacts/milestones/m2/proof_packets/launch_bundles_and_archetypes.md#python-service-or-data-app
+    claim_state: seed_not_certified
+    summary: The pack joins the Python launch bundle and archetype reporting row without upgrading the claim beyond seeded alpha evidence.
+
+enablement_flows:
+  - flow_ref: flow:python_service.open_to_first_useful_result
+    title: Open to first useful Python file, symbol, docs, or review result
+    language_ids: ["language:python", "language:markdown"]
+    required_provider_refs:
+      - provider:syntax:tree_sitter:python_service
+      - provider:lsp:python:alpha
+      - provider:environment:python:alpha
+      - provider:docs:markdown_commonmark:alpha
+    required_tool_hook_refs: []
+    required_docs_pack_refs:
+      - docs_pack:python_service.pack_scope
+      - docs_pack:python_service.assistance_alpha
+      - docs_pack:python_service.markdown_git_alpha
+    required_git_surface_refs: []
+    manual_per_file_assembly_required: false
+    preview_required_before_mutation: true
+    summary: One pack activates Python and Markdown associations, syntax, routed assistance, icons, docs, and fallback labels.
+
+  - flow_ref: flow:python_service.rename_preview
+    title: Python rename preview with interpreter, partial-scope, and generated-source labels
+    language_ids: ["language:python"]
+    required_provider_refs:
+      - provider:syntax:tree_sitter:python_service
+      - provider:lsp:python:alpha
+      - provider:environment:python:alpha
+    required_tool_hook_refs: []
+    required_docs_pack_refs:
+      - docs_pack:python_service.assistance_alpha
+    required_git_surface_refs: []
+    manual_per_file_assembly_required: false
+    preview_required_before_mutation: true
+    summary: Rename preview remains a preview packet with rollback posture and no direct silent multi-file mutation.
+
+  - flow_ref: flow:python_service.quality_loop
+    title: Format, lint, discover tests, and rerun targeted pytest
+    language_ids: ["language:python"]
+    required_provider_refs:
+      - provider:environment:python:alpha
+      - provider:formatter:black:python_alpha
+      - provider:linter:ruff:python_alpha
+      - provider:test:pytest:python_alpha
+    required_tool_hook_refs:
+      - tool_hook:black.format_python_document
+      - tool_hook:ruff.lint_workset
+      - tool_hook:pytest.discover_tests
+      - tool_hook:pytest.run_current_scope
+    required_docs_pack_refs:
+      - docs_pack:python_service.quality_alpha
+    required_git_surface_refs: []
+    manual_per_file_assembly_required: false
+    preview_required_before_mutation: true
+    summary: Quality hooks use one diagnostic and execution-plane contract instead of per-file tool setup.
+
+  - flow_ref: flow:python_service.markdown_git_review
+    title: Markdown docs and local Git review packet integration
+    language_ids: ["language:python", "language:markdown"]
+    required_provider_refs:
+      - provider:docs:markdown_commonmark:alpha
+      - provider:git:local_review_packet:alpha
+    required_tool_hook_refs: []
+    required_docs_pack_refs:
+      - docs_pack:python_service.markdown_git_alpha
+      - docs_pack:python_service.known_limits
+    required_git_surface_refs:
+      - git_surface:python_service.diff_review_markdown_summary
+      - git_surface:python_service.commit_message_context
+      - git_surface:python_service.changed_test_loop
+      - git_surface:python_service.review_packet_export
+    manual_per_file_assembly_required: false
+    preview_required_before_mutation: true
+    summary: Markdown and Git review surfaces consume Python pack state and do not behave as unrelated tools.
+
+export_safe_summary: >
+  The Python service alpha language pack bundles Python and Markdown with
+  shared grammar metadata, interpreter-sensitive provider routes, quality hooks,
+  Git-oriented review surfaces, launch-bundle reporting refs, safe-preview
+  posture, and explicit known gaps.

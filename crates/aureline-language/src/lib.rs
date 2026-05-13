@@ -67,12 +67,21 @@ pub use lsp_router::{
     SurfaceSupportClassRow, WorkspaceLocalRouterRequest, ROUTER_DECISION_SCHEMA_VERSION,
 };
 pub use packs::{
+    PythonServiceClaimDepthClass, PythonServiceDiagnosticsDefault, PythonServiceDocsPackRef,
+    PythonServiceEnablementFlow, PythonServiceGitSurfaceClass, PythonServiceGitSurfaceRow,
+    PythonServiceIconRow, PythonServiceKnownGapRow, PythonServiceLanguagePack,
+    PythonServiceLanguagePackEnablementRequest, PythonServiceLanguagePackEnablementSnapshot,
+    PythonServiceLanguagePackEnablementStateClass, PythonServiceLanguagePackManifest,
+    PythonServiceLanguagePackSchemaVersion, PythonServiceLanguageRow,
+    PythonServiceLanguageSupportClass, PythonServiceLaunchBundleReportRef,
+    PythonServiceProviderRoute, PythonServiceToolHook, PythonServiceTrustAndIntegrityPolicy,
     TsJsWebClaimDepthClass, TsJsWebDiagnosticsDefault, TsJsWebDocsPackRef, TsJsWebEnablementFlow,
     TsJsWebIconRow, TsJsWebKnownGapRow, TsJsWebLanguagePack, TsJsWebLanguagePackEnablementRequest,
     TsJsWebLanguagePackEnablementSnapshot, TsJsWebLanguagePackEnablementStateClass,
     TsJsWebLanguagePackManifest, TsJsWebLanguagePackSchemaVersion, TsJsWebLanguageRow,
     TsJsWebLanguageSupportClass, TsJsWebProviderRoute, TsJsWebToolHook,
-    TsJsWebTrustAndIntegrityPolicy, TSJS_WEB_LANGUAGE_PACK_SCHEMA_VERSION,
+    TsJsWebTrustAndIntegrityPolicy, PYTHON_SERVICE_LANGUAGE_PACK_SCHEMA_VERSION,
+    TSJS_WEB_LANGUAGE_PACK_SCHEMA_VERSION,
 };
 pub use python::{
     PythonAccessKindClass, PythonAmbiguityDescriptor, PythonAnchorRef, PythonAnswerLayerClass,
