@@ -12,6 +12,8 @@ The machine-readable schemas live at:
 
 - [`/schemas/workspace/mutation_journal.schema.json`](../../schemas/workspace/mutation_journal.schema.json)
 - [`/schemas/workspace/generated_artifact_lineage.schema.json`](../../schemas/workspace/generated_artifact_lineage.schema.json)
+- [`/schemas/workspace/mutation_journal_alpha.schema.json`](../../schemas/workspace/mutation_journal_alpha.schema.json)
+  — the export-safe alpha projection consumed by support/review surfaces.
 
 This document does not restate ADR 0003, ADR 0005, or ADR 0006. It
 pins the vocabulary every non-buffer / non-VFS surface must use when
@@ -60,6 +62,9 @@ AI, and save flows never overclaim which bytes are authoritative.
 - Seed example fixtures for the required originator classes: typing,
   format-on-save, repair (decode recovery), AI patch proposal, build
   output, and generated preview artifact.
+- Seed an export-safe alpha packet proving formatter, lockfile,
+  build-output, preview-regeneration, and AI-apply paths share one
+  support-safe envelope without raw bodies or secret material.
 
 ## Out of scope
 

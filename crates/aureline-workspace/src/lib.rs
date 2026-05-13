@@ -15,6 +15,7 @@ pub mod entry_flows;
 pub mod generated_artifacts;
 pub mod history;
 pub mod lifecycle;
+pub mod mutation_journal;
 pub mod profiles;
 pub mod recent_work;
 pub mod roots;
@@ -109,6 +110,19 @@ pub use generated_artifacts::{
     GeneratedArtifactCatalog, GeneratedArtifactClass, GeneratedArtifactRule, LineageFreshnessClass,
     LineageHintRecord, LineageHintRecordKind, LineageHintSchemaVersion, RuleMatcher,
     SourceCanonicalLink,
+};
+
+pub use mutation_journal::{
+    MutationActorClass, MutationActorRef, MutationApprovalRef, MutationCheckpointDurabilityClass,
+    MutationCheckpointKind, MutationCheckpointRef, MutationDurabilityClass,
+    MutationGeneratedArtifactCue, MutationGroupKind, MutationGroupRecord, MutationGroupResolution,
+    MutationJournalEntryRecord, MutationJournalRecord, MutationJournalRecordKind,
+    MutationLineageAlphaPacket, MutationLineageAlphaRow, MutationLineageAlphaValidationError,
+    MutationLineageConsumerSurface, MutationLineageEnvelope, MutationLineageExportSafety,
+    MutationPathClass, MutationPreviewRef, MutationRedactionClass, MutationReversalClass,
+    MutationScopeClass, MutationScopeRef, MutationSideEffectSummary, MutationSourceClass,
+    MutationTargetKind, MutationTargetRef, MUTATION_JOURNAL_ALPHA_SCHEMA_VERSION,
+    REQUIRED_MUTATION_LINEAGE_ALPHA_PATHS,
 };
 
 pub use history::{

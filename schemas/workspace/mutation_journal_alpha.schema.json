@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/mutation_journal_alpha.schema.json",
+  "title": "Aureline mutation-lineage alpha packet",
+  "description": "Export-safe projection over canonical mutation-journal records and generated-artifact lineage cues. Formatter, lockfile, build-output, preview-regeneration, and AI-apply rows cite mutation_journal.schema.json records by id, carry generated-artifact cues where the target is derived, and omit raw file bodies, raw diffs, raw prompts/responses, and raw secret material by default.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "mutation_journal_alpha_schema_version",
+    "packet_id",
+    "produced_at",
+    "consumer_surface",
+    "mutation_lineage_rows",
+    "export_safety"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional fixture metadata ignored by production consumers."
+    },
+    "record_kind": { "const": "mutation_lineage_alpha_packet" },
+    "mutation_journal_alpha_schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "produced_at": { "$ref": "#/$defs/timestamp" },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "editor_save",
+        "build_runner",
+        "preview_runtime",
+        "ai_apply_review",
+        "support_export"
+      ]
+    },
+    "mutation_lineage_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/mutation_lineage_row" }
+    },
+    "export_safety": { "$ref": "#/$defs/export_safety" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id or ref. Raw paths, raw user ids, secrets, and raw file bodies do not appear here."
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mutation_path_class": {
+      "type": "string",
+      "enum": [
+        "formatter",
+        "lockfile",
+        "build_output",
+        "preview_regeneration",
+        "ai_apply"
+      ]
+    },
+    "journal_record_kind": {
+      "type": "string",
+      "enum": [
+        "mutation_journal_entry",
+        "mutation_group_record"
+      ]
+    },
+    "preview_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preview_id", "preview_kind"],
+      "properties": {
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "preview_kind": { "type": "string", "minLength": 1 }
+      }
+    },
+    "approval_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_id", "approval_policy"],
+      "properties": {
+        "approval_id": { "$ref": "#/$defs/opaque_id" },
+        "approval_policy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "generated_artifact_cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generated_relative_path",
+        "generated_class",
+        "producer_id",
+        "producer_label",
+        "freshness_class",
+        "rule_id",
+        "default_edit_posture"
+      ],
+      "properties": {
+        "generated_relative_path": { "$ref": "#/$defs/opaque_id" },
+        "generated_class": {
+          "type": "string",
+          "enum": [
+            "lockfile",
+            "build_output",
+            "generated_source_sibling",
+            "vendored_snapshot",
+            "preview_render_snapshot"
+          ]
+        },
+        "source_canonical_relative_path": { "$ref": "#/$defs/opaque_id" },
+        "producer_id": { "$ref": "#/$defs/opaque_id" },
+        "producer_label": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "freshness_class": {
+          "type": "string",
+          "enum": [
+            "derived_from_canonical",
+            "possibly_stale",
+            "snapshot_only",
+            "unknown",
+            "in_sync",
+            "stale_inputs",
+            "generator_changed"
+          ]
+        },
+        "rule_id": { "$ref": "#/$defs/opaque_id" },
+        "default_edit_posture": {
+          "type": "string",
+          "enum": [
+            "edit_canonical_source",
+            "regenerate_from_source",
+            "inspect_read_only",
+            "replace_by_upstream_snapshot"
+          ]
+        }
+      }
+    },
+    "mutation_lineage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "mutation_path_class",
+        "journal_record_kind",
+        "journal_ref",
+        "command_id",
+        "actor_class",
+        "source_class",
+        "reversal_class",
+        "redaction_class",
+        "durable_vs_disposable",
+        "checkpoint_refs",
+        "side_effect_summary",
+        "support_export_safe",
+        "raw_payload_exported",
+        "omitted_payload_classes"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "mutation_path_class": { "$ref": "#/$defs/mutation_path_class" },
+        "journal_record_kind": { "$ref": "#/$defs/journal_record_kind" },
+        "journal_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id": { "type": "string", "minLength": 1 },
+        "actor_class": { "type": "string", "minLength": 1 },
+        "source_class": { "type": "string", "minLength": 1 },
+        "undo_class": { "type": "string", "minLength": 1 },
+        "group_kind": { "type": "string", "minLength": 1 },
+        "reversal_class": { "type": "string", "minLength": 1 },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "environment_adjacent",
+            "code_adjacent",
+            "high_risk"
+          ]
+        },
+        "durable_vs_disposable": {
+          "type": "string",
+          "enum": [
+            "durable_user_authored",
+            "durable_workspace_authored",
+            "disposable_derived"
+          ]
+        },
+        "target_relative_path": { "$ref": "#/$defs/opaque_id" },
+        "generated_artifact_cue": { "$ref": "#/$defs/generated_artifact_cue" },
+        "generated_artifact_lineage_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_ref": { "$ref": "#/$defs/preview_ref" },
+        "approval_ref": { "$ref": "#/$defs/approval_ref" },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "side_effect_summary": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "support_export_safe": { "const": true },
+        "raw_payload_exported": { "const": false },
+        "omitted_payload_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "contains": { "const": "raw_secret_material" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mutation_path_class": {
+                "enum": [
+                  "lockfile",
+                  "build_output",
+                  "preview_regeneration"
+                ]
+              }
+            }
+          },
+          "then": { "required": ["generated_artifact_cue"] }
+        }
+      ],
+      "not": {
+        "anyOf": [
+          {
+            "properties": {
+              "checkpoint_refs": {
+                "contains": { "type": "string", "pattern": "^(obj|raw|secret|token):" }
+              }
+            }
+          },
+          {
+            "properties": {
+              "journal_ref": { "type": "string", "pattern": "^(obj|raw|secret|token):" }
+            }
+          }
+        ]
+      }
+    },
+    "export_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_mode",
+        "raw_payloads_included",
+        "body_object_refs_included",
+        "omitted_payload_classes"
+      ],
+      "properties": {
+        "export_mode": { "const": "metadata_only" },
+        "raw_payloads_included": { "const": false },
+        "body_object_refs_included": { "const": false },
+        "omitted_payload_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "contains": { "const": "raw_secret_material" }
+        }
+      }
+    }
+  }
+}
