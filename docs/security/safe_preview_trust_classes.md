@@ -22,6 +22,9 @@ Companion artifacts:
   — accessibility-facing row contract that keeps locale fallback,
   mixed-direction inspection, and representation labels reachable in
   dense, high-zoom, keyboard, and assistive-technology flows.
+- [`/docs/security/trust_class_alpha.md`](./trust_class_alpha.md)
+  — shell-backed alpha projection that applies this vocabulary across
+  docs, preview, and package/install review lanes.
 - [`/fixtures/security/suspicious_content_cases/`](../../fixtures/security/suspicious_content_cases/)
   — worked examples spanning editor content, docs / help pages, rich
   previews, install / attach / approval review, and metadata-only

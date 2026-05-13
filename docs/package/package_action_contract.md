@@ -147,6 +147,11 @@ This seed makes the package-facing rule explicit:
   `workspace_trust_unset_or_restricted` or under an expired policy
   epoch denies with the matching denial reason and never appears
   available on the review surface.
+- Package/install review surfaces use the same safe-preview
+  trust-class vocabulary as docs and preview surfaces. Manifest,
+  publisher, and install-step text is `RawText` in strict review
+  mode, raw and escaped copy paths stay reachable, and any apply
+  action remains preview/review-gated before mutation.
 
 Live package-manager adapters, real lockfile resolvers, and
 dependency-intelligence (vulnerability / license / freshness)

@@ -59,6 +59,7 @@ pub mod onboarding;
 pub mod palette;
 pub mod path_truth;
 pub mod permission_prompts;
+pub mod previews;
 pub mod recovery;
 pub mod release_center;
 pub mod restore;
