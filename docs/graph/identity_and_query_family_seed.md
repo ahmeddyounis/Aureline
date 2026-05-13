@@ -438,6 +438,8 @@ See [`public_graph_query_scoped_case.json`](../../fixtures/graph/query_family_ca
   [`schemas/graph/workspace_graph_seed.schema.json`](../../schemas/graph/workspace_graph_seed.schema.json)
 - Search readiness / truth vocabulary:
   [`schemas/search/search_result_truth.schema.json`](../../schemas/search/search_result_truth.schema.json)
+- Graph query-family alpha runtime:
+  [`docs/graph/query_family_alpha.md`](./query_family_alpha.md)
 - Reactive-state query-family packet:
   [`docs/verification/reactive_state_packet.md`](../verification/reactive_state_packet.md)
 - Generated-artifact lineage schema:

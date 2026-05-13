@@ -562,6 +562,45 @@ impl PlannerPathSnapshot {
         }
     }
 
+    /// Builds a graph-backed planner snapshot from an alpha graph query envelope.
+    pub fn from_graph_query_envelope(
+        snapshot_id: impl Into<String>,
+        envelope: &aureline_graph::GraphQueryEnvelope,
+    ) -> Self {
+        let rows = envelope
+            .rows
+            .iter()
+            .filter_map(candidate_from_graph_row)
+            .collect();
+
+        Self {
+            path_kind: PlannerDataPath::GraphBacked,
+            snapshot_id: snapshot_id.into(),
+            readiness: readiness_from_graph_envelope(envelope),
+            freshness: freshness_from_graph_envelope(envelope),
+            index_epoch: None,
+            graph_epoch: Some(envelope.workspace_graph_id.clone()),
+            unavailable_reason: match envelope.readiness {
+                aureline_graph::GraphQueryReadiness::Unavailable => {
+                    Some(PlannerUnavailableReason::GraphUnavailable)
+                }
+                aureline_graph::GraphQueryReadiness::Warming if envelope.rows.is_empty() => {
+                    Some(PlannerUnavailableReason::GraphWarming)
+                }
+                aureline_graph::GraphQueryReadiness::OutOfScope => {
+                    Some(PlannerUnavailableReason::OutsideScope)
+                }
+                _ => None,
+            },
+            partial_truth_causes: envelope
+                .partial_truth_causes
+                .iter()
+                .map(|cause| cause.as_str().to_string())
+                .collect(),
+            rows,
+        }
+    }
+
     fn can_answer(&self) -> bool {
         !self.rows.is_empty()
             && !self.readiness.is_unavailable_like()
@@ -1338,6 +1377,88 @@ fn map_lexical_reason(reason: RankingReasonClass) -> PlannerRankingReason {
         }
         RankingReasonClass::PartialCoverageCaveat => PlannerRankingReason::PartialIndex,
     }
+}
+
+fn candidate_from_graph_row(row: &aureline_graph::GraphQueryRow) -> Option<PlannerCandidate> {
+    let canonical_id = row.canonical_id()?.to_string();
+    let target_kind = match row.node_class {
+        Some(aureline_graph::NodeClass::SymbolNode) => PlannerTargetKind::Symbol,
+        Some(
+            aureline_graph::NodeClass::FileNode
+            | aureline_graph::NodeClass::DirectoryNode
+            | aureline_graph::NodeClass::DocNode,
+        ) => PlannerTargetKind::File,
+        _ if row.edge_id.is_some() => PlannerTargetKind::Symbol,
+        _ => PlannerTargetKind::File,
+    };
+    let mut ranking_reasons = if row.edge_id.is_some() {
+        vec![PlannerRankingReason::GraphNeighbourhoodHop]
+    } else if row.node_class == Some(aureline_graph::NodeClass::SymbolNode) {
+        vec![PlannerRankingReason::GraphExactSymbol]
+    } else {
+        vec![PlannerRankingReason::GraphNeighbourhoodHop]
+    };
+    let partial_truth_causes = row
+        .partial_truth_causes
+        .iter()
+        .map(|cause| cause.as_str().to_string())
+        .collect::<Vec<_>>();
+    if !partial_truth_causes.is_empty() {
+        ranking_reasons.push(PlannerRankingReason::PartialIndex);
+    }
+
+    Some(PlannerCandidate {
+        candidate_id: format!("{}:{}", row.row_class.as_str(), row.row_index),
+        canonical_id,
+        target_kind,
+        title: row.display_label.clone(),
+        relative_path: row.relative_path.clone(),
+        symbol_ref: row.symbol_ref.clone(),
+        ranking_reasons,
+        partial_truth_causes,
+        scope_truth: None,
+    })
+}
+
+fn readiness_from_graph_envelope(
+    envelope: &aureline_graph::GraphQueryEnvelope,
+) -> PlannerPathReadiness {
+    match envelope.readiness {
+        aureline_graph::GraphQueryReadiness::Ready => PlannerPathReadiness::Ready,
+        aureline_graph::GraphQueryReadiness::HotSetReady => PlannerPathReadiness::HotSetReady,
+        aureline_graph::GraphQueryReadiness::Partial => PlannerPathReadiness::Partial,
+        aureline_graph::GraphQueryReadiness::Warming => PlannerPathReadiness::Warming,
+        aureline_graph::GraphQueryReadiness::Stale => PlannerPathReadiness::Stale,
+        aureline_graph::GraphQueryReadiness::Unavailable => PlannerPathReadiness::Unavailable,
+        aureline_graph::GraphQueryReadiness::OutOfScope => PlannerPathReadiness::OutOfScope,
+    }
+}
+
+fn freshness_from_graph_envelope(
+    envelope: &aureline_graph::GraphQueryEnvelope,
+) -> PlannerFreshnessClass {
+    if envelope
+        .partial_truth_causes
+        .contains(&aureline_graph::GraphPartialTruthCause::Imported)
+    {
+        return PlannerFreshnessClass::Imported;
+    }
+    if envelope.partial_truth_causes.iter().any(|cause| {
+        matches!(
+            cause,
+            aureline_graph::GraphPartialTruthCause::Stale
+                | aureline_graph::GraphPartialTruthCause::Replayed
+        )
+    }) {
+        return PlannerFreshnessClass::StaleCached;
+    }
+    if envelope
+        .partial_truth_causes
+        .contains(&aureline_graph::GraphPartialTruthCause::Warming)
+    {
+        return PlannerFreshnessClass::Unknown;
+    }
+    PlannerFreshnessClass::AuthoritativeLive
 }
 
 fn default_planner_version() -> String {

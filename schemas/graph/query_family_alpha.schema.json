@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/query_family_alpha.schema.json",
+  "title": "Aureline graph query-family alpha runtime schema",
+  "description": "Alpha runtime contract for the first graph storage/query implementation. This schema narrows the published graph query-family contract to the bounded launch-wedge query classes currently implemented by crates/aureline-graph: symbol lookup, import neighborhoods, ownership lookup, and seed-only impact/explainer citation walks. It reuses the canonical graph seed node, edge, freshness, confidence, scope, and query-family vocabularies instead of defining a second graph truth model.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/graph_query_family_descriptor" },
+    { "$ref": "#/$defs/graph_query_request" },
+    { "$ref": "#/$defs/graph_query_envelope" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for alpha graph query-family runtime records."
+    },
+    "query_class": {
+      "type": "string",
+      "enum": [
+        "symbol_lookup",
+        "import_neighborhood",
+        "ownership_lookup",
+        "impact_seed",
+        "explainer_citation_seed"
+      ],
+      "description": "Stable alpha query class. impact_seed and explainer_citation_seed return only stored seed rows and must not claim full transitive impact or generated prose."
+    },
+    "query_family_tag": {
+      "$ref": "workspace_graph_seed.schema.json#/$defs/query_family_tag",
+      "description": "Published query-family tag this alpha query serves."
+    },
+    "graph_query_readiness": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "hot_set_ready",
+        "partial",
+        "warming",
+        "stale",
+        "unavailable",
+        "out_of_scope"
+      ],
+      "description": "Runtime readiness for the graph query envelope. Consumers render this instead of guessing from row count."
+    },
+    "partial_truth_cause": {
+      "type": "string",
+      "enum": [
+        "warming",
+        "stale",
+        "imported",
+        "replayed",
+        "low_confidence",
+        "partial_scope",
+        "missing_anchor",
+        "policy_hidden",
+        "derived"
+      ],
+      "description": "Partial-truth cause that must remain visible when a consumer renders or exports this row."
+    },
+    "row_class": {
+      "type": "string",
+      "enum": ["node", "edge", "missing_anchor", "policy_hidden"],
+      "description": "Class of a row emitted by the alpha graph query runtime."
+    },
+    "graph_query_family_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "query_class",
+        "query_family_tag",
+        "allowed_node_classes",
+        "allowed_edge_classes",
+        "expected_freshness_behavior",
+        "expected_confidence_behavior"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "graph_query_family_descriptor" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "query_class": { "$ref": "#/$defs/query_class" },
+        "query_family_tag": { "$ref": "#/$defs/query_family_tag" },
+        "allowed_node_classes": {
+          "type": "array",
+          "items": { "$ref": "workspace_graph_seed.schema.json#/$defs/node_class" }
+        },
+        "allowed_edge_classes": {
+          "type": "array",
+          "items": { "$ref": "workspace_graph_seed.schema.json#/$defs/edge_class" }
+        },
+        "expected_freshness_behavior": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "expected_confidence_behavior": {
+          "type": "string",
+          "maxLength": 240
+        }
+      }
+    },
+    "graph_query_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "query_request_id",
+        "query_class",
+        "workspace_id"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "graph_query_request" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "query_request_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id" },
+        "query_class": { "$ref": "#/$defs/query_class" },
+        "workspace_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/workspace_id" },
+        "label_token": {
+          "type": ["string", "null"],
+          "maxLength": 240,
+          "description": "Normalized label token for lookup queries. Raw source bodies never cross this field."
+        },
+        "subject_node_id": {
+          "type": ["string", "null"],
+          "description": "Graph node id used by neighborhood queries."
+        },
+        "scope_ids": {
+          "type": "array",
+          "items": { "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id" }
+        }
+      }
+    },
+    "graph_query_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": ["node_id"],
+          "properties": { "node_id": { "type": "string" } }
+        },
+        {
+          "required": ["edge_id"],
+          "properties": { "edge_id": { "type": "string" } }
+        }
+      ],
+      "required": [
+        "row_index",
+        "row_class",
+        "display_label",
+        "freshness_frame",
+        "confidence_level",
+        "scope_refs",
+        "partial_truth_causes"
+      ],
+      "properties": {
+        "row_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "row_class": { "$ref": "#/$defs/row_class" },
+        "node_id": {
+          "type": ["string", "null"],
+          "description": "Canonical graph node id when the row references a node."
+        },
+        "edge_id": {
+          "type": ["string", "null"],
+          "description": "Canonical graph edge id when the row references an edge."
+        },
+        "node_class": {
+          "oneOf": [
+            { "$ref": "workspace_graph_seed.schema.json#/$defs/node_class" },
+            { "type": "null" }
+          ]
+        },
+        "edge_class": {
+          "oneOf": [
+            { "$ref": "workspace_graph_seed.schema.json#/$defs/edge_class" },
+            { "type": "null" }
+          ]
+        },
+        "display_label": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "relative_path": {
+          "type": ["string", "null"],
+          "maxLength": 400
+        },
+        "symbol_ref": {
+          "type": ["string", "null"],
+          "maxLength": 240
+        },
+        "freshness_frame": { "$ref": "workspace_graph_seed.schema.json#/$defs/freshness_frame" },
+        "confidence_level": { "$ref": "workspace_graph_seed.schema.json#/$defs/confidence_level" },
+        "evidence_state": {
+          "oneOf": [
+            { "$ref": "workspace_graph_seed.schema.json#/$defs/edge_evidence_state" },
+            { "type": "null" }
+          ]
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "workspace_graph_seed.schema.json#/$defs/workset_scope_ref" }
+        },
+        "partial_truth_causes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/partial_truth_cause" }
+        }
+      }
+    },
+    "graph_query_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "envelope_id",
+        "query_request_id",
+        "query_class",
+        "query_family_tag",
+        "workspace_graph_id",
+        "workspace_id",
+        "emitted_at",
+        "readiness",
+        "partial_truth_causes",
+        "rows"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "graph_query_envelope" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "envelope_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id" },
+        "query_request_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id" },
+        "query_class": { "$ref": "#/$defs/query_class" },
+        "query_family_tag": { "$ref": "#/$defs/query_family_tag" },
+        "workspace_graph_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/workspace_id" },
+        "emitted_at": { "$ref": "workspace_graph_seed.schema.json#/$defs/monotonic_timestamp" },
+        "readiness": { "$ref": "#/$defs/graph_query_readiness" },
+        "partial_truth_causes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/partial_truth_cause" }
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/graph_query_row" }
+        }
+      }
+    }
+  }
+}
