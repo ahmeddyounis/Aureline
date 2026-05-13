@@ -27,7 +27,8 @@ use serde::{Deserialize, Serialize};
 
 use aureline_auth::{
     BrowserCallbackPacket, ClaimedIdentityRow, ClaimedIdentitySurfaceRow, CredentialStateChip,
-    CredentialStateRow, ProviderAccountRegistry, ShellAuthChip, SystemBrowserAlphaPacket,
+    CredentialStateRow, IdentityModeBaselinePacket, IdentityModeBaselineRow,
+    IdentityModeSurfaceRow, ProviderAccountRegistry, ShellAuthChip, SystemBrowserAlphaPacket,
 };
 use aureline_runtime::ExecutionContext;
 use aureline_terminal::{
@@ -137,6 +138,11 @@ impl TerminalPaneTabRecord {
 /// scope, timeout or expiry, device-code and stay-local alternatives, and
 /// the local-work continuation note without re-deriving auth state in shell
 /// code.
+///
+/// The optional `identity_mode_rows` carry the account-free local versus
+/// self-hosted/managed baseline. They expose policy-source and offline-
+/// entitlement inspectors and the current deployment boundary without
+/// implying that local core requires sign-in.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TerminalPaneSnapshot {
     pub record_kind: String,
@@ -157,6 +163,10 @@ pub struct TerminalPaneSnapshot {
     /// Empty when no claimed identity packet has been wired.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub claimed_identity_rows: Vec<ClaimedIdentitySurfaceRow>,
+    /// Identity-mode baseline rows projected from the auth identity-mode
+    /// packet. Empty when no baseline packet has been wired.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub identity_mode_rows: Vec<IdentityModeSurfaceRow>,
     /// Restored transcript / ended-session rows projected from the canonical
     /// terminal restore module. The bottom-panel chrome renders these as
     /// closed-tab transcript objects with no implicit rerun action; live
@@ -214,6 +224,7 @@ impl TerminalPaneSnapshot {
             shell_auth_chip,
             credential_state_chips: Vec::new(),
             claimed_identity_rows: Vec::new(),
+            identity_mode_rows: Vec::new(),
             restored_terminals: Vec::new(),
             restored_terminal_headers: Vec::new(),
         }
@@ -268,6 +279,32 @@ impl TerminalPaneSnapshot {
         self.claimed_identity_rows = rows
             .into_iter()
             .map(ClaimedIdentitySurfaceRow::from_row)
+            .collect();
+        self
+    }
+
+    /// Attach identity-mode baseline rows projected from an
+    /// [`aureline_auth::IdentityModeBaselinePacket`]. The pane renders these
+    /// rows near the auth and credential chips so local-core continuity,
+    /// policy source, entitlement state, and deployment-boundary truth remain
+    /// inspectable in the shell.
+    pub fn with_identity_mode_baseline_packet(
+        mut self,
+        packet: &IdentityModeBaselinePacket,
+    ) -> Self {
+        self.identity_mode_rows = packet.surface_rows();
+        self
+    }
+
+    /// Attach identity-mode baseline rows from an explicit iterator of
+    /// [`aureline_auth::IdentityModeBaselineRow`] records.
+    pub fn with_identity_mode_rows<'a, I>(mut self, rows: I) -> Self
+    where
+        I: IntoIterator<Item = &'a IdentityModeBaselineRow>,
+    {
+        self.identity_mode_rows = rows
+            .into_iter()
+            .map(IdentityModeSurfaceRow::from_row)
             .collect();
         self
     }
@@ -371,6 +408,24 @@ impl TerminalPaneSnapshot {
         self.claimed_identity_rows
             .iter()
             .any(|row| row.dead_end_without_local_continuation)
+    }
+
+    /// True when any identity-mode row loses the account-free local-core
+    /// guarantee. Conforming snapshots return `false`.
+    pub fn has_identity_mode_local_core_gap(&self) -> bool {
+        self.identity_mode_rows
+            .iter()
+            .any(|row| !row.local_core_available_without_account)
+    }
+
+    /// True when any identity-mode row lacks policy/entitlement detail or
+    /// overstates the active deployment boundary.
+    pub fn has_identity_mode_inspection_gap(&self) -> bool {
+        self.identity_mode_rows.iter().any(|row| {
+            !row.policy_detail_available
+                || !row.entitlement_detail_available
+                || row.overstates_current_boundary
+        })
     }
 }
 
@@ -701,6 +756,254 @@ mod tests {
         assert_eq!(
             row.native_boundary_handoff_ref.as_deref(),
             Some("native-handoff:auth-callback:payments-prod")
+        );
+    }
+
+    #[test]
+    fn snapshot_surfaces_identity_mode_policy_and_entitlement_inspectors() {
+        // Protected walk: attach the identity-mode baseline packet. The pane
+        // must preserve the no-account local-core guarantee while exposing
+        // policy-source, entitlement, offline behavior, and deployment-boundary
+        // truth for self-hosted and managed rows.
+        use aureline_auth::{
+            AccountBoundaryClass, CurrentDeploymentBoundaryClass, DeploymentBoundaryDisclosure,
+            EntitlementStateClass, IdentityAuthModeClass, IdentityModeAlias,
+            IdentityModeArtifactRefs, IdentityModeBaselinePacket, IdentityModeBaselineRow,
+            IdentityModeDeploymentProfileClass, IdentityPolicySourceInspector,
+            IdentityPolicySourceInspectorRequest, LocalCoreContinuity, OfflineBehaviorClass,
+            OfflineEntitlementInspector, OfflineEntitlementInspectorRequest, PolicyFreshnessClass,
+            PolicySourceClass, ProvisioningClass, RetryPathClass,
+            StageIdentityModeBaselineRowRequest, TrustState as AuthTrustState,
+            REQUIRED_LOCAL_CORE_CAPABILITY_IDS,
+        };
+
+        fn local_core() -> LocalCoreContinuity {
+            LocalCoreContinuity::new(
+                false,
+                true,
+                REQUIRED_LOCAL_CORE_CAPABILITY_IDS
+                    .iter()
+                    .map(|capability| (*capability).to_owned())
+                    .collect(),
+                "Local editing, search, Git, tasks, history, and BYOK AI remain available.",
+                RetryPathClass::ContinueLocalWithoutSignIn,
+            )
+        }
+
+        let mut host = PtyHost::new();
+        let _id = open_local(&mut host);
+
+        let local = IdentityModeBaselineRow::stage(StageIdentityModeBaselineRowRequest {
+            row_id: "identity-mode:account-free-local",
+            display_label: "Account-free local",
+            identity_mode: IdentityModeAlias::AccountFreeLocal,
+            account_boundary_class: AccountBoundaryClass::LocalOnly,
+            trust_state: AuthTrustState::Trusted,
+            auth_mode_class: IdentityAuthModeClass::AccountFreeLocal,
+            provisioning_class: ProvisioningClass::NotApplicableLocal,
+            local_core: local_core(),
+            policy_source: IdentityPolicySourceInspector::new(
+                IdentityPolicySourceInspectorRequest {
+                    source_class: PolicySourceClass::NoPolicyRequiredLocal,
+                    source_label: "No org policy required",
+                    policy_bundle_ref: None,
+                    policy_epoch_ref: None,
+                    freshness_class: PolicyFreshnessClass::NotApplicableAccountFree,
+                    last_refreshed_at: None,
+                    last_known_good_ref: None,
+                    local_inspection_available: true,
+                    vendor_console_required_for_full_detail: false,
+                    policy_detail_action: RetryPathClass::ContinueLocalWithoutSignIn,
+                    explanation_label: "Local core uses local trust and settings only.",
+                },
+            ),
+            offline_entitlement: OfflineEntitlementInspector::new(
+                OfflineEntitlementInspectorRequest {
+                    state_class: EntitlementStateClass::NotApplicableAccountFree,
+                    entitlement_snapshot_ref: None,
+                    entitlement_epoch_ref: None,
+                    seat_state_label: "No seat required",
+                    offline_behavior_class: OfflineBehaviorClass::UnlimitedOfflineLocalSafe,
+                    offline_behavior_label: "Unlimited offline local-safe use.",
+                    grace_expires_at: None,
+                    local_core_available: true,
+                    managed_actions_blocked: false,
+                    usage_or_admin_export_available: true,
+                    recovery_action: RetryPathClass::ContinueLocalWithoutSignIn,
+                    explanation_label: "No entitlement is needed for local core.",
+                },
+            ),
+            boundary: DeploymentBoundaryDisclosure::new(
+                IdentityModeDeploymentProfileClass::IndividualLocal,
+                CurrentDeploymentBoundaryClass::LocalOnlyNoManagedBoundary,
+                true,
+                false,
+                Vec::new(),
+                "Local desktop only; no managed boundary is active.",
+            ),
+            artifact_refs: IdentityModeArtifactRefs {
+                boundary_manifest_ref: Some(
+                    "artifacts/governance/boundary_manifest_alpha.yaml".to_owned(),
+                ),
+                entitlement_snapshot_set_ref: Some(
+                    "artifacts/governance/entitlement_snapshot_alpha.yaml".to_owned(),
+                ),
+                execution_context_ref: Some(
+                    "execution_context.local_desktop.workspace_root".to_owned(),
+                ),
+                ..IdentityModeArtifactRefs::default()
+            },
+            recovery_copy_label: "Continue without sign-in.",
+            minted_at: "2026-05-13T08:00:00Z",
+        })
+        .expect("local identity row stages");
+
+        let self_hosted = IdentityModeBaselineRow::stage(StageIdentityModeBaselineRowRequest {
+            row_id: "identity-mode:self-hosted-org",
+            display_label: "Self-hosted organization",
+            identity_mode: IdentityModeAlias::SelfHostedOrg,
+            account_boundary_class: AccountBoundaryClass::SelfHosted,
+            trust_state: AuthTrustState::Trusted,
+            auth_mode_class: IdentityAuthModeClass::SystemBrowserOidc,
+            provisioning_class: ProvisioningClass::ScimProvisioned,
+            local_core: local_core(),
+            policy_source: IdentityPolicySourceInspector::new(
+                IdentityPolicySourceInspectorRequest {
+                    source_class: PolicySourceClass::CustomerSelfHostedOrigin,
+                    source_label: "Customer self-hosted signed policy bundle",
+                    policy_bundle_ref: Some("policy_bundle.alpha.self_hosted.current"),
+                    policy_epoch_ref: Some("policy_epoch.self_hosted.alpha.0001"),
+                    freshness_class: PolicyFreshnessClass::OfflineSnapshotUnexpired,
+                    last_refreshed_at: Some("2026-05-13T07:55:00Z"),
+                    last_known_good_ref: Some("policy_bundle.alpha.self_hosted.lkg"),
+                    local_inspection_available: true,
+                    vendor_console_required_for_full_detail: false,
+                    policy_detail_action: RetryPathClass::RequestAdminPolicyChange,
+                    explanation_label: "Customer-hosted signed policy remains locally inspectable.",
+                },
+            ),
+            offline_entitlement: OfflineEntitlementInspector::new(
+                OfflineEntitlementInspectorRequest {
+                    state_class: EntitlementStateClass::OfflineLastKnownGood,
+                    entitlement_snapshot_ref: Some("entitlement_snapshot.alpha.self_hosted.lkg"),
+                    entitlement_epoch_ref: Some("entitlement_epoch.self_hosted.alpha.0001"),
+                    seat_state_label: "Signed snapshot imported",
+                    offline_behavior_class: OfflineBehaviorClass::LastKnownGoodLocalSafeOnly,
+                    offline_behavior_label: "Local-safe behavior remains available offline.",
+                    grace_expires_at: None,
+                    local_core_available: true,
+                    managed_actions_blocked: true,
+                    usage_or_admin_export_available: true,
+                    recovery_action: RetryPathClass::ImportSignedSessionSnapshot,
+                    explanation_label:
+                        "Self-hosted managed actions wait for refresh; local work continues.",
+                },
+            ),
+            boundary: DeploymentBoundaryDisclosure::new(
+                IdentityModeDeploymentProfileClass::SelfHosted,
+                CurrentDeploymentBoundaryClass::CustomerSelfHostedControlPlane,
+                true,
+                false,
+                Vec::new(),
+                "Customer self-hosted control plane is active.",
+            ),
+            artifact_refs: IdentityModeArtifactRefs::default(),
+            recovery_copy_label: "Import a fresh signed snapshot or continue local.",
+            minted_at: "2026-05-13T08:00:00Z",
+        })
+        .expect("self-hosted identity row stages");
+
+        let managed = IdentityModeBaselineRow::stage(StageIdentityModeBaselineRowRequest {
+            row_id: "identity-mode:managed-convenience",
+            display_label: "Managed convenience",
+            identity_mode: IdentityModeAlias::ManagedConvenience,
+            account_boundary_class: AccountBoundaryClass::Managed,
+            trust_state: AuthTrustState::Trusted,
+            auth_mode_class: IdentityAuthModeClass::SystemBrowserOidc,
+            provisioning_class: ProvisioningClass::ManagedSeat,
+            local_core: local_core(),
+            policy_source: IdentityPolicySourceInspector::new(
+                IdentityPolicySourceInspectorRequest {
+                    source_class: PolicySourceClass::VendorManagedOrigin,
+                    source_label: "Vendor-managed signed policy bundle",
+                    policy_bundle_ref: Some("policy_bundle.alpha.managed.current"),
+                    policy_epoch_ref: Some("policy_epoch.managed.alpha.0001"),
+                    freshness_class: PolicyFreshnessClass::StaleWithinGrace,
+                    last_refreshed_at: Some("2026-05-13T07:40:00Z"),
+                    last_known_good_ref: Some("policy_bundle.alpha.managed.lkg"),
+                    local_inspection_available: true,
+                    vendor_console_required_for_full_detail: false,
+                    policy_detail_action: RetryPathClass::RequestAdminPolicyChange,
+                    explanation_label:
+                        "Signed managed policy is stale within grace and locally inspectable.",
+                },
+            ),
+            offline_entitlement: OfflineEntitlementInspector::new(
+                OfflineEntitlementInspectorRequest {
+                    state_class: EntitlementStateClass::Grace,
+                    entitlement_snapshot_ref: Some("entitlement_snapshot.alpha.grace"),
+                    entitlement_epoch_ref: Some("entitlement_epoch.managed.alpha.0001"),
+                    seat_state_label: "Seat in grace",
+                    offline_behavior_class: OfflineBehaviorClass::ManagedOnlyPausedVisibleRecovery,
+                    offline_behavior_label:
+                        "New managed writes pause until refresh; local core continues.",
+                    grace_expires_at: Some("2026-05-27T08:00:00Z"),
+                    local_core_available: true,
+                    managed_actions_blocked: true,
+                    usage_or_admin_export_available: true,
+                    recovery_action: RetryPathClass::RetryInSystemBrowser,
+                    explanation_label:
+                        "Grace keeps local work available and exposes export recovery.",
+                },
+            ),
+            boundary: DeploymentBoundaryDisclosure::new(
+                IdentityModeDeploymentProfileClass::ManagedCloud,
+                CurrentDeploymentBoundaryClass::VendorManagedControlPlane,
+                true,
+                true,
+                Vec::new(),
+                "Vendor-managed services are active only for managed capabilities.",
+            ),
+            artifact_refs: IdentityModeArtifactRefs::default(),
+            recovery_copy_label: "Refresh managed state or continue local.",
+            minted_at: "2026-05-13T08:00:00Z",
+        })
+        .expect("managed identity row stages");
+
+        let packet = IdentityModeBaselinePacket::new(
+            "identity-mode-baseline:terminal-pane:test",
+            vec![local, self_hosted, managed],
+            vec![
+                "artifacts/governance/boundary_manifest_alpha.yaml".to_owned(),
+                "artifacts/governance/entitlement_snapshot_alpha.yaml".to_owned(),
+            ],
+            "2026-05-13T08:00:00Z",
+        );
+
+        let snapshot = TerminalPaneSnapshot::project("ws-test", &host)
+            .with_identity_mode_baseline_packet(&packet);
+        assert_eq!(snapshot.identity_mode_rows.len(), 3);
+        assert!(!snapshot.has_identity_mode_local_core_gap());
+        assert!(!snapshot.has_identity_mode_inspection_gap());
+
+        let managed = snapshot
+            .identity_mode_rows
+            .iter()
+            .find(|row| row.identity_mode_token == "managed_convenience")
+            .expect("managed row projected");
+        assert_eq!(managed.policy_source_token, "vendor_managed_origin");
+        assert_eq!(managed.policy_freshness_token, "stale_within_grace");
+        assert_eq!(managed.entitlement_state_token, "grace");
+        assert_eq!(
+            managed.offline_behavior_token,
+            "managed_only_paused_visible_recovery"
+        );
+        assert!(managed.local_core_available_without_account);
+        assert!(managed.managed_actions_blocked);
+        assert!(managed.visible_recovery_required);
+        assert_eq!(
+            managed.current_boundary_token,
+            "vendor_managed_control_plane"
         );
     }
 

@@ -1,7 +1,7 @@
 //! System-browser auth callback seed, local-versus-managed shell vocabulary,
 //! and credential-state / provider-account registry seed.
 //!
-//! This crate is the M1 seed for the auth lane. It owns:
+//! This crate owns the auth seed lane. It provides:
 //!
 //! - one inspectable [`browser_callback::BrowserCallbackPacket`] record that
 //!   freezes the outbound system-browser handoff, the callback-correlation
@@ -17,7 +17,10 @@
 //!   managed / provider lanes; and
 //! - one [`system_browser::ClaimedIdentityRow`] alpha contract that defaults
 //!   claimed managed / provider rows to system-browser auth while surfacing
-//!   device-code and stay-local fallback paths.
+//!   device-code and stay-local fallback paths; and
+//! - one [`identity_modes::IdentityModeBaselinePacket`] alpha contract that
+//!   keeps account-free local, self-hosted, and managed convenience rows
+//!   separate while exposing policy-source and offline-entitlement inspectors.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -28,9 +31,10 @@
 //! unavailable secure store to a plaintext-file credential.
 //!
 //! The reviewer-facing landing pages are
-//! [`/docs/auth/system_browser_seed.md`](../../../docs/auth/system_browser_seed.md)
+//! [`/docs/auth/system_browser_seed.md`](../../../docs/auth/system_browser_seed.md),
+//! [`/docs/auth/credential_state_seed.md`](../../../docs/auth/credential_state_seed.md),
 //! and
-//! [`/docs/auth/credential_state_seed.md`](../../../docs/auth/credential_state_seed.md).
+//! [`/docs/identity/local_vs_managed_alpha.md`](../../../docs/identity/local_vs_managed_alpha.md).
 //! The frozen cross-tool boundary vocabularies live in
 //! [`/docs/auth/system_browser_callback_packet.md`](../../../docs/auth/system_browser_callback_packet.md),
 //! [`/schemas/auth/auth_callback_state.schema.json`](../../../schemas/auth/auth_callback_state.schema.json),
@@ -45,6 +49,7 @@
 
 pub mod browser_callback;
 pub mod credential_state;
+pub mod identity_modes;
 pub mod system_browser;
 pub mod trust;
 
@@ -65,6 +70,18 @@ pub use credential_state::{
     ProviderAccountRegistry, RevokeActionClass, StorageModeClass, StoragePosture, StoreSourceClass,
     CREDENTIAL_STATE_ROW_RECORD_KIND, CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
     PROVIDER_ACCOUNT_RECORD_KIND, PROVIDER_ACCOUNT_REGISTRY_RECORD_KIND,
+};
+
+pub use identity_modes::{
+    CurrentDeploymentBoundaryClass, DeploymentBoundaryDisclosure, EntitlementStateClass,
+    IdentityAuthModeClass, IdentityModeArtifactRefs, IdentityModeBaselinePacket,
+    IdentityModeBaselineRow, IdentityModeBaselineRowError, IdentityModeBaselineViolation,
+    IdentityModeDeploymentProfileClass, IdentityModeSurfaceRow, IdentityPolicySourceInspector,
+    IdentityPolicySourceInspectorRequest, LocalCoreContinuity, OfflineBehaviorClass,
+    OfflineEntitlementInspector, OfflineEntitlementInspectorRequest, PolicyFreshnessClass,
+    PolicySourceClass, ProvisioningClass, StageIdentityModeBaselineRowRequest,
+    IDENTITY_MODE_BASELINE_PACKET_RECORD_KIND, IDENTITY_MODE_BASELINE_ROW_RECORD_KIND,
+    IDENTITY_MODE_BASELINE_SCHEMA_VERSION, REQUIRED_LOCAL_CORE_CAPABILITY_IDS,
 };
 
 pub use system_browser::{
