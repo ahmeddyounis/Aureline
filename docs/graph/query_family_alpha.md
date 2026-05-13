@@ -16,6 +16,9 @@ The machine-readable alpha schema lives at
 [`/schemas/graph/query_family_alpha.schema.json`](../../schemas/graph/query_family_alpha.schema.json).
 The protected fixture lives at
 [`/fixtures/graph/query_family_alpha/launch_wedge_symbols_imports_ownership.json`](../../fixtures/graph/query_family_alpha/launch_wedge_symbols_imports_ownership.json).
+Consumer-ready fact labels are defined in
+[`fact_truth_alpha.md`](./fact_truth_alpha.md) and exercised by
+[`/fixtures/graph/imported_fact_cues/readiness_and_fact_cues.json`](../../fixtures/graph/imported_fact_cues/readiness_and_fact_cues.json).
 
 The runtime consumes the existing canonical graph seed model from
 [`workspace_graph_seed.md`](./workspace_graph_seed.md) and
@@ -74,6 +77,13 @@ into the existing planner path model while preserving:
 
 Consumers must not unpack graph results into a private object model that drops
 freshness, confidence, scope, or missing-anchor state.
+
+When a consumer needs display or evidence-export cues rather than full query
+rows, it uses `GraphFactCuePacket::from_graph_query_envelope`. That projection
+preserves exact local, imported, inferred, stale, partial, missing-anchor,
+policy-hidden, waiting-provider, out-of-scope, and fallback-search labels for
+navigation, AI context selection, review seeds, and support exports without
+exposing raw graph internals.
 
 ## Acceptance proof
 
