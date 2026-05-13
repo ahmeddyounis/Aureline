@@ -3891,11 +3891,9 @@ impl EditorWorkspaceRuntimeState {
                 aureline_history::checkpoints::MutationJournalLinkKind::MutationJournalEntry,
             linked_id: mutation_id.clone(),
             actor_class: Some(
-                aureline_history::checkpoints::MutationJournalLinkActorClass::from(
-                    self.actor_class_for_originator(journal_entry.originator()),
-                ),
+                self.local_history_actor_class_for_originator(journal_entry.originator()),
             ),
-            source_class: Some(aureline_history::SourceClass::HumanLocal),
+            source_class: Some(self.source_class_for_originator(journal_entry.originator())),
             reversal_class: Some(
                 aureline_history::checkpoints::MutationJournalLinkReversalClass::from(
                     self.reversal_class_for_posture(journal_entry.compensation_posture()),
@@ -3980,7 +3978,7 @@ impl EditorWorkspaceRuntimeState {
             mutation_id.clone(),
             command_id,
             actor_class,
-            aureline_history::SourceClass::HumanLocal,
+            self.source_class_for_originator(journal_entry.originator()),
             actor_ref,
             scope_ref,
             target_refs,
@@ -4015,8 +4013,37 @@ impl EditorWorkspaceRuntimeState {
                 aureline_history::ActorClass::UserKeystroke
             }
             aureline_editor::undo::originator::PASTE => aureline_history::ActorClass::UserCommand,
+            other if is_formatter_originator(other) => aureline_history::ActorClass::Formatter,
             other if other.starts_with("command:") => aureline_history::ActorClass::UserCommand,
             _ => aureline_history::ActorClass::UserCommand,
+        }
+    }
+
+    fn local_history_actor_class_for_originator(
+        &self,
+        originator: &str,
+    ) -> aureline_history::checkpoints::MutationJournalLinkActorClass {
+        match originator {
+            aureline_editor::undo::originator::USER_KEYSTROKE => {
+                aureline_history::checkpoints::MutationJournalLinkActorClass::UserKeystroke
+            }
+            aureline_editor::undo::originator::PASTE => {
+                aureline_history::checkpoints::MutationJournalLinkActorClass::PasteOrDropImport
+            }
+            other if is_formatter_originator(other) => {
+                aureline_history::checkpoints::MutationJournalLinkActorClass::Formatter
+            }
+            _ => aureline_history::checkpoints::MutationJournalLinkActorClass::from(
+                self.actor_class_for_originator(originator),
+            ),
+        }
+    }
+
+    fn source_class_for_originator(&self, originator: &str) -> aureline_history::SourceClass {
+        if is_formatter_originator(originator) {
+            aureline_history::SourceClass::MachineLocal
+        } else {
+            aureline_history::SourceClass::HumanLocal
         }
     }
 
@@ -4037,6 +4064,10 @@ impl EditorWorkspaceRuntimeState {
 
 fn canonical_path_key(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn is_formatter_originator(originator: &str) -> bool {
+    originator.contains("format") || originator.contains("formatter")
 }
 
 fn read_only_state_for_path(path: &Path) -> ReadOnlyState {

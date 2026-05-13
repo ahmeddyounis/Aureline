@@ -13,12 +13,19 @@
 #![doc(html_root_url = "https://docs.rs/aureline-history/0.0.0")]
 
 pub mod checkpoints;
+pub mod local_history;
 pub mod mutation_journal;
 
 mod storage;
 
 pub use checkpoints::{
-    LocalHistoryEntryRecord, LocalHistoryGroupRecord, LocalHistoryStore, RetentionScopeClass,
+    LocalHistoryEntryRecord, LocalHistoryGroupRecord, LocalHistoryStore, RestoreOfEntryRef,
+    RetentionScopeClass,
+};
+pub use local_history::{
+    ActorLineageClass, ActorLineageRow, GitMutationLineageInput, HistoryArtifactExportSafety,
+    HistoryExportMode, LocalHistoryAlphaPacket, LocalHistoryAlphaValidationError,
+    LocalHistoryConsumerSurface, RestoreCheckpointAlpha, ReviewApplyLineageInput,
 };
 pub use mutation_journal::{
     ActorClass, ActorRef, CheckpointDurabilityClass, CheckpointKind, CheckpointRef,

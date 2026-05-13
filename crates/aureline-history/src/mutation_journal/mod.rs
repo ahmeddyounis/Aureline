@@ -330,6 +330,33 @@ pub enum ActorClass {
     VendorImport,
 }
 
+impl ActorClass {
+    /// Returns the schema token for this actor class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::UserKeystroke => "user_keystroke",
+            Self::UserCommand => "user_command",
+            Self::MultiCursorCommand => "multi_cursor_command",
+            Self::RefactorEngine => "refactor_engine",
+            Self::Formatter => "formatter",
+            Self::SaveParticipant => "save_participant",
+            Self::AiApply => "ai_apply",
+            Self::CodeAction => "code_action",
+            Self::Scaffolding => "scaffolding",
+            Self::SettingsImport => "settings_import",
+            Self::WorkspaceMigration => "workspace_migration",
+            Self::ExternalReload => "external_reload",
+            Self::DecodeRecovery => "decode_recovery",
+            Self::BuildRunner => "build_runner",
+            Self::CodegenRunner => "codegen_runner",
+            Self::PreviewRegenerator => "preview_regenerator",
+            Self::ReviewApply => "review_apply",
+            Self::ReplayImport => "replay_import",
+            Self::VendorImport => "vendor_import",
+        }
+    }
+}
+
 /// Source-class vocabulary for journal entries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -345,6 +372,23 @@ pub enum SourceClass {
     PolicyDriven,
 }
 
+impl SourceClass {
+    /// Returns the schema token for this source class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::HumanLocal => "human_local",
+            Self::HumanRemoteSession => "human_remote_session",
+            Self::MachineLocal => "machine_local",
+            Self::MachineRemoteAgent => "machine_remote_agent",
+            Self::AiLocalModel => "ai_local_model",
+            Self::AiHostedProvider => "ai_hosted_provider",
+            Self::ImportedExternal => "imported_external",
+            Self::ReplayedCapture => "replayed_capture",
+            Self::PolicyDriven => "policy_driven",
+        }
+    }
+}
+
 /// Reversal-class vocabulary for journal entries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -356,6 +400,19 @@ pub enum ReversalClass {
     AuditOnly,
 }
 
+impl ReversalClass {
+    /// Returns the schema token for this reversal class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ExactUndo => "exact_undo",
+            Self::CompensatingUndo => "compensating_undo",
+            Self::RegenerateOrRecompute => "regenerate_or_recompute",
+            Self::RestoreFromCheckpoint => "restore_from_checkpoint",
+            Self::AuditOnly => "audit_only",
+        }
+    }
+}
+
 /// Redaction-class vocabulary for journal entries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -364,6 +421,18 @@ pub enum RedactionClass {
     EnvironmentAdjacent,
     CodeAdjacent,
     HighRisk,
+}
+
+impl RedactionClass {
+    /// Returns the schema token for this redaction class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::MetadataOnly => "metadata_only",
+            Self::EnvironmentAdjacent => "environment_adjacent",
+            Self::CodeAdjacent => "code_adjacent",
+            Self::HighRisk => "high_risk",
+        }
+    }
 }
 
 /// Durable-vs-disposable classification for journal entries.
@@ -403,6 +472,21 @@ pub enum CheckpointKind {
     MutationGroupPreview,
     LocalHistorySnapshot,
     ReviewCheckpoint,
+}
+
+impl CheckpointKind {
+    /// Returns the schema token for this checkpoint kind.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RecoveryJournal => "recovery_journal",
+            Self::SaveManifest => "save_manifest",
+            Self::WorkspaceMigration => "workspace_migration",
+            Self::SettingsBackup => "settings_backup",
+            Self::MutationGroupPreview => "mutation_group_preview",
+            Self::LocalHistorySnapshot => "local_history_snapshot",
+            Self::ReviewCheckpoint => "review_checkpoint",
+        }
+    }
 }
 
 /// Durability-class vocabulary for checkpoint refs.

@@ -8,6 +8,7 @@ use aureline_git::{
     GitMutationOperationKind, GitMutationOutcomeState, GitMutationPreviewState, GitMutationRequest,
     GitMutationService,
 };
+use aureline_history::ActorLineageClass;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -263,6 +264,21 @@ fn run_fixture(path: &Path) {
     assert!(
         result.attribution_is_exportable(),
         "{}: activity and support attribution",
+        fixture.case_name
+    );
+    let history_packet = result.local_history_alpha_packet("2026-05-13T00:00:01Z");
+    history_packet
+        .validate()
+        .expect("Git result projects export-safe history lineage");
+    assert_eq!(
+        history_packet.actor_lineage_rows[0].actor_lineage_class,
+        ActorLineageClass::GitMutation,
+        "{}: local-history Git lineage class",
+        fixture.case_name
+    );
+    assert!(
+        !history_packet.export_safety.raw_snapshot_bodies_included,
+        "{}: Git lineage export omits raw snapshots",
         fixture.case_name
     );
     assert_status(

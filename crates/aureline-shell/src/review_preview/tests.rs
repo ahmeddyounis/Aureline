@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use aureline_history::{
-    body_object_id, HistoryStorageRoot, LocalHistoryStore, MutationJournalStore,
+    body_object_id, ActorLineageClass, HistoryStorageRoot, LocalHistoryStore, MutationJournalStore,
 };
 use aureline_runtime::{
     CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
@@ -124,6 +124,16 @@ fn protected_walk_propose_preview_apply_validate_revert_keeps_lineage_visible() 
     assert_eq!(
         apply.realized_revert_class,
         RevertClass::RestoreFromCheckpoint
+    );
+    let history_packet = packet
+        .local_history_alpha_packet("2026-05-11T13:30:02Z")
+        .expect("history packet after apply");
+    history_packet
+        .validate()
+        .expect("review apply history packet validates");
+    assert_eq!(
+        history_packet.actor_lineage_rows[0].actor_lineage_class,
+        ActorLineageClass::ReviewApply
     );
 
     // Each target now contains the post-apply bytes.

@@ -39,14 +39,17 @@ use aureline_history::checkpoints::{
     CaptureOmissionReasonClass, FilesystemIdentityRecord, IdentityTokenRecord,
     LocalHistoryEntryRecord, LocalHistoryGroupKind, LocalHistoryGroupRecord,
     LocalHistoryGroupResolution, LocalHistoryStore, LogicalDocumentIdentity,
-    LogicalWorkspaceIdentityRecord, MutationJournalLink, MutationJournalLinkKind,
-    PresentationPathRecord, RetentionScopeClass, SnapshotClass,
+    LogicalWorkspaceIdentityRecord, MutationJournalLink, MutationJournalLinkActorClass,
+    MutationJournalLinkKind, MutationJournalLinkReversalClass, PresentationPathRecord,
+    RetentionScopeClass, SnapshotClass,
 };
 use aureline_history::mutation_journal::{MutationGroupKind, MutationGroupResolution};
 use aureline_history::{
     body_object_id, ActorClass, ActorRef, DurableVsDisposable, HistoryError, IdSource,
-    MutationGroupRecord, MutationJournalEntryRecord, MutationJournalStore, RedactionClass,
-    ReversalClass, ScopeClass, ScopeRef, SideEffectSummary, SourceClass, TargetKind, TargetRef,
+    LocalHistoryAlphaPacket, LocalHistoryConsumerSurface, MutationGroupRecord,
+    MutationJournalEntryRecord, MutationJournalStore, RedactionClass, ReversalClass,
+    ReviewApplyLineageInput, ScopeClass, ScopeRef, SideEffectSummary, SourceClass, TargetKind,
+    TargetRef,
 };
 use aureline_runtime::{
     ExecutionContext, ExecutionEventProvenance, ExecutionProvenanceEvent,
@@ -525,6 +528,37 @@ impl MutationPacket {
 
         out
     }
+
+    /// Projects the apply/revert lineage into the shared local-history alpha shape.
+    pub fn local_history_alpha_packet(
+        &self,
+        produced_at: impl Into<String>,
+    ) -> Option<LocalHistoryAlphaPacket> {
+        let apply = self.apply.as_ref()?;
+        let entry_refs = apply
+            .per_target_links
+            .iter()
+            .map(|link| link.local_history_entry_id.clone())
+            .collect();
+        let row = aureline_history::ActorLineageRow::from_review_apply(ReviewApplyLineageInput {
+            row_id: format!("{}.local_history_lineage", apply.apply_id),
+            display_label: apply.local_history_checkpoint_label.clone(),
+            local_history_group_ref: apply.local_history_group_id.clone(),
+            local_history_entry_refs: entry_refs,
+            mutation_group_ref: apply.mutation_group_id.clone(),
+            command_id: self.proposal.command_id.clone(),
+            reversal_class: "restore_from_checkpoint".to_owned(),
+            side_effect_summary: apply.mutation_group_label.clone(),
+        });
+        Some(
+            LocalHistoryAlphaPacket::new(
+                format!("{}.local_history_alpha", self.packet_id),
+                produced_at,
+                LocalHistoryConsumerSurface::ReviewApply,
+            )
+            .with_actor_lineage_row(row),
+        )
+    }
 }
 
 fn drift_token(state: &BasisDriftState) -> &'static str {
@@ -904,7 +938,7 @@ impl DestructiveCoreEngine {
             let journal_entry = MutationJournalEntryRecord::new(
                 mutation_id.clone(),
                 packet.proposal.command_id.clone(),
-                ActorClass::UserCommand,
+                ActorClass::ReviewApply,
                 SourceClass::HumanLocal,
                 ActorRef {
                     display_name: self.actor_display_name.clone(),
@@ -961,10 +995,10 @@ impl DestructiveCoreEngine {
                 MutationJournalLink {
                     linked_kind: MutationJournalLinkKind::MutationJournalEntry,
                     linked_id: mutation_id.clone(),
-                    actor_class: None,
-                    source_class: None,
-                    reversal_class: None,
-                    redaction_class: None,
+                    actor_class: Some(MutationJournalLinkActorClass::ReviewApply),
+                    source_class: Some(SourceClass::HumanLocal),
+                    reversal_class: Some(MutationJournalLinkReversalClass::RestoreFromCheckpoint),
+                    redaction_class: Some(RedactionClass::CodeAdjacent),
                 },
                 RetentionScopeClass::RetainedByEvidenceReference,
                 Some(format!(
@@ -995,7 +1029,7 @@ impl DestructiveCoreEngine {
             mutation_group_id.clone(),
             MutationGroupKind::BulkReplace,
             packet.proposal.command_id.clone(),
-            ActorClass::UserCommand,
+            ActorClass::ReviewApply,
             SourceClass::HumanLocal,
             ActorRef {
                 display_name: self.actor_display_name.clone(),
@@ -1031,10 +1065,10 @@ impl DestructiveCoreEngine {
             MutationJournalLink {
                 linked_kind: MutationJournalLinkKind::MutationGroupRecord,
                 linked_id: mutation_group_id.clone(),
-                actor_class: None,
-                source_class: None,
-                reversal_class: None,
-                redaction_class: None,
+                actor_class: Some(MutationJournalLinkActorClass::ReviewApply),
+                source_class: Some(SourceClass::HumanLocal),
+                reversal_class: Some(MutationJournalLinkReversalClass::RestoreFromCheckpoint),
+                redaction_class: Some(RedactionClass::CodeAdjacent),
             },
             RetentionScopeClass::RetainedByEvidenceReference,
             Some(local_history_checkpoint_label.clone()),

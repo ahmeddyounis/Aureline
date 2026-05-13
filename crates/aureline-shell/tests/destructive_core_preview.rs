@@ -16,7 +16,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Deserialize;
 
 use aureline_history::{
-    body_object_id, HistoryStorageRoot, LocalHistoryStore, MutationJournalStore,
+    body_object_id, ActorLineageClass, HistoryStorageRoot, LocalHistoryStore, MutationJournalStore,
 };
 use aureline_shell::review_preview::{
     ApplyAdmissibility, BasisDriftState, ConsequenceClass, DestructiveCoreEngine,
@@ -171,6 +171,16 @@ fn fixture_drives_full_protected_walk() {
     assert_eq!(
         apply.realized_revert_class.as_str(),
         expected.expected_realized_revert_class_token
+    );
+    let history_packet = packet
+        .local_history_alpha_packet("2026-05-11T13:40:02Z")
+        .expect("history packet after apply");
+    history_packet
+        .validate()
+        .expect("history packet stays export safe");
+    assert_eq!(
+        history_packet.actor_lineage_rows[0].actor_lineage_class,
+        ActorLineageClass::ReviewApply
     );
 
     for content in &expected.expected_per_target_post_apply_contents {

@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/history/local_history_alpha.schema.json",
+  "title": "Aureline local-history actor-lineage alpha packet",
+  "description": "Export-safe projection consumed by local-history timeline, restore-preview, Git mutation, review/apply, and support surfaces. This schema does not redefine the canonical local-history or mutation-journal records; rows cite ids from schemas/recovery/local_history_entry.schema.json and schemas/workspace/mutation_journal.schema.json. Raw file snapshots and content-addressed body refs are omitted by default.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "local_history_alpha_schema_version",
+    "packet_id",
+    "produced_at",
+    "consumer_surface",
+    "actor_lineage_rows",
+    "restore_checkpoints",
+    "export_safety"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional fixture metadata ignored by production consumers."
+    },
+    "record_kind": { "const": "local_history_alpha_packet" },
+    "local_history_alpha_schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "produced_at": { "$ref": "#/$defs/timestamp" },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "editor_save",
+        "history_timeline",
+        "git_mutation_review",
+        "review_apply",
+        "restore_preview",
+        "support_export"
+      ]
+    },
+    "actor_lineage_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/actor_lineage_row" }
+    },
+    "restore_checkpoints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/restore_checkpoint_alpha" }
+    },
+    "export_safety": { "$ref": "#/$defs/export_safety" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id or ref. Raw paths, raw user ids, secrets, and raw file bodies do not appear here."
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor_lineage_class": {
+      "type": "string",
+      "enum": [
+        "typing",
+        "import",
+        "git_mutation",
+        "formatter",
+        "ai_apply",
+        "review_apply",
+        "restore_checkpoint",
+        "automation",
+        "repair",
+        "external_change",
+        "other"
+      ]
+    },
+    "actor_lineage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "display_label",
+        "actor_lineage_class",
+        "actor_class",
+        "source_class",
+        "reversal_class",
+        "redaction_class",
+        "snapshot_class",
+        "local_history_entry_refs",
+        "checkpoint_refs",
+        "body_available_locally",
+        "raw_body_refs_exported"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "actor_lineage_class": { "$ref": "#/$defs/actor_lineage_class" },
+        "actor_class": { "type": "string", "minLength": 1 },
+        "source_class": { "type": "string", "minLength": 1 },
+        "reversal_class": { "type": "string", "minLength": 1 },
+        "redaction_class": { "type": "string", "minLength": 1 },
+        "snapshot_class": { "type": "string", "minLength": 1 },
+        "capture_mode": { "type": "string", "minLength": 1 },
+        "omission_reason": { "type": "string", "minLength": 1 },
+        "local_history_entry_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "local_history_group_ref": { "$ref": "#/$defs/opaque_id" },
+        "mutation_journal_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id": { "type": "string", "minLength": 1 },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "side_effect_summary": { "type": "string", "maxLength": 1024 },
+        "body_available_locally": { "type": "boolean" },
+        "raw_body_refs_exported": { "const": false }
+      },
+      "not": {
+        "anyOf": [
+          {
+            "properties": {
+              "checkpoint_refs": {
+                "contains": { "type": "string", "pattern": "^obj:" }
+              }
+            }
+          },
+          {
+            "properties": {
+              "local_history_entry_refs": {
+                "contains": { "type": "string", "pattern": "^obj:" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "restore_checkpoint_alpha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_ref",
+        "checkpoint_name",
+        "created_at",
+        "restored_from_entry_ref",
+        "source_entry_ref",
+        "body_availability",
+        "resulting_snapshot_class",
+        "restore_command_id",
+        "support_export_ref",
+        "raw_body_refs_exported"
+      ],
+      "properties": {
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "restored_from_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "body_availability": { "type": "string", "minLength": 1 },
+        "resulting_snapshot_class": { "const": "restore_rollback_checkpoint" },
+        "restore_command_id": { "type": "string", "minLength": 1 },
+        "support_export_ref": { "$ref": "#/$defs/opaque_id" },
+        "raw_body_refs_exported": { "const": false }
+      }
+    },
+    "export_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_mode",
+        "raw_snapshot_bodies_included",
+        "body_object_refs_included",
+        "omitted_payload_classes"
+      ],
+      "properties": {
+        "export_mode": {
+          "type": "string",
+          "enum": ["metadata_only", "entry_refs_only"]
+        },
+        "raw_snapshot_bodies_included": { "const": false },
+        "body_object_refs_included": { "const": false },
+        "omitted_payload_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "contains": { "const": "raw_file_snapshot" }
+        }
+      }
+    }
+  }
+}

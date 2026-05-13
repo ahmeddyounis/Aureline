@@ -585,6 +585,41 @@ impl GitMutationResult {
                 .checkpoint_refs
                 .contains(&self.checkpoint.checkpoint_ref)
     }
+
+    /// Projects this Git result into the shared local-history actor-lineage row.
+    pub fn local_history_actor_lineage_row(&self) -> aureline_history::ActorLineageRow {
+        aureline_history::ActorLineageRow::from_git_mutation(
+            aureline_history::GitMutationLineageInput {
+                row_id: format!("{}.local_history_lineage", self.result_ref),
+                display_label: format!(
+                    "{} {}",
+                    self.operation.label(),
+                    self.outcome_state.as_str()
+                ),
+                mutation_journal_ref: self.mutation_journal.mutation_id.clone(),
+                command_id: self.mutation_journal.command_id.clone(),
+                actor_class: "git_mutation".to_owned(),
+                source_class: "human_local".to_owned(),
+                reversal_class: self.mutation_journal.reversal_class.clone(),
+                redaction_class: "metadata_only".to_owned(),
+                checkpoint_ref: Some(self.checkpoint.checkpoint_ref.clone()),
+                side_effect_summary: self.mutation_journal.side_effect_summary.clone(),
+            },
+        )
+    }
+
+    /// Projects this Git result into an export-safe local-history alpha packet.
+    pub fn local_history_alpha_packet(
+        &self,
+        produced_at: impl Into<String>,
+    ) -> aureline_history::LocalHistoryAlphaPacket {
+        aureline_history::LocalHistoryAlphaPacket::new(
+            format!("{}.local_history_alpha", self.result_ref),
+            produced_at,
+            aureline_history::LocalHistoryConsumerSurface::GitMutationReview,
+        )
+        .with_actor_lineage_row(self.local_history_actor_lineage_row())
+    }
 }
 
 /// Output captured from a Git command.

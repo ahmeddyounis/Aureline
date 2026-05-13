@@ -260,6 +260,8 @@ pub struct LocalHistoryEntryRecord {
     pub branch_worktree_context: BranchWorktreeContext,
     pub capture_descriptor: CaptureDescriptor,
     pub mutation_journal_link: MutationJournalLink,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restore_of_ref: Option<RestoreOfEntryRef>,
     pub retention_scope: RetentionScopeClass,
     pub local_only_posture: LocalOnlyPosture,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -281,6 +283,21 @@ pub enum SnapshotClass {
     PolicyRedactedStub,
 }
 
+impl SnapshotClass {
+    /// Returns the schema token for this snapshot class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::EditSaveCheckpoint => "edit_save_checkpoint",
+            Self::WorkspaceMutationCheckpoint => "workspace_mutation_checkpoint",
+            Self::AutomationAiCheckpoint => "automation_ai_checkpoint",
+            Self::ExternalStateCheckpoint => "external_state_checkpoint",
+            Self::RestoreRollbackCheckpoint => "restore_rollback_checkpoint",
+            Self::CaptureOmittedStub => "capture_omitted_stub",
+            Self::PolicyRedactedStub => "policy_redacted_stub",
+        }
+    }
+}
+
 /// Truth-source-class vocabulary rendered on the timeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -292,6 +309,21 @@ pub enum TruthSourceClass {
     ExternalChangeRecord,
     SyncedOrProviderHistory,
     ReviewCheckpoint,
+}
+
+impl TruthSourceClass {
+    /// Returns the schema token for this truth-source class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalHistory => "local_history",
+            Self::AutosaveJournal => "autosave_journal",
+            Self::GitHistory => "git_history",
+            Self::AutomationLineage => "automation_lineage",
+            Self::ExternalChangeRecord => "external_change_record",
+            Self::SyncedOrProviderHistory => "synced_or_provider_history",
+            Self::ReviewCheckpoint => "review_checkpoint",
+        }
+    }
 }
 
 /// Logical-document identity carried on local-history entries.
@@ -398,6 +430,18 @@ pub enum CaptureMode {
     ExternalCauseMetadataOnly,
 }
 
+impl CaptureMode {
+    /// Returns the schema token for this capture mode.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ContentAddressedSnapshot => "content_addressed_snapshot",
+            Self::MetadataPlusReferenceOnly => "metadata_plus_reference_only",
+            Self::GroupManifestOnly => "group_manifest_only",
+            Self::ExternalCauseMetadataOnly => "external_cause_metadata_only",
+        }
+    }
+}
+
 /// Body-capture omission reason class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -411,6 +455,25 @@ pub enum CaptureOmissionReasonClass {
     OmittedPolicyRedactedSecretAdjacent,
     OmittedQuotaExceeded,
     OmittedUnsupportedFilesystemSemantics,
+}
+
+impl CaptureOmissionReasonClass {
+    /// Returns the schema token for this omission reason.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotOmitted => "not_omitted",
+            Self::OmittedTooLarge => "omitted_too_large",
+            Self::OmittedBinaryClassMetadataOnly => "omitted_binary_class_metadata_only",
+            Self::OmittedGeneratedArtifactUseLineage => "omitted_generated_artifact_use_lineage",
+            Self::OmittedManagedExternalArtifact => "omitted_managed_external_artifact",
+            Self::OmittedExcludedPath => "omitted_excluded_path",
+            Self::OmittedPolicyRedactedSecretAdjacent => "omitted_policy_redacted_secret_adjacent",
+            Self::OmittedQuotaExceeded => "omitted_quota_exceeded",
+            Self::OmittedUnsupportedFilesystemSemantics => {
+                "omitted_unsupported_filesystem_semantics"
+            }
+        }
+    }
 }
 
 /// Link back into the mutation journal.
@@ -461,6 +524,37 @@ pub enum MutationJournalLinkActorClass {
     RestoreRollbackRunner,
 }
 
+impl MutationJournalLinkActorClass {
+    /// Returns the schema token for this actor class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::UserKeystroke => "user_keystroke",
+            Self::UserCommand => "user_command",
+            Self::MultiCursorCommand => "multi_cursor_command",
+            Self::RefactorEngine => "refactor_engine",
+            Self::Formatter => "formatter",
+            Self::SaveParticipant => "save_participant",
+            Self::AiApply => "ai_apply",
+            Self::CodeAction => "code_action",
+            Self::Scaffolding => "scaffolding",
+            Self::SettingsImport => "settings_import",
+            Self::WorkspaceMigration => "workspace_migration",
+            Self::ExternalReload => "external_reload",
+            Self::DecodeRecovery => "decode_recovery",
+            Self::BuildRunner => "build_runner",
+            Self::CodegenRunner => "codegen_runner",
+            Self::PreviewRegenerator => "preview_regenerator",
+            Self::ReviewApply => "review_apply",
+            Self::ReplayImport => "replay_import",
+            Self::VendorImport => "vendor_import",
+            Self::PasteOrDropImport => "paste_or_drop_import",
+            Self::AutomationRecipeRunner => "automation_recipe_runner",
+            Self::ExternalChangeDetector => "external_change_detector",
+            Self::RestoreRollbackRunner => "restore_rollback_runner",
+        }
+    }
+}
+
 impl From<JournalActorClass> for MutationJournalLinkActorClass {
     fn from(value: JournalActorClass) -> Self {
         match value {
@@ -500,6 +594,20 @@ pub enum MutationJournalLinkReversalClass {
     RestoreFromCheckpoint,
     AuditOnly,
     NoReversalExternalEvent,
+}
+
+impl MutationJournalLinkReversalClass {
+    /// Returns the schema token for this reversal class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ExactUndo => "exact_undo",
+            Self::CompensatingUndo => "compensating_undo",
+            Self::RegenerateOrRecompute => "regenerate_or_recompute",
+            Self::RestoreFromCheckpoint => "restore_from_checkpoint",
+            Self::AuditOnly => "audit_only",
+            Self::NoReversalExternalEvent => "no_reversal_external_event",
+        }
+    }
 }
 
 impl From<JournalReversalClass> for MutationJournalLinkReversalClass {
@@ -586,6 +694,7 @@ impl LocalHistoryEntryRecord {
             },
             capture_descriptor,
             mutation_journal_link,
+            restore_of_ref: None,
             retention_scope,
             local_only_posture: LocalOnlyPosture {
                 local_only_by_default: true,
@@ -600,6 +709,12 @@ impl LocalHistoryEntryRecord {
     /// Assigns a group id to this entry.
     pub fn with_group_id(mut self, group_id: String) -> Self {
         self.group_id = Some(group_id.clone());
+        self
+    }
+
+    /// Attaches the source checkpoint restored by this entry.
+    pub fn with_restore_of_ref(mut self, restore_of_ref: RestoreOfEntryRef) -> Self {
+        self.restore_of_ref = Some(restore_of_ref);
         self
     }
 }
@@ -668,6 +783,13 @@ pub struct RestoreOfGroupRef {
     pub restore_preview: RestorePreviewRequiredFields,
 }
 
+/// Entry-level reference to the checkpoint a restore replayed.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RestoreOfEntryRef {
+    pub restored_from_entry_id: String,
+    pub restore_preview: RestorePreviewRequiredFields,
+}
+
 /// Restore preview minimum fields for restore group records.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RestorePreviewRequiredFields {
@@ -720,6 +842,12 @@ impl LocalHistoryGroupRecord {
             side_effect_summary,
             notes: None,
         }
+    }
+
+    /// Attaches the source checkpoint restored by this group.
+    pub fn with_restore_of_ref(mut self, restore_of_ref: RestoreOfGroupRef) -> Self {
+        self.restore_of_ref = Some(restore_of_ref);
+        self
     }
 }
 
