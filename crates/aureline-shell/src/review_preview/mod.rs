@@ -48,6 +48,10 @@ use aureline_history::{
     MutationGroupRecord, MutationJournalEntryRecord, MutationJournalStore, RedactionClass,
     ReversalClass, ScopeClass, ScopeRef, SideEffectSummary, SourceClass, TargetKind, TargetRef,
 };
+use aureline_runtime::{
+    ExecutionContext, ExecutionEventProvenance, ExecutionProvenanceEvent,
+    ExecutionProvenanceEventClass,
+};
 
 /// Stable record-kind tag carried in serialized [`MutationPacket`] payloads.
 pub const MUTATION_PACKET_RECORD_KIND: &str = "preview_apply_revert_mutation_packet";
@@ -356,6 +360,9 @@ pub struct MutationPacket {
     pub validation: Option<ValidateRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revert: Option<RevertRecord>,
+    /// Review-lane provenance event carrying the execution context that opened the packet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_provenance_event: Option<ExecutionProvenanceEvent>,
     /// True once the user has explicitly chosen `Keep` on a validated
     /// apply, retiring the packet without a revert.
     pub kept: bool,
@@ -375,6 +382,7 @@ impl MutationPacket {
             apply: None,
             validation: None,
             revert: None,
+            context_provenance_event: None,
             kept: false,
             kept_at: None,
         }
@@ -421,6 +429,12 @@ impl MutationPacket {
             consequence = self.proposal.declared_consequence_class.as_str(),
             declared = self.proposal.declared_revert_class.as_str(),
         ));
+        if let Some(event) = &self.context_provenance_event {
+            out.push_str(&format!(
+                "Context provenance: {}\n",
+                event.context_provenance.context_provenance_id
+            ));
+        }
 
         out.push_str("\n[Preview]\n");
         if let Some(preview) = &self.preview {
@@ -600,6 +614,7 @@ pub struct DestructiveCoreEngine {
     validations: IdSource,
     reverts: IdSource,
     world: HashMap<String, Vec<u8>>,
+    context_provenance: Option<ExecutionEventProvenance>,
     clock: Clock,
 }
 
@@ -655,8 +670,15 @@ impl DestructiveCoreEngine {
             validations: IdSource::new("val"),
             reverts: IdSource::new("rev"),
             world: HashMap::new(),
+            context_provenance: None,
             clock: Clock::Wall,
         }
+    }
+
+    /// Attaches the resolved execution context that opened review packets.
+    pub fn with_execution_context(mut self, context: &ExecutionContext) -> Self {
+        self.context_provenance = Some(ExecutionEventProvenance::from_context(context));
+        self
     }
 
     /// Pin a fixed sequence of ISO timestamps so the protected-walk test
@@ -720,7 +742,17 @@ impl DestructiveCoreEngine {
             proposed_at,
         };
 
-        Ok(MutationPacket::new(packet_id, proposal))
+        let mut packet = MutationPacket::new(packet_id, proposal);
+        if let Some(context_provenance) = &self.context_provenance {
+            packet.context_provenance_event = Some(ExecutionProvenanceEvent::new(
+                format!("execution-provenance-event:review:{}", packet.packet_id),
+                ExecutionProvenanceEventClass::Review,
+                packet.packet_id.clone(),
+                packet.proposal.proposed_at.clone(),
+                context_provenance.clone(),
+            ));
+        }
+        Ok(packet)
     }
 
     /// Phase 2 — compute a preview against the current target world. The

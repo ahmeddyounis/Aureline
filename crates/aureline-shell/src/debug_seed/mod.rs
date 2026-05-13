@@ -42,8 +42,8 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_runtime::{
-    DegradedFieldReason, DegradedFieldRecord, ExecutionContext, ReachabilityState, TargetClass,
-    ToolchainClass, TrustState,
+    DegradedFieldReason, DegradedFieldRecord, ExecutionContext, ExecutionProvenanceEvent,
+    ExecutionProvenanceEventClass, ReachabilityState, TargetClass, ToolchainClass, TrustState,
 };
 
 use crate::badges::target_origin::{
@@ -305,6 +305,8 @@ pub struct DebugPrepSeedSurface {
     pub workspace_id: String,
     pub execution_context_ref: String,
     pub context_summary: RunContextSummary,
+    /// Debug-prep provenance event carrying the shared execution-context projection.
+    pub context_provenance_event: ExecutionProvenanceEvent,
     pub badge: TargetOriginBadge,
     pub target_class: TargetBadgeClass,
     pub target_class_token: String,
@@ -338,6 +340,16 @@ impl DebugPrepSeedSurface {
     pub fn project(context: &ExecutionContext) -> Self {
         let context_summary = RunContextSummary::project(context);
         let badge = TargetOriginBadge::project(BadgeEntryPoint::DebugPrepSeed, context);
+        let context_provenance_event = ExecutionProvenanceEvent::from_context(
+            format!(
+                "execution-provenance-event:debug-prep:{}",
+                context.execution_context_id
+            ),
+            ExecutionProvenanceEventClass::DebugPrep,
+            context.execution_context_id.clone(),
+            context.provenance.recorded_at.clone(),
+            context,
+        );
         let prerequisites = collect_prerequisites(context);
         let trust_pending = matches!(
             context.policy_and_trust.trust_state,
@@ -356,6 +368,7 @@ impl DebugPrepSeedSurface {
             entry_point: BadgeEntryPoint::DebugPrepSeed,
             workspace_id: context_summary.workspace_id.clone(),
             execution_context_ref: context_summary.execution_context_ref.clone(),
+            context_provenance_event,
             target_class: badge.target_class,
             target_class_token: badge.target_class_token.clone(),
             target_label: badge.target_label.clone(),
@@ -393,6 +406,12 @@ impl DebugPrepSeedSurface {
         out.push_str(&format!(
             "Execution context: {}\n",
             self.execution_context_ref
+        ));
+        out.push_str(&format!(
+            "Context provenance: {}\n",
+            self.context_provenance_event
+                .context_provenance
+                .context_provenance_id
         ));
         out.push_str(&format!(
             "Target: {} ({})\n",

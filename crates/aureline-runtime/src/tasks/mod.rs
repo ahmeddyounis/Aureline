@@ -12,6 +12,11 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::provenance::{
+    dedupe_context_provenance, ExecutionEventProvenance, ExecutionProvenanceEvent,
+    ExecutionProvenanceEventClass,
+};
+
 /// Schema version emitted for task event records.
 pub const TASK_EVENT_SCHEMA_VERSION: u32 = 1;
 /// Stable record-kind tag for one typed task event.
@@ -452,6 +457,9 @@ pub struct TaskEventProvenance {
     pub workspace_revision: Option<String>,
     /// Confidence of the normalized event.
     pub confidence: TaskEventConfidence,
+    /// Execution-context provenance projected from the canonical runtime context.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_provenance: Option<ExecutionEventProvenance>,
 }
 
 /// Retained raw adapter-origin envelope.
@@ -884,13 +892,35 @@ impl TaskEventStream {
         export_id: impl Into<String>,
         generated_at: impl Into<String>,
     ) -> TaskSupportExport {
+        let export_id = export_id.into();
+        let generated_at = generated_at.into();
+        let context_provenance = dedupe_context_provenance(
+            self.events
+                .iter()
+                .filter_map(|event| event.provenance.context_provenance.clone()),
+        );
+        let context_provenance_events = context_provenance
+            .iter()
+            .map(|provenance| {
+                ExecutionProvenanceEvent::new(
+                    format!(
+                        "execution-provenance-event:support-export:{}:{}",
+                        export_id, provenance.context_provenance_id
+                    ),
+                    ExecutionProvenanceEventClass::SupportExport,
+                    export_id.clone(),
+                    generated_at.clone(),
+                    provenance.clone(),
+                )
+            })
+            .collect();
         TaskSupportExport {
             record_kind: TASK_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             task_event_schema_version: TASK_EVENT_SCHEMA_VERSION,
-            export_id: export_id.into(),
+            export_id,
             workspace_id: self.workspace_id.clone(),
             trace_id: self.trace_id.clone(),
-            generated_at: generated_at.into(),
+            generated_at,
             consumer_surfaces: vec![
                 TaskConsumerSurfaceClass::Shell,
                 TaskConsumerSurfaceClass::ActivityCenter,
@@ -906,6 +936,8 @@ impl TaskEventStream {
                 .iter()
                 .map(|event| event.raw_envelope.clone())
                 .collect(),
+            context_provenance,
+            context_provenance_events,
         }
     }
 
@@ -954,6 +986,17 @@ impl TaskEventStream {
                 raw_envelope_ref: event.raw_envelope.raw_envelope_ref.clone(),
             });
         }
+        if let Some(context_provenance) = &event.provenance.context_provenance {
+            if !context_provenance.matches_event_identity(
+                &event.identity.execution_context_id,
+                &event.identity.target_id,
+            ) {
+                return Err(TaskEventStreamError::ContextProvenanceIdentityMismatch {
+                    event_id: event.event_id.clone(),
+                    context_provenance_ref: context_provenance.context_provenance_id.clone(),
+                });
+            }
+        }
         Ok(())
     }
 }
@@ -977,6 +1020,11 @@ pub enum TaskEventStreamError {
     RawEnvelopeIdentityMismatch {
         event_id: String,
         raw_envelope_ref: String,
+    },
+    /// Execution-context provenance did not match the typed event identity.
+    ContextProvenanceIdentityMismatch {
+        event_id: String,
+        context_provenance_ref: String,
     },
 }
 
@@ -1014,6 +1062,13 @@ impl fmt::Display for TaskEventStreamError {
             } => write!(
                 f,
                 "task event {event_id} raw envelope {raw_envelope_ref} did not match event identity"
+            ),
+            Self::ContextProvenanceIdentityMismatch {
+                event_id,
+                context_provenance_ref,
+            } => write!(
+                f,
+                "task event {event_id} context provenance {context_provenance_ref} did not match event identity"
             ),
         }
     }
@@ -1208,6 +1263,9 @@ pub struct TaskSupportEventRow {
     pub raw_envelope_ref: String,
     /// Payload digest from the raw envelope.
     pub payload_digest: String,
+    /// Execution-context provenance projection ref, when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_provenance_ref: Option<String>,
     /// Export-safe summary.
     pub summary: String,
 }
@@ -1230,6 +1288,11 @@ impl TaskSupportEventRow {
             redaction_class: event.raw_envelope.redaction_class,
             raw_envelope_ref: event.raw_envelope.raw_envelope_ref.clone(),
             payload_digest: event.raw_envelope.payload_digest.clone(),
+            context_provenance_ref: event
+                .provenance
+                .context_provenance
+                .as_ref()
+                .map(|provenance| provenance.context_provenance_id.clone()),
             summary: event.summary.clone(),
         }
     }
@@ -1256,6 +1319,12 @@ pub struct TaskSupportExport {
     pub events: Vec<TaskSupportEventRow>,
     /// Raw adapter-origin envelopes retained for reconstruction.
     pub raw_envelopes: Vec<RawTaskEventEnvelope>,
+    /// Execution-context provenance objects needed to inspect target truth.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_provenance: Vec<ExecutionEventProvenance>,
+    /// Support-export provenance events carrying the same context objects.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_provenance_events: Vec<ExecutionProvenanceEvent>,
 }
 
 #[cfg(test)]
@@ -1274,6 +1343,73 @@ mod tests {
             execution_context_id: "exec:workspace:task:0".to_owned(),
             target_id: format!("target:{task_id}"),
             wedge,
+        }
+    }
+
+    fn context_provenance(identity: &TaskEventIdentity) -> ExecutionEventProvenance {
+        ExecutionEventProvenance {
+            record_kind: crate::provenance::EXECUTION_EVENT_PROVENANCE_RECORD_KIND.to_owned(),
+            schema_version: crate::provenance::EXECUTION_EVENT_PROVENANCE_SCHEMA_VERSION,
+            context_provenance_id: format!("ctx-prov:{}", identity.execution_context_id),
+            execution_context_ref: identity.execution_context_id.clone(),
+            provenance_record_ref: format!("prov:{}", identity.execution_context_id),
+            recorded_at: "2026-05-13T16:00:00Z".to_owned(),
+            resolver_version: "task-event-test".to_owned(),
+            workspace_id: identity.workspace_id.clone(),
+            command_id: "task.run.fixture".to_owned(),
+            surface: crate::SurfaceClass::Task,
+            surface_token: "task".to_owned(),
+            actor_class: crate::ActorClass::UserCommand,
+            actor_class_token: "user_command".to_owned(),
+            target_id: identity.target_id.clone(),
+            target_class: crate::TargetClass::LocalHost,
+            target_class_token: "local_host".to_owned(),
+            reachability_state: crate::ReachabilityState::Reachable,
+            reachability_state_token: "reachable".to_owned(),
+            boundary_cue_visible: false,
+            target_confidence_level: crate::ConfidenceLevel::High,
+            target_confidence_level_token: "high".to_owned(),
+            target_confidence_reason_tokens: vec!["exact_local_target".to_owned()],
+            toolchain_class: crate::ToolchainClass::BuildDriverRuntime,
+            toolchain_class_token: "build_driver_runtime".to_owned(),
+            toolchain_id: "toolchain:build-driver".to_owned(),
+            resolved_version: "seed".to_owned(),
+            environment_capsule_ref: "capsule:task-event-test".to_owned(),
+            environment_capsule_hash: "sha256:capsule".to_owned(),
+            environment_capsule_drift_token: "in_sync".to_owned(),
+            working_directory_present: true,
+            working_directory_digest: Some(
+                "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+                    .to_owned(),
+            ),
+            prebuild_reuse_state: crate::PrebuildReuseState::NotApplicable,
+            prebuild_reuse_state_token: "not_applicable".to_owned(),
+            prebuild_snapshot_ref: None,
+            prebuild_compatibility_fingerprint: "prebuild:not_applicable".to_owned(),
+            prebuild_invalidation_reason_token: None,
+            trust_state: crate::TrustState::Trusted,
+            trust_state_token: "trusted".to_owned(),
+            identity_mode_token: "account_free_local".to_owned(),
+            policy_epoch: 1,
+            scope_class: crate::ScopeClass::CurrentRoot,
+            scope_class_token: "current_root".to_owned(),
+            cache_disposition: crate::CacheDisposition::Cold,
+            cache_disposition_token: "cold".to_owned(),
+            mixed_version_state_token: "not_applicable".to_owned(),
+            mixed_version_reason_token: "local_only".to_owned(),
+            client_protocol: "runtime-seed".to_owned(),
+            helper_protocol: None,
+            input_decisions: Vec::new(),
+            degraded_field_count: 0,
+            degraded_field_tokens: Vec::new(),
+            explanation_reason_code_tokens: vec!["shared_context_contract".to_owned()],
+            redaction_class: crate::ExecutionProvenanceRedactionClass::MetadataSafeDefault,
+            redaction_safe: true,
+            reconstruction_fields: vec![
+                "execution_context_ref".to_owned(),
+                "target_id".to_owned(),
+                "target_class_token".to_owned(),
+            ],
         }
     }
 
@@ -1311,6 +1447,7 @@ mod tests {
                     TaskEventSourceKind::StructuredOutput => TaskEventConfidence::MediumHigh,
                     _ => TaskEventConfidence::High,
                 },
+                context_provenance: Some(context_provenance(&identity)),
             },
             raw_envelope: RawTaskEventEnvelope {
                 record_kind: RAW_TASK_EVENT_ENVELOPE_RECORD_KIND.to_owned(),
@@ -1476,6 +1613,12 @@ mod tests {
             stream.support_export("support-export:task-events:alpha", "2026-05-13T16:02:00Z");
         assert_eq!(support.events.len(), 2);
         assert_eq!(support.raw_envelopes.len(), 2);
+        assert_eq!(support.context_provenance.len(), 1);
+        assert_eq!(support.context_provenance_events.len(), 1);
+        assert_eq!(
+            support.events[1].context_provenance_ref.as_deref(),
+            Some("ctx-prov:exec:workspace:task:0")
+        );
         assert!(support
             .consumer_surfaces
             .contains(&TaskConsumerSurfaceClass::Shell));
@@ -1512,6 +1655,38 @@ mod tests {
         assert!(matches!(
             err,
             TaskEventStreamError::RawEnvelopeIdentityMismatch { .. }
+        ));
+    }
+
+    #[test]
+    fn context_provenance_identity_is_validated() {
+        let mut stream = TaskEventStream::new(
+            "stream:task-event-alpha",
+            "workspace:payments",
+            "trace:task-event-alpha",
+        );
+        let mut bad = event(
+            1,
+            "build-api",
+            TaskWedgeClass::Build,
+            TaskEventKind::TaskQueued,
+            TaskStateClass::Queued,
+            TaskEventPayload::Lifecycle {
+                lifecycle_reason: Some("queued".to_owned()),
+                exit_status: None,
+            },
+            TaskEventSourceKind::Bsp,
+            TaskEventRedactionClass::MetadataSafeDefault,
+        );
+        bad.provenance
+            .context_provenance
+            .as_mut()
+            .expect("context provenance")
+            .target_id = "target:other".to_owned();
+        let err = stream.append(bad).expect_err("context mismatch must fail");
+        assert!(matches!(
+            err,
+            TaskEventStreamError::ContextProvenanceIdentityMismatch { .. }
         ));
     }
 

@@ -3,7 +3,8 @@ use std::path::Path;
 use aureline_runtime::{
     CapsuleDriftState, DegradedFieldReason, DegradedFieldRecord, EnvironmentCapsuleRef,
     ExecutionContextRequest, ExecutionContextResolver, ExecutionContextResolverConfig,
-    IdentityMode, ReachabilityState, ScopeClass, TargetClass, ToolchainClass, TrustState,
+    ExecutionProvenanceEventClass, IdentityMode, ReachabilityState, ScopeClass, TargetClass,
+    ToolchainClass, TrustState,
 };
 
 use serde::Deserialize;
@@ -49,6 +50,14 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     assert_eq!(surface.entry_point, BadgeEntryPoint::DebugPrepSeed);
     assert_eq!(surface.workspace_id, "ws-test");
     assert_eq!(surface.execution_context_ref, context.execution_context_id);
+    assert_eq!(
+        surface.context_provenance_event.event_class,
+        ExecutionProvenanceEventClass::DebugPrep
+    );
+    assert!(surface
+        .context_provenance_event
+        .context_provenance
+        .matches_context(&context));
     assert_eq!(
         surface.context_summary.record_kind,
         crate::run_context::RUN_CONTEXT_SUMMARY_RECORD_KIND
@@ -243,6 +252,7 @@ fn render_plaintext_quotes_actions_and_seed_notice() {
     let block = surface.render_plaintext();
     assert!(block.contains("Debug-prep seed surface"));
     assert!(block.contains("Workspace: ws-test"));
+    assert!(block.contains("Context provenance:"));
     assert!(block.contains("Runtime: Debug-adapter runtime"));
     assert!(block.contains("attach_to_running_process"));
     assert!(block.contains("reserved_for_later_milestone"));

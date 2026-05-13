@@ -4,6 +4,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use aureline_history::{
     body_object_id, HistoryStorageRoot, LocalHistoryStore, MutationJournalStore,
 };
+use aureline_runtime::{
+    CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
+    ExecutionContextResolverConfig, ExecutionProvenanceEventClass, IdentityMode,
+    ScopeClass as RuntimeScopeClass, TargetClass, TrustState,
+};
 
 use super::*;
 
@@ -38,6 +43,31 @@ fn fixture_engine(label: &str) -> (DestructiveCoreEngine, PathBuf) {
         "2026-05-11T13:30:05Z".to_owned(),
     ]);
     (engine, root)
+}
+
+fn review_context() -> aureline_runtime::ExecutionContext {
+    let mut resolver = ExecutionContextResolver::new(ExecutionContextResolverConfig {
+        workspace_id: "ws-destructive-core-fixture".to_owned(),
+        profile_id: Some("profile:review".to_owned()),
+        identity_mode: IdentityMode::AccountFreeLocal,
+        policy_epoch: 7,
+        workspace_default_target_class: TargetClass::LocalHost,
+        workspace_default_working_directory: Some("/workspace/review".to_owned()),
+        workspace_default_scope_class: RuntimeScopeClass::CurrentRoot,
+        local_host_canonical_id: "localhost:darwin-arm64".to_owned(),
+        environment_capsule_ref: EnvironmentCapsuleRef {
+            capsule_id: "caps:review".to_owned(),
+            capsule_hash: "sha256:review".to_owned(),
+            resolved_schema_version: "1".to_owned(),
+            drift_state: CapsuleDriftState::InSync,
+        },
+        resolver_version: "review-preview-test".to_owned(),
+    });
+    resolver.resolve(ExecutionContextRequest::task_seed(
+        DESTRUCTIVE_CORE_COMMAND_ID,
+        TrustState::Trusted,
+        "2026-05-11T13:29:59Z",
+    ))
 }
 
 #[test]
@@ -180,6 +210,39 @@ fn protected_walk_propose_preview_apply_validate_revert_keeps_lineage_visible() 
     assert!(render.contains("[Revert]"));
     assert!(render.contains("mutation_group_id:"));
     assert!(render.contains("local_history_group_id:"));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn review_packet_carries_execution_context_provenance_event() {
+    let context = review_context();
+    let root = unique_temp_root("context_provenance");
+    let storage = HistoryStorageRoot::new(&root);
+    let journal = MutationJournalStore::new(storage.clone());
+    let history = LocalHistoryStore::new(storage);
+    let mut engine = DestructiveCoreEngine::new(
+        "ws-destructive-core-fixture",
+        "fixture user",
+        journal,
+        history,
+    )
+    .with_execution_context(&context)
+    .with_pinned_clock(vec!["2026-05-11T13:30:00Z".to_owned()]);
+    engine.seed_target("src/launch.rs", b"call(legacy_fn);\n".to_vec());
+
+    let packet = engine
+        .propose(&["src/launch.rs"], "legacy_fn", "modern_fn")
+        .expect("propose succeeds");
+    let event = packet
+        .context_provenance_event
+        .as_ref()
+        .expect("review provenance event");
+
+    assert_eq!(event.event_class, ExecutionProvenanceEventClass::Review);
+    assert_eq!(event.subject_ref, packet.packet_id);
+    assert!(event.context_provenance.matches_context(&context));
+    assert!(packet.render_plaintext().contains("Context provenance:"));
 
     let _ = std::fs::remove_dir_all(&root);
 }

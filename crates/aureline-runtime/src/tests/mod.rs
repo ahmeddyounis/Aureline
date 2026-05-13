@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::discovery::pytest::{PytestLaunchReadiness, PytestRunContract, PytestSelectionKind};
 use crate::execution_context::ExecutionContext;
+use crate::provenance::{
+    ExecutionEventProvenance, ExecutionProvenanceEvent, ExecutionProvenanceEventClass,
+};
 
 /// Schema version emitted for test-attempt alpha records.
 pub const TEST_ATTEMPT_ALPHA_SCHEMA_VERSION: u32 = 1;
@@ -512,6 +515,9 @@ pub struct TestSessionPlan {
     pub target_id: String,
     /// Stable target-class token.
     pub target_class_token: String,
+    /// Redaction-safe execution-context provenance backing this plan.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_provenance: Option<ExecutionEventProvenance>,
     /// Retry policy token for this alpha plan.
     pub retry_policy_token: String,
     /// Watch policy token for this alpha plan.
@@ -560,6 +566,9 @@ pub struct TestAttemptRecord {
     pub target_id: String,
     /// Stable target-class token.
     pub target_class_token: String,
+    /// Redaction-safe execution-context provenance backing this attempt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_provenance: Option<ExecutionEventProvenance>,
     /// Canonical item refs covered by this attempt.
     pub canonical_test_item_refs: Vec<String>,
     /// Selector ref covered by this attempt.
@@ -747,6 +756,9 @@ pub struct TestLaunchWedgeProjection {
     pub controlled_state_tokens: Vec<String>,
     /// Support/export ref for the projection.
     pub support_export_ref: String,
+    /// Execution-context provenance projection ref, when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_provenance_ref: Option<String>,
 }
 
 /// Support/export packet for test-attempt alpha state.
@@ -770,6 +782,12 @@ pub struct TestAttemptSupportExport {
     pub imported_ci_projection_ref: String,
     /// True when imported evidence is read-only.
     pub read_only_imported_evidence: bool,
+    /// Redaction-safe execution-context provenance included with the export.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_provenance: Option<ExecutionEventProvenance>,
+    /// Test-lane provenance event carrying the same execution-context object.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_provenance_event: Option<ExecutionProvenanceEvent>,
     /// Local rerun plans linked from stale/imported evidence.
     pub fresh_local_rerun_plan_refs: Vec<String>,
     /// Export-safe lines suitable for CLI/support review.
@@ -781,6 +799,12 @@ impl TestAttemptSupportExport {
     pub fn render_plaintext(&self) -> String {
         let mut out = format!("Test attempt support export: {}\n", self.support_export_id);
         out.push_str(&format!("Session plan: {}\n", self.session_plan_ref));
+        if let Some(context_provenance) = &self.context_provenance {
+            out.push_str(&format!(
+                "Context provenance: {}\n",
+                context_provenance.context_provenance_id
+            ));
+        }
         out.push_str(&format!(
             "Controlled states: {}\n",
             self.controlled_state_tokens.join(",")
@@ -1233,6 +1257,7 @@ fn session_plan_for(
         execution_context_ref: context.execution_context_id.clone(),
         target_id: context.target_identity.canonical_target_id.clone(),
         target_class_token: context.target_identity.target_class.as_str().to_owned(),
+        context_provenance: Some(ExecutionEventProvenance::from_context(context)),
         retry_policy_token: retry_policy_token.to_owned(),
         watch_policy_token: watch_policy_token.to_owned(),
         selection_widening_rule_token: if identity_projection.remap_or_widening_review_required {
@@ -1287,6 +1312,7 @@ fn attempt_for(
         execution_context_ref: context.execution_context_id.clone(),
         target_id: context.target_identity.canonical_target_id.clone(),
         target_class_token: context.target_identity.target_class.as_str().to_owned(),
+        context_provenance: Some(ExecutionEventProvenance::from_context(context)),
         canonical_test_item_refs: contract
             .selection
             .test_item_id
@@ -1504,6 +1530,10 @@ fn packet_from_parts(
         .map(|attempt| attempt.test_attempt_id.clone())
         .collect::<Vec<_>>();
     let support_export_id = format!("support-export:{}", stable_token(&packet_id));
+    let context_provenance = session_plan.context_provenance.clone();
+    let context_provenance_ref = context_provenance
+        .as_ref()
+        .map(|provenance| provenance.context_provenance_id.clone());
     let launch_wedge_projection = TestLaunchWedgeProjection {
         record_kind: TEST_LAUNCH_WEDGE_PROJECTION_RECORD_KIND.to_owned(),
         schema_version: TEST_ATTEMPT_ALPHA_SCHEMA_VERSION,
@@ -1523,7 +1553,20 @@ fn packet_from_parts(
         identity_stability_token: identity_projection.identity_stability_token.clone(),
         controlled_state_tokens: controlled_state_tokens.clone(),
         support_export_ref: support_export_id.clone(),
+        context_provenance_ref: context_provenance_ref.clone(),
     };
+    let context_provenance_event = context_provenance.clone().map(|provenance| {
+        ExecutionProvenanceEvent::new(
+            format!(
+                "execution-provenance-event:test:{}",
+                stable_token(&support_export_id)
+            ),
+            ExecutionProvenanceEventClass::Test,
+            support_export_id.clone(),
+            generated_at.to_owned(),
+            provenance,
+        )
+    });
     let support_export = TestAttemptSupportExport {
         record_kind: TEST_ATTEMPT_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
         schema_version: TEST_ATTEMPT_ALPHA_SCHEMA_VERSION,
@@ -1534,6 +1577,8 @@ fn packet_from_parts(
         controlled_state_tokens,
         imported_ci_projection_ref: imported_ci_projection.imported_ci_projection_id.clone(),
         read_only_imported_evidence: imported_ci_projection.read_only_imported_evidence,
+        context_provenance,
+        context_provenance_event,
         fresh_local_rerun_plan_refs,
         summary_lines: attempts
             .iter()
@@ -1730,9 +1775,46 @@ mod tests {
             packet.session_plan.session_mode,
             TestSessionMode::WatchTests
         );
+        assert!(packet
+            .session_plan
+            .context_provenance
+            .as_ref()
+            .expect("session context provenance")
+            .matches_context(&context));
+        assert!(packet.attempts.iter().all(|attempt| {
+            attempt
+                .context_provenance
+                .as_ref()
+                .map(|provenance| provenance.context_provenance_id.as_str())
+                == packet
+                    .session_plan
+                    .context_provenance
+                    .as_ref()
+                    .map(|provenance| provenance.context_provenance_id.as_str())
+        }));
         assert_eq!(packet.watch_controller.watch_state, TestWatchState::Running);
         assert!(packet.watch_controller.current_truth_claim_allowed);
         assert!(packet.launch_wedge_projection.attempt_history_visible);
+        assert_eq!(
+            packet
+                .launch_wedge_projection
+                .context_provenance_ref
+                .as_deref(),
+            packet
+                .session_plan
+                .context_provenance
+                .as_ref()
+                .map(|provenance| provenance.context_provenance_id.as_str())
+        );
+        assert_eq!(
+            packet
+                .support_export
+                .context_provenance_event
+                .as_ref()
+                .expect("support context provenance event")
+                .event_class,
+            ExecutionProvenanceEventClass::Test
+        );
         assert!(packet
             .support_export
             .controlled_state_tokens
@@ -1776,6 +1858,12 @@ mod tests {
             .support_export
             .fresh_local_rerun_plan_refs
             .contains(&"rerun-plan:local:pytest:health".to_owned()));
+        assert!(packet
+            .support_export
+            .context_provenance
+            .as_ref()
+            .expect("support context provenance")
+            .matches_context(&context));
         for token in [
             "coverage_partial",
             "coverage_merged",

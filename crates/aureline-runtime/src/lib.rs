@@ -6,6 +6,9 @@
 //! for launch-capable surfaces, a canonical [`tasks::TaskEventStream`] for
 //! task/test/debug lifecycle truth, and [`tests::TestAttemptAlphaPacket`] for
 //! launch-wedge test identity, session, attempt, watch, and imported-CI truth.
+//! Downstream event and export lanes carry
+//! [`provenance::ExecutionEventProvenance`] so target truth survives after the
+//! live run surface is gone.
 //!
 //! Surfaces (terminal pane, task seed, debug-prep seed, provider/auth entry
 //! points, activity center, status bar, support / export flows) read structured
@@ -24,6 +27,7 @@ pub mod detectors;
 pub mod discovery;
 pub mod execution_context;
 pub mod language_hosts;
+pub mod provenance;
 pub mod rerun;
 pub mod tasks;
 pub mod tests;
@@ -83,6 +87,12 @@ pub use language_hosts::{
     LanguageHostSnapshot, LanguageHostSupervisor, LanguageHostSupervisorConfig,
     LanguageHostSupervisorError, LanguageHostSupervisorEvent, LanguageHostSupportPacket,
     LANGUAGE_HOST_SUPERVISION_SCHEMA_VERSION,
+};
+pub use provenance::{
+    dedupe_context_provenance, ExecutionEventProvenance, ExecutionProvenanceEvent,
+    ExecutionProvenanceEventClass, ExecutionProvenanceInputDecision,
+    ExecutionProvenanceRedactionClass, EXECUTION_EVENT_PROVENANCE_RECORD_KIND,
+    EXECUTION_EVENT_PROVENANCE_SCHEMA_VERSION, EXECUTION_PROVENANCE_EVENT_RECORD_KIND,
 };
 pub use rerun::{
     built_in_rerun_command_bindings, RerunAttemptSummary, RerunCommandBinding, RerunContractKind,

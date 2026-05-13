@@ -19,6 +19,7 @@ use crate::detectors::node::{
     NodeToolchainDetectorConfig, NodeToolchainResolutionState, NodeToolchainSourceKind,
 };
 use crate::execution_context::{DegradedFieldReason, ExecutionContext, ReachabilityState};
+use crate::provenance::ExecutionEventProvenance;
 use crate::tasks::{
     RawEnvelopeRetentionState, RawTaskEventEnvelope, TaskBlockReason, TaskEvent,
     TaskEventConfidence, TaskEventIdentity, TaskEventKind, TaskEventPayload, TaskEventProvenance,
@@ -660,6 +661,8 @@ pub struct PackageScriptRunContract {
     pub execution_context_ref: String,
     /// Target id copied from the execution context.
     pub target_id: String,
+    /// Redaction-safe execution-context provenance copied from the resolved context.
+    pub context_provenance: ExecutionEventProvenance,
     /// Script descriptor.
     pub script: PackageScriptDescriptor,
     /// Task wedge classification.
@@ -759,6 +762,7 @@ impl PackageScriptRunContract {
         if mode == PackageScriptRerunMode::CurrentContext {
             next.execution_context_ref = current_context.execution_context_id.clone();
             next.target_id = current_context.target_identity.canonical_target_id.clone();
+            next.context_provenance = ExecutionEventProvenance::from_context(current_context);
             if let Some(dispatch) = &mut next.dispatch {
                 dispatch.working_directory =
                     current_context.target_identity.working_directory.clone();
@@ -830,6 +834,7 @@ impl PackageScriptRunContract {
                 adapter_version: PACKAGE_SCRIPT_DISCOVERER_VERSION.to_owned(),
                 workspace_revision: self.workspace_revision.clone(),
                 confidence,
+                context_provenance: Some(self.context_provenance.clone()),
             },
             raw_envelope: self.raw_envelope(&event_id, source_kind, event_kind, observed_at),
         }
@@ -1025,6 +1030,7 @@ fn build_run_contracts(
                 trace_id: format!("trace:{run_id}"),
                 execution_context_ref: context.execution_context_id.clone(),
                 target_id: context.target_identity.canonical_target_id.clone(),
+                context_provenance: ExecutionEventProvenance::from_context(context),
                 script: script.clone(),
                 wedge: script.wedge,
                 runner: runner.clone(),
@@ -1445,6 +1451,14 @@ mod tests {
         assert_eq!(stream.events[1].event_kind, TaskEventKind::TaskStarted);
         assert_eq!(stream.events[1].state_after, TaskStateClass::Running);
         assert_eq!(stream.events[1].identity.wedge, TaskWedgeClass::Test);
+        assert_eq!(
+            stream.events[1]
+                .provenance
+                .context_provenance
+                .as_ref()
+                .map(|provenance| provenance.context_provenance_id.as_str()),
+            Some(contract.context_provenance.context_provenance_id.as_str())
+        );
         assert!(stream.events[1]
             .raw_envelope
             .matches_event(&stream.events[1]));
@@ -1463,6 +1477,12 @@ mod tests {
         );
         assert_eq!(support.events.len(), 2);
         assert_eq!(support.raw_envelopes.len(), 2);
+        assert_eq!(support.context_provenance.len(), 1);
+        assert_eq!(support.context_provenance_events.len(), 1);
+        assert_eq!(
+            support.events[1].context_provenance_ref.as_deref(),
+            Some(contract.context_provenance.context_provenance_id.as_str())
+        );
         assert_eq!(support.events[1].task_id, contract.task_id);
     }
 
@@ -1592,6 +1612,7 @@ mod tests {
             lineage.current_execution_context_ref,
             current_context.execution_context_id
         );
+        assert!(rerun.context_provenance.matches_context(&current_context));
 
         let initial_stream = build
             .launch_event_stream("2026-05-13T16:24:04Z")
