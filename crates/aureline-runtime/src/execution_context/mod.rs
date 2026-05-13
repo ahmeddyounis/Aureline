@@ -48,6 +48,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::detectors::node::{NodeToolchainDetection, NodeToolchainResolutionState};
+
 pub use aureline_workspace::TrustState;
 
 /// Schema version of the seed [`ExecutionContext`] record this crate emits.
@@ -599,6 +601,8 @@ pub struct ExecutionContext {
     pub workset_scope_class: ScopeClass,
     pub cache_disposition: CacheDisposition,
     pub provenance: Provenance,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node_toolchain_detection: Option<NodeToolchainDetection>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub degraded_fields: Vec<DegradedFieldRecord>,
 }
@@ -622,6 +626,32 @@ impl ExecutionContext {
     /// not yet been resolved).
     pub fn boundary_cue_visible(&self) -> bool {
         self.target_identity.local_vs_managed_boundary_visible
+    }
+
+    /// Attaches a Node detector report to this context before a launch
+    /// surface dispatches work.
+    ///
+    /// The report stays embedded in the canonical context so task, test,
+    /// debug, inspector, and support surfaces quote the same Node/package
+    /// manager truth. Fallback, missing, unsupported, or ambiguous detector
+    /// states also add visible degraded-field markers.
+    pub fn with_node_toolchain_detection(mut self, detection: NodeToolchainDetection) -> Self {
+        self.record_node_detection_degraded_fields(&detection);
+        self.node_toolchain_detection = Some(detection);
+        self
+    }
+
+    fn record_node_detection_degraded_fields(&mut self, detection: &NodeToolchainDetection) {
+        add_node_detection_degraded_field(
+            &mut self.degraded_fields,
+            "node_toolchain_detection.node_runtime",
+            detection.node_runtime.resolution_state,
+        );
+        add_node_detection_degraded_field(
+            &mut self.degraded_fields,
+            "node_toolchain_detection.package_manager",
+            detection.package_manager.resolution_state,
+        );
     }
 }
 
@@ -858,6 +888,7 @@ impl ExecutionContextResolver {
             workset_scope_class: self.config.workspace_default_scope_class,
             cache_disposition: CacheDisposition::Cold,
             provenance,
+            node_toolchain_detection: None,
             degraded_fields,
         }
     }
@@ -1057,6 +1088,33 @@ where
             resolved_value_token: render(winning_value),
         },
     )
+}
+
+fn add_node_detection_degraded_field(
+    degraded_fields: &mut Vec<DegradedFieldRecord>,
+    field_path: &str,
+    state: NodeToolchainResolutionState,
+) {
+    let reason = match state {
+        NodeToolchainResolutionState::Resolved => return,
+        NodeToolchainResolutionState::Fallback => DegradedFieldReason::ToolchainFallback,
+        NodeToolchainResolutionState::Missing => DegradedFieldReason::ProvenanceGap,
+        NodeToolchainResolutionState::Ambiguous => DegradedFieldReason::ConfidenceLow,
+        NodeToolchainResolutionState::Unsupported => {
+            DegradedFieldReason::ActivatorUnsupportedOnTarget
+        }
+    };
+    if degraded_fields
+        .iter()
+        .any(|field| field.field_path == field_path && field.reason == reason)
+    {
+        return;
+    }
+    degraded_fields.push(DegradedFieldRecord {
+        field_path: field_path.to_owned(),
+        reason,
+        repair_hook_ref: Some("doctor.repair.node_toolchain".to_owned()),
+    });
 }
 
 #[cfg(test)]

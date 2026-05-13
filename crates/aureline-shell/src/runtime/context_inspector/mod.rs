@@ -36,9 +36,10 @@ use serde::{Deserialize, Serialize};
 use aureline_runtime::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
     DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, IdentityMode, InvocationSubject,
-    PolicyAndTrust, Provenance, ReachabilityState, ResolverInputDecision, ResolverInputField,
-    ResolverInputSource, ScopeClass, SurfaceClass, TargetClass, TargetIdentity, ToolchainClass,
-    ToolchainIdentity, TrustState,
+    NodeToolchainDetection, NodeToolchainProvenanceDisposition, NodeToolchainResolutionState,
+    NodeToolchainSourceKind, NodeToolchainSubject, PolicyAndTrust, Provenance, ReachabilityState,
+    ResolverInputDecision, ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass,
+    TargetClass, TargetIdentity, ToolchainClass, ToolchainIdentity, TrustState,
 };
 
 /// Stable record-kind tag carried in serialized inspector snapshots.
@@ -97,6 +98,7 @@ pub enum InspectorSectionId {
     InvocationSubject,
     TargetIdentity,
     ToolchainIdentity,
+    NodeToolchainDetection,
     EnvironmentCapsule,
     PolicyAndTrust,
     Scope,
@@ -112,6 +114,7 @@ impl InspectorSectionId {
             Self::InvocationSubject => "invocation_subject",
             Self::TargetIdentity => "target_identity",
             Self::ToolchainIdentity => "toolchain_identity",
+            Self::NodeToolchainDetection => "node_toolchain_detection",
             Self::EnvironmentCapsule => "environment_capsule",
             Self::PolicyAndTrust => "policy_and_trust",
             Self::Scope => "scope",
@@ -127,6 +130,7 @@ impl InspectorSectionId {
             Self::InvocationSubject => "Invocation",
             Self::TargetIdentity => "Target",
             Self::ToolchainIdentity => "Toolchain",
+            Self::NodeToolchainDetection => "Node detector",
             Self::EnvironmentCapsule => "Environment capsule",
             Self::PolicyAndTrust => "Policy and trust",
             Self::Scope => "Scope",
@@ -331,17 +335,22 @@ impl ExecutionContextInspectorSnapshot {
         context: &ExecutionContext,
         opening_surface: InspectorOpeningSurface,
     ) -> Self {
-        let sections = vec![
+        let mut sections = vec![
             project_invocation_section(&context.invocation_subject),
             project_target_section(&context.target_identity, &context.provenance),
             project_toolchain_section(&context.toolchain_identity, &context.provenance),
+        ];
+        if let Some(detection) = &context.node_toolchain_detection {
+            sections.push(project_node_detection_section(detection));
+        }
+        sections.extend([
             project_capsule_section(&context.environment_capsule_ref),
             project_policy_section(&context.policy_and_trust),
             project_scope_section(context.workset_scope_class),
             project_cache_section(context.cache_disposition),
             project_provenance_section(&context.provenance),
             project_degraded_section(&context.degraded_fields),
-        ];
+        ]);
         let honesty_marker_present = sections
             .iter()
             .flat_map(|section| section.rows.iter())
@@ -553,6 +562,116 @@ fn project_toolchain_section(
     InspectorSection::new(InspectorSectionId::ToolchainIdentity, rows)
 }
 
+fn project_node_detection_section(detection: &NodeToolchainDetection) -> InspectorSection {
+    let mut rows = vec![
+        value_row(
+            "detector_version",
+            "Detector version",
+            detection.detector_version.clone(),
+        ),
+        value_row(
+            "workspace_root_ref",
+            "Workspace root",
+            detection.workspace_root_ref.clone(),
+        ),
+        token_row(
+            "node_runtime_state",
+            "Node runtime state",
+            node_resolution_state_label(detection.node_runtime.resolution_state).to_owned(),
+            detection.node_runtime.resolution_state.as_str(),
+        ),
+        value_or_missing_row(
+            "node_runtime_value",
+            "Node runtime",
+            detection
+                .node_runtime
+                .resolved_requirement
+                .as_ref()
+                .map(|value| format!("node@{value}")),
+            InspectorMissingFieldReason::ResolverUnsettled,
+        ),
+        source_row(
+            "node_runtime_source",
+            "Node source",
+            detection.node_runtime.winning_source,
+        ),
+        fallback_row(
+            "node_runtime_fallback",
+            "Node fallback",
+            detection
+                .node_runtime
+                .fallback_path
+                .as_ref()
+                .map(|fallback| fallback.value_token.clone()),
+        ),
+        token_row(
+            "package_manager_state",
+            "Package manager state",
+            node_resolution_state_label(detection.package_manager.resolution_state).to_owned(),
+            detection.package_manager.resolution_state.as_str(),
+        ),
+        value_or_missing_row(
+            "package_manager_value",
+            "Package manager",
+            package_manager_value(detection),
+            InspectorMissingFieldReason::ResolverUnsettled,
+        ),
+        source_row(
+            "package_manager_source",
+            "Package manager source",
+            detection.package_manager.winning_source,
+        ),
+        fallback_row(
+            "package_manager_fallback",
+            "Package manager fallback",
+            detection
+                .package_manager
+                .fallback_path
+                .as_ref()
+                .map(|fallback| fallback.value_token.clone()),
+        ),
+    ];
+
+    for (idx, ambiguity) in detection.unresolved_ambiguities.iter().enumerate() {
+        rows.push(InspectorRow {
+            row_id: format!("node_ambiguity_{idx}"),
+            label: format!(
+                "{} ambiguity",
+                node_detection_subject_label(ambiguity.subject)
+            ),
+            value: format!(
+                "{} ({})",
+                ambiguity.candidate_values.join(" vs "),
+                ambiguity.resolution_hint
+            ),
+            value_token: Some(ambiguity.candidate_values.join("|")),
+            winning_source: None,
+            conflicting_sources: Vec::new(),
+            missing_field_reason: None,
+            degraded_reason: Some(DegradedFieldReason::ConfidenceLow),
+        });
+    }
+
+    for card in &detection.provenance_cards {
+        rows.push(InspectorRow {
+            row_id: format!("node_card_{}", stable_row_suffix(&card.card_id)),
+            label: format!(
+                "{} · {}",
+                node_detection_subject_label(card.subject),
+                node_source_kind_label(card.source_kind)
+            ),
+            value: format!("{} ({})", card.summary, card.disposition.as_str()),
+            value_token: card.value_token.clone(),
+            winning_source: None,
+            conflicting_sources: Vec::new(),
+            missing_field_reason: None,
+            degraded_reason: detector_disposition_degraded_reason(card.disposition),
+        });
+    }
+
+    InspectorSection::new(InspectorSectionId::NodeToolchainDetection, rows)
+}
+
 fn project_capsule_section(capsule: &EnvironmentCapsuleRef) -> InspectorSection {
     let rows = vec![
         value_row("capsule_id", "Capsule id", capsule.capsule_id.clone()),
@@ -719,6 +838,43 @@ fn value_row(row_id: &str, label: &str, value: String) -> InspectorRow {
     }
 }
 
+fn value_or_missing_row(
+    row_id: &str,
+    label: &str,
+    value: Option<String>,
+    reason: InspectorMissingFieldReason,
+) -> InspectorRow {
+    match value {
+        Some(value) => value_row(row_id, label, value),
+        None => missing_row(row_id, label, reason),
+    }
+}
+
+fn source_row(row_id: &str, label: &str, source: Option<NodeToolchainSourceKind>) -> InspectorRow {
+    match source {
+        Some(source) => token_row(
+            row_id,
+            label,
+            node_source_kind_label(source).to_owned(),
+            source.as_str(),
+        ),
+        None => missing_row(
+            row_id,
+            label,
+            InspectorMissingFieldReason::ResolverUnsettled,
+        ),
+    }
+}
+
+fn fallback_row(row_id: &str, label: &str, value: Option<String>) -> InspectorRow {
+    value_or_missing_row(
+        row_id,
+        label,
+        value,
+        InspectorMissingFieldReason::ResolverUnsettled,
+    )
+}
+
 fn token_row(row_id: &str, label: &str, value: String, token: &str) -> InspectorRow {
     InspectorRow {
         row_id: row_id.to_owned(),
@@ -784,6 +940,76 @@ const fn toolchain_class_label(class: ToolchainClass) -> &'static str {
         ToolchainClass::AiToolRuntime => "AI tool runtime",
         ToolchainClass::LoginShell => "Login shell",
     }
+}
+
+fn package_manager_value(detection: &NodeToolchainDetection) -> Option<String> {
+    let kind = detection.package_manager.kind?;
+    Some(match &detection.package_manager.version {
+        Some(version) if !version.is_empty() => format!("{}@{version}", kind.as_str()),
+        _ => kind.as_str().to_owned(),
+    })
+}
+
+const fn node_detection_subject_label(subject: NodeToolchainSubject) -> &'static str {
+    match subject {
+        NodeToolchainSubject::NodeRuntime => "Node runtime",
+        NodeToolchainSubject::PackageManager => "Package manager",
+    }
+}
+
+const fn node_resolution_state_label(state: NodeToolchainResolutionState) -> &'static str {
+    match state {
+        NodeToolchainResolutionState::Resolved => "Resolved",
+        NodeToolchainResolutionState::Fallback => "Fallback",
+        NodeToolchainResolutionState::Missing => "Missing",
+        NodeToolchainResolutionState::Ambiguous => "Ambiguous",
+        NodeToolchainResolutionState::Unsupported => "Unsupported",
+    }
+}
+
+const fn node_source_kind_label(source: NodeToolchainSourceKind) -> &'static str {
+    match source {
+        NodeToolchainSourceKind::ExplicitOverride => "Explicit override",
+        NodeToolchainSourceKind::PackageJsonPackageManager => "package.json packageManager",
+        NodeToolchainSourceKind::PackageJsonEngines => "package.json engines",
+        NodeToolchainSourceKind::PackageJsonVolta => "package.json Volta",
+        NodeToolchainSourceKind::Nvmrc => ".nvmrc",
+        NodeToolchainSourceKind::NodeVersionFile => ".node-version",
+        NodeToolchainSourceKind::ToolVersions => ".tool-versions",
+        NodeToolchainSourceKind::MiseToml => "mise.toml",
+        NodeToolchainSourceKind::PnpmLockfile => "pnpm lockfile",
+        NodeToolchainSourceKind::NpmLockfile => "npm lockfile",
+        NodeToolchainSourceKind::UserProfileDefault => "User/profile default",
+        NodeToolchainSourceKind::AmbientPath => "Ambient PATH",
+        NodeToolchainSourceKind::DetectorFallback => "Detector fallback",
+        NodeToolchainSourceKind::UnreadableSource => "Unreadable source",
+    }
+}
+
+const fn detector_disposition_degraded_reason(
+    disposition: NodeToolchainProvenanceDisposition,
+) -> Option<DegradedFieldReason> {
+    match disposition {
+        NodeToolchainProvenanceDisposition::Fallback => {
+            Some(DegradedFieldReason::ToolchainFallback)
+        }
+        NodeToolchainProvenanceDisposition::Ambiguous => Some(DegradedFieldReason::ConfidenceLow),
+        NodeToolchainProvenanceDisposition::Unsupported => {
+            Some(DegradedFieldReason::ActivatorUnsupportedOnTarget)
+        }
+        _ => None,
+    }
+}
+
+fn stable_row_suffix(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| match ch {
+            'a'..='z' | '0'..='9' | '_' => ch,
+            'A'..='Z' => ch.to_ascii_lowercase(),
+            _ => '_',
+        })
+        .collect()
 }
 
 const fn capsule_drift_label(state: CapsuleDriftState) -> &'static str {

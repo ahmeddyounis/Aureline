@@ -3,8 +3,9 @@ use std::path::Path;
 use aureline_runtime::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
     DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
-    ExecutionContextResolverConfig, IdentityMode, ResolverInputField, ResolverInputSource,
-    ScopeClass, SurfaceClass, TargetClass, ToolchainClass, TrustState,
+    ExecutionContextResolverConfig, IdentityMode, NodeToolchainDetector,
+    NodeToolchainDetectorConfig, NodeToolchainResolutionState, ResolverInputField,
+    ResolverInputSource, ScopeClass, SurfaceClass, TargetClass, ToolchainClass, TrustState,
     EXECUTION_CONTEXT_RECORD_KIND,
 };
 
@@ -29,6 +30,21 @@ fn baseline_resolver() -> ExecutionContextResolver {
             drift_state: CapsuleDriftState::InSync,
         },
         resolver_version: "seed-0".to_owned(),
+    })
+}
+
+fn node_fixture_root(name: &str) -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/runtime/node_detection_alpha")
+        .join(name)
+}
+
+fn node_detector() -> NodeToolchainDetector {
+    NodeToolchainDetector::new(NodeToolchainDetectorConfig {
+        ambient_node_version: Some("22.11.0".to_owned()),
+        ambient_npm_version: Some("10.9.0".to_owned()),
+        ambient_pnpm_version: Some("9.15.4".to_owned()),
+        ..NodeToolchainDetectorConfig::default()
     })
 }
 
@@ -196,6 +212,101 @@ fn task_and_debug_seeds_share_the_same_inspector_section_layout() {
         debug_toolchain.value_token.as_deref(),
         Some("debug_adapter_runtime")
     );
+}
+
+#[test]
+fn node_detection_report_projects_before_task_launch() {
+    let mut resolver = baseline_resolver();
+    let context = resolver
+        .resolve(ExecutionContextRequest::task_seed(
+            "task.run.web_tests",
+            TrustState::Trusted,
+            "mono:1",
+        ))
+        .with_node_toolchain_detection(
+            node_detector()
+                .detect_workspace(&node_fixture_root("pnpm_package_manager_wins"), "mono:1"),
+        );
+
+    let snapshot = ExecutionContextInspectorSnapshot::project(&context);
+    assert!(snapshot.honesty_marker_present);
+
+    let section_ids: Vec<_> = snapshot
+        .sections
+        .iter()
+        .map(|section| section.section_id)
+        .collect();
+    assert!(section_ids.contains(&InspectorSectionId::NodeToolchainDetection));
+
+    let node = snapshot
+        .section(InspectorSectionId::NodeToolchainDetection)
+        .expect("node detector section");
+    let runtime = node
+        .rows
+        .iter()
+        .find(|row| row.row_id == "node_runtime_value")
+        .expect("node runtime row");
+    assert_eq!(runtime.value, "node@22.11.0");
+
+    let package_manager = node
+        .rows
+        .iter()
+        .find(|row| row.row_id == "package_manager_value")
+        .expect("package manager row");
+    assert_eq!(package_manager.value, "pnpm@9.15.4");
+
+    let package_state = node
+        .rows
+        .iter()
+        .find(|row| row.row_id == "package_manager_state")
+        .expect("package manager state row");
+    assert_eq!(
+        package_state.value_token.as_deref(),
+        Some(NodeToolchainResolutionState::Resolved.as_str())
+    );
+    assert!(
+        context.degraded_fields.is_empty(),
+        "a visible fallback card does not downgrade an otherwise resolved selection"
+    );
+
+    assert!(node.rows.iter().any(|row| {
+        row.value.contains("package.json packageManager")
+            && row.value.contains("winning")
+            && row.value_token.as_deref() == Some("pnpm@9.15.4")
+    }));
+}
+
+#[test]
+fn node_detection_ambiguity_stays_visible_in_inspector() {
+    let mut resolver = baseline_resolver();
+    let context = resolver
+        .resolve(ExecutionContextRequest::task_seed(
+            "task.run.web_tests",
+            TrustState::Trusted,
+            "mono:1",
+        ))
+        .with_node_toolchain_detection(
+            node_detector().detect_workspace(&node_fixture_root("ambiguous_lockfiles"), "mono:1"),
+        );
+
+    let snapshot = ExecutionContextInspectorSnapshot::project(&context);
+    let node = snapshot
+        .section(InspectorSectionId::NodeToolchainDetection)
+        .expect("node detector section");
+    let package_state = node
+        .rows
+        .iter()
+        .find(|row| row.row_id == "package_manager_state")
+        .expect("package manager state row");
+    assert_eq!(
+        package_state.value_token.as_deref(),
+        Some(NodeToolchainResolutionState::Ambiguous.as_str())
+    );
+    assert!(node
+        .rows
+        .iter()
+        .any(|row| row.row_id.starts_with("node_ambiguity_")
+            && row.degraded_reason == Some(DegradedFieldReason::ConfidenceLow)));
 }
 
 #[test]

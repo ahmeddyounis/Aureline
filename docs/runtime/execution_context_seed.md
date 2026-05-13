@@ -26,6 +26,10 @@ inputs settle on a single source of truth.
   seed that mints contexts for terminal, task, and debug-prep lanes through
   the same API. The resolver is deterministic: same inputs and same
   monotonic timestamps produce the same record.
+- an optional Node/toolchain detector attachment for TS/JS launch-wedge
+  repos. The detector contract is documented in
+  [`docs/runtime/node_detector_alpha.md`](./node_detector_alpha.md) and is
+  surfaced in the shared execution-context inspector before task launch.
 
 ## Cross-tool boundary
 

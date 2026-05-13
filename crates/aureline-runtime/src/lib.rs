@@ -18,9 +18,18 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-runtime/0.0.0")]
 
+pub mod detectors;
 pub mod execution_context;
 pub mod language_hosts;
 
+pub use detectors::node::{
+    NodePackageManagerKind, NodePackageManagerRequirement, NodePackageManagerResolution,
+    NodeRuntimeResolution, NodeToolchainAmbiguity, NodeToolchainDetection, NodeToolchainDetector,
+    NodeToolchainDetectorConfig, NodeToolchainFallbackPath, NodeToolchainProvenanceCard,
+    NodeToolchainProvenanceDisposition, NodeToolchainResolutionState, NodeToolchainSourceKind,
+    NodeToolchainSubject, NODE_TOOLCHAIN_DETECTION_RECORD_KIND,
+    NODE_TOOLCHAIN_DETECTION_SCHEMA_VERSION, NODE_TOOLCHAIN_DETECTOR_VERSION,
+};
 pub use execution_context::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
     DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextRequest,
