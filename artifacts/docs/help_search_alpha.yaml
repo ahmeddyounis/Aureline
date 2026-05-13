@@ -1,0 +1,117 @@
+record_kind: docs_help_alpha_search_projection
+schema_version: 1
+projection_id: docs-help-alpha:search-and-truth
+rust_contract:
+  module: crates/aureline-shell/src/help/docs_help_alpha.rs
+  catalog_record_kind: docs_help_alpha_catalog_record
+  support_export_record_kind: docs_help_alpha_support_export_record
+canonical_inputs:
+  command_registry: artifacts/commands/command_registry_seed.yaml
+  docs_pack_contract: docs/docs/docs_pack_manifest_contract.md
+  destination_descriptors: artifacts/docs/destination_descriptor_seed.yaml
+  help_about_truth: crates/aureline-shell/src/help_about/mod.rs
+fixtures:
+  catalog: fixtures/docs/help_search_alpha/catalog.yaml
+  manifest: fixtures/docs/help_search_alpha/manifest.yaml
+  support_export: fixtures/docs/docs_help_alpha/support_export_reconstruction.yaml
+bounded_content_classes:
+  - canonical_help
+  - generated_suggestion
+  - stale_example_warning
+  - publish_boundary_handoff
+  - migration_hint
+  - service_health_note
+  - about_service_health_truth
+badge_axes:
+  source_class:
+    source_of_truth: embedded boundary source class
+    required_on:
+      - help_result
+      - about_service_row
+      - support_export_row
+  version_match_state:
+    source_of_truth: docs pack and running build identity
+    required_on:
+      - build-bound help result
+      - docs/help service row
+  freshness_class:
+    source_of_truth: docs/help truth record
+    required_on:
+      - help_result
+      - about_service_row
+      - support_export_row
+  support_class:
+    source_of_truth: row descriptor
+    required_on:
+      - help_result
+      - about_service_row
+  client_scope:
+    source_of_truth: command descriptor or descriptor row
+    required_on:
+      - help_result
+      - about_service_row
+  destination_trust_class:
+    source_of_truth: destination descriptor
+    required_on:
+      - external or local route
+  contract_state:
+    allowed_values:
+      - ready
+      - degraded
+      - local_only
+      - stale
+      - contract_mismatch
+      - policy_blocked
+      - unavailable
+  content_class:
+    allowed_values:
+      - canonical_help
+      - generated_suggestion
+      - stale_example_warning
+      - publish_boundary_handoff
+      - migration_hint
+      - service_health_note
+      - about_service_health_truth
+seeded_rows:
+  - result_id: help-result:workspace.open-folder
+    content_class: canonical_help
+    owning_command_id: cmd:workspace.open_folder
+    help_anchor_source: command_descriptor.docs_help_anchor_ref.anchor_id
+    exact_reopen_kind: command
+  - result_id: help-result:workspace.clone-repository
+    content_class: migration_hint
+    owning_command_id: cmd:workspace.clone_repository
+    exact_reopen_kind: command
+  - result_id: help-result:docs.open-in-browser
+    content_class: publish_boundary_handoff
+    owning_command_id: cmd:docs.open_in_browser
+    browser_handoff_reason: external_docs_or_runbook
+    exact_reopen_kind: browser_handoff
+  - result_id: help-result:docs-suggestion.review-before-publish
+    content_class: generated_suggestion
+    publish_boundary_state: local_review_ready
+    exact_reopen_kind: evidence_card
+  - result_id: help-result:stale-example.publish-boundary-warning
+    content_class: stale_example_warning
+    publish_boundary_state: blocked_pending_validation
+    freshness_class: stale
+    exact_reopen_kind: browser_handoff
+about_service_truth_rows:
+  - row_id: about:alpha-build-channel
+    contract_state: ready
+    destination_trust_class: local_only
+    sign_in_required: false
+  - row_id: service:local-continuity-docs-help
+    contract_state: local_only
+    offline_posture: air_gapped_local_only
+    sign_in_required: false
+  - row_id: service:external-status-feed-handoff
+    contract_state: degraded
+    browser_handoff_reason: external_docs_or_runbook
+    sign_in_required: false
+acceptance_checks:
+  - Help search query matching accepts ordered phrases and token matches without minting aliases outside the command graph.
+  - Command-backed results validate against registry command ids and docs/help anchors.
+  - Cards and support exports preserve source, source revision, display source version, freshness, support class, client scope, citation state, locale fallback, offline posture, and exact reopen refs.
+  - About and service-health rows are projected from the same descriptor vocabulary as help search and remain copyable without sign-in.
+  - Browser handoffs expose destination descriptor refs, destination trust class, browser-handoff reason, and publish-boundary state.
