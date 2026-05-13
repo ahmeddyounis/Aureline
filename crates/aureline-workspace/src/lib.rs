@@ -10,6 +10,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-workspace/0.0.0")]
 
+pub mod admission;
 pub mod entry_flows;
 pub mod generated_artifacts;
 pub mod lifecycle;
@@ -33,6 +34,19 @@ pub use lifecycle::{
 pub use entry_flows::{
     resolve_entry_flow, EntryFlowDenialCode, EntryFlowDenied, EntryFlowOutcome, EntryFlowRequest,
     EntryFlowResolved, EntryFlowTarget, EntryVerb, OpenFlowSheetClass, ResultingMode,
+};
+
+pub use admission::{
+    review_drag_drop_admission, review_entry_admission, write_admission_review_log,
+    AdmissionAction, AdmissionReviewLogError, AdmissionReviewPacket, AdmissionReviewRecordKind,
+    AdmissionReviewRequest, AdmissionSourceSurface, CertificatePosture, CleanupPosture,
+    CloneAdmissionReview, CloneAuthMode, DeliberateNonAction, DestinationCollisionClass,
+    DestinationCollisionReview, DestinationDisposition, DestinationReview,
+    DragDropAdmissionRequest, DragDropAdmissionReview, DragDropPayloadKind, FollowOnReview,
+    ImportAction, ImportAdmissionReview, ImportArtifactClass, LfsPosture, NormalizedTargetIdentity,
+    RecoveryPathClass, RecoveryPosture, RefChoice, SubmodulePosture, TargetIdentityClass,
+    TransferProgressClass, TrustAndSetupReview, WriteScopeClass, WriteScopeItem,
+    WriteScopeItemKind, WriteScopeReview, ADMISSION_REVIEW_SCHEMA_VERSION,
 };
 
 pub use save::{

@@ -80,6 +80,10 @@ use crate::save_review::{
     SaveReviewChoiceKey, SaveReviewSheetRecord,
 };
 use crate::start_center::{
+    admission_review::{
+        admission_packet_for_resolved_entry, clone_form_admission_packet,
+        compact_admission_review_lines, import_form_admission_packet,
+    },
     build_action_rows as start_center_action_rows, StartCenterPrimaryActionId,
     StartCenterRuntimeInputs, StartCenterState, START_CENTER_PRESENTATION_LABEL,
     START_CENTER_PRESENTATION_SUBTITLE,
@@ -156,11 +160,12 @@ use aureline_workspace::save::{
     StagedSaveCoordinator, StagedSaveRequest,
 };
 use aureline_workspace::{
-    resolve_entry_flow, EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb,
-    OpenFlowSheetClass, PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind,
-    RecentWorkRegistry, RecentWorkRegistryError, RecentWorkRegistryRecordKind,
-    RecentWorkTargetState, RestoreAvailability, ResultingMode, SafeRecoveryAction, TargetKind,
-    TrustState, WorkspaceLifecycleMachine, WorkspaceLifecycleState, WorkspaceRootKind,
+    resolve_entry_flow, write_admission_review_log, AdmissionReviewPacket, AdmissionSourceSurface,
+    EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb, OpenFlowSheetClass,
+    PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
+    RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
+    RestoreAvailability, ResultingMode, SafeRecoveryAction, TargetKind, TrustState,
+    WorkspaceLifecycleMachine, WorkspaceLifecycleState, WorkspaceRootKind,
 };
 
 use crate::bootstrap::appearance_golden::write_png_0rgb;
@@ -10944,6 +10949,81 @@ fn start_center_flow_tuple(
     }
 }
 
+fn entry_flow_admission_packet(
+    origin: DispatchOrigin,
+    outcome: &EntryFlowOutcome,
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+) -> Option<AdmissionReviewPacket> {
+    let EntryFlowOutcome::Resolved(resolved) = outcome else {
+        return None;
+    };
+    let target_specifier = admission_target_specifier_for(
+        resolved.entry_verb,
+        resolved.target_kind,
+        argument_provenance_map,
+    );
+    let destination = admission_destination_for(resolved.entry_verb, argument_provenance_map);
+    Some(admission_packet_for_resolved_entry(
+        admission_source_surface_for(origin),
+        resolved.entry_verb,
+        resolved.target_kind,
+        resolved.resulting_mode,
+        target_specifier,
+        destination,
+    ))
+}
+
+fn admission_source_surface_for(origin: DispatchOrigin) -> AdmissionSourceSurface {
+    match origin {
+        DispatchOrigin::StartCenter => AdmissionSourceSurface::StartCenter,
+        DispatchOrigin::CommandPalette | DispatchOrigin::KeybindingChord => {
+            AdmissionSourceSurface::CommandPalette
+        }
+    }
+}
+
+fn admission_target_specifier_for(
+    entry_verb: EntryVerb,
+    target_kind: TargetKind,
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+) -> String {
+    match entry_verb {
+        EntryVerb::Clone => {
+            clone_argument_value(argument_provenance_map, "remote_repository_ref", "git-url:")
+                .unwrap_or_else(|| target_kind.as_str().to_string())
+        }
+        EntryVerb::Import => import_source_path_from_argument_map(argument_provenance_map)
+            .or_else(|| argument_resolved_value(argument_provenance_map, "import_source_ref"))
+            .unwrap_or_else(|| target_kind.as_str().to_string()),
+        EntryVerb::Open | EntryVerb::AddRoot => {
+            argument_resolved_value(argument_provenance_map, "workspace_scope_ref")
+                .unwrap_or_else(|| target_kind.as_str().to_string())
+        }
+        EntryVerb::Restore | EntryVerb::Resume | EntryVerb::StartFromSnapshot => {
+            argument_resolved_value(argument_provenance_map, "checkpoint_ref")
+                .unwrap_or_else(|| target_kind.as_str().to_string())
+        }
+    }
+}
+
+fn admission_destination_for(
+    entry_verb: EntryVerb,
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+) -> Option<String> {
+    match entry_verb {
+        EntryVerb::Clone => {
+            clone_argument_value(argument_provenance_map, "destination_root_ref", "path:")
+        }
+        EntryVerb::Import => import_destination_from_argument_map(argument_provenance_map),
+        EntryVerb::AddRoot => {
+            argument_resolved_value(argument_provenance_map, "active_workspace_ref")
+        }
+        EntryVerb::Open | EntryVerb::Restore | EntryVerb::Resume | EntryVerb::StartFromSnapshot => {
+            None
+        }
+    }
+}
+
 fn clone_request_from_argument_map(
     argument_provenance_map: &[ArgumentProvenanceEntry],
 ) -> Result<CloneRequest, CloneError> {
@@ -10961,7 +11041,29 @@ fn clone_request_from_argument_map(
                 )
             },
         )?;
-    let request = CloneRequest::new(remote_url, expand_tilde(&destination_path));
+    let expanded_destination = expand_tilde(&destination_path);
+    let packet = clone_form_admission_packet(
+        remote_url.as_str(),
+        expanded_destination.display().to_string(),
+    );
+    if let Some(collision) = packet.collision_review.as_ref() {
+        if collision.requires_explicit_choice {
+            let actions = collision
+                .safe_actions
+                .iter()
+                .map(|action| action.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(CloneError::new(
+                CloneErrorClass::DestinationExists,
+                format!(
+                    "{}; choose one of: {actions}. Typed inputs preserved; diagnostics redacted.",
+                    collision.summary
+                ),
+            ));
+        }
+    }
+    let request = CloneRequest::new(remote_url, expanded_destination);
     request.validate()?;
     Ok(request)
 }
@@ -11062,6 +11164,11 @@ fn submit_clone_from_entry_flow(
             return true;
         }
     };
+    let admission_packet = clone_form_admission_packet(
+        request.remote_url.as_str(),
+        request.destination_path.display().to_string(),
+    );
+    record_admission_review_packet(command_runtime, &admission_packet);
 
     match clone_jobs.start(request.clone(), session.clone()) {
         Ok(operation_id) => {
@@ -11176,6 +11283,11 @@ fn submit_import_from_entry_flow(
     }
 
     let review = import_review_from_argument_map(&session.argument_provenance_map);
+    if let Some(admission_packet) =
+        import_admission_packet_from_argument_map(&session.argument_provenance_map)
+    {
+        record_admission_review_packet(command_runtime, &admission_packet);
+    }
     record_import_review_stub(command_runtime, activity_center, &session, &review);
     let status = match review.decision_class {
         ImportReviewDecisionClass::ApplyAfterPreview => {
@@ -11213,6 +11325,30 @@ fn record_import_review_stub(
     ));
 }
 
+fn record_admission_review_packet(
+    command_runtime: &mut CommandRuntimeState,
+    packet: &AdmissionReviewPacket,
+) {
+    let filename = format!(
+        "{}.json",
+        sanitize_activity_id_component(&packet.admission_review_id)
+    );
+    let path = PathBuf::from(".logs")
+        .join("admission_reviews")
+        .join(filename);
+    match write_admission_review_log(packet, path) {
+        Ok(()) => command_runtime.note_non_command_action(format!(
+            "admission review recorded - {} {} {}",
+            packet.entry_verb.as_str(),
+            packet.target_kind.as_str(),
+            packet.write_scope.write_scope_class.as_str()
+        )),
+        Err(err) => {
+            command_runtime.note_non_command_action(format!("admission review log failed - {err}"))
+        }
+    }
+}
+
 fn import_review_from_argument_map(
     argument_provenance_map: &[ArgumentProvenanceEntry],
 ) -> ImportReviewRecord {
@@ -11225,6 +11361,16 @@ fn import_review_from_argument_map(
     let source_ref = argument_resolved_value(argument_provenance_map, "import_source_ref")
         .unwrap_or_else(|| "import-source:unresolved".to_string());
     ImportReviewRecord::deferred_unresolved_source(source_ref, destination)
+}
+
+fn import_admission_packet_from_argument_map(
+    argument_provenance_map: &[ArgumentProvenanceEntry],
+) -> Option<AdmissionReviewPacket> {
+    let source_path = import_source_path_from_argument_map(argument_provenance_map)
+        .or_else(|| argument_resolved_value(argument_provenance_map, "import_source_ref"))?;
+    let destination = import_destination_from_argument_map(argument_provenance_map)
+        .unwrap_or_else(|| "labelled import staging".to_string());
+    Some(import_form_admission_packet(source_path, destination))
 }
 
 fn import_source_path_from_argument_map(
@@ -15239,6 +15385,7 @@ struct EntryFlowSheetOverlay {
     command_id: String,
     origin: DispatchOrigin,
     argument_provenance_map: Vec<ArgumentProvenanceEntry>,
+    admission_review: Option<AdmissionReviewPacket>,
     degraded_token: Option<DegradedStateToken>,
     note: Option<String>,
     clone_form: Option<CloneFlowForm>,
@@ -15278,12 +15425,47 @@ impl CloneFlowForm {
     }
 
     fn request(&self) -> Result<CloneRequest, CloneError> {
+        let packet = self.admission_review_packet().ok_or_else(|| {
+            CloneError::new(
+                CloneErrorClass::InvalidInput,
+                "remote URL and destination path are required",
+            )
+        })?;
+        if let Some(collision) = packet.collision_review.as_ref() {
+            if collision.requires_explicit_choice {
+                let actions = collision
+                    .safe_actions
+                    .iter()
+                    .map(|action| action.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Err(CloneError::new(
+                    CloneErrorClass::DestinationExists,
+                    format!(
+                        "{}; choose one of: {actions}. Typed inputs preserved; diagnostics redacted.",
+                        collision.summary
+                    ),
+                ));
+            }
+        }
         let request = CloneRequest::new(
             self.remote_url.trim().to_string(),
             expand_tilde(self.destination_path.trim()),
         );
         request.validate()?;
         Ok(request)
+    }
+
+    fn admission_review_packet(&self) -> Option<AdmissionReviewPacket> {
+        if self.remote_url.trim().is_empty() || self.destination_path.trim().is_empty() {
+            return None;
+        }
+        Some(clone_form_admission_packet(
+            self.remote_url.trim(),
+            expand_tilde(self.destination_path.trim())
+                .display()
+                .to_string(),
+        ))
     }
 
     fn argument_provenance_map(&self) -> Vec<ArgumentProvenanceEntry> {
@@ -15393,6 +15575,17 @@ impl ImportFlowForm {
         self.status_line = Some(review.status_line.clone());
         self.review_record = Some(review);
         self.applied = false;
+    }
+
+    fn admission_review_packet(&self) -> Option<AdmissionReviewPacket> {
+        if self.source_path.trim().is_empty() || self.destination_workspace_target.trim().is_empty()
+        {
+            return None;
+        }
+        Some(import_form_admission_packet(
+            self.source_path.trim(),
+            self.destination_workspace_target.trim(),
+        ))
     }
 
     fn argument_provenance_map(&self) -> Vec<ArgumentProvenanceEntry> {
@@ -15782,6 +15975,8 @@ impl ShellOverlayState {
         degraded_token: Option<DegradedStateToken>,
         note: Option<String>,
     ) -> Self {
+        let admission_review =
+            entry_flow_admission_packet(origin, &outcome, &argument_provenance_map);
         let clone_form = match &outcome {
             EntryFlowOutcome::Resolved(resolved)
                 if resolved.sheet_class == OpenFlowSheetClass::CloneRemoteTarget =>
@@ -15805,6 +16000,7 @@ impl ShellOverlayState {
                 command_id,
                 origin,
                 argument_provenance_map,
+                admission_review,
                 degraded_token,
                 note,
                 clone_form,
@@ -18004,6 +18200,31 @@ fn draw_shell_overlay(
                         cursor_y = cursor_y.saturating_add(16);
                     }
 
+                    if let Some(packet) = sheet.admission_review.as_ref() {
+                        for line in compact_admission_review_lines(packet).into_iter().take(4) {
+                            if cursor_y.saturating_add(14)
+                                > sheet_rect.bottom().saturating_sub(style.space_3)
+                            {
+                                break;
+                            }
+                            draw_text_clamped(
+                                buffer,
+                                width,
+                                height,
+                                cursor_x,
+                                cursor_y,
+                                1,
+                                &line,
+                                style.tokens.text_muted,
+                                sheet_rect
+                                    .right()
+                                    .saturating_sub(style.space_3)
+                                    .max(cursor_x),
+                            );
+                            cursor_y = cursor_y.saturating_add(16);
+                        }
+                    }
+
                     if let Some(form) = sheet.clone_form.as_ref() {
                         cursor_y = draw_clone_form_lines(
                             buffer, width, height, cursor_x, cursor_y, sheet_rect, form, style,
@@ -18372,6 +18593,26 @@ fn draw_clone_form_lines(
         y = y.saturating_add(16);
     }
 
+    if let Some(packet) = form.admission_review_packet() {
+        for line in compact_admission_review_lines(&packet).into_iter().take(5) {
+            if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                return y;
+            }
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                &line,
+                style.tokens.text_secondary,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
+    }
+
     if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
         let state = if form.running {
             "running"
@@ -18475,6 +18716,26 @@ fn draw_import_form_lines(
             max_x,
         );
         y = y.saturating_add(16);
+    }
+
+    if let Some(packet) = form.admission_review_packet() {
+        for line in compact_admission_review_lines(&packet).into_iter().take(5) {
+            if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                return y;
+            }
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                &line,
+                style.tokens.text_secondary,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
     }
 
     if let Some(record) = form.review_record.as_ref() {

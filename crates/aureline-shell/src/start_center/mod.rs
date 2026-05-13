@@ -12,6 +12,8 @@ use aureline_commands::invocation::ArgumentProvenanceEntry;
 use aureline_commands::{CommandEnablementContext, CommandRegistry, PreflightDecision};
 use serde::Deserialize;
 
+pub mod admission_review;
+
 /// Presentation label rendered for the Start Center surface.
 pub const START_CENTER_PRESENTATION_LABEL: &str = "Start Center";
 
