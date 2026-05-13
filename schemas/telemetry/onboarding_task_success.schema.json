@@ -1,0 +1,541 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/telemetry/onboarding_task_success.schema.json",
+  "title": "Aureline onboarding task-success telemetry event contract",
+  "description": "Boundary schema for opt-in onboarding task-success events and grouped captures. The record distinguishes first-run, open, clone, import, restore, and reconnect flows; carries first-useful-work timing as monotonic metadata; and records migration funnel progress through outcome counts and checkpoint refs without source content, project names, paths, URLs, terminal text, prompts, clipboard contents, or credentials.",
+  "oneOf": [
+    { "$ref": "#/$defs/onboarding_task_success_event_record" },
+    { "$ref": "#/$defs/onboarding_task_success_capture_record" }
+  ],
+  "$defs": {
+    "schema_token": {
+      "type": "string",
+      "const": "aureline.onboarding_task_success.v1"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*:[a-z0-9][a-z0-9._-]*$"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "build_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "crate_name",
+        "crate_version",
+        "rustc_target_triple"
+      ],
+      "properties": {
+        "crate_name": { "$ref": "#/$defs/non_empty_string" },
+        "crate_version": { "$ref": "#/$defs/non_empty_string" },
+        "rustc_target_triple": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "entry_flow_kind": {
+      "type": "string",
+      "enum": [
+        "first_run",
+        "open",
+        "clone",
+        "import",
+        "restore",
+        "reconnect"
+      ]
+    },
+    "entry_verb_kind": {
+      "type": "string",
+      "enum": [
+        "open_folder",
+        "open_workspace",
+        "clone_repository",
+        "import_from_external",
+        "restore_last_session",
+        "reconnect_target"
+      ]
+    },
+    "entry_route_id": {
+      "type": "string",
+      "enum": [
+        "er.start_center",
+        "er.recent_work_reopen",
+        "er.restore_prompt",
+        "er.protocol_handler_reentry",
+        "er.clone_or_import",
+        "er.plain_open",
+        "er.workspace_switch",
+        "er.warm_start"
+      ]
+    },
+    "measurement_surface": {
+      "type": "string",
+      "enum": [
+        "surface_first_run",
+        "surface_first_open",
+        "surface_first_useful_edit",
+        "surface_migration_review",
+        "surface_restore_success",
+        "surface_opt_in_boundary",
+        "surface_reconnect"
+      ]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_folder",
+        "workspace_file",
+        "local_file",
+        "remote_workspace",
+        "managed_workspace",
+        "import_packet",
+        "unknown"
+      ]
+    },
+    "entry_flow_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_kind",
+        "entry_verb",
+        "entry_route_id",
+        "measurement_surface",
+        "target_kind",
+        "deployment_profile_id"
+      ],
+      "properties": {
+        "flow_kind": { "$ref": "#/$defs/entry_flow_kind" },
+        "entry_verb": { "$ref": "#/$defs/entry_verb_kind" },
+        "entry_route_id": { "$ref": "#/$defs/entry_route_id" },
+        "measurement_surface": { "$ref": "#/$defs/measurement_surface" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque target identity. Raw file paths, repository names, hostnames, and URLs are forbidden."
+        },
+        "deployment_profile_id": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "event_name": {
+      "type": "string",
+      "enum": [
+        "first_run_reached",
+        "first_run_entry_route_selected",
+        "first_run_admitted",
+        "entry_verb_resolved",
+        "admission_decided",
+        "first_open_completed",
+        "first_useful_navigation_reached",
+        "first_useful_edit_durable",
+        "migration_dry_run_produced",
+        "migration_outcome_recorded",
+        "migration_applied",
+        "migration_rolled_back",
+        "migration_rollback_checkpoint_written",
+        "migration_rollback_checkpoint_restored",
+        "restore_prompt_presented",
+        "restore_level_delivered",
+        "restore_completed",
+        "reconnect_prompt_presented",
+        "reconnect_completed",
+        "reconnect_failed"
+      ]
+    },
+    "event_phase": {
+      "type": "string",
+      "enum": [
+        "intent",
+        "admission",
+        "useful_work",
+        "migration_review",
+        "restore",
+        "reconnect",
+        "completion"
+      ]
+    },
+    "completion_checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "first_useful_navigation",
+        "first_useful_edit",
+        "migration_committed_with_per_item_outcomes",
+        "restore_level_delivered",
+        "decline_continued_without_degradation",
+        "reconnect_delivered"
+      ]
+    },
+    "completion_class": {
+      "type": "string",
+      "enum": [
+        "completed_first_useful_edit",
+        "completed_first_useful_navigation_only",
+        "completed_with_advertised_narrowing",
+        "completed_migration_committed_per_item",
+        "completed_restore_level_delivered",
+        "completed_decline_without_degradation",
+        "completed_reconnect_delivered",
+        "aborted_before_admission",
+        "abandoned_after_admission",
+        "failed_with_typed_blocker"
+      ]
+    },
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed",
+        "partial",
+        "blocked",
+        "abandoned",
+        "failed",
+        "denied",
+        "restored",
+        "rolled_back"
+      ]
+    },
+    "first_useful_work_target_surface": {
+      "type": "string",
+      "enum": [
+        "editor_with_root_discovery_cues",
+        "tree_plus_readme_or_changed_files",
+        "post_clone_handoff",
+        "review_or_work_item_anchor",
+        "prior_layout_with_placeholders",
+        "restore_or_compare_sheet",
+        "migration_center_before_commit",
+        "prebuild_setup_envelope",
+        "locate_missing_target_prompt"
+      ]
+    },
+    "semantic_warmup_state": {
+      "type": "string",
+      "enum": [
+        "before_semantic_warmup",
+        "after_semantic_warmup",
+        "semantic_warmup_not_applicable"
+      ]
+    },
+    "first_useful_work_timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_started_tick",
+        "reached_tick",
+        "duration_ticks",
+        "target_surface",
+        "semantic_warmup_state",
+        "raw_project_content_captured"
+      ],
+      "properties": {
+        "intent_started_tick": { "type": "integer", "minimum": 0 },
+        "reached_tick": { "type": "integer", "minimum": 0 },
+        "duration_ticks": { "type": "integer", "minimum": 0 },
+        "target_surface": { "$ref": "#/$defs/first_useful_work_target_surface" },
+        "semantic_warmup_state": { "$ref": "#/$defs/semantic_warmup_state" },
+        "raw_project_content_captured": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "migration_source_kind": {
+      "type": "string",
+      "enum": [
+        "vs_code",
+        "jetbrains_family",
+        "vim_or_neovim",
+        "emacs",
+        "sublime_textmate",
+        "prior_aureline",
+        "portable_profile_bundle",
+        "support_recovery_bundle",
+        "workflow_bundle_handoff",
+        "generic_import"
+      ]
+    },
+    "migration_funnel_step": {
+      "type": "string",
+      "enum": [
+        "source_selected",
+        "dry_run_produced",
+        "per_item_outcomes_recorded",
+        "checkpoint_written",
+        "applied",
+        "rolled_back",
+        "post_import_validated"
+      ]
+    },
+    "dry_run_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "required",
+        "produced",
+        "skipped",
+        "failed"
+      ]
+    },
+    "rollback_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "available",
+        "restored",
+        "missing",
+        "failed"
+      ]
+    },
+    "migration_outcome_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported",
+        "total_items"
+      ],
+      "properties": {
+        "imported": { "type": "integer", "minimum": 0 },
+        "mapped": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "manual_review": { "type": "integer", "minimum": 0 },
+        "bridge_required": { "type": "integer", "minimum": 0 },
+        "unsupported": { "type": "integer", "minimum": 0 },
+        "total_items": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "migration_funnel_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migration_session_ref",
+        "source_kind",
+        "step",
+        "dry_run_state",
+        "rollback_state",
+        "outcome_counts"
+      ],
+      "properties": {
+        "migration_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_kind": { "$ref": "#/$defs/migration_source_kind" },
+        "step": { "$ref": "#/$defs/migration_funnel_step" },
+        "dry_run_state": { "$ref": "#/$defs/dry_run_state" },
+        "rollback_state": { "$ref": "#/$defs/rollback_state" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "outcome_counts": { "$ref": "#/$defs/migration_outcome_counts" },
+        "parity_scorecard_ref": { "$ref": "#/$defs/opaque_ref" },
+        "migration_report_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "failure_category": {
+      "type": "string",
+      "enum": [
+        "forced_sign_in_before_useful_local_work",
+        "network_required_for_local_entry",
+        "admission_denied_policy",
+        "admission_denied_trust",
+        "resulting_mode_silently_downgraded",
+        "editor_blocked_on_index_warmup",
+        "save_blocked_on_service",
+        "dry_run_skipped",
+        "outcome_aggregated_not_per_item",
+        "rollback_checkpoint_missing",
+        "restore_level_promised_higher_than_delivered",
+        "missing_target_state_silently_dropped",
+        "silent_mutating_command_replay",
+        "reconnect_target_unavailable",
+        "reconnect_requires_reauth",
+        "reconnect_policy_blocked"
+      ]
+    },
+    "telemetry_consent_state": {
+      "type": "string",
+      "enum": [
+        "off_by_default_no_emission_until_consent",
+        "opt_in_enabled",
+        "local_only_capture"
+      ]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "privacy_local_only_no_emission",
+        "privacy_opt_in_aggregate_only",
+        "privacy_opt_in_attributable"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default"
+      ]
+    },
+    "export_posture": {
+      "type": "string",
+      "enum": [
+        "excluded_by_default",
+        "design_partner_opt_in",
+        "support_export_on_request"
+      ]
+    },
+    "prohibited_content_class": {
+      "type": "string",
+      "enum": [
+        "raw_project_content",
+        "raw_repo_name",
+        "file_path",
+        "raw_url",
+        "prompt_text",
+        "terminal_text",
+        "clipboard_content",
+        "credential_or_secret"
+      ]
+    },
+    "privacy_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consent_state",
+        "privacy_class",
+        "redaction_class",
+        "export_posture",
+        "prohibited_content_classes",
+        "contains_raw_project_content"
+      ],
+      "properties": {
+        "consent_state": { "$ref": "#/$defs/telemetry_consent_state" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "prohibited_content_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/prohibited_content_class" }
+        },
+        "contains_raw_project_content": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "onboarding_task_success_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "schema_version",
+        "record_kind",
+        "event_id",
+        "trace_id",
+        "session_ref",
+        "build",
+        "occurred_tick",
+        "entry",
+        "event_name",
+        "event_phase",
+        "outcome_class",
+        "privacy",
+        "evidence_refs"
+      ],
+      "properties": {
+        "schema": { "$ref": "#/$defs/schema_token" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "onboarding_task_success_event_record"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_ref" },
+        "trace_id": { "$ref": "#/$defs/opaque_ref" },
+        "session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "build": { "$ref": "#/$defs/build_identity_record" },
+        "occurred_tick": { "type": "integer", "minimum": 0 },
+        "entry": { "$ref": "#/$defs/entry_flow_descriptor" },
+        "event_name": { "$ref": "#/$defs/event_name" },
+        "event_phase": { "$ref": "#/$defs/event_phase" },
+        "completion_checkpoint_class": { "$ref": "#/$defs/completion_checkpoint_class" },
+        "completion_class": { "$ref": "#/$defs/completion_class" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "first_useful_work": { "$ref": "#/$defs/first_useful_work_timing" },
+        "migration_funnel": { "$ref": "#/$defs/migration_funnel_record" },
+        "failure_category": { "$ref": "#/$defs/failure_category" },
+        "privacy": { "$ref": "#/$defs/privacy_envelope" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "capture_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observed_flow_kinds",
+        "distinct_entry_verbs",
+        "first_useful_work_timing_count",
+        "migration_funnel_event_count",
+        "design_partner_proof_ready"
+      ],
+      "properties": {
+        "observed_flow_kinds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/entry_flow_kind" }
+        },
+        "distinct_entry_verbs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/entry_verb_kind" }
+        },
+        "first_useful_work_timing_count": { "type": "integer", "minimum": 0 },
+        "migration_funnel_event_count": { "type": "integer", "minimum": 0 },
+        "design_partner_proof_ready": { "type": "boolean" }
+      }
+    },
+    "onboarding_task_success_capture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "schema_version",
+        "record_kind",
+        "capture_id",
+        "generated_at",
+        "build",
+        "privacy",
+        "events",
+        "summary",
+        "evidence_refs"
+      ],
+      "properties": {
+        "schema": { "$ref": "#/$defs/schema_token" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "onboarding_task_success_capture_record"
+        },
+        "capture_id": { "$ref": "#/$defs/opaque_ref" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "build": { "$ref": "#/$defs/build_identity_record" },
+        "privacy": { "$ref": "#/$defs/privacy_envelope" },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/onboarding_task_success_event_record" }
+        },
+        "summary": { "$ref": "#/$defs/capture_summary" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    }
+  }
+}
