@@ -8,6 +8,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-language/0.0.0")]
 
+pub mod code_actions;
 pub mod diagnostics;
 pub mod invalidation;
 pub mod lsp_router;
@@ -16,6 +17,23 @@ pub mod symbol_snapshot;
 pub mod tree_sitter;
 pub mod tsjs;
 
+pub use code_actions::{
+    ActionClass as CodeActionClass, ApplyPostureClass as CodeActionApplyPostureClass,
+    BlockingReasonClass as CodeActionBlockingReasonClass, CodeActionAdmissionRecord,
+    CodeActionAlphaAggregateCounts, CodeActionAlphaSchemaVersion, CodeActionAlphaSnapshot,
+    CodeActionCatalog, CodeActionContentIntegrityReview, CodeActionContractError,
+    CodeActionEpochBinding, CodeActionEpochRoleClass, CodeActionFreshnessClass,
+    CodeActionMutationCounts, CodeActionPolicyContext, CodeActionProviderDescriptor,
+    CodeActionRecord, CodeActionSafetyClass, CodeActionSideEffectClass, CodeActionSnapshotRequest,
+    CodeActionSourceKindClass, CodeActionSupportClass, CodeActionSurfaceClass,
+    CodeActionSurfaceProjection, CodeActionTrustState, CodeActionUndoGroup,
+    CodeActionValidationPlan, MutationScopeClass as CodeActionMutationScopeClass,
+    PreviewRequirementClass as CodeActionPreviewRequirementClass,
+    ReplayHintClass as CodeActionReplayHintClass,
+    SemanticLayerStateClass as CodeActionSemanticLayerStateClass,
+    UndoReversalClass as CodeActionUndoReversalClass,
+    ValidationHintClass as CodeActionValidationHintClass, CODE_ACTION_ALPHA_SCHEMA_VERSION,
+};
 pub use diagnostics::{
     DiagnosticAnchor, DiagnosticAnchorRemapStateClass, DiagnosticBus, DiagnosticBusAggregateCounts,
     DiagnosticBusSchemaVersion, DiagnosticBusSnapshot, DiagnosticBusSnapshotRequest,
