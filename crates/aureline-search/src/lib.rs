@@ -20,6 +20,9 @@
 //! - [`hot_set::HotSetPlan`] records why a file or symbol is hot, which cold
 //!   paths were deferred, and which fallback was used when hot inputs were not
 //!   available.
+//! - [`planner::SearchPlannerAlpha`] chooses lexical, structural, cached, or
+//!   graph-backed paths for quick open, file search, and symbol search while
+//!   preserving explicit fallback explanations.
 //! - [`lexical::ScopeClass`] mirrors the
 //!   [`aureline_workspace::ScopeClass`] so the search shell projects scope
 //!   chips through the same vocabulary the workset surface uses.
@@ -33,6 +36,8 @@
 pub mod hot_set;
 pub mod index_scheduler;
 pub mod lexical;
+pub mod planner;
+pub mod query_session;
 pub mod results;
 pub mod scope;
 
@@ -50,6 +55,19 @@ pub use lexical::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalSearchResults, LexicalShell,
     LexicalShellSnapshot, MatchKind, ReadinessClass, ResultGroup, ResultRow, ScopeClass,
     SourceClass, MAX_RESULTS_PER_GROUP,
+};
+
+pub use planner::{
+    PlannedResultSet, PlannedSearchResult, PlannerCandidate, PlannerContribution, PlannerDataPath,
+    PlannerFreshnessClass, PlannerPassRecord, PlannerPathDecision, PlannerPathDecisionClass,
+    PlannerPathReadiness, PlannerPathSnapshot, PlannerRankingReason, PlannerResultExplanation,
+    PlannerResultTruthClass, PlannerTargetKind, PlannerUnavailableReason, SearchPlannerAlpha,
+    SearchPlannerInputs, SearchPlannerOutput, SemanticFallbackState, SEARCH_PLANNER_ALPHA_VERSION,
+};
+
+pub use query_session::{
+    stable_query_hash, QueryTextMode, SearchQuerySession, SearchSurface,
+    SEARCH_QUERY_SESSION_SCHEMA_VERSION,
 };
 
 pub use results::{
