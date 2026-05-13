@@ -9,6 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use aureline_commands::invocation::now_rfc3339;
+use aureline_git::{BranchState, GitServiceState, GitStatusSnapshot};
 use aureline_vfs::WatcherHealth;
 use aureline_workspace::{
     TrustState as WorkspaceTrustState, WorkspaceLifecycleMachine,
@@ -25,6 +26,8 @@ pub struct TitleContextBarRuntimeInputs<'a> {
     pub workspace_label: Option<&'a str>,
     /// Workspace root path when a local workspace is active.
     pub workspace_root: Option<&'a Path>,
+    /// Canonical Git status snapshot supplied by the Git service, when available.
+    pub git_status_snapshot: Option<&'a GitStatusSnapshot>,
     /// Workspace lifecycle machine snapshot when an active workspace exists.
     pub workspace_lifecycle: Option<&'a WorkspaceLifecycleMachine>,
     /// Current trust posture token (`trusted`, `restricted`, ...).
@@ -69,6 +72,7 @@ impl TitleContextBarRuntimeState {
             record: materialize_identity_tuple(TitleContextBarRuntimeInputs {
                 workspace_label: None,
                 workspace_root: None,
+                git_status_snapshot: None,
                 workspace_lifecycle: None,
                 workspace_trust_state_token: "trusted",
             }),
@@ -152,14 +156,7 @@ fn materialize_identity_tuple(
 ) -> TitleContextBarStateRecord {
     let now = now_rfc3339();
 
-    let (
-        workspace_ref,
-        workspace_label,
-        workspace_kind,
-        lifecycle_state,
-        root_readiness,
-        ready_root_count,
-    ) = match inputs.workspace_lifecycle {
+    let (workspace_ref, workspace_label, lifecycle_state) = match inputs.workspace_lifecycle {
         Some(machine) => {
             let workspace_ref =
                 sanitize_or_fallback_opaque_id(machine.workspace_id(), "workspace.unknown");
@@ -169,17 +166,7 @@ fn materialize_identity_tuple(
                 .trim()
                 .to_string();
             let lifecycle_state = workspace_lifecycle_state_token(machine.state());
-
-            let (workspace_kind, root_readiness, ready_root_count) =
-                classify_workspace_kind(inputs.workspace_root);
-            (
-                workspace_ref,
-                label,
-                workspace_kind,
-                lifecycle_state,
-                root_readiness,
-                ready_root_count,
-            )
+            (workspace_ref, label, lifecycle_state)
         }
         None => (
             "workspace.empty_shell".to_string(),
@@ -188,28 +175,26 @@ fn materialize_identity_tuple(
                 .unwrap_or("Start Center")
                 .trim()
                 .to_string(),
-            WorkspaceKind::EmptyShell,
             WorkspaceLifecycleState::WorkspaceClosed,
-            RootReadinessClass::NotApplicable,
-            0,
         ),
     };
 
+    let git_snapshot = inputs.git_status_snapshot;
+    let (workspace_kind, root_readiness, ready_root_count) =
+        classify_workspace_kind(inputs.workspace_root, git_snapshot);
+
     let (repo_identity, host_identity) = match inputs.workspace_root {
-        Some(root) => {
-            let git = discover_git_identity(root);
-            (
-                repo_identity_from_git(&workspace_ref, git.as_ref()),
-                HostIdentity {
-                    host_class: HostClass::Local,
-                    host_state: HostStateClass::Ready,
-                    target_ref: Some("target.local.desktop".to_string()),
-                    target_label: Some("Local".to_string()),
-                    boundary_note: "Local workspace identity is derived from the active root."
-                        .to_string(),
-                },
-            )
-        }
+        Some(_) => (
+            repo_identity_from_git_status(&workspace_ref, git_snapshot),
+            HostIdentity {
+                host_class: HostClass::Local,
+                host_state: HostStateClass::Ready,
+                target_ref: Some("target.local.desktop".to_string()),
+                target_label: Some("Local".to_string()),
+                boundary_note: "Local workspace identity is derived from the active root."
+                    .to_string(),
+            },
+        ),
         None => (
             RepoIdentity::not_applicable(),
             HostIdentity {
@@ -815,7 +800,10 @@ fn push_unique(tokens: &mut Vec<DegradedStateToken>, token: DegradedStateToken) 
     tokens.push(token);
 }
 
-fn classify_workspace_kind(root: Option<&Path>) -> (WorkspaceKind, RootReadinessClass, i64) {
+fn classify_workspace_kind(
+    root: Option<&Path>,
+    git_snapshot: Option<&GitStatusSnapshot>,
+) -> (WorkspaceKind, RootReadinessClass, i64) {
     let Some(root) = root else {
         return (
             WorkspaceKind::EmptyShell,
@@ -832,8 +820,10 @@ fn classify_workspace_kind(root: Option<&Path>) -> (WorkspaceKind, RootReadiness
         );
     }
 
-    let git_root = find_git_root(root);
-    if git_root.is_some_and(|git_root| git_root == root) {
+    if git_snapshot
+        .and_then(|snapshot| snapshot.repository.as_ref())
+        .is_some_and(|repo| repo.repo_root.as_path() == root)
+    {
         return (
             WorkspaceKind::LocalRepoRoot,
             RootReadinessClass::SingleRootReady,
@@ -847,142 +837,79 @@ fn classify_workspace_kind(root: Option<&Path>) -> (WorkspaceKind, RootReadiness
     )
 }
 
-#[derive(Debug, Clone)]
-struct GitIdentity {
-    repo_label: String,
-    branch: Option<String>,
-    head_short_sha: Option<String>,
-    detached: bool,
-}
-
-fn discover_git_identity(root: &Path) -> Option<GitIdentity> {
-    let git_root = find_git_root(root)?;
-    let git_dir = resolve_git_dir(&git_root)?;
-    let head_path = git_dir.join("HEAD");
-    let head = std::fs::read_to_string(head_path).ok()?;
-    let head = head.trim();
-
-    let repo_label = git_root
-        .file_name()
-        .map(|os| os.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "repository".to_string());
-
-    if let Some(ref_path) = head.strip_prefix("ref:") {
-        let ref_path = ref_path.trim();
-        let branch = ref_path.rsplit('/').next().map(|s| s.to_string());
-        let sha =
-            read_ref_or_packed(&git_dir, ref_path).or_else(|| read_packed_ref(&git_dir, ref_path));
-        let head_short_sha = sha.as_deref().map(|s| short_sha(s));
-        return Some(GitIdentity {
-            repo_label,
-            branch,
-            head_short_sha,
-            detached: false,
-        });
-    }
-
-    let head_short_sha = (!head.is_empty()).then_some(short_sha(head));
-    Some(GitIdentity {
-        repo_label,
-        branch: None,
-        head_short_sha,
-        detached: true,
-    })
-}
-
-fn find_git_root(start: &Path) -> Option<PathBuf> {
-    let mut cursor = start;
-    loop {
-        if cursor.join(".git").exists() {
-            return Some(cursor.to_path_buf());
-        }
-        cursor = cursor.parent()?;
-    }
-}
-
-fn resolve_git_dir(root: &Path) -> Option<PathBuf> {
-    let dot_git = root.join(".git");
-    if dot_git.is_dir() {
-        return Some(dot_git);
-    }
-    let payload = std::fs::read_to_string(&dot_git).ok()?;
-    let payload = payload.trim();
-    let rest = payload.strip_prefix("gitdir:")?.trim();
-    let path = PathBuf::from(rest);
-    Some(if path.is_absolute() {
-        path
-    } else {
-        root.join(path)
-    })
-}
-
-fn read_ref_or_packed(git_dir: &Path, ref_path: &str) -> Option<String> {
-    let path = git_dir.join(ref_path);
-    let payload = std::fs::read_to_string(path).ok()?;
-    Some(payload.trim().to_string())
-}
-
-fn read_packed_ref(git_dir: &Path, ref_path: &str) -> Option<String> {
-    let packed = git_dir.join("packed-refs");
-    let payload = std::fs::read_to_string(packed).ok()?;
-    for line in payload.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') || line.starts_with('^') {
-            continue;
-        }
-        let mut parts = line.split_whitespace();
-        let sha = parts.next()?;
-        let name = parts.next()?;
-        if name == ref_path {
-            return Some(sha.to_string());
-        }
-    }
-    None
-}
-
-fn short_sha(value: &str) -> String {
-    value
-        .chars()
-        .filter(|ch| ch.is_ascii_hexdigit())
-        .take(7)
-        .collect()
-}
-
-fn repo_identity_from_git(workspace_ref: &str, git: Option<&GitIdentity>) -> RepoIdentity {
-    let Some(git) = git else {
+fn repo_identity_from_git_status(
+    workspace_ref: &str,
+    snapshot: Option<&GitStatusSnapshot>,
+) -> RepoIdentity {
+    let Some(snapshot) = snapshot else {
         return RepoIdentity::not_applicable();
     };
 
-    if git.detached {
+    let Some(repo) = snapshot.repository.as_ref() else {
+        if matches!(
+            snapshot.service_state,
+            GitServiceState::GitUnavailable | GitServiceState::RefreshFailed
+        ) {
+            return RepoIdentity {
+                repo_state_class: RepoStateClass::MetadataMissing,
+                repo_ref: Some(format!("repo.local.{workspace_ref}")),
+                repo_label: None,
+                branch_label: None,
+                branch_ref: None,
+                revision_ref: None,
+                repo_detail_refs: snapshot
+                    .degraded_reason
+                    .as_ref()
+                    .map(|reason| {
+                        vec![format!(
+                            "git.status.degraded.{}",
+                            sanitize_opaque_id(reason)
+                        )]
+                    })
+                    .unwrap_or_default(),
+            };
+        }
+        return RepoIdentity::not_applicable();
+    };
+
+    if snapshot.head.state == BranchState::Detached {
         return RepoIdentity {
             repo_state_class: RepoStateClass::DetachedHead,
-            repo_ref: Some(format!("repo.local.{workspace_ref}")),
-            repo_label: Some(git.repo_label.clone()),
+            repo_ref: Some(repo.repo_ref.clone()),
+            repo_label: Some(repo.repo_label.clone()),
             branch_label: None,
             branch_ref: None,
-            revision_ref: git
-                .head_short_sha
+            revision_ref: snapshot
+                .head
+                .head_short_oid
                 .as_deref()
                 .map(|sha| format!("git.rev.{sha}")),
-            repo_detail_refs: Vec::new(),
+            repo_detail_refs: vec![format!(
+                "worktree.ref.{}",
+                sanitize_opaque_id(&repo.worktree_ref)
+            )],
         };
     }
 
-    let branch_label = git.branch.clone();
+    let branch_label = snapshot.head.branch_label.clone();
     let branch_ref = branch_label
         .as_deref()
         .map(|branch| format!("git.branch.{}", sanitize_opaque_id(branch)));
     RepoIdentity {
         repo_state_class: RepoStateClass::AttachedSingleRepo,
-        repo_ref: Some(format!("repo.local.{workspace_ref}")),
-        repo_label: Some(git.repo_label.clone()),
+        repo_ref: Some(repo.repo_ref.clone()),
+        repo_label: Some(repo.repo_label.clone()),
         branch_label,
         branch_ref,
-        revision_ref: git
-            .head_short_sha
+        revision_ref: snapshot
+            .head
+            .head_short_oid
             .as_deref()
             .map(|sha| format!("git.rev.{sha}")),
-        repo_detail_refs: Vec::new(),
+        repo_detail_refs: vec![format!(
+            "worktree.ref.{}",
+            sanitize_opaque_id(&repo.worktree_ref)
+        )],
     }
 }
 
@@ -1641,7 +1568,74 @@ pub enum RedactionClass {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aureline_git::{ChangeDiscovery, ChangeSummary, HeadIdentity, RepositoryIdentity};
     use std::path::Path;
+
+    #[test]
+    fn title_context_bar_projects_repo_identity_from_git_status_snapshot() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let snapshot = GitStatusSnapshot {
+            record_kind: "git_status_snapshot".to_string(),
+            schema_version: 1,
+            service_ref: "service.git.status.alpha".to_string(),
+            workspace_ref: "workspace.test".to_string(),
+            requested_root: root.path().to_path_buf(),
+            repository: Some(RepositoryIdentity {
+                repo_ref: "repo.local.test".to_string(),
+                worktree_ref: "worktree.local.test".to_string(),
+                repo_label: "project".to_string(),
+                repo_root: root.path().to_path_buf(),
+                git_dir: root.path().join(".git"),
+                common_dir: root.path().join(".git"),
+            }),
+            head: HeadIdentity {
+                state: BranchState::Attached,
+                branch_label: Some("main".to_string()),
+                branch_ref: Some("refs/heads/main".to_string()),
+                head_oid: Some("abcdef0123456789abcdef0123456789abcdef01".to_string()),
+                head_short_oid: Some("abcdef0".to_string()),
+                upstream: None,
+                ahead: None,
+                behind: None,
+            },
+            service_state: GitServiceState::Current,
+            degraded_reason: None,
+            discovery: ChangeDiscovery {
+                status_available: true,
+                branch_identity_available: true,
+                change_list_available: true,
+                current_claim_narrowed: false,
+                coverage_label: "current status with 0 changed path(s)".to_string(),
+            },
+            change_summary: ChangeSummary::default(),
+            changes: Vec::new(),
+            consumer_refs: Vec::new(),
+            observed_at: "test:now".to_string(),
+        };
+
+        let record = materialize_identity_tuple(TitleContextBarRuntimeInputs {
+            workspace_label: Some("Project"),
+            workspace_root: Some(root.path()),
+            git_status_snapshot: Some(&snapshot),
+            workspace_lifecycle: None,
+            workspace_trust_state_token: "trusted",
+        });
+
+        assert_eq!(
+            record.workspace_identity.workspace_kind,
+            WorkspaceKind::LocalRepoRoot
+        );
+        assert_eq!(
+            record.repo_identity.repo_state_class,
+            RepoStateClass::AttachedSingleRepo
+        );
+        assert_eq!(record.repo_identity.repo_label.as_deref(), Some("project"));
+        assert_eq!(record.repo_identity.branch_label.as_deref(), Some("main"));
+        assert_eq!(
+            record.repo_identity.revision_ref.as_deref(),
+            Some("git.rev.abcdef0")
+        );
+    }
 
     #[test]
     fn title_context_bar_example_fixtures_parse_and_project_required_surfaces() {

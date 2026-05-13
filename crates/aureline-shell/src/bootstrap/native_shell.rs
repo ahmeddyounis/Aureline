@@ -14,6 +14,8 @@ use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use aureline_git::{GitStatusRequest, GitStatusService, GitStatusSnapshot};
+
 use crate::a11y::shell_bridge::{
     materialize_shell_accessibility_tree, write_shell_accessibility_tree_log,
     ShellA11yEnablementContext,
@@ -1095,6 +1097,8 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let (default_width, default_height) = (1920.0, 1080.0);
     let (window_width, window_height) = args.window_size.unwrap_or((default_width, default_height));
     let mut title_context_bar = TitleContextBarRuntimeState::new();
+    let git_status_service = GitStatusService::default();
+    let mut git_status_cache = NativeShellGitStatusCache::default();
     let window = WinitWindow::new(
         &event_loop,
         window_title(title_context_bar.record()),
@@ -1460,9 +1464,18 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 .machine
                 .as_ref()
                 .and_then(|_| palette.workspace_root());
+            let git_status_snapshot = git_status_cache.snapshot_for(
+                workspace_lifecycle
+                    .machine
+                    .as_ref()
+                    .map(|machine| machine.workspace_id()),
+                workspace_root,
+                &git_status_service,
+            );
             if title_context_bar.update(TitleContextBarRuntimeInputs {
                 workspace_label: recent_work.active_workspace_label(),
                 workspace_root,
+                git_status_snapshot,
                 workspace_lifecycle: workspace_lifecycle.machine.as_ref(),
                 workspace_trust_state_token: enablement_runtime.workspace_trust_state.as_str(),
             }) {
@@ -2201,6 +2214,41 @@ fn window_title(title_context: &TitleContextBarStateRecord) -> String {
         .native_window_title_label()
         .unwrap_or("Start Center");
     format!("Aureline — {core} ({})", identity.commit_short)
+}
+
+#[derive(Debug, Default)]
+struct NativeShellGitStatusCache {
+    root: Option<PathBuf>,
+    workspace_ref: Option<String>,
+    snapshot: Option<GitStatusSnapshot>,
+}
+
+impl NativeShellGitStatusCache {
+    fn snapshot_for(
+        &mut self,
+        workspace_ref: Option<&str>,
+        root: Option<&Path>,
+        service: &GitStatusService,
+    ) -> Option<&GitStatusSnapshot> {
+        let Some(root) = root else {
+            self.root = None;
+            self.workspace_ref = None;
+            self.snapshot = None;
+            return None;
+        };
+        let workspace_ref = workspace_ref
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or("workspace.unknown");
+        let needs_refresh = self.root.as_deref() != Some(root)
+            || self.workspace_ref.as_deref() != Some(workspace_ref);
+        if needs_refresh {
+            let request = GitStatusRequest::with_observed_at(workspace_ref, root, now_rfc3339());
+            self.snapshot = Some(service.snapshot(&request));
+            self.root = Some(root.to_path_buf());
+            self.workspace_ref = Some(workspace_ref.to_string());
+        }
+        self.snapshot.as_ref()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
