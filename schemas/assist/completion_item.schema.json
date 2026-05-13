@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/assist/completion_item.schema.json",
+  "title": "Aureline editor assist completion, signature-help, and snippet-session contract",
+  "description": "Boundary schema for editor typing assistance. Completion items, completion-list snapshots, signature-help cards, snippet-session strips, snippet key outcomes, and combined assist surface snapshots preserve source labels, provider freshness, fallback state, snippet-session visibility, escape routes, and side-effect disclosure. Raw provider payloads, raw logs, raw absolute paths, raw URLs, secrets, and unreviewed broad-edit payloads never cross this boundary; records carry typed state, opaque refs, labels, counts, and export-safe summaries.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/assist_completion_item_record" },
+    { "$ref": "#/$defs/assist_completion_list_snapshot" },
+    { "$ref": "#/$defs/assist_signature_help_record" },
+    { "$ref": "#/$defs/assist_snippet_session_record" },
+    { "$ref": "#/$defs/assist_snippet_key_outcome_record" },
+    { "$ref": "#/$defs/assist_surface_snapshot_record" }
+  ],
+  "$defs": {
+    "assist_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_ref": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640
+    },
+    "assist_source_family": {
+      "type": "string",
+      "enum": [
+        "language_server",
+        "fallback_lexical",
+        "snippet",
+        "project_graph",
+        "framework_pack",
+        "ai_assist",
+        "tool_adapter"
+      ]
+    },
+    "router_support_class": {
+      "type": "string",
+      "enum": ["authoritative", "advisory", "fallback_only", "inspect_only", "unsupported"]
+    },
+    "router_freshness_class": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"]
+    },
+    "router_scope_claim_class": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "notebook_cell",
+        "loaded_slice",
+        "active_workset",
+        "whole_workspace",
+        "target_graph",
+        "test_tree",
+        "debug_session",
+        "unavailable"
+      ]
+    },
+    "router_completeness_class": {
+      "type": "string",
+      "enum": [
+        "complete_for_claimed_scope",
+        "partial_for_claimed_scope",
+        "unavailable_for_claimed_scope"
+      ]
+    },
+    "scope_limit_class": {
+      "type": "string",
+      "enum": [
+        "single_file_only",
+        "active_workset_only",
+        "unloaded_roots_omitted",
+        "generated_overlay_only",
+        "generated_candidates_omitted",
+        "notebook_cell_projection_only",
+        "cross_cell_context_unavailable",
+        "diff_or_review_slice_only",
+        "policy_narrowed",
+        "remote_shard_unreachable"
+      ]
+    },
+    "router_locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "imported_snapshot"
+      ]
+    },
+    "router_degraded_state_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "degraded_provider_unavailable",
+        "degraded_crash_loop_quarantine",
+        "degraded_cached_fallback",
+        "degraded_heuristic_fallback",
+        "degraded_scope_narrowed",
+        "degraded_remote_unreachable",
+        "degraded_coordinate_mapping_missing",
+        "degraded_policy_narrowed"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "completion_item_kind_class": {
+      "type": "string",
+      "enum": ["function", "method", "type", "value", "keyword", "path", "snippet", "local_word"]
+    },
+    "completion_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "current_range_only",
+        "current_file_additional_edits_noted",
+        "preview_required_before_additional_edits",
+        "inspect_only_no_apply"
+      ]
+    },
+    "signature_placement_class": {
+      "type": "string",
+      "enum": ["non_blocking_near_caret", "moved_to_detail", "hidden_unavailable"]
+    },
+    "snippet_session_state_class": {
+      "type": "string",
+      "enum": ["inactive", "active", "exited", "cancelled"]
+    },
+    "snippet_tab_behavior_class": {
+      "type": "string",
+      "enum": [
+        "traverse_placeholders_while_active",
+        "exit_on_final_placeholder",
+        "pass_through_outside_session"
+      ]
+    },
+    "snippet_unrelated_key_policy_class": {
+      "type": "string",
+      "enum": ["pass_through_unrelated_keys", "capture_snippet_navigation_only"]
+    },
+    "snippet_key_intent_class": {
+      "type": "string",
+      "enum": ["tab", "shift_tab", "escape", "text_input", "navigation", "command_shortcut", "other"]
+    },
+    "snippet_key_outcome_class": {
+      "type": "string",
+      "enum": [
+        "move_to_next_placeholder",
+        "move_to_previous_placeholder",
+        "exit_session",
+        "cancel_session",
+        "pass_through"
+      ]
+    },
+    "assist_surface_state_class": {
+      "type": "string",
+      "enum": ["available", "available_degraded", "empty"]
+    },
+    "assist_source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_descriptor_id",
+        "source_family",
+        "source_label",
+        "provider_id",
+        "router_decision_ref",
+        "source_ref",
+        "support_class",
+        "freshness_class",
+        "scope_claim_class",
+        "completeness_class",
+        "scope_limit_classes",
+        "locality_class",
+        "degraded_state_class",
+        "summary"
+      ],
+      "properties": {
+        "source_descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "source_family": { "$ref": "#/$defs/assist_source_family" },
+        "source_label": { "$ref": "#/$defs/short_label" },
+        "provider_id": { "$ref": "#/$defs/nullable_ref" },
+        "router_decision_ref": { "$ref": "#/$defs/nullable_ref" },
+        "source_ref": { "$ref": "#/$defs/nullable_ref" },
+        "support_class": { "$ref": "#/$defs/router_support_class" },
+        "freshness_class": { "$ref": "#/$defs/router_freshness_class" },
+        "scope_claim_class": { "$ref": "#/$defs/router_scope_claim_class" },
+        "completeness_class": { "$ref": "#/$defs/router_completeness_class" },
+        "scope_limit_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_limit_class" }
+        },
+        "locality_class": { "$ref": "#/$defs/router_locality_class" },
+        "degraded_state_class": { "$ref": "#/$defs/router_degraded_state_class" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "completion_acceptance_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accept_command_id_ref",
+        "detail_command_id_ref",
+        "side_effect_class",
+        "preview_required",
+        "undo_group_label",
+        "additional_edit_summary"
+      ],
+      "properties": {
+        "accept_command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "detail_command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "side_effect_class": { "$ref": "#/$defs/completion_side_effect_class" },
+        "preview_required": { "type": "boolean" },
+        "undo_group_label": { "$ref": "#/$defs/short_label" },
+        "additional_edit_summary": {
+          "oneOf": [
+            { "$ref": "#/$defs/short_summary" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "assist_completion_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "completion_item_id",
+        "completion_session_id",
+        "label",
+        "kind_class",
+        "source",
+        "insert_text_ref",
+        "rank",
+        "sort_group",
+        "acceptance",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_completion_item_record" },
+        "assist_schema_version": { "$ref": "#/$defs/assist_schema_version" },
+        "completion_item_id": { "$ref": "#/$defs/opaque_id" },
+        "completion_session_id": { "$ref": "#/$defs/opaque_ref" },
+        "label": { "$ref": "#/$defs/short_label" },
+        "kind_class": { "$ref": "#/$defs/completion_item_kind_class" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "insert_text_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rank": { "type": "integer", "minimum": 0 },
+        "sort_group": { "type": "integer", "minimum": 0 },
+        "acceptance": { "$ref": "#/$defs/completion_acceptance_contract" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "assist_source_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completion_total_count",
+        "lsp_completion_count",
+        "fallback_completion_count",
+        "snippet_completion_count",
+        "preview_required_count",
+        "active_snippet_session_count",
+        "signature_help_count",
+        "source_label_count",
+        "source_families"
+      ],
+      "properties": {
+        "completion_total_count": { "type": "integer", "minimum": 0 },
+        "lsp_completion_count": { "type": "integer", "minimum": 0 },
+        "fallback_completion_count": { "type": "integer", "minimum": 0 },
+        "snippet_completion_count": { "type": "integer", "minimum": 0 },
+        "preview_required_count": { "type": "integer", "minimum": 0 },
+        "active_snippet_session_count": { "type": "integer", "minimum": 0 },
+        "signature_help_count": { "type": "integer", "minimum": 0 },
+        "source_label_count": { "type": "integer", "minimum": 0 },
+        "source_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/assist_source_family" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "assist_completion_list_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "completion_session_id",
+        "workspace_id",
+        "document_ref",
+        "language_id",
+        "request_anchor_ref",
+        "items",
+        "source_counts",
+        "router_decision_refs",
+        "disclosure_required",
+        "redaction_class",
+        "captured_at",
+        "accessibility_summary",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_completion_list_snapshot" },
+        "assist_schema_version": { "$ref": "#/$defs/assist_schema_version" },
+        "completion_session_id": { "$ref": "#/$defs/opaque_ref" },
+        "workspace_id": { "$ref": "#/$defs/opaque_ref" },
+        "document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "language_id": { "$ref": "#/$defs/short_label" },
+        "request_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/assist_completion_item_record" }
+        },
+        "source_counts": { "$ref": "#/$defs/assist_source_counts" },
+        "router_decision_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "disclosure_required": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "accessibility_summary": { "$ref": "#/$defs/short_summary" },
+        "export_safe_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "assist_signature_help_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "signature_help_id",
+        "assist_session_id",
+        "document_ref",
+        "language_id",
+        "invocation_anchor_ref",
+        "source",
+        "active_signature_index",
+        "signature_count",
+        "active_parameter_index",
+        "parameter_count",
+        "placement_class",
+        "non_blocking",
+        "ime_composition_safe",
+        "dismiss_command_id_ref",
+        "redaction_class",
+        "captured_at",
+        "accessibility_label",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_signature_help_record" },
+        "assist_schema_version": { "$ref": "#/$defs/assist_schema_version" },
+        "signature_help_id": { "$ref": "#/$defs/opaque_id" },
+        "assist_session_id": { "$ref": "#/$defs/opaque_ref" },
+        "document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "language_id": { "$ref": "#/$defs/short_label" },
+        "invocation_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "active_signature_index": { "type": "integer", "minimum": 1 },
+        "signature_count": { "type": "integer", "minimum": 1 },
+        "active_parameter_index": { "type": "integer", "minimum": 1 },
+        "parameter_count": { "type": "integer", "minimum": 1 },
+        "placement_class": { "$ref": "#/$defs/signature_placement_class" },
+        "non_blocking": { "type": "boolean" },
+        "ime_composition_safe": { "type": "boolean" },
+        "dismiss_command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "accessibility_label": { "$ref": "#/$defs/short_summary" },
+        "export_safe_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "assist_snippet_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "snippet_session_id",
+        "document_ref",
+        "language_id",
+        "source",
+        "state_class",
+        "active_placeholder_index",
+        "placeholder_count",
+        "selection_count",
+        "multi_cursor_compatible",
+        "tab_behavior_class",
+        "unrelated_key_policy_class",
+        "next_placeholder_command_id_ref",
+        "previous_placeholder_command_id_ref",
+        "exit_command_id_ref",
+        "escape_command_id_ref",
+        "visible_strip_required",
+        "redaction_class",
+        "captured_at",
+        "accessibility_label",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_snippet_session_record" },
+        "assist_schema_version": { "$ref": "#/$defs/assist_schema_version" },
+        "snippet_session_id": { "$ref": "#/$defs/opaque_id" },
+        "document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "language_id": { "$ref": "#/$defs/short_label" },
+        "source": { "$ref": "#/$defs/assist_source_descriptor" },
+        "state_class": { "$ref": "#/$defs/snippet_session_state_class" },
+        "active_placeholder_index": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "placeholder_count": { "type": "integer", "minimum": 0 },
+        "selection_count": { "type": "integer", "minimum": 1 },
+        "multi_cursor_compatible": { "type": "boolean" },
+        "tab_behavior_class": { "$ref": "#/$defs/snippet_tab_behavior_class" },
+        "unrelated_key_policy_class": { "$ref": "#/$defs/snippet_unrelated_key_policy_class" },
+        "next_placeholder_command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "previous_placeholder_command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "exit_command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "escape_command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "visible_strip_required": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "accessibility_label": { "$ref": "#/$defs/short_summary" },
+        "export_safe_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "assist_snippet_key_outcome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "snippet_session_id",
+        "key_intent_class",
+        "outcome_class",
+        "resulting_state_class",
+        "resulting_placeholder_index",
+        "command_id_ref",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_snippet_key_outcome_record" },
+        "assist_schema_version": { "$ref": "#/$defs/assist_schema_version" },
+        "snippet_session_id": { "$ref": "#/$defs/opaque_ref" },
+        "key_intent_class": { "$ref": "#/$defs/snippet_key_intent_class" },
+        "outcome_class": { "$ref": "#/$defs/snippet_key_outcome_class" },
+        "resulting_state_class": { "$ref": "#/$defs/snippet_session_state_class" },
+        "resulting_placeholder_index": {
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "command_id_ref": { "$ref": "#/$defs/nullable_ref" },
+        "export_safe_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "assist_surface_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "assist_schema_version",
+        "snapshot_id",
+        "workspace_id",
+        "document_ref",
+        "language_id",
+        "state_class",
+        "completion_list",
+        "signature_help",
+        "snippet_session",
+        "source_counts",
+        "disclosure_required",
+        "redaction_class",
+        "captured_at",
+        "accessibility_summary",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "assist_surface_snapshot_record" },
+        "assist_schema_version": { "$ref": "#/$defs/assist_schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_ref" },
+        "document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "language_id": { "$ref": "#/$defs/short_label" },
+        "state_class": { "$ref": "#/$defs/assist_surface_state_class" },
+        "completion_list": { "$ref": "#/$defs/assist_completion_list_snapshot" },
+        "signature_help": {
+          "oneOf": [
+            { "$ref": "#/$defs/assist_signature_help_record" },
+            { "type": "null" }
+          ]
+        },
+        "snippet_session": {
+          "oneOf": [
+            { "$ref": "#/$defs/assist_snippet_session_record" },
+            { "type": "null" }
+          ]
+        },
+        "source_counts": { "$ref": "#/$defs/assist_source_counts" },
+        "disclosure_required": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "accessibility_summary": { "$ref": "#/$defs/short_summary" },
+        "export_safe_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    }
+  }
+}

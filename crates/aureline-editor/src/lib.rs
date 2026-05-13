@@ -9,6 +9,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-editor/0.0.0")]
 
+pub mod assist;
 pub mod clipboard;
 pub mod find_replace;
 pub mod highlight;
@@ -20,6 +21,17 @@ pub mod text_nav;
 pub mod undo;
 pub mod viewport;
 
+pub use assist::{
+    AssistContractError, AssistSchemaVersion, AssistSessionStore, AssistSourceCounts,
+    AssistSourceDescriptor, AssistSourceFamily, AssistSurfaceSnapshot,
+    AssistSurfaceSnapshotRequest, AssistSurfaceStateClass, CompletionAcceptanceContract,
+    CompletionItemInit, CompletionItemKindClass, CompletionItemRecord, CompletionListRequest,
+    CompletionListSnapshot, CompletionSideEffectClass, SignatureHelpInit, SignatureHelpRecord,
+    SignaturePlacementClass, SnippetKeyIntentClass, SnippetKeyOutcomeClass,
+    SnippetKeyOutcomeRecord, SnippetSessionController, SnippetSessionInit, SnippetSessionRecord,
+    SnippetSessionStateClass, SnippetTabBehaviorClass, SnippetUnrelatedKeyPolicyClass,
+    ASSIST_SCHEMA_VERSION,
+};
 pub use find_replace::{FindOptions, FindReplaceError, FindReplaceMode, FindReplaceState};
 pub use highlight::{
     EditorTextRange, HighlightOverlaySet, HighlightSpan, SyntaxHighlightKind,
