@@ -1,0 +1,432 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/git_review_event_alpha.schema.json",
+  "title": "Aureline Git/review activity and support-export event contract",
+  "description": "Boundary schema for Git and review events that appear in the activity center and support-bundle manifests. The event family preserves branch/head context, target identity, command-backed action identity, exact reopen links, and a redaction-safe support projection without raw patch bodies, remote URLs, command output, review comment bodies, credentials, or secret material.",
+  "oneOf": [
+    { "$ref": "#/$defs/git_review_event_alpha_record" },
+    { "$ref": "#/$defs/git_review_event_alpha_snapshot" },
+    { "$ref": "#/$defs/git_review_event_support_export" }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "event_family": {
+      "type": "string",
+      "enum": [
+        "git_status",
+        "git_mutation",
+        "git_branch",
+        "git_commit",
+        "git_publish",
+        "review_workspace"
+      ]
+    },
+    "event_phase": {
+      "type": "string",
+      "enum": [
+        "preview",
+        "applied",
+        "blocked",
+        "failed",
+        "published",
+        "review_opened",
+        "refreshed"
+      ]
+    },
+    "state_class": {
+      "type": "string",
+      "enum": [
+        "queued_waiting",
+        "preparing",
+        "running",
+        "needs_approval",
+        "completed",
+        "failed",
+        "partially_completed",
+        "cancelled",
+        "superseded",
+        "quiet_hours_held",
+        "policy_suppressed"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["info", "success", "warning", "degraded", "error", "blocking", "critical"]
+    },
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "review_and_diff",
+        "provider_bearing",
+        "support_export",
+        "shell"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_status",
+        "stage",
+        "unstage",
+        "discard",
+        "switch_branch",
+        "create_branch",
+        "commit",
+        "publish_review",
+        "open_review_workspace",
+        "open_diff_review"
+      ]
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "repository",
+        "path_scope",
+        "branch_ref",
+        "commit_scope",
+        "remote_ref",
+        "review_workspace",
+        "diff_target"
+      ]
+    },
+    "reopen_kind": {
+      "type": "string",
+      "enum": [
+        "activity_row",
+        "git_review_details",
+        "git_publish_review",
+        "review_workspace",
+        "diff_review",
+        "support_export"
+      ]
+    },
+    "branch_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "branch_label": { "$ref": "#/$defs/short_label" },
+        "branch_ref": { "$ref": "#/$defs/opaque_id" },
+        "upstream_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_overlay_state": { "$ref": "#/$defs/opaque_id" },
+        "local_diff_authority": { "$ref": "#/$defs/opaque_id" }
+      },
+      "anyOf": [
+        { "required": ["branch_label"] },
+        { "required": ["branch_ref"] },
+        { "required": ["upstream_ref"] },
+        { "required": ["head_revision_ref"] }
+      ]
+    },
+    "action_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_class",
+        "command_id",
+        "source_record_ref",
+        "side_effect_class",
+        "reissues_original_side_effect"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "source_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_ref": { "$ref": "#/$defs/opaque_id" },
+        "journal_ref": { "$ref": "#/$defs/opaque_id" },
+        "recovery_ref": { "$ref": "#/$defs/opaque_id" },
+        "side_effect_class": { "$ref": "#/$defs/opaque_id" },
+        "reissues_original_side_effect": { "type": "boolean" }
+      }
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_target_ref", "target_kind", "target_label"],
+      "properties": {
+        "canonical_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_label": { "$ref": "#/$defs/short_label" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "review_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "route_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "exact_reopen_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_link_ref",
+        "reopen_kind",
+        "command_id",
+        "target_identity_ref",
+        "label"
+      ],
+      "properties": {
+        "reopen_link_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_kind": { "$ref": "#/$defs/reopen_kind" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/short_label" },
+        "revalidation_required_reason_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_pack_item_id",
+        "support_export_ref",
+        "bundle_member_path_ref",
+        "redaction_class",
+        "export_field_refs",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "support_pack_item_id": { "$ref": "#/$defs/opaque_id" },
+        "support_export_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_member_path_ref": { "$ref": "#/$defs/opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_field_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "git_review_activity_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "event_family",
+        "branch",
+        "target",
+        "action",
+        "exact_reopen_links",
+        "support_export_ref"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_family": { "$ref": "#/$defs/event_family" },
+        "branch": { "$ref": "#/$defs/branch_context" },
+        "target": { "$ref": "#/$defs/target_identity" },
+        "action": { "$ref": "#/$defs/action_identity" },
+        "exact_reopen_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exact_reopen_link" },
+          "minItems": 1
+        },
+        "support_export_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "git_review_event_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "event_id",
+        "canonical_event_id",
+        "activity_row_id",
+        "durable_job_id",
+        "occurred_at",
+        "event_family",
+        "phase",
+        "state_class",
+        "severity_class",
+        "source_subsystem",
+        "actor_identity_ref",
+        "actor_label",
+        "workspace_ref",
+        "summary_label",
+        "detail_label",
+        "branch",
+        "target",
+        "action",
+        "exact_reopen_links",
+        "support_projection",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "git_review_event_alpha_record" },
+        "schema_version": { "const": 1 },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "activity_row_id": { "$ref": "#/$defs/opaque_id" },
+        "durable_job_id": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/timestamp" },
+        "event_family": { "$ref": "#/$defs/event_family" },
+        "phase": { "$ref": "#/$defs/event_phase" },
+        "state_class": { "$ref": "#/$defs/state_class" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_label": { "$ref": "#/$defs/short_label" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/short_label" },
+        "detail_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "branch": { "$ref": "#/$defs/branch_context" },
+        "target": { "$ref": "#/$defs/target_identity" },
+        "action": { "$ref": "#/$defs/action_identity" },
+        "exact_reopen_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exact_reopen_link" },
+          "minItems": 1
+        },
+        "support_projection": { "$ref": "#/$defs/support_projection" },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "git_review_event_alpha_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "generated_at",
+        "scope_notice",
+        "events",
+        "activity_rows",
+        "branch_target_action_complete_count",
+        "exact_reopen_link_count",
+        "support_exportable_event_count"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "git_review_event_alpha_snapshot" },
+        "schema_version": { "const": 1 },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "scope_notice": { "$ref": "#/$defs/reviewable_sentence" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/git_review_event_alpha_record" },
+          "minItems": 1
+        },
+        "activity_rows": {
+          "type": "array",
+          "minItems": 1
+        },
+        "branch_target_action_complete_count": { "type": "integer", "minimum": 1 },
+        "exact_reopen_link_count": { "type": "integer", "minimum": 1 },
+        "support_exportable_event_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "git_review_support_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "activity_row_id",
+        "event_family",
+        "phase",
+        "state_class",
+        "workspace_ref",
+        "branch",
+        "target",
+        "action",
+        "exact_reopen_links",
+        "support_pack_item_id",
+        "support_export_ref",
+        "bundle_member_path_ref",
+        "export_field_refs",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "activity_row_id": { "$ref": "#/$defs/opaque_id" },
+        "event_family": { "$ref": "#/$defs/event_family" },
+        "phase": { "$ref": "#/$defs/event_phase" },
+        "state_class": { "$ref": "#/$defs/state_class" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "branch": { "$ref": "#/$defs/branch_context" },
+        "target": { "$ref": "#/$defs/target_identity" },
+        "action": { "$ref": "#/$defs/action_identity" },
+        "exact_reopen_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/exact_reopen_link" },
+          "minItems": 1
+        },
+        "support_pack_item_id": { "$ref": "#/$defs/opaque_id" },
+        "support_export_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_member_path_ref": { "$ref": "#/$defs/opaque_id" },
+        "export_field_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "git_review_event_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "generated_at",
+        "rows",
+        "source_event_count",
+        "branch_target_action_complete_count",
+        "exact_reopen_link_count",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "git_review_event_support_export" },
+        "schema_version": { "const": 1 },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/git_review_support_export_row" },
+          "minItems": 1
+        },
+        "source_event_count": { "type": "integer", "minimum": 1 },
+        "branch_target_action_complete_count": { "type": "integer", "minimum": 1 },
+        "exact_reopen_link_count": { "type": "integer", "minimum": 1 },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

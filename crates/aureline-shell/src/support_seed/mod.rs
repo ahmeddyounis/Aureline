@@ -44,6 +44,7 @@ use aureline_support::bundle::{
 };
 
 use crate::activity_center::alpha::ActivityCenterSupportExport;
+use crate::activity_center::git_review::GitReviewSupportExport;
 use crate::restore::provenance::RestoreProvenanceRecord;
 
 /// Stable record-kind tag carried in serialized support-seed surfaces.
@@ -291,6 +292,30 @@ impl SupportSeedSurface {
         ))
     }
 
+    /// Mint a local support preview that exports Git/review activity events as
+    /// structured branch, target, action, and exact-reopen records.
+    pub fn git_review_event_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        git_review_export: &GitReviewSupportExport,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:git-review-activity:0001",
+            "Git/review activity support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(git_review_event_seed(git_review_export));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support — Git/review activity preview",
+        ))
+    }
+
     /// Convenience: the manifest the export writer would emit. Held as a
     /// borrowed accessor so the chrome never needs to clone the manifest
     /// just to render a row count.
@@ -491,6 +516,46 @@ fn activity_center_seed(activity_export: &ActivityCenterSupportExport) -> Previe
             activity_export.row_count(),
             activity_export.source_snapshot_row_count,
             activity_export.raw_private_material_excluded,
+        ),
+    }
+}
+
+fn git_review_event_seed(git_review_export: &GitReviewSupportExport) -> PreviewItemSeed {
+    PreviewItemSeed {
+        support_pack_item_id: "support.item.git_review_activity_events".into(),
+        title: "Git and review activity events".into(),
+        data_class: DiagnosticDataClass::MetadataOnly,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "activity_and_attention_truth".into(),
+        artifact_kind_class: "git_review_event_support_export".into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some(format!(
+            "manifest/git_review_activity/{}.json",
+            git_review_export.export_id
+        )),
+        source_refs: vec![
+            "schemas/support/git_review_event_alpha.schema.json".into(),
+            "crates/aureline-shell/src/activity_center/git_review.rs".into(),
+            git_review_export.export_id.clone(),
+        ],
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some(12288),
+            confidence_class: "estimated".into(),
+            display_label: "12 KB".into(),
+            size_source_class: "collector_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Without this row, support cannot reconstruct which branch, target, action, and \
+             exact reopen link were attached to Git publish or review failures."
+                .into(),
+        notes: format!(
+            "Structured Git/review export includes {} row(s) from {} source event(s); branch, \
+             target, and action identity preserved on {} row(s); raw private material excluded: {}.",
+            git_review_export.row_count(),
+            git_review_export.source_event_count,
+            git_review_export.branch_target_action_complete_count,
+            git_review_export.raw_private_material_excluded,
         ),
     }
 }
@@ -700,6 +765,7 @@ mod tests {
                 raw_private_material_excluded: true,
                 export_field_refs: vec!["export.activity.identity".into()],
             },
+            git_review_context: None,
             occurrence_count: 1,
         });
         let snapshot = ActivityCenterAlphaSnapshot::from_rows(vec![row]);
@@ -719,6 +785,88 @@ mod tests {
         assert_eq!(surface.preview_row_count(), 3);
         assert!(surface.preview.manifest.preview_items.iter().any(|item| {
             item.parity_binding.support_pack_item_id == "support.item.activity_center_alpha_rows"
+        }));
+        assert!(!surface.has_prohibited_row());
+    }
+
+    #[test]
+    fn git_review_preview_exports_structured_event_family() {
+        use crate::activity_center::alpha::ActivityRowStateClass;
+        use crate::activity_center::git_review::{
+            GitReviewActionClass, GitReviewActionIdentity, GitReviewBranchContext,
+            GitReviewEventFamily, GitReviewEventInput, GitReviewEventPhase, GitReviewEventRecord,
+            GitReviewExactReopenLink, GitReviewReopenKind, GitReviewSupportExport,
+            GitReviewSupportProjection, GitReviewTargetIdentity, GitReviewTargetKind,
+        };
+        use crate::notifications::SeverityClass;
+
+        let event = GitReviewEventRecord::from_input(GitReviewEventInput {
+            event_id: "event.git_review.publish.support_preview".into(),
+            occurred_at: "2026-05-13T22:34:00Z".into(),
+            event_family: GitReviewEventFamily::GitPublish,
+            phase: GitReviewEventPhase::Failed,
+            state_class: ActivityRowStateClass::Failed,
+            severity_class: SeverityClass::Error,
+            actor_identity_ref: "id:actor:local-user".into(),
+            actor_label: "Local user".into(),
+            workspace_ref: "workspace.repo.aureline".into(),
+            summary_label: "Publish failed".into(),
+            detail_label: "Publish review can reopen exactly.".into(),
+            branch: GitReviewBranchContext::new(
+                Some("feature/activity".into()),
+                Some("refs/heads/feature/activity".into()),
+                Some("refs/remotes/origin/feature/activity".into()),
+                Some("git.rev.abc1234".into()),
+            ),
+            target: GitReviewTargetIdentity {
+                canonical_target_ref: "git.publish.target.origin-feature".into(),
+                target_kind: GitReviewTargetKind::RemoteRef,
+                target_label: "origin/feature/activity".into(),
+                scope_ref: None,
+                target_refs: vec!["refs/heads/feature/activity".into()],
+                review_workspace_ref: None,
+                route_ref: Some("git.publish.route.origin".into()),
+            },
+            action: GitReviewActionIdentity {
+                action_id: "action.git.publish.review".into(),
+                action_class: GitReviewActionClass::PublishReview,
+                command_id: "cmd:git.publish.review.reopen".into(),
+                source_record_ref: "git.publish.preview.support".into(),
+                preview_ref: Some("git.publish.preview.support".into()),
+                result_ref: Some("git.publish.result.failed.support".into()),
+                journal_ref: None,
+                recovery_ref: Some("git.publish.recovery.support".into()),
+                side_effect_class: "push_to_upstream".into(),
+                reissues_original_side_effect: false,
+            },
+            exact_reopen_links: vec![GitReviewExactReopenLink::new(
+                GitReviewReopenKind::GitPublishReview,
+                "cmd:git.publish.review.reopen",
+                "git.publish.preview.support",
+                "Reopen publish review",
+            )],
+            support_projection: GitReviewSupportProjection::metadata_safe(
+                "support.item.git_review.publish",
+                "support.export.git_review.publish.support",
+                "manifest/git_review_activity/publish_support.json",
+            ),
+        });
+        let export = GitReviewSupportExport::from_events(
+            "support.export.git_review.support_preview",
+            "2026-05-13T22:35:00Z",
+            &[event],
+        );
+
+        let surface = SupportSeedSurface::git_review_event_preview(
+            fixture_capture(),
+            "2026-05-13T22:36:00Z",
+            &export,
+        )
+        .expect("build Git/review preview");
+
+        assert_eq!(surface.preview_row_count(), 3);
+        assert!(surface.preview.manifest.preview_items.iter().any(|item| {
+            item.parity_binding.support_pack_item_id == "support.item.git_review_activity_events"
         }));
         assert!(!surface.has_prohibited_row());
     }

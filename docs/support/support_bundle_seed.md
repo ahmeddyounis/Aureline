@@ -24,6 +24,8 @@ control. The seed never invents private field shapes.
   [`/docs/support/support_bundle_redaction_guide.md`](./support_bundle_redaction_guide.md)
 - Vocabulary seed for this seed:
   [`/docs/support/support_export_vocabulary_seed.md`](./support_export_vocabulary_seed.md)
+- Git/review event export:
+  [`/schemas/support/git_review_event_alpha.schema.json`](../../schemas/support/git_review_event_alpha.schema.json)
 
 ## What this seed owns
 
@@ -49,6 +51,10 @@ control. The seed never invents private field shapes.
   action set splitting live `open_local_preview` /
   `copy_manifest_json` from explicitly reserved share/upload and
   hosted-intake rows.
+  - `git_review_event_preview(...)`, which adds the structured
+    Git/review activity export to the manifest by bundle-member ref so
+    support readers can reconstruct branch, target, action, and exact
+    reopen identity without scraping activity-center text.
 
 ## What this seed does NOT own
 
@@ -125,6 +131,11 @@ in `aureline-support` and
   durable row for a support-export attempt, it routes through the
   existing `aureline-shell::activity_center` lane. The support seed
   itself owns only the manifest + preview projection.
+- **Git/review activity.** Git publish, mutation, and review-workspace
+  rows use `aureline-shell::activity_center::git_review` as the
+  structured source. The support preview references the matching
+  `git_review_event_support_export` member rather than rendering or
+  parsing activity-center labels.
 - **Redaction profile.** The defaults mirror
   `support.redaction.local_first_default`; no new profile is invented.
 

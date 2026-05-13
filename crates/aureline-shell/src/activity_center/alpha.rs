@@ -17,6 +17,8 @@ use crate::notifications::envelope::{
     PrivacyClass, RedactionClass, ReopenTarget, ReopenTargetKind, SeverityClass, SourceSubsystem,
 };
 
+use super::git_review::GitReviewActivityContext;
+
 /// Stable record kind for one activity-center row.
 pub const ACTIVITY_ROW_RECORD_KIND: &str = "activity_row_record";
 
@@ -58,6 +60,8 @@ pub enum ActivityJobFamily {
     TaskRun,
     /// Test execution work.
     TestRun,
+    /// Git and review work that must preserve branch, target, and action identity.
+    GitReview,
 }
 
 impl ActivityJobFamily {
@@ -69,6 +73,7 @@ impl ActivityJobFamily {
             Self::InstallUpdate => "install_update",
             Self::TaskRun => "task_run",
             Self::TestRun => "test_run",
+            Self::GitReview => "git_review",
         }
     }
 
@@ -80,6 +85,7 @@ impl ActivityJobFamily {
             Self::InstallUpdate => "Install/update",
             Self::TaskRun => "Task",
             Self::TestRun => "Test",
+            Self::GitReview => "Git/review",
         }
     }
 }
@@ -624,6 +630,9 @@ pub struct ActivityRow {
     pub reopen_target: ReopenTarget,
     /// Support/export projection.
     pub support_link: ActivityRowSupportLink,
+    /// Structured Git/review event context when this row represents source-control work.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_review_context: Option<GitReviewActivityContext>,
     /// Repeated observations for this canonical event.
     pub occurrence_count: u32,
     /// True when history is retained until resolved or archived.
@@ -674,6 +683,7 @@ impl ActivityRow {
                 revalidation_required_reason_label: None,
             },
             support_link: input.support_link,
+            git_review_context: input.git_review_context,
             occurrence_count: input.occurrence_count.max(1),
             retained_until_resolved_or_archived: true,
         }
@@ -752,6 +762,8 @@ pub struct ActivityRowInput {
     pub display: ActivityRowDisplayState,
     /// Support/export projection.
     pub support_link: ActivityRowSupportLink,
+    /// Structured Git/review event context when this row represents source-control work.
+    pub git_review_context: Option<GitReviewActivityContext>,
     /// Repeated observations for this canonical event.
     pub occurrence_count: u32,
 }
@@ -1294,6 +1306,7 @@ mod tests {
                 expand_reveals_label: "phase, evidence, and chronology".into(),
             },
             support_link: support(true, &format!("support.item.activity.{row_id}")),
+            git_review_context: None,
             occurrence_count: 1,
         }
     }

@@ -10,10 +10,17 @@ support-export posture.
 
 - `schemas/events/activity_row.schema.json` freezes the snapshot, row, and
   support-export record shapes.
+- `schemas/support/git_review_event_alpha.schema.json` freezes the structured
+  Git/review event family that activity rows may embed when branch, target,
+  action, and exact-reopen identity matter.
 - `crates/aureline-shell/src/activity_center/alpha.rs` is the first consuming
   shell implementation with in-memory and file-backed persistence.
+- `crates/aureline-shell/src/activity_center/git_review.rs` is the first
+  Git/review consumer and support-export projection.
 - `fixtures/ux/activity_center_alpha/` carries the protected snapshot and
   support-export fixtures.
+- `fixtures/review/git_activity_alpha/` carries the protected Git/review
+  activity and support-export fixtures.
 - `ci/check_activity_center_alpha.py` validates the checked-in contract,
   fixtures, runtime consumer, and export path.
 
@@ -30,6 +37,8 @@ Every row must carry:
   actions where applicable;
 - cost, policy, network, trust, provider, and recovery-impact flags;
 - support/export fields when the row can leave the UI as a structured artifact.
+- for Git/review rows, structured branch/head context, target identity,
+  command-backed action identity, and exact reopen links.
 
 Rows remain durable until resolved or archived. Completion, failure,
 partial completion, cancellation, and supersession remain distinct states.
@@ -48,3 +57,8 @@ The protected fixture shows:
   remains a non-replay action;
 - a support export that preserves structured row identity, family, state,
   evidence, and reopen refs without raw private material.
+
+The Git/review protected fixture adds a local mutation row, a failed publish
+row, and a review-workspace row. Each row carries the same structured
+branch/target/action context that the support export includes, so support
+bundles do not depend on rendered activity-center text.
