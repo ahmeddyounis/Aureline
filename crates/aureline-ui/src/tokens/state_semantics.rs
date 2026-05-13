@@ -249,16 +249,16 @@ impl StateSemanticsRegistry {
         let row = self
             .state_family(state_class)
             .ok_or_else(|| StateSemanticsError::MissingStateClass(state_class.to_owned()))?;
-        treatment_from_parts(
+        treatment_from_parts(TreatmentParts {
             tokens,
-            &row.display_label,
-            &row.screen_reader_label,
-            &row.icon,
-            &row.shape,
-            &row.token_refs,
-            &row.required_non_color_cues,
-            row.persistent_disclosure_required,
-        )
+            label: &row.display_label,
+            screen_reader_label: &row.screen_reader_label,
+            icon: &row.icon,
+            shape: &row.shape,
+            refs: &row.token_refs,
+            required_non_color_cues: &row.required_non_color_cues,
+            persistent_disclosure_required: row.persistent_disclosure_required,
+        })
     }
 
     /// Resolves a badge-token treatment against a semantic token registry.
@@ -279,16 +279,16 @@ impl StateSemanticsRegistry {
                 family_class: family_class.to_owned(),
                 token: token.to_owned(),
             })?;
-        treatment_from_parts(
+        treatment_from_parts(TreatmentParts {
             tokens,
-            &badge_token.label,
-            &badge_token.screen_reader_label,
-            &badge_token.icon,
-            &badge_token.shape,
-            &badge_token.token_refs,
-            &family.required_non_color_cues,
-            true,
-        )
+            label: &badge_token.label,
+            screen_reader_label: &badge_token.screen_reader_label,
+            icon: &badge_token.icon,
+            shape: &badge_token.shape,
+            refs: &badge_token.token_refs,
+            required_non_color_cues: &family.required_non_color_cues,
+            persistent_disclosure_required: true,
+        })
     }
 
     /// Resolves a notice-family treatment against a semantic token registry.
@@ -300,16 +300,16 @@ impl StateSemanticsRegistry {
         let family = self
             .notice_family(family_class)
             .ok_or_else(|| StateSemanticsError::MissingNoticeFamily(family_class.to_owned()))?;
-        treatment_from_parts(
+        treatment_from_parts(TreatmentParts {
             tokens,
-            &family.title,
-            &family.title,
-            &family.icon,
-            &family.shape,
-            &family.token_refs,
-            &family.required_non_color_cues,
-            family.persistent_disclosure_required,
-        )
+            label: &family.title,
+            screen_reader_label: &family.title,
+            icon: &family.icon,
+            shape: &family.shape,
+            refs: &family.token_refs,
+            required_non_color_cues: &family.required_non_color_cues,
+            persistent_disclosure_required: family.persistent_disclosure_required,
+        })
     }
 
     fn validate(&self) -> Result<(), StateSemanticsError> {
@@ -528,26 +528,30 @@ pub fn alpha_state_semantics_registry(
 }
 
 fn treatment_from_parts(
-    tokens: &TokenRegistry,
-    label: &str,
-    screen_reader_label: &str,
-    icon: &str,
-    shape: &str,
-    refs: &TokenRefs,
-    required_non_color_cues: &[String],
-    persistent_disclosure_required: bool,
+    parts: TreatmentParts<'_>,
 ) -> Result<SemanticVisualTreatment, StateSemanticsError> {
     Ok(SemanticVisualTreatment {
-        label: label.to_owned(),
-        screen_reader_label: screen_reader_label.to_owned(),
-        icon: icon.to_owned(),
-        shape: shape.to_owned(),
-        foreground: tokens.require_color(&refs.foreground)?,
-        border: tokens.require_color(&refs.border)?,
-        fill: tokens.require_color(&refs.fill)?,
-        required_non_color_cues: required_non_color_cues.to_vec(),
-        persistent_disclosure_required,
+        label: parts.label.to_owned(),
+        screen_reader_label: parts.screen_reader_label.to_owned(),
+        icon: parts.icon.to_owned(),
+        shape: parts.shape.to_owned(),
+        foreground: parts.tokens.require_color(&parts.refs.foreground)?,
+        border: parts.tokens.require_color(&parts.refs.border)?,
+        fill: parts.tokens.require_color(&parts.refs.fill)?,
+        required_non_color_cues: parts.required_non_color_cues.to_vec(),
+        persistent_disclosure_required: parts.persistent_disclosure_required,
     })
+}
+
+struct TreatmentParts<'a> {
+    tokens: &'a TokenRegistry,
+    label: &'a str,
+    screen_reader_label: &'a str,
+    icon: &'a str,
+    shape: &'a str,
+    refs: &'a TokenRefs,
+    required_non_color_cues: &'a [String],
+    persistent_disclosure_required: bool,
 }
 
 fn collect_unique<'a>(

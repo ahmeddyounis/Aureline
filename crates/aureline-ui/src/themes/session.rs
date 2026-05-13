@@ -141,6 +141,324 @@ pub struct PolicyContext {
     pub execution_context_id: Option<String>,
 }
 
+/// Identifies the `appearance_session_revision_event_record` record kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppearanceSessionRevisionEventRecordKind {
+    /// `appearance_session_revision_event_record`
+    AppearanceSessionRevisionEventRecord,
+}
+
+/// Cause class for a governed appearance-session revision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CauseClass {
+    /// The operating system emitted an appearance signal.
+    OsSignalChange,
+    /// The user explicitly changed an appearance setting.
+    UserExplicitSetting,
+    /// Managed policy changed the effective appearance state.
+    PolicyChange,
+    /// An imported appearance package was applied.
+    ImportApply,
+    /// An imported appearance package was reverted.
+    ImportRevert,
+    /// A token overlay was applied.
+    OverlayApply,
+    /// A token overlay was reverted.
+    OverlayRevert,
+    /// A preview checkpoint began.
+    PreviewStart,
+    /// A preview checkpoint was committed.
+    PreviewCommit,
+    /// A preview checkpoint was reverted.
+    PreviewRevert,
+    /// A checkpoint rollback restored earlier appearance state.
+    CheckpointRollback,
+    /// Power-saver mode engaged a more restrictive motion posture.
+    PowerSaverEngaged,
+    /// The renderer engaged the critical-hot-path motion posture.
+    CriticalHotPathEngaged,
+}
+
+/// Event emitted after one atomic appearance-session revision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AppearanceSessionRevisionEvent {
+    record_kind: AppearanceSessionRevisionEventRecordKind,
+    appearance_session_schema_version: u32,
+    event_id: String,
+    appearance_session_ref: String,
+    prior_session_revision: u64,
+    resulting_session_revision: u64,
+    cause_class: CauseClass,
+    os_signal_ref: Option<String>,
+    confirm_action_ref: Option<String>,
+    checkpoint_ref: Option<String>,
+    rollback_ref: Option<String>,
+    changed_axes: Vec<AppearanceAxis>,
+    applied_under_live_class: LiveUpdateClass,
+    notes: Option<String>,
+    policy_context: PolicyContext,
+    redaction_class: RedactionClass,
+    recorded_at: String,
+}
+
+impl AppearanceSessionRevisionEvent {
+    /// Returns the stable event identifier.
+    pub fn event_id(&self) -> &str {
+        &self.event_id
+    }
+
+    /// Returns the prior session revision.
+    pub const fn prior_session_revision(&self) -> u64 {
+        self.prior_session_revision
+    }
+
+    /// Returns the resulting session revision.
+    pub const fn resulting_session_revision(&self) -> u64 {
+        self.resulting_session_revision
+    }
+
+    /// Returns the event cause class.
+    pub const fn cause_class(&self) -> CauseClass {
+        self.cause_class
+    }
+
+    /// Returns the changed appearance axes.
+    pub fn changed_axes(&self) -> &[AppearanceAxis] {
+        &self.changed_axes
+    }
+}
+
+/// Revertable checkpoint captured before an appearance-session mutation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppearanceSessionCheckpoint {
+    checkpoint_ref: String,
+    rollback_ref: String,
+    prior_session: AppearanceSessionRecord,
+}
+
+impl AppearanceSessionCheckpoint {
+    /// Returns the checkpoint reference.
+    pub fn checkpoint_ref(&self) -> &str {
+        &self.checkpoint_ref
+    }
+
+    /// Returns the rollback reference.
+    pub fn rollback_ref(&self) -> &str {
+        &self.rollback_ref
+    }
+
+    /// Returns the session revision captured by the checkpoint.
+    pub const fn prior_session_revision(&self) -> u64 {
+        self.prior_session.session_revision
+    }
+}
+
+/// Batched appearance changes applied as a single session revision.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AppearanceChangeSet {
+    theme_package_refs: Option<(String, String)>,
+    theme_class: Option<ThemeClass>,
+    contrast_mode: Option<ContrastMode>,
+    accent_source: Option<AccentSourceClass>,
+    density_class: Option<DensityClass>,
+    text_scale: Option<TextScale>,
+    reduced_motion: Option<(AccessibilityPostureClass, ReducedMotionSource)>,
+    follow_system_posture: Option<FollowSystemPosture>,
+    token_overlay_ref: Option<Option<String>>,
+    active_import_report_refs: Option<Vec<String>>,
+    confirm_action_ref: Option<Option<String>>,
+}
+
+impl AppearanceChangeSet {
+    /// Returns an empty change set.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the active theme package and revision refs.
+    pub fn theme_package_refs(
+        mut self,
+        package_ref: impl Into<String>,
+        revision_ref: impl Into<String>,
+    ) -> Self {
+        self.theme_package_refs = Some((package_ref.into(), revision_ref.into()));
+        self
+    }
+
+    /// Sets the resolved theme class.
+    pub const fn theme_class(mut self, theme_class: ThemeClass) -> Self {
+        self.theme_class = Some(theme_class);
+        self
+    }
+
+    /// Sets the resolved contrast mode.
+    pub const fn contrast_mode(mut self, contrast_mode: ContrastMode) -> Self {
+        self.contrast_mode = Some(contrast_mode);
+        self
+    }
+
+    /// Sets the resolved accent source.
+    pub const fn accent_source(mut self, accent_source: AccentSourceClass) -> Self {
+        self.accent_source = Some(accent_source);
+        self
+    }
+
+    /// Sets the resolved density class.
+    pub const fn density_class(mut self, density_class: DensityClass) -> Self {
+        self.density_class = Some(density_class);
+        self
+    }
+
+    /// Sets the resolved text scale.
+    pub const fn text_scale(mut self, text_scale: TextScale) -> Self {
+        self.text_scale = Some(text_scale);
+        self
+    }
+
+    /// Sets the reduced-motion posture and source.
+    pub const fn reduced_motion(
+        mut self,
+        posture: AccessibilityPostureClass,
+        source: ReducedMotionSource,
+    ) -> Self {
+        self.reduced_motion = Some((posture, source));
+        self
+    }
+
+    /// Sets the follow-system posture.
+    pub const fn follow_system_posture(mut self, posture: FollowSystemPosture) -> Self {
+        self.follow_system_posture = Some(posture);
+        self
+    }
+
+    /// Sets or clears the token overlay ref.
+    pub fn token_overlay_ref(mut self, token_overlay_ref: Option<String>) -> Self {
+        self.token_overlay_ref = Some(token_overlay_ref);
+        self
+    }
+
+    /// Replaces the active import-report refs.
+    pub fn active_import_report_refs(mut self, refs: Vec<String>) -> Self {
+        self.active_import_report_refs = Some(refs);
+        self
+    }
+
+    /// Sets or clears the confirm action ref associated with the change.
+    pub fn confirm_action_ref(mut self, confirm_action_ref: Option<String>) -> Self {
+        self.confirm_action_ref = Some(confirm_action_ref);
+        self
+    }
+
+    fn apply_to(&self, session: &mut AppearanceSessionRecord) -> Vec<AppearanceAxis> {
+        let mut changed_axes = Vec::new();
+        if let Some((package_ref, revision_ref)) = &self.theme_package_refs {
+            if session.active_theme_package_ref != *package_ref
+                || session.active_theme_revision_ref != *revision_ref
+            {
+                session.active_theme_package_ref = package_ref.clone();
+                session.active_theme_revision_ref = revision_ref.clone();
+                push_axis_once(&mut changed_axes, AppearanceAxis::ModeThemeClass);
+            }
+        }
+        if let Some(theme_class) = self.theme_class {
+            if session.mode_theme_class != theme_class {
+                session.mode_theme_class = theme_class;
+                session.contrast_mode = contrast_mode_for_theme(theme_class);
+                push_axis_once(&mut changed_axes, AppearanceAxis::ModeThemeClass);
+                push_axis_once(&mut changed_axes, AppearanceAxis::ContrastMode);
+            }
+        }
+        if let Some(contrast_mode) = self.contrast_mode {
+            if session.contrast_mode != contrast_mode {
+                session.contrast_mode = contrast_mode;
+                push_axis_once(&mut changed_axes, AppearanceAxis::ContrastMode);
+            }
+        }
+        if let Some(accent_source) = self.accent_source {
+            if session.accent_source != accent_source {
+                session.accent_source = accent_source;
+                push_axis_once(&mut changed_axes, AppearanceAxis::AccentSource);
+            }
+        }
+        if let Some(density_class) = self.density_class {
+            if session.density_class != density_class {
+                session.density_class = density_class;
+                push_axis_once(&mut changed_axes, AppearanceAxis::DensityClass);
+            }
+        }
+        if let Some(text_scale) = self.text_scale {
+            if session.text_scale != text_scale {
+                session.text_scale = text_scale;
+                push_axis_once(&mut changed_axes, AppearanceAxis::TextScale);
+            }
+        }
+        if let Some((posture, source)) = self.reduced_motion {
+            if session.reduced_motion_posture != posture || session.reduced_motion_source != source
+            {
+                session.reduced_motion_posture = posture;
+                session.reduced_motion_source = source;
+                push_axis_once(&mut changed_axes, AppearanceAxis::ReducedMotionPosture);
+            }
+        }
+        if let Some(posture) = self.follow_system_posture {
+            if session.follow_system_posture != posture {
+                session.follow_system_posture = posture;
+                push_axis_once(&mut changed_axes, AppearanceAxis::FollowSystemPosture);
+            }
+        }
+        if let Some(token_overlay_ref) = &self.token_overlay_ref {
+            session.token_overlay_ref = token_overlay_ref.clone();
+        }
+        if let Some(refs) = &self.active_import_report_refs {
+            session.active_import_report_refs = refs.clone();
+        }
+        if let Some(confirm_action_ref) = &self.confirm_action_ref {
+            session.confirm_action_ref = confirm_action_ref.clone();
+        }
+        changed_axes
+    }
+}
+
+/// Error returned when a checkpointed appearance mutation cannot be applied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AppearanceAtomicApplyError {
+    /// The checkpoint belongs to a different appearance session.
+    SessionMismatch,
+    /// The checkpoint was captured for an earlier revision than the current session.
+    StaleCheckpoint {
+        checkpoint_revision: u64,
+        current_revision: u64,
+    },
+    /// The live policy required user confirmation but no confirm action was recorded.
+    MissingConfirmAction,
+    /// The proposed change set did not alter any appearance axis.
+    NoChangedAxes,
+}
+
+impl std::fmt::Display for AppearanceAtomicApplyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SessionMismatch => write!(f, "appearance checkpoint belongs to another session"),
+            Self::StaleCheckpoint {
+                checkpoint_revision,
+                current_revision,
+            } => write!(
+                f,
+                "appearance checkpoint revision {checkpoint_revision} is stale for current revision {current_revision}"
+            ),
+            Self::MissingConfirmAction => write!(
+                f,
+                "confirm-required appearance change is missing a confirm action ref"
+            ),
+            Self::NoChangedAxes => write!(f, "appearance change set did not change any axis"),
+        }
+    }
+}
+
+impl std::error::Error for AppearanceAtomicApplyError {}
+
 /// Persisted appearance session record used to restore theme selection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppearanceSessionRecord {
@@ -221,6 +539,125 @@ impl AppearanceSessionRecord {
             redaction_class: RedactionClass::MetadataSafeDefault,
             revision_minted_at: minted_at,
         }
+    }
+
+    /// Captures a revertable checkpoint for the current session revision.
+    pub fn create_checkpoint(
+        &self,
+        checkpoint_ref: impl Into<String>,
+        rollback_ref: impl Into<String>,
+    ) -> AppearanceSessionCheckpoint {
+        AppearanceSessionCheckpoint {
+            checkpoint_ref: checkpoint_ref.into(),
+            rollback_ref: rollback_ref.into(),
+            prior_session: self.clone(),
+        }
+    }
+
+    /// Applies a group of appearance changes as one checkpointed session revision.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the checkpoint belongs to another session, when the
+    /// checkpoint is stale, or when the change set does not alter an appearance
+    /// axis.
+    pub fn apply_checkpointed_changes(
+        &mut self,
+        changes: AppearanceChangeSet,
+        checkpoint: &AppearanceSessionCheckpoint,
+        cause_class: CauseClass,
+        applied_under_live_class: LiveUpdateClass,
+        minted_at: String,
+    ) -> Result<AppearanceSessionRevisionEvent, AppearanceAtomicApplyError> {
+        if checkpoint.prior_session.appearance_session_id != self.appearance_session_id {
+            return Err(AppearanceAtomicApplyError::SessionMismatch);
+        }
+        if checkpoint.prior_session.session_revision != self.session_revision {
+            return Err(AppearanceAtomicApplyError::StaleCheckpoint {
+                checkpoint_revision: checkpoint.prior_session.session_revision,
+                current_revision: self.session_revision,
+            });
+        }
+
+        let mut next = self.clone();
+        let changed_axes = changes.apply_to(&mut next);
+        if changed_axes.is_empty() {
+            return Err(AppearanceAtomicApplyError::NoChangedAxes);
+        }
+        if applied_under_live_class == LiveUpdateClass::ConfirmReviewRequired
+            && next.confirm_action_ref.is_none()
+        {
+            return Err(AppearanceAtomicApplyError::MissingConfirmAction);
+        }
+
+        let prior_revision = self.session_revision;
+        next.session_revision = prior_revision.saturating_add(1);
+        next.current_checkpoint_ref = Some(checkpoint.checkpoint_ref.clone());
+        next.rollback_ref = Some(checkpoint.rollback_ref.clone());
+        next.preview_state = match cause_class {
+            CauseClass::PreviewStart => PreviewState::PreviewLive,
+            CauseClass::PreviewCommit => PreviewState::PreviewCommitted,
+            CauseClass::PreviewRevert => PreviewState::PreviewFailedReverted,
+            _ => next.preview_state,
+        };
+        next.revision_minted_at = minted_at.clone();
+
+        let event = next.revision_event(RevisionEventInput {
+            prior_revision,
+            cause_class,
+            os_signal_ref: None,
+            confirm_action_ref: next.confirm_action_ref.clone(),
+            checkpoint_ref: Some(checkpoint.checkpoint_ref.clone()),
+            rollback_ref: Some(checkpoint.rollback_ref.clone()),
+            changed_axes,
+            applied_under_live_class,
+            recorded_at: minted_at,
+        });
+        *self = next;
+        Ok(event)
+    }
+
+    /// Restores a prior checkpoint as a new rollback-applied revision.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the checkpoint belongs to another session or the
+    /// current state already matches the checkpointed appearance axes.
+    pub fn revert_to_checkpoint(
+        &mut self,
+        checkpoint: &AppearanceSessionCheckpoint,
+        minted_at: String,
+    ) -> Result<AppearanceSessionRevisionEvent, AppearanceAtomicApplyError> {
+        if checkpoint.prior_session.appearance_session_id != self.appearance_session_id {
+            return Err(AppearanceAtomicApplyError::SessionMismatch);
+        }
+
+        let changed_axes = changed_axes_between(self, &checkpoint.prior_session);
+        if changed_axes.is_empty() {
+            return Err(AppearanceAtomicApplyError::NoChangedAxes);
+        }
+
+        let prior_revision = self.session_revision;
+        let mut restored = checkpoint.prior_session.clone();
+        restored.session_revision = prior_revision.saturating_add(1);
+        restored.preview_state = PreviewState::RollbackApplied;
+        restored.current_checkpoint_ref = Some(checkpoint.checkpoint_ref.clone());
+        restored.rollback_ref = Some(checkpoint.rollback_ref.clone());
+        restored.revision_minted_at = minted_at.clone();
+
+        let event = restored.revision_event(RevisionEventInput {
+            prior_revision,
+            cause_class: CauseClass::CheckpointRollback,
+            os_signal_ref: None,
+            confirm_action_ref: None,
+            checkpoint_ref: Some(checkpoint.checkpoint_ref.clone()),
+            rollback_ref: Some(checkpoint.rollback_ref.clone()),
+            changed_axes,
+            applied_under_live_class: LiveUpdateClass::LiveApplyWithRevertableCheckpoint,
+            recorded_at: minted_at,
+        });
+        *self = restored;
+        Ok(event)
     }
 
     /// Applies a theme-class change, bumping the session revision and updating derived fields.
@@ -322,6 +759,44 @@ impl AppearanceSessionRecord {
         };
         self.apply_reduced_motion_posture(next_posture, next_source, minted_at);
     }
+
+    fn revision_event(&self, input: RevisionEventInput) -> AppearanceSessionRevisionEvent {
+        AppearanceSessionRevisionEvent {
+            record_kind:
+                AppearanceSessionRevisionEventRecordKind::AppearanceSessionRevisionEventRecord,
+            appearance_session_schema_version: self.appearance_session_schema_version,
+            event_id: format!(
+                "appearance_session_event:{}:{}",
+                self.appearance_session_id, self.session_revision
+            ),
+            appearance_session_ref: self.appearance_session_id.clone(),
+            prior_session_revision: input.prior_revision,
+            resulting_session_revision: self.session_revision,
+            cause_class: input.cause_class,
+            os_signal_ref: input.os_signal_ref,
+            confirm_action_ref: input.confirm_action_ref,
+            checkpoint_ref: input.checkpoint_ref,
+            rollback_ref: input.rollback_ref,
+            changed_axes: input.changed_axes,
+            applied_under_live_class: input.applied_under_live_class,
+            notes: None,
+            policy_context: self.policy_context.clone(),
+            redaction_class: self.redaction_class,
+            recorded_at: input.recorded_at,
+        }
+    }
+}
+
+struct RevisionEventInput {
+    prior_revision: u64,
+    cause_class: CauseClass,
+    os_signal_ref: Option<String>,
+    confirm_action_ref: Option<String>,
+    checkpoint_ref: Option<String>,
+    rollback_ref: Option<String>,
+    changed_axes: Vec<AppearanceAxis>,
+    applied_under_live_class: LiveUpdateClass,
+    recorded_at: String,
 }
 
 /// Identifies the `live_follow_system_policy_record` record kind.
@@ -511,5 +986,184 @@ fn contrast_mode_for_theme(theme: ThemeClass) -> ContrastMode {
     match theme {
         ThemeClass::HighContrastDark | ThemeClass::HighContrastLight => ContrastMode::ContrastHigh,
         _ => ContrastMode::ContrastStandard,
+    }
+}
+
+fn push_axis_once(axes: &mut Vec<AppearanceAxis>, axis: AppearanceAxis) {
+    if !axes.contains(&axis) {
+        axes.push(axis);
+    }
+}
+
+fn changed_axes_between(
+    before: &AppearanceSessionRecord,
+    after: &AppearanceSessionRecord,
+) -> Vec<AppearanceAxis> {
+    let mut axes = Vec::new();
+    if before.mode_theme_class != after.mode_theme_class
+        || before.active_theme_package_ref != after.active_theme_package_ref
+        || before.active_theme_revision_ref != after.active_theme_revision_ref
+    {
+        push_axis_once(&mut axes, AppearanceAxis::ModeThemeClass);
+    }
+    if before.contrast_mode != after.contrast_mode {
+        push_axis_once(&mut axes, AppearanceAxis::ContrastMode);
+    }
+    if before.accent_source != after.accent_source {
+        push_axis_once(&mut axes, AppearanceAxis::AccentSource);
+    }
+    if before.density_class != after.density_class {
+        push_axis_once(&mut axes, AppearanceAxis::DensityClass);
+    }
+    if before.text_scale != after.text_scale {
+        push_axis_once(&mut axes, AppearanceAxis::TextScale);
+    }
+    if before.reduced_motion_posture != after.reduced_motion_posture
+        || before.reduced_motion_source != after.reduced_motion_source
+    {
+        push_axis_once(&mut axes, AppearanceAxis::ReducedMotionPosture);
+    }
+    if before.follow_system_posture != after.follow_system_posture {
+        push_axis_once(&mut axes, AppearanceAxis::FollowSystemPosture);
+    }
+    axes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn session() -> AppearanceSessionRecord {
+        AppearanceSessionRecord::first_party_default("2026-05-13T00:00:00Z".to_string())
+    }
+
+    #[test]
+    fn checkpointed_changes_apply_as_one_revision_event() {
+        let mut session = session();
+        let checkpoint = session.create_checkpoint(
+            "appearance_checkpoint:test:01",
+            "appearance_rollback:test:01",
+        );
+        let event = session
+            .apply_checkpointed_changes(
+                AppearanceChangeSet::new()
+                    .theme_class(ThemeClass::LightParity)
+                    .density_class(DensityClass::Compact)
+                    .reduced_motion(
+                        AccessibilityPostureClass::MotionReduced,
+                        ReducedMotionSource::UserSetting,
+                    )
+                    .confirm_action_ref(Some("action:appearance.confirm_theme_switch".to_string())),
+                &checkpoint,
+                CauseClass::UserExplicitSetting,
+                LiveUpdateClass::ConfirmReviewRequired,
+                "2026-05-13T00:01:00Z".to_string(),
+            )
+            .expect("checkpointed apply");
+
+        assert_eq!(session.session_revision, 1);
+        assert_eq!(session.mode_theme_class, ThemeClass::LightParity);
+        assert_eq!(session.density_class, DensityClass::Compact);
+        assert_eq!(
+            session.reduced_motion_posture,
+            AccessibilityPostureClass::MotionReduced
+        );
+        assert_eq!(
+            session.current_checkpoint_ref.as_deref(),
+            Some("appearance_checkpoint:test:01")
+        );
+        assert_eq!(event.prior_session_revision(), 0);
+        assert_eq!(event.resulting_session_revision(), 1);
+        assert!(event
+            .changed_axes()
+            .contains(&AppearanceAxis::ModeThemeClass));
+        assert!(event.changed_axes().contains(&AppearanceAxis::DensityClass));
+        assert!(event
+            .changed_axes()
+            .contains(&AppearanceAxis::ReducedMotionPosture));
+    }
+
+    #[test]
+    fn checkpoint_revert_restores_prior_appearance_as_new_revision() {
+        let mut session = session();
+        let checkpoint = session.create_checkpoint(
+            "appearance_checkpoint:test:02",
+            "appearance_rollback:test:02",
+        );
+        session
+            .apply_checkpointed_changes(
+                AppearanceChangeSet::new().theme_class(ThemeClass::HighContrastLight),
+                &checkpoint,
+                CauseClass::PreviewStart,
+                LiveUpdateClass::LiveApplyWithRevertableCheckpoint,
+                "2026-05-13T00:01:00Z".to_string(),
+            )
+            .expect("checkpointed apply");
+
+        let event = session
+            .revert_to_checkpoint(&checkpoint, "2026-05-13T00:02:00Z".to_string())
+            .expect("checkpoint revert");
+
+        assert_eq!(session.session_revision, 2);
+        assert_eq!(session.mode_theme_class, ThemeClass::DarkReference);
+        assert_eq!(session.preview_state, PreviewState::RollbackApplied);
+        assert_eq!(event.cause_class(), CauseClass::CheckpointRollback);
+        assert_eq!(event.prior_session_revision(), 1);
+        assert_eq!(event.resulting_session_revision(), 2);
+    }
+
+    #[test]
+    fn stale_checkpoint_refuses_without_mutating_session() {
+        let mut session = session();
+        let checkpoint = session.create_checkpoint(
+            "appearance_checkpoint:test:03",
+            "appearance_rollback:test:03",
+        );
+        session.apply_density_class(DensityClass::Compact, "2026-05-13T00:01:00Z".to_string());
+        let before = session.clone();
+
+        let err = session
+            .apply_checkpointed_changes(
+                AppearanceChangeSet::new()
+                    .theme_class(ThemeClass::LightParity)
+                    .confirm_action_ref(Some("action:appearance.confirm_theme_switch".to_string())),
+                &checkpoint,
+                CauseClass::UserExplicitSetting,
+                LiveUpdateClass::ConfirmReviewRequired,
+                "2026-05-13T00:02:00Z".to_string(),
+            )
+            .expect_err("stale checkpoint should fail");
+
+        assert_eq!(
+            err,
+            AppearanceAtomicApplyError::StaleCheckpoint {
+                checkpoint_revision: 0,
+                current_revision: 1,
+            }
+        );
+        assert_eq!(session, before);
+    }
+
+    #[test]
+    fn confirm_required_apply_refuses_missing_confirm_action() {
+        let mut session = session();
+        let checkpoint = session.create_checkpoint(
+            "appearance_checkpoint:test:04",
+            "appearance_rollback:test:04",
+        );
+        let before = session.clone();
+
+        let err = session
+            .apply_checkpointed_changes(
+                AppearanceChangeSet::new().theme_class(ThemeClass::LightParity),
+                &checkpoint,
+                CauseClass::UserExplicitSetting,
+                LiveUpdateClass::ConfirmReviewRequired,
+                "2026-05-13T00:02:00Z".to_string(),
+            )
+            .expect_err("missing confirm action should fail");
+
+        assert_eq!(err, AppearanceAtomicApplyError::MissingConfirmAction);
+        assert_eq!(session, before);
     }
 }
