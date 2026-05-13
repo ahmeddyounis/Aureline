@@ -124,6 +124,18 @@
       "description": "Concrete source-class label for the artifact the restore consumed."
     },
 
+    "source_event_class": {
+      "type": "string",
+      "enum": [
+        "auto_checkpoint",
+        "manual_export",
+        "backup",
+        "sync",
+        "import"
+      ],
+      "description": "User-visible source event family that caused the restore provenance record to be emitted."
+    },
+
     "redaction_class": {
       "type": "string",
       "enum": [
@@ -249,6 +261,60 @@
         "remove_pane"
       ],
       "description": "Closed recovery-action vocabulary on a placeholder card. Aligned with the placeholder-action set frozen on the window-topology snapshot."
+    },
+
+    "restore_without_rerun_label": {
+      "type": "string",
+      "enum": [
+        "transcript_only",
+        "reconnect_required",
+        "session_ended",
+        "rerun_required",
+        "credential_unlock_needed",
+        "layout_adjusted_for_display_change",
+        "resume_review_needed"
+      ],
+      "description": "Closed label set for surfaces restored without rerunning commands or silently reacquiring authority."
+    },
+
+    "restore_without_rerun_downgrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgrade_id",
+        "pane_id",
+        "surface_role",
+        "surface_class",
+        "label",
+        "runtime_survived",
+        "command_rerun_forbidden",
+        "authority_reacquire_forbidden",
+        "note"
+      ],
+      "properties": {
+        "downgrade_id": { "$ref": "#/$defs/opaque_id" },
+        "pane_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_role": { "$ref": "#/$defs/preserved_pane_role" },
+        "surface_class": { "$ref": "#/$defs/preserved_surface_class" },
+        "label": { "$ref": "#/$defs/restore_without_rerun_label" },
+        "runtime_survived": {
+          "type": "boolean",
+          "description": "True only when the backing runtime survived and current authority was verified."
+        },
+        "command_rerun_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "Commands, tasks, cells, and sessions are not rerun by restore."
+        },
+        "authority_reacquire_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "Credentials, tickets, routes, remote sessions, and shared-control grants are not silently reacquired."
+        },
+        "evidence_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One session-scoped surface restored as transcript, evidence, reconnect-required, session-ended, rerun-required, or credential-gated instead of looking live again."
     },
 
     "missing_dependency_placeholder_card": {
@@ -423,6 +489,7 @@
         "record_kind",
         "restore_provenance_schema_version",
         "restore_provenance_id",
+        "source_event_class",
         "source",
         "created_at",
         "producer_build",
@@ -439,6 +506,7 @@
         "equivalence_map_ref",
         "compare_ref",
         "export_ref",
+        "restore_without_rerun_downgrades",
         "emitted_at"
       ],
       "properties": {
@@ -453,6 +521,7 @@
           "$ref": "#/$defs/opaque_id",
           "description": "Stable id for the restore-provenance record."
         },
+        "source_event_class": { "$ref": "#/$defs/source_event_class" },
         "source": { "$ref": "#/$defs/source_summary" },
         "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
         "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
@@ -501,6 +570,11 @@
           "$ref": "#/$defs/nullable_opaque_id",
           "description": "Top-level export handle for the resulting restore. Required on every fidelity above exact."
         },
+        "restore_without_rerun_downgrades": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restore_without_rerun_downgrade" },
+          "description": "Rows that explain surfaces restored without command rerun, live session reattachment, or hidden authority reacquire."
+        },
         "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
         "notes": {
           "$ref": "#/$defs/redaction_aware_text",
@@ -521,6 +595,10 @@
                 "maxItems": 0
               },
               "missing_dependency_placeholder_cards": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "restore_without_rerun_downgrades": {
                 "type": "array",
                 "maxItems": 0
               },

@@ -117,7 +117,7 @@ exportable.
 ## 1. Record boundary
 
 Every restore-provenance record under this contract MUST resolve every
-field to exactly one of the four boundaries below. Flattening them
+field to exactly one of the five boundaries below. Flattening them
 into one payload is non-conforming.
 
 | Boundary | What it carries | Where it lives |
@@ -125,6 +125,7 @@ into one payload is non-conforming.
 | **Provenance core** | source family/class/ref, created-at, producer build, source schema version, redaction class, resulting fidelity, restore level, top-level rollback/equivalence/compare/export refs | top-level fields of `state_restore_provenance_and_placeholder_record` |
 | **Compatibility-restore downgrade** | `resulting_fidelity` and `restore_level` enums, plus the conditional rules tying each fidelity to its required handles and preserved-prior-artifact rows | `resulting_fidelity`, `restore_level`, top-level handles, `preserved_prior_artifacts[]` |
 | **Missing-dependency placeholder cards** | per-pane rows preserving the original pane id, role, surface class, evidence posture, recovery actions | `missing_dependency_classes[]`, `missing_dependency_placeholder_cards[]` |
+| **Restore without rerun** | per-surface rows explaining transcript-only, reconnect-required, session-ended, rerun-required, credential-gated, display-adjusted, and resume-review downgrades | `restore_without_rerun_downgrades[]` |
 | **Intentional exclusions** | typed exclusion rows for state the source never claimed to carry (live authority, secrets, raw payloads, etc.) | `intentional_exclusions[]` |
 
 Rules (frozen):
@@ -142,6 +143,11 @@ Rules (frozen):
    restore. Per-pane compare/export is reached through the preserved
    prior artifact list, not by minting parallel handles inside a
    placeholder card.
+5. A live surface that cannot safely resume MUST use a
+   `restore_without_rerun_downgrades[]` row. It is non-conforming to
+   rely on a placeholder note or generic fidelity label to explain why
+   a command, session, remote target, or credential gate was not
+   restarted.
 
 ## 2. Provenance core fields
 
@@ -150,6 +156,9 @@ The provenance core is the shared header every record carries.
 Required fields (frozen):
 
 - `restore_provenance_id` — opaque stable id for the record.
+- `source_event_class` — one of `auto_checkpoint`, `manual_export`,
+  `backup`, `sync`, or `import`. Names the event family that produced
+  the record.
 - `source` — `artifact_family`, `source_class`, and
   `source_artifact_ref`. Names what the restore consumed.
 - `created_at` — producer-local monotonic timestamp for record
@@ -384,6 +393,33 @@ Rules (frozen):
    useful for compare and export. Replacing the artifact with an
    unlabeled summary blob is non-conforming.
 
+### 7.1 Restore without rerun labels
+
+`restore_without_rerun_downgrades[]` records session-scoped surfaces
+that returned as context, transcript, evidence, or a reconnect prompt
+instead of live work. The closed `label` set is:
+
+- `transcript_only`
+- `reconnect_required`
+- `session_ended`
+- `rerun_required`
+- `credential_unlock_needed`
+- `layout_adjusted_for_display_change`
+- `resume_review_needed`
+
+Rules (frozen):
+
+1. Terminals, tasks, debug sessions, notebook kernels, previews,
+   remote tunnels, and credential-gated surfaces MUST NOT be rerun or
+   silently reattached by restore.
+2. When `runtime_survived = false`, both
+   `command_rerun_forbidden` and `authority_reacquire_forbidden` MUST
+   be true.
+3. Display-topology clamps and wake/reconnect review states use the
+   same row set so startup, diagnostics, and support export can cite
+   the same downgrade reason.
+4. `notes` may explain the row but MUST NOT replace the typed label.
+
 ## 8. Cross-surface mapping
 
 The record is reusable verbatim by every surface that explains a
@@ -422,6 +458,9 @@ A restore-provenance record conforms when it can answer:
   dependencies?
 - Do preserved prior artifacts carry a typed `preservation_reason`
   and a retained `rollback_note`?
+- Do all surfaces restored without rerun, reattachment, remote
+  reconnect, credential unlock, or display-topology preservation carry
+  typed `restore_without_rerun_downgrades[]` rows?
 
 If any answer requires new vocabulary, this contract and its schema
 are extended first.

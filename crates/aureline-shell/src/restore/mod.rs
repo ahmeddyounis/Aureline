@@ -30,6 +30,7 @@ use aureline_recovery::session_restore::proposal::{
 use aureline_recovery::session_restore::records::{DowngradeTriggerClass, RestoreClass};
 
 pub mod placeholders;
+pub mod provenance;
 
 /// Canonical command id used for the safe-mode path in restore prompts.
 pub const RESTORE_SAFE_MODE_COMMAND_ID: &str = "cmd:workspace.enter_safe_mode";

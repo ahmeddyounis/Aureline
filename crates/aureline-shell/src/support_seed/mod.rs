@@ -43,6 +43,8 @@ use aureline_support::bundle::{
     SupportBundlePreview, SupportBundlePreviewBuilder, SupportBundlePreviewError,
 };
 
+use crate::restore::provenance::RestoreProvenanceRecord;
+
 /// Stable record-kind tag carried in serialized support-seed surfaces.
 pub const SUPPORT_SEED_SURFACE_RECORD_KIND: &str = "support_seed_surface_record";
 
@@ -240,6 +242,30 @@ impl SupportSeedSurface {
         ))
     }
 
+    /// Mint a local support preview that cites the same restore provenance
+    /// record shown by startup recovery, restore summaries, and diagnostics.
+    pub fn restore_provenance_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        provenance: &RestoreProvenanceRecord,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:restore-provenance:0001",
+            "Restore provenance support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(restore_provenance_seed(provenance));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support — restore provenance preview",
+        ))
+    }
+
     /// Convenience: the manifest the export writer would emit. Held as a
     /// borrowed accessor so the chrome never needs to clone the manifest
     /// just to render a row count.
@@ -367,6 +393,40 @@ fn failure_drill_secret_seed() -> PreviewItemSeed {
         notes: "Failure drill: the local-first defaults rewrite this row to 'prohibited' before \
                 export."
             .into(),
+    }
+}
+
+fn restore_provenance_seed(provenance: &RestoreProvenanceRecord) -> PreviewItemSeed {
+    let summary = provenance.summary_line();
+    PreviewItemSeed {
+        support_pack_item_id: provenance.support_pack_item_id(),
+        title: "Restore provenance and fidelity".into(),
+        data_class: DiagnosticDataClass::MetadataOnly,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "restore_and_recovery_truth".into(),
+        artifact_kind_class: "state_restore_provenance_and_placeholder_record".into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some(format!(
+            "manifest/restore_provenance/{}.json",
+            provenance.restore_provenance_id
+        )),
+        source_refs: vec![
+            "docs/state/restore_provenance_and_placeholder_contract.md".into(),
+            "docs/ux/restore_fidelity_classes.md".into(),
+            provenance.restore_provenance_id.clone(),
+        ],
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some(8192),
+            confidence_class: "estimated".into(),
+            display_label: "8 KB".into(),
+            size_source_class: "collector_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Without this row, support cannot explain why restore fidelity was downgraded or \
+             why live surfaces were not rerun."
+                .into(),
+        notes: summary,
     }
 }
 
