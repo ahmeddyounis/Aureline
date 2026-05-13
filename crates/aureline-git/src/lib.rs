@@ -10,6 +10,7 @@
 
 pub mod branches;
 pub mod commit;
+pub mod conflicts;
 pub mod mutations;
 pub mod publish;
 pub mod status;
@@ -34,6 +35,15 @@ pub use commit::{
     SystemGitCommitBackend, GIT_COMMIT_ACTIVITY_RECORD_KIND, GIT_COMMIT_JOURNAL_RECORD_KIND,
     GIT_COMMIT_PREVIEW_RECORD_KIND, GIT_COMMIT_PUBLISH_READINESS_RECORD_KIND,
     GIT_COMMIT_RESULT_RECORD_KIND, GIT_COMMIT_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use conflicts::{
+    GitConflictDivergenceSource, GitConflictExternalCompareProjection,
+    GitConflictGitStateProjection, GitConflictHandoffPacket, GitConflictHandoffRequest,
+    GitConflictHandoffService, GitConflictPathIdentity, GitConflictRollbackCheckpoint,
+    GitConflictSafeAction, GitConflictSupportExportRecord, GitConflictSurfaceKind,
+    GitConflictSurfaceRecord, GitConflictSurfaceState, GitExternalChangeHandoffInput,
+    GIT_CONFLICT_HANDOFF_PACKET_RECORD_KIND, GIT_CONFLICT_SUPPORT_EXPORT_RECORD_KIND,
+    GIT_CONFLICT_SURFACE_RECORD_KIND,
 };
 pub use mutations::{
     GitMutationActivityRecord, GitMutationActorRef, GitMutationBackend, GitMutationBackendError,

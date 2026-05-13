@@ -510,42 +510,59 @@ fn text_diff(external: &str, local: &str, max_preview_lines: usize) -> ExternalC
         (external_lines.len().saturating_sub(suffix) + context).min(external_lines.len());
     let end_local = (local_lines.len().saturating_sub(suffix) + context).min(local_lines.len());
 
-    for idx in start_external..prefix {
+    for line in external_lines.iter().take(prefix).skip(start_external) {
         if preview_lines.len() >= max_preview_lines {
             break;
         }
-        preview_lines.push(format!("  {}", external_lines[idx]));
+        preview_lines.push(format!("  {line}"));
     }
-    for idx in prefix..external_lines.len().saturating_sub(suffix) {
+    for line in external_lines
+        .iter()
+        .take(external_lines.len().saturating_sub(suffix))
+        .skip(prefix)
+    {
         if preview_lines.len() >= max_preview_lines {
             break;
         }
-        preview_lines.push(format!("- {}", external_lines[idx]));
+        preview_lines.push(format!("- {line}"));
     }
-    for idx in prefix..local_lines.len().saturating_sub(suffix) {
+    for line in local_lines
+        .iter()
+        .take(local_lines.len().saturating_sub(suffix))
+        .skip(prefix)
+    {
         if preview_lines.len() >= max_preview_lines {
             break;
         }
-        preview_lines.push(format!("+ {}", local_lines[idx]));
+        preview_lines.push(format!("+ {line}"));
     }
     if preview_lines.len() < max_preview_lines {
-        for idx in external_lines.len().saturating_sub(suffix)..end_external {
+        for line in external_lines
+            .iter()
+            .take(end_external)
+            .skip(external_lines.len().saturating_sub(suffix))
+        {
             if preview_lines.len() >= max_preview_lines {
                 break;
             }
-            preview_lines.push(format!("  {}", external_lines[idx]));
+            preview_lines.push(format!("  {line}"));
         }
-        for idx in local_lines.len().saturating_sub(suffix)..end_local {
+        for (idx, line) in local_lines
+            .iter()
+            .enumerate()
+            .take(end_local)
+            .skip(local_lines.len().saturating_sub(suffix))
+        {
             if preview_lines.len() >= max_preview_lines {
                 break;
             }
             if external_lines
                 .get(idx)
-                .is_some_and(|line| *line == local_lines[idx])
+                .is_some_and(|external_line| external_line == line)
             {
                 continue;
             }
-            preview_lines.push(format!("  {}", local_lines[idx]));
+            preview_lines.push(format!("  {line}"));
         }
     }
 
