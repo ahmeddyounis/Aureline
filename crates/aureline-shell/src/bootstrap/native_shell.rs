@@ -72,6 +72,7 @@ use crate::palette::preview::{
 };
 use crate::palette::results_view::palette_view_rows;
 use crate::palette::{CommandPaletteCommit, CommandPaletteState};
+use crate::restore::placeholders::recent_work_placeholder_card;
 use crate::restore::{
     materialize_restore_prompt, restore_prompt_status_line, write_restore_prompt_log,
 };
@@ -160,12 +161,13 @@ use aureline_workspace::save::{
     StagedSaveCoordinator, StagedSaveRequest,
 };
 use aureline_workspace::{
-    resolve_entry_flow, write_admission_review_log, AdmissionReviewPacket, AdmissionSourceSurface,
-    EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb, OpenFlowSheetClass,
-    PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
-    RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
-    RestoreAvailability, ResultingMode, SafeRecoveryAction, TargetKind, TrustState,
-    WorkspaceLifecycleMachine, WorkspaceLifecycleState, WorkspaceRootKind,
+    normalize_recent_work_entry_recovery_actions, resolve_entry_flow, write_admission_review_log,
+    AdmissionReviewPacket, AdmissionSourceSurface, EntryFlowOutcome, EntryFlowRequest,
+    EntryFlowTarget, EntryVerb, OpenFlowSheetClass, PortabilityClass, RecentWorkEntryRecord,
+    RecentWorkEntryRecordKind, RecentWorkRegistry, RecentWorkRegistryError,
+    RecentWorkRegistryRecordKind, RecentWorkTargetState, RestoreAvailability, ResultingMode,
+    SafeRecoveryAction, TargetKind, TrustState, WorkspaceLifecycleMachine, WorkspaceLifecycleState,
+    WorkspaceRootKind,
 };
 
 use crate::bootstrap::appearance_golden::write_png_0rgb;
@@ -5528,14 +5530,19 @@ impl RecentWorkRuntimeState {
     fn load() -> Self {
         let store_path = RecentWorkRegistry::default_store_path();
         match RecentWorkRegistry::load_or_default(&store_path) {
-            Ok(registry) => Self {
-                store_path,
-                registry,
-                active_recent_work_id: None,
-                active_workspace_label: None,
-                suspended_frames: HashMap::new(),
-                last_error: None,
-            },
+            Ok(mut registry) => {
+                for entry in &mut registry.entries {
+                    normalize_recent_work_entry_recovery_actions(entry);
+                }
+                Self {
+                    store_path,
+                    registry,
+                    active_recent_work_id: None,
+                    active_workspace_label: None,
+                    suspended_frames: HashMap::new(),
+                    last_error: None,
+                }
+            }
             Err(err) => Self {
                 store_path,
                 registry: RecentWorkRegistry {
@@ -5601,6 +5608,8 @@ impl RecentWorkRuntimeState {
             artifact_descriptor_ref: None,
             recovery_checkpoint_refs: None,
         };
+        let mut entry = entry;
+        normalize_recent_work_entry_recovery_actions(&mut entry);
 
         self.registry.updated_at = opened_at;
         self.registry.upsert(entry);
@@ -10465,6 +10474,7 @@ fn activate_recent_work_entry(
 
     let opened_at = mono_timestamp_now();
     entry.last_opened_at = opened_at.clone();
+    normalize_recent_work_entry_recovery_actions(&mut entry);
     recent_work.registry.updated_at = opened_at;
     recent_work.registry.upsert(entry);
 
@@ -10490,8 +10500,13 @@ fn activate_recent_work_entry(
 }
 
 fn workspace_root_for_recent_work_entry(entry: &RecentWorkEntryRecord) -> Option<PathBuf> {
+    if entry.target_state != RecentWorkTargetState::Reachable {
+        return None;
+    }
     match entry.target_kind {
-        TargetKind::LocalFolder => entry.presentation_subtitle.as_deref().map(PathBuf::from),
+        TargetKind::LocalFolder | TargetKind::LocalRepoRoot => {
+            entry.presentation_subtitle.as_deref().map(PathBuf::from)
+        }
         _ => None,
     }
 }
@@ -10853,14 +10868,63 @@ fn apply_workspace_switcher_decision(
                     ));
                 }
             }
-            SafeRecoveryAction::LocateMissingTarget => command_runtime
-                .note_non_command_action("locate missing target not implemented in shell build"),
-            SafeRecoveryAction::Reconnect => {
-                command_runtime.note_non_command_action("reconnect not implemented in shell build")
+            SafeRecoveryAction::LocateMissingTarget => {
+                let Some(mut entry) = recent_work.find_entry(&recent_work_id).cloned() else {
+                    command_runtime.note_non_command_action(format!(
+                        "locate failed: missing recent-work id {recent_work_id}"
+                    ));
+                    return;
+                };
+                let selected_path = match folder_picker::pick_folder() {
+                    Some(path) => path,
+                    None => {
+                        command_runtime.note_non_command_action("locate target cancelled");
+                        return;
+                    }
+                };
+                let folder_path = match resolve_open_workspace_path(&selected_path) {
+                    Ok(path) => path,
+                    Err(err) => {
+                        command_runtime
+                            .note_non_command_action(format!("locate target failed — {err}"));
+                        return;
+                    }
+                };
+
+                entry.presentation_subtitle = Some(folder_path.display().to_string());
+                entry.target_state = RecentWorkTargetState::Reachable;
+                if !entry
+                    .safe_recovery_actions
+                    .contains(&SafeRecoveryAction::Open)
+                {
+                    entry.safe_recovery_actions.push(SafeRecoveryAction::Open);
+                }
+                normalize_recent_work_entry_recovery_actions(&mut entry);
+                let workspace_root = workspace_root_for_recent_work_entry(&entry);
+                activate_recent_work_entry(
+                    window_dims,
+                    workspace_trust_state,
+                    recent_work,
+                    editor_runtime,
+                    frame,
+                    command_runtime,
+                    activity_center,
+                    entry,
+                    None,
+                );
+                sync_workspace_activation_runtime(
+                    editor_runtime,
+                    palette,
+                    workspace_lifecycle,
+                    workspace_trust_state.as_str(),
+                    workspace_root,
+                );
+                command_runtime.note_non_command_action("located recent work target");
             }
-            SafeRecoveryAction::Reauth => {
-                command_runtime.note_non_command_action("reauth not implemented in shell build")
-            }
+            SafeRecoveryAction::Reconnect => command_runtime
+                .note_non_command_action("reconnect queued; recent-work entry preserved"),
+            SafeRecoveryAction::Reauth => command_runtime
+                .note_non_command_action("reauth required; recent-work entry preserved"),
             SafeRecoveryAction::RetryLater => {
                 command_runtime.note_non_command_action("retry scheduled (placeholder)")
             }
@@ -15770,7 +15834,10 @@ struct WorkspaceSwitcherOverlay {
 }
 
 impl WorkspaceSwitcherOverlay {
-    fn new(snapshot: RecentWorkRegistry, current_trust_state: String) -> Self {
+    fn new(mut snapshot: RecentWorkRegistry, current_trust_state: String) -> Self {
+        for entry in &mut snapshot.entries {
+            normalize_recent_work_entry_recovery_actions(entry);
+        }
         Self {
             state: WorkspaceSwitcherState::new(),
             snapshot,
@@ -17215,6 +17282,9 @@ impl ShellOverlayState {
                             };
                         };
 
+                        let requires_placeholder =
+                            aureline_workspace::classify_recent_work_failure(entry)
+                                .requires_placeholder();
                         let allows_open = entry.safe_recovery_actions.iter().any(|action| {
                             matches!(
                                 action,
@@ -17226,7 +17296,7 @@ impl ShellOverlayState {
                             )
                         });
 
-                        if !allows_open {
+                        if requires_placeholder || !allows_open {
                             switcher.mode = WorkspaceSwitcherOverlayMode::RecoveryActions {
                                 recent_work_id: entry.recent_work_id.clone(),
                                 selection: 0,
@@ -18361,11 +18431,12 @@ fn draw_shell_overlay(
                         .as_deref()
                         .unwrap_or("no location metadata");
                     let summary = format!(
-                        "{} — {}  ({}, {}, {}, {})",
+                        "{} — {}  ({}, {}, {}, {}, {})",
                         entry.presentation_label,
                         subtitle,
-                        entry.target_kind.as_str(),
+                        entry.target_kind.surface_label(),
                         entry.target_state.as_str(),
+                        aureline_workspace::classify_recent_work_failure(entry).as_str(),
                         entry.trust_state.as_str(),
                         match entry.restore_availability {
                             RestoreAvailability::Exact => "restore:exact",
@@ -18386,6 +18457,24 @@ fn draw_shell_overlay(
                         fade(style.tokens.text_secondary),
                     );
                     cursor_y = cursor_y.saturating_add(16);
+
+                    if let Some(card) = recent_work_placeholder_card(
+                        entry,
+                        crate::restore::placeholders::PlaceholderSurfaceClass::WorkspaceSwitcher,
+                    ) {
+                        draw_text_clamped(
+                            buffer,
+                            width,
+                            height,
+                            cursor_x,
+                            cursor_y,
+                            1,
+                            &card.recovery_summary,
+                            fade(style.tokens.text_muted),
+                            sheet_rect.right().saturating_sub(style.space_3),
+                        );
+                        cursor_y = cursor_y.saturating_add(16);
+                    }
 
                     let last_opened = format!("last_opened_at: {}", entry.last_opened_at);
                     draw_text(
@@ -18487,13 +18576,21 @@ fn draw_shell_overlay(
                     .location_or_target_subtitle
                     .as_deref()
                     .unwrap_or("no location metadata");
+                let classes = row
+                    .entry_classes
+                    .iter()
+                    .map(|class| class.as_str())
+                    .collect::<Vec<_>>()
+                    .join("+");
                 let line = format!(
-                    "{pin} {} — {}  last:{}  ({}, {}, {}, {})",
+                    "{pin} {} — {}  last:{}  ({}, {}, {}, {}, {}, {})",
                     row.primary_label,
                     subtitle,
                     row.last_opened_at,
-                    row.target_kind.as_str(),
+                    row.target_kind_label,
+                    classes,
                     row.target_state.as_str(),
+                    row.failure_state.as_str(),
                     row.trust_state.as_str(),
                     match row.restore_availability {
                         RestoreAvailability::Exact => "restore:exact",

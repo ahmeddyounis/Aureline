@@ -20,9 +20,12 @@ pub mod save;
 pub mod worksets;
 
 pub use recent_work::{
-    EntryAndRestoreSchemaVersion, PortabilityClass, RecentWorkEntryRecord,
-    RecentWorkEntryRecordKind, RecentWorkRegistry, RecentWorkRegistryError,
-    RecentWorkRegistryRecordKind, RecentWorkTargetState, RestoreAvailability, SafeRecoveryAction,
+    classify_recent_work_failure, is_remote_backed_target,
+    normalize_recent_work_entry_recovery_actions, normalized_recent_work_recovery_actions,
+    open_minimal_recovery_action, removes_recent_work_metadata_only, EntryAndRestoreSchemaVersion,
+    PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkFailureState,
+    RecentWorkRegistry, RecentWorkRegistryError, RecentWorkRegistryRecordKind,
+    RecentWorkTargetState, RecoveryCheckpointRef, RestoreAvailability, SafeRecoveryAction,
     TargetKind, TrustState,
 };
 

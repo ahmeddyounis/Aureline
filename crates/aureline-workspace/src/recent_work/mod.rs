@@ -8,6 +8,14 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+mod recovery;
+
+pub use recovery::{
+    classify_recent_work_failure, is_remote_backed_target,
+    normalize_recent_work_entry_recovery_actions, normalized_recent_work_recovery_actions,
+    open_minimal_recovery_action, removes_recent_work_metadata_only, RecentWorkFailureState,
+};
+
 /// Schema version for `entry_and_restore_result.schema.json`.
 pub type EntryAndRestoreSchemaVersion = u32;
 
@@ -61,6 +69,28 @@ impl TargetKind {
             Self::TemplateOrPrebuildSnapshot => "template_or_prebuild_snapshot",
             Self::ReviewOrWorkItemDeepLink => "review_or_work_item_deep_link",
             Self::RecoveryCheckpoint => "recovery_checkpoint",
+        }
+    }
+
+    /// Returns the compact label used by Start Center and switcher rows.
+    pub const fn surface_label(self) -> &'static str {
+        match self {
+            Self::LocalFile => "File",
+            Self::LocalFolder => "Folder",
+            Self::LocalRepoRoot => "Repository",
+            Self::WorkspaceManifest => "Workspace",
+            Self::WorksetManifest => "Workset",
+            Self::RemoteRepository => "Remote repository",
+            Self::SshWorkspace => "SSH",
+            Self::ContainerWorkspace => "Container",
+            Self::DevcontainerWorkspace => "Dev container",
+            Self::ManagedCloudWorkspace => "Cloud workspace",
+            Self::PortableStatePackage => "Portable state",
+            Self::HandoffPacket => "Handoff packet",
+            Self::CompetitorConfigRoot => "Imported config",
+            Self::TemplateOrPrebuildSnapshot => "Template",
+            Self::ReviewOrWorkItemDeepLink => "Deep link",
+            Self::RecoveryCheckpoint => "Recovery checkpoint",
         }
     }
 }

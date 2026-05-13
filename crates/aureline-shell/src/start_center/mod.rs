@@ -10,7 +10,16 @@ use std::fmt;
 
 use aureline_commands::invocation::ArgumentProvenanceEntry;
 use aureline_commands::{CommandEnablementContext, CommandRegistry, PreflightDecision};
+use aureline_workspace::{
+    classify_recent_work_failure, normalized_recent_work_recovery_actions, RecentWorkEntryRecord,
+    RecentWorkFailureState, RecentWorkRegistry, RestoreAvailability, SafeRecoveryAction,
+    TargetKind, TrustState,
+};
 use serde::Deserialize;
+
+use crate::restore::placeholders::{
+    recent_work_placeholder_card, PlaceholderSurfaceClass, RecentWorkPlaceholderCard,
+};
 
 pub mod admission_review;
 pub mod first_useful_work;
@@ -122,6 +131,60 @@ pub struct StartCenterActionRow {
     pub preflight: Option<PreflightDecision>,
 }
 
+/// Privacy posture applied to Start Center recent-work metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartCenterRecentWorkPrivacyMode {
+    /// Render recent-work metadata normally.
+    Default,
+    /// Hide path and host details while keeping rows visible.
+    HidePaths,
+    /// Hide recent-work rows while preserving primary entry actions.
+    HideRecentWork,
+    /// Hide recent-work rows and account affordances; keep open and clone entry.
+    HideAllExceptOpenAndClone,
+}
+
+impl StartCenterRecentWorkPrivacyMode {
+    /// Returns the stable string vocabulary for privacy mode.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Default => "default",
+            Self::HidePaths => "hide_paths",
+            Self::HideRecentWork => "hide_recent_work",
+            Self::HideAllExceptOpenAndClone => "hide_all_except_open_and_clone",
+        }
+    }
+}
+
+/// Start Center projection of a canonical recent-work entry.
+#[derive(Debug, Clone)]
+pub struct StartCenterRecentWorkRow {
+    pub recent_work_id: String,
+    pub primary_label: String,
+    pub location_or_target_subtitle: Option<String>,
+    pub target_kind: TargetKind,
+    pub target_kind_label: &'static str,
+    pub failure_state: RecentWorkFailureState,
+    pub trust_state: TrustState,
+    pub restore_availability: RestoreAvailability,
+    pub pinned: bool,
+    pub safe_recovery_actions: Vec<SafeRecoveryAction>,
+    pub placeholder_card: Option<RecentWorkPlaceholderCard>,
+    pub privacy_redaction_applied: bool,
+}
+
+/// Start Center recent-work projection plus privacy-preserved entry affordances.
+#[derive(Debug, Clone)]
+pub struct StartCenterRecentWorkProjection {
+    pub privacy_mode: StartCenterRecentWorkPrivacyMode,
+    pub rows: Vec<StartCenterRecentWorkRow>,
+    pub metadata_hidden: bool,
+    pub local_open_still_available: bool,
+    pub workspace_open_still_available: bool,
+    pub restore_local_state_still_available: bool,
+    pub clear_recent_work_available: bool,
+}
+
 /// Mutable Start Center interaction state (selection, focus).
 #[derive(Debug, Clone)]
 pub struct StartCenterState {
@@ -224,6 +287,66 @@ pub fn build_action_rows(
         });
     }
     rows
+}
+
+/// Builds Start Center recent-work rows from the canonical registry.
+pub fn build_recent_work_rows(
+    registry: &RecentWorkRegistry,
+    privacy_mode: StartCenterRecentWorkPrivacyMode,
+) -> StartCenterRecentWorkProjection {
+    let metadata_hidden = matches!(
+        privacy_mode,
+        StartCenterRecentWorkPrivacyMode::HideRecentWork
+            | StartCenterRecentWorkPrivacyMode::HideAllExceptOpenAndClone
+    );
+    let rows = if metadata_hidden {
+        Vec::new()
+    } else {
+        registry
+            .entries
+            .iter()
+            .map(|entry| start_center_recent_work_row(entry, privacy_mode))
+            .collect()
+    };
+
+    StartCenterRecentWorkProjection {
+        privacy_mode,
+        rows,
+        metadata_hidden,
+        local_open_still_available: true,
+        workspace_open_still_available: true,
+        restore_local_state_still_available: true,
+        clear_recent_work_available: !registry.entries.is_empty(),
+    }
+}
+
+fn start_center_recent_work_row(
+    entry: &RecentWorkEntryRecord,
+    privacy_mode: StartCenterRecentWorkPrivacyMode,
+) -> StartCenterRecentWorkRow {
+    let privacy_redaction_applied = privacy_mode == StartCenterRecentWorkPrivacyMode::HidePaths;
+    let location_or_target_subtitle = if privacy_redaction_applied {
+        Some(entry.target_kind.surface_label().to_string())
+    } else {
+        entry.presentation_subtitle.clone()
+    };
+    StartCenterRecentWorkRow {
+        recent_work_id: entry.recent_work_id.clone(),
+        primary_label: entry.presentation_label.clone(),
+        location_or_target_subtitle,
+        target_kind: entry.target_kind,
+        target_kind_label: entry.target_kind.surface_label(),
+        failure_state: classify_recent_work_failure(entry),
+        trust_state: entry.trust_state,
+        restore_availability: entry.restore_availability,
+        pinned: entry.pinned,
+        safe_recovery_actions: normalized_recent_work_recovery_actions(entry),
+        placeholder_card: recent_work_placeholder_card(
+            entry,
+            PlaceholderSurfaceClass::StartCenterRecentWork,
+        ),
+        privacy_redaction_applied,
+    }
 }
 
 const ALPHA_BUNDLE_MANIFESTS: &[(&str, &str)] = &[
@@ -480,6 +603,10 @@ mod tests {
     use super::*;
 
     use aureline_commands::registry::seeded_registry;
+    use aureline_workspace::{
+        PortabilityClass, RecentWorkEntryRecordKind, RecentWorkRegistryRecordKind,
+        RecentWorkTargetState,
+    };
     use std::path::Path;
 
     #[test]
@@ -626,5 +753,61 @@ mod tests {
         assert!(text.contains(">=0.0.0-alpha <0.1.0"));
         assert!(text.contains("seed_not_certified"));
         assert!(text.contains("offline_metadata_and_docs_pack"));
+    }
+
+    #[test]
+    fn recent_work_rows_reuse_failure_taxonomy_and_privacy_preserves_entry() {
+        let registry = RecentWorkRegistry {
+            record_kind: RecentWorkRegistryRecordKind::RecentWorkRegistryRecord,
+            recent_work_registry_schema_version: 1,
+            updated_at: "mono:test".to_string(),
+            entries: vec![RecentWorkEntryRecord {
+                record_kind: RecentWorkEntryRecordKind::RecentWorkEntryRecord,
+                entry_and_restore_schema_version: 1,
+                recent_work_id: "recent:missing".to_string(),
+                presentation_label: "payments".to_string(),
+                presentation_subtitle: Some("/private/path/payments".to_string()),
+                target_kind: TargetKind::LocalRepoRoot,
+                target_state: RecentWorkTargetState::MissingTarget,
+                portability_class: PortabilityClass::LocalOnly,
+                trust_state: TrustState::Trusted,
+                restore_availability: RestoreAvailability::LayoutOnly,
+                safe_recovery_actions: vec![SafeRecoveryAction::LocateMissingTarget],
+                pinned: false,
+                last_opened_at: "mono:test".to_string(),
+                filesystem_identity_ref: Some("fs:payments".to_string()),
+                remote_target_descriptor_ref: None,
+                artifact_descriptor_ref: None,
+                recovery_checkpoint_refs: None,
+            }],
+        };
+
+        let rows = build_recent_work_rows(&registry, StartCenterRecentWorkPrivacyMode::Default);
+        assert_eq!(rows.rows.len(), 1);
+        assert_eq!(
+            rows.rows[0].failure_state,
+            RecentWorkFailureState::MissingPath
+        );
+        assert!(rows.rows[0].placeholder_card.is_some());
+        assert!(rows.rows[0]
+            .safe_recovery_actions
+            .contains(&SafeRecoveryAction::OpenWithoutRestore));
+
+        let reduced =
+            build_recent_work_rows(&registry, StartCenterRecentWorkPrivacyMode::HidePaths);
+        assert_eq!(
+            reduced.rows[0].location_or_target_subtitle.as_deref(),
+            Some("Repository")
+        );
+        assert!(reduced.rows[0].privacy_redaction_applied);
+
+        let hidden =
+            build_recent_work_rows(&registry, StartCenterRecentWorkPrivacyMode::HideRecentWork);
+        assert!(hidden.metadata_hidden);
+        assert!(hidden.rows.is_empty());
+        assert!(hidden.local_open_still_available);
+        assert!(hidden.workspace_open_still_available);
+        assert!(hidden.restore_local_state_still_available);
+        assert!(hidden.clear_recent_work_available);
     }
 }

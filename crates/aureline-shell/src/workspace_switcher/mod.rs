@@ -7,8 +7,14 @@
 //! remain consistent across entry surfaces.
 
 use aureline_workspace::{
-    RecentWorkEntryRecord, RecentWorkRegistry, RecentWorkTargetState, RestoreAvailability,
-    SafeRecoveryAction, TargetKind, TrustState,
+    classify_recent_work_failure, is_remote_backed_target, normalized_recent_work_recovery_actions,
+    RecentWorkEntryRecord, RecentWorkFailureState, RecentWorkRegistry, RecentWorkTargetState,
+    RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState,
+};
+
+use crate::restore::placeholders::{
+    recent_work_placeholder_card, PlaceholderSurfaceClass, RecentWorkPlaceholderCard,
+    WorkspaceSwitchRecoveryAction,
 };
 
 /// Presentation label rendered for workspace switcher surfaces.
@@ -31,38 +37,117 @@ pub struct WorkspaceSwitcherRow {
     pub recent_work_id: String,
     pub primary_label: String,
     pub location_or_target_subtitle: Option<String>,
+    pub entry_classes: Vec<WorkspaceSwitcherEntryClass>,
     pub target_kind: TargetKind,
+    pub target_kind_label: &'static str,
     pub target_state: RecentWorkTargetState,
+    pub failure_state: RecentWorkFailureState,
     pub trust_state: TrustState,
     pub restore_availability: RestoreAvailability,
     pub last_opened_at: String,
     pub pinned: bool,
     pub safe_recovery_actions: Vec<SafeRecoveryAction>,
+    pub switch_failure_actions: Vec<WorkspaceSwitchRecoveryAction>,
+    pub placeholder_card: Option<RecentWorkPlaceholderCard>,
     pub searchable_terms: Vec<String>,
+}
+
+/// Row classes shown and searched by the workspace switcher.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkspaceSwitcherEntryClass {
+    /// Local file, folder, repository, workspace, or workset.
+    Local,
+    /// Remote-backed target.
+    Remote,
+    /// Managed cloud workspace target.
+    Managed,
+    /// Pinned entry.
+    Pinned,
+    /// Recent entry.
+    Recent,
+    /// Entry with restorable state.
+    RecentlyRestored,
+    /// Template or prebuild snapshot.
+    Template,
+    /// Imported, handoff, or portable-state target.
+    Imported,
+}
+
+impl WorkspaceSwitcherEntryClass {
+    /// Returns the stable string vocabulary for the class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Remote => "remote",
+            Self::Managed => "managed",
+            Self::Pinned => "pinned",
+            Self::Recent => "recent",
+            Self::RecentlyRestored => "recently_restored",
+            Self::Template => "template",
+            Self::Imported => "imported",
+        }
+    }
 }
 
 impl WorkspaceSwitcherRow {
     fn from_entry(entry: &RecentWorkEntryRecord) -> Self {
+        let failure_state = classify_recent_work_failure(entry);
+        let entry_classes = entry_classes_for(entry);
+        let placeholder_card =
+            recent_work_placeholder_card(entry, PlaceholderSurfaceClass::WorkspaceSwitcher);
+        let safe_recovery_actions = placeholder_card
+            .as_ref()
+            .map(|card| card.safe_recovery_actions.clone())
+            .unwrap_or_else(|| normalized_recent_work_recovery_actions(entry));
+        let switch_failure_actions = placeholder_card
+            .as_ref()
+            .map(|card| card.switch_recovery_actions.clone())
+            .unwrap_or_else(|| {
+                vec![
+                    WorkspaceSwitchRecoveryAction::CancelSwitch,
+                    WorkspaceSwitchRecoveryAction::ReopenPreviousWorkspace,
+                ]
+            });
         let mut searchable_terms = Vec::new();
         searchable_terms.push(entry.presentation_label.to_ascii_lowercase());
         if let Some(subtitle) = entry.presentation_subtitle.as_deref() {
             searchable_terms.push(subtitle.to_ascii_lowercase());
         }
         searchable_terms.push(entry.target_kind.as_str().to_string());
+        searchable_terms.push(entry.target_kind.surface_label().to_ascii_lowercase());
         searchable_terms.push(entry.trust_state.as_str().to_string());
         searchable_terms.push(entry.target_state.as_str().to_string());
+        searchable_terms.push(failure_state.as_str().to_string());
+        searchable_terms.push(
+            match entry.restore_availability {
+                RestoreAvailability::Exact => "restore:exact",
+                RestoreAvailability::Compatible => "restore:compatible",
+                RestoreAvailability::LayoutOnly => "restore:layout_only",
+                RestoreAvailability::EvidenceOnly => "restore:evidence_only",
+                RestoreAvailability::None => "restore:none",
+            }
+            .to_string(),
+        );
+        for class in &entry_classes {
+            searchable_terms.push(class.as_str().to_string());
+        }
 
         Self {
             recent_work_id: entry.recent_work_id.clone(),
             primary_label: entry.presentation_label.clone(),
             location_or_target_subtitle: entry.presentation_subtitle.clone(),
+            entry_classes,
             target_kind: entry.target_kind,
+            target_kind_label: entry.target_kind.surface_label(),
             target_state: entry.target_state,
+            failure_state,
             trust_state: entry.trust_state,
             restore_availability: entry.restore_availability,
             last_opened_at: entry.last_opened_at.clone(),
             pinned: entry.pinned,
-            safe_recovery_actions: entry.safe_recovery_actions.clone(),
+            safe_recovery_actions,
+            switch_failure_actions,
+            placeholder_card,
             searchable_terms,
         }
     }
@@ -76,6 +161,37 @@ impl WorkspaceSwitcherRow {
             .iter()
             .any(|term| query_matches(term, &query))
     }
+}
+
+fn entry_classes_for(entry: &RecentWorkEntryRecord) -> Vec<WorkspaceSwitcherEntryClass> {
+    let mut classes = Vec::new();
+    if is_remote_backed_target(entry.target_kind) {
+        classes.push(WorkspaceSwitcherEntryClass::Remote);
+    } else {
+        classes.push(WorkspaceSwitcherEntryClass::Local);
+    }
+    if entry.target_kind == TargetKind::ManagedCloudWorkspace {
+        classes.push(WorkspaceSwitcherEntryClass::Managed);
+    }
+    if entry.target_kind == TargetKind::TemplateOrPrebuildSnapshot {
+        classes.push(WorkspaceSwitcherEntryClass::Template);
+    }
+    if matches!(
+        entry.target_kind,
+        TargetKind::PortableStatePackage
+            | TargetKind::HandoffPacket
+            | TargetKind::CompetitorConfigRoot
+    ) {
+        classes.push(WorkspaceSwitcherEntryClass::Imported);
+    }
+    if entry.pinned {
+        classes.push(WorkspaceSwitcherEntryClass::Pinned);
+    }
+    classes.push(WorkspaceSwitcherEntryClass::Recent);
+    if entry.restore_availability != RestoreAvailability::None {
+        classes.push(WorkspaceSwitcherEntryClass::RecentlyRestored);
+    }
+    classes
 }
 
 /// Mutable interaction state for a workspace switcher list.
@@ -195,5 +311,55 @@ mod tests {
 
         let rows = build_switcher_rows(&registry, "missing");
         assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn placeholder_rows_expose_recovery_and_return_paths() {
+        let registry = RecentWorkRegistry {
+            record_kind: aureline_workspace::RecentWorkRegistryRecordKind::RecentWorkRegistryRecord,
+            recent_work_registry_schema_version: 1,
+            updated_at: "mono:0".to_string(),
+            entries: vec![RecentWorkEntryRecord {
+                record_kind: aureline_workspace::RecentWorkEntryRecordKind::RecentWorkEntryRecord,
+                entry_and_restore_schema_version: 1,
+                recent_work_id: "recent:missing".to_string(),
+                presentation_label: "payments".to_string(),
+                presentation_subtitle: Some("Local repository".to_string()),
+                target_kind: TargetKind::LocalRepoRoot,
+                target_state: RecentWorkTargetState::MissingTarget,
+                portability_class: aureline_workspace::PortabilityClass::LocalOnly,
+                trust_state: TrustState::Trusted,
+                restore_availability: RestoreAvailability::LayoutOnly,
+                safe_recovery_actions: vec![SafeRecoveryAction::LocateMissingTarget],
+                pinned: true,
+                last_opened_at: "mono:0".to_string(),
+                filesystem_identity_ref: Some("fs:payments".to_string()),
+                remote_target_descriptor_ref: None,
+                artifact_descriptor_ref: None,
+                recovery_checkpoint_refs: None,
+            }],
+        };
+
+        let rows = build_switcher_rows(&registry, "missing_path");
+        assert_eq!(rows.len(), 1);
+        let row = &rows[0];
+        assert_eq!(row.failure_state, RecentWorkFailureState::MissingPath);
+        assert!(row
+            .entry_classes
+            .contains(&WorkspaceSwitcherEntryClass::Pinned));
+        assert!(row
+            .entry_classes
+            .contains(&WorkspaceSwitcherEntryClass::Recent));
+        assert_eq!(row.target_kind_label, "Repository");
+        assert!(row.placeholder_card.is_some());
+        assert!(row
+            .safe_recovery_actions
+            .contains(&SafeRecoveryAction::OpenWithoutRestore));
+        assert!(row
+            .switch_failure_actions
+            .contains(&WorkspaceSwitchRecoveryAction::CancelSwitch));
+        assert!(row
+            .switch_failure_actions
+            .contains(&WorkspaceSwitchRecoveryAction::ReopenPreviousWorkspace));
     }
 }
