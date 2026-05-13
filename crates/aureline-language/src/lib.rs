@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-language/0.0.0")]
 
 pub mod invalidation;
+pub mod lsp_router;
 pub mod symbol_snapshot;
 pub mod tree_sitter;
 
@@ -16,6 +17,23 @@ pub use invalidation::{
     EditOperationRecord, EditWorkloadClass, IncrementalParseBuffer,
     IncrementalParseInvalidationRecord, IncrementalParseUpdate, InvalidationBenchmarkSample,
     InvalidationDecisionClass, InvalidationError, ParseInvalidationSchemaVersion, TextEdit,
+};
+pub use lsp_router::{
+    CapabilityClass as RouterCapabilityClass, CompletenessClass as RouterCompletenessClass,
+    CoordinateTranslationRequirementClass, DecisionOutcome as RouterDecisionOutcome,
+    DegradedStateClass as RouterDegradedStateClass, EpochBinding as RouterEpochBinding,
+    EpochRoleClass as RouterEpochRoleClass, FallbackClass as RouterFallbackClass,
+    FaultDomainId as RouterFaultDomainId, FreshnessClass as RouterFreshnessClass,
+    HealthState as RouterHealthState, LaneClass as RouterLaneClass, LanguageServerHostIdentity,
+    LanguageServerHostStatus, LocalityClass as RouterLocalityClass, LspRouter,
+    PlacementPreferenceClass, PrecedenceBand as RouterPrecedenceBand, ProviderFamily,
+    ProviderKind as RouterProviderKind, ProviderPolicyContext, ProviderRoleClass,
+    ProviderStackRow as RouterProviderStackRow, ProviderStatusRowRecord, RedactionClass,
+    RequestedAuthorityFloorClass, RouterDecisionRecord, RouterDecisionSchemaVersion, RouterRequest,
+    RouterRequestContext, RouterTrustState, RoutingContext,
+    ScopeClaimClass as RouterScopeClaimClass, ScopeLimitClass, SupportClass as RouterSupportClass,
+    SurfaceClass as RouterSurfaceClass, SurfaceReport as RouterSurfaceReport, SurfaceSupportClass,
+    SurfaceSupportClassRow, WorkspaceLocalRouterRequest, ROUTER_DECISION_SCHEMA_VERSION,
 };
 pub use symbol_snapshot::{
     SourcePoint, SourceRange, SymbolKindClass, SymbolProviderClass, SymbolRecord,

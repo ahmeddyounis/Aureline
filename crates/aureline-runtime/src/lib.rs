@@ -19,6 +19,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-runtime/0.0.0")]
 
 pub mod execution_context;
+pub mod language_hosts;
 
 pub use execution_context::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
@@ -27,4 +28,11 @@ pub use execution_context::{
     PolicyAndTrust, Provenance, ReachabilityState, ResolverInputDecision, ResolverInputField,
     ResolverInputSource, ScopeClass, SurfaceClass, TargetClass, TargetIdentity, ToolchainClass,
     ToolchainIdentity, TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
+};
+pub use language_hosts::{
+    LanguageHostEventClass, LanguageHostExitReasonClass, LanguageHostIdentity,
+    LanguageHostLaunchSpec, LanguageHostRuntimeStateClass, LanguageHostScopeKey,
+    LanguageHostSnapshot, LanguageHostSupervisor, LanguageHostSupervisorConfig,
+    LanguageHostSupervisorError, LanguageHostSupervisorEvent, LanguageHostSupportPacket,
+    LANGUAGE_HOST_SUPERVISION_SCHEMA_VERSION,
 };
