@@ -12,7 +12,7 @@
 //! ADR names observable against a frozen scenario table so the
 //! vocabulary cannot silently drift.
 //!
-//! Six pieces sit behind this crate's public surface:
+//! Eight pieces sit behind this crate's public surface:
 //!
 //! - [`envelope`] — the frozen vocabulary enums, the envelope
 //!   struct, and a hand-rolled canonical JSON renderer. The
@@ -32,6 +32,11 @@
 //!   families the spec lists (shell health, workspace readiness,
 //!   file identity, derived / materialized views) plus a provider-
 //!   overlay factory used by the terminal-unavailable scenario.
+//! - [`query_envelope`] — the search / graph / docs query
+//!   projection layered over the subscription envelope. It gives
+//!   live consumers, support exports, and benchmark traces one
+//!   state grammar for loading, partial results, staleness,
+//!   cancellation, and failure.
 //! - [`harness`] — the frozen scenario table: nominal, warming →
 //!   full, out-of-order delta / resync, upstream-input-stale,
 //!   refresh-ordering (authority precedes derived), replay
@@ -56,6 +61,7 @@ pub mod envelope;
 pub mod harness;
 pub mod hooks;
 pub mod producers;
+pub mod query_envelope;
 pub mod runtime;
 pub mod store;
 pub mod trace;
@@ -70,6 +76,15 @@ pub use hooks::HookCounters;
 pub use producers::{
     derived_diagnostics, file_identity, graph_neighborhood, provider_overlay, shell_health, window,
     workspace, workspace_readiness,
+};
+pub use query_envelope::{
+    LiveQueryEnvelopeRuntime, QueryCancellationReason, QueryConsumerSurface,
+    QueryEnvelopeBenchmarkFrame, QueryEnvelopeBenchmarkTrace, QueryEnvelopeObserver,
+    QueryEnvelopePayload, QueryEnvelopeRecord, QueryEnvelopeState, QueryEnvelopeSubscriptionInput,
+    QueryEnvelopeSubscriptionToken, QueryEnvelopeSupportArtifact, QueryEnvelopeSupportRow,
+    QueryRefreshReason, QUERY_ENVELOPE_ALPHA_SCHEMA_VERSION,
+    QUERY_ENVELOPE_BENCHMARK_TRACE_RECORD_KIND, QUERY_ENVELOPE_RECORD_KIND,
+    QUERY_ENVELOPE_SUPPORT_ARTIFACT_RECORD_KIND,
 };
 pub use runtime::{
     open_workspace_readiness, readiness_from_envelope, readiness_label_counts, render_chip_line,

@@ -1,0 +1,417 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.aureline.dev/state/query_envelope_alpha.schema.json",
+  "title": "Query Envelope Alpha",
+  "description": "Shared query-envelope records for search, graph, and docs surfaces.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/query_envelope_record"
+    },
+    {
+      "$ref": "#/$defs/support_artifact"
+    },
+    {
+      "$ref": "#/$defs/benchmark_trace"
+    }
+  ],
+  "$defs": {
+    "surface": {
+      "type": "string",
+      "enum": ["search", "graph", "docs"]
+    },
+    "state_token": {
+      "type": "string",
+      "enum": ["ready", "warming", "partial", "stale", "failed"]
+    },
+    "frame_class": {
+      "type": "string",
+      "enum": ["snapshot", "delta", "resync_required", "terminal"]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["authoritative", "warming", "cached", "stale", "replayed", "imported"]
+    },
+    "completeness": {
+      "type": "string",
+      "enum": ["full", "partial", "unloaded", "unavailable"]
+    },
+    "backpressure_mode": {
+      "type": "string",
+      "enum": ["realtime", "coalesced", "snapshot_required"]
+    },
+    "refresh_reason": {
+      "type": "string",
+      "enum": [
+        "initial_subscribe",
+        "user_refresh",
+        "scope_changed",
+        "index_epoch_advanced",
+        "graph_epoch_advanced",
+        "docs_pack_changed",
+        "policy_epoch_changed",
+        "producer_restart",
+        "backpressure_resync",
+        "benchmark_replay"
+      ]
+    },
+    "cancellation_reason": {
+      "type": "string",
+      "enum": [
+        "user_cancelled",
+        "superseded_by_new_query",
+        "scope_removed",
+        "deadline_exceeded",
+        "policy_terminated",
+        "producer_shutdown"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost"
+      ]
+    },
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "review_workspace",
+            "remote_session",
+            "tenant",
+            "companion_surface"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ready", "total"],
+      "properties": {
+        "ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "query_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "query_envelope_id",
+        "subscription_id",
+        "consumer_surface",
+        "query_family",
+        "scope_ref",
+        "state_token",
+        "snapshot_epoch",
+        "delta_seq",
+        "frame_class",
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "producer_id",
+        "observed_at",
+        "result_count",
+        "coverage"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "query_envelope_alpha_record"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "query_envelope_id": {
+          "type": "string",
+          "pattern": "^query-envelope:[0-9]+:[0-9]+:[0-9]+:(snapshot|delta|resync_required|terminal)$"
+        },
+        "subscription_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "consumer_surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "query_family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope_ref": {
+          "$ref": "#/$defs/scope_ref"
+        },
+        "state_token": {
+          "$ref": "#/$defs/state_token"
+        },
+        "snapshot_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delta_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "frame_class": {
+          "$ref": "#/$defs/frame_class"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "completeness": {
+          "$ref": "#/$defs/completeness"
+        },
+        "backpressure_mode": {
+          "$ref": "#/$defs/backpressure_mode"
+        },
+        "producer_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "producer_version": {
+          "type": "string"
+        },
+        "invalidation_reason": {
+          "$ref": "#/$defs/invalidation_reason"
+        },
+        "refresh_reason": {
+          "$ref": "#/$defs/refresh_reason"
+        },
+        "cancellation_reason": {
+          "$ref": "#/$defs/cancellation_reason"
+        },
+        "failure_reason": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      }
+    },
+    "support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_envelope_id",
+        "consumer_surface",
+        "query_family",
+        "scope_ref",
+        "state_token",
+        "freshness",
+        "completeness",
+        "backpressure_mode",
+        "observed_at"
+      ],
+      "properties": {
+        "query_envelope_id": {
+          "type": "string"
+        },
+        "consumer_surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "query_family": {
+          "type": "string"
+        },
+        "scope_ref": {
+          "$ref": "#/$defs/scope_ref"
+        },
+        "state_token": {
+          "$ref": "#/$defs/state_token"
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "completeness": {
+          "$ref": "#/$defs/completeness"
+        },
+        "backpressure_mode": {
+          "$ref": "#/$defs/backpressure_mode"
+        },
+        "invalidation_reason": {
+          "$ref": "#/$defs/invalidation_reason"
+        },
+        "refresh_reason": {
+          "$ref": "#/$defs/refresh_reason"
+        },
+        "cancellation_reason": {
+          "$ref": "#/$defs/cancellation_reason"
+        },
+        "failure_reason": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string"
+        }
+      }
+    },
+    "support_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "artifact_id",
+        "generated_at",
+        "raw_query_payload_excluded",
+        "rows"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "query_envelope_support_artifact"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "artifact_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generated_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "raw_query_payload_excluded": {
+          "const": true
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/support_row"
+          }
+        }
+      }
+    },
+    "benchmark_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_index",
+        "query_envelope_id",
+        "consumer_surface",
+        "state_token",
+        "snapshot_epoch",
+        "delta_seq",
+        "frame_class",
+        "result_count",
+        "coverage"
+      ],
+      "properties": {
+        "event_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "query_envelope_id": {
+          "type": "string"
+        },
+        "consumer_surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "state_token": {
+          "$ref": "#/$defs/state_token"
+        },
+        "snapshot_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delta_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "frame_class": {
+          "$ref": "#/$defs/frame_class"
+        },
+        "result_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        },
+        "refresh_reason": {
+          "$ref": "#/$defs/refresh_reason"
+        },
+        "cancellation_reason": {
+          "$ref": "#/$defs/cancellation_reason"
+        },
+        "failure_reason": {
+          "type": "string"
+        }
+      }
+    },
+    "benchmark_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "trace_id",
+        "generated_at",
+        "frames"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "query_envelope_benchmark_trace"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "trace_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generated_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "frames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/benchmark_frame"
+          }
+        }
+      }
+    }
+  }
+}
