@@ -1,0 +1,675 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/environment_capsule_alpha.schema.json",
+  "title": "Aureline environment-capsule alpha seed contract",
+  "description": "Alpha seed contract for environment capsules and workspace-template seed manifests. This schema is the launch-wedge draft consumed by Start Center and validation tooling before the full capsule resolver exists. It reuses the execution-context target, trust, scope, toolchain, capsule-location, and prebuild vocabulary by token; it does not authorize a parallel runtime model. Raw secret values and raw environment-variable bodies are excluded by construction: variable rows carry names, source classes, digests, aliases, and secret classes only, and raw_value_included is always false.",
+  "oneOf": [
+    { "$ref": "#/$defs/environment_capsule_alpha_record" },
+    { "$ref": "#/$defs/workspace_template_seed_manifest" }
+  ],
+  "$defs": {
+    "environment_capsule_alpha_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the alpha seed contract. Additive optional fields do not bump this version; breaking changes do."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, export, and show in review surfaces. Raw paths, raw URLs, raw command lines, raw env values, and raw secrets never appear here."
+    },
+    "dotted_lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+    },
+    "record_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_:-]*(?:\\.[a-z][a-z0-9_:-]*)*$"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "content_digest": {
+      "type": "string",
+      "pattern": "^(sha256|sha384|sha512|blake3):[0-9a-f]{32,128}$",
+      "description": "Content digest token. The alpha validator checks presence and shape; the resolver will later own canonical-byte hashing."
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repository-relative path or artifact ref. Secret-bearing paths must be represented by opaque refs in seed artifacts."
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "ssh_remote",
+        "container_local",
+        "devcontainer",
+        "remote_workspace_vm",
+        "prebuild_runtime",
+        "managed_workspace",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "ai_sandbox"
+      ],
+      "description": "Re-export of the execution-context target-class vocabulary."
+    },
+    "capsule_location_class": {
+      "type": "string",
+      "enum": [
+        "workspace_local",
+        "prebuild_snapshot",
+        "devcontainer_image",
+        "container_local_ephemeral",
+        "remote_ssh_host",
+        "remote_workspace_vm",
+        "managed_workspace_control_plane",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "ai_sandbox_ephemeral",
+        "hosted_review_replay"
+      ]
+    },
+    "capsule_origin_class": {
+      "type": "string",
+      "enum": [
+        "workspace_template_hydration",
+        "prebuild_snapshot_reuse",
+        "container_image_bake",
+        "declarative_flake_or_shell",
+        "workspace_file_defaults",
+        "ad_hoc_per_run_override",
+        "hosted_review_replay_capture",
+        "imported_bundle_hydration",
+        "policy_injected_overlay"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ],
+      "description": "Re-export of the execution-context workset scope vocabulary."
+    },
+    "toolchain_class": {
+      "type": "string",
+      "enum": [
+        "interpreter",
+        "compiler_toolchain",
+        "package_manager_runner",
+        "containerised_runtime",
+        "notebook_kernel_runtime",
+        "language_server_process",
+        "debug_adapter_runtime",
+        "test_runner_runtime",
+        "build_driver_runtime",
+        "ai_tool_runtime",
+        "login_shell"
+      ]
+    },
+    "activation_strategy": {
+      "type": "string",
+      "enum": [
+        "ambient_path",
+        "env_manager_shim",
+        "venv_activation",
+        "nix_shell",
+        "nix_flake",
+        "direnv",
+        "devcontainer_build",
+        "oci_image_ref",
+        "explicit_override",
+        "fallback_resolution"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"]
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": ["account_free_local", "self_hosted_org", "managed_convenience"]
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_host_boundary",
+        "container_kernel_boundary",
+        "devcontainer_boundary",
+        "remote_ssh_boundary",
+        "remote_agent_boundary",
+        "managed_workspace_boundary",
+        "notebook_kernel_boundary",
+        "ai_sandbox_boundary"
+      ]
+    },
+    "network_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "network_denied",
+        "network_metadata_only",
+        "egress_requires_review",
+        "managed_route_requires_review"
+      ]
+    },
+    "template_source_class": {
+      "type": "string",
+      "enum": ["first_party", "team_managed", "community", "local_only", "mirror_cached", "uncertified"]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": ["officially_supported", "community_supported", "experimental", "legacy_deprecated", "unsupported", "support_unknown"]
+    },
+    "runtime_and_toolchain_scope": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "local_with_devcontainer",
+        "local_with_container",
+        "remote_image_required",
+        "managed_cloud_required",
+        "mixed_local_and_remote",
+        "not_declared"
+      ]
+    },
+    "starter_setup_cost_class": {
+      "type": "string",
+      "enum": [
+        "no_setup",
+        "light_local_setup",
+        "network_package_restore",
+        "devcontainer_bootstrap",
+        "container_bootstrap",
+        "managed_remote_provisioning",
+        "prebuild_attach_warm",
+        "time_unknown_network_unknown"
+      ]
+    },
+    "secret_class": {
+      "type": ["string", "null"],
+      "enum": [
+        "ai_provider_token",
+        "code_host_token",
+        "package_registry_token",
+        "database_credential",
+        "ssh_key_material",
+        "client_certificate",
+        "signing_key_material",
+        "provider_session",
+        "device_secret",
+        "ephemeral_operation_token",
+        null
+      ]
+    },
+    "environment_variable_value_source": {
+      "type": "string",
+      "enum": [
+        "literal_non_secret",
+        "derived_from_toolchain",
+        "secret_alias",
+        "host_ambient",
+        "policy_injected",
+        "not_projected"
+      ]
+    },
+    "environment_variable_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "hash_only",
+        "alias_only",
+        "redacted_placeholder",
+        "not_projected"
+      ]
+    },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_ref", "source_kind", "content_digest"],
+      "properties": {
+        "source_ref": { "$ref": "#/$defs/path_ref" },
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "devcontainer_json",
+            "dockerfile",
+            "compose_file",
+            "nix_flake",
+            "nix_shell",
+            "tool_versions",
+            "python_version_file",
+            "package_manifest",
+            "pyproject",
+            "workspace_manifest",
+            "launch_bundle",
+            "workspace_template_seed",
+            "policy_overlay"
+          ]
+        },
+        "content_digest": { "$ref": "#/$defs/content_digest" }
+      }
+    },
+    "scope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_id",
+        "scope_class",
+        "workset_ref",
+        "included_root_refs",
+        "excluded_root_refs",
+        "cwd_ref"
+      ],
+      "properties": {
+        "workspace_id": { "$ref": "#/$defs/record_ref" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "workset_ref": { "type": ["string", "null"] },
+        "included_root_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/record_ref" }
+        },
+        "excluded_root_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_ref" }
+        },
+        "cwd_ref": { "$ref": "#/$defs/record_ref" }
+      }
+    },
+    "target_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "capsule_location_class",
+        "boundary_class",
+        "target_identity_ref",
+        "requested_source_artifact_ref",
+        "materialized_runtime_ref",
+        "network_posture"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "capsule_location_class": { "$ref": "#/$defs/capsule_location_class" },
+        "boundary_class": { "$ref": "#/$defs/boundary_class" },
+        "target_identity_ref": { "$ref": "#/$defs/record_ref" },
+        "requested_source_artifact_ref": { "type": ["string", "null"] },
+        "materialized_runtime_ref": { "type": ["string", "null"] },
+        "network_posture": { "$ref": "#/$defs/network_posture_class" }
+      }
+    },
+    "toolchain_plan_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "toolchain_class",
+        "toolchain_id",
+        "version_requirement",
+        "resolved_version_ref",
+        "activation_strategy",
+        "source_ref",
+        "required_for_launch"
+      ],
+      "properties": {
+        "toolchain_class": { "$ref": "#/$defs/toolchain_class" },
+        "toolchain_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "version_requirement": { "$ref": "#/$defs/opaque_id" },
+        "resolved_version_ref": { "type": ["string", "null"] },
+        "activation_strategy": { "$ref": "#/$defs/activation_strategy" },
+        "source_ref": { "$ref": "#/$defs/path_ref" },
+        "required_for_launch": { "type": "boolean" },
+        "known_unsupported_gap_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_ref" }
+        }
+      }
+    },
+    "environment_variable_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "variable_name",
+        "value_source",
+        "redaction_class",
+        "raw_value_included",
+        "required_for_launch"
+      ],
+      "properties": {
+        "variable_name": {
+          "type": "string",
+          "pattern": "^[A-Z_][A-Z0-9_]*$"
+        },
+        "value_source": { "$ref": "#/$defs/environment_variable_value_source" },
+        "redaction_class": { "$ref": "#/$defs/environment_variable_redaction_class" },
+        "value_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/content_digest" },
+            { "type": "null" }
+          ]
+        },
+        "credential_alias_ref": { "type": ["string", "null"] },
+        "secret_class": { "$ref": "#/$defs/secret_class" },
+        "raw_value_included": {
+          "type": "boolean",
+          "const": false,
+          "description": "Raw env values are excluded from alpha capsules. Secret values must use credential_alias_ref plus secret_class."
+        },
+        "required_for_launch": { "type": "boolean" },
+        "review_hint": {
+          "oneOf": [
+            { "$ref": "#/$defs/reviewable_sentence" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "value_source": { "const": "secret_alias" } },
+            "required": ["value_source"]
+          },
+          "then": {
+            "required": ["credential_alias_ref", "secret_class"],
+            "properties": {
+              "credential_alias_ref": { "type": "string", "minLength": 1 },
+              "secret_class": { "not": { "const": null } },
+              "redaction_class": { "enum": ["alias_only", "redacted_placeholder", "not_projected"] }
+            }
+          }
+        }
+      ]
+    },
+    "trust_and_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_state",
+        "identity_mode",
+        "policy_epoch",
+        "repo_owned_hooks_trust_gated",
+        "secret_values_projected_by_default"
+      ],
+      "properties": {
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch" },
+        "repo_owned_hooks_trust_gated": { "type": "boolean" },
+        "secret_values_projected_by_default": {
+          "type": "boolean",
+          "const": false
+        },
+        "policy_marker_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_ref" }
+        }
+      }
+    },
+    "lifecycle_hook_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_ref", "hook_class", "trust_gate", "effect_class", "raw_command_included"],
+      "properties": {
+        "hook_ref": { "$ref": "#/$defs/record_ref" },
+        "hook_class": {
+          "type": "string",
+          "enum": ["preflight_validator", "setup_task", "post_create", "prebuild_warm", "repair_probe"]
+        },
+        "trust_gate": {
+          "type": "string",
+          "enum": ["no_trust_gate_required", "workspace_trust_required", "policy_review_required", "blocked_in_restricted_mode"]
+        },
+        "effect_class": {
+          "type": "string",
+          "enum": ["read_only_probe", "local_process_spawn", "package_restore", "container_build", "remote_provisioning", "network_egress"]
+        },
+        "raw_command_included": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "compatibility_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprint_ref",
+        "capsule_hash",
+        "source_digest_set_hash",
+        "platform_arch",
+        "policy_epoch",
+        "critical_toolchain_hashes"
+      ],
+      "properties": {
+        "fingerprint_ref": { "$ref": "#/$defs/record_ref" },
+        "capsule_hash": { "$ref": "#/$defs/content_digest" },
+        "source_digest_set_hash": { "$ref": "#/$defs/content_digest" },
+        "platform_arch": {
+          "type": "string",
+          "enum": ["darwin_arm64", "darwin_x86_64", "linux_arm64", "linux_x86_64", "windows_x86_64", "platform_pending"]
+        },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch" },
+        "critical_toolchain_hashes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/content_digest" }
+        }
+      }
+    },
+    "prebuild_reuse_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prebuild_ref", "reuse_state", "stale_behavior"],
+      "properties": {
+        "prebuild_ref": { "type": ["string", "null"] },
+        "reuse_state": {
+          "type": "string",
+          "enum": ["not_applicable", "eligible", "rejected_drift", "rejected_policy", "rejected_trust"]
+        },
+        "stale_behavior": {
+          "type": "string",
+          "enum": ["cold_materialization", "partial_warm_materialization", "blocked_until_review"]
+        }
+      }
+    },
+    "environment_capsule_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "environment_capsule_alpha_schema_version",
+        "capsule_id",
+        "capsule_revision",
+        "capsule_hash",
+        "resolved_schema_version",
+        "captured_at",
+        "source_refs",
+        "scope",
+        "target_plan",
+        "toolchains",
+        "environment_variables",
+        "trust_and_policy",
+        "lifecycle_hooks",
+        "compatibility_fingerprint",
+        "prebuild_reuse_policy",
+        "consuming_surfaces"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "environment_capsule_alpha_record" },
+        "environment_capsule_alpha_schema_version": { "$ref": "#/$defs/environment_capsule_alpha_schema_version" },
+        "capsule_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "capsule_revision": { "type": "integer", "minimum": 1 },
+        "capsule_hash": { "$ref": "#/$defs/content_digest" },
+        "resolved_schema_version": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_ref" }
+        },
+        "scope": { "$ref": "#/$defs/scope_record" },
+        "target_plan": { "$ref": "#/$defs/target_plan" },
+        "capsule_origin_class": { "$ref": "#/$defs/capsule_origin_class" },
+        "workspace_template_ref": { "type": ["string", "null"] },
+        "toolchains": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/toolchain_plan_entry" }
+        },
+        "environment_variables": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/environment_variable_projection" }
+        },
+        "trust_and_policy": { "$ref": "#/$defs/trust_and_policy" },
+        "lifecycle_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_hook_entry" }
+        },
+        "compatibility_fingerprint": { "$ref": "#/$defs/compatibility_fingerprint" },
+        "prebuild_reuse_policy": { "$ref": "#/$defs/prebuild_reuse_policy" },
+        "consuming_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["terminal", "task", "test", "debug", "notebook_kernel", "scaffolding", "ai_tool_call", "project_doctor", "support_export", "start_center"]
+          }
+        },
+        "review_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "workspace_template_seed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template_id",
+        "template_revision",
+        "display_label",
+        "template_source_class",
+        "support_class",
+        "runtime_and_toolchain_scope",
+        "starter_setup_cost_class",
+        "environment_capsule_ref",
+        "launch_bundle_refs",
+        "scaffold_template_refs",
+        "docs_onboarding_refs",
+        "bypass_path_ids",
+        "review_summary",
+        "prebuild_reuse_policy"
+      ],
+      "properties": {
+        "template_id": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "template_revision": { "type": "integer", "minimum": 1 },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "template_source_class": { "$ref": "#/$defs/template_source_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "runtime_and_toolchain_scope": { "$ref": "#/$defs/runtime_and_toolchain_scope" },
+        "starter_setup_cost_class": { "$ref": "#/$defs/starter_setup_cost_class" },
+        "environment_capsule_ref": { "$ref": "#/$defs/dotted_lower_snake_id" },
+        "launch_bundle_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/record_ref" }
+        },
+        "scaffold_template_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_ref" }
+        },
+        "docs_onboarding_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/path_ref" }
+        },
+        "bypass_path_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/record_ref" }
+        },
+        "review_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "prebuild_reuse_policy": { "$ref": "#/$defs/prebuild_reuse_policy" }
+      }
+    },
+    "workspace_template_seed_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "environment_capsule_alpha_schema_version",
+        "manifest_id",
+        "as_of",
+        "owner",
+        "contract_refs",
+        "environment_capsules",
+        "workspace_templates",
+        "launch_bundle_bindings",
+        "validation"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "workspace_template_seed_manifest" },
+        "environment_capsule_alpha_schema_version": { "$ref": "#/$defs/environment_capsule_alpha_schema_version" },
+        "manifest_id": { "$ref": "#/$defs/record_ref" },
+        "as_of": { "$ref": "#/$defs/date" },
+        "owner": { "$ref": "#/$defs/opaque_id" },
+        "contract_refs": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/path_ref" }
+        },
+        "environment_capsules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/environment_capsule_alpha_record" }
+        },
+        "workspace_templates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/workspace_template_seed_record" }
+        },
+        "launch_bundle_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["launch_bundle_ref", "workspace_template_ref", "environment_capsule_ref"],
+            "properties": {
+              "launch_bundle_ref": { "$ref": "#/$defs/record_ref" },
+              "workspace_template_ref": { "$ref": "#/$defs/dotted_lower_snake_id" },
+              "environment_capsule_ref": { "$ref": "#/$defs/dotted_lower_snake_id" }
+            }
+          }
+        },
+        "validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["validator_ref", "protected_fixture_ref", "first_consumer_ref"],
+          "properties": {
+            "validator_ref": { "$ref": "#/$defs/path_ref" },
+            "protected_fixture_ref": { "$ref": "#/$defs/path_ref" },
+            "first_consumer_ref": { "$ref": "#/$defs/path_ref" }
+          }
+        }
+      }
+    }
+  }
+}

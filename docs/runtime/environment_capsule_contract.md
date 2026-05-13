@@ -22,6 +22,11 @@ document MUST be updated in the same change.
   `environment_capsule_audit_event_record` every capsule-emitting
   surface, capsule consumer, and support / evidence / replay
   exporter reads.
+- [`/schemas/runtime/environment_capsule_alpha.schema.json`](../../schemas/runtime/environment_capsule_alpha.schema.json)
+  and [`/artifacts/templates/workspace_template_seed.yaml`](../../artifacts/templates/workspace_template_seed.yaml)
+  — alpha seed schema and first workspace-template manifest for
+  launch-bundle capsule refs. These artifacts feed Start Center and
+  validation tooling without redefining the full capsule body.
 - [`/schemas/runtime/environment_diff_packet.schema.json`](../../schemas/runtime/environment_diff_packet.schema.json)
   — boundary schema for the `environment_diff_record` every rerun,
   reattach, debug-attach, apply, refactor-preview, and hosted-

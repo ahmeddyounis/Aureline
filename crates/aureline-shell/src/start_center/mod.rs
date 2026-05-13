@@ -6,6 +6,7 @@
 //! resolves preflight/enablement status through the seeded command registry so
 //! every surface shares the same truth.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use aureline_commands::invocation::ArgumentProvenanceEntry;
@@ -544,6 +545,279 @@ fn project_alpha_bundle_manifest(
     })
 }
 
+const WORKSPACE_TEMPLATE_SEED_MANIFEST: (&str, &str) = (
+    "artifacts/templates/workspace_template_seed.yaml",
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../artifacts/templates/workspace_template_seed.yaml"
+    )),
+);
+
+/// Start Center projection for one workspace-template seed row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StartCenterWorkspaceTemplateSeedRow {
+    /// Stable workspace-template id from the seed manifest.
+    pub template_id: String,
+    /// Human-readable template label.
+    pub display_label: String,
+    /// Support class copied from the template seed.
+    pub support_class: String,
+    /// Runtime and toolchain scope copied from the template seed.
+    pub runtime_and_toolchain_scope: String,
+    /// Environment capsule the template hydrates.
+    pub environment_capsule_ref: String,
+    /// Launch bundle ids that may reference this template.
+    pub launch_bundle_refs: Vec<String>,
+    /// Target class exposed by the capsule.
+    pub target_class: String,
+    /// Capsule location class exposed by the capsule.
+    pub capsule_location_class: String,
+    /// Boundary class exposed by the capsule.
+    pub boundary_class: String,
+    /// Network posture exposed by the capsule.
+    pub network_posture: String,
+    /// Toolchain ids and classes the capsule names.
+    pub toolchain_summary: Vec<String>,
+    /// Environment variable names projected without raw values.
+    pub environment_variable_names: Vec<String>,
+    /// Number of variables represented by credential alias and secret class.
+    pub secret_alias_count: usize,
+    /// Number of variables that attempted to include a raw value.
+    pub raw_value_included_count: usize,
+    /// Prebuild reuse state from the template row.
+    pub prebuild_reuse_state: String,
+    /// Stale-prebuild behavior from the template row.
+    pub stale_behavior: String,
+    /// Same-weight bypass paths shown by the template surface.
+    pub bypass_path_ids: Vec<String>,
+    /// Reviewable summary for compact template rows.
+    pub review_summary: String,
+}
+
+/// Error returned when the Start Center cannot project the workspace-template seed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceTemplateSeedError {
+    manifest_ref: &'static str,
+    message: String,
+}
+
+impl WorkspaceTemplateSeedError {
+    /// Returns the manifest path that failed to project.
+    pub const fn manifest_ref(&self) -> &'static str {
+        self.manifest_ref
+    }
+
+    /// Returns the parse or projection failure.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+}
+
+impl fmt::Display for WorkspaceTemplateSeedError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.manifest_ref, self.message)
+    }
+}
+
+impl std::error::Error for WorkspaceTemplateSeedError {}
+
+/// Builds Start Center rows from the canonical workspace-template seed manifest.
+///
+/// # Errors
+///
+/// Returns [`WorkspaceTemplateSeedError`] when the checked-in YAML manifest cannot be
+/// parsed, references a missing capsule, or attempts to project raw environment values.
+pub fn build_workspace_template_seed_rows(
+) -> Result<Vec<StartCenterWorkspaceTemplateSeedRow>, WorkspaceTemplateSeedError> {
+    project_workspace_template_seed_manifest(
+        WORKSPACE_TEMPLATE_SEED_MANIFEST.0,
+        WORKSPACE_TEMPLATE_SEED_MANIFEST.1,
+    )
+}
+
+/// Renders the workspace-template seed projection as deterministic plaintext.
+///
+/// # Errors
+///
+/// Returns [`WorkspaceTemplateSeedError`] when [`build_workspace_template_seed_rows`]
+/// cannot project the canonical seed.
+pub fn render_workspace_template_seed_plaintext() -> Result<String, WorkspaceTemplateSeedError> {
+    let rows = build_workspace_template_seed_rows()?;
+    let mut lines = vec![
+        "Workspace template seed gallery".to_string(),
+        "template_id | capsule | launch_bundles | target | toolchains | variables | prebuild"
+            .to_string(),
+    ];
+    for row in rows {
+        lines.push(format!(
+            "{} | {} | {} | {}/{} | {} | vars={} secret_aliases={} raw_values={} | {}/{}",
+            row.template_id,
+            row.environment_capsule_ref,
+            row.launch_bundle_refs.join(","),
+            row.target_class,
+            row.boundary_class,
+            row.toolchain_summary.join(","),
+            row.environment_variable_names.len(),
+            row.secret_alias_count,
+            row.raw_value_included_count,
+            row.prebuild_reuse_state,
+            row.stale_behavior
+        ));
+    }
+    lines.push(String::new());
+    Ok(lines.join("\n"))
+}
+
+#[derive(Debug, Deserialize)]
+struct WorkspaceTemplateSeedManifestDoc {
+    environment_capsules: Vec<EnvironmentCapsuleAlphaDoc>,
+    workspace_templates: Vec<WorkspaceTemplateSeedDoc>,
+}
+
+#[derive(Debug, Deserialize)]
+struct EnvironmentCapsuleAlphaDoc {
+    capsule_id: String,
+    target_plan: EnvironmentCapsuleTargetPlanDoc,
+    toolchains: Vec<EnvironmentCapsuleToolchainDoc>,
+    environment_variables: Vec<EnvironmentCapsuleVariableDoc>,
+}
+
+#[derive(Debug, Deserialize)]
+struct EnvironmentCapsuleTargetPlanDoc {
+    target_class: String,
+    capsule_location_class: String,
+    boundary_class: String,
+    network_posture: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct EnvironmentCapsuleToolchainDoc {
+    toolchain_class: String,
+    toolchain_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct EnvironmentCapsuleVariableDoc {
+    variable_name: String,
+    value_source: String,
+    secret_class: Option<String>,
+    raw_value_included: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct WorkspaceTemplateSeedDoc {
+    template_id: String,
+    display_label: String,
+    support_class: String,
+    runtime_and_toolchain_scope: String,
+    environment_capsule_ref: String,
+    launch_bundle_refs: Vec<String>,
+    bypass_path_ids: Vec<String>,
+    review_summary: String,
+    prebuild_reuse_policy: WorkspaceTemplatePrebuildPolicyDoc,
+}
+
+#[derive(Debug, Deserialize)]
+struct WorkspaceTemplatePrebuildPolicyDoc {
+    reuse_state: String,
+    stale_behavior: String,
+}
+
+fn project_workspace_template_seed_manifest(
+    manifest_ref: &'static str,
+    contents: &str,
+) -> Result<Vec<StartCenterWorkspaceTemplateSeedRow>, WorkspaceTemplateSeedError> {
+    let doc: WorkspaceTemplateSeedManifestDoc =
+        serde_yaml::from_str(contents).map_err(|err| WorkspaceTemplateSeedError {
+            manifest_ref,
+            message: err.to_string(),
+        })?;
+    let capsules: HashMap<&str, &EnvironmentCapsuleAlphaDoc> = doc
+        .environment_capsules
+        .iter()
+        .map(|capsule| (capsule.capsule_id.as_str(), capsule))
+        .collect();
+    let mut rows = Vec::with_capacity(doc.workspace_templates.len());
+    for template in doc.workspace_templates {
+        if template.launch_bundle_refs.is_empty() {
+            return Err(WorkspaceTemplateSeedError {
+                manifest_ref,
+                message: format!(
+                    "{} launch_bundle_refs must not be empty",
+                    template.template_id
+                ),
+            });
+        }
+        if template.bypass_path_ids.is_empty() {
+            return Err(WorkspaceTemplateSeedError {
+                manifest_ref,
+                message: format!("{} bypass_path_ids must not be empty", template.template_id),
+            });
+        }
+        let Some(capsule) = capsules.get(template.environment_capsule_ref.as_str()) else {
+            return Err(WorkspaceTemplateSeedError {
+                manifest_ref,
+                message: format!(
+                    "{} references missing capsule {}",
+                    template.template_id, template.environment_capsule_ref
+                ),
+            });
+        };
+        let raw_value_included_count = capsule
+            .environment_variables
+            .iter()
+            .filter(|variable| variable.raw_value_included)
+            .count();
+        if raw_value_included_count > 0 {
+            return Err(WorkspaceTemplateSeedError {
+                manifest_ref,
+                message: format!(
+                    "{} attempted to project raw environment values",
+                    capsule.capsule_id
+                ),
+            });
+        }
+        let secret_alias_count = capsule
+            .environment_variables
+            .iter()
+            .filter(|variable| {
+                variable.value_source == "secret_alias" || variable.secret_class.is_some()
+            })
+            .count();
+        rows.push(StartCenterWorkspaceTemplateSeedRow {
+            template_id: template.template_id,
+            display_label: template.display_label,
+            support_class: template.support_class,
+            runtime_and_toolchain_scope: template.runtime_and_toolchain_scope,
+            environment_capsule_ref: template.environment_capsule_ref,
+            launch_bundle_refs: template.launch_bundle_refs,
+            target_class: capsule.target_plan.target_class.clone(),
+            capsule_location_class: capsule.target_plan.capsule_location_class.clone(),
+            boundary_class: capsule.target_plan.boundary_class.clone(),
+            network_posture: capsule.target_plan.network_posture.clone(),
+            toolchain_summary: capsule
+                .toolchains
+                .iter()
+                .map(|toolchain| {
+                    format!("{}:{}", toolchain.toolchain_id, toolchain.toolchain_class)
+                })
+                .collect(),
+            environment_variable_names: capsule
+                .environment_variables
+                .iter()
+                .map(|variable| variable.variable_name.clone())
+                .collect(),
+            secret_alias_count,
+            raw_value_included_count,
+            prebuild_reuse_state: template.prebuild_reuse_policy.reuse_state,
+            stale_behavior: template.prebuild_reuse_policy.stale_behavior,
+            bypass_path_ids: template.bypass_path_ids,
+            review_summary: template.review_summary,
+        });
+    }
+    Ok(rows)
+}
+
 fn override_open_folder_scope_to_workspace_file(
     argument_provenance_map: &mut [ArgumentProvenanceEntry],
 ) {
@@ -753,6 +1027,56 @@ mod tests {
         assert!(text.contains(">=0.0.0-alpha <0.1.0"));
         assert!(text.contains("seed_not_certified"));
         assert!(text.contains("offline_metadata_and_docs_pack"));
+    }
+
+    #[test]
+    fn workspace_template_seed_projects_capsule_rows_for_start_center() {
+        let rows = build_workspace_template_seed_rows().expect("workspace template rows project");
+        assert_eq!(rows.len(), 2);
+
+        let ts_web = rows
+            .iter()
+            .find(|row| row.template_id == "workspace_template.alpha.ts_web.local_seed")
+            .expect("typescript workspace template row");
+        assert_eq!(
+            ts_web.environment_capsule_ref,
+            "capsule.alpha.ts_web.local_node"
+        );
+        assert_eq!(ts_web.runtime_and_toolchain_scope, "local_only");
+        assert_eq!(ts_web.target_class, "local_host");
+        assert_eq!(ts_web.raw_value_included_count, 0);
+        assert_eq!(ts_web.secret_alias_count, 1);
+        assert!(ts_web
+            .launch_bundle_refs
+            .iter()
+            .any(|bundle| bundle == "launch_bundle:typescript_web_app.seed"));
+        assert!(ts_web
+            .environment_variable_names
+            .iter()
+            .any(|name| name == "NPM_TOKEN"));
+
+        let python = rows
+            .iter()
+            .find(|row| row.template_id == "workspace_template.alpha.python.devcontainer_seed")
+            .expect("python workspace template row");
+        assert_eq!(
+            python.environment_capsule_ref,
+            "capsule.alpha.python.local_devcontainer"
+        );
+        assert_eq!(python.target_class, "devcontainer");
+        assert_eq!(python.boundary_class, "devcontainer_boundary");
+        assert_eq!(python.prebuild_reuse_state, "rejected_drift");
+    }
+
+    #[test]
+    fn workspace_template_seed_plaintext_exposes_capsule_and_secret_posture() {
+        let text = render_workspace_template_seed_plaintext().expect("template plaintext");
+        assert!(text.contains("Workspace template seed gallery"));
+        assert!(text.contains("workspace_template.alpha.ts_web.local_seed"));
+        assert!(text.contains("capsule.alpha.ts_web.local_node"));
+        assert!(text.contains("launch_bundle:typescript_web_app.seed"));
+        assert!(text.contains("secret_aliases=1"));
+        assert!(text.contains("raw_values=0"));
     }
 
     #[test]

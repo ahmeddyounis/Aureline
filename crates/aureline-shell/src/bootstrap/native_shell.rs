@@ -19579,6 +19579,88 @@ fn draw_start_center_surface(
         }
     }
 
+    if let Ok(template_rows) = crate::start_center::build_workspace_template_seed_rows() {
+        if !template_rows.is_empty()
+            && y.saturating_add(row_height.saturating_mul(2))
+                < card.bottom().saturating_sub(content_padding)
+        {
+            let heading_h = draw_ui_text(
+                buffer,
+                width,
+                height,
+                header_x,
+                y,
+                "Workspace templates",
+                style.tokens.text_secondary,
+                13.0,
+                scale_bucket,
+                text_runtime,
+            );
+            y = y.saturating_add(heading_h).saturating_add(style.space_2);
+            let max_chars = (row_width / 7).max(24) as usize;
+            for template in template_rows.iter().take(2) {
+                let row_rect = Rect::new(header_x, y, row_width, row_height);
+                if row_rect.bottom().saturating_add(content_padding) > card.bottom() {
+                    break;
+                }
+                fill_rect(buffer, width, height, row_rect, style.tokens.bg_surface);
+                stroke_rect(
+                    buffer,
+                    width,
+                    height,
+                    row_rect,
+                    style.stroke_default,
+                    style.tokens.border_default,
+                );
+                let label = truncate_chars(
+                    &format!(
+                        "{}   [{}]",
+                        template.display_label, template.runtime_and_toolchain_scope
+                    ),
+                    max_chars,
+                );
+                let detail = truncate_chars(
+                    &format!(
+                        "{} | {} | vars:{} secrets:{}",
+                        template.environment_capsule_ref,
+                        template.target_class,
+                        template.environment_variable_names.len(),
+                        template.secret_alias_count
+                    ),
+                    max_chars,
+                );
+                let label_y = row_rect
+                    .y
+                    .saturating_add(row_height.saturating_sub(text_block_h) / 2);
+                let label_h = draw_ui_text(
+                    buffer,
+                    width,
+                    height,
+                    row_rect.x.saturating_add(style.space_2),
+                    label_y,
+                    &label,
+                    style.tokens.text_secondary,
+                    14.0,
+                    scale_bucket,
+                    text_runtime,
+                );
+                draw_ui_text(
+                    buffer,
+                    width,
+                    height,
+                    row_rect.x.saturating_add(style.space_2),
+                    label_y.saturating_add(label_h),
+                    &detail,
+                    style.tokens.text_muted,
+                    12.0,
+                    scale_bucket,
+                    text_runtime,
+                );
+                y = y.saturating_add(row_height).saturating_add(row_gap);
+            }
+        }
+    }
+
     if y.saturating_add(22) < card.bottom() {
         draw_ui_text(
             buffer,
