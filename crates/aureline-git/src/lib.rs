@@ -11,6 +11,7 @@
 pub mod branches;
 pub mod commit;
 pub mod mutations;
+pub mod publish;
 pub mod status;
 
 pub use branches::{
@@ -43,6 +44,17 @@ pub use mutations::{
     GitMutationTargetReview, SystemGitMutationBackend, GIT_MUTATION_ACTIVITY_RECORD_KIND,
     GIT_MUTATION_JOURNAL_RECORD_KIND, GIT_MUTATION_PREVIEW_RECORD_KIND,
     GIT_MUTATION_RESULT_RECORD_KIND, GIT_MUTATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use publish::{
+    GitPublishActivityRecord, GitPublishActorRef, GitPublishBackend, GitPublishBackendError,
+    GitPublishCommandOutput, GitPublishFailureRecoveryRecord, GitPublishJournalRecord,
+    GitPublishMode, GitPublishOriginScope, GitPublishOutcomeState, GitPublishPreview,
+    GitPublishPreviewState, GitPublishRemoteState, GitPublishRequest, GitPublishResult,
+    GitPublishRouteClass, GitPublishRouteReview, GitPublishService, GitPublishSupportExportRecord,
+    GitPublishTargetReview, SystemGitPublishBackend, GIT_PUBLISH_ACTIVITY_RECORD_KIND,
+    GIT_PUBLISH_FAILURE_RECOVERY_RECORD_KIND, GIT_PUBLISH_JOURNAL_RECORD_KIND,
+    GIT_PUBLISH_PREVIEW_RECORD_KIND, GIT_PUBLISH_RESULT_RECORD_KIND,
+    GIT_PUBLISH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use status::{
     BranchState, ChangeDiscovery, ChangeKind, ChangeSummary, ConsumerProjectionBundle,

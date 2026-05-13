@@ -39,6 +39,9 @@ The branch switch projection in `docs/git/branch_switch_alpha.md` uses the same
 status truth to disclose current work, detached-head posture, missing remote or
 upstream state, and after-apply shell identity before a branch operation can
 apply.
+The publish review projection in `docs/git/publish_review_alpha.md` uses the
+same status truth to disclose origin, route, remote, target ref, divergence, and
+failure recovery before a push can run.
 
 ## Degraded Behavior
 
@@ -75,3 +78,6 @@ Commit fixtures live under `fixtures/git/commit_alpha/` and are covered by
 
 Branch switch fixtures live under `fixtures/git/branch_switch_alpha/` and are
 covered by `cargo test -p aureline-git --test branch_switch_alpha`.
+
+Publish review fixtures live under `fixtures/git/publish_review_alpha/` and are
+covered by `cargo test -p aureline-git --test publish_review_alpha`.
