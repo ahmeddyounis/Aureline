@@ -5,10 +5,19 @@
 //! exposes a bounded query-family surface for launch-wedge symbols, imports,
 //! ownership edges, and the future impact/explainer packet lanes.
 
+pub mod explainers;
 mod query;
 pub mod readiness;
 mod store;
 
+pub use explainers::{
+    EvidenceCard, EvidenceCitation, ExplainerSourceKind, GraphExplainerError,
+    ImpactEdgeEvidenceClass, ImpactExplainerPacket, ImpactSummary, IndexCoverage,
+    NonCanvasTopologyFallback, OpenDetailAction, OpenDetailActionClass, TopologyEdgeProjection,
+    TopologyFallbackRow, TopologyNodeProjection, VisualTopologyProjection, WorksetScopeDescriptor,
+    WorksetScopeMode, WorksetScopeSource, GRAPH_IMPACT_EXPLAINER_PACKET_RECORD_KIND,
+    GRAPH_IMPACT_EXPLAINER_PACKET_SCHEMA_VERSION,
+};
 pub use query::{
     GraphAlphaQueryClass, GraphPartialTruthCause, GraphQueryEnvelope, GraphQueryFamilyDescriptor,
     GraphQueryReadiness, GraphQueryRequest, GraphQueryRow, GraphQueryRowClass,

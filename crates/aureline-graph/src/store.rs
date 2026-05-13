@@ -94,6 +94,10 @@ impl GraphStore {
         self.edges.get(edge_id)
     }
 
+    pub(crate) fn all_edges(&self) -> impl Iterator<Item = &GraphEdge> {
+        self.edges.values()
+    }
+
     /// Returns the alpha query-family descriptor table.
     pub fn query_family_descriptors() -> Vec<GraphQueryFamilyDescriptor> {
         GraphQueryFamilyDescriptor::all()

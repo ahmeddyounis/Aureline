@@ -1,0 +1,60 @@
+# Alpha journey-budget ledger for graph-backed impact explainers.
+#
+# This ledger maps the first runtime explainer packet to existing protected
+# navigation budgets. It does not create a new latency promise; it declares
+# which protected journey the graph lane must not block and which fallback
+# contract keeps navigation useful while graph coverage is partial.
+
+schema_version: 1
+ledger_id: aureline.journey_budget_ledger_alpha
+ledger_revision: 1
+status: seeded
+
+source_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+source_sequence_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.large_repo.first_navigation
+alpha_packet_ref: fixtures/graph/topology_explainer_alpha/impact_explainer_packet_alpha.json
+
+budget_rows:
+  - ledger_row_id: alpha.graph_impact_explainer.current_root_packet
+    lane: graph_impact_explainer
+    packet_ref: fixtures/graph/topology_explainer_alpha/impact_explainer_packet_alpha.json
+    protected_journey_ref: seq.large_repo.first_navigation
+    protected_budget_refs:
+      - budget.path.command_palette.open
+      - budget.path.editor.placeholder_open
+    threshold_mode: contract_gate_with_pending_latency
+    pending_latency_measurement: true
+    contract_gates:
+      - gate_id: graph_explainer_must_not_block_first_results
+        comparator: must_hold
+        target: true
+        note: Graph explainer packet projection may arrive after first search results; first visible navigation results must not wait for full graph coverage.
+      - gate_id: evidence_card_must_preserve_scope_truth
+        comparator: must_hold
+        target: true
+        note: Evidence cards must carry scope id, sparse/full mode, hidden-result count, index coverage, and local/managed source.
+      - gate_id: non_canvas_fallback_required
+        comparator: must_hold
+        target: true
+        note: Any visual topology projection emitted by the packet must have an edge-table fallback with the same graph node and edge ids.
+      - gate_id: no_impact_found_must_disclose_scope
+        comparator: must_hold
+        target: true
+        note: Empty visible impact results must disclose whether matching impact edges exist outside the active scope.
+    degraded_or_fallback_posture:
+      healthy_posture: graph-backed impact packet with evidence card, visual projection, and edge-table fallback.
+      fail_soft_posture: Navigation remains usable with graph readiness and scope labels; impact explanation may downgrade to evidence card plus non-canvas table while full graph coverage warms.
+    measurement_sources:
+      - kind: protected_fixture
+        source_ref: fixtures/graph/topology_explainer_alpha/impact_explainer_packet_alpha.json
+      - kind: supporting_contract_seed
+        source_ref: docs/graph/query_family_alpha.md
+      - kind: supporting_contract_seed
+        source_ref: docs/graph/topology_and_impact_contract.md
+    fixture_or_reference_workspace_refs:
+      - fixtures/graph/example_workspace_graphs/provider_resources_and_citations.json
+      - fixtures/graph/topology_explainer_alpha/impact_explainer_packet_alpha.json
+    owner_refs:
+      budget_owner_ref: lane:benchmark_lab
+      implementation_owner_ref: package:aureline-graph
+
