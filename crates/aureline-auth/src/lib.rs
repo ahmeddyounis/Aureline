@@ -14,7 +14,10 @@
 //!   [`credential_state::ProviderAccountRegistry`] seed that explains storage
 //!   mode, scope, expiry, revoke action, and locked / unavailable store
 //!   posture for credentials and delegated handles used by the initial
-//!   managed / provider lanes.
+//!   managed / provider lanes; and
+//! - one [`system_browser::ClaimedIdentityRow`] alpha contract that defaults
+//!   claimed managed / provider rows to system-browser auth while surfacing
+//!   device-code and stay-local fallback paths.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -42,6 +45,7 @@
 
 pub mod browser_callback;
 pub mod credential_state;
+pub mod system_browser;
 
 pub use browser_callback::{
     AccountBoundaryClass, AuthFlowClass, BrowserCallbackHandoff, BrowserCallbackPacket,
@@ -60,4 +64,14 @@ pub use credential_state::{
     ProviderAccountRegistry, RevokeActionClass, StorageModeClass, StoragePosture, StoreSourceClass,
     CREDENTIAL_STATE_ROW_RECORD_KIND, CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
     PROVIDER_ACCOUNT_RECORD_KIND, PROVIDER_ACCOUNT_REGISTRY_RECORD_KIND,
+};
+
+pub use system_browser::{
+    ClaimedIdentityAlternativeClass, ClaimedIdentityAuthAlternative, ClaimedIdentityAuthPolicy,
+    ClaimedIdentityDefaultActionClass, ClaimedIdentityHandoffRefs,
+    ClaimedIdentityLocalContinuation, ClaimedIdentityProviderScope, ClaimedIdentityRow,
+    ClaimedIdentityRowError, ClaimedIdentitySessionWindow, ClaimedIdentityStateClass,
+    ClaimedIdentitySurfaceRow, StageClaimedIdentityRowRequest, SystemBrowserAlphaPacket,
+    CLAIMED_IDENTITY_ROW_RECORD_KIND, SYSTEM_BROWSER_ALPHA_PACKET_RECORD_KIND,
+    SYSTEM_BROWSER_ALPHA_SCHEMA_VERSION,
 };

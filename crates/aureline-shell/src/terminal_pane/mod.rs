@@ -26,8 +26,8 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_auth::{
-    BrowserCallbackPacket, CredentialStateChip, CredentialStateRow, ProviderAccountRegistry,
-    ShellAuthChip,
+    BrowserCallbackPacket, ClaimedIdentityRow, ClaimedIdentitySurfaceRow, CredentialStateChip,
+    CredentialStateRow, ProviderAccountRegistry, ShellAuthChip, SystemBrowserAlphaPacket,
 };
 use aureline_terminal::{
     HostClass, PtyHost, PtySession, PtySessionId, RestoredTerminalRecord, SessionLifecycleState,
@@ -120,6 +120,12 @@ impl TerminalPaneTabRecord {
 /// quotes each chip verbatim; it never collapses a locked or unavailable
 /// store posture into a generic warning chip and never silently downgrades
 /// to a plaintext-file fallback.
+///
+/// The optional `claimed_identity_rows` carry the system-browser defaulting
+/// posture for managed / provider identity rows. They expose provider/org
+/// scope, timeout or expiry, device-code and stay-local alternatives, and
+/// the local-work continuation note without re-deriving auth state in shell
+/// code.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TerminalPaneSnapshot {
     pub record_kind: String,
@@ -136,6 +142,10 @@ pub struct TerminalPaneSnapshot {
     /// wired.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub credential_state_chips: Vec<CredentialStateChip>,
+    /// Claimed identity rows projected from the system-browser alpha packet.
+    /// Empty when no claimed identity packet has been wired.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub claimed_identity_rows: Vec<ClaimedIdentitySurfaceRow>,
     /// Restored transcript / ended-session rows projected from the canonical
     /// terminal restore module. The bottom-panel chrome renders these as
     /// closed-tab transcript objects with no implicit rerun action; live
@@ -187,6 +197,7 @@ impl TerminalPaneSnapshot {
             active_tab_id,
             shell_auth_chip,
             credential_state_chips: Vec::new(),
+            claimed_identity_rows: Vec::new(),
             restored_terminals: Vec::new(),
         }
     }
@@ -217,6 +228,29 @@ impl TerminalPaneSnapshot {
         self.credential_state_chips = rows
             .into_iter()
             .map(CredentialStateChip::from_row)
+            .collect();
+        self
+    }
+
+    /// Attach claimed identity rows projected from a
+    /// [`aureline_auth::SystemBrowserAlphaPacket`]. The pane renders these
+    /// rows near the shell-auth chip so managed / provider identity scope,
+    /// expiry, device-code fallback, and stay-local continuation remain
+    /// inspectable in the shell.
+    pub fn with_system_browser_alpha_packet(mut self, packet: &SystemBrowserAlphaPacket) -> Self {
+        self.claimed_identity_rows = packet.surface_rows();
+        self
+    }
+
+    /// Attach claimed identity rows from an explicit iterator of
+    /// [`aureline_auth::ClaimedIdentityRow`] records.
+    pub fn with_claimed_identity_rows<'a, I>(mut self, rows: I) -> Self
+    where
+        I: IntoIterator<Item = &'a ClaimedIdentityRow>,
+    {
+        self.claimed_identity_rows = rows
+            .into_iter()
+            .map(ClaimedIdentitySurfaceRow::from_row)
             .collect();
         self
     }
@@ -264,6 +298,15 @@ impl TerminalPaneSnapshot {
         self.credential_state_chips
             .iter()
             .any(|chip| chip.state_class.is_unavailable_class())
+    }
+
+    /// True when any claimed identity row would strand the user without an
+    /// available device-code or stay-local path. Conforming snapshots return
+    /// `false`.
+    pub fn has_claimed_identity_dead_end(&self) -> bool {
+        self.claimed_identity_rows
+            .iter()
+            .any(|row| row.dead_end_without_local_continuation)
     }
 }
 
@@ -497,6 +540,89 @@ mod tests {
         assert!(
             chip.local_path_available,
             "managed sign-in pending must not block the no-account local path"
+        );
+    }
+
+    #[test]
+    fn snapshot_surfaces_claimed_identity_scope_expiry_and_fallbacks() {
+        // Protected walk: a managed provider row is claimed by the shell. The
+        // terminal-pane snapshot must expose provider/org scope, expiry, the
+        // system-browser default, device-code fallback, and stay-local
+        // continuation rather than reducing the row to a generic auth badge.
+        use aureline_auth::{
+            AccountBoundaryClass, BrowserLaunchPolicyClass, ClaimedIdentityRow,
+            ClaimedIdentityStateClass, IdentityModeAlias, PreservedLocalWork,
+            PreservedLocalWorkPostureClass, StageClaimedIdentityRowRequest,
+            SystemBrowserAlphaPacket, TrustState as AuthTrustState,
+        };
+
+        let mut host = PtyHost::new();
+        let _id = open_local(&mut host);
+        let row = ClaimedIdentityRow::stage(StageClaimedIdentityRowRequest {
+            row_id: "claimed-identity:managed:payments-prod",
+            state_class: ClaimedIdentityStateClass::AwaitingSystemBrowser,
+            account_boundary_class: AccountBoundaryClass::Managed,
+            identity_mode: IdentityModeAlias::ManagedConvenience,
+            trust_state: AuthTrustState::Trusted,
+            provider_label: "Acme identity",
+            provider_domain_label: "login.acme.example",
+            provider_scope_label: "payments-prod tenant",
+            bound_workspace_ref: Some("workspace:payments-prod"),
+            bound_tenant_or_org_ref: Some("tenant:acme-prod"),
+            bound_actor_subject_ref: Some("actor-subject:sam.acme"),
+            browser_launch_policy_class: BrowserLaunchPolicyClass::SystemDefaultBrowserRequired,
+            system_browser_supported: true,
+            device_code_supported: true,
+            stay_local_supported: true,
+            issued_at: Some("2026-05-13T08:00:00Z"),
+            expires_at: Some("2026-05-13T08:10:00Z"),
+            expiry_summary_label: "System-browser handoff expires in 10 minutes.",
+            device_code_expires_at: Some("2026-05-13T08:15:00Z"),
+            device_code_ref: Some("device-code:managed:payments-prod"),
+            local_continuity_label: "Local files and unsaved edits remain available.",
+            preserved_local_work: PreservedLocalWork {
+                posture_class: PreservedLocalWorkPostureClass::LocalWorkIntactWithManagedNarrowed,
+                note: "Local work remains available while managed auth is incomplete.".to_owned(),
+                retained_capabilities: vec![
+                    "Edit local files.".to_owned(),
+                    "Save local files.".to_owned(),
+                    "Use local Git.".to_owned(),
+                ],
+                blocked_capabilities: vec!["Managed settings sync waits for sign-in.".to_owned()],
+            },
+            auth_callback_packet_ref: Some("auth-callback:managed:payments-prod"),
+            browser_handoff_packet_ref: Some("browser-handoff:managed:payments-prod"),
+            native_boundary_handoff_ref: Some("native-handoff:auth-callback:payments-prod"),
+            embedded_boundary_card_ref: None,
+            managed_session_state_ref: Some("managed-session:payments-prod"),
+            recovery_copy_label: "Continue sign-in in your browser or stay local.",
+            primary_recovery_action: None,
+            support_export_ref: Some("support-export:auth:payments-prod"),
+            execution_context_ref: Some("execution-context:auth:payments-prod"),
+            minted_at: "2026-05-13T08:00:01Z",
+        })
+        .expect("claimed identity row stages");
+        let packet = SystemBrowserAlphaPacket::new(
+            "system-browser-alpha:terminal-pane:test",
+            vec![row],
+            "2026-05-13T08:00:01Z",
+        );
+
+        let snapshot = TerminalPaneSnapshot::project("ws-test", &host)
+            .with_system_browser_alpha_packet(&packet);
+        assert_eq!(snapshot.claimed_identity_rows.len(), 1);
+        assert!(!snapshot.has_claimed_identity_dead_end());
+        let row = &snapshot.claimed_identity_rows[0];
+        assert_eq!(row.provider_domain_label, "login.acme.example");
+        assert_eq!(row.provider_scope_label, "payments-prod tenant");
+        assert_eq!(row.default_action_token, "open_system_browser");
+        assert_eq!(row.expires_at.as_deref(), Some("2026-05-13T08:10:00Z"));
+        assert!(row.device_code_available);
+        assert!(row.stay_local_available);
+        assert!(row.local_work_available);
+        assert_eq!(
+            row.native_boundary_handoff_ref.as_deref(),
+            Some("native-handoff:auth-callback:payments-prod")
         );
     }
 
