@@ -15,6 +15,9 @@
 
 /// Terminal header strip and target/cwd/runtime/restore chip projection.
 pub mod headers;
+/// Terminal protocol corpus and conformance projections for escape handling,
+/// paste review, clipboard writes, and restore-state proofs.
+pub mod protocol_corpus;
 pub mod pty_host;
 /// Transcript / ended-session restore projection. Restored records never
 /// claim a live shell survived; auto-rerun is always forbidden.
@@ -29,6 +32,17 @@ pub use headers::{
     TERMINAL_HEADER_RECORD_KIND, TERMINAL_HEADER_SCHEMA_VERSION,
 };
 pub use portable_pty::PtySize;
+pub use protocol_corpus::{
+    evaluate_clipboard_write, evaluate_escape_control, evaluate_paste_review,
+    restore_conformance_from_header, TerminalClipboardSuppressionClass,
+    TerminalClipboardWriteInput, TerminalClipboardWriteKind, TerminalClipboardWriteReport,
+    TerminalEscapeControlInput, TerminalEscapeControlReport, TerminalGateDisposition,
+    TerminalPastePolicyResult, TerminalPasteReviewInput, TerminalPasteReviewReport,
+    TerminalPasteSubmitBehavior, TerminalProtocolCorpusCaseKind, TerminalRestoreConformanceReport,
+    TerminalRestoreConformanceState, TERMINAL_ALPHA_REQUIRED_ESCAPE_SEQUENCE_TOKENS,
+    TERMINAL_PROTOCOL_CORPUS_CASE_KIND, TERMINAL_PROTOCOL_CORPUS_FIXTURE_SET_ID,
+    TERMINAL_PROTOCOL_CORPUS_MANIFEST_KIND, TERMINAL_PROTOCOL_CORPUS_SCHEMA_VERSION,
+};
 pub use pty_host::{
     HostClass, OpenSessionRequest, PtyCommand, PtyHost, PtyHostError, PtyLaunchFailureReason,
     PtyOutputDrain, PtySession, PtySessionId, SessionHeader, SessionLifecycleState,
