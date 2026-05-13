@@ -37,9 +37,11 @@ use aureline_runtime::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
     DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, IdentityMode, InvocationSubject,
     NodeToolchainDetection, NodeToolchainProvenanceDisposition, NodeToolchainResolutionState,
-    NodeToolchainSourceKind, NodeToolchainSubject, PolicyAndTrust, Provenance, ReachabilityState,
-    ResolverInputDecision, ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass,
-    TargetClass, TargetIdentity, ToolchainClass, ToolchainIdentity, TrustState,
+    NodeToolchainSourceKind, NodeToolchainSubject, PolicyAndTrust, Provenance,
+    PythonEnvironmentDetection, PythonEnvironmentProvenanceDisposition,
+    PythonEnvironmentResolutionState, PythonEnvironmentSourceKind, PythonEnvironmentSubject,
+    ReachabilityState, ResolverInputDecision, ResolverInputField, ResolverInputSource, ScopeClass,
+    SurfaceClass, TargetClass, TargetIdentity, ToolchainClass, ToolchainIdentity, TrustState,
 };
 
 /// Stable record-kind tag carried in serialized inspector snapshots.
@@ -98,6 +100,7 @@ pub enum InspectorSectionId {
     InvocationSubject,
     TargetIdentity,
     ToolchainIdentity,
+    PythonEnvironmentDetection,
     NodeToolchainDetection,
     EnvironmentCapsule,
     PolicyAndTrust,
@@ -114,6 +117,7 @@ impl InspectorSectionId {
             Self::InvocationSubject => "invocation_subject",
             Self::TargetIdentity => "target_identity",
             Self::ToolchainIdentity => "toolchain_identity",
+            Self::PythonEnvironmentDetection => "python_environment_detection",
             Self::NodeToolchainDetection => "node_toolchain_detection",
             Self::EnvironmentCapsule => "environment_capsule",
             Self::PolicyAndTrust => "policy_and_trust",
@@ -130,6 +134,7 @@ impl InspectorSectionId {
             Self::InvocationSubject => "Invocation",
             Self::TargetIdentity => "Target",
             Self::ToolchainIdentity => "Toolchain",
+            Self::PythonEnvironmentDetection => "Python environment",
             Self::NodeToolchainDetection => "Node detector",
             Self::EnvironmentCapsule => "Environment capsule",
             Self::PolicyAndTrust => "Policy and trust",
@@ -340,6 +345,9 @@ impl ExecutionContextInspectorSnapshot {
             project_target_section(&context.target_identity, &context.provenance),
             project_toolchain_section(&context.toolchain_identity, &context.provenance),
         ];
+        if let Some(detection) = &context.python_environment_detection {
+            sections.push(project_python_environment_section(detection));
+        }
         if let Some(detection) = &context.node_toolchain_detection {
             sections.push(project_node_detection_section(detection));
         }
@@ -562,6 +570,125 @@ fn project_toolchain_section(
     InspectorSection::new(InspectorSectionId::ToolchainIdentity, rows)
 }
 
+fn project_python_environment_section(detection: &PythonEnvironmentDetection) -> InspectorSection {
+    let mut rows = vec![
+        value_row(
+            "detector_version",
+            "Detector version",
+            detection.detector_version.clone(),
+        ),
+        value_row(
+            "workspace_root_ref",
+            "Workspace root",
+            detection.workspace_root_ref.clone(),
+        ),
+        token_row(
+            "interpreter_state",
+            "Interpreter state",
+            python_resolution_state_label(detection.interpreter.resolution_state).to_owned(),
+            detection.interpreter.resolution_state.as_str(),
+        ),
+        value_or_missing_row(
+            "interpreter_value",
+            "Interpreter",
+            python_interpreter_value(detection),
+            InspectorMissingFieldReason::ResolverUnsettled,
+        ),
+        value_or_missing_row(
+            "interpreter_ref",
+            "Interpreter ref",
+            detection.interpreter.interpreter_ref.clone(),
+            InspectorMissingFieldReason::ResolverUnsettled,
+        ),
+        python_source_row(
+            "interpreter_source",
+            "Interpreter source",
+            detection.interpreter.winning_source,
+        ),
+        fallback_row(
+            "interpreter_fallback",
+            "Interpreter fallback",
+            detection
+                .interpreter
+                .fallback_path
+                .as_ref()
+                .map(|fallback| fallback.value_token.clone()),
+        ),
+        token_row(
+            "environment_manager_state",
+            "Environment manager state",
+            python_resolution_state_label(detection.environment_manager.resolution_state)
+                .to_owned(),
+            detection.environment_manager.resolution_state.as_str(),
+        ),
+        value_or_missing_row(
+            "environment_manager_value",
+            "Environment manager",
+            python_manager_value(detection),
+            InspectorMissingFieldReason::ResolverUnsettled,
+        ),
+        value_or_missing_row(
+            "environment_ref",
+            "Environment ref",
+            detection.environment_manager.environment_ref.clone(),
+            InspectorMissingFieldReason::ResolverUnsettled,
+        ),
+        python_source_row(
+            "environment_manager_source",
+            "Environment manager source",
+            detection.environment_manager.winning_source,
+        ),
+        fallback_row(
+            "environment_manager_fallback",
+            "Environment manager fallback",
+            detection
+                .environment_manager
+                .fallback_path
+                .as_ref()
+                .map(|fallback| fallback.value_token.clone()),
+        ),
+    ];
+
+    for (idx, ambiguity) in detection.unresolved_ambiguities.iter().enumerate() {
+        rows.push(InspectorRow {
+            row_id: format!("python_ambiguity_{idx}"),
+            label: format!(
+                "{} ambiguity",
+                python_environment_subject_label(ambiguity.subject)
+            ),
+            value: format!(
+                "{} ({})",
+                ambiguity.candidate_values.join(" vs "),
+                ambiguity.resolution_hint
+            ),
+            value_token: Some(ambiguity.candidate_values.join("|")),
+            winning_source: None,
+            conflicting_sources: Vec::new(),
+            missing_field_reason: None,
+            degraded_reason: Some(DegradedFieldReason::ConfidenceLow),
+        });
+    }
+
+    for card in &detection.provenance_cards {
+        rows.push(InspectorRow {
+            row_id: format!("python_card_{}", stable_row_suffix(&card.card_id)),
+            label: format!(
+                "{} · {}",
+                python_environment_subject_label(card.subject),
+                python_source_kind_label(card.source_kind)
+            ),
+            value: format!("{} ({})", card.summary, card.disposition.as_str()),
+            value_token: card.value_token.clone(),
+            winning_source: None,
+            conflicting_sources: Vec::new(),
+            missing_field_reason: None,
+            degraded_reason: python_detector_disposition_degraded_reason(card.disposition),
+        });
+    }
+
+    InspectorSection::new(InspectorSectionId::PythonEnvironmentDetection, rows)
+}
+
 fn project_node_detection_section(detection: &NodeToolchainDetection) -> InspectorSection {
     let mut rows = vec![
         value_row(
@@ -590,7 +717,7 @@ fn project_node_detection_section(detection: &NodeToolchainDetection) -> Inspect
                 .map(|value| format!("node@{value}")),
             InspectorMissingFieldReason::ResolverUnsettled,
         ),
-        source_row(
+        node_source_row(
             "node_runtime_source",
             "Node source",
             detection.node_runtime.winning_source,
@@ -616,7 +743,7 @@ fn project_node_detection_section(detection: &NodeToolchainDetection) -> Inspect
             package_manager_value(detection),
             InspectorMissingFieldReason::ResolverUnsettled,
         ),
-        source_row(
+        node_source_row(
             "package_manager_source",
             "Package manager source",
             detection.package_manager.winning_source,
@@ -850,12 +977,36 @@ fn value_or_missing_row(
     }
 }
 
-fn source_row(row_id: &str, label: &str, source: Option<NodeToolchainSourceKind>) -> InspectorRow {
+fn node_source_row(
+    row_id: &str,
+    label: &str,
+    source: Option<NodeToolchainSourceKind>,
+) -> InspectorRow {
     match source {
         Some(source) => token_row(
             row_id,
             label,
             node_source_kind_label(source).to_owned(),
+            source.as_str(),
+        ),
+        None => missing_row(
+            row_id,
+            label,
+            InspectorMissingFieldReason::ResolverUnsettled,
+        ),
+    }
+}
+
+fn python_source_row(
+    row_id: &str,
+    label: &str,
+    source: Option<PythonEnvironmentSourceKind>,
+) -> InspectorRow {
+    match source {
+        Some(source) => token_row(
+            row_id,
+            label,
+            python_source_kind_label(source).to_owned(),
             source.as_str(),
         ),
         None => missing_row(
@@ -939,6 +1090,96 @@ const fn toolchain_class_label(class: ToolchainClass) -> &'static str {
         ToolchainClass::BuildDriverRuntime => "Build-driver runtime",
         ToolchainClass::AiToolRuntime => "AI tool runtime",
         ToolchainClass::LoginShell => "Login shell",
+    }
+}
+
+fn python_interpreter_value(detection: &PythonEnvironmentDetection) -> Option<String> {
+    match (
+        detection.interpreter.resolved_requirement.as_deref(),
+        detection.interpreter.interpreter_ref.as_deref(),
+    ) {
+        (Some(requirement), Some(interpreter_ref))
+            if !requirement.is_empty() && !interpreter_ref.is_empty() =>
+        {
+            Some(format!("python@{requirement} ({interpreter_ref})"))
+        }
+        (Some(requirement), _) if !requirement.is_empty() => Some(format!("python@{requirement}")),
+        (_, Some(interpreter_ref)) if !interpreter_ref.is_empty() => {
+            Some(interpreter_ref.to_owned())
+        }
+        _ => None,
+    }
+}
+
+fn python_manager_value(detection: &PythonEnvironmentDetection) -> Option<String> {
+    let kind = detection.environment_manager.kind?;
+    let base = match &detection.environment_manager.version {
+        Some(version) if !version.is_empty() => format!("{}@{version}", kind.as_str()),
+        _ => kind.as_str().to_owned(),
+    };
+    match &detection.environment_manager.environment_ref {
+        Some(environment_ref) if !environment_ref.is_empty() => {
+            Some(format!("{base} ({environment_ref})"))
+        }
+        _ => Some(base),
+    }
+}
+
+const fn python_environment_subject_label(subject: PythonEnvironmentSubject) -> &'static str {
+    match subject {
+        PythonEnvironmentSubject::Interpreter => "Interpreter",
+        PythonEnvironmentSubject::EnvironmentManager => "Environment manager",
+    }
+}
+
+const fn python_resolution_state_label(state: PythonEnvironmentResolutionState) -> &'static str {
+    match state {
+        PythonEnvironmentResolutionState::Resolved => "Resolved",
+        PythonEnvironmentResolutionState::Fallback => "Fallback",
+        PythonEnvironmentResolutionState::Missing => "Missing",
+        PythonEnvironmentResolutionState::Ambiguous => "Ambiguous",
+        PythonEnvironmentResolutionState::Unsupported => "Unsupported",
+    }
+}
+
+const fn python_source_kind_label(source: PythonEnvironmentSourceKind) -> &'static str {
+    match source {
+        PythonEnvironmentSourceKind::ExplicitOverride => "Explicit override",
+        PythonEnvironmentSourceKind::VenvPyvenvCfg => ".venv pyvenv.cfg",
+        PythonEnvironmentSourceKind::VenvDirectory => ".venv directory",
+        PythonEnvironmentSourceKind::PythonVersionFile => ".python-version",
+        PythonEnvironmentSourceKind::ToolVersions => ".tool-versions",
+        PythonEnvironmentSourceKind::MiseToml => "mise.toml",
+        PythonEnvironmentSourceKind::PyprojectRequiresPython => "pyproject requires-python",
+        PythonEnvironmentSourceKind::PyprojectPoetryDependency => {
+            "pyproject Poetry python dependency"
+        }
+        PythonEnvironmentSourceKind::UvLockfile => "uv lockfile",
+        PythonEnvironmentSourceKind::PyprojectUv => "pyproject uv section",
+        PythonEnvironmentSourceKind::PoetryLockfile => "Poetry lockfile",
+        PythonEnvironmentSourceKind::PyprojectPoetry => "pyproject Poetry section",
+        PythonEnvironmentSourceKind::CondaEnvironmentFile => "Conda environment file",
+        PythonEnvironmentSourceKind::UserProfileDefault => "User/profile default",
+        PythonEnvironmentSourceKind::AmbientPath => "Ambient PATH",
+        PythonEnvironmentSourceKind::DetectorFallback => "Detector fallback",
+        PythonEnvironmentSourceKind::UnreadableSource => "Unreadable source",
+    }
+}
+
+const fn python_detector_disposition_degraded_reason(
+    disposition: PythonEnvironmentProvenanceDisposition,
+) -> Option<DegradedFieldReason> {
+    match disposition {
+        PythonEnvironmentProvenanceDisposition::Fallback => {
+            Some(DegradedFieldReason::ToolchainFallback)
+        }
+        PythonEnvironmentProvenanceDisposition::Ambiguous => {
+            Some(DegradedFieldReason::ConfidenceLow)
+        }
+        PythonEnvironmentProvenanceDisposition::Unsupported => {
+            Some(DegradedFieldReason::ActivatorUnsupportedOnTarget)
+        }
+        _ => None,
     }
 }
 

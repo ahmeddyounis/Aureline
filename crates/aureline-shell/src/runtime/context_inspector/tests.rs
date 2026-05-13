@@ -4,7 +4,8 @@ use aureline_runtime::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
     DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
     ExecutionContextResolverConfig, IdentityMode, NodeToolchainDetector,
-    NodeToolchainDetectorConfig, NodeToolchainResolutionState, ResolverInputField,
+    NodeToolchainDetectorConfig, NodeToolchainResolutionState, PythonEnvironmentDetector,
+    PythonEnvironmentDetectorConfig, PythonEnvironmentResolutionState, ResolverInputField,
     ResolverInputSource, ScopeClass, SurfaceClass, TargetClass, ToolchainClass, TrustState,
     EXECUTION_CONTEXT_RECORD_KIND,
 };
@@ -45,6 +46,22 @@ fn node_detector() -> NodeToolchainDetector {
         ambient_npm_version: Some("10.9.0".to_owned()),
         ambient_pnpm_version: Some("9.15.4".to_owned()),
         ..NodeToolchainDetectorConfig::default()
+    })
+}
+
+fn python_fixture_root(name: &str) -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/runtime/python_detection_alpha")
+        .join(name)
+}
+
+fn python_detector() -> PythonEnvironmentDetector {
+    PythonEnvironmentDetector::new(PythonEnvironmentDetectorConfig {
+        ambient_python_version: Some("3.12.7".to_owned()),
+        ambient_interpreter_ref: Some("/usr/bin/python3".to_owned()),
+        ambient_uv_version: Some("0.5.7".to_owned()),
+        ambient_poetry_version: Some("1.8.4".to_owned()),
+        ..PythonEnvironmentDetectorConfig::default()
     })
 }
 
@@ -307,6 +324,93 @@ fn node_detection_ambiguity_stays_visible_in_inspector() {
         .iter()
         .any(|row| row.row_id.starts_with("node_ambiguity_")
             && row.degraded_reason == Some(DegradedFieldReason::ConfidenceLow)));
+}
+
+#[test]
+fn python_environment_report_projects_before_task_launch() {
+    let mut resolver = baseline_resolver();
+    let context = resolver
+        .resolve(ExecutionContextRequest::task_seed(
+            "task.run.pytest",
+            TrustState::Trusted,
+            "mono:1",
+        ))
+        .with_python_environment_detection(
+            python_detector().detect_workspace(&python_fixture_root("uv_workspace"), "mono:1"),
+        );
+
+    let snapshot = ExecutionContextInspectorSnapshot::project(&context);
+    assert!(snapshot.honesty_marker_present);
+
+    let python = snapshot
+        .section(InspectorSectionId::PythonEnvironmentDetection)
+        .expect("python environment section");
+    let interpreter = python
+        .rows
+        .iter()
+        .find(|row| row.row_id == "interpreter_value")
+        .expect("interpreter row");
+    assert_eq!(interpreter.value, "python@3.12.6 (.venv/bin/python)");
+
+    let manager = python
+        .rows
+        .iter()
+        .find(|row| row.row_id == "environment_manager_value")
+        .expect("environment manager row");
+    assert_eq!(manager.value, "uv (.venv)");
+
+    let manager_state = python
+        .rows
+        .iter()
+        .find(|row| row.row_id == "environment_manager_state")
+        .expect("environment manager state row");
+    assert_eq!(
+        manager_state.value_token.as_deref(),
+        Some(PythonEnvironmentResolutionState::Resolved.as_str())
+    );
+    assert!(
+        context.degraded_fields.is_empty(),
+        "a visible fallback card does not downgrade an otherwise resolved Python environment"
+    );
+
+    assert!(python.rows.iter().any(|row| {
+        row.value.contains("uv lockfile")
+            && row.value.contains("winning")
+            && row.value_token.as_deref() == Some("uv (.venv)")
+    }));
+}
+
+#[test]
+fn python_environment_detector_failure_stays_visible_in_inspector() {
+    let mut resolver = baseline_resolver();
+    let context = resolver
+        .resolve(ExecutionContextRequest::task_seed(
+            "task.run.pytest",
+            TrustState::Trusted,
+            "mono:1",
+        ))
+        .with_python_environment_detection(
+            python_detector()
+                .detect_workspace(&python_fixture_root("malformed_pyproject"), "mono:1"),
+        );
+
+    let snapshot = ExecutionContextInspectorSnapshot::project(&context);
+    let python = snapshot
+        .section(InspectorSectionId::PythonEnvironmentDetection)
+        .expect("python environment section");
+    assert!(python.rows.iter().any(|row| {
+        row.row_id.starts_with("python_card_")
+            && row.value.contains("pyproject.toml could not be parsed")
+            && row.degraded_reason == Some(DegradedFieldReason::ActivatorUnsupportedOnTarget)
+    }));
+
+    let degraded = snapshot
+        .section(InspectorSectionId::DegradedFields)
+        .expect("degraded section");
+    assert!(degraded.rows.iter().any(|row| {
+        row.label == "python_environment_detection.provenance_cards"
+            && row.degraded_reason == Some(DegradedFieldReason::ProvenanceGap)
+    }));
 }
 
 #[test]

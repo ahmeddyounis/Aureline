@@ -49,6 +49,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::detectors::node::{NodeToolchainDetection, NodeToolchainResolutionState};
+use crate::detectors::python::{PythonEnvironmentDetection, PythonEnvironmentResolutionState};
 
 pub use aureline_workspace::TrustState;
 
@@ -603,6 +604,8 @@ pub struct ExecutionContext {
     pub provenance: Provenance,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub node_toolchain_detection: Option<NodeToolchainDetection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub python_environment_detection: Option<PythonEnvironmentDetection>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub degraded_fields: Vec<DegradedFieldRecord>,
 }
@@ -641,6 +644,23 @@ impl ExecutionContext {
         self
     }
 
+    /// Attaches a Python environment detector report to this context before
+    /// a launch surface dispatches work.
+    ///
+    /// The report stays embedded in the canonical context so task, test,
+    /// debug, notebook, inspector, and support surfaces quote the same
+    /// interpreter and manager truth. Fallback, missing, unsupported,
+    /// ambiguous, or failed detector states add visible degraded-field
+    /// markers.
+    pub fn with_python_environment_detection(
+        mut self,
+        detection: PythonEnvironmentDetection,
+    ) -> Self {
+        self.record_python_detection_degraded_fields(&detection);
+        self.python_environment_detection = Some(detection);
+        self
+    }
+
     fn record_node_detection_degraded_fields(&mut self, detection: &NodeToolchainDetection) {
         add_node_detection_degraded_field(
             &mut self.degraded_fields,
@@ -652,6 +672,31 @@ impl ExecutionContext {
             "node_toolchain_detection.package_manager",
             detection.package_manager.resolution_state,
         );
+    }
+
+    fn record_python_detection_degraded_fields(&mut self, detection: &PythonEnvironmentDetection) {
+        add_python_detection_degraded_field(
+            &mut self.degraded_fields,
+            "python_environment_detection.interpreter",
+            detection.interpreter.resolution_state,
+        );
+        add_python_detection_degraded_field(
+            &mut self.degraded_fields,
+            "python_environment_detection.environment_manager",
+            detection.environment_manager.resolution_state,
+        );
+        if detection.has_detector_failure()
+            && !self.degraded_fields.iter().any(|field| {
+                field.field_path == "python_environment_detection.provenance_cards"
+                    && field.reason == DegradedFieldReason::ProvenanceGap
+            })
+        {
+            self.degraded_fields.push(DegradedFieldRecord {
+                field_path: "python_environment_detection.provenance_cards".to_owned(),
+                reason: DegradedFieldReason::ProvenanceGap,
+                repair_hook_ref: Some("doctor.repair.python_environment".to_owned()),
+            });
+        }
     }
 }
 
@@ -889,6 +934,7 @@ impl ExecutionContextResolver {
             cache_disposition: CacheDisposition::Cold,
             provenance,
             node_toolchain_detection: None,
+            python_environment_detection: None,
             degraded_fields,
         }
     }
@@ -1114,6 +1160,33 @@ fn add_node_detection_degraded_field(
         field_path: field_path.to_owned(),
         reason,
         repair_hook_ref: Some("doctor.repair.node_toolchain".to_owned()),
+    });
+}
+
+fn add_python_detection_degraded_field(
+    degraded_fields: &mut Vec<DegradedFieldRecord>,
+    field_path: &str,
+    state: PythonEnvironmentResolutionState,
+) {
+    let reason = match state {
+        PythonEnvironmentResolutionState::Resolved => return,
+        PythonEnvironmentResolutionState::Fallback => DegradedFieldReason::ToolchainFallback,
+        PythonEnvironmentResolutionState::Missing => DegradedFieldReason::ProvenanceGap,
+        PythonEnvironmentResolutionState::Ambiguous => DegradedFieldReason::ConfidenceLow,
+        PythonEnvironmentResolutionState::Unsupported => {
+            DegradedFieldReason::ActivatorUnsupportedOnTarget
+        }
+    };
+    if degraded_fields
+        .iter()
+        .any(|field| field.field_path == field_path && field.reason == reason)
+    {
+        return;
+    }
+    degraded_fields.push(DegradedFieldRecord {
+        field_path: field_path.to_owned(),
+        reason,
+        repair_hook_ref: Some("doctor.repair.python_environment".to_owned()),
     });
 }
 

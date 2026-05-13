@@ -30,6 +30,15 @@ pub use detectors::node::{
     NodeToolchainSubject, NODE_TOOLCHAIN_DETECTION_RECORD_KIND,
     NODE_TOOLCHAIN_DETECTION_SCHEMA_VERSION, NODE_TOOLCHAIN_DETECTOR_VERSION,
 };
+pub use detectors::python::{
+    PythonEnvironmentAmbiguity, PythonEnvironmentDetection, PythonEnvironmentDetector,
+    PythonEnvironmentDetectorConfig, PythonEnvironmentFallbackPath, PythonEnvironmentManagerKind,
+    PythonEnvironmentManagerRequirement, PythonEnvironmentManagerResolution,
+    PythonEnvironmentProvenanceCard, PythonEnvironmentProvenanceDisposition,
+    PythonEnvironmentResolutionState, PythonEnvironmentSourceKind, PythonEnvironmentSubject,
+    PythonInterpreterResolution, PYTHON_ENVIRONMENT_DETECTION_RECORD_KIND,
+    PYTHON_ENVIRONMENT_DETECTION_SCHEMA_VERSION, PYTHON_ENVIRONMENT_DETECTOR_VERSION,
+};
 pub use execution_context::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
     DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextRequest,
