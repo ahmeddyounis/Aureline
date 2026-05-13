@@ -33,6 +33,12 @@ const SYMBOL_SEARCH_PRIORITY: [PlannerDataPath; 4] = [
     PlannerDataPath::Cached,
     PlannerDataPath::Lexical,
 ];
+const DOCS_SEARCH_PRIORITY: [PlannerDataPath; 4] = [
+    PlannerDataPath::Docs,
+    PlannerDataPath::Cached,
+    PlannerDataPath::GraphBacked,
+    PlannerDataPath::Lexical,
+];
 
 /// Data path that can answer a planner-backed search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -46,6 +52,8 @@ pub enum PlannerDataPath {
     Cached,
     /// Semantic graph rows with graph/provider evidence.
     GraphBacked,
+    /// Documentation, help, citation-anchor, or docs-pack rows.
+    Docs,
 }
 
 impl PlannerDataPath {
@@ -56,6 +64,7 @@ impl PlannerDataPath {
             Self::Structural => "structural",
             Self::Cached => "cached",
             Self::GraphBacked => "graph_backed",
+            Self::Docs => "docs",
         }
     }
 
@@ -66,6 +75,7 @@ impl PlannerDataPath {
             Self::Structural => "Structural",
             Self::Cached => "Cached",
             Self::GraphBacked => "Graph",
+            Self::Docs => "Docs",
         }
     }
 }
@@ -169,6 +179,8 @@ pub enum PlannerUnavailableReason {
     PolicyLimited,
     /// Active workset or sparse scope excludes this path.
     OutsideScope,
+    /// Documentation or help index cannot currently answer.
+    DocsUnavailable,
 }
 
 impl PlannerUnavailableReason {
@@ -182,6 +194,7 @@ impl PlannerUnavailableReason {
             Self::CacheMiss => "cache_miss",
             Self::PolicyLimited => "policy_limited",
             Self::OutsideScope => "outside_scope",
+            Self::DocsUnavailable => "docs_unavailable",
         }
     }
 }
@@ -196,6 +209,8 @@ pub enum PlannerTargetKind {
     TextMatch,
     /// Symbol, route, type, member, or structural target.
     Symbol,
+    /// Documentation, help, or citation-anchor target.
+    DocsAnchor,
 }
 
 impl PlannerTargetKind {
@@ -205,6 +220,7 @@ impl PlannerTargetKind {
             Self::File => "file",
             Self::TextMatch => "text_match",
             Self::Symbol => "symbol",
+            Self::DocsAnchor => "docs_anchor",
         }
     }
 }
@@ -251,6 +267,18 @@ pub enum PlannerRankingReason {
     GraphUnavailable,
     /// Language or structural path was unavailable and fallback was used.
     LanguageUnavailable,
+    /// Documentation anchor matched the query.
+    DocsAnchorMatch,
+    /// Documentation row was bound to the requested symbol or command.
+    DocsSymbolLinkedReference,
+    /// Project documentation precedence affected the row order.
+    DocsSourcePrecedence,
+    /// Citation anchors are available for inspection.
+    CitationAvailable,
+    /// Citation anchors are missing and must be disclosed.
+    CitationMissing,
+    /// A stale example or snippet signal affected the row.
+    StaleExampleSignal,
 }
 
 impl PlannerRankingReason {
@@ -276,6 +304,12 @@ impl PlannerRankingReason {
             Self::PartialIndex => "partial_index",
             Self::GraphUnavailable => "graph_unavailable",
             Self::LanguageUnavailable => "language_unavailable",
+            Self::DocsAnchorMatch => "docs_anchor_match",
+            Self::DocsSymbolLinkedReference => "docs_symbol_linked_reference",
+            Self::DocsSourcePrecedence => "docs_source_precedence",
+            Self::CitationAvailable => "citation_available",
+            Self::CitationMissing => "citation_missing",
+            Self::StaleExampleSignal => "stale_example_signal",
         }
     }
 
@@ -289,6 +323,10 @@ impl PlannerRankingReason {
             Self::StructuralFallback | Self::CachedSnapshotHit | Self::SymbolKindPrior => 5,
             Self::GeneratedArtifactDeprioritized | Self::PartialIndex => 6,
             Self::GraphUnavailable | Self::LanguageUnavailable => 7,
+            Self::DocsAnchorMatch => 0,
+            Self::DocsSymbolLinkedReference => 1,
+            Self::DocsSourcePrecedence | Self::CitationAvailable => 4,
+            Self::CitationMissing | Self::StaleExampleSignal => 6,
         }
     }
 }
@@ -299,6 +337,8 @@ impl PlannerRankingReason {
 pub enum PlannerResultTruthClass {
     /// Exact local result from a ready authoritative path.
     Exact,
+    /// Imported or docs-pack fact with source and freshness disclosure.
+    Imported,
     /// Useful but not project-wide authoritative result.
     Heuristic,
     /// Cached result served with freshness disclosure.
@@ -314,6 +354,7 @@ impl PlannerResultTruthClass {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Exact => "exact",
+            Self::Imported => "imported",
             Self::Heuristic => "heuristic",
             Self::Cached => "cached",
             Self::GraphBacked => "graph_backed",
@@ -1285,6 +1326,7 @@ fn truth_class_for(
 ) -> PlannerResultTruthClass {
     match path_kind {
         PlannerDataPath::GraphBacked => PlannerResultTruthClass::GraphBacked,
+        PlannerDataPath::Docs => PlannerResultTruthClass::Imported,
         PlannerDataPath::Cached => PlannerResultTruthClass::Cached,
         PlannerDataPath::Structural => PlannerResultTruthClass::Heuristic,
         PlannerDataPath::Lexical => {
@@ -1341,6 +1383,7 @@ fn priority_for_surface(surface: SearchSurface) -> &'static [PlannerDataPath] {
         SearchSurface::QuickOpen => &QUICK_OPEN_PRIORITY,
         SearchSurface::FileSearch => &FILE_SEARCH_PRIORITY,
         SearchSurface::SymbolSearch => &SYMBOL_SEARCH_PRIORITY,
+        SearchSurface::DocsSearch => &DOCS_SEARCH_PRIORITY,
     }
 }
 

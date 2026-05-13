@@ -21,8 +21,11 @@
 //!   paths were deferred, and which fallback was used when hot inputs were not
 //!   available.
 //! - [`planner::SearchPlannerAlpha`] chooses lexical, structural, cached, or
-//!   graph-backed paths for quick open, file search, and symbol search while
-//!   preserving explicit fallback explanations.
+//!   graph-backed paths for quick open, file search, symbol search, and docs
+//!   search while preserving explicit fallback explanations.
+//! - [`docs_linking::DocsLinkedSearchProjection`] binds symbols and commands
+//!   to documentation anchors while carrying source, version, freshness,
+//!   citation, and stale-example evidence on the same planned result IDs.
 //! - [`readiness::IndexedLaneState`] projects warming, partial, cached, stale,
 //!   and paused indexed-data states into one vocabulary for status chrome,
 //!   result panes, graph/docs disclosures, and support artifacts.
@@ -43,6 +46,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-search/0.0.0")]
 
 pub mod counts;
+pub mod docs_linking;
 pub mod hot_set;
 pub mod index_scheduler;
 pub mod lexical;
@@ -59,6 +63,17 @@ pub use counts::{
     ScopeTruthSurface, ScopeWarningKind, ScopeWarningRecord, SearchNoResultsState,
     SearchScopeCountsClass, SearchScopeCountsInputs, SearchScopeCountsRecord,
     SCOPE_TRUTH_COUNTS_SCHEMA_VERSION,
+};
+pub use docs_linking::{
+    DocsCitationAvailability, DocsCitationDrawerHook, DocsDerivedReuseState, DocsDocKind,
+    DocsEvidenceAction, DocsEvidenceActionKind, DocsEvidenceState, DocsExactAnchor,
+    DocsFreshnessClass, DocsLinkResolutionClass, DocsLinkedReference, DocsLinkedSearchInputs,
+    DocsLinkedSearchProjection, DocsLinkedSearchResult, DocsLinkingSupportExport,
+    DocsLinkingSupportRow, DocsLinkingValidationFinding, DocsLocalityClass,
+    DocsMissingAnchorDowngrade, DocsProjectVendorTruthCue, DocsPublishBoundaryState,
+    DocsSourceClass, DocsStaleDetectionState, DocsStaleExampleSignal, DocsSubjectKind,
+    DocsSuggestionCard, DocsSuggestionClass, DocsTriggerClass, DocsValidationFreshness,
+    DocsVersionMatchState, DOCS_LINKING_ALPHA_SCHEMA_VERSION,
 };
 pub use hot_set::{
     HotSetCandidate, HotSetExplanation, HotSetFallback, HotSetFallbackReason, HotSetInputClass,

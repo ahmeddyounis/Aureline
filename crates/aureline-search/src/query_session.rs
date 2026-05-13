@@ -1,10 +1,10 @@
 //! Search query-session records shared by planner-backed surfaces.
 //!
 //! A query session captures the stable facts every quick-open, file-search,
-//! and symbol-search pass needs to replay or export: the surface, query text
-//! retention mode, scope binding, planner version, readiness state, and index
-//! epochs. The planner consumes this record directly so surfaces do not mint
-//! private session vocabularies.
+//! symbol-search, and docs-search pass needs to replay or export: the surface,
+//! query text retention mode, scope binding, planner version, readiness state,
+//! and index epochs. The planner consumes this record directly so surfaces do
+//! not mint private session vocabularies.
 
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +24,8 @@ pub enum SearchSurface {
     FileSearch,
     /// Symbol and structural-navigation search surface.
     SymbolSearch,
+    /// Documentation and help search surface.
+    DocsSearch,
 }
 
 impl SearchSurface {
@@ -33,6 +35,7 @@ impl SearchSurface {
             Self::QuickOpen => "quick_open",
             Self::FileSearch => "file_search",
             Self::SymbolSearch => "symbol_search",
+            Self::DocsSearch => "docs_search",
         }
     }
 }

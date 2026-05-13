@@ -26,6 +26,8 @@ pub enum StableResultKind {
     WorkspaceFile,
     /// A symbol, route, type, member, or structural target.
     Symbol,
+    /// A documentation or help citation anchor.
+    DocsAnchor,
 }
 
 impl StableResultKind {
@@ -36,6 +38,7 @@ impl StableResultKind {
             Self::Command => "command",
             Self::WorkspaceFile => "workspace_file",
             Self::Symbol => "symbol",
+            Self::DocsAnchor => "docs_anchor",
         }
     }
 }

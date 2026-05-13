@@ -356,6 +356,36 @@ fn signal_for_token(token: &str) -> RankingReasonSignal {
             "The language path could not answer and a fallback was used.",
             "fallback_signal",
         ),
+        "docs_anchor_match" => (
+            "Docs anchor",
+            "The result matched a documentation or help citation anchor.",
+            "primary_signal",
+        ),
+        "docs_symbol_linked_reference" => (
+            "Symbol-linked docs",
+            "The documentation row is linked to the requested symbol or command.",
+            "primary_signal",
+        ),
+        "docs_source_precedence" => (
+            "Docs precedence",
+            "Project documentation precedence influenced the row order.",
+            "anchor_boost",
+        ),
+        "citation_available" => (
+            "Citation available",
+            "Citation anchors are available for inspection.",
+            "anchor_boost",
+        ),
+        "citation_missing" => (
+            "Citation missing",
+            "The row is useful but its exact citation anchor is missing.",
+            "partiality_signal",
+        ),
+        "stale_example_signal" => (
+            "Stale example",
+            "A stale example or failing snippet signal affected this row.",
+            "partiality_signal",
+        ),
         _ => (
             "Ranking signal",
             "A canonical search ranking signal influenced the row.",
