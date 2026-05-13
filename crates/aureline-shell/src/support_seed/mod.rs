@@ -43,6 +43,7 @@ use aureline_support::bundle::{
     SupportBundlePreview, SupportBundlePreviewBuilder, SupportBundlePreviewError,
 };
 
+use crate::activity_center::alpha::ActivityCenterSupportExport;
 use crate::restore::provenance::RestoreProvenanceRecord;
 
 /// Stable record-kind tag carried in serialized support-seed surfaces.
@@ -266,6 +267,30 @@ impl SupportSeedSurface {
         ))
     }
 
+    /// Mint a local support preview that exports durable activity rows as
+    /// structured records rather than scraped UI text.
+    pub fn activity_center_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        activity_export: &ActivityCenterSupportExport,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:activity-center:0001",
+            "Activity-center support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(activity_center_seed(activity_export));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support — activity-center preview",
+        ))
+    }
+
     /// Convenience: the manifest the export writer would emit. Held as a
     /// borrowed accessor so the chrome never needs to clone the manifest
     /// just to render a row count.
@@ -430,6 +455,46 @@ fn restore_provenance_seed(provenance: &RestoreProvenanceRecord) -> PreviewItemS
     }
 }
 
+fn activity_center_seed(activity_export: &ActivityCenterSupportExport) -> PreviewItemSeed {
+    PreviewItemSeed {
+        support_pack_item_id: "support.item.activity_center_alpha_rows".into(),
+        title: "Activity-center durable rows".into(),
+        data_class: DiagnosticDataClass::MetadataOnly,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "activity_and_attention_truth".into(),
+        artifact_kind_class: "activity_center_support_export_record".into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some(format!(
+            "manifest/activity_center/{}.json",
+            activity_export.export_id
+        )),
+        source_refs: vec![
+            "schemas/events/activity_row.schema.json".into(),
+            "docs/ux/activity_center_alpha.md".into(),
+            activity_export.export_id.clone(),
+        ],
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some(8192),
+            confidence_class: "estimated".into(),
+            display_label: "8 KB".into(),
+            size_source_class: "collector_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Without this row, support cannot explain which durable activity jobs existed, \
+             which exact row reopens them, or which task/test and restore failures survived \
+             look-away."
+                .into(),
+        notes: format!(
+            "Structured activity export includes {} row(s) from {} source row(s); raw private \
+             material excluded: {}.",
+            activity_export.row_count(),
+            activity_export.source_snapshot_row_count,
+            activity_export.raw_private_material_excluded,
+        ),
+    }
+}
+
 /// Reuse the redaction-profile ref token so the chrome and the manifest
 /// share one source of truth. Re-exported for test locality.
 pub const ACTIVE_REDACTION_PROFILE_REF: &str = LocalFirstDefaults::PROFILE_REF;
@@ -557,5 +622,104 @@ mod tests {
         let json = serde_json::to_string(&surface).expect("ser");
         let parsed: SupportSeedSurface = serde_json::from_str(&json).expect("de");
         assert_eq!(parsed, surface);
+    }
+
+    #[test]
+    fn activity_center_preview_exports_structured_rows() {
+        use crate::activity_center::alpha::{
+            ActivityCancellabilityClass, ActivityCenterAlphaSnapshot, ActivityCenterSupportExport,
+            ActivityJobFamily, ActivityProgressForm, ActivityRow, ActivityRowAction,
+            ActivityRowActionAvailability, ActivityRowActionKind, ActivityRowCollapseState,
+            ActivityRowDisplayState, ActivityRowImpact, ActivityRowInput, ActivityRowProgress,
+            ActivityRowStateClass, ActivityRowSupportLink, ActivityRowTimeline,
+        };
+        use crate::notifications::{PrivacyClass, RedactionClass, SeverityClass, SourceSubsystem};
+
+        let row = ActivityRow::from_input(ActivityRowInput {
+            activity_row_id: "ux:activity-row:test:failed".into(),
+            durable_job_id: "ux:durable-job:test:failed".into(),
+            canonical_event_id: "ux:event:test:failed".into(),
+            canonical_object_target_ref: "ux:durable-job:test:failed".into(),
+            exact_reopen_identity_ref: "ux:activity-row:test:failed".into(),
+            job_family: ActivityJobFamily::TestRun,
+            source_subsystem: SourceSubsystem::TestRunner,
+            actor_identity_ref: "id:actor:system:test-runner".into(),
+            actor_or_subsystem_label: "Test runner".into(),
+            execution_origin_class: "user_initiated".into(),
+            severity_class: SeverityClass::Error,
+            privacy_class: PrivacyClass::WorkspaceSensitive,
+            summary_label: "Test run failed".into(),
+            target_label: "Pytest".into(),
+            target_scope_label: "Active workspace".into(),
+            state_class: ActivityRowStateClass::Failed,
+            progress: ActivityRowProgress {
+                forms: vec![ActivityProgressForm::FailureOrPartialSummary],
+                phase_label: "Review failed tests".into(),
+                progress_bar: None,
+                queue_reason_label: None,
+                approval_source_label: None,
+                actor_or_subsystem_label: "Test runner".into(),
+                age_label: "Finished now".into(),
+                indeterminate_reason_label: None,
+                expected_boundary_class: "local".into(),
+                cancellability_class: ActivityCancellabilityClass::AlreadyTerminal,
+                detail_or_evidence_ref: Some("evidence:test:failed".into()),
+            },
+            timeline: ActivityRowTimeline {
+                minted_at: "2026-05-13T03:12:00Z".into(),
+                queued_at: Some("2026-05-13T03:12:00Z".into()),
+                started_at: Some("2026-05-13T03:12:02Z".into()),
+                last_observed_at: "2026-05-13T03:13:00Z".into(),
+                finished_at: Some("2026-05-13T03:13:00Z".into()),
+                archived_at: None,
+                superseded_by_row_id_ref: None,
+                retention_label: "Retained until resolved or archived".into(),
+            },
+            impact: ActivityRowImpact::routine("Local test output only."),
+            actions: vec![ActivityRowAction {
+                action_id: "action:activity:test:open".into(),
+                action_kind: ActivityRowActionKind::OpenDetails,
+                label: "Open test details".into(),
+                command_id: Some("cmd:activity.open_job_details".into()),
+                availability_class: ActivityRowActionAvailability::Enabled,
+                disabled_reason_label: None,
+                target_identity_ref: "ux:activity-row:test:failed".into(),
+                preserves_durable_history: true,
+                reissues_original_side_effect: false,
+            }],
+            display: ActivityRowDisplayState {
+                collapse_state: ActivityRowCollapseState::CollapsedSummary,
+                can_expand_inline: true,
+                expand_reveals_label: "failure, evidence, and retry posture".into(),
+            },
+            support_link: ActivityRowSupportLink {
+                exportable: true,
+                support_pack_item_id: Some("support.item.activity.test_failed".into()),
+                bundle_member_path_ref: Some("manifest/activity/test_failed.json".into()),
+                redaction_class: RedactionClass::MetadataSafeDefault,
+                raw_private_material_excluded: true,
+                export_field_refs: vec!["export.activity.identity".into()],
+            },
+            occurrence_count: 1,
+        });
+        let snapshot = ActivityCenterAlphaSnapshot::from_rows(vec![row]);
+        let export = ActivityCenterSupportExport::from_snapshot(
+            "support-export:activity:test",
+            "2026-05-13T03:14:00Z",
+            &snapshot,
+        );
+
+        let surface = SupportSeedSurface::activity_center_preview(
+            fixture_capture(),
+            "2026-05-13T03:15:00Z",
+            &export,
+        )
+        .expect("build activity preview");
+
+        assert_eq!(surface.preview_row_count(), 3);
+        assert!(surface.preview.manifest.preview_items.iter().any(|item| {
+            item.parity_binding.support_pack_item_id == "support.item.activity_center_alpha_rows"
+        }));
+        assert!(!surface.has_prohibited_row());
     }
 }

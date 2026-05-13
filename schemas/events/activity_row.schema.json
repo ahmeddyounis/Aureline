@@ -1,0 +1,493 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/events/activity_row.schema.json",
+  "title": "Aureline activity-center alpha row contract",
+  "description": "Boundary schema for durable activity-center alpha records. The snapshot, row, and support-export projection keep long-running or reviewable indexing, restore, install/update, task, and test work as first-class objects with stable row/job ids, actor or subsystem identity, phase/progress, chronology, typed actions, impact flags, exact reopen identity, and support/export-safe detail. Raw paths, raw URLs, raw logs, provider payloads, prompt text, command bodies, tokens, credentials, and secret material do not cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/activity_center_alpha_snapshot_record" },
+    { "$ref": "#/$defs/activity_row_record" },
+    { "$ref": "#/$defs/activity_center_support_export_record" }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 420
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "job_family": {
+      "type": "string",
+      "enum": ["indexing", "restore", "install_update", "task_run", "test_run"]
+    },
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["info", "success", "warning", "degraded", "error", "blocking", "critical"]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": ["summary_safe", "workspace_sensitive", "security_critical", "managed_sensitive"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "state_class": {
+      "type": "string",
+      "enum": [
+        "queued_waiting",
+        "preparing",
+        "running",
+        "needs_approval",
+        "completed",
+        "failed",
+        "partially_completed",
+        "cancelled",
+        "superseded",
+        "quiet_hours_held",
+        "policy_suppressed"
+      ]
+    },
+    "activity_partition": {
+      "type": "string",
+      "enum": ["current_work", "needs_attention", "completed", "suppressed_held"]
+    },
+    "progress_form": {
+      "type": "string",
+      "enum": [
+        "labeled_progress_bar",
+        "spinner_only",
+        "phase_only",
+        "queue_reason",
+        "completion_summary",
+        "failure_or_partial_summary",
+        "held_or_suppressed_reason"
+      ]
+    },
+    "cancellability_class": {
+      "type": "string",
+      "enum": ["cancellable", "not_cancellable", "already_terminal"]
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": [
+        "open_details",
+        "cancel_job",
+        "retry_job",
+        "open_evidence",
+        "open_history",
+        "archive",
+        "acknowledge"
+      ]
+    },
+    "action_availability": {
+      "type": "string",
+      "enum": ["enabled", "disabled", "not_applicable", "requires_revalidation"]
+    },
+    "collapse_state": {
+      "type": "string",
+      "enum": ["collapsed_summary", "expanded_inline", "detail_sheet_only"]
+    },
+    "reopen_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_target_ref",
+        "reopen_target_kind",
+        "exact_target_identity_ref"
+      ],
+      "properties": {
+        "reopen_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_target_kind": { "const": "durable_activity_row" },
+        "exact_target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "placeholder_announcement_label": { "type": ["string", "null"] },
+        "revalidation_required_reason_label": { "type": ["string", "null"] }
+      }
+    },
+    "progress_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "numerator", "denominator", "unit_label", "percent_label"],
+      "properties": {
+        "label": { "$ref": "#/$defs/short_label" },
+        "numerator": { "type": "integer", "minimum": 0 },
+        "denominator": { "type": "integer", "minimum": 0 },
+        "unit_label": { "$ref": "#/$defs/short_label" },
+        "percent_label": { "type": "string", "pattern": "^[0-9]+%$" }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "forms",
+        "phase_label",
+        "actor_or_subsystem_label",
+        "age_label",
+        "expected_boundary_class",
+        "cancellability_class"
+      ],
+      "properties": {
+        "forms": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/progress_form" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "phase_label": { "$ref": "#/$defs/short_label" },
+        "progress_bar": { "$ref": "#/$defs/progress_bar" },
+        "queue_reason_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "approval_source_label": { "$ref": "#/$defs/short_label" },
+        "actor_or_subsystem_label": { "$ref": "#/$defs/short_label" },
+        "age_label": { "$ref": "#/$defs/short_label" },
+        "indeterminate_reason_label": { "$ref": "#/$defs/short_label" },
+        "expected_boundary_class": { "$ref": "#/$defs/short_label" },
+        "cancellability_class": { "$ref": "#/$defs/cancellability_class" },
+        "detail_or_evidence_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minted_at", "last_observed_at", "retention_label"],
+      "properties": {
+        "minted_at": { "$ref": "#/$defs/timestamp" },
+        "queued_at": { "$ref": "#/$defs/timestamp" },
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "last_observed_at": { "$ref": "#/$defs/timestamp" },
+        "finished_at": { "$ref": "#/$defs/timestamp" },
+        "archived_at": { "$ref": "#/$defs/timestamp" },
+        "superseded_by_row_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "retention_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affects_cost",
+        "affects_policy",
+        "affects_network",
+        "affects_trust",
+        "affects_provider_state",
+        "affects_recovery_posture",
+        "detail_or_evidence_required",
+        "impact_summary_sentence"
+      ],
+      "properties": {
+        "affects_cost": { "type": "boolean" },
+        "affects_policy": { "type": "boolean" },
+        "affects_network": { "type": "boolean" },
+        "affects_trust": { "type": "boolean" },
+        "affects_provider_state": { "type": "boolean" },
+        "affects_recovery_posture": { "type": "boolean" },
+        "detail_or_evidence_required": { "type": "boolean" },
+        "impact_summary_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "row_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_kind",
+        "label",
+        "availability_class",
+        "target_identity_ref",
+        "preserves_durable_history",
+        "reissues_original_side_effect"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_kind": { "$ref": "#/$defs/action_kind" },
+        "label": { "$ref": "#/$defs/short_label" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "availability_class": { "$ref": "#/$defs/action_availability" },
+        "disabled_reason_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserves_durable_history": { "type": "boolean", "const": true },
+        "reissues_original_side_effect": { "type": "boolean" }
+      }
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collapse_state", "can_expand_inline", "expand_reveals_label"],
+      "properties": {
+        "collapse_state": { "$ref": "#/$defs/collapse_state" },
+        "can_expand_inline": { "type": "boolean" },
+        "expand_reveals_label": { "$ref": "#/$defs/short_label" }
+      }
+    },
+    "support_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportable",
+        "redaction_class",
+        "raw_private_material_excluded",
+        "export_field_refs"
+      ],
+      "properties": {
+        "exportable": { "type": "boolean" },
+        "support_pack_item_id": { "$ref": "#/$defs/opaque_id" },
+        "bundle_member_path_ref": { "$ref": "#/$defs/opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "export_field_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "activity_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "activity_row_id",
+        "durable_job_id",
+        "canonical_event_id",
+        "canonical_object_target_ref",
+        "exact_reopen_identity_ref",
+        "job_family",
+        "source_subsystem",
+        "actor_identity_ref",
+        "actor_or_subsystem_label",
+        "execution_origin_class",
+        "severity_class",
+        "privacy_class",
+        "summary_label",
+        "target_label",
+        "target_scope_label",
+        "state_class",
+        "state_token",
+        "state_label",
+        "activity_partition",
+        "is_terminal",
+        "progress",
+        "timeline",
+        "impact",
+        "actions",
+        "display",
+        "reopen_target",
+        "support_link",
+        "occurrence_count",
+        "retained_until_resolved_or_archived"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "activity_row_record" },
+        "schema_version": { "const": 1 },
+        "activity_row_id": { "$ref": "#/$defs/opaque_id" },
+        "durable_job_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "exact_reopen_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "job_family": { "$ref": "#/$defs/job_family" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_or_subsystem_label": { "$ref": "#/$defs/short_label" },
+        "execution_origin_class": { "$ref": "#/$defs/short_label" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "summary_label": { "$ref": "#/$defs/short_label" },
+        "target_label": { "$ref": "#/$defs/short_label" },
+        "target_scope_label": { "$ref": "#/$defs/short_label" },
+        "state_class": { "$ref": "#/$defs/state_class" },
+        "state_token": { "$ref": "#/$defs/state_class" },
+        "state_label": { "$ref": "#/$defs/short_label" },
+        "activity_partition": { "$ref": "#/$defs/activity_partition" },
+        "is_terminal": { "type": "boolean" },
+        "progress": { "$ref": "#/$defs/progress" },
+        "timeline": { "$ref": "#/$defs/timeline" },
+        "impact": { "$ref": "#/$defs/impact" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row_action" },
+          "minItems": 1
+        },
+        "display": { "$ref": "#/$defs/display" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "support_link": { "$ref": "#/$defs/support_link" },
+        "occurrence_count": { "type": "integer", "minimum": 1 },
+        "retained_until_resolved_or_archived": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "actions": {
+              "contains": {
+                "type": "object",
+                "properties": { "action_kind": { "const": "open_details" } },
+                "required": ["action_kind"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "partition_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activity_partition", "row_count"],
+      "properties": {
+        "activity_partition": { "$ref": "#/$defs/activity_partition" },
+        "row_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "activity_center_alpha_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "scope_notice",
+        "rows",
+        "partition_counts",
+        "job_families_present",
+        "exact_reopen_row_count",
+        "support_exportable_row_count",
+        "honesty_marker_present"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "activity_center_alpha_snapshot_record" },
+        "schema_version": { "const": 1 },
+        "scope_notice": { "$ref": "#/$defs/reviewable_sentence" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/activity_row_record" },
+          "minItems": 1
+        },
+        "partition_counts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/partition_count" },
+          "minItems": 1
+        },
+        "job_families_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/job_family" },
+          "contains": { "const": "indexing" },
+          "minItems": 5,
+          "uniqueItems": true
+        },
+        "exact_reopen_row_count": { "type": "integer", "minimum": 1 },
+        "support_exportable_row_count": { "type": "integer", "minimum": 1 },
+        "honesty_marker_present": { "type": "boolean" }
+      }
+    },
+    "support_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_row_id",
+        "durable_job_id",
+        "canonical_event_id",
+        "job_family",
+        "source_subsystem",
+        "state_class",
+        "exact_reopen_identity_ref",
+        "support_pack_item_id",
+        "export_field_refs",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "activity_row_id": { "$ref": "#/$defs/opaque_id" },
+        "durable_job_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "job_family": { "$ref": "#/$defs/job_family" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "state_class": { "$ref": "#/$defs/state_class" },
+        "exact_reopen_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "detail_or_evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_pack_item_id": { "$ref": "#/$defs/opaque_id" },
+        "export_field_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "activity_center_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "generated_at",
+        "rows",
+        "source_snapshot_row_count",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "activity_center_support_export_record" },
+        "schema_version": { "const": 1 },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_export_row" },
+          "minItems": 1
+        },
+        "source_snapshot_row_count": { "type": "integer", "minimum": 1 },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

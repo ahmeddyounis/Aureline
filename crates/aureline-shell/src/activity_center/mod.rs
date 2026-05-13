@@ -1,9 +1,10 @@
 //! Durable activity-center / job-row seed.
 //!
 //! The activity center is the durable truth surface for long-running task
-//! progress in the live shell. It keeps one inspectable row per canonical
-//! event so that closing a toast, switching focus, or restarting the
-//! application never erases the authoritative task state.
+//! progress in the live shell. The original seed below keeps one inspectable
+//! restore row per canonical event; the [`alpha`] module extends that into the
+//! alpha row model shared by indexing, restore, install/update, task, and test
+//! families.
 //!
 //! ## What this seed owns
 //!
@@ -43,6 +44,7 @@
 //! exercised by the fixtures under
 //! `/fixtures/ux/activity_center_cases/*.json`.
 
+pub mod alpha;
 pub mod restore_job;
 
 use std::collections::BTreeMap;
@@ -76,7 +78,8 @@ pub const ACTIVITY_CENTER_SNAPSHOT_SCHEMA_VERSION: u32 = 1;
 pub const ACTIVITY_CENTER_SEED_SCOPE_NOTICE: &str =
     "Activity center seed: durable rows are sourced from typed notification envelopes routed \
      onto durable_job_row. Restore is the first long-running task class wired through this lane; \
-     index warmup, build, and support-export rows are reserved for a later milestone.";
+     the alpha activity-center contract owns the multi-family indexing, install/update, task, \
+     test, and support-export row model.";
 
 /// Lifecycle class for an activity-center row. Mirrors the durable-job
 /// envelope phase grammar at the seed-relevant subset and stays as a
