@@ -46,6 +46,7 @@ pub mod lexical;
 pub mod planner;
 pub mod query_session;
 pub mod readiness;
+pub mod result_id;
 pub mod results;
 pub mod scope;
 
@@ -88,6 +89,11 @@ pub use readiness::{
     IndexedLaneKind, IndexedLaneState, IndexedLaneStateInput, IndexedLaneSupportRow,
     IndexedStateClass, IndexedStateReason, IndexedStateSupportArtifact,
     INDEXED_LANE_STATE_SCHEMA_VERSION, INDEXED_STATE_SUPPORT_ARTIFACT_SCHEMA_VERSION,
+};
+
+pub use result_id::{
+    build_lexical_result_id, build_planned_result_id, build_surface_result_id,
+    normalize_result_id_part, StableResultKind, LEXICAL_RESULT_ID_SCHEME,
 };
 
 pub use results::{

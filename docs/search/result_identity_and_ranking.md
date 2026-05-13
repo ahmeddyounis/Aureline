@@ -8,12 +8,20 @@ through the search shell, quick open, support exports, and CLI replay.
 The runtime owner is the `aureline_search::results` module. Companion
 artifacts:
 
+- [`/crates/aureline-search/src/result_id.rs`](../../crates/aureline-search/src/result_id.rs)
+  — shared stable ID builders for lexical rows, quick-open rows, and
+  planner-fused rows.
 - [`/crates/aureline-search/src/results/identity.rs`](../../crates/aureline-search/src/results/identity.rs)
   — `ResultIdentity`, `RankingReasonClass`, `ResultPartialityClass`, the
   builders the lexical query path calls.
+- [`/crates/aureline-shell/src/search/ranking_reason_card.rs`](../../crates/aureline-shell/src/search/ranking_reason_card.rs)
+  — shell-facing `Why this result?` cards and support-export wrapper for
+  quick-open and planner-backed rows.
 - [`/fixtures/search/result_identity_cases/`](../../fixtures/search/result_identity_cases/)
   — worked records covering the ready, warming/partial, stale, and
   generated-artifact-deprioritized cases.
+- [`/fixtures/search/ranking_reason_alpha/`](../../fixtures/search/ranking_reason_alpha/)
+  — first quick-open and symbol-search card fixtures.
 - [`/crates/aureline-search/tests/result_identity_cases.rs`](../../crates/aureline-search/tests/result_identity_cases.rs)
   — fixture-driven coverage that loads every JSON case and asserts the
   identity packet matches the live projection.
@@ -81,6 +89,12 @@ The protected-row consumer is the palette-hosted lexical search projection.
 `aureline_search::ResultRow` projection, including the embedded
 `ResultIdentity` and lineage hints, and carries the chrome-facing row fields
 without re-deriving labels.
+
+Quick-open snapshots now carry `result_id`, `ranking_reason_classes`,
+`result_truth_class`, and `partiality_class` on every row. Symbol-search rows
+use the planner-fused `PlannedSearchResult::result_id`. Both surfaces project
+into `RankingReasonCard`, whose `dominant_signals` are display-ready but whose
+support export keeps the original result IDs and ordered reason tokens.
 
 ## Failure drill
 

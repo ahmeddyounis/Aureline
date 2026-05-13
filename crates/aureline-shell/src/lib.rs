@@ -67,6 +67,7 @@ pub mod runtime;
 pub mod safe_preview_card;
 pub mod save_review;
 pub mod scope_truth;
+pub mod search;
 pub mod start_center;
 pub mod state_cards;
 pub mod status;

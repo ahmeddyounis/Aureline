@@ -131,9 +131,19 @@ impl LexicalShell {
                     .items
                     .iter()
                     .map(|row| LexicalShellSnapshotItem {
+                        result_id: row.identity.result_id.clone(),
                         relative_path: row.relative_path.clone(),
                         source_class: row.source_class.as_str().to_string(),
                         match_kind: row.match_kind.as_str().to_string(),
+                        ranking_reasons: row
+                            .identity
+                            .ranking_reason_tokens()
+                            .into_iter()
+                            .map(str::to_string)
+                            .collect(),
+                        partiality_class: row.identity.partiality_class.as_str().to_string(),
+                        partiality_badge: row.identity.partiality_class.row_badge().to_string(),
+                        must_show_row_caveat: row.identity.must_show_row_caveat(),
                     })
                     .collect(),
             })
@@ -232,9 +242,14 @@ pub struct LexicalShellSnapshotGroup {
 /// Snapshot representation of one search-shell row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LexicalShellSnapshotItem {
+    pub result_id: String,
     pub relative_path: String,
     pub source_class: String,
     pub match_kind: String,
+    pub ranking_reasons: Vec<String>,
+    pub partiality_class: String,
+    pub partiality_badge: String,
+    pub must_show_row_caveat: bool,
 }
 
 fn default_stable_scope_id(scope_class: ScopeClass, scope_label: &str) -> String {

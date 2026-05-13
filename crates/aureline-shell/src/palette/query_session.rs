@@ -14,8 +14,9 @@ use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
 use aureline_input::text_input::{ImeComposition, ImeEvent, TextInputAction, TextInputSession};
 use aureline_reactive_state::ReadinessLabel;
 use aureline_search::{
-    LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalShell, LineageHintRecord,
-    ScopeClass as SearchScopeClass, WorkspaceSearchScope,
+    build_lexical_result_id, build_surface_result_id, LexicalIndexInputs, LexicalIndexState,
+    LexicalQuery, LexicalShell, LineageHintRecord, ScopeClass as SearchScopeClass, SearchSurface,
+    SourceClass as SearchSourceClass, StableResultKind, WorkspaceSearchScope,
 };
 use aureline_vfs::{
     VfsChangeKind, WatcherEvent, WatcherHealth, WatcherService, WatcherServiceOptions,
@@ -329,6 +330,67 @@ impl QuickOpenSourceState {
     }
 }
 
+fn quick_open_result_truth_class(state: QuickOpenSourceState) -> &'static str {
+    match state {
+        QuickOpenSourceState::Ready => "exact",
+        QuickOpenSourceState::NotRequested
+        | QuickOpenSourceState::Warming
+        | QuickOpenSourceState::Partial
+        | QuickOpenSourceState::Unavailable => "heuristic",
+    }
+}
+
+fn quick_open_partiality_class(state: QuickOpenSourceState) -> &'static str {
+    match state {
+        QuickOpenSourceState::Ready | QuickOpenSourceState::NotRequested => "authoritative",
+        QuickOpenSourceState::Warming => "warming",
+        QuickOpenSourceState::Partial => "partial",
+        QuickOpenSourceState::Unavailable => "unavailable",
+    }
+}
+
+fn quick_open_recent_ranking_reasons(recent: &QuickOpenRecentTarget) -> Vec<String> {
+    if recent.relative_path.is_some() {
+        vec!["recent_file_bias".to_string()]
+    } else {
+        vec!["recent_edit_bias".to_string()]
+    }
+}
+
+fn quick_open_command_ranking_reasons(
+    command: &QuickOpenCommandRow,
+    normalized_query: &str,
+) -> Vec<String> {
+    let mut reasons = vec!["palette_command_canonical".to_string()];
+    if !normalized_query.is_empty()
+        && (command.title.eq_ignore_ascii_case(normalized_query)
+            || command.command_id.eq_ignore_ascii_case(normalized_query))
+    {
+        reasons.insert(0, "exact_name_match".to_string());
+    }
+    reasons
+}
+
+fn quick_open_lexical_ranking_reasons(row: &QuickOpenLexicalRow) -> Vec<String> {
+    vec![match row.match_kind_token.as_str() {
+        "exact_basename" => "exact_name_match",
+        "prefix_basename" => "lexical_prefix_match",
+        "substring_basename" | "substring_path" => "lexical_fuzzy_match",
+        _ => "lexical_fuzzy_match",
+    }
+    .to_string()]
+}
+
+fn quick_open_search_source_class(source: QuickOpenSourceClass) -> SearchSourceClass {
+    match source {
+        QuickOpenSourceClass::LexicalFilename => SearchSourceClass::LexicalFilename,
+        QuickOpenSourceClass::LexicalPath => SearchSourceClass::LexicalPath,
+        QuickOpenSourceClass::RecentTarget | QuickOpenSourceClass::Command => {
+            unreachable!("only lexical quick-open rows use lexical result IDs")
+        }
+    }
+}
+
 /// Recent-target projection supplied by the caller.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QuickOpenRecentTarget {
@@ -368,10 +430,14 @@ pub struct QuickOpenSnapshotSource {
 /// One row in a quick-open snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QuickOpenSnapshotRow {
+    pub result_id: String,
     pub row_kind_token: String,
     pub source_class_token: String,
     pub source_state_token: String,
     pub display_label: String,
+    pub result_truth_class: String,
+    pub ranking_reason_classes: Vec<String>,
+    pub partiality_class: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub command_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -551,10 +617,19 @@ impl QuickOpenQuerySession {
                 taken_paths.insert(path.clone());
             }
             self.rows.push(QuickOpenSnapshotRow {
+                result_id: build_surface_result_id(
+                    SearchSurface::QuickOpen,
+                    &self.workspace_id,
+                    StableResultKind::RecentTarget,
+                    &recent.recent_id,
+                ),
                 row_kind_token: "recent_target".to_string(),
                 source_class_token: QuickOpenSourceClass::RecentTarget.as_str().to_string(),
                 source_state_token: self.recents_state.as_str().to_string(),
                 display_label: recent.display_label.clone(),
+                result_truth_class: quick_open_result_truth_class(self.recents_state).to_string(),
+                ranking_reason_classes: quick_open_recent_ranking_reasons(recent),
+                partiality_class: quick_open_partiality_class(self.recents_state).to_string(),
                 command_id: None,
                 disabled_reason_class: None,
                 invocation_preview_class: None,
@@ -573,10 +648,19 @@ impl QuickOpenQuerySession {
             .take(COMMANDS_LANE_CAP)
         {
             self.rows.push(QuickOpenSnapshotRow {
+                result_id: build_surface_result_id(
+                    SearchSurface::QuickOpen,
+                    &self.workspace_id,
+                    StableResultKind::Command,
+                    &command.command_id,
+                ),
                 row_kind_token: "command".to_string(),
                 source_class_token: QuickOpenSourceClass::Command.as_str().to_string(),
                 source_state_token: self.commands_state.as_str().to_string(),
                 display_label: command.title.clone(),
+                result_truth_class: quick_open_result_truth_class(self.commands_state).to_string(),
+                ranking_reason_classes: quick_open_command_ranking_reasons(command, &normalized),
+                partiality_class: quick_open_partiality_class(self.commands_state).to_string(),
                 command_id: Some(command.command_id.clone()),
                 disabled_reason_class: command.disabled_reason_class.clone(),
                 invocation_preview_class: Some(command.invocation_preview_class.clone()),
@@ -605,10 +689,18 @@ impl QuickOpenQuerySession {
                 .map(|(_, name)| name.to_string())
                 .unwrap_or_else(|| row.relative_path.clone());
             self.rows.push(QuickOpenSnapshotRow {
+                result_id: build_lexical_result_id(
+                    &self.workspace_id,
+                    quick_open_search_source_class(row.source_class),
+                    &row.relative_path,
+                ),
                 row_kind_token: "file".to_string(),
                 source_class_token: row.source_class.as_str().to_string(),
                 source_state_token: self.lexical_state.as_str().to_string(),
                 display_label,
+                result_truth_class: quick_open_result_truth_class(self.lexical_state).to_string(),
+                ranking_reason_classes: quick_open_lexical_ranking_reasons(row),
+                partiality_class: quick_open_partiality_class(self.lexical_state).to_string(),
                 command_id: None,
                 disabled_reason_class: None,
                 invocation_preview_class: None,
@@ -668,8 +760,18 @@ impl WorkspaceSearchSurfaceState {
                         .items
                         .iter()
                         .map(|row| WorkspaceSearchSurfaceCardItem {
+                            result_id: row.identity.result_id.clone(),
                             relative_path: row.relative_path.clone(),
                             match_kind_token: row.match_kind.as_str().to_string(),
+                            ranking_reason_classes: row
+                                .identity
+                                .ranking_reason_tokens()
+                                .into_iter()
+                                .map(str::to_string)
+                                .collect(),
+                            partiality_class: row.identity.partiality_class.as_str().to_string(),
+                            partiality_badge: row.identity.partiality_class.row_badge().to_string(),
+                            must_show_row_caveat: row.identity.must_show_row_caveat(),
                             generated_artifact_hint: row
                                 .generated_artifact_hint
                                 .as_ref()
@@ -702,8 +804,13 @@ pub struct WorkspaceSearchSurfaceCardRow {
 /// One row in a [`WorkspaceSearchSurfaceCardRow`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceSearchSurfaceCardItem {
+    pub result_id: String,
     pub relative_path: String,
     pub match_kind_token: String,
+    pub ranking_reason_classes: Vec<String>,
+    pub partiality_class: String,
+    pub partiality_badge: String,
+    pub must_show_row_caveat: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generated_artifact_hint: Option<WorkspaceSearchSurfaceLineageHint>,
 }

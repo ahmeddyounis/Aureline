@@ -80,7 +80,15 @@ Every snapshot row carries the identity field required for its row kind:
 
 The palette runtime resolves selection through its canonical
 `PaletteItemKey`; quick-open snapshots expose the persisted command and file
-identity fields directly so support exports do not scrape labels.
+identity fields directly so support exports do not scrape labels. Each rendered
+snapshot row also carries:
+
+- `result_id`, minted from the shared search result-ID helpers;
+- `ranking_reason_classes`, ordered from the source row or quick-open lane;
+- `result_truth_class`, so ready rows and heuristic or partial rows remain
+  distinguishable;
+- `partiality_class`, so row-level partial, warming, stale, or unavailable
+  caveats survive re-render and support export.
 
 ### Winning-source attribution
 
@@ -146,7 +154,8 @@ carries:
   `lexical_filename`, `lexical_path`);
 - partial-truth causes from the lexical lane (verbatim from the
   upstream `LexicalShell`);
-- the materialized rows in display order;
+- the materialized rows in display order, including `result_id`,
+  `ranking_reason_classes`, `result_truth_class`, and `partiality_class`;
 - `available_source_classes` (verbatim taxonomy) so future surfaces
   cannot relabel a captured row.
 

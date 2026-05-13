@@ -275,6 +275,30 @@ fn run_fixture(path: &Path) {
             "case {} row {} relative_path mismatch",
             fixture.case_id, idx
         );
+        assert!(
+            !observed.result_id.is_empty(),
+            "case {} row {} missing stable result_id",
+            fixture.case_id,
+            idx
+        );
+        assert!(
+            !observed.ranking_reason_classes.is_empty(),
+            "case {} row {} missing ranking reasons",
+            fixture.case_id,
+            idx
+        );
+        assert!(
+            !observed.result_truth_class.is_empty(),
+            "case {} row {} missing result truth class",
+            fixture.case_id,
+            idx
+        );
+        assert!(
+            !observed.partiality_class.is_empty(),
+            "case {} row {} missing partiality class",
+            fixture.case_id,
+            idx
+        );
     }
 
     // Cannot-close invariant: every command row in the snapshot must carry

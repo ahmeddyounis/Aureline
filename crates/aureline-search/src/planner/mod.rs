@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::counts::ScopeCandidateTruthRecord;
 use crate::lexical::{LexicalSearchResults, ReadinessClass};
 use crate::query_session::{SearchQuerySession, SearchSurface};
+use crate::result_id::build_planned_result_id;
 use crate::results::RankingReasonClass;
 
 /// Planner version recorded in alpha planner passes.
@@ -971,10 +972,9 @@ fn build_result_set(
                         == PlannerPathDecisionClass::SelectedFallback
                         && fallback_reason.is_some_and(is_graph_or_language_unavailable);
                     let result = PlannedSearchResult {
-                        result_id: format!(
-                            "search:planned:{}:{}",
-                            inputs.query_session.surface.as_str(),
-                            candidate.canonical_id
+                        result_id: build_planned_result_id(
+                            inputs.query_session.surface,
+                            &candidate.canonical_id,
                         ),
                         canonical_id: candidate.canonical_id.clone(),
                         target_kind: candidate.target_kind,

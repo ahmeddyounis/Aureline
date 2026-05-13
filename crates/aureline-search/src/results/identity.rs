@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::lexical::index::ReadinessClass;
 use crate::lexical::query::MatchKind;
 use crate::lexical::source::SourceClass;
+use crate::result_id::{build_lexical_result_id, LEXICAL_RESULT_ID_SCHEME};
 
 /// Closed vocabulary for *why* a row appeared / ranked where it did.
 ///
@@ -176,7 +177,7 @@ impl ResultIdentity {
     /// Stable token vocabulary the URN scheme uses. Bumping this constant is
     /// a breaking change to every persisted result_id and every fixture, so
     /// reviewers can spot drift in a single grep.
-    pub const SCHEME: &'static str = "wsearch";
+    pub const SCHEME: &'static str = LEXICAL_RESULT_ID_SCHEME;
 
     /// True when the row should be rendered with a partiality / warming /
     /// stale caveat directly on the row.
@@ -230,13 +231,7 @@ pub fn build_lexical_identity(
 ) -> ResultIdentity {
     let normalized_workspace = workspace_id.trim();
     let normalized_path = relative_path.trim();
-    let result_id = format!(
-        "{}:{}:{}:{}",
-        ResultIdentity::SCHEME,
-        normalized_workspace,
-        source_class.as_str(),
-        normalized_path,
-    );
+    let result_id = build_lexical_result_id(normalized_workspace, source_class, normalized_path);
     ResultIdentity {
         result_id,
         workspace_id: normalized_workspace.to_string(),
