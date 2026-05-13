@@ -3,8 +3,9 @@
 //! This crate owns inspectable execution-context and task-event runtime
 //! contracts. It exposes one [`execution_context::ExecutionContext`] object, a
 //! small [`execution_context::ExecutionContextResolver`] that mints contexts
-//! for launch-capable surfaces, and a canonical [`tasks::TaskEventStream`] for
-//! task/test/debug lifecycle truth.
+//! for launch-capable surfaces, a canonical [`tasks::TaskEventStream`] for
+//! task/test/debug lifecycle truth, and [`tests::TestAttemptAlphaPacket`] for
+//! launch-wedge test identity, session, attempt, watch, and imported-CI truth.
 //!
 //! Surfaces (terminal pane, task seed, debug-prep seed, provider/auth entry
 //! points, activity center, status bar, support / export flows) read structured
@@ -25,6 +26,7 @@ pub mod execution_context;
 pub mod language_hosts;
 pub mod rerun;
 pub mod tasks;
+pub mod tests;
 
 pub use detectors::node::{
     NodePackageManagerKind, NodePackageManagerRequirement, NodePackageManagerResolution,
@@ -102,4 +104,17 @@ pub use tasks::{
     TASK_ACTIVITY_PROJECTION_RECORD_KIND, TASK_EVENT_RECORD_KIND, TASK_EVENT_SCHEMA_VERSION,
     TASK_EVENT_STREAM_RECORD_KIND, TASK_SHELL_PROJECTION_RECORD_KIND, TASK_STATE_RECORD_KIND,
     TASK_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use tests::{
+    AiTestGenerationGateState, CoverageMergeClass, FlakyVerdictState, ImportedCiProjection,
+    ImportedCiProjectionClass, ImportedSignalAuthority, TestAttemptAlphaOptions,
+    TestAttemptAlphaPacket, TestAttemptKind, TestAttemptRecord, TestAttemptResultState,
+    TestAttemptSupportExport, TestConsumerSurface, TestIdentityStability,
+    TestItemIdentityProjection, TestLaunchWedgeProjection, TestSessionMode, TestSessionPlan,
+    TestSourceDriftState, TestStabilityVerdict, TestWatchController, TestWatchDegradationReason,
+    TestWatchState, IMPORTED_CI_PROJECTION_RECORD_KIND, TEST_ATTEMPT_ALPHA_PACKET_RECORD_KIND,
+    TEST_ATTEMPT_ALPHA_SCHEMA_VERSION, TEST_ATTEMPT_RECORD_KIND,
+    TEST_ATTEMPT_SUPPORT_EXPORT_RECORD_KIND, TEST_ITEM_IDENTITY_PROJECTION_RECORD_KIND,
+    TEST_LAUNCH_WEDGE_PROJECTION_RECORD_KIND, TEST_SESSION_PLAN_RECORD_KIND,
+    TEST_STABILITY_VERDICT_RECORD_KIND, TEST_WATCH_CONTROLLER_RECORD_KIND,
 };

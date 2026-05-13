@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/test_attempt_alpha.schema.json",
+  "title": "Aureline test-attempt launch-wedge alpha packet",
+  "description": "Runtime boundary schema for the alpha test identity, session-plan, attempt-ledger, watch-controller, imported-CI projection, stability-verdict, and launch-wedge support/export packet emitted by crates/aureline-runtime/src/tests. The packet consumes the canonical execution-context and pytest run contracts; it does not replace the broader schemas/testing contracts. Raw command lines, raw stdout or stderr, raw environment bodies, raw absolute paths, raw URLs, raw secrets, raw test names, raw assertions, raw artifacts, provider payloads, and stack traces do not cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "identity_projection",
+    "session_plan",
+    "attempts",
+    "watch_controller",
+    "imported_ci_projection",
+    "stability_verdict",
+    "launch_wedge_projection",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": { "const": "test_attempt_alpha_packet" },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "generated_at": { "$ref": "#/$defs/date_time" },
+    "identity_projection": { "$ref": "#/$defs/test_item_identity_projection" },
+    "session_plan": { "$ref": "#/$defs/test_session_plan" },
+    "attempts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/test_attempt_record" }
+    },
+    "watch_controller": { "$ref": "#/$defs/test_watch_controller" },
+    "imported_ci_projection": { "$ref": "#/$defs/imported_ci_projection" },
+    "stability_verdict": { "$ref": "#/$defs/test_stability_verdict" },
+    "launch_wedge_projection": { "$ref": "#/$defs/test_launch_wedge_projection" },
+    "support_export": { "$ref": "#/$defs/test_attempt_support_export" }
+  },
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "date_time": { "type": "string", "format": "date-time" },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 480 },
+    "non_negative_integer": { "type": "integer", "minimum": 0 },
+    "identity_stability": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "dynamic_partial_discovery",
+        "imported_read_only",
+        "remap_review_required",
+        "identity_unknown_requires_review"
+      ]
+    },
+    "session_mode": {
+      "type": "string",
+      "enum": [
+        "run_selected_tests",
+        "watch_tests",
+        "rerun_failed_tests",
+        "debug_from_test",
+        "import_provider_ci_results"
+      ]
+    },
+    "attempt_kind": {
+      "type": "string",
+      "enum": [
+        "initial_test_run",
+        "watch_cycle",
+        "rerun_failed",
+        "debug_from_test",
+        "provider_ci_import",
+        "local_parity_rerun",
+        "reconstruction"
+      ]
+    },
+    "attempt_result_state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "passed",
+        "failed",
+        "imported_failed",
+        "imported_stale",
+        "blocked",
+        "unknown_requires_review"
+      ]
+    },
+    "watch_state": {
+      "type": "string",
+      "enum": ["running", "buffering", "paused", "degraded", "stale"],
+      "description": "Controlled alpha watch-state vocabulary shared by launch-wedge, CLI, and support/export surfaces."
+    },
+    "watch_degradation_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "not_a_watch_session",
+        "partial_discovery",
+        "buffering_batch",
+        "imported_read_only_evidence",
+        "source_or_target_drift",
+        "target_unavailable"
+      ]
+    },
+    "source_drift_state": {
+      "type": "string",
+      "enum": [
+        "no_source_drift",
+        "source_changed_requires_current_context_rerun",
+        "provider_only_no_local_source",
+        "source_drift_unknown_requires_review"
+      ]
+    },
+    "imported_ci_projection_class": {
+      "type": "string",
+      "enum": [
+        "not_imported_ci",
+        "authoritative_imported_read_only",
+        "stale_imported_read_only",
+        "fresh_local_reconfirmation",
+        "imported_ci_projection_unknown_requires_review"
+      ]
+    },
+    "imported_signal_authority": {
+      "type": "string",
+      "enum": [
+        "none",
+        "authoritative_imported_evidence",
+        "stale_imported_evidence",
+        "fresh_local_reconfirmation"
+      ]
+    },
+    "coverage_merge_class": {
+      "type": "string",
+      "enum": [
+        "not_requested",
+        "coverage_partial",
+        "coverage_merged",
+        "authoritative_imported_evidence",
+        "stale_imported_evidence",
+        "coverage_unknown_requires_review"
+      ]
+    },
+    "flaky_verdict_state": {
+      "type": "string",
+      "enum": [
+        "suspected_flaky",
+        "reproduced_flaky",
+        "stable_again",
+        "muted",
+        "unknown"
+      ]
+    },
+    "snapshot_review_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "snapshot_review_required",
+        "snapshot_review_blocked",
+        "snapshot_review_completed",
+        "snapshot_review_unknown_requires_review"
+      ]
+    },
+    "ai_test_generation_gate_state": {
+      "type": "string",
+      "enum": [
+        "not_requested",
+        "preview_required",
+        "ai_test_generation_blocked",
+        "ai_test_generation_unknown_requires_review"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": ["launch_wedge", "test_tree", "editor_inline", "cli_output", "support_export"]
+    },
+    "test_item_identity_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "identity_projection_id",
+        "identity_stability",
+        "identity_stability_token",
+        "selector_ref",
+        "selection_label_digest",
+        "source_ref_digests",
+        "remap_or_widening_review_required",
+        "support_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_item_identity_projection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "identity_projection_id": { "$ref": "#/$defs/opaque_id" },
+        "identity_stability": { "$ref": "#/$defs/identity_stability" },
+        "identity_stability_token": { "$ref": "#/$defs/identity_stability" },
+        "canonical_test_item_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selection_label_digest": { "$ref": "#/$defs/opaque_id" },
+        "source_ref_digests": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "remap_or_widening_review_required": { "type": "boolean" },
+        "support_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "test_session_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "test_session_id",
+        "session_plan_id",
+        "session_mode",
+        "session_mode_token",
+        "identity_projection_ref",
+        "canonical_test_item_refs",
+        "execution_context_ref",
+        "target_id",
+        "target_class_token",
+        "retry_policy_token",
+        "watch_policy_token",
+        "selection_widening_rule_token",
+        "export_safe",
+        "support_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_session_plan" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "test_session_id": { "$ref": "#/$defs/opaque_id" },
+        "session_plan_id": { "$ref": "#/$defs/opaque_id" },
+        "session_mode": { "$ref": "#/$defs/session_mode" },
+        "session_mode_token": { "$ref": "#/$defs/session_mode" },
+        "identity_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "canonical_test_item_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "target_class_token": { "$ref": "#/$defs/opaque_id" },
+        "retry_policy_token": { "$ref": "#/$defs/opaque_id" },
+        "watch_policy_token": { "$ref": "#/$defs/opaque_id" },
+        "selection_widening_rule_token": { "$ref": "#/$defs/opaque_id" },
+        "export_safe": { "type": "boolean" },
+        "support_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "test_attempt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "test_attempt_id",
+        "parent_test_session_ref",
+        "attempt_index",
+        "attempt_kind",
+        "attempt_kind_token",
+        "result_state",
+        "result_state_token",
+        "execution_context_ref",
+        "target_id",
+        "target_class_token",
+        "canonical_test_item_refs",
+        "selector_ref",
+        "source_drift_state",
+        "source_drift_state_token",
+        "watch_state_at_attempt",
+        "watch_state_at_attempt_token",
+        "imported_ci_projection_class",
+        "imported_ci_projection_token",
+        "coverage_merge_class",
+        "coverage_merge_token",
+        "flaky_verdict_state",
+        "flaky_verdict_token",
+        "snapshot_review_state",
+        "snapshot_review_token",
+        "ai_test_generation_gate_state",
+        "ai_test_generation_gate_token",
+        "artifact_refs",
+        "raw_event_refs",
+        "support_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_attempt_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "test_attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "attempt_index": { "type": "integer", "minimum": 1 },
+        "attempt_kind": { "$ref": "#/$defs/attempt_kind" },
+        "attempt_kind_token": { "$ref": "#/$defs/attempt_kind" },
+        "result_state": { "$ref": "#/$defs/attempt_result_state" },
+        "result_state_token": { "$ref": "#/$defs/attempt_result_state" },
+        "predecessor_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "origin_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "execution_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "target_class_token": { "$ref": "#/$defs/opaque_id" },
+        "canonical_test_item_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "selector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_drift_state": { "$ref": "#/$defs/source_drift_state" },
+        "source_drift_state_token": { "$ref": "#/$defs/source_drift_state" },
+        "watch_state_at_attempt": { "$ref": "#/$defs/watch_state" },
+        "watch_state_at_attempt_token": { "$ref": "#/$defs/watch_state" },
+        "imported_ci_projection_class": { "$ref": "#/$defs/imported_ci_projection_class" },
+        "imported_ci_projection_token": { "$ref": "#/$defs/imported_ci_projection_class" },
+        "coverage_merge_class": { "$ref": "#/$defs/coverage_merge_class" },
+        "coverage_merge_token": { "$ref": "#/$defs/coverage_merge_class" },
+        "flaky_verdict_state": { "$ref": "#/$defs/flaky_verdict_state" },
+        "flaky_verdict_token": { "$ref": "#/$defs/flaky_verdict_state" },
+        "snapshot_review_state": { "$ref": "#/$defs/snapshot_review_state" },
+        "snapshot_review_token": { "$ref": "#/$defs/snapshot_review_state" },
+        "ai_test_generation_gate_state": { "$ref": "#/$defs/ai_test_generation_gate_state" },
+        "ai_test_generation_gate_token": { "$ref": "#/$defs/ai_test_generation_gate_state" },
+        "artifact_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "raw_event_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "local_rerun_plan_ref": { "$ref": "#/$defs/opaque_ref" },
+        "support_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "test_watch_controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "watch_controller_id",
+        "test_session_ref",
+        "watch_state",
+        "watch_state_token",
+        "degradation_reason",
+        "degradation_reason_token",
+        "buffered_change_count",
+        "current_truth_claim_allowed",
+        "support_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_watch_controller" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "watch_controller_id": { "$ref": "#/$defs/opaque_id" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "watch_state": { "$ref": "#/$defs/watch_state" },
+        "watch_state_token": { "$ref": "#/$defs/watch_state" },
+        "degradation_reason": { "$ref": "#/$defs/watch_degradation_reason" },
+        "degradation_reason_token": { "$ref": "#/$defs/watch_degradation_reason" },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "last_successful_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "buffered_change_count": { "$ref": "#/$defs/non_negative_integer" },
+        "current_truth_claim_allowed": { "type": "boolean" },
+        "support_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "imported_ci_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "imported_ci_projection_id",
+        "test_session_ref",
+        "projection_class",
+        "projection_token",
+        "read_only_imported_evidence",
+        "imported_attempt_refs",
+        "local_reconfirmation_attempt_refs",
+        "coverage_signal_authority",
+        "coverage_signal_authority_token",
+        "flaky_signal_authority",
+        "flaky_signal_authority_token",
+        "snapshot_signal_authority",
+        "snapshot_signal_authority_token",
+        "does_not_claim_live_local_truth",
+        "support_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "imported_ci_projection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "imported_ci_projection_id": { "$ref": "#/$defs/opaque_id" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "projection_class": { "$ref": "#/$defs/imported_ci_projection_class" },
+        "projection_token": { "$ref": "#/$defs/imported_ci_projection_class" },
+        "read_only_imported_evidence": { "type": "boolean" },
+        "provider_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "imported_attempt_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "local_reconfirmation_attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "coverage_signal_authority": { "$ref": "#/$defs/imported_signal_authority" },
+        "coverage_signal_authority_token": { "$ref": "#/$defs/imported_signal_authority" },
+        "flaky_signal_authority": { "$ref": "#/$defs/imported_signal_authority" },
+        "flaky_signal_authority_token": { "$ref": "#/$defs/imported_signal_authority" },
+        "snapshot_signal_authority": { "$ref": "#/$defs/imported_signal_authority" },
+        "snapshot_signal_authority_token": { "$ref": "#/$defs/imported_signal_authority" },
+        "fresh_local_rerun_plan_ref": { "$ref": "#/$defs/opaque_ref" },
+        "does_not_claim_live_local_truth": { "type": "boolean" },
+        "support_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "test_stability_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stability_verdict_id",
+        "test_session_ref",
+        "verdict_state",
+        "verdict_state_token",
+        "evidence_attempt_refs",
+        "blocks_green_rollup",
+        "support_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_stability_verdict" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stability_verdict_id": { "$ref": "#/$defs/opaque_id" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "verdict_state": { "$ref": "#/$defs/flaky_verdict_state" },
+        "verdict_state_token": { "$ref": "#/$defs/flaky_verdict_state" },
+        "evidence_attempt_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "blocks_green_rollup": { "type": "boolean" },
+        "support_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "test_launch_wedge_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "launch_wedge_projection_id",
+        "test_session_ref",
+        "consumer_surfaces",
+        "attempt_history_visible",
+        "imported_ci_read_only_badge_visible",
+        "fresh_local_rerun_plan_available",
+        "identity_stability_token",
+        "controlled_state_tokens",
+        "support_export_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_launch_wedge_projection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "launch_wedge_projection_id": { "$ref": "#/$defs/opaque_id" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "current_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "attempt_history_visible": { "type": "boolean" },
+        "imported_ci_read_only_badge_visible": { "type": "boolean" },
+        "fresh_local_rerun_plan_available": { "type": "boolean" },
+        "identity_stability_token": { "$ref": "#/$defs/identity_stability" },
+        "controlled_state_tokens": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } },
+        "support_export_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "test_attempt_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "generated_at",
+        "session_plan_ref",
+        "attempt_refs",
+        "controlled_state_tokens",
+        "imported_ci_projection_ref",
+        "read_only_imported_evidence",
+        "fresh_local_rerun_plan_refs",
+        "summary_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_attempt_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "session_plan_ref": { "$ref": "#/$defs/opaque_ref" },
+        "attempt_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "controlled_state_tokens": { "type": "array", "items": { "$ref": "#/$defs/opaque_id" } },
+        "imported_ci_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "read_only_imported_evidence": { "type": "boolean" },
+        "fresh_local_rerun_plan_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "summary_lines": { "type": "array", "items": { "$ref": "#/$defs/short_sentence" } }
+      }
+    }
+  }
+}

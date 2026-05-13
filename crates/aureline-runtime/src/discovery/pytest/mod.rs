@@ -27,6 +27,7 @@ use crate::tasks::{
     TaskShellProjection, TaskStateClass, TaskSupportExport, TaskWedgeClass,
     RAW_TASK_EVENT_ENVELOPE_RECORD_KIND, TASK_EVENT_RECORD_KIND, TASK_EVENT_SCHEMA_VERSION,
 };
+use crate::tests::{TestAttemptAlphaPacket, TestAttemptSupportExport, TestWatchState};
 use crate::TrustState;
 
 /// Schema version for [`PytestDiscovery`] and [`PytestRunContract`] records.
@@ -229,6 +230,55 @@ impl PytestDiscovery {
                     generated_at.to_owned(),
                 ))
             })
+            .collect()
+    }
+
+    /// Returns test-attempt alpha packets for all pytest run contracts.
+    ///
+    /// This is the first runtime consumer for the test session/attempt alpha
+    /// model: pytest launch-wedge rows expose identity, session plan, attempt
+    /// ledger, watch state, imported-CI projection, and support/export state
+    /// from the same run contract that feeds task events.
+    pub fn test_attempt_alpha_packets(&self, generated_at: &str) -> Vec<TestAttemptAlphaPacket> {
+        self.run_contracts
+            .iter()
+            .map(|contract| {
+                TestAttemptAlphaPacket::from_pytest_contract(
+                    contract,
+                    &self.execution_context,
+                    generated_at,
+                )
+            })
+            .collect()
+    }
+
+    /// Returns watch-mode test-attempt alpha packets for all pytest run contracts.
+    pub fn test_attempt_alpha_watch_packets(
+        &self,
+        watch_state: TestWatchState,
+        generated_at: &str,
+    ) -> Vec<TestAttemptAlphaPacket> {
+        self.run_contracts
+            .iter()
+            .map(|contract| {
+                TestAttemptAlphaPacket::from_pytest_watch_contract(
+                    contract,
+                    &self.execution_context,
+                    watch_state,
+                    generated_at,
+                )
+            })
+            .collect()
+    }
+
+    /// Returns support/export projections from test-attempt alpha packets.
+    pub fn test_attempt_alpha_support_exports(
+        &self,
+        generated_at: &str,
+    ) -> Vec<TestAttemptSupportExport> {
+        self.test_attempt_alpha_packets(generated_at)
+            .into_iter()
+            .map(|packet| packet.support_export)
             .collect()
     }
 }
