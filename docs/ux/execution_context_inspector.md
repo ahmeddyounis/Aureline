@@ -1,6 +1,6 @@
 # Execution-context inspector
 
-This document is the reviewer-facing entry point for the M1 execution-context
+This document is the reviewer-facing entry point for the seed execution-context
 inspector. It points at the canonical Rust projection in
 [`crates/aureline-shell/src/runtime/context_inspector/mod.rs`](../../crates/aureline-shell/src/runtime/context_inspector/mod.rs),
 the upstream object model in
@@ -93,9 +93,9 @@ settle a value, the row carries an
 - `resolver_unsettled` — no caller, surface, or workspace input contributed
   a value, and the resolver did not fall back. The chrome renders the row
   with a `Not settled by resolver` label.
-- `prototype_limited_to_m1_seed` — the field is in the boundary schema but
-  intentionally outside the M1 seed. The chrome renders the row with a
-  `Reserved (M1 seed limit)` label.
+- `prototype_limited_to_seed` — the field is in the boundary schema but
+  intentionally outside the seed projection. The chrome renders the row with a
+  `Reserved (seed limit)` label.
 - `seed_placeholder_awaiting_wiring` — the field exists upstream but the
   inspector seed does not yet project it. The chrome renders a
   `Seed placeholder` label so the gap is visible.
@@ -148,15 +148,15 @@ the explicit-override precedence drill, the pending-trust honesty-marker
 drill, the missing-working-directory drill, the multi-degraded-field path,
 the plaintext rendering, and the two fixture-driven failure drills.
 
-## Out of scope (M1)
+## Out of scope
 
 - full activator-decision orchestration (env-manager shims, venv
   activation, devcontainer build);
 - full target reachability orchestration (warming, network probes,
   policy-blocked re-resolution);
 - full capsule materialisation;
-- M2 task / debug depth, remote attach breadth, or hosted-account flows
-  beyond the seed vocabulary required in M1.
+- task / debug depth, remote attach breadth, or hosted-account flows beyond
+  the seed vocabulary required by the current projection.
 
 When any of these arrive they extend the upstream
 [`aureline_runtime::ExecutionContext`](../../crates/aureline-runtime/src/execution_context/mod.rs)

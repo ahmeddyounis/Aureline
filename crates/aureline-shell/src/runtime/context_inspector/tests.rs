@@ -105,6 +105,7 @@ fn terminal_seed_projection_quotes_resolver_truth_without_honesty_marker() {
             InspectorSectionId::PolicyAndTrust,
             InspectorSectionId::Scope,
             InspectorSectionId::Cache,
+            InspectorSectionId::ResolverExplanations,
             InspectorSectionId::Provenance,
             InspectorSectionId::DegradedFields,
         ]
@@ -152,6 +153,19 @@ fn terminal_seed_projection_quotes_resolver_truth_without_honesty_marker() {
     assert_eq!(degraded.rows.len(), 1);
     assert!(degraded.rows[0].degraded_reason.is_none());
     assert_eq!(degraded.rows[0].row_id, "no_degraded_fields");
+
+    let explanations = snapshot
+        .section(InspectorSectionId::ResolverExplanations)
+        .expect("resolver explanations section");
+    assert!(explanations.rows.iter().any(|row| {
+        row.row_id == "reusable_surfaces"
+            && row.value.contains("terminal")
+            && row.value.contains("test")
+            && row.value.contains("ai_tool_call")
+    }));
+    assert!(explanations.rows.iter().any(|row| {
+        row.row_id == "target_confidence_level" && row.value_token.as_deref() == Some("high")
+    }));
 
     // Stable actions are exposed without changing across surfaces.
     let actions: Vec<_> = snapshot.actions().map(|row| row.action).collect();
@@ -639,7 +653,7 @@ fn opened_from_support_flow_keeps_record_shape_stable() {
     // The task lane's record shape must not change just because a support
     // flow opened the inspector instead of the task channel.
     assert_eq!(snapshot.execution_context_id, context.execution_context_id);
-    assert_eq!(snapshot.sections.len(), 9);
+    assert_eq!(snapshot.sections.len(), 10);
 }
 
 #[test]

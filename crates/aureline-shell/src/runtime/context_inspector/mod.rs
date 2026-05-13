@@ -35,13 +35,17 @@ use serde::{Deserialize, Serialize};
 
 use aureline_runtime::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
-    DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, IdentityMode, InvocationSubject,
+    DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextEffectClass,
+    ExecutionContextExplanation, ExecutionContextReasonCode, ExecutionContextReasonSource,
+    IdentityMode, InvocationSubject, MixedVersionDrift, MixedVersionDriftState,
     NodeToolchainDetection, NodeToolchainProvenanceDisposition, NodeToolchainResolutionState,
-    NodeToolchainSourceKind, NodeToolchainSubject, PolicyAndTrust, Provenance,
-    PythonEnvironmentDetection, PythonEnvironmentProvenanceDisposition,
-    PythonEnvironmentResolutionState, PythonEnvironmentSourceKind, PythonEnvironmentSubject,
-    ReachabilityState, ResolverInputDecision, ResolverInputField, ResolverInputSource, ScopeClass,
-    SurfaceClass, TargetClass, TargetIdentity, ToolchainClass, ToolchainIdentity, TrustState,
+    NodeToolchainSourceKind, NodeToolchainSubject, PolicyAndTrust, PrebuildInvalidationReason,
+    PrebuildMetadata, PrebuildReuseState, Provenance, PythonEnvironmentDetection,
+    PythonEnvironmentProvenanceDisposition, PythonEnvironmentResolutionState,
+    PythonEnvironmentSourceKind, PythonEnvironmentSubject, ReachabilityState,
+    ResolverInputDecision, ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass,
+    TargetClass, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
+    TrustState,
 };
 
 /// Stable record-kind tag carried in serialized inspector snapshots.
@@ -78,7 +82,7 @@ impl InspectorOpeningSurface {
     }
 
     /// Map a resolved [`SurfaceClass`] onto the matching opening surface.
-    /// Surfaces outside the M1 seed lanes settle on
+    /// Surfaces outside the seed lanes settle on
     /// [`InspectorOpeningSurface::SupportFlow`] so the inspector still has a
     /// truthful default rather than panicking on an unmapped variant.
     pub const fn from_surface_class(surface: SurfaceClass) -> Self {
@@ -106,6 +110,7 @@ pub enum InspectorSectionId {
     PolicyAndTrust,
     Scope,
     Cache,
+    ResolverExplanations,
     Provenance,
     DegradedFields,
 }
@@ -123,6 +128,7 @@ impl InspectorSectionId {
             Self::PolicyAndTrust => "policy_and_trust",
             Self::Scope => "scope",
             Self::Cache => "cache",
+            Self::ResolverExplanations => "resolver_explanations",
             Self::Provenance => "provenance",
             Self::DegradedFields => "degraded_fields",
         }
@@ -140,6 +146,7 @@ impl InspectorSectionId {
             Self::PolicyAndTrust => "Policy and trust",
             Self::Scope => "Scope",
             Self::Cache => "Cache reuse",
+            Self::ResolverExplanations => "Resolver explanations",
             Self::Provenance => "Why this launch?",
             Self::DegradedFields => "Honesty markers",
         }
@@ -159,8 +166,8 @@ pub enum InspectorMissingFieldReason {
     /// workspace input contributed a working directory).
     ResolverUnsettled,
     /// The seed object intentionally covers a subset of the boundary
-    /// schema; the field is reserved but not minted in M1.
-    PrototypeLimitedToM1Seed,
+    /// schema; the field is reserved but not minted in the seed.
+    PrototypeLimitedToSeed,
     /// The field exists upstream but the inspector seed does not yet
     /// project it; the chrome shows a placeholder rather than fabricating
     /// completeness.
@@ -172,7 +179,7 @@ impl InspectorMissingFieldReason {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::ResolverUnsettled => "resolver_unsettled",
-            Self::PrototypeLimitedToM1Seed => "prototype_limited_to_m1_seed",
+            Self::PrototypeLimitedToSeed => "prototype_limited_to_seed",
             Self::SeedPlaceholderAwaitingWiring => "seed_placeholder_awaiting_wiring",
         }
     }
@@ -181,14 +188,14 @@ impl InspectorMissingFieldReason {
     pub const fn label(self) -> &'static str {
         match self {
             Self::ResolverUnsettled => "Not settled by resolver",
-            Self::PrototypeLimitedToM1Seed => "Reserved (M1 seed limit)",
+            Self::PrototypeLimitedToSeed => "Reserved (seed limit)",
             Self::SeedPlaceholderAwaitingWiring => "Seed placeholder",
         }
     }
 }
 
 /// Stable inspector actions. These are the only addressable actions the
-/// inspector exposes in the M1 seed; consumers route them onto the chrome's
+/// inspector exposes in the seed; consumers route them onto the chrome's
 /// command surface rather than minting button-only labels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -356,6 +363,7 @@ impl ExecutionContextInspectorSnapshot {
             project_policy_section(&context.policy_and_trust),
             project_scope_section(context.workset_scope_class),
             project_cache_section(context.cache_disposition),
+            project_resolver_explanations_section(context),
             project_provenance_section(&context.provenance),
             project_degraded_section(&context.degraded_fields),
         ]);
@@ -861,6 +869,55 @@ fn project_cache_section(cache: CacheDisposition) -> InspectorSection {
     InspectorSection::new(InspectorSectionId::Cache, rows)
 }
 
+fn project_resolver_explanations_section(context: &ExecutionContext) -> InspectorSection {
+    let mut rows = vec![
+        token_row(
+            "target_confidence_level",
+            "Target confidence",
+            confidence_label(context.target_confidence.level).to_owned(),
+            context.target_confidence.level.as_str(),
+        ),
+        value_row(
+            "target_confidence_reasons",
+            "Target confidence reasons",
+            context
+                .target_confidence
+                .reasons
+                .iter()
+                .map(|reason| target_confidence_reason_label(*reason))
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+        value_row(
+            "reusable_surfaces",
+            "Reusable by",
+            context
+                .reusable_surfaces
+                .iter()
+                .map(|surface| surface.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+        prebuild_state_row(&context.prebuild_metadata),
+        mixed_version_row(&context.mixed_version_drift),
+    ];
+
+    if let Some(invalidation_reason) = context.prebuild_metadata.invalidation_reason {
+        rows.push(token_row(
+            "prebuild_invalidation_reason",
+            "Prebuild invalidation",
+            prebuild_invalidation_label(invalidation_reason).to_owned(),
+            invalidation_reason.as_str(),
+        ));
+    }
+
+    for (idx, explanation) in context.explanations.iter().enumerate() {
+        rows.push(explanation_row(idx, explanation));
+    }
+
+    InspectorSection::new(InspectorSectionId::ResolverExplanations, rows)
+}
+
 fn project_provenance_section(provenance: &Provenance) -> InspectorSection {
     let mut rows = vec![
         value_row(
@@ -1048,6 +1105,42 @@ fn missing_row(row_id: &str, label: &str, reason: InspectorMissingFieldReason) -
         winning_source: None,
         conflicting_sources: Vec::new(),
         missing_field_reason: Some(reason),
+        degraded_reason: None,
+    }
+}
+
+fn prebuild_state_row(prebuild: &PrebuildMetadata) -> InspectorRow {
+    token_row(
+        "prebuild_reuse_state",
+        "Prebuild reuse",
+        prebuild_reuse_label(prebuild.reuse_state).to_owned(),
+        prebuild.reuse_state.as_str(),
+    )
+}
+
+fn mixed_version_row(mixed_version: &MixedVersionDrift) -> InspectorRow {
+    token_row(
+        "mixed_version_state",
+        "Mixed-version state",
+        mixed_version_label(mixed_version.state).to_owned(),
+        mixed_version.state.as_str(),
+    )
+}
+
+fn explanation_row(idx: usize, explanation: &ExecutionContextExplanation) -> InspectorRow {
+    InspectorRow {
+        row_id: format!("explanation_{idx}"),
+        label: explanation.field_path.clone(),
+        value: format!(
+            "{} · {} · {}",
+            effect_label(explanation.effect),
+            reason_code_label(explanation.reason_code),
+            reason_source_label(explanation.source)
+        ),
+        value_token: Some(explanation.reason_code.as_str().to_owned()),
+        winning_source: None,
+        conflicting_sources: explanation.related_input_sources.clone(),
+        missing_field_reason: None,
         degraded_reason: None,
     }
 }
@@ -1292,6 +1385,119 @@ const fn cache_label(disposition: CacheDisposition) -> &'static str {
         CacheDisposition::RejectedDrift => "Rejected (drift)",
         CacheDisposition::RejectedPolicy => "Rejected (policy)",
         CacheDisposition::RejectedTrust => "Rejected (trust)",
+    }
+}
+
+const fn target_confidence_reason_label(reason: TargetConfidenceReason) -> &'static str {
+    match reason {
+        TargetConfidenceReason::ExactLocalTarget => "exact local target",
+        TargetConfidenceReason::SurfaceRequestedTarget => "surface requested target",
+        TargetConfidenceReason::ExplicitTargetOverride => "explicit target override",
+        TargetConfidenceReason::WorkspaceDefaultTarget => "workspace default target",
+        TargetConfidenceReason::ResolverFallbackTarget => "resolver fallback target",
+        TargetConfidenceReason::ConflictingTargetSources => "conflicting target sources",
+        TargetConfidenceReason::RemoteOrManagedBoundary => "remote or managed boundary",
+        TargetConfidenceReason::TrustPending => "trust pending",
+        TargetConfidenceReason::TrustRestricted => "trust restricted",
+        TargetConfidenceReason::PolicyBlockedReachability => "policy blocked reachability",
+        TargetConfidenceReason::CapsuleDrift => "capsule drift",
+        TargetConfidenceReason::PrebuildRuntime => "prebuild runtime",
+        TargetConfidenceReason::MixedVersionUnchecked => "mixed version unchecked",
+    }
+}
+
+const fn prebuild_reuse_label(state: PrebuildReuseState) -> &'static str {
+    match state {
+        PrebuildReuseState::NotApplicable => "Not applicable",
+        PrebuildReuseState::Candidate => "Candidate",
+        PrebuildReuseState::Reused => "Reused",
+        PrebuildReuseState::RejectedDrift => "Rejected: drift",
+        PrebuildReuseState::RejectedPolicy => "Rejected: policy",
+        PrebuildReuseState::RejectedTrust => "Rejected: trust",
+    }
+}
+
+const fn prebuild_invalidation_label(reason: PrebuildInvalidationReason) -> &'static str {
+    match reason {
+        PrebuildInvalidationReason::CapsuleDrift => "Capsule drift",
+        PrebuildInvalidationReason::PolicyEpochAdvanced => "Policy epoch advanced",
+        PrebuildInvalidationReason::TrustStateRestricted => "Trust state restricted",
+        PrebuildInvalidationReason::TrustStatePending => "Trust state pending",
+        PrebuildInvalidationReason::TargetClassChanged => "Target class changed",
+    }
+}
+
+const fn mixed_version_label(state: MixedVersionDriftState) -> &'static str {
+    match state {
+        MixedVersionDriftState::NotApplicable => "Not applicable",
+        MixedVersionDriftState::Aligned => "Aligned",
+        MixedVersionDriftState::NotNegotiated => "Not negotiated",
+        MixedVersionDriftState::DriftDetected => "Drift detected",
+    }
+}
+
+const fn effect_label(effect: ExecutionContextEffectClass) -> &'static str {
+    match effect {
+        ExecutionContextEffectClass::SelectedByPrecedence => "selected by precedence",
+        ExecutionContextEffectClass::ConflictResolved => "conflict resolved",
+        ExecutionContextEffectClass::TargetBoundaryVisible => "target boundary visible",
+        ExecutionContextEffectClass::TargetBoundaryLocal => "local target boundary",
+        ExecutionContextEffectClass::PolicyAllowed => "policy allowed",
+        ExecutionContextEffectClass::PolicyNarrowed => "policy narrowed",
+        ExecutionContextEffectClass::PolicyBlocked => "policy blocked",
+        ExecutionContextEffectClass::TrustAccepted => "trust accepted",
+        ExecutionContextEffectClass::TrustPending => "trust pending",
+        ExecutionContextEffectClass::TrustRestricted => "trust restricted",
+        ExecutionContextEffectClass::ScopeSelected => "scope selected",
+        ExecutionContextEffectClass::PrebuildNotApplicable => "prebuild not applicable",
+        ExecutionContextEffectClass::PrebuildReused => "prebuild reused",
+        ExecutionContextEffectClass::PrebuildRejected => "prebuild rejected",
+        ExecutionContextEffectClass::MixedVersionNotApplicable => "mixed version not applicable",
+        ExecutionContextEffectClass::MixedVersionUnchecked => "mixed version unchecked",
+        ExecutionContextEffectClass::ReusableAcrossSurfaces => "reusable across surfaces",
+    }
+}
+
+const fn reason_code_label(reason: ExecutionContextReasonCode) -> &'static str {
+    match reason {
+        ExecutionContextReasonCode::ExplicitOverrideWon => "explicit override won",
+        ExecutionContextReasonCode::SurfaceRequestWon => "surface request won",
+        ExecutionContextReasonCode::WorkspaceDefaultWon => "workspace default won",
+        ExecutionContextReasonCode::ResolverFallbackUsed => "resolver fallback used",
+        ExecutionContextReasonCode::LowerPrecedenceConflict => "lower precedence conflict",
+        ExecutionContextReasonCode::LocalTargetNoBoundary => "local target no boundary",
+        ExecutionContextReasonCode::RemoteOrManagedBoundary => "remote or managed boundary",
+        ExecutionContextReasonCode::PolicyEpochCurrent => "policy epoch current",
+        ExecutionContextReasonCode::PolicyNarrowedByTrust => "policy narrowed by trust",
+        ExecutionContextReasonCode::PolicyBlockedTargetReachability => {
+            "policy blocked target reachability"
+        }
+        ExecutionContextReasonCode::TrustStateTrusted => "trust state trusted",
+        ExecutionContextReasonCode::TrustStateRestricted => "trust state restricted",
+        ExecutionContextReasonCode::TrustStatePendingEvaluation => "trust state pending evaluation",
+        ExecutionContextReasonCode::WorkspaceScopeDefault => "workspace scope default",
+        ExecutionContextReasonCode::PrebuildTargetNotSelected => "prebuild target not selected",
+        ExecutionContextReasonCode::PrebuildSnapshotCompatible => "prebuild snapshot compatible",
+        ExecutionContextReasonCode::PrebuildRejectedByCapsuleDrift => {
+            "prebuild rejected by capsule drift"
+        }
+        ExecutionContextReasonCode::PrebuildRejectedByTrust => "prebuild rejected by trust",
+        ExecutionContextReasonCode::LocalOnlyNoHelperVersion => "local only no helper version",
+        ExecutionContextReasonCode::HelperBoundaryNotNegotiated => "helper boundary not negotiated",
+        ExecutionContextReasonCode::SharedContextContract => "shared context contract",
+    }
+}
+
+const fn reason_source_label(source: ExecutionContextReasonSource) -> &'static str {
+    match source {
+        ExecutionContextReasonSource::Resolver => "resolver",
+        ExecutionContextReasonSource::ExplicitOverride => "explicit override",
+        ExecutionContextReasonSource::SurfaceRequest => "surface request",
+        ExecutionContextReasonSource::WorkspaceAuthority => "workspace authority",
+        ExecutionContextReasonSource::PolicyAuthority => "policy authority",
+        ExecutionContextReasonSource::TrustAuthority => "trust authority",
+        ExecutionContextReasonSource::EnvironmentCapsule => "environment capsule",
+        ExecutionContextReasonSource::HelperBoundary => "helper boundary",
     }
 }
 

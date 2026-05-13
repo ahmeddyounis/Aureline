@@ -15,9 +15,9 @@
 //! surfaces read it through the typed accessors and keep their own state to
 //! presentation only.
 //!
-//! ## Seed scope (M1)
+//! ## Seed scope
 //!
-//! The resolver in M1 is intentionally small. It models:
+//! The initial resolver is intentionally small. It models:
 //!
 //! - target identity for `local_host` and a small remote/container set,
 //! - toolchain identity for the seed lanes (terminal shell, task runner,
@@ -390,6 +390,336 @@ impl ConfidenceLevel {
     }
 }
 
+/// Reason a resolved target carries its current confidence label.
+///
+/// Multiple reasons may be present on one context. Consumers should render
+/// the tokens directly instead of inferring target confidence from raw target
+/// class or reachability fields.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetConfidenceReason {
+    ExactLocalTarget,
+    SurfaceRequestedTarget,
+    ExplicitTargetOverride,
+    WorkspaceDefaultTarget,
+    ResolverFallbackTarget,
+    ConflictingTargetSources,
+    RemoteOrManagedBoundary,
+    TrustPending,
+    TrustRestricted,
+    PolicyBlockedReachability,
+    CapsuleDrift,
+    PrebuildRuntime,
+    MixedVersionUnchecked,
+}
+
+impl TargetConfidenceReason {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ExactLocalTarget => "exact_local_target",
+            Self::SurfaceRequestedTarget => "surface_requested_target",
+            Self::ExplicitTargetOverride => "explicit_target_override",
+            Self::WorkspaceDefaultTarget => "workspace_default_target",
+            Self::ResolverFallbackTarget => "resolver_fallback_target",
+            Self::ConflictingTargetSources => "conflicting_target_sources",
+            Self::RemoteOrManagedBoundary => "remote_or_managed_boundary",
+            Self::TrustPending => "trust_pending",
+            Self::TrustRestricted => "trust_restricted",
+            Self::PolicyBlockedReachability => "policy_blocked_reachability",
+            Self::CapsuleDrift => "capsule_drift",
+            Self::PrebuildRuntime => "prebuild_runtime",
+            Self::MixedVersionUnchecked => "mixed_version_unchecked",
+        }
+    }
+}
+
+/// Confidence record for the resolved target.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TargetConfidence {
+    /// Coarse confidence level every launch surface can render.
+    pub level: ConfidenceLevel,
+    /// Structured reasons that produced [`Self::level`].
+    pub reasons: Vec<TargetConfidenceReason>,
+}
+
+/// Prebuild reuse state projected onto every execution-context record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PrebuildReuseState {
+    NotApplicable,
+    Candidate,
+    Reused,
+    RejectedDrift,
+    RejectedPolicy,
+    RejectedTrust,
+}
+
+impl PrebuildReuseState {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotApplicable => "not_applicable",
+            Self::Candidate => "candidate",
+            Self::Reused => "reused",
+            Self::RejectedDrift => "rejected_drift",
+            Self::RejectedPolicy => "rejected_policy",
+            Self::RejectedTrust => "rejected_trust",
+        }
+    }
+}
+
+/// Why a prebuild candidate was rejected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PrebuildInvalidationReason {
+    CapsuleDrift,
+    PolicyEpochAdvanced,
+    TrustStateRestricted,
+    TrustStatePending,
+    TargetClassChanged,
+}
+
+impl PrebuildInvalidationReason {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CapsuleDrift => "capsule_drift",
+            Self::PolicyEpochAdvanced => "policy_epoch_advanced",
+            Self::TrustStateRestricted => "trust_state_restricted",
+            Self::TrustStatePending => "trust_state_pending",
+            Self::TargetClassChanged => "target_class_changed",
+        }
+    }
+}
+
+/// Export-safe prebuild metadata derived during context resolution.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PrebuildMetadata {
+    /// Effective prebuild reuse state.
+    pub reuse_state: PrebuildReuseState,
+    /// Opaque snapshot reference when a prebuild runtime is in play.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot_ref: Option<String>,
+    /// Fingerprint token used to compare prebuild compatibility.
+    pub compatibility_fingerprint: String,
+    /// Typed rejection reason when [`Self::reuse_state`] is rejected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invalidation_reason: Option<PrebuildInvalidationReason>,
+}
+
+/// Mixed-version posture between the local client and any helper-backed target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MixedVersionDriftState {
+    NotApplicable,
+    Aligned,
+    NotNegotiated,
+    DriftDetected,
+}
+
+impl MixedVersionDriftState {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotApplicable => "not_applicable",
+            Self::Aligned => "aligned",
+            Self::NotNegotiated => "not_negotiated",
+            Self::DriftDetected => "drift_detected",
+        }
+    }
+}
+
+/// Structured reason for a mixed-version posture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MixedVersionReason {
+    LocalOnly,
+    HelperBoundaryNotNegotiated,
+    ProtocolsAligned,
+    ProtocolSkewDetected,
+}
+
+impl MixedVersionReason {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalOnly => "local_only",
+            Self::HelperBoundaryNotNegotiated => "helper_boundary_not_negotiated",
+            Self::ProtocolsAligned => "protocols_aligned",
+            Self::ProtocolSkewDetected => "protocol_skew_detected",
+        }
+    }
+}
+
+/// Export-safe mixed-version drift projection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MixedVersionDrift {
+    /// Effective helper/client skew state.
+    pub state: MixedVersionDriftState,
+    /// Client protocol family recorded by the resolver.
+    pub client_protocol: String,
+    /// Helper protocol family when a helper advertised one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub helper_protocol: Option<String>,
+    /// Structured reason for the state.
+    pub reason: MixedVersionReason,
+}
+
+/// Resolver explanation effect class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionContextEffectClass {
+    SelectedByPrecedence,
+    ConflictResolved,
+    TargetBoundaryVisible,
+    TargetBoundaryLocal,
+    PolicyAllowed,
+    PolicyNarrowed,
+    PolicyBlocked,
+    TrustAccepted,
+    TrustPending,
+    TrustRestricted,
+    ScopeSelected,
+    PrebuildNotApplicable,
+    PrebuildReused,
+    PrebuildRejected,
+    MixedVersionNotApplicable,
+    MixedVersionUnchecked,
+    ReusableAcrossSurfaces,
+}
+
+impl ExecutionContextEffectClass {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::SelectedByPrecedence => "selected_by_precedence",
+            Self::ConflictResolved => "conflict_resolved",
+            Self::TargetBoundaryVisible => "target_boundary_visible",
+            Self::TargetBoundaryLocal => "target_boundary_local",
+            Self::PolicyAllowed => "policy_allowed",
+            Self::PolicyNarrowed => "policy_narrowed",
+            Self::PolicyBlocked => "policy_blocked",
+            Self::TrustAccepted => "trust_accepted",
+            Self::TrustPending => "trust_pending",
+            Self::TrustRestricted => "trust_restricted",
+            Self::ScopeSelected => "scope_selected",
+            Self::PrebuildNotApplicable => "prebuild_not_applicable",
+            Self::PrebuildReused => "prebuild_reused",
+            Self::PrebuildRejected => "prebuild_rejected",
+            Self::MixedVersionNotApplicable => "mixed_version_not_applicable",
+            Self::MixedVersionUnchecked => "mixed_version_unchecked",
+            Self::ReusableAcrossSurfaces => "reusable_across_surfaces",
+        }
+    }
+}
+
+/// Resolver reason code for an [`ExecutionContextExplanation`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionContextReasonCode {
+    ExplicitOverrideWon,
+    SurfaceRequestWon,
+    WorkspaceDefaultWon,
+    ResolverFallbackUsed,
+    LowerPrecedenceConflict,
+    LocalTargetNoBoundary,
+    RemoteOrManagedBoundary,
+    PolicyEpochCurrent,
+    PolicyNarrowedByTrust,
+    PolicyBlockedTargetReachability,
+    TrustStateTrusted,
+    TrustStateRestricted,
+    TrustStatePendingEvaluation,
+    WorkspaceScopeDefault,
+    PrebuildTargetNotSelected,
+    PrebuildSnapshotCompatible,
+    PrebuildRejectedByCapsuleDrift,
+    PrebuildRejectedByTrust,
+    LocalOnlyNoHelperVersion,
+    HelperBoundaryNotNegotiated,
+    SharedContextContract,
+}
+
+impl ExecutionContextReasonCode {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ExplicitOverrideWon => "explicit_override_won",
+            Self::SurfaceRequestWon => "surface_request_won",
+            Self::WorkspaceDefaultWon => "workspace_default_won",
+            Self::ResolverFallbackUsed => "resolver_fallback_used",
+            Self::LowerPrecedenceConflict => "lower_precedence_conflict",
+            Self::LocalTargetNoBoundary => "local_target_no_boundary",
+            Self::RemoteOrManagedBoundary => "remote_or_managed_boundary",
+            Self::PolicyEpochCurrent => "policy_epoch_current",
+            Self::PolicyNarrowedByTrust => "policy_narrowed_by_trust",
+            Self::PolicyBlockedTargetReachability => "policy_blocked_target_reachability",
+            Self::TrustStateTrusted => "trust_state_trusted",
+            Self::TrustStateRestricted => "trust_state_restricted",
+            Self::TrustStatePendingEvaluation => "trust_state_pending_evaluation",
+            Self::WorkspaceScopeDefault => "workspace_scope_default",
+            Self::PrebuildTargetNotSelected => "prebuild_target_not_selected",
+            Self::PrebuildSnapshotCompatible => "prebuild_snapshot_compatible",
+            Self::PrebuildRejectedByCapsuleDrift => "prebuild_rejected_by_capsule_drift",
+            Self::PrebuildRejectedByTrust => "prebuild_rejected_by_trust",
+            Self::LocalOnlyNoHelperVersion => "local_only_no_helper_version",
+            Self::HelperBoundaryNotNegotiated => "helper_boundary_not_negotiated",
+            Self::SharedContextContract => "shared_context_contract",
+        }
+    }
+}
+
+/// Authority class that produced a resolver explanation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionContextReasonSource {
+    Resolver,
+    ExplicitOverride,
+    SurfaceRequest,
+    WorkspaceAuthority,
+    PolicyAuthority,
+    TrustAuthority,
+    EnvironmentCapsule,
+    HelperBoundary,
+}
+
+impl ExecutionContextReasonSource {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Resolver => "resolver",
+            Self::ExplicitOverride => "explicit_override",
+            Self::SurfaceRequest => "surface_request",
+            Self::WorkspaceAuthority => "workspace_authority",
+            Self::PolicyAuthority => "policy_authority",
+            Self::TrustAuthority => "trust_authority",
+            Self::EnvironmentCapsule => "environment_capsule",
+            Self::HelperBoundary => "helper_boundary",
+        }
+    }
+}
+
+/// One structured explanation row attached to the canonical context.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecutionContextExplanation {
+    /// Dotted path into the context field the explanation describes.
+    pub field_path: String,
+    /// Effect class the resolver applied.
+    pub effect: ExecutionContextEffectClass,
+    /// Stable reason code for this effect.
+    pub reason_code: ExecutionContextReasonCode,
+    /// Authority/source that produced the reason.
+    pub source: ExecutionContextReasonSource,
+    /// Token form of the resolved value or state.
+    pub resolved_value_token: String,
+    /// Input sources that participated in the explanation, when applicable.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related_input_sources: Vec<ResolverInputSource>,
+    /// Launch-capable surfaces allowed to reuse this explanation.
+    pub applicable_surfaces: Vec<SurfaceClass>,
+}
+
 /// Frozen degraded-field reason vocabulary used by [`DegradedFieldRecord`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -596,17 +926,22 @@ pub struct ExecutionContext {
     pub execution_context_id: String,
     pub invocation_subject: InvocationSubject,
     pub target_identity: TargetIdentity,
+    pub target_confidence: TargetConfidence,
     pub toolchain_identity: ToolchainIdentity,
     pub environment_capsule_ref: EnvironmentCapsuleRef,
+    pub prebuild_metadata: PrebuildMetadata,
     pub policy_and_trust: PolicyAndTrust,
     pub workset_scope_class: ScopeClass,
     pub cache_disposition: CacheDisposition,
+    pub mixed_version_drift: MixedVersionDrift,
     pub provenance: Provenance,
+    pub reusable_surfaces: Vec<SurfaceClass>,
+    pub explanations: Vec<ExecutionContextExplanation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub node_toolchain_detection: Option<NodeToolchainDetection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub python_environment_detection: Option<PythonEnvironmentDetection>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub degraded_fields: Vec<DegradedFieldRecord>,
 }
 
@@ -771,6 +1106,24 @@ impl<'a> ExecutionContextRequest<'a> {
         }
     }
 
+    /// Convenience constructor for a test-run seed request that asks for a
+    /// test-runner runtime against the workspace default working directory.
+    pub fn test_seed(command_id: &'a str, trust_state: TrustState, observed_at: &'a str) -> Self {
+        Self {
+            command_id,
+            surface: SurfaceClass::Test,
+            actor_class: ActorClass::UserCommand,
+            trust_state,
+            observed_at,
+            requested_target_class: Some(TargetClass::LocalHost),
+            requested_working_directory: None,
+            requested_toolchain_class: Some(ToolchainClass::TestRunnerRuntime),
+            override_target_class: None,
+            override_working_directory: None,
+            override_toolchain_class: None,
+        }
+    }
+
     /// Convenience constructor for a debug-prep seed request that asks for a
     /// debug-adapter runtime against the workspace default working directory.
     pub fn debug_prep_seed(
@@ -787,6 +1140,28 @@ impl<'a> ExecutionContextRequest<'a> {
             requested_target_class: Some(TargetClass::LocalHost),
             requested_working_directory: None,
             requested_toolchain_class: Some(ToolchainClass::DebugAdapterRuntime),
+            override_target_class: None,
+            override_working_directory: None,
+            override_toolchain_class: None,
+        }
+    }
+
+    /// Convenience constructor for an AI tool-call seed request that asks for
+    /// an AI-tool runtime against the workspace default working directory.
+    pub fn ai_tool_call_seed(
+        command_id: &'a str,
+        trust_state: TrustState,
+        observed_at: &'a str,
+    ) -> Self {
+        Self {
+            command_id,
+            surface: SurfaceClass::AiToolCall,
+            actor_class: ActorClass::AiApply,
+            trust_state,
+            observed_at,
+            requested_target_class: Some(TargetClass::AiSandbox),
+            requested_working_directory: None,
+            requested_toolchain_class: Some(ToolchainClass::AiToolRuntime),
             override_target_class: None,
             override_working_directory: None,
             override_toolchain_class: None,
@@ -858,6 +1233,7 @@ impl ExecutionContextResolver {
         let (target_class, target_decision) = self.resolve_target_class(&request);
         let (working_directory, wd_decision) = self.resolve_working_directory(&request);
         let (toolchain_class, toolchain_decision) = self.resolve_toolchain_class(&request);
+        let input_decisions = vec![target_decision, wd_decision, toolchain_decision];
 
         let target_identity = TargetIdentity {
             target_class,
@@ -880,6 +1256,16 @@ impl ExecutionContextResolver {
             identity_mode: self.config.identity_mode,
             policy_epoch: self.config.policy_epoch,
         };
+
+        let prebuild_metadata = prebuild_metadata_for(
+            &self.config.environment_capsule_ref,
+            target_class,
+            request.trust_state,
+            self.config.policy_epoch,
+        );
+        let cache_disposition = cache_disposition_for_prebuild(&prebuild_metadata);
+        let mixed_version_drift = mixed_version_drift_for(target_class);
+        let reusable_surfaces = reusable_launch_surfaces();
 
         let invocation_subject = InvocationSubject {
             command_id: request.command_id.to_owned(),
@@ -912,14 +1298,39 @@ impl ExecutionContextResolver {
                 repair_hook_ref: None,
             });
         }
+        if self.config.environment_capsule_ref.drift_state != CapsuleDriftState::InSync {
+            degraded_fields.push(DegradedFieldRecord {
+                field_path: "environment_capsule_ref.drift_state".to_owned(),
+                reason: DegradedFieldReason::CapsuleDriftDetected,
+                repair_hook_ref: Some("doctor.repair.environment_capsule".to_owned()),
+            });
+        }
+
+        let target_confidence = target_confidence_for(
+            target_class,
+            &input_decisions,
+            request.trust_state,
+            target_identity.reachability_state,
+            self.config.environment_capsule_ref.drift_state,
+            mixed_version_drift.state,
+        );
 
         let provenance = Provenance {
             provenance_record_id,
             recorded_at: request.observed_at.to_owned(),
             resolver_version: self.config.resolver_version.clone(),
             confidence_level,
-            input_decisions: vec![target_decision, wd_decision, toolchain_decision],
+            input_decisions,
         };
+        let explanations = build_explanations(
+            &provenance.input_decisions,
+            &target_identity,
+            &policy_and_trust,
+            self.config.workspace_default_scope_class,
+            &prebuild_metadata,
+            &mixed_version_drift,
+            &reusable_surfaces,
+        );
 
         ExecutionContext {
             record_kind: EXECUTION_CONTEXT_RECORD_KIND.to_owned(),
@@ -927,12 +1338,17 @@ impl ExecutionContextResolver {
             execution_context_id,
             invocation_subject,
             target_identity,
+            target_confidence,
             toolchain_identity,
             environment_capsule_ref: self.config.environment_capsule_ref.clone(),
+            prebuild_metadata,
             policy_and_trust,
             workset_scope_class: self.config.workspace_default_scope_class,
-            cache_disposition: CacheDisposition::Cold,
+            cache_disposition,
+            mixed_version_drift,
             provenance,
+            reusable_surfaces,
+            explanations,
             node_toolchain_detection: None,
             python_environment_detection: None,
             degraded_fields,
@@ -1055,6 +1471,438 @@ impl ExecutionContextResolver {
             TargetClass::LocalHost => self.config.local_host_canonical_id.clone(),
             other => format!("seed:{}", other.as_str()),
         }
+    }
+}
+
+fn reusable_launch_surfaces() -> Vec<SurfaceClass> {
+    vec![
+        SurfaceClass::Terminal,
+        SurfaceClass::Task,
+        SurfaceClass::Test,
+        SurfaceClass::Debug,
+        SurfaceClass::AiToolCall,
+    ]
+}
+
+fn prebuild_metadata_for(
+    capsule: &EnvironmentCapsuleRef,
+    target_class: TargetClass,
+    trust_state: TrustState,
+    policy_epoch: u64,
+) -> PrebuildMetadata {
+    if target_class != TargetClass::PrebuildRuntime {
+        return PrebuildMetadata {
+            reuse_state: PrebuildReuseState::NotApplicable,
+            snapshot_ref: None,
+            compatibility_fingerprint: compatibility_fingerprint_token(
+                capsule,
+                target_class,
+                policy_epoch,
+            ),
+            invalidation_reason: None,
+        };
+    }
+
+    let snapshot_ref = Some(format!("prebuild:{}:snapshot", capsule.capsule_id));
+    let (reuse_state, invalidation_reason) = match (trust_state, capsule.drift_state) {
+        (TrustState::PendingEvaluation, _) => (
+            PrebuildReuseState::RejectedTrust,
+            Some(PrebuildInvalidationReason::TrustStatePending),
+        ),
+        (TrustState::Restricted, _) => (
+            PrebuildReuseState::RejectedTrust,
+            Some(PrebuildInvalidationReason::TrustStateRestricted),
+        ),
+        (_, drift_state) if drift_state != CapsuleDriftState::InSync => (
+            PrebuildReuseState::RejectedDrift,
+            Some(PrebuildInvalidationReason::CapsuleDrift),
+        ),
+        _ => (PrebuildReuseState::Reused, None),
+    };
+
+    PrebuildMetadata {
+        reuse_state,
+        snapshot_ref,
+        compatibility_fingerprint: compatibility_fingerprint_token(
+            capsule,
+            target_class,
+            policy_epoch,
+        ),
+        invalidation_reason,
+    }
+}
+
+fn compatibility_fingerprint_token(
+    capsule: &EnvironmentCapsuleRef,
+    target_class: TargetClass,
+    policy_epoch: u64,
+) -> String {
+    format!(
+        "fp:{}:{}:policy{}",
+        capsule.capsule_hash,
+        target_class.as_str(),
+        policy_epoch
+    )
+}
+
+fn cache_disposition_for_prebuild(metadata: &PrebuildMetadata) -> CacheDisposition {
+    match metadata.reuse_state {
+        PrebuildReuseState::NotApplicable | PrebuildReuseState::Candidate => CacheDisposition::Cold,
+        PrebuildReuseState::Reused => CacheDisposition::PrebuildReused,
+        PrebuildReuseState::RejectedDrift => CacheDisposition::RejectedDrift,
+        PrebuildReuseState::RejectedPolicy => CacheDisposition::RejectedPolicy,
+        PrebuildReuseState::RejectedTrust => CacheDisposition::RejectedTrust,
+    }
+}
+
+fn mixed_version_drift_for(target_class: TargetClass) -> MixedVersionDrift {
+    if target_class.is_remote_or_managed() {
+        MixedVersionDrift {
+            state: MixedVersionDriftState::NotNegotiated,
+            client_protocol: "execution-context-alpha.v1".to_owned(),
+            helper_protocol: None,
+            reason: MixedVersionReason::HelperBoundaryNotNegotiated,
+        }
+    } else {
+        MixedVersionDrift {
+            state: MixedVersionDriftState::NotApplicable,
+            client_protocol: "execution-context-alpha.v1".to_owned(),
+            helper_protocol: None,
+            reason: MixedVersionReason::LocalOnly,
+        }
+    }
+}
+
+fn target_confidence_for(
+    target_class: TargetClass,
+    input_decisions: &[ResolverInputDecision],
+    trust_state: TrustState,
+    reachability_state: ReachabilityState,
+    capsule_drift_state: CapsuleDriftState,
+    mixed_version_state: MixedVersionDriftState,
+) -> TargetConfidence {
+    let mut reasons = Vec::new();
+    let target_decision = input_decisions
+        .iter()
+        .find(|decision| decision.field == ResolverInputField::TargetClass);
+
+    if target_class == TargetClass::LocalHost {
+        reasons.push(TargetConfidenceReason::ExactLocalTarget);
+    } else {
+        reasons.push(TargetConfidenceReason::RemoteOrManagedBoundary);
+    }
+
+    if target_class == TargetClass::PrebuildRuntime {
+        reasons.push(TargetConfidenceReason::PrebuildRuntime);
+    }
+
+    if let Some(decision) = target_decision {
+        match decision.winning_source {
+            ResolverInputSource::ExplicitOverride => {
+                reasons.push(TargetConfidenceReason::ExplicitTargetOverride)
+            }
+            ResolverInputSource::SurfaceRequested => {
+                reasons.push(TargetConfidenceReason::SurfaceRequestedTarget)
+            }
+            ResolverInputSource::WorkspaceDefault => {
+                reasons.push(TargetConfidenceReason::WorkspaceDefaultTarget)
+            }
+            ResolverInputSource::ResolverFallback => {
+                reasons.push(TargetConfidenceReason::ResolverFallbackTarget)
+            }
+        }
+        if !decision.conflicting_sources.is_empty() {
+            reasons.push(TargetConfidenceReason::ConflictingTargetSources);
+        }
+    }
+
+    match trust_state {
+        TrustState::Trusted => {}
+        TrustState::Restricted => reasons.push(TargetConfidenceReason::TrustRestricted),
+        TrustState::PendingEvaluation => reasons.push(TargetConfidenceReason::TrustPending),
+    }
+
+    if reachability_state == ReachabilityState::PolicyBlocked {
+        reasons.push(TargetConfidenceReason::PolicyBlockedReachability);
+    }
+    if capsule_drift_state != CapsuleDriftState::InSync {
+        reasons.push(TargetConfidenceReason::CapsuleDrift);
+    }
+    if mixed_version_state == MixedVersionDriftState::NotNegotiated {
+        reasons.push(TargetConfidenceReason::MixedVersionUnchecked);
+    }
+
+    let level = if reasons.iter().any(|reason| {
+        matches!(
+            reason,
+            TargetConfidenceReason::TrustPending
+                | TargetConfidenceReason::PolicyBlockedReachability
+                | TargetConfidenceReason::CapsuleDrift
+                | TargetConfidenceReason::ResolverFallbackTarget
+        )
+    }) {
+        ConfidenceLevel::Low
+    } else if reasons.iter().any(|reason| {
+        matches!(
+            reason,
+            TargetConfidenceReason::RemoteOrManagedBoundary
+                | TargetConfidenceReason::ConflictingTargetSources
+                | TargetConfidenceReason::TrustRestricted
+                | TargetConfidenceReason::MixedVersionUnchecked
+        )
+    }) {
+        ConfidenceLevel::Medium
+    } else {
+        ConfidenceLevel::High
+    };
+
+    TargetConfidence { level, reasons }
+}
+
+fn build_explanations(
+    input_decisions: &[ResolverInputDecision],
+    target: &TargetIdentity,
+    policy: &PolicyAndTrust,
+    scope_class: ScopeClass,
+    prebuild: &PrebuildMetadata,
+    mixed_version: &MixedVersionDrift,
+    reusable_surfaces: &[SurfaceClass],
+) -> Vec<ExecutionContextExplanation> {
+    let mut explanations = Vec::new();
+    for decision in input_decisions {
+        explanations.push(precedence_explanation(
+            decision,
+            ExecutionContextEffectClass::SelectedByPrecedence,
+            reason_for_winning_source(decision.winning_source),
+            source_for_winning_source(decision.winning_source),
+            reusable_surfaces,
+        ));
+        if !decision.conflicting_sources.is_empty() {
+            explanations.push(precedence_explanation(
+                decision,
+                ExecutionContextEffectClass::ConflictResolved,
+                ExecutionContextReasonCode::LowerPrecedenceConflict,
+                ExecutionContextReasonSource::Resolver,
+                reusable_surfaces,
+            ));
+        }
+    }
+
+    explanations.push(ExecutionContextExplanation {
+        field_path: "target_identity.local_vs_managed_boundary_visible".to_owned(),
+        effect: if target.local_vs_managed_boundary_visible {
+            ExecutionContextEffectClass::TargetBoundaryVisible
+        } else {
+            ExecutionContextEffectClass::TargetBoundaryLocal
+        },
+        reason_code: if target.local_vs_managed_boundary_visible {
+            ExecutionContextReasonCode::RemoteOrManagedBoundary
+        } else {
+            ExecutionContextReasonCode::LocalTargetNoBoundary
+        },
+        source: ExecutionContextReasonSource::Resolver,
+        resolved_value_token: target.local_vs_managed_boundary_visible.to_string(),
+        related_input_sources: Vec::new(),
+        applicable_surfaces: reusable_surfaces.to_vec(),
+    });
+
+    explanations.push(trust_explanation(policy, reusable_surfaces));
+    explanations.push(policy_explanation(target, policy, reusable_surfaces));
+
+    explanations.push(ExecutionContextExplanation {
+        field_path: "workset_scope_class".to_owned(),
+        effect: ExecutionContextEffectClass::ScopeSelected,
+        reason_code: ExecutionContextReasonCode::WorkspaceScopeDefault,
+        source: ExecutionContextReasonSource::WorkspaceAuthority,
+        resolved_value_token: scope_class.as_str().to_owned(),
+        related_input_sources: Vec::new(),
+        applicable_surfaces: reusable_surfaces.to_vec(),
+    });
+
+    explanations.push(prebuild_explanation(prebuild, reusable_surfaces));
+    explanations.push(mixed_version_explanation(mixed_version, reusable_surfaces));
+    explanations.push(ExecutionContextExplanation {
+        field_path: "reusable_surfaces".to_owned(),
+        effect: ExecutionContextEffectClass::ReusableAcrossSurfaces,
+        reason_code: ExecutionContextReasonCode::SharedContextContract,
+        source: ExecutionContextReasonSource::Resolver,
+        resolved_value_token: reusable_surfaces
+            .iter()
+            .map(|surface| surface.as_str())
+            .collect::<Vec<_>>()
+            .join("|"),
+        related_input_sources: Vec::new(),
+        applicable_surfaces: reusable_surfaces.to_vec(),
+    });
+    explanations
+}
+
+fn precedence_explanation(
+    decision: &ResolverInputDecision,
+    effect: ExecutionContextEffectClass,
+    reason_code: ExecutionContextReasonCode,
+    source: ExecutionContextReasonSource,
+    reusable_surfaces: &[SurfaceClass],
+) -> ExecutionContextExplanation {
+    let mut related_input_sources = vec![decision.winning_source];
+    related_input_sources.extend(decision.conflicting_sources.iter().copied());
+    ExecutionContextExplanation {
+        field_path: format!("resolver_input.{}", decision.field.as_str()),
+        effect,
+        reason_code,
+        source,
+        resolved_value_token: decision.resolved_value_token.clone(),
+        related_input_sources,
+        applicable_surfaces: reusable_surfaces.to_vec(),
+    }
+}
+
+const fn reason_for_winning_source(source: ResolverInputSource) -> ExecutionContextReasonCode {
+    match source {
+        ResolverInputSource::ExplicitOverride => ExecutionContextReasonCode::ExplicitOverrideWon,
+        ResolverInputSource::SurfaceRequested => ExecutionContextReasonCode::SurfaceRequestWon,
+        ResolverInputSource::WorkspaceDefault => ExecutionContextReasonCode::WorkspaceDefaultWon,
+        ResolverInputSource::ResolverFallback => ExecutionContextReasonCode::ResolverFallbackUsed,
+    }
+}
+
+const fn source_for_winning_source(source: ResolverInputSource) -> ExecutionContextReasonSource {
+    match source {
+        ResolverInputSource::ExplicitOverride => ExecutionContextReasonSource::ExplicitOverride,
+        ResolverInputSource::SurfaceRequested => ExecutionContextReasonSource::SurfaceRequest,
+        ResolverInputSource::WorkspaceDefault => ExecutionContextReasonSource::WorkspaceAuthority,
+        ResolverInputSource::ResolverFallback => ExecutionContextReasonSource::Resolver,
+    }
+}
+
+fn trust_explanation(
+    policy: &PolicyAndTrust,
+    reusable_surfaces: &[SurfaceClass],
+) -> ExecutionContextExplanation {
+    let (effect, reason_code) = match policy.trust_state {
+        TrustState::Trusted => (
+            ExecutionContextEffectClass::TrustAccepted,
+            ExecutionContextReasonCode::TrustStateTrusted,
+        ),
+        TrustState::Restricted => (
+            ExecutionContextEffectClass::TrustRestricted,
+            ExecutionContextReasonCode::TrustStateRestricted,
+        ),
+        TrustState::PendingEvaluation => (
+            ExecutionContextEffectClass::TrustPending,
+            ExecutionContextReasonCode::TrustStatePendingEvaluation,
+        ),
+    };
+    ExecutionContextExplanation {
+        field_path: "policy_and_trust.trust_state".to_owned(),
+        effect,
+        reason_code,
+        source: ExecutionContextReasonSource::TrustAuthority,
+        resolved_value_token: trust_state_token(policy.trust_state).to_owned(),
+        related_input_sources: Vec::new(),
+        applicable_surfaces: reusable_surfaces.to_vec(),
+    }
+}
+
+fn policy_explanation(
+    target: &TargetIdentity,
+    policy: &PolicyAndTrust,
+    reusable_surfaces: &[SurfaceClass],
+) -> ExecutionContextExplanation {
+    let (effect, reason_code, value_token) =
+        if target.reachability_state == ReachabilityState::PolicyBlocked {
+            (
+                ExecutionContextEffectClass::PolicyBlocked,
+                ExecutionContextReasonCode::PolicyBlockedTargetReachability,
+                "policy_blocked",
+            )
+        } else if policy.trust_state != TrustState::Trusted {
+            (
+                ExecutionContextEffectClass::PolicyNarrowed,
+                ExecutionContextReasonCode::PolicyNarrowedByTrust,
+                trust_state_token(policy.trust_state),
+            )
+        } else {
+            (
+                ExecutionContextEffectClass::PolicyAllowed,
+                ExecutionContextReasonCode::PolicyEpochCurrent,
+                "allowed",
+            )
+        };
+    ExecutionContextExplanation {
+        field_path: "policy_and_trust.policy_epoch".to_owned(),
+        effect,
+        reason_code,
+        source: ExecutionContextReasonSource::PolicyAuthority,
+        resolved_value_token: format!("{value_token}:{}", policy.policy_epoch),
+        related_input_sources: Vec::new(),
+        applicable_surfaces: reusable_surfaces.to_vec(),
+    }
+}
+
+fn prebuild_explanation(
+    prebuild: &PrebuildMetadata,
+    reusable_surfaces: &[SurfaceClass],
+) -> ExecutionContextExplanation {
+    let (effect, reason_code) = match prebuild.reuse_state {
+        PrebuildReuseState::NotApplicable | PrebuildReuseState::Candidate => (
+            ExecutionContextEffectClass::PrebuildNotApplicable,
+            ExecutionContextReasonCode::PrebuildTargetNotSelected,
+        ),
+        PrebuildReuseState::Reused => (
+            ExecutionContextEffectClass::PrebuildReused,
+            ExecutionContextReasonCode::PrebuildSnapshotCompatible,
+        ),
+        PrebuildReuseState::RejectedDrift => (
+            ExecutionContextEffectClass::PrebuildRejected,
+            ExecutionContextReasonCode::PrebuildRejectedByCapsuleDrift,
+        ),
+        PrebuildReuseState::RejectedPolicy | PrebuildReuseState::RejectedTrust => (
+            ExecutionContextEffectClass::PrebuildRejected,
+            ExecutionContextReasonCode::PrebuildRejectedByTrust,
+        ),
+    };
+    ExecutionContextExplanation {
+        field_path: "prebuild_metadata.reuse_state".to_owned(),
+        effect,
+        reason_code,
+        source: ExecutionContextReasonSource::EnvironmentCapsule,
+        resolved_value_token: prebuild.reuse_state.as_str().to_owned(),
+        related_input_sources: Vec::new(),
+        applicable_surfaces: reusable_surfaces.to_vec(),
+    }
+}
+
+fn mixed_version_explanation(
+    mixed_version: &MixedVersionDrift,
+    reusable_surfaces: &[SurfaceClass],
+) -> ExecutionContextExplanation {
+    let (effect, reason_code) = match mixed_version.state {
+        MixedVersionDriftState::NotApplicable | MixedVersionDriftState::Aligned => (
+            ExecutionContextEffectClass::MixedVersionNotApplicable,
+            ExecutionContextReasonCode::LocalOnlyNoHelperVersion,
+        ),
+        MixedVersionDriftState::NotNegotiated | MixedVersionDriftState::DriftDetected => (
+            ExecutionContextEffectClass::MixedVersionUnchecked,
+            ExecutionContextReasonCode::HelperBoundaryNotNegotiated,
+        ),
+    };
+    ExecutionContextExplanation {
+        field_path: "mixed_version_drift.state".to_owned(),
+        effect,
+        reason_code,
+        source: ExecutionContextReasonSource::HelperBoundary,
+        resolved_value_token: mixed_version.state.as_str().to_owned(),
+        related_input_sources: Vec::new(),
+        applicable_surfaces: reusable_surfaces.to_vec(),
+    }
+}
+
+const fn trust_state_token(state: TrustState) -> &'static str {
+    match state {
+        TrustState::Trusted => "trusted",
+        TrustState::Restricted => "restricted",
+        TrustState::PendingEvaluation => "pending_evaluation",
     }
 }
 
@@ -1248,7 +2096,7 @@ mod tests {
     }
 
     #[test]
-    fn terminal_task_and_debug_seeds_share_the_same_object_shape() {
+    fn launch_surfaces_share_the_same_object_shape() {
         let mut resolver = ExecutionContextResolver::new(baseline_config());
 
         let terminal = resolver.resolve(ExecutionContextRequest::local_terminal_seed(
@@ -1266,18 +2114,32 @@ mod tests {
             TrustState::Trusted,
             "mono:2",
         ));
+        let test = resolver.resolve(ExecutionContextRequest::test_seed(
+            "test.run.changed",
+            TrustState::Trusted,
+            "mono:3",
+        ));
+        let ai = resolver.resolve(ExecutionContextRequest::ai_tool_call_seed(
+            "ai.apply.preview",
+            TrustState::Trusted,
+            "mono:4",
+        ));
 
-        for ctx in [&terminal, &task, &debug] {
+        for ctx in [&terminal, &task, &debug, &test, &ai] {
             assert_eq!(ctx.record_kind, EXECUTION_CONTEXT_RECORD_KIND);
             assert_eq!(ctx.schema_version, EXECUTION_CONTEXT_SCHEMA_VERSION);
             assert_eq!(ctx.invocation_subject.workspace_id, "ws-test");
-            assert_eq!(ctx.target_identity.target_class, TargetClass::LocalHost);
             assert_eq!(ctx.workset_scope_class, ScopeClass::CurrentRoot);
             assert_eq!(ctx.policy_and_trust.trust_state, TrustState::Trusted);
             assert_eq!(
                 ctx.policy_and_trust.identity_mode,
                 IdentityMode::AccountFreeLocal
             );
+            assert!(ctx.reusable_surfaces.contains(&SurfaceClass::Terminal));
+            assert!(ctx.reusable_surfaces.contains(&SurfaceClass::Task));
+            assert!(ctx.reusable_surfaces.contains(&SurfaceClass::Test));
+            assert!(ctx.reusable_surfaces.contains(&SurfaceClass::Debug));
+            assert!(ctx.reusable_surfaces.contains(&SurfaceClass::AiToolCall));
         }
 
         assert_eq!(
@@ -1285,11 +2147,15 @@ mod tests {
                 terminal.invocation_subject.surface,
                 task.invocation_subject.surface,
                 debug.invocation_subject.surface,
+                test.invocation_subject.surface,
+                ai.invocation_subject.surface,
             ),
             (
                 SurfaceClass::Terminal,
                 SurfaceClass::Task,
-                SurfaceClass::Debug
+                SurfaceClass::Debug,
+                SurfaceClass::Test,
+                SurfaceClass::AiToolCall,
             )
         );
         assert_eq!(
@@ -1297,11 +2163,15 @@ mod tests {
                 terminal.toolchain_identity.toolchain_class,
                 task.toolchain_identity.toolchain_class,
                 debug.toolchain_identity.toolchain_class,
+                test.toolchain_identity.toolchain_class,
+                ai.toolchain_identity.toolchain_class,
             ),
             (
                 ToolchainClass::LoginShell,
                 ToolchainClass::BuildDriverRuntime,
                 ToolchainClass::DebugAdapterRuntime,
+                ToolchainClass::TestRunnerRuntime,
+                ToolchainClass::AiToolRuntime,
             )
         );
 
@@ -1310,6 +2180,8 @@ mod tests {
             "every resolved context carries a unique id"
         );
         assert_ne!(task.execution_context_id, debug.execution_context_id);
+        assert_ne!(debug.execution_context_id, test.execution_context_id);
+        assert_ne!(test.execution_context_id, ai.execution_context_id);
     }
 
     #[test]
@@ -1486,6 +2358,116 @@ mod tests {
         );
     }
 
+    #[test]
+    fn execution_context_alpha_fixtures_replay_structured_explanations() {
+        let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/runtime/execution_context_alpha");
+        for fixture_name in [
+            "reusable_launch_surfaces.json",
+            "restricted_remote_policy_narrow.json",
+            "prebuild_drift_rejected.json",
+        ] {
+            let fixture_path = fixture_root.join(fixture_name);
+            let payload = std::fs::read_to_string(&fixture_path).expect("fixture must read");
+            let fixture: ExecutionContextAlphaFixture =
+                serde_json::from_str(&payload).expect("fixture must parse");
+
+            assert_eq!(fixture.record_kind, "execution_context_alpha_case");
+            assert_eq!(fixture.schema_version, 1);
+
+            let mut config = baseline_config();
+            if let Some(alpha_config) = fixture.config {
+                if let Some(drift_state) = alpha_config.capsule_drift_state {
+                    config.environment_capsule_ref.drift_state = drift_state;
+                }
+            }
+
+            let mut resolver = ExecutionContextResolver::new(config);
+            let context = resolver.resolve(ExecutionContextRequest {
+                command_id: &fixture.input.command_id,
+                surface: fixture.input.surface,
+                actor_class: fixture.input.actor_class,
+                trust_state: fixture.input.trust_state,
+                observed_at: &fixture.input.observed_at,
+                requested_target_class: fixture.input.requested_target_class,
+                requested_working_directory: fixture.input.requested_working_directory.as_deref(),
+                requested_toolchain_class: fixture.input.requested_toolchain_class,
+                override_target_class: fixture.input.override_target_class,
+                override_working_directory: fixture.input.override_working_directory.as_deref(),
+                override_toolchain_class: fixture.input.override_toolchain_class,
+            });
+
+            let exported = serde_json::to_value(&context).expect("context must export as JSON");
+            assert_eq!(
+                exported["record_kind"],
+                serde_json::Value::String(EXECUTION_CONTEXT_RECORD_KIND.to_owned())
+            );
+            assert!(exported.get("target_confidence").is_some());
+            assert!(exported.get("prebuild_metadata").is_some());
+            assert!(exported.get("mixed_version_drift").is_some());
+            assert!(exported.get("explanations").is_some());
+            assert!(exported.get("degraded_fields").is_some());
+
+            assert_eq!(
+                context.target_confidence.level,
+                fixture.expect.target_confidence_level
+            );
+            for reason in &fixture.expect.target_confidence_reasons {
+                assert!(
+                    context.target_confidence.reasons.contains(reason),
+                    "missing target confidence reason {reason:?} in {fixture_name}"
+                );
+            }
+            for surface in &fixture.expect.reusable_surfaces {
+                assert!(
+                    context.reusable_surfaces.contains(surface),
+                    "missing reusable surface {surface:?} in {fixture_name}"
+                );
+            }
+            assert_eq!(
+                context.prebuild_metadata.reuse_state,
+                fixture.expect.prebuild_reuse_state
+            );
+            if let Some(reason) = fixture.expect.prebuild_invalidation_reason {
+                assert_eq!(context.prebuild_metadata.invalidation_reason, Some(reason));
+            }
+            if let Some(cache) = fixture.expect.cache_disposition {
+                assert_eq!(context.cache_disposition, cache);
+            }
+            assert_eq!(
+                context.mixed_version_drift.state,
+                fixture.expect.mixed_version_state
+            );
+            for reason in &fixture.expect.degraded_reasons {
+                assert!(
+                    context
+                        .degraded_fields
+                        .iter()
+                        .any(|field| field.reason == *reason),
+                    "missing degraded reason {reason:?} in {fixture_name}"
+                );
+            }
+            for effect in &fixture.expect.required_effects {
+                assert!(
+                    context
+                        .explanations
+                        .iter()
+                        .any(|explanation| explanation.effect == *effect),
+                    "missing explanation effect {effect:?} in {fixture_name}"
+                );
+            }
+            for reason_code in &fixture.expect.required_reason_codes {
+                assert!(
+                    context
+                        .explanations
+                        .iter()
+                        .any(|explanation| explanation.reason_code == *reason_code),
+                    "missing explanation reason {reason_code:?} in {fixture_name}"
+                );
+            }
+        }
+    }
+
     #[derive(Debug, Deserialize)]
     struct ConflictingInputsFixture {
         record_kind: String,
@@ -1522,5 +2504,42 @@ mod tests {
         target_winning_source: ResolverInputSource,
         target_conflicting_sources: Vec<ResolverInputSource>,
         working_directory_winning_source: ResolverInputSource,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct ExecutionContextAlphaFixture {
+        record_kind: String,
+        schema_version: u32,
+        #[serde(default)]
+        config: Option<ExecutionContextAlphaConfig>,
+        input: ConflictingInputsInput,
+        expect: ExecutionContextAlphaExpect,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct ExecutionContextAlphaConfig {
+        #[serde(default)]
+        capsule_drift_state: Option<CapsuleDriftState>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct ExecutionContextAlphaExpect {
+        target_confidence_level: ConfidenceLevel,
+        #[serde(default)]
+        target_confidence_reasons: Vec<TargetConfidenceReason>,
+        prebuild_reuse_state: PrebuildReuseState,
+        #[serde(default)]
+        prebuild_invalidation_reason: Option<PrebuildInvalidationReason>,
+        #[serde(default)]
+        cache_disposition: Option<CacheDisposition>,
+        mixed_version_state: MixedVersionDriftState,
+        #[serde(default)]
+        reusable_surfaces: Vec<SurfaceClass>,
+        #[serde(default)]
+        degraded_reasons: Vec<DegradedFieldReason>,
+        #[serde(default)]
+        required_effects: Vec<ExecutionContextEffectClass>,
+        #[serde(default)]
+        required_reason_codes: Vec<ExecutionContextReasonCode>,
     }
 }

@@ -41,11 +41,15 @@ pub use detectors::python::{
 };
 pub use execution_context::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
-    DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextRequest,
-    ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode, InvocationSubject,
-    PolicyAndTrust, Provenance, ReachabilityState, ResolverInputDecision, ResolverInputField,
-    ResolverInputSource, ScopeClass, SurfaceClass, TargetClass, TargetIdentity, ToolchainClass,
-    ToolchainIdentity, TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
+    DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextEffectClass,
+    ExecutionContextExplanation, ExecutionContextReasonCode, ExecutionContextReasonSource,
+    ExecutionContextRequest, ExecutionContextResolver, ExecutionContextResolverConfig,
+    IdentityMode, InvocationSubject, MixedVersionDrift, MixedVersionDriftState, MixedVersionReason,
+    PolicyAndTrust, PrebuildInvalidationReason, PrebuildMetadata, PrebuildReuseState, Provenance,
+    ReachabilityState, ResolverInputDecision, ResolverInputField, ResolverInputSource, ScopeClass,
+    SurfaceClass, TargetClass, TargetConfidence, TargetConfidenceReason, TargetIdentity,
+    ToolchainClass, ToolchainIdentity, TrustState, EXECUTION_CONTEXT_RECORD_KIND,
+    EXECUTION_CONTEXT_SCHEMA_VERSION,
 };
 pub use language_hosts::{
     LanguageHostEventClass, LanguageHostExitReasonClass, LanguageHostIdentity,
