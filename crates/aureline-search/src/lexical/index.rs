@@ -22,14 +22,16 @@ use crate::scope::WorkspaceSearchScope;
 
 /// Stable readiness vocabulary surfaced to the search shell.
 ///
-/// Tokens are a strict subset of the upstream `ReadinessLabel` set with one
-/// extra `Warming` token to disambiguate the "we have not produced any rows
-/// yet" case from "we have rows but the index is still scanning".
+/// Tokens are a strict subset of the upstream `ReadinessLabel` set with
+/// search-owned `HotSetReady` and `Warming` tokens to distinguish "hot-set
+/// rows are usable" from both "fully ready" and "no rows yet".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReadinessClass {
     /// Index is fully populated and the workspace is ready.
     Ready,
+    /// Hot-set rows are ready while full indexing continues.
+    HotSetReady,
     /// Index has not produced rows yet (scan in progress, pre-rows).
     Warming,
     /// Index has rows but the upstream workspace is still partial / warming.
@@ -47,6 +49,7 @@ impl ReadinessClass {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Ready => "ready",
+            Self::HotSetReady => "hot_set_ready",
             Self::Warming => "warming",
             Self::Partial => "partial",
             Self::Stale => "stale",
@@ -59,6 +62,7 @@ impl ReadinessClass {
     pub const fn banner_label(self) -> &'static str {
         match self {
             Self::Ready => "Ready",
+            Self::HotSetReady => "Hot set ready",
             Self::Warming => "Warming",
             Self::Partial => "Partial",
             Self::Stale => "Stale",
@@ -100,6 +104,10 @@ impl ReadinessClass {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PartialTruthCause {
+    /// Only the hot set is ready; broader index coverage is not complete.
+    HotSetOnly,
+    /// Background indexing is still running or queued.
+    IndexingInProgress,
     /// Workspace is still warming up (lifecycle = `partially_ready`).
     WorkspaceWarming,
     /// Watcher is degraded or has fallen back to polling.
@@ -117,6 +125,8 @@ pub enum PartialTruthCause {
 impl PartialTruthCause {
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::HotSetOnly => "hot_set_only",
+            Self::IndexingInProgress => "indexing_in_progress",
             Self::WorkspaceWarming => "workspace_warming",
             Self::WatcherDegraded => "watcher_degraded",
             Self::WatcherUnknown => "watcher_unknown",
@@ -297,6 +307,46 @@ impl LexicalIndexState {
     /// disclose how many files are hidden by the active workset/slice.
     pub const fn out_of_scope_count(&self) -> u64 {
         self.out_of_scope_count
+    }
+
+    /// Build an index snapshot from scheduler-selected rows.
+    pub(crate) fn from_scheduled_files(
+        workspace_id: impl Into<String>,
+        observed_at: impl Into<String>,
+        files: Vec<String>,
+        readiness: ReadinessClass,
+        causes: Vec<PartialTruthCause>,
+        scope: Option<WorkspaceSearchScope>,
+        all_workspace_count: u64,
+    ) -> Self {
+        let mut filtered_files = files;
+        let mut out_of_scope_count: u64 = 0;
+        if let Some(scope_ref) = scope.as_ref() {
+            let outcome = scope_ref.filter_files(filtered_files);
+            out_of_scope_count = outcome.all_workspace_count - outcome.in_scope_count;
+            filtered_files = outcome.in_scope;
+        }
+        let mut sorted_files = filtered_files;
+        sorted_files.sort();
+        sorted_files.dedup();
+
+        let mut causes = causes;
+        if sorted_files.is_empty() && readiness != ReadinessClass::Unavailable {
+            causes.push(PartialTruthCause::NoRowsScannedYet);
+        }
+        causes.sort_by_key(|c| c.as_str());
+        causes.dedup_by_key(|c| c.as_str());
+
+        Self {
+            workspace_id: workspace_id.into(),
+            files: sorted_files,
+            readiness,
+            causes,
+            observed_at: observed_at.into(),
+            scope,
+            all_workspace_count,
+            out_of_scope_count,
+        }
     }
 }
 

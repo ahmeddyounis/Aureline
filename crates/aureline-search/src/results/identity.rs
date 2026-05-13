@@ -68,10 +68,11 @@ impl RankingReasonClass {
 ///
 /// The class travels on every row so a warming / partial / stale row keeps
 /// its caveat after the result set is sorted, paginated, or projected through
-/// the quick-open or search-shell surfaces. The vocabulary is a strict subset
-/// of [`ReadinessClass`] — `Unavailable` is included so support exports can
-/// describe a row that was visible at capture time but came from a
-/// now-unavailable provider.
+/// the quick-open or search-shell surfaces. The vocabulary projects
+/// [`ReadinessClass`] into row-level caveats — `HotSetReady` maps to
+/// `Partial` because the row is useful but not full-workspace proof, and
+/// `Unavailable` is included so support exports can describe a row that was
+/// visible at capture time but came from a now-unavailable provider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ResultPartialityClass {
@@ -127,6 +128,7 @@ impl ResultPartialityClass {
 pub const fn derive_partiality_class(readiness: ReadinessClass) -> ResultPartialityClass {
     match readiness {
         ReadinessClass::Ready => ResultPartialityClass::Authoritative,
+        ReadinessClass::HotSetReady => ResultPartialityClass::Partial,
         ReadinessClass::Warming => ResultPartialityClass::Warming,
         ReadinessClass::Partial => ResultPartialityClass::Partial,
         ReadinessClass::Stale => ResultPartialityClass::Stale,
@@ -375,6 +377,7 @@ mod tests {
     fn project_lexical_partiality_matches_derive_partiality_class() {
         for readiness in [
             ReadinessClass::Ready,
+            ReadinessClass::HotSetReady,
             ReadinessClass::Warming,
             ReadinessClass::Partial,
             ReadinessClass::Stale,
