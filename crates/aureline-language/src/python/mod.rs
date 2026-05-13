@@ -1,14 +1,25 @@
 //! Python launch-wedge assistance records.
 //!
 //! This module owns the first bounded Python hover, definition, references, and
-//! rename-preview alpha path. It consumes the shared language-router posture and
-//! emits scoped, source-labeled records so editor, CLI, support, and future UI
-//! surfaces do not have to infer provider health or rename safety from raw
-//! provider output.
+//! rename-preview alpha path plus the formatter, linter, and test-adapter seed
+//! flow. It consumes the shared language-router, diagnostic-bus, and Python
+//! interpreter postures and emits scoped, source-labeled records so editor, CLI,
+//! support, and future UI surfaces do not have to infer provider health, quality
+//! state, or mutation safety from raw provider output.
 
+pub mod quality;
 mod records;
 mod wedge;
 
+pub use quality::{
+    PythonQualityActionClass, PythonQualityAggregateCounts, PythonQualityAlphaSchemaVersion,
+    PythonQualityDiagnosticSeed, PythonQualityExecutionPlaneProjection,
+    PythonQualityExecutionTaskHook, PythonQualityPreviewRequirementClass,
+    PythonQualityRerunPostureClass, PythonQualitySafetyClass, PythonQualitySeedSnapshot,
+    PythonQualitySnapshot, PythonQualitySnapshotRequest, PythonQualityTaskHookSeed,
+    PythonQualityToolKindClass, PythonQualityToolStatusRow, PythonQualityTriggerClass,
+    PythonQualityWedge, PYTHON_QUALITY_ALPHA_SCHEMA_VERSION,
+};
 pub use records::{
     PythonAccessKindClass, PythonAmbiguityDescriptor, PythonAnchorRef, PythonAnswerLayerClass,
     PythonApplyPostureClass, PythonCheckpointClass, PythonCompletenessClass,
