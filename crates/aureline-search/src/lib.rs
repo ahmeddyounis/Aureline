@@ -38,6 +38,9 @@
 //! - [`remap::DeepLinkRemapPacket`] records old/new target identity, active
 //!   workset or slice, confidence, and recovery actions when a deep link,
 //!   bookmark, or history row drifts.
+//! - [`session_ledger::QuerySessionLedgerRecord`] records query sessions,
+//!   saved-query privacy projections, and export-safe support/docs packets
+//!   without cloning the planner or result identity model.
 //!
 //! Higher layers (the shell `search_shell` module) convert this vocabulary
 //! into chrome and persistable diagnostics; this crate only owns the
@@ -57,6 +60,7 @@ pub mod remap;
 pub mod result_id;
 pub mod results;
 pub mod scope;
+pub mod session_ledger;
 
 pub use counts::{
     HiddenScopeDisclosure, HiddenScopeReason, ScopeCandidateTruthRecord, ScopeTruthLabel,
@@ -130,6 +134,16 @@ pub use results::{
 pub use scope::{
     glob_matches_relative_path, ScopeFilterOutcome, ScopePatternKind, ScopePatternRecord,
     ScopePresentationState, WorkspaceSearchScope, WorkspaceSearchScopeMetadata,
+};
+
+pub use session_ledger::{
+    QueryMaterialDisposition, QuerySessionLedgerEntry, QuerySessionLedgerRecord,
+    SavedQueryDenialReason, SavedQueryPrivacyClass, SavedQueryRecord, SavedQueryRecordInputs,
+    SavedQueryReopenContext, SavedQueryReopenProjection, SavedQueryReopenState,
+    SavedQuerySharePolicy, SavedQuerySourceClass, SavedQueryValidationFinding,
+    SavedQueryValidationFindingKind, SearchExportDestination, SearchExportError,
+    SearchExportPacket, SearchExportPacketInputs, SearchPacketCountSummary,
+    SearchPacketRedactionState, SAVED_QUERY_ALPHA_SCHEMA_VERSION,
 };
 
 pub use aureline_workspace::{GeneratedArtifactClass, LineageFreshnessClass, LineageHintRecord};

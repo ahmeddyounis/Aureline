@@ -1,0 +1,418 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/saved_query_alpha.schema.json",
+  "title": "Aureline saved-query alpha, query-session ledger, and export-safe search packet contract",
+  "description": "Boundary schema for the first runtime-backed saved-query privacy contract. Records in this family consume the live search query-session and planned result-set vocabulary, preserve scope/readiness labels, and prevent support/docs exports from carrying raw query text by default.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/query_session_ledger_record" },
+    { "$ref": "#/$defs/saved_query_alpha_record" },
+    { "$ref": "#/$defs/saved_query_reopen_projection" },
+    { "$ref": "#/$defs/search_export_packet" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque identifier safe to include in logs, support packets, docs handoff packets, and fixtures."
+    },
+    "timestamp_or_fixture_time": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO 8601 timestamp or deterministic fixture clock token."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ]
+    },
+    "search_surface": {
+      "type": "string",
+      "enum": [
+        "quick_open",
+        "file_search",
+        "symbol_search",
+        "docs_search"
+      ]
+    },
+    "query_text_mode": {
+      "type": "string",
+      "enum": [
+        "local_text",
+        "hash_only",
+        "omitted_by_policy"
+      ]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "local_only_private",
+        "workspace_shared_redacted",
+        "support_export_redacted",
+        "policy_withheld"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "user_authored",
+        "repo_provided",
+        "policy_provided",
+        "team_shared",
+        "support_captured",
+        "session_history"
+      ]
+    },
+    "share_policy": {
+      "type": "string",
+      "enum": [
+        "local_only_no_share",
+        "workspace_share_explicit",
+        "support_export_redacted_only",
+        "share_disabled_by_policy"
+      ]
+    },
+    "query_material_disposition": {
+      "type": "string",
+      "enum": [
+        "raw_retained_local_only",
+        "raw_redacted_hash_retained",
+        "raw_withheld_by_policy",
+        "no_query_material_provided"
+      ]
+    },
+    "export_destination": {
+      "type": "string",
+      "enum": [
+        "local_replay",
+        "support_bundle",
+        "docs_handoff"
+      ]
+    },
+    "packet_redaction_state": {
+      "type": "string",
+      "enum": [
+        "raw_query_local_only",
+        "query_hash_only",
+        "query_material_omitted_by_policy"
+      ]
+    },
+    "reopen_state": {
+      "type": "string",
+      "enum": [
+        "captured_scope_still_current",
+        "current_scope_wider_narrowed_to_saved_scope",
+        "current_scope_narrower_disclosed",
+        "current_scope_changed_rebind_required"
+      ]
+    },
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "query_material_withheld_by_policy",
+        "share_disabled_by_policy",
+        "scope_requires_rebind"
+      ]
+    },
+    "search_query_session": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "query_session_id",
+        "surface",
+        "query_text_mode",
+        "scope_class",
+        "stable_scope_id",
+        "scope_mode",
+        "scope_label",
+        "planner_version",
+        "readiness_state",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_query_session" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "query_session_id": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/search_surface" },
+        "query_text_mode": { "$ref": "#/$defs/query_text_mode" },
+        "query_text": { "type": "string" },
+        "query_hash": { "type": "string" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_mode": { "type": "string", "minLength": 1 },
+        "workset_id": { "type": "string", "minLength": 1 },
+        "scope_label": { "type": "string", "minLength": 1 },
+        "planner_version": { "type": "string", "minLength": 1 },
+        "readiness_state": { "type": "string", "minLength": 1 },
+        "index_epoch": { "type": "string", "minLength": 1 },
+        "graph_epoch": { "type": "string", "minLength": 1 },
+        "observed_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+      }
+    },
+    "ledger_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "query_session",
+        "privacy_class",
+        "planner_pass_id_ref",
+        "result_set_id_ref",
+        "readiness_state",
+        "saved_query_id_refs",
+        "export_packet_id_refs",
+        "recorded_at"
+      ],
+      "properties": {
+        "query_session": { "$ref": "#/$defs/search_query_session" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "readiness_state": { "type": "string", "minLength": 1 },
+        "saved_query_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "export_packet_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "recorded_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+      }
+    },
+    "query_session_ledger_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "ledger_id",
+        "planner_version",
+        "entries",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "query_session_ledger_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "ledger_id": { "$ref": "#/$defs/opaque_id" },
+        "planner_version": { "type": "string", "minLength": 1 },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ledger_entry" }
+        },
+        "created_at": { "$ref": "#/$defs/timestamp_or_fixture_time" },
+        "updated_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+      }
+    },
+    "saved_query_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "saved_query_id",
+        "source_class",
+        "privacy_class",
+        "share_policy",
+        "query_session_id_ref",
+        "surface",
+        "query_text_mode",
+        "query_material_disposition",
+        "scope_class",
+        "stable_scope_id",
+        "scope_mode",
+        "scope_label",
+        "captured_readiness_state",
+        "planner_version",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "saved_query_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "saved_query_id": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "share_policy": { "$ref": "#/$defs/share_policy" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/search_surface" },
+        "query_text_mode": { "$ref": "#/$defs/query_text_mode" },
+        "query_text": { "type": "string" },
+        "query_hash": { "type": "string" },
+        "query_material_disposition": { "$ref": "#/$defs/query_material_disposition" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_mode": { "type": "string", "minLength": 1 },
+        "workset_id": { "type": "string", "minLength": 1 },
+        "scope_label": { "type": "string", "minLength": 1 },
+        "captured_readiness_state": { "type": "string", "minLength": 1 },
+        "captured_index_epoch": { "type": "string", "minLength": 1 },
+        "captured_graph_epoch": { "type": "string", "minLength": 1 },
+        "planner_version": { "type": "string", "minLength": 1 },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "created_at": { "$ref": "#/$defs/timestamp_or_fixture_time" },
+        "updated_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+      }
+    },
+    "saved_query_reopen_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "saved_query_id_ref",
+        "query_session_id_ref",
+        "source_class",
+        "privacy_class",
+        "captured_scope_class",
+        "current_scope_class",
+        "effective_scope_class",
+        "captured_stable_scope_id",
+        "current_stable_scope_id",
+        "effective_stable_scope_id",
+        "captured_scope_label",
+        "current_scope_label",
+        "scope_honesty_state",
+        "captured_readiness_state",
+        "current_readiness_state",
+        "readiness_changed",
+        "index_epoch_changed",
+        "graph_epoch_changed",
+        "rerun_allowed"
+      ],
+      "properties": {
+        "record_kind": { "const": "saved_query_reopen_projection" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "saved_query_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "captured_scope_class": { "$ref": "#/$defs/scope_class" },
+        "current_scope_class": { "$ref": "#/$defs/scope_class" },
+        "effective_scope_class": { "$ref": "#/$defs/scope_class" },
+        "captured_stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "current_stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "effective_stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_scope_label": { "type": "string", "minLength": 1 },
+        "current_scope_label": { "type": "string", "minLength": 1 },
+        "scope_honesty_state": { "$ref": "#/$defs/reopen_state" },
+        "captured_readiness_state": { "type": "string", "minLength": 1 },
+        "current_readiness_state": { "type": "string", "minLength": 1 },
+        "readiness_changed": { "type": "boolean" },
+        "captured_index_epoch": { "type": "string", "minLength": 1 },
+        "current_index_epoch": { "type": "string", "minLength": 1 },
+        "index_epoch_changed": { "type": "boolean" },
+        "captured_graph_epoch": { "type": "string", "minLength": 1 },
+        "current_graph_epoch": { "type": "string", "minLength": 1 },
+        "graph_epoch_changed": { "type": "boolean" },
+        "rerun_allowed": { "type": "boolean" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" }
+      }
+    },
+    "count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible_rows",
+        "selected_rows",
+        "included_rows",
+        "omitted_result_count",
+        "hidden_by_current_scope_rows",
+        "hidden_by_policy_rows",
+        "hidden_by_remote_cache_rows",
+        "count_is_partial"
+      ],
+      "properties": {
+        "visible_rows": { "type": "integer", "minimum": 0 },
+        "selected_rows": { "type": "integer", "minimum": 0 },
+        "included_rows": { "type": "integer", "minimum": 0 },
+        "omitted_result_count": { "type": "integer", "minimum": 0 },
+        "hidden_by_current_scope_rows": { "type": "integer", "minimum": 0 },
+        "hidden_by_policy_rows": { "type": "integer", "minimum": 0 },
+        "hidden_by_remote_cache_rows": { "type": "integer", "minimum": 0 },
+        "count_is_partial": { "type": "boolean" }
+      }
+    },
+    "search_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "destination",
+        "query_session_id_ref",
+        "result_set_id_ref",
+        "planner_pass_id_ref",
+        "surface",
+        "scope_class",
+        "scope_label",
+        "stable_scope_id",
+        "readiness_state",
+        "privacy_class",
+        "redaction_state",
+        "query_text_mode",
+        "selected_result_refs",
+        "included_result_refs",
+        "result_source_labels",
+        "partial_truth_causes",
+        "count_summary",
+        "exported_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_export_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "destination": { "$ref": "#/$defs/export_destination" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_set_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "planner_pass_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/search_surface" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_label": { "type": "string", "minLength": 1 },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "readiness_state": { "type": "string", "minLength": 1 },
+        "index_epoch": { "type": "string", "minLength": 1 },
+        "graph_epoch": { "type": "string", "minLength": 1 },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "redaction_state": { "$ref": "#/$defs/packet_redaction_state" },
+        "query_text_mode": { "$ref": "#/$defs/query_text_mode" },
+        "query_text": { "type": "string" },
+        "query_hash": { "type": "string" },
+        "selected_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "included_result_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "result_source_labels": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "partial_truth_causes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "count_summary": { "$ref": "#/$defs/count_summary" },
+        "exported_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+      }
+    }
+  }
+}
