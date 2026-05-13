@@ -8,10 +8,21 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-git/0.0.0")]
 
+pub mod branches;
 pub mod commit;
 pub mod mutations;
 pub mod status;
 
+pub use branches::{
+    GitBranchActivityRecord, GitBranchActorRef, GitBranchBackend, GitBranchBackendError,
+    GitBranchCommandOutput, GitBranchCurrentWorkReview, GitBranchJournalRecord,
+    GitBranchOperationKind, GitBranchOutcomeState, GitBranchPreview, GitBranchPreviewState,
+    GitBranchRemoteState, GitBranchRequest, GitBranchResult, GitBranchService,
+    GitBranchSupportExportRecord, GitBranchTargetKind, GitBranchTargetReview,
+    SystemGitBranchBackend, GIT_BRANCH_ACTIVITY_RECORD_KIND, GIT_BRANCH_JOURNAL_RECORD_KIND,
+    GIT_BRANCH_PREVIEW_RECORD_KIND, GIT_BRANCH_RESULT_RECORD_KIND,
+    GIT_BRANCH_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use commit::{
     GitCommitActivityRecord, GitCommitActorRef, GitCommitAuthorIdentity, GitCommitAuthorInput,
     GitCommitAuthorSource, GitCommitAuthorState, GitCommitBackend, GitCommitBackendError,

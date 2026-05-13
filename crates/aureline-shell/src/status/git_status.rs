@@ -10,3 +10,7 @@ pub use aureline_git::status::{
     GitShellStatusRecord, GitStatusSnapshot, GIT_ACTIVITY_RECORD_KIND, GIT_REVIEW_SEED_RECORD_KIND,
     GIT_SHELL_STATUS_RECORD_KIND, GIT_STATUS_SNAPSHOT_RECORD_KIND,
 };
+pub use aureline_git::{
+    GitBranchActivityRecord, GitBranchPreview, GitBranchResult, GIT_BRANCH_ACTIVITY_RECORD_KIND,
+    GIT_BRANCH_PREVIEW_RECORD_KIND, GIT_BRANCH_RESULT_RECORD_KIND,
+};

@@ -8,9 +8,11 @@ pub mod index_state;
 pub mod query_envelope;
 
 pub use git_status::{
-    GitActivityRecord, GitReviewSeedRecord, GitShellStatusRecord, GitStatusSnapshot,
-    GitStatusSurfaceBundle, GIT_ACTIVITY_RECORD_KIND, GIT_REVIEW_SEED_RECORD_KIND,
-    GIT_SHELL_STATUS_RECORD_KIND, GIT_STATUS_SNAPSHOT_RECORD_KIND,
+    GitActivityRecord, GitBranchActivityRecord, GitBranchPreview, GitBranchResult,
+    GitReviewSeedRecord, GitShellStatusRecord, GitStatusSnapshot, GitStatusSurfaceBundle,
+    GIT_ACTIVITY_RECORD_KIND, GIT_BRANCH_ACTIVITY_RECORD_KIND, GIT_BRANCH_PREVIEW_RECORD_KIND,
+    GIT_BRANCH_RESULT_RECORD_KIND, GIT_REVIEW_SEED_RECORD_KIND, GIT_SHELL_STATUS_RECORD_KIND,
+    GIT_STATUS_SNAPSHOT_RECORD_KIND,
 };
 pub use index_state::{
     IndexStateResultPaneRecord, IndexStateStatusRecord, IndexStateSurfaceBundle,

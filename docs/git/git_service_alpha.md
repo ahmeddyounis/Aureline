@@ -35,6 +35,10 @@ commands can apply.
 The commit projection in `docs/git/commit_alpha.md` uses the same status truth
 to disclose author identity, staged scope, amend/squash guardrails, and
 publish-later readiness before a local commit can apply.
+The branch switch projection in `docs/git/branch_switch_alpha.md` uses the same
+status truth to disclose current work, detached-head posture, missing remote or
+upstream state, and after-apply shell identity before a branch operation can
+apply.
 
 ## Degraded Behavior
 
@@ -68,3 +72,6 @@ are covered by `cargo test -p aureline-git --test mutation_review_alpha`.
 
 Commit fixtures live under `fixtures/git/commit_alpha/` and are covered by
 `cargo test -p aureline-git --test commit_alpha`.
+
+Branch switch fixtures live under `fixtures/git/branch_switch_alpha/` and are
+covered by `cargo test -p aureline-git --test branch_switch_alpha`.
