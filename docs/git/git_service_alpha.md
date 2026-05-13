@@ -29,6 +29,9 @@ The shell change-list projection in `docs/git/change_list_alpha.md` consumes
 this snapshot directly for staged/unstaged grouping and file-state chips.
 The diff-view projection in `docs/git/diff_view_alpha.md` then consumes public
 change-list diff-open targets while preserving the same `truth_source_ref`.
+The mutation review projection in `docs/git/mutation_review_alpha.md` uses the
+same status truth before stage, unstage, discard, and checkpoint restore
+commands can apply.
 
 ## Degraded Behavior
 
@@ -56,3 +59,6 @@ cargo run -p aureline-git --bin aureline_git_status -- --bundle .
 
 Protected fixture cases live under `fixtures/git/status_alpha/` and are covered
 by `cargo test -p aureline-git`.
+
+Mutation review fixtures live under `fixtures/git/mutation_review_alpha/` and
+are covered by `cargo test -p aureline-git --test mutation_review_alpha`.

@@ -5,11 +5,10 @@ use std::path::PathBuf;
 use aureline_git::status::{ConsumerProjectionBundle, GitStatusRequest, GitStatusService};
 
 fn main() {
-    let mut args = std::env::args().skip(1);
     let mut emit_bundle = false;
     let mut root = None;
 
-    while let Some(arg) = args.next() {
+    for arg in std::env::args().skip(1) {
         if arg == "--bundle" {
             emit_bundle = true;
         } else {
