@@ -7,9 +7,15 @@
 //! The highlight spans use [`crate::TextPoint`] coordinates so they remain
 //! compatible with grapheme-aware navigation and selection semantics.
 
+mod syntax;
+
 use serde::{Deserialize, Serialize};
 
 use crate::viewport::TextPoint;
+
+pub use syntax::{
+    EditorTextRange, SyntaxHighlightKind, SyntaxHighlightSourceClass, SyntaxHighlightSpan,
+};
 
 /// One highlighted span expressed in `(line, grapheme)` coordinates.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
