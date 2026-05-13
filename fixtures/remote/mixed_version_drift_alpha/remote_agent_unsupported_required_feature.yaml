@@ -1,0 +1,200 @@
+helper_capabilities_alpha_schema_version: 1
+record_kind: helper_capability_envelope_record
+envelope_id: helper_capability_envelope:remote_agent.unsupported_required_feature
+emitted_at: "2026-05-13T19:03:00Z"
+surface_class: remote_agent_attach
+exchange_phase: drift_probe_result
+
+boundary:
+  boundary_family: desktop_cli_and_remote_agent
+  compatibility_row_ref: compat_row:remote.attach_envelope_and_drift
+  artifact_or_protocol_boundary_label: boundary.remote.agent_attach_envelope
+  skew_window_ref: skew_window:desktop_cli_and_remote_agent.declared_adjacent_window
+  skew_case_ref: skew_case:remote.attach_unknown_required_feature
+  skew_status_class: unsupported
+  toolchain_manifest_epoch: toolchain_manifest@2026.06
+  mixed_version_envelope_ref: fixtures/compat/mixed_version_cases/out_of_window.json
+  helper_version_negotiation_ref: schemas/release/helper_version_negotiation.schema.json
+  attach_session_ref: schemas/remote/attach_session.schema.json
+  remote_agent_hello_ref: schemas/runtime/remote_agent_hello.schema.json
+  prebuild_descriptor_ref: artifacts/templates/warm_start_descriptor_seed.yaml#prebuild.alpha.managed_workspace.resume_metadata
+
+client:
+  participant_id: client.desktop.alpha.requires_unknown_feature
+  role: client
+  component_family: desktop_client
+  version: client@2026.06
+  protocol_version: protocol@2026.06
+  schema_epoch: remote_helper_alpha@1
+  min_supported_protocol: protocol@2026.05
+  max_tested_protocol: protocol@2026.06
+  build_identity_ref: build_identity:client.2026.06-alpha
+  capability_set:
+    - remote.fs.read
+    - remote.search.query
+    - remote.review.preview
+    - remote.file.write
+    - remote.task.run
+    - remote.ai.runtime
+
+helper:
+  participant_id: agent.remote.alpha.unknown_floor
+  role: remote_agent
+  component_family: remote_agent
+  version: agent@2026.03
+  protocol_version: protocol@2026.03
+  schema_epoch: remote_helper_alpha@1
+  min_supported_protocol: protocol@2026.02
+  max_tested_protocol: protocol@2026.03
+  build_identity_ref: build_identity:agent.2026.03-alpha
+  capability_set:
+    - remote.fs.read
+    - remote.search.query
+
+requested_capabilities:
+  - capability: remote.fs.read
+    requirement: required
+    effect_class: read_only
+    visible_reason: Inspect workspace files only after skew is resolved.
+  - capability: remote.search.query
+    requirement: required
+    effect_class: read_only
+    visible_reason: Run search only after skew is resolved.
+  - capability: remote.review.preview
+    requirement: required
+    effect_class: review_only
+    visible_reason: Preview actions only after skew is resolved.
+  - capability: remote.file.write
+    requirement: required
+    effect_class: remote_write
+    visible_reason: Apply file changes only after skew is resolved.
+  - capability: remote.task.run
+    requirement: required
+    effect_class: process
+    visible_reason: Run tasks only after skew is resolved.
+  - capability: remote.ai.runtime
+    requirement: required
+    effect_class: ai_runtime
+    visible_reason: Use helper-backed runtime tools only after skew is resolved.
+
+negotiation:
+  result_label: unsupported_skew
+  decision_class: require_upgrade_or_repin
+  effective_posture: blocked
+  selected_protocol_version: protocol@2026.03
+  negotiated_capabilities: []
+  dropped_capabilities:
+    - capability: remote.fs.read
+      reason_class: outside_skew_window
+      visible_reason: The helper is outside the supported skew window for this envelope.
+      retryable: false
+    - capability: remote.search.query
+      reason_class: outside_skew_window
+      visible_reason: The helper is outside the supported skew window for this envelope.
+      retryable: false
+    - capability: remote.review.preview
+      reason_class: client_requires_unknown_feature
+      visible_reason: The helper cannot prove the required review-preview vocabulary.
+      retryable: false
+    - capability: remote.file.write
+      reason_class: outside_skew_window
+      visible_reason: Remote write is blocked for unsupported skew.
+      retryable: false
+    - capability: remote.task.run
+      reason_class: protocol_floor_mismatch
+      visible_reason: Task execution requires a protocol floor the helper cannot satisfy.
+      retryable: false
+    - capability: remote.ai.runtime
+      reason_class: client_requires_unknown_feature
+      visible_reason: The helper cannot prove the required runtime capability vocabulary.
+      retryable: false
+  mutation_allowed: false
+  retryability:
+    retry_class: upgrade_or_repin_required
+    probe_required: false
+    reattach_required: true
+    retry_after_ref: null
+    visible_retry_reason: Upgrade or repin the helper before attaching this lane.
+  visible_summary: >
+    The helper is outside the declared support window and lacks required
+    capability vocabulary; attach is blocked and local-only continuation is
+    preserved.
+
+drift:
+  drift_label: unsupported_skew
+  drift_causes:
+    - version_outside_adjacent_window
+    - unknown_required_capability
+    - protocol_floor_mismatch
+  target_identity_ref: target:remote_agent.alpha.unsupported_floor
+  prior_target_identity_ref: target:remote_agent.alpha.previous_supported
+  safe_continuation: local_only_continue
+  repair_actions:
+    - upgrade_or_repin_helper
+    - continue_local_only
+    - contact_admin_or_support
+  cancelled_mutation_refs:
+    - mutation:remote.file.write.pending
+    - mutation:remote.task.run.pending
+    - mutation:remote.ai.runtime.pending
+  preserved_read_only_refs:
+    - view:local.workspace
+    - evidence:remote.helper.envelope.unsupported_skew
+  visible_summary: >
+    Remote work is blocked for this helper boundary, but local files and local
+    review context remain available.
+
+support_export:
+  redaction_class: metadata_only
+  projection_fields:
+    - envelope_id
+    - client_version
+    - helper_version
+    - skew_case_ref
+    - result_label
+    - decision_class
+    - effective_posture
+    - safe_continuation
+    - repair_actions
+    - dropped_capabilities
+  support_packet_refs:
+    - support_packet:remote.helper_capability.unsupported_required_feature
+  summary: Unsupported helper skew; export names versions, labels, dropped capabilities, and recovery posture only.
+
+evidence_refs:
+  schema_refs:
+    - schemas/remote/helper_capabilities_alpha.schema.json
+    - schemas/compat/mixed_version_envelope.schema.json
+    - schemas/release/helper_version_negotiation.schema.json
+    - schemas/runtime/remote_agent_hello.schema.json
+    - schemas/remote/attach_session.schema.json
+    - schemas/runtime/prebuild_descriptor_alpha.schema.json
+  fixture_refs:
+    - fixtures/remote/mixed_version_drift_alpha/manifest.yaml
+    - fixtures/remote/mixed_version_drift_alpha/remote_agent_unsupported_required_feature.yaml
+  doc_refs:
+    - docs/remote/helper_negotiation_alpha.md
+    - docs/remote/attach_tunnel_port_forward_contract.md
+  compat_refs:
+    - artifacts/compat/qualification_matrix_seed.yaml
+    - artifacts/compat/version_skew_register.yaml
+    - artifacts/compat/skew_windows.yaml
+  runtime_refs:
+    - artifacts/templates/warm_start_descriptor_seed.yaml
+
+harness_expectations:
+  case_id: helper_capability_case:remote_agent.unsupported_required_feature
+  acceptance_states:
+    - capability_envelope_exchanged_and_inspected
+    - missing_or_unknown_required_feature_labels_unsupported_skew
+    - harness_runs_without_remote_platform
+    - support_projection_is_export_safe
+  expected_result_label: unsupported_skew
+  expected_decision_class: require_upgrade_or_repin
+  expected_safe_continuation: local_only_continue
+  expected_check_ids:
+    - helper_capabilities.schema_valid
+    - helper_capabilities.unsupported_skew_label_aligned
+    - helper_capabilities.no_mutation_when_unsupported_skew
+
+notes: Data-only fixture for unsupported helper skew.

@@ -1,0 +1,692 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/remote/helper_capabilities_alpha.schema.json",
+  "title": "Aureline helper and remote-agent capability negotiation alpha contract",
+  "description": "Alpha boundary schema for the helper_capability_envelope_record consumed by the mixed-version drift harness. The record carries the client/helper capability advertisement, selected protocol version, negotiated capability intersection, explicit unsupported-skew or retry-required label, local-continuation posture, and support/export-safe refs. It composes with the remote-agent hello schema, the generic mixed-version envelope, the release helper-version negotiation packet, the remote attach-session row, and the prebuild descriptor seed; it does not replace those sources. Raw hostnames, IP addresses, endpoint URLs, paths, ports, credentials, secret values, raw transport frames, helper process arguments, and support bundle bodies never appear.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "helper_capabilities_alpha_schema_version",
+    "record_kind",
+    "envelope_id",
+    "emitted_at",
+    "surface_class",
+    "exchange_phase",
+    "boundary",
+    "client",
+    "helper",
+    "requested_capabilities",
+    "negotiation",
+    "drift",
+    "support_export",
+    "evidence_refs",
+    "harness_expectations",
+    "notes"
+  ],
+  "properties": {
+    "helper_capabilities_alpha_schema_version": {
+      "$ref": "#/$defs/schema_version"
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "helper_capability_envelope_record"
+    },
+    "envelope_id": {
+      "type": "string",
+      "pattern": "^helper_capability_envelope:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "emitted_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "surface_class": {
+      "$ref": "#/$defs/surface_class"
+    },
+    "exchange_phase": {
+      "$ref": "#/$defs/exchange_phase_class"
+    },
+    "boundary": {
+      "$ref": "#/$defs/boundary_binding"
+    },
+    "client": {
+      "$ref": "#/$defs/participant"
+    },
+    "helper": {
+      "$ref": "#/$defs/participant"
+    },
+    "requested_capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/capability_request"
+      },
+      "description": "Capabilities the surface needs for the requested attach or helper-backed row. Requirement classes decide whether a missing capability narrows, retries, or blocks."
+    },
+    "negotiation": {
+      "$ref": "#/$defs/negotiation_result"
+    },
+    "drift": {
+      "$ref": "#/$defs/drift_summary"
+    },
+    "support_export": {
+      "$ref": "#/$defs/support_export"
+    },
+    "evidence_refs": {
+      "$ref": "#/$defs/evidence_refs"
+    },
+    "harness_expectations": {
+      "$ref": "#/$defs/harness_expectations"
+    },
+    "notes": {
+      "$ref": "#/$defs/non_empty_string"
+    }
+  },
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_ref": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ref_array"
+        },
+        {
+          "minItems": 1
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "remote_agent_attach",
+        "remote_helper_attach",
+        "browser_companion_remote_session"
+      ]
+    },
+    "exchange_phase_class": {
+      "type": "string",
+      "enum": [
+        "capability_advertisement",
+        "negotiation_result",
+        "drift_probe_result"
+      ]
+    },
+    "participant_role": {
+      "type": "string",
+      "enum": [
+        "client",
+        "helper",
+        "remote_agent"
+      ]
+    },
+    "component_family": {
+      "type": "string",
+      "enum": [
+        "desktop_client",
+        "cli_client",
+        "browser_companion",
+        "remote_agent",
+        "remote_helper",
+        "helper_bridge",
+        "managed_workspace_agent"
+      ]
+    },
+    "boundary_family": {
+      "type": "string",
+      "enum": [
+        "desktop_cli_and_remote_agent",
+        "browser_companion_and_remote_or_review_session"
+      ]
+    },
+    "skew_status_class": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "best_effort",
+        "untested",
+        "unsupported"
+      ]
+    },
+    "capability_requirement_class": {
+      "type": "string",
+      "enum": [
+        "required",
+        "optional",
+        "nice_to_have"
+      ]
+    },
+    "capability_effect_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "local_write",
+        "remote_write",
+        "network",
+        "process",
+        "terminal",
+        "debug",
+        "ai_runtime",
+        "managed_control_plane_write",
+        "review_only"
+      ]
+    },
+    "result_label_class": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "limited",
+        "retry_required",
+        "unsupported_skew"
+      ],
+      "description": "Closed user/support label for the negotiation result. Missing-capability or untested probe cases use retry_required; out-of-window or unknown required-feature cases use unsupported_skew."
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "allow_limited",
+        "retry_after_probe",
+        "block_attach",
+        "block_mutation_allow_review_only",
+        "require_upgrade_or_repin"
+      ]
+    },
+    "effective_posture_class": {
+      "type": "string",
+      "enum": [
+        "full_remote",
+        "review_only",
+        "file_only",
+        "inspect_only",
+        "local_only",
+        "blocked"
+      ]
+    },
+    "missing_capability_reason_class": {
+      "type": "string",
+      "enum": [
+        "helper_does_not_offer",
+        "client_requires_unknown_feature",
+        "outside_skew_window",
+        "protocol_floor_mismatch",
+        "policy_narrowed",
+        "trust_not_verified",
+        "probe_required"
+      ]
+    },
+    "drift_label_class": {
+      "type": "string",
+      "enum": [
+        "no_drift",
+        "limited",
+        "retry_required",
+        "unsupported_skew"
+      ]
+    },
+    "drift_cause_class": {
+      "type": "string",
+      "enum": [
+        "no_drift",
+        "version_outside_adjacent_window",
+        "helper_missing_capability",
+        "unknown_required_capability",
+        "protocol_floor_mismatch",
+        "target_identity_changed",
+        "policy_narrowed",
+        "stale_agent_manifest"
+      ]
+    },
+    "safe_continuation_class": {
+      "type": "string",
+      "enum": [
+        "full_remote",
+        "review_only_remote",
+        "file_only_remote",
+        "local_only_continue",
+        "blocked_until_retry",
+        "blocked_until_upgrade"
+      ]
+    },
+    "retry_class": {
+      "type": "string",
+      "enum": [
+        "no_retry_required",
+        "retry_probe_required",
+        "reattach_required",
+        "upgrade_or_repin_required",
+        "policy_refresh_required"
+      ]
+    },
+    "repair_action_class": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "refresh_capability_manifest",
+        "run_drift_probe",
+        "reattach_session",
+        "upgrade_client",
+        "upgrade_or_repin_helper",
+        "continue_review_only",
+        "continue_local_only",
+        "contact_admin_or_support"
+      ]
+    },
+    "participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "participant_id",
+        "role",
+        "component_family",
+        "version",
+        "protocol_version",
+        "schema_epoch",
+        "min_supported_protocol",
+        "max_tested_protocol",
+        "build_identity_ref",
+        "capability_set"
+      ],
+      "properties": {
+        "participant_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "role": {
+          "$ref": "#/$defs/participant_role"
+        },
+        "component_family": {
+          "$ref": "#/$defs/component_family"
+        },
+        "version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "protocol_version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "schema_epoch": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "min_supported_protocol": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "max_tested_protocol": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "build_identity_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        },
+        "capability_set": {
+          "$ref": "#/$defs/non_empty_ref_array"
+        }
+      }
+    },
+    "capability_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability",
+        "requirement",
+        "effect_class",
+        "visible_reason"
+      ],
+      "properties": {
+        "capability": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "requirement": {
+          "$ref": "#/$defs/capability_requirement_class"
+        },
+        "effect_class": {
+          "$ref": "#/$defs/capability_effect_class"
+        },
+        "visible_reason": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "dropped_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability",
+        "reason_class",
+        "visible_reason",
+        "retryable"
+      ],
+      "properties": {
+        "capability": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "reason_class": {
+          "$ref": "#/$defs/missing_capability_reason_class"
+        },
+        "visible_reason": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "retryability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retry_class",
+        "probe_required",
+        "reattach_required",
+        "retry_after_ref",
+        "visible_retry_reason"
+      ],
+      "properties": {
+        "retry_class": {
+          "$ref": "#/$defs/retry_class"
+        },
+        "probe_required": {
+          "type": "boolean"
+        },
+        "reattach_required": {
+          "type": "boolean"
+        },
+        "retry_after_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        },
+        "visible_retry_reason": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "boundary_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_family",
+        "compatibility_row_ref",
+        "artifact_or_protocol_boundary_label",
+        "skew_window_ref",
+        "skew_case_ref",
+        "skew_status_class",
+        "toolchain_manifest_epoch",
+        "mixed_version_envelope_ref",
+        "helper_version_negotiation_ref",
+        "attach_session_ref",
+        "remote_agent_hello_ref",
+        "prebuild_descriptor_ref"
+      ],
+      "properties": {
+        "boundary_family": {
+          "$ref": "#/$defs/boundary_family"
+        },
+        "compatibility_row_ref": {
+          "type": "string",
+          "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "artifact_or_protocol_boundary_label": {
+          "type": "string",
+          "const": "boundary.remote.agent_attach_envelope"
+        },
+        "skew_window_ref": {
+          "type": "string",
+          "pattern": "^skew_window:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "skew_case_ref": {
+          "type": "string",
+          "pattern": "^skew_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "skew_status_class": {
+          "$ref": "#/$defs/skew_status_class"
+        },
+        "toolchain_manifest_epoch": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "mixed_version_envelope_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        },
+        "helper_version_negotiation_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        },
+        "attach_session_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        },
+        "remote_agent_hello_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        },
+        "prebuild_descriptor_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        }
+      }
+    },
+    "negotiation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result_label",
+        "decision_class",
+        "effective_posture",
+        "selected_protocol_version",
+        "negotiated_capabilities",
+        "dropped_capabilities",
+        "mutation_allowed",
+        "retryability",
+        "visible_summary"
+      ],
+      "properties": {
+        "result_label": {
+          "$ref": "#/$defs/result_label_class"
+        },
+        "decision_class": {
+          "$ref": "#/$defs/decision_class"
+        },
+        "effective_posture": {
+          "$ref": "#/$defs/effective_posture_class"
+        },
+        "selected_protocol_version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "negotiated_capabilities": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "dropped_capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dropped_capability"
+          }
+        },
+        "mutation_allowed": {
+          "type": "boolean"
+        },
+        "retryability": {
+          "$ref": "#/$defs/retryability"
+        },
+        "visible_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "drift_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drift_label",
+        "drift_causes",
+        "target_identity_ref",
+        "prior_target_identity_ref",
+        "safe_continuation",
+        "repair_actions",
+        "cancelled_mutation_refs",
+        "preserved_read_only_refs",
+        "visible_summary"
+      ],
+      "properties": {
+        "drift_label": {
+          "$ref": "#/$defs/drift_label_class"
+        },
+        "drift_causes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/drift_cause_class"
+          },
+          "uniqueItems": true
+        },
+        "target_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "prior_target_identity_ref": {
+          "$ref": "#/$defs/nullable_ref"
+        },
+        "safe_continuation": {
+          "$ref": "#/$defs/safe_continuation_class"
+        },
+        "repair_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/repair_action_class"
+          },
+          "uniqueItems": true
+        },
+        "cancelled_mutation_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "preserved_read_only_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "visible_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "projection_fields",
+        "support_packet_refs",
+        "summary"
+      ],
+      "properties": {
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "support_export_only",
+            "enterprise_admin_only"
+          ]
+        },
+        "projection_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "envelope_id",
+              "client_version",
+              "helper_version",
+              "skew_case_ref",
+              "result_label",
+              "decision_class",
+              "effective_posture",
+              "safe_continuation",
+              "repair_actions",
+              "dropped_capabilities"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "support_packet_refs": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "evidence_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_refs",
+        "fixture_refs",
+        "doc_refs",
+        "compat_refs",
+        "runtime_refs"
+      ],
+      "properties": {
+        "schema_refs": {
+          "$ref": "#/$defs/non_empty_ref_array"
+        },
+        "fixture_refs": {
+          "$ref": "#/$defs/non_empty_ref_array"
+        },
+        "doc_refs": {
+          "$ref": "#/$defs/non_empty_ref_array"
+        },
+        "compat_refs": {
+          "$ref": "#/$defs/non_empty_ref_array"
+        },
+        "runtime_refs": {
+          "$ref": "#/$defs/ref_array"
+        }
+      }
+    },
+    "harness_expectations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "acceptance_states",
+        "expected_result_label",
+        "expected_decision_class",
+        "expected_safe_continuation",
+        "expected_check_ids"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^helper_capability_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "acceptance_states": {
+          "$ref": "#/$defs/non_empty_ref_array"
+        },
+        "expected_result_label": {
+          "$ref": "#/$defs/result_label_class"
+        },
+        "expected_decision_class": {
+          "$ref": "#/$defs/decision_class"
+        },
+        "expected_safe_continuation": {
+          "$ref": "#/$defs/safe_continuation_class"
+        },
+        "expected_check_ids": {
+          "$ref": "#/$defs/non_empty_ref_array"
+        }
+      }
+    }
+  }
+}

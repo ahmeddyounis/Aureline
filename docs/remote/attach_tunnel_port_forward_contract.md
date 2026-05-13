@@ -13,6 +13,11 @@ Companion artifacts:
   defines the `remote_attach_session_record`.
 - [`/schemas/remote/forwarded_endpoint.schema.json`](../../schemas/remote/forwarded_endpoint.schema.json)
   defines the `forwarded_endpoint_record`.
+- [`/schemas/remote/helper_capabilities_alpha.schema.json`](../../schemas/remote/helper_capabilities_alpha.schema.json)
+  defines the helper/agent capability envelope consumed by the
+  mixed-version drift harness.
+- [`/docs/remote/helper_negotiation_alpha.md`](./helper_negotiation_alpha.md)
+  explains the alpha negotiation labels, first consumer, and fixture lane.
 - [`/fixtures/remote/attach_cases/`](../../fixtures/remote/attach_cases/)
   contains worked attach, reconnect, tunnel, collision, policy-denial,
   paused, degraded, and browser-handoff cases.

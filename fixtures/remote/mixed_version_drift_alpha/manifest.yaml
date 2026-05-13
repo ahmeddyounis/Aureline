@@ -1,0 +1,89 @@
+record_kind: helper_capability_alpha_fixture_manifest
+schema_version: 1
+manifest_id: helper_capability_alpha.mixed_version_drift
+as_of: "2026-05-13"
+owner: "@ahmeddyounis"
+
+schema_ref: schemas/remote/helper_capabilities_alpha.schema.json
+doc_ref: docs/remote/helper_negotiation_alpha.md
+validator:
+  script_ref: ci/check_helper_capabilities_alpha.py
+  command: python3 ci/check_helper_capabilities_alpha.py --repo-root .
+  projection_command: python3 ci/check_helper_capabilities_alpha.py --repo-root . --render-negotiation-projection
+
+canonical_source_refs:
+  - artifacts/compat/qualification_matrix_seed.yaml
+  - artifacts/compat/version_skew_register.yaml
+  - artifacts/compat/skew_windows.yaml
+  - schemas/compat/mixed_version_envelope.schema.json
+  - schemas/release/helper_version_negotiation.schema.json
+  - schemas/runtime/remote_agent_hello.schema.json
+  - schemas/remote/attach_session.schema.json
+  - schemas/runtime/prebuild_descriptor_alpha.schema.json
+  - artifacts/templates/warm_start_descriptor_seed.yaml
+
+case_refs:
+  - fixtures/remote/mixed_version_drift_alpha/remote_agent_adjacent_supported.yaml
+  - fixtures/remote/mixed_version_drift_alpha/remote_agent_review_only_degraded.yaml
+  - fixtures/remote/mixed_version_drift_alpha/remote_agent_probe_retry_required.yaml
+  - fixtures/remote/mixed_version_drift_alpha/remote_agent_unsupported_required_feature.yaml
+
+expected_case_ids:
+  - helper_capability_case:remote_agent.adjacent_supported
+  - helper_capability_case:remote_agent.review_only_degraded
+  - helper_capability_case:remote_agent.probe_retry_required
+  - helper_capability_case:remote_agent.unsupported_required_feature
+
+required_result_labels:
+  - supported
+  - limited
+  - retry_required
+  - unsupported_skew
+
+required_acceptance_states:
+  - capability_envelope_exchanged_and_inspected
+  - mixed_version_degrades_to_limited_review_only
+  - untested_same_major_labels_retry_required
+  - missing_or_unknown_required_feature_labels_unsupported_skew
+  - harness_runs_without_remote_platform
+  - support_projection_is_export_safe
+
+failure_drills:
+  - drill_id: rewrite_unsupported_skew_to_supported
+    case_id: helper_capability_case:remote_agent.unsupported_required_feature
+    description: >
+      Rewrite the unsupported required-feature result to supported. The
+      harness must fail because unsupported skew cannot advertise a supported
+      label or mutating posture.
+    forced_input:
+      rewrite_result_label: supported
+    expected_check_id: helper_capabilities.unsupported_skew_label_mismatch
+    next_action: >
+      Restore the unsupported_skew label or update the canonical skew-window
+      and version-skew register in the same change.
+
+  - drill_id: drop_retry_label_from_probe_case
+    case_id: helper_capability_case:remote_agent.probe_retry_required
+    description: >
+      Rewrite the untested probe case to limited. The harness must fail because
+      probe-required pairings remain retry_required until a probe or reattach
+      result is captured.
+    forced_input:
+      rewrite_result_label: limited
+    expected_check_id: helper_capabilities.retry_required_label_mismatch
+    next_action: >
+      Restore retry_required or attach a probe result that moves the case to a
+      supported, limited, or unsupported bucket.
+
+  - drill_id: widen_retry_case_to_mutating
+    case_id: helper_capability_case:remote_agent.probe_retry_required
+    description: >
+      Force mutation_allowed on a retry-required case. The harness must fail
+      because retry-required and unsupported-skew rows cannot carry remote
+      mutation authority.
+    forced_input:
+      set_mutation_allowed: true
+    expected_check_id: helper_capabilities.blocked_state_allows_mutation
+    next_action: >
+      Keep mutation disabled until the probe resolves the capability and skew
+      state.

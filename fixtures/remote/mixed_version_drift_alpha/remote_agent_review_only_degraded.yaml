@@ -1,0 +1,180 @@
+helper_capabilities_alpha_schema_version: 1
+record_kind: helper_capability_envelope_record
+envelope_id: helper_capability_envelope:remote_agent.review_only_degraded
+emitted_at: "2026-05-13T19:01:00Z"
+surface_class: remote_agent_attach
+exchange_phase: negotiation_result
+
+boundary:
+  boundary_family: desktop_cli_and_remote_agent
+  compatibility_row_ref: compat_row:remote.attach_envelope_and_drift
+  artifact_or_protocol_boundary_label: boundary.remote.agent_attach_envelope
+  skew_window_ref: skew_window:desktop_cli_and_remote_agent.declared_adjacent_window
+  skew_case_ref: skew_case:remote.attach_review_only_downgrade
+  skew_status_class: best_effort
+  toolchain_manifest_epoch: toolchain_manifest@2026.04
+  mixed_version_envelope_ref: fixtures/compat/mixed_version_cases/downgrade_required.json
+  helper_version_negotiation_ref: schemas/release/helper_version_negotiation.schema.json
+  attach_session_ref: schemas/remote/attach_session.schema.json
+  remote_agent_hello_ref: schemas/runtime/remote_agent_hello.schema.json
+  prebuild_descriptor_ref: artifacts/templates/warm_start_descriptor_seed.yaml#prebuild.alpha.python.devcontainer.stale_snapshot
+
+client:
+  participant_id: client.desktop.alpha.skewed
+  role: client
+  component_family: desktop_client
+  version: client@2026.05
+  protocol_version: protocol@2026.05
+  schema_epoch: remote_helper_alpha@1
+  min_supported_protocol: protocol@2026.04
+  max_tested_protocol: protocol@2026.05
+  build_identity_ref: build_identity:client.2026.05-alpha
+  capability_set:
+    - remote.fs.read
+    - remote.search.query
+    - remote.review.preview
+    - remote.file.write
+    - remote.task.run
+
+helper:
+  participant_id: agent.remote.alpha.previous
+  role: remote_agent
+  component_family: remote_agent
+  version: agent@2026.04
+  protocol_version: protocol@2026.04
+  schema_epoch: remote_helper_alpha@1
+  min_supported_protocol: protocol@2026.03
+  max_tested_protocol: protocol@2026.04
+  build_identity_ref: build_identity:agent.2026.04-alpha
+  capability_set:
+    - remote.fs.read
+    - remote.search.query
+    - remote.review.preview
+
+requested_capabilities:
+  - capability: remote.fs.read
+    requirement: required
+    effect_class: read_only
+    visible_reason: Inspect workspace files on the remote target.
+  - capability: remote.search.query
+    requirement: required
+    effect_class: read_only
+    visible_reason: Run search against the remote target.
+  - capability: remote.review.preview
+    requirement: required
+    effect_class: review_only
+    visible_reason: Preview approval or review actions before mutation.
+  - capability: remote.file.write
+    requirement: required
+    effect_class: remote_write
+    visible_reason: Apply reviewed file changes on the remote target.
+  - capability: remote.task.run
+    requirement: optional
+    effect_class: process
+    visible_reason: Run task and test commands on the remote target.
+
+negotiation:
+  result_label: limited
+  decision_class: block_mutation_allow_review_only
+  effective_posture: review_only
+  selected_protocol_version: protocol@2026.04
+  negotiated_capabilities:
+    - remote.fs.read
+    - remote.search.query
+    - remote.review.preview
+  dropped_capabilities:
+    - capability: remote.file.write
+      reason_class: outside_skew_window
+      visible_reason: File writes are outside the best-effort review-only downgrade path.
+      retryable: true
+    - capability: remote.task.run
+      reason_class: helper_does_not_offer
+      visible_reason: The previous remote agent does not offer task-run capability in this lane.
+      retryable: true
+  mutation_allowed: false
+  retryability:
+    retry_class: reattach_required
+    probe_required: false
+    reattach_required: true
+    retry_after_ref: helper_capability_case:remote_agent.adjacent_supported
+    visible_retry_reason: Reattach after the agent is upgraded or repinned inside the adjacent window.
+  visible_summary: >
+    Remote attach is connected but narrowed to review-only; writes and task
+    execution stay disabled until the helper is upgraded or repinned.
+
+drift:
+  drift_label: limited
+  drift_causes:
+    - stale_agent_manifest
+    - helper_missing_capability
+  target_identity_ref: target:remote_agent.alpha.python.previous
+  prior_target_identity_ref: target:remote_agent.alpha.python.current
+  safe_continuation: review_only_remote
+  repair_actions:
+    - continue_review_only
+    - reattach_session
+    - upgrade_or_repin_helper
+  cancelled_mutation_refs:
+    - mutation:remote.file.write.pending
+    - mutation:remote.task.run.pending
+  preserved_read_only_refs:
+    - view:remote.files
+    - view:remote.search
+    - view:remote.review_preview
+  visible_summary: >
+    Review-only state is preserved and mutating remote actions are cancelled
+    until a fresh attach proves the helper boundary again.
+
+support_export:
+  redaction_class: metadata_only
+  projection_fields:
+    - envelope_id
+    - client_version
+    - helper_version
+    - skew_case_ref
+    - result_label
+    - decision_class
+    - effective_posture
+    - safe_continuation
+    - repair_actions
+    - dropped_capabilities
+  support_packet_refs:
+    - support_packet:remote.helper_capability.review_only_degraded
+  summary: Best-effort review-only attach; dropped mutating capabilities are named without exporting raw target details.
+
+evidence_refs:
+  schema_refs:
+    - schemas/remote/helper_capabilities_alpha.schema.json
+    - schemas/compat/mixed_version_envelope.schema.json
+    - schemas/release/helper_version_negotiation.schema.json
+    - schemas/runtime/remote_agent_hello.schema.json
+    - schemas/remote/attach_session.schema.json
+    - schemas/runtime/prebuild_descriptor_alpha.schema.json
+  fixture_refs:
+    - fixtures/remote/mixed_version_drift_alpha/manifest.yaml
+    - fixtures/remote/mixed_version_drift_alpha/remote_agent_review_only_degraded.yaml
+  doc_refs:
+    - docs/remote/helper_negotiation_alpha.md
+    - docs/remote/attach_tunnel_port_forward_contract.md
+  compat_refs:
+    - artifacts/compat/qualification_matrix_seed.yaml
+    - artifacts/compat/version_skew_register.yaml
+    - artifacts/compat/skew_windows.yaml
+  runtime_refs:
+    - artifacts/templates/warm_start_descriptor_seed.yaml
+
+harness_expectations:
+  case_id: helper_capability_case:remote_agent.review_only_degraded
+  acceptance_states:
+    - capability_envelope_exchanged_and_inspected
+    - mixed_version_degrades_to_limited_review_only
+    - support_projection_is_export_safe
+  expected_result_label: limited
+  expected_decision_class: block_mutation_allow_review_only
+  expected_safe_continuation: review_only_remote
+  expected_check_ids:
+    - helper_capabilities.schema_valid
+    - helper_capabilities.result_label_aligned
+    - helper_capabilities.no_mutation_when_limited
+
+notes: Data-only fixture for best-effort review-only helper attach.
