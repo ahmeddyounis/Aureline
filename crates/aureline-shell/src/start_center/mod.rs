@@ -13,6 +13,7 @@ use aureline_commands::{CommandEnablementContext, CommandRegistry, PreflightDeci
 use serde::Deserialize;
 
 pub mod admission_review;
+pub mod first_useful_work;
 
 /// Presentation label rendered for the Start Center surface.
 pub const START_CENTER_PRESENTATION_LABEL: &str = "Start Center";

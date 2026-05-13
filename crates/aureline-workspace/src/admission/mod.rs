@@ -4,6 +4,8 @@
 //! resolves and before any disk write, trust transition, setup execution, or
 //! current-workspace mutation is allowed to proceed.
 
+pub mod checkpoint;
+
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};

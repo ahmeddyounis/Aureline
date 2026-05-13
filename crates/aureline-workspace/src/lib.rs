@@ -49,6 +49,20 @@ pub use admission::{
     WriteScopeItemKind, WriteScopeReview, ADMISSION_REVIEW_SCHEMA_VERSION,
 };
 
+pub use admission::checkpoint::{
+    build_admission_checkpoint_route, AdmissionCheckpointBuildRequest,
+    AdmissionCheckpointRouteRecord, AdmissionCheckpointRouteRecordKind, AdmissionClass,
+    ArchetypeRecommendationSourceClass, ArchetypeTruth, BlockedReasonClass, ContinueWithoutClass,
+    DetectionConfidenceClass, DetectionOutcome, DetectionSignal, DetectionSignalSourceClass,
+    DetectorState, ExecutionBoundary, FirstUsefulEntrySource, FirstUsefulWorkRoute, LandingSurface,
+    MixedWorkspaceBoundaryChoice, OptionalReasonClass, ReadinessBucket, ReadinessBucketSummary,
+    ReadinessBuckets, ReadinessTask, ReadinessTaskClass, ReadinessTaskState,
+    RememberedRoutingEffect, RootIdentityClass, RouteReasonClass, RouteSwitchOption,
+    SetupLocationClass, SideEffectClass, SignalMaterialEffect, SupportClaimClass, TrustReviewClass,
+    WorkspaceAdmissionCheckpoint, ADMISSION_CHECKPOINT_ROUTE_SCHEMA_VERSION,
+    WORKSPACE_ADMISSION_CHECKPOINT_SCHEMA_VERSION,
+};
+
 pub use save::{
     SaveParticipant, SaveParticipantError, SaveResult, StagedSaveCoordinator, StagedSaveRequest,
     WriteStrategy,
