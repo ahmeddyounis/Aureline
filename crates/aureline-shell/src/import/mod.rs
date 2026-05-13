@@ -4,9 +4,18 @@
 //! markers, then emits a review record the shell can display before any
 //! profile or workspace state is written.
 
+pub mod diff_review;
+
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+pub use diff_review::{
+    materialize_import_diff_review_packet, reopen_retained_migration_report,
+    write_import_diff_review_log, ImportDiffReviewPacket, ImportDiffReviewRow,
+    ImportMappingClassification, ImportReportReopenSurface, ImportReviewDomain,
+    RetainedMigrationReport, RetainedMigrationReportProjection, ShortcutDeltaReport,
+};
 
 /// Classifies a local folder that may contain competitor IDE configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

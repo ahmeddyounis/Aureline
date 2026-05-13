@@ -53,7 +53,8 @@ use crate::explorer::{
 use crate::help::keybinding_inspector::build_inspector_lines;
 use crate::host_boundary_cues::{HostBoundaryCueCardRecord, HostBoundaryCueWedge};
 use crate::import::{
-    write_import_review_log, CompetitorConfigClassifier, ImportReviewDecisionClass,
+    materialize_import_diff_review_packet, write_import_diff_review_log, write_import_review_log,
+    CompetitorConfigClassifier, ImportDiffReviewPacket, ImportReviewDecisionClass,
     ImportReviewRecord,
 };
 use crate::layout::split_tree::PaneId;
@@ -11355,9 +11356,10 @@ fn submit_import_from_entry_flow(
     record_import_review_stub(command_runtime, activity_center, &session, &review);
     let status = match review.decision_class {
         ImportReviewDecisionClass::ApplyAfterPreview => {
+            let packet = materialize_import_diff_review_packet(&review);
             format!(
-                "apply recorded without settings changes: {}",
-                review.import_review_id
+                "diff preview and rollback checkpoint recorded: {} / {}",
+                packet.import_diff_preview_ref, packet.rollback_checkpoint.checkpoint_ref
             )
         }
         ImportReviewDecisionClass::Decline => {
@@ -11378,14 +11380,19 @@ fn record_import_review_stub(
     review: &ImportReviewRecord,
 ) {
     write_import_review_log(review);
+    let diff_review = materialize_import_diff_review_packet(review);
+    write_import_diff_review_log(&diff_review);
     command_runtime.record(invocation_and_result_import_profile_review_recorded(
-        session, review,
+        session,
+        review,
+        &diff_review,
     ));
     activity_center.note_import_review_recorded(review);
     command_runtime.note_non_command_action(format!(
-        "import review recorded - {} ({})",
+        "import diff review recorded - {} ({}) report={}",
         review.classification.variant_name(),
-        review.decision_class.as_str()
+        review.decision_class.as_str(),
+        diff_review.retained_migration_report.migration_report_id
     ));
 }
 
@@ -11518,6 +11525,7 @@ fn set_import_sheet_status(
     {
         if let Some(form) = sheet.import_form.as_mut() {
             if let Some(review) = review {
+                form.diff_review_packet = Some(materialize_import_diff_review_packet(&review));
                 form.review_record = Some(review);
             }
             form.status_line = Some(status_line);
@@ -11601,6 +11609,7 @@ fn invocation_and_result_import_profile_cancelled(
 fn invocation_and_result_import_profile_review_recorded(
     session: &CommandInvocationSession,
     review: &ImportReviewRecord,
+    diff_review: &ImportDiffReviewPacket,
 ) -> RecordedCommandInvocation {
     let preview_ref = session
         .preview_posture
@@ -11608,14 +11617,27 @@ fn invocation_and_result_import_profile_review_recorded(
         .clone()
         .unwrap_or_else(|| review.import_review_id.clone());
     let import_review_ref = review.import_review_id.clone();
+    let import_diff_preview_ref = diff_review.import_diff_preview_ref.clone();
+    let checkpoint_ref = diff_review.rollback_checkpoint.checkpoint_ref.clone();
+    let migration_report_ref = diff_review
+        .retained_migration_report
+        .migration_report_id
+        .clone();
+    let shortcut_delta_ref = diff_review
+        .shortcut_delta_report
+        .shortcut_delta_report_id
+        .clone();
     let activity_ref = format!("ux:event:import-review:{import_review_ref}");
-    let mut warning_codes = vec!["import_apply_stub_no_settings_changed".to_string()];
+    let mut warning_codes = vec!["import_diff_review_packet_retained".to_string()];
     if review.decision_class == ImportReviewDecisionClass::Defer {
         warning_codes.push("import_deferred_source_unrecognized".to_string());
     }
+    if diff_review.apply_gate_class == "requires_manual_review" {
+        warning_codes.push("import_requires_manual_review_before_apply".to_string());
+    }
 
     let outcome = InvocationOutcomeBlock {
-        outcome_class: "succeeded".to_string(),
+        outcome_class: "succeeded_with_warnings".to_string(),
         disabled_reason_code: None,
         warnings_summary_refs: warning_codes.clone(),
         partially_applied_artifact_refs: Vec::new(),
@@ -11624,10 +11646,24 @@ fn invocation_and_result_import_profile_review_recorded(
 
     let session_packet = session.invocation_session_packet(
         outcome,
-        vec![InvocationCreatedArtifactRefEntry {
-            result_contract_class: "import_review_record_emitted_ref".to_string(),
-            artifact_ref: import_review_ref.clone(),
-        }],
+        vec![
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "import_review_record_emitted_ref".to_string(),
+                artifact_ref: import_review_ref.clone(),
+            },
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "first_run_import_diff_preview_ref".to_string(),
+                artifact_ref: import_diff_preview_ref.clone(),
+            },
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "migration_report_retained_ref".to_string(),
+                artifact_ref: migration_report_ref.clone(),
+            },
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "shortcut_delta_digest_ref".to_string(),
+                artifact_ref: shortcut_delta_ref.clone(),
+            },
+        ],
         vec![
             EvidenceRefEntry {
                 evidence_ref_class: "preview_record_ref".to_string(),
@@ -11637,18 +11673,56 @@ fn invocation_and_result_import_profile_review_recorded(
                 evidence_ref_class: "import_review_record_ref".to_string(),
                 evidence_id: import_review_ref.clone(),
             },
+            EvidenceRefEntry {
+                evidence_ref_class: "import_diff_preview_ref".to_string(),
+                evidence_id: import_diff_preview_ref.clone(),
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "checkpoint_ref".to_string(),
+                evidence_id: checkpoint_ref.clone(),
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "migration_report_ref".to_string(),
+                evidence_id: migration_report_ref.clone(),
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "shortcut_delta_digest_ref".to_string(),
+                evidence_id: shortcut_delta_ref.clone(),
+            },
         ],
     );
 
     let result = ResultBodyBlock {
-        outcome_code: "succeeded".to_string(),
+        outcome_code: "succeeded_with_warnings".to_string(),
         warning_codes,
         error_codes: Vec::new(),
-        created_artifact_refs: vec![ArtifactRefEntry {
-            result_contract_class: "import_review_record_emitted_ref".to_string(),
-            artifact_ref: import_review_ref.clone(),
-            artifact_role: "import_review_record".to_string(),
-        }],
+        created_artifact_refs: vec![
+            ArtifactRefEntry {
+                result_contract_class: "import_review_record_emitted_ref".to_string(),
+                artifact_ref: import_review_ref.clone(),
+                artifact_role: "import_review_record".to_string(),
+            },
+            ArtifactRefEntry {
+                result_contract_class: "first_run_import_diff_preview_ref".to_string(),
+                artifact_ref: import_diff_preview_ref.clone(),
+                artifact_role: "import_diff_preview".to_string(),
+            },
+            ArtifactRefEntry {
+                result_contract_class: "first_run_import_rollback_checkpoint_ref".to_string(),
+                artifact_ref: checkpoint_ref.clone(),
+                artifact_role: "rollback_checkpoint".to_string(),
+            },
+            ArtifactRefEntry {
+                result_contract_class: "migration_report_retained_ref".to_string(),
+                artifact_ref: migration_report_ref.clone(),
+                artifact_role: "migration_report".to_string(),
+            },
+            ArtifactRefEntry {
+                result_contract_class: "shortcut_delta_digest_ref".to_string(),
+                artifact_ref: shortcut_delta_ref.clone(),
+                artifact_role: "shortcut_delta_digest".to_string(),
+            },
+        ],
         notification_refs: vec![NotificationRefEntry {
             notification_ref: format!("ux:notif-env:import-review:{import_review_ref}"),
             delivery_posture: "routed_to_activity_center".to_string(),
@@ -11658,10 +11732,15 @@ fn invocation_and_result_import_profile_review_recorded(
             activity_role: "durable_import_review_row".to_string(),
         }],
         rollback_handle_ref: RollbackHandleRefBlock {
-            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
-            rollback_handle_id: None,
+            rollback_handle_posture: "handle_available_pre_apply_checkpoint".to_string(),
+            rollback_handle_id: Some(format!(
+                "rollback-handle:workspace.import_profile:{import_review_ref}"
+            )),
         },
-        checkpoint_refs: Vec::new(),
+        checkpoint_refs: vec![aureline_commands::invocation::CheckpointRefEntry {
+            checkpoint_class: "migration_import_checkpoint".to_string(),
+            checkpoint_ref: Some(checkpoint_ref.clone()),
+        }],
         evidence_refs: vec![
             EvidenceRefEntry {
                 evidence_ref_class: "preview_record_ref".to_string(),
@@ -11671,11 +11750,32 @@ fn invocation_and_result_import_profile_review_recorded(
                 evidence_ref_class: "import_review_record_ref".to_string(),
                 evidence_id: import_review_ref,
             },
+            EvidenceRefEntry {
+                evidence_ref_class: "import_diff_preview_ref".to_string(),
+                evidence_id: import_diff_preview_ref,
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "checkpoint_ref".to_string(),
+                evidence_id: checkpoint_ref,
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "migration_report_ref".to_string(),
+                evidence_id: migration_report_ref,
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "shortcut_delta_digest_ref".to_string(),
+                evidence_id: shortcut_delta_ref,
+            },
         ],
         export_posture: ExportPostureBlock {
             export_posture_class: "exportable_with_redaction".to_string(),
             redaction_class: session.redaction_class.clone(),
-            export_review_ref: None,
+            export_review_ref: Some(
+                diff_review
+                    .retained_migration_report
+                    .migration_report_id
+                    .clone(),
+            ),
             portable_profile_allowed: true,
             support_bundle_allowed: true,
         },
@@ -15601,6 +15701,7 @@ struct ImportFlowForm {
     destination_workspace_target: String,
     focused_field: ImportFlowField,
     review_record: Option<ImportReviewRecord>,
+    diff_review_packet: Option<ImportDiffReviewPacket>,
     status_line: Option<String>,
     applied: bool,
 }
@@ -15612,6 +15713,7 @@ impl ImportFlowForm {
             destination_workspace_target: "profile:default".to_string(),
             focused_field: ImportFlowField::SourcePath,
             review_record: None,
+            diff_review_packet: None,
             status_line: None,
             applied: false,
         }
@@ -15637,6 +15739,7 @@ impl ImportFlowForm {
         let review = CompetitorConfigClassifier::new()
             .build_review(source_path, self.destination_workspace_target.trim());
         self.status_line = Some(review.status_line.clone());
+        self.diff_review_packet = Some(materialize_import_diff_review_packet(&review));
         self.review_record = Some(review);
         self.applied = false;
     }
@@ -15693,7 +15796,7 @@ impl ImportFlowForm {
             ArgumentProvenanceEntry {
                 argument_name: "create_restore_checkpoint".to_string(),
                 provenance: "default_from_descriptor".to_string(),
-                resolved_value_ref: Some("value:bool:false".to_string()),
+                resolved_value_ref: Some("value:bool:true".to_string()),
             },
         ]
     }
@@ -15740,6 +15843,7 @@ impl ImportFlowForm {
 
     fn clear_review_after_edit(&mut self) {
         self.review_record = None;
+        self.diff_review_packet = None;
         self.status_line = None;
         self.applied = false;
     }
@@ -18917,6 +19021,26 @@ fn draw_import_form_lines(
         y = y.saturating_add(16);
     }
 
+    if let Some(packet) = form.diff_review_packet.as_ref() {
+        for line in packet.compact_lines().into_iter().take(6) {
+            if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
+                return y;
+            }
+            draw_text_clamped(
+                buffer,
+                width,
+                height,
+                x,
+                y,
+                1,
+                &line,
+                style.tokens.text_secondary,
+                max_x,
+            );
+            y = y.saturating_add(16);
+        }
+    }
+
     if y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3) {
         let apply_state = if form.applied {
             "recorded"
@@ -18937,7 +19061,7 @@ fn draw_import_form_lines(
             x,
             y,
             1,
-            &format!("apply_stub: {apply_state}"),
+            &format!("apply_checkpointed: {apply_state}"),
             color,
             max_x,
         );
