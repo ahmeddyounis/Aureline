@@ -7,8 +7,13 @@
 pub mod color;
 mod loaders;
 pub mod registry;
+pub mod state_semantics;
 pub mod theme;
 
 pub use color::ColorRgba;
 pub use registry::{seeded_token_registry, TokenRegistry, TokenRegistryError};
+pub use state_semantics::{
+    alpha_state_semantics_registry, SemanticVisualTreatment, StateSemanticsError,
+    StateSemanticsRegistry,
+};
 pub use theme::ThemeClass;

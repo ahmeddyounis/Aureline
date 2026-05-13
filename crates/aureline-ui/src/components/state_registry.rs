@@ -9,7 +9,7 @@ use std::ops::{BitOr, BitOrAssign};
 
 use serde::{Deserialize, Serialize};
 
-use crate::tokens::{ColorRgba, TokenRegistry, TokenRegistryError};
+use crate::tokens::{alpha_state_semantics_registry, ColorRgba, TokenRegistry, TokenRegistryError};
 
 /// Closed component-state vocabulary used across reusable component contracts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -193,6 +193,10 @@ pub struct ComponentStateRegistry {
 impl ComponentStateRegistry {
     /// Loads the registry from the provided semantic token registry.
     pub fn load(registry: &TokenRegistry) -> Result<Self, TokenRegistryError> {
+        alpha_state_semantics_registry().map_err(|err| {
+            TokenRegistryError::LoadFailed("state semantics registry", err.to_string())
+        })?;
+
         Ok(Self {
             tokens: ComponentStateTokens {
                 bg_surface: registry.require_color("al.color.bg.surface")?,
