@@ -18,6 +18,10 @@ use aureline_workspace::{detect_lineage, LineageHintRecord};
 
 use super::index::{LexicalIndexState, ReadinessClass};
 use super::source::SourceClass;
+use crate::counts::{
+    HiddenScopeDisclosure, ScopeWarningRecord, SearchNoResultsState, SearchScopeCountsInputs,
+    SearchScopeCountsRecord,
+};
 use crate::results::{build_lexical_identity, ResultIdentity};
 
 /// Maximum rows surfaced per group. Keeps the shell render cheap and the
@@ -132,6 +136,20 @@ pub struct LexicalSearchResults {
     pub query: String,
     pub readiness: ReadinessClass,
     pub partial_truth_causes: Vec<String>,
+    /// Scope-aware count disclosure for visible, loaded, all-matching,
+    /// and hidden result rows.
+    pub counts: SearchScopeCountsRecord,
+    /// Empty-state classification. `results_present` when at least one row
+    /// is visible.
+    pub empty_state: SearchNoResultsState,
+    /// Hidden-scope disclosure shown when matching rows are outside the
+    /// current workset, policy view, or indexed roots.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_scope_disclosure: Option<HiddenScopeDisclosure>,
+    /// Warnings the surface MUST show before widening or jumping across
+    /// the current scope boundary.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scope_warnings: Vec<ScopeWarningRecord>,
     pub groups: Vec<ResultGroup>,
     pub total_rows: usize,
 }
@@ -149,10 +167,18 @@ pub fn run_query(index: &LexicalIndexState, query: &LexicalQuery) -> LexicalSear
         .collect();
 
     if normalized.is_empty() || matches!(index.readiness(), ReadinessClass::Unavailable) {
+        let counts =
+            SearchScopeCountsRecord::not_computed(index.readiness() == ReadinessClass::Ready);
+        let (empty_state, hidden_scope_disclosure, scope_warnings) =
+            derive_scope_surface_state(index, &counts);
         return LexicalSearchResults {
             query: query.query.clone(),
             readiness: index.readiness(),
             partial_truth_causes: causes,
+            counts,
+            empty_state,
+            hidden_scope_disclosure,
+            scope_warnings,
             groups: Vec::new(),
             total_rows: 0,
         };
@@ -164,65 +190,41 @@ pub fn run_query(index: &LexicalIndexState, query: &LexicalQuery) -> LexicalSear
     let readiness = index.readiness();
 
     for path in index.files() {
-        let lower_path = path.to_ascii_lowercase();
-        let basename = path
-            .rsplit_once('/')
-            .map(|(_, name)| name)
-            .unwrap_or(path.as_str());
-        let lower_basename = basename.to_ascii_lowercase();
-
-        let basename_match_kind = if lower_basename == normalized {
-            Some(MatchKind::ExactBasename)
-        } else if lower_basename.starts_with(&normalized) {
-            Some(MatchKind::PrefixBasename)
-        } else if lower_basename.contains(&normalized) {
-            Some(MatchKind::SubstringBasename)
-        } else {
-            None
-        };
-
-        if let Some(kind) = basename_match_kind {
+        if let Some(kind) = match_kind_for_path(path, &normalized) {
             let lineage = detect_lineage(path);
             let identity = build_lexical_identity(
                 workspace_id,
                 path,
-                SourceClass::LexicalFilename,
+                kind.source_class(),
                 kind,
                 lineage.is_some(),
                 readiness,
             );
-            filename_rows.push(ResultRow {
+            let row = ResultRow {
                 relative_path: path.clone(),
-                source_class: SourceClass::LexicalFilename,
-                match_kind: kind,
-                generated_artifact_hint: lineage,
-                identity,
-            });
-            continue;
-        }
-
-        if lower_path.contains(&normalized) {
-            let lineage = detect_lineage(path);
-            let identity = build_lexical_identity(
-                workspace_id,
-                path,
-                SourceClass::LexicalPath,
-                MatchKind::SubstringPath,
-                lineage.is_some(),
-                readiness,
-            );
-            path_rows.push(ResultRow {
-                relative_path: path.clone(),
-                source_class: SourceClass::LexicalPath,
+                source_class: kind.source_class(),
                 match_kind: MatchKind::SubstringPath,
                 generated_artifact_hint: lineage,
                 identity,
-            });
+            };
+            match kind.source_class() {
+                SourceClass::LexicalFilename => filename_rows.push(ResultRow {
+                    match_kind: kind,
+                    ..row
+                }),
+                SourceClass::LexicalPath => path_rows.push(row),
+            }
         }
     }
 
     sort_rows(&mut filename_rows);
     sort_rows(&mut path_rows);
+    let loaded_rows = (filename_rows.len() + path_rows.len()) as u64;
+    let all_matching_rows = if index.all_workspace_rows_known() {
+        Some(count_matching_rows(index.all_files(), &normalized))
+    } else {
+        None
+    };
     filename_rows.truncate(MAX_RESULTS_PER_GROUP);
     path_rows.truncate(MAX_RESULTS_PER_GROUP);
 
@@ -245,13 +247,100 @@ pub fn run_query(index: &LexicalIndexState, query: &LexicalQuery) -> LexicalSear
         });
     }
 
+    let hidden_by_scope = all_matching_rows
+        .map(|all| all.saturating_sub(loaded_rows))
+        .unwrap_or(0);
+    let scope_policy_hidden = index
+        .scope()
+        .and_then(|scope| scope.hidden_result_count())
+        .unwrap_or(0);
+    let policy_limited = index.scope().is_some_and(|scope| scope.is_policy_limited());
+    let hidden_by_policy = if policy_limited {
+        hidden_by_scope.max(scope_policy_hidden)
+    } else {
+        0
+    };
+    let counts = SearchScopeCountsRecord::derive(SearchScopeCountsInputs {
+        visible_rows: total_rows as u64,
+        loaded_rows: Some(loaded_rows),
+        all_matching_rows,
+        hidden_by_current_scope_rows: hidden_by_scope,
+        hidden_by_policy_rows: hidden_by_policy,
+        hidden_by_remote_cache_rows: 0,
+        readiness_is_ready: index.readiness() == ReadinessClass::Ready,
+    });
+    let (empty_state, hidden_scope_disclosure, scope_warnings) =
+        derive_scope_surface_state(index, &counts);
+
     LexicalSearchResults {
         query: query.query.clone(),
         readiness: index.readiness(),
         partial_truth_causes: causes,
+        counts,
+        empty_state,
+        hidden_scope_disclosure,
+        scope_warnings,
         groups,
         total_rows,
     }
+}
+
+fn match_kind_for_path(path: &str, normalized_query: &str) -> Option<MatchKind> {
+    let lower_path = path.to_ascii_lowercase();
+    let basename = path.rsplit_once('/').map(|(_, name)| name).unwrap_or(path);
+    let lower_basename = basename.to_ascii_lowercase();
+
+    if lower_basename == normalized_query {
+        Some(MatchKind::ExactBasename)
+    } else if lower_basename.starts_with(normalized_query) {
+        Some(MatchKind::PrefixBasename)
+    } else if lower_basename.contains(normalized_query) {
+        Some(MatchKind::SubstringBasename)
+    } else if lower_path.contains(normalized_query) {
+        Some(MatchKind::SubstringPath)
+    } else {
+        None
+    }
+}
+
+fn count_matching_rows(paths: &[String], normalized_query: &str) -> u64 {
+    paths
+        .iter()
+        .filter(|path| match_kind_for_path(path, normalized_query).is_some())
+        .count() as u64
+}
+
+fn derive_scope_surface_state(
+    index: &LexicalIndexState,
+    counts: &SearchScopeCountsRecord,
+) -> (
+    SearchNoResultsState,
+    Option<HiddenScopeDisclosure>,
+    Vec<ScopeWarningRecord>,
+) {
+    let scope_label = index
+        .scope()
+        .map(|scope| scope.chip_label())
+        .unwrap_or("Full workspace");
+    let partial_index_note = index.scope().and_then(|scope| scope.partial_index_note());
+    let policy_limited = index.scope().is_some_and(|scope| scope.is_policy_limited());
+    let readiness_unavailable = index.readiness() == ReadinessClass::Unavailable;
+    let empty_state = SearchNoResultsState::derive(
+        counts,
+        partial_index_note,
+        readiness_unavailable,
+        policy_limited,
+    );
+    let hidden_scope_disclosure =
+        HiddenScopeDisclosure::derive(scope_label, counts, partial_index_note, policy_limited);
+    let scope_warnings = ScopeWarningRecord::derive_for_counts(
+        scope_label,
+        counts,
+        partial_index_note,
+        readiness_unavailable,
+        policy_limited,
+    );
+    (empty_state, hidden_scope_disclosure, scope_warnings)
 }
 
 fn sort_rows(rows: &mut [ResultRow]) {

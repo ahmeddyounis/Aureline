@@ -29,6 +29,9 @@
 //! - [`lexical::ScopeClass`] mirrors the
 //!   [`aureline_workspace::ScopeClass`] so the search shell projects scope
 //!   chips through the same vocabulary the workset surface uses.
+//! - [`counts::SearchScopeCountsRecord`] distinguishes visible, loaded,
+//!   all-matching, and hidden rows, and [`counts::ScopeCandidateTruthRecord`]
+//!   carries the same scope truth onto graph-backed and AI context candidates.
 //!
 //! Higher layers (the shell `search_shell` module) convert this vocabulary
 //! into chrome and persistable diagnostics; this crate only owns the
@@ -36,6 +39,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-search/0.0.0")]
 
+pub mod counts;
 pub mod hot_set;
 pub mod index_scheduler;
 pub mod lexical;
@@ -45,6 +49,12 @@ pub mod readiness;
 pub mod results;
 pub mod scope;
 
+pub use counts::{
+    HiddenScopeDisclosure, HiddenScopeReason, ScopeCandidateTruthRecord, ScopeTruthLabel,
+    ScopeTruthSurface, ScopeWarningKind, ScopeWarningRecord, SearchNoResultsState,
+    SearchScopeCountsClass, SearchScopeCountsInputs, SearchScopeCountsRecord,
+    SCOPE_TRUTH_COUNTS_SCHEMA_VERSION,
+};
 pub use hot_set::{
     HotSetCandidate, HotSetExplanation, HotSetFallback, HotSetFallbackReason, HotSetInputClass,
     HotSetPartialTruthCause, HotSetPlan, HotSetPlanEntry, HotSetPlanInputs, HotSetPlanner,

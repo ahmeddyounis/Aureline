@@ -166,11 +166,13 @@ pub struct LexicalIndexInputs {
 pub struct LexicalIndexState {
     workspace_id: String,
     files: Vec<String>,
+    all_files: Vec<String>,
     readiness: ReadinessClass,
     causes: Vec<PartialTruthCause>,
     observed_at: String,
     scope: Option<WorkspaceSearchScope>,
     all_workspace_count: u64,
+    all_workspace_rows_known: bool,
     out_of_scope_count: u64,
 }
 
@@ -186,8 +188,11 @@ impl LexicalIndexState {
             scope,
         } = inputs;
 
-        let all_workspace_count = files.len() as u64;
-        let mut filtered_files = files;
+        let mut all_files = files;
+        all_files.sort();
+        all_files.dedup();
+        let all_workspace_count = all_files.len() as u64;
+        let mut filtered_files = all_files.clone();
         let mut out_of_scope_count: u64 = 0;
         if let Some(scope_ref) = scope.as_ref() {
             let outcome = scope_ref.filter_files(filtered_files);
@@ -225,11 +230,13 @@ impl LexicalIndexState {
         Self {
             workspace_id: readiness_inputs.workspace_id,
             files: sorted_files,
+            all_files,
             readiness,
             causes,
             observed_at: readiness_inputs.observed_at,
             scope,
             all_workspace_count,
+            all_workspace_rows_known: true,
             out_of_scope_count,
         }
     }
@@ -274,6 +281,11 @@ impl LexicalIndexState {
         &self.files
     }
 
+    /// Workspace-relative file paths before scope filtering, when known.
+    pub fn all_files(&self) -> &[String] {
+        &self.all_files
+    }
+
     /// Latest readiness class.
     pub const fn readiness(&self) -> ReadinessClass {
         self.readiness
@@ -303,6 +315,12 @@ impl LexicalIndexState {
         self.all_workspace_count
     }
 
+    /// True when [`Self::all_files`] covers the same population as
+    /// [`Self::all_workspace_count`].
+    pub const fn all_workspace_rows_known(&self) -> bool {
+        self.all_workspace_rows_known
+    }
+
     /// Count of paths the active scope filtered out. Surfaces use this to
     /// disclose how many files are hidden by the active workset/slice.
     pub const fn out_of_scope_count(&self) -> u64 {
@@ -319,6 +337,10 @@ impl LexicalIndexState {
         scope: Option<WorkspaceSearchScope>,
         all_workspace_count: u64,
     ) -> Self {
+        let mut all_files = files.clone();
+        all_files.sort();
+        all_files.dedup();
+        let all_workspace_rows_known = all_workspace_count == all_files.len() as u64;
         let mut filtered_files = files;
         let mut out_of_scope_count: u64 = 0;
         if let Some(scope_ref) = scope.as_ref() {
@@ -340,11 +362,13 @@ impl LexicalIndexState {
         Self {
             workspace_id: workspace_id.into(),
             files: sorted_files,
+            all_files,
             readiness,
             causes,
             observed_at: observed_at.into(),
             scope,
             all_workspace_count,
+            all_workspace_rows_known,
             out_of_scope_count,
         }
     }

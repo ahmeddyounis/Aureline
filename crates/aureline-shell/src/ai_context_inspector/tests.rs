@@ -4,6 +4,10 @@ use aureline_ai::{
     SourceClass, TrustPosture,
 };
 use aureline_commands::registry::seeded_registry;
+use aureline_search::{
+    HiddenScopeDisclosure, ScopeCandidateTruthRecord, ScopeTruthSurface, SearchNoResultsState,
+    SearchScopeCountsInputs, SearchScopeCountsRecord,
+};
 
 use super::*;
 
@@ -30,9 +34,39 @@ fn baseline_draft() -> ComposerDraft {
         status: AttachmentStatusClass::Live,
         estimated_byte_size: 1024,
         display_label: "src/lib.rs slice".to_owned(),
+        scope_truth: None,
         placed_under_fenced_role: false,
     });
     draft
+}
+
+fn ai_scope_truth() -> ScopeCandidateTruthRecord {
+    let counts = SearchScopeCountsRecord::derive(SearchScopeCountsInputs {
+        visible_rows: 0,
+        loaded_rows: Some(0),
+        all_matching_rows: Some(1),
+        hidden_by_current_scope_rows: 1,
+        hidden_by_policy_rows: 0,
+        hidden_by_remote_cache_rows: 0,
+        readiness_is_ready: true,
+    });
+    let hidden =
+        HiddenScopeDisclosure::derive("Selected workset · Editor core", &counts, None, false);
+    ScopeCandidateTruthRecord::new(
+        ScopeTruthSurface::AiContextCandidate,
+        "Selected workset · Editor core",
+        "selected_workset",
+        Some("scope:editor_core".to_owned()),
+        Some("sparse".to_owned()),
+        Some("repo:payments-api".to_owned()),
+        "authoritative_live",
+        true,
+        false,
+        counts,
+        SearchNoResultsState::NoResultsInThisWorkset,
+        hidden,
+        Vec::new(),
+    )
 }
 
 #[test]
@@ -95,6 +129,43 @@ fn prototype_chip_carries_read_only_no_dispatch_label() {
 }
 
 #[test]
+fn search_result_attachment_reuses_shared_scope_truth() {
+    let mut draft = baseline_draft();
+    draft.add_attachment(ComposerAttachment {
+        attachment_id: "att.search_result.outside_scope".to_owned(),
+        kind: AttachmentKind::WorkspaceSliceBundle,
+        source_class: SourceClass::WorkspaceSearchResult,
+        trust_posture: TrustPosture::TrustedFirstParty,
+        selection_reason: SelectionReasonClass::SearchResultPacket,
+        status: AttachmentStatusClass::OutOfScope,
+        estimated_byte_size: 256,
+        display_label: "payments route result".to_owned(),
+        scope_truth: Some(ai_scope_truth()),
+        placed_under_fenced_role: false,
+    });
+
+    let snapshot = AiContextInspectorSnapshot::project(&draft);
+    let attachments = snapshot
+        .section(InspectorSectionId::Attachments)
+        .expect("attachments section");
+    let row = attachments
+        .rows
+        .iter()
+        .find(|row| row.row_id == "attachment_att.search_result.outside_scope")
+        .expect("scope-truth attachment row");
+
+    assert_eq!(row.status, InspectorRowStatusClass::Blocked);
+    assert_eq!(
+        row.blocked_reason_token.as_deref(),
+        Some("out_of_scope_attachment")
+    );
+    assert!(row.value.contains("Outside current scope"));
+    assert!(row.value.contains("Selected workset"));
+    assert!(row.value.contains("partial_truth"));
+    assert!(row.value.contains("authoritative_live"));
+}
+
+#[test]
 fn route_placeholder_renders_dispatch_disabled_marker_on_every_row() {
     let draft = baseline_draft();
     let snapshot = AiContextInspectorSnapshot::project(&draft);
@@ -125,6 +196,7 @@ fn tainted_attachment_failure_drill_lights_chip_and_addresses_the_attachment() {
         status: AttachmentStatusClass::TaintedOutsideFencedSection,
         estimated_byte_size: 512,
         display_label: "Pasted instructions from external chat".to_owned(),
+        scope_truth: None,
         placed_under_fenced_role: false,
     });
     let snapshot = AiContextInspectorSnapshot::project(&draft);

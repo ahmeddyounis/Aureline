@@ -672,6 +672,7 @@ fn composer_draft(workspace_id: &str) -> ComposerDraft {
         status: AttachmentStatusClass::Live,
         estimated_byte_size: 1024,
         display_label: "src/lib.rs slice".to_string(),
+        scope_truth: None,
         placed_under_fenced_role: false,
     });
     draft

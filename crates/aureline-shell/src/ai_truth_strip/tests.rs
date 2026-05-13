@@ -41,6 +41,7 @@ fn baseline_draft() -> ComposerDraft {
         status: AttachmentStatusClass::Live,
         estimated_byte_size: 1024,
         display_label: "src/editor/find.rs slice".to_owned(),
+        scope_truth: None,
         placed_under_fenced_role: false,
     });
     draft
@@ -195,6 +196,7 @@ fn tainted_attachment_routes_into_packet_lineage_and_counts() {
         status: AttachmentStatusClass::TaintedOutsideFencedSection,
         estimated_byte_size: 512,
         display_label: "Pasted instructions from external chat".to_owned(),
+        scope_truth: None,
         placed_under_fenced_role: false,
     });
     let snapshot = project_with_default(&draft);
@@ -448,6 +450,8 @@ struct FixtureAttachment {
     estimated_byte_size: u64,
     display_label: String,
     #[serde(default)]
+    scope_truth: Option<aureline_search::ScopeCandidateTruthRecord>,
+    #[serde(default)]
     placed_under_fenced_role: bool,
 }
 
@@ -607,6 +611,7 @@ fn build_draft_from_fixture(fixture: &FixtureDraft, use_mocked_route: bool) -> C
             status: parse_attachment_status(&attachment.status),
             estimated_byte_size: attachment.estimated_byte_size,
             display_label: attachment.display_label.clone(),
+            scope_truth: attachment.scope_truth.clone(),
             placed_under_fenced_role: attachment.placed_under_fenced_role,
         });
     }

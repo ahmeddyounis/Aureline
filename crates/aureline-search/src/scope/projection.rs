@@ -88,6 +88,9 @@ pub struct WorkspaceSearchScope {
     included_roots: Vec<IncludedRootRef>,
     patterns: Vec<ScopePatternRecord>,
     partial_index_note: Option<String>,
+    hidden_result_count_known: bool,
+    hidden_result_count: Option<u64>,
+    policy_hidden_member_count: Option<u64>,
     is_policy_limited: bool,
     has_partial_member_truth: bool,
 }
@@ -111,6 +114,9 @@ impl WorkspaceSearchScope {
             included_roots: Vec::new(),
             patterns: Vec::new(),
             partial_index_note: None,
+            hidden_result_count_known: false,
+            hidden_result_count: None,
+            policy_hidden_member_count: None,
             is_policy_limited: false,
             has_partial_member_truth: false,
         }
@@ -157,6 +163,9 @@ impl WorkspaceSearchScope {
             included_roots: Vec::new(),
             patterns: Vec::new(),
             partial_index_note: None,
+            hidden_result_count_known: false,
+            hidden_result_count: None,
+            policy_hidden_member_count: None,
             is_policy_limited: matches!(scope_class, ScopeClass::PolicyLimitedView),
             has_partial_member_truth: false,
         }
@@ -181,6 +190,9 @@ impl WorkspaceSearchScope {
             included_roots: Vec::new(),
             patterns: Vec::new(),
             partial_index_note: None,
+            hidden_result_count_known: false,
+            hidden_result_count: None,
+            policy_hidden_member_count: None,
             is_policy_limited: false,
             has_partial_member_truth: false,
         }
@@ -213,6 +225,10 @@ impl WorkspaceSearchScope {
         let included_roots = artifact.included_roots.clone();
         let is_policy_limited =
             matches!(artifact.scope_class, WorkspaceScopeClass::PolicyLimitedView);
+        let policy_hidden_member_count = artifact
+            .policy_limitation
+            .as_ref()
+            .map(|limitation| u64::from(limitation.hidden_member_count));
         let workset_name = if matches!(
             artifact.scope_class,
             WorkspaceScopeClass::CurrentRepo | WorkspaceScopeClass::FullWorkspace
@@ -234,6 +250,9 @@ impl WorkspaceSearchScope {
             included_roots,
             patterns,
             partial_index_note: artifact.readiness.partial_index_note.clone(),
+            hidden_result_count_known: artifact.readiness.hidden_result_count_known,
+            hidden_result_count: artifact.readiness.hidden_result_count,
+            policy_hidden_member_count,
             is_policy_limited,
             has_partial_member_truth: artifact.has_partial_member_truth(),
         }
@@ -308,6 +327,21 @@ impl WorkspaceSearchScope {
     /// Optional partial-index note attached to the active scope.
     pub fn partial_index_note(&self) -> Option<&str> {
         self.partial_index_note.as_deref()
+    }
+
+    /// True when the active scope knows whether any results are hidden.
+    pub const fn hidden_result_count_known(&self) -> bool {
+        self.hidden_result_count_known
+    }
+
+    /// Hidden-result count supplied by the active workset artifact, when known.
+    pub const fn hidden_result_count(&self) -> Option<u64> {
+        self.hidden_result_count
+    }
+
+    /// Policy-hidden member count supplied by a policy-limited view.
+    pub const fn policy_hidden_member_count(&self) -> Option<u64> {
+        self.policy_hidden_member_count
     }
 
     /// True when the active scope hides files from the search-shell view.
@@ -394,6 +428,9 @@ impl WorkspaceSearchScope {
             included_roots: self.included_roots.clone(),
             partial_scope: self.is_partial_scope(),
             partial_index_note: self.partial_index_note.clone(),
+            hidden_result_count_known: self.hidden_result_count_known,
+            hidden_result_count: self.hidden_result_count,
+            policy_hidden_member_count: self.policy_hidden_member_count,
             is_policy_limited: self.is_policy_limited,
             include_pattern_count,
             exclude_pattern_count,
@@ -424,6 +461,12 @@ pub struct WorkspaceSearchScopeMetadata {
     pub partial_scope: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub partial_index_note: Option<String>,
+    #[serde(default)]
+    pub hidden_result_count_known: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_result_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_hidden_member_count: Option<u64>,
     pub is_policy_limited: bool,
     pub include_pattern_count: u32,
     pub exclude_pattern_count: u32,

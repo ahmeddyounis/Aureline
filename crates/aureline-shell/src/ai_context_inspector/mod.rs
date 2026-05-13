@@ -516,7 +516,7 @@ fn attachment_row(attachment: &ComposerAttachment, outcome: &ValidationOutcome) 
         (InspectorRowStatusClass::Live, None)
     };
 
-    let value = format!(
+    let mut value = format!(
         "{label} ({source}/{trust}/{selection}, {bytes} bytes)",
         label = attachment.display_label,
         source = attachment.source_class.as_str(),
@@ -524,6 +524,15 @@ fn attachment_row(attachment: &ComposerAttachment, outcome: &ValidationOutcome) 
         selection = attachment.selection_reason.as_str(),
         bytes = attachment.estimated_byte_size,
     );
+    if let Some(scope_truth) = attachment.scope_truth.as_ref() {
+        value.push_str(&format!(
+            "; scope {candidate_scope} via {active_scope}, counts {counts}, freshness {freshness}",
+            candidate_scope = scope_truth.candidate_scope_label,
+            active_scope = scope_truth.active_scope_label,
+            counts = scope_truth.counts.counts_class_token,
+            freshness = scope_truth.freshness_token,
+        ));
+    }
 
     InspectorRow {
         row_id: format!("attachment_{}", attachment.attachment_id),

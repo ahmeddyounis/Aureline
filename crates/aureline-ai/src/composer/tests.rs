@@ -16,6 +16,7 @@ fn live_attachment(id: &str) -> ComposerAttachment {
         status: AttachmentStatusClass::Live,
         estimated_byte_size: 1024,
         display_label: format!("Live attachment {id}"),
+        scope_truth: None,
         placed_under_fenced_role: false,
     }
 }
@@ -127,6 +128,7 @@ fn tainted_attachment_outside_fence_is_blocked_even_when_status_lies() {
         status: AttachmentStatusClass::Live,
         estimated_byte_size: 512,
         display_label: "Pasted free-form text".to_owned(),
+        scope_truth: None,
         placed_under_fenced_role: false,
     });
 
@@ -152,6 +154,7 @@ fn out_of_scope_attachment_records_block_reason_addressable_by_id() {
         status: AttachmentStatusClass::OutOfScope,
         estimated_byte_size: 256,
         display_label: "out-of-scope file".to_owned(),
+        scope_truth: None,
         placed_under_fenced_role: false,
     });
     let outcome = draft.validate();
@@ -236,6 +239,7 @@ fn remove_attachment_clears_block_and_drops_the_row() {
         status: AttachmentStatusClass::Stale,
         estimated_byte_size: 256,
         display_label: "stale slice".to_owned(),
+        scope_truth: None,
         placed_under_fenced_role: false,
     });
     assert!(draft.has_actionable_block_reasons());

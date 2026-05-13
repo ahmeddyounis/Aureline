@@ -54,6 +54,7 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_commands::CommandRegistry;
+use aureline_search::ScopeCandidateTruthRecord;
 
 /// Stable record-kind tag carried on serialized [`ComposerDraft`] payloads.
 pub const COMPOSER_DRAFT_RECORD_KIND: &str = "ai_composer_draft_seed_record";
@@ -615,6 +616,10 @@ pub struct ComposerAttachment {
     /// M1 seed does not allocate; this is presentation-only.
     pub estimated_byte_size: u64,
     pub display_label: String,
+    /// Shared search scope truth when this attachment came from a search,
+    /// graph, or AI context candidate surface.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_truth: Option<ScopeCandidateTruthRecord>,
     /// True when the caller placed the attachment under a fenced
     /// tainted-data role. The M1 seed does not own the fenced role yet, so
     /// callers either set this to `true` for fixture replays or accept the

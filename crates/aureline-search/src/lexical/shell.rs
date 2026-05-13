@@ -18,6 +18,7 @@ use super::index::LexicalIndexState;
 use super::query::{run_query, LexicalQuery, LexicalSearchResults};
 use super::scope::ScopeClass;
 use super::source::SourceClass;
+use crate::counts::{HiddenScopeDisclosure, ScopeWarningRecord, SearchScopeCountsRecord};
 use crate::scope::WorkspaceSearchScopeMetadata;
 
 /// Live workspace lexical-search shell state.
@@ -165,6 +166,11 @@ impl LexicalShell {
             readiness_class: self.results.readiness.as_str().to_string(),
             readiness_banner: self.results.readiness.banner_label().to_string(),
             partial_truth_causes: self.results.partial_truth_causes.clone(),
+            counts: self.results.counts.clone(),
+            empty_state_token: self.results.empty_state.as_str().to_string(),
+            empty_state_label: self.results.empty_state.label().to_string(),
+            hidden_scope_disclosure: self.results.hidden_scope_disclosure.clone(),
+            scope_warnings: self.results.scope_warnings.clone(),
             groups,
             total_rows: self.results.total_rows,
             observed_at: observed_at.into(),
@@ -197,6 +203,13 @@ pub struct LexicalShellSnapshot {
     pub readiness_class: String,
     pub readiness_banner: String,
     pub partial_truth_causes: Vec<String>,
+    pub counts: SearchScopeCountsRecord,
+    pub empty_state_token: String,
+    pub empty_state_label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_scope_disclosure: Option<HiddenScopeDisclosure>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scope_warnings: Vec<ScopeWarningRecord>,
     pub groups: Vec<LexicalShellSnapshotGroup>,
     pub total_rows: usize,
     pub observed_at: String,

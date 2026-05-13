@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::counts::ScopeCandidateTruthRecord;
 use crate::lexical::{LexicalSearchResults, ReadinessClass};
 use crate::query_session::{SearchQuerySession, SearchSurface};
 use crate::results::RankingReasonClass;
@@ -432,6 +433,9 @@ pub struct PlannerCandidate {
     /// Candidate-specific partial-truth causes.
     #[serde(default)]
     pub partial_truth_causes: Vec<String>,
+    /// Scope truth reused by graph-backed and AI context candidate surfaces.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_truth: Option<ScopeCandidateTruthRecord>,
 }
 
 impl PlannerCandidate {
@@ -451,6 +455,7 @@ impl PlannerCandidate {
             symbol_ref: None,
             ranking_reasons,
             partial_truth_causes: Vec::new(),
+            scope_truth: None,
         }
     }
 
@@ -472,7 +477,14 @@ impl PlannerCandidate {
             symbol_ref: Some(symbol_ref.into()),
             ranking_reasons,
             partial_truth_causes: Vec::new(),
+            scope_truth: None,
         }
+    }
+
+    /// Attach shared scope truth to this candidate.
+    pub fn with_scope_truth(mut self, scope_truth: ScopeCandidateTruthRecord) -> Self {
+        self.scope_truth = Some(scope_truth);
+        self
     }
 }
 
@@ -531,6 +543,7 @@ impl PlannerPathSnapshot {
                         .map(|reason| map_lexical_reason(*reason))
                         .collect(),
                     partial_truth_causes: Vec::new(),
+                    scope_truth: None,
                 }
             })
             .collect();
@@ -704,6 +717,10 @@ pub struct PlannedSearchResult {
     /// Partial-truth causes attached to this row.
     #[serde(default)]
     pub partial_truth_causes: Vec<String>,
+    /// Shared scope truth for this fused row, when a contributing candidate
+    /// crossed or disclosed a scope boundary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_truth: Option<ScopeCandidateTruthRecord>,
     /// Per-path contributions that built this row.
     pub contributions: Vec<PlannerContribution>,
     /// Human-readable explanation packet for `Why this result?`.
@@ -746,6 +763,9 @@ pub struct PlannerContribution {
     /// Partial-truth causes contributed by this path.
     #[serde(default)]
     pub partial_truth_causes: Vec<String>,
+    /// Shared scope truth contributed by this path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_truth: Option<ScopeCandidateTruthRecord>,
 }
 
 /// Explanation packet for one planner result.
@@ -831,6 +851,9 @@ impl PlannedSearchResultAccumulator {
             candidate,
             decision.decision_class,
         ));
+        if self.result.scope_truth.is_none() {
+            self.result.scope_truth = candidate.scope_truth.clone();
+        }
         if contribution_path_inserted && self.contribution_paths.len() > 1 {
             self.result.truth_class = PlannerResultTruthClass::Hybrid;
         }
@@ -964,6 +987,7 @@ fn build_result_set(
                         readiness_state: snapshot.readiness,
                         ranking_reasons: candidate.ranking_reasons.clone(),
                         partial_truth_causes,
+                        scope_truth: candidate.scope_truth.clone(),
                         contributions: vec![contribution],
                         explanation: PlannerResultExplanation {
                             summary: explanation_summary(
@@ -1035,6 +1059,7 @@ fn build_contribution(
         readiness: snapshot.readiness,
         ranking_reasons: candidate.ranking_reasons.clone(),
         partial_truth_causes,
+        scope_truth: candidate.scope_truth.clone(),
     }
 }
 
@@ -1322,6 +1347,10 @@ fn default_planner_version() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::counts::{
+        HiddenScopeDisclosure, ScopeCandidateTruthRecord, ScopeTruthSurface, SearchNoResultsState,
+        SearchScopeCountsInputs, SearchScopeCountsRecord,
+    };
     use crate::lexical::scope::ScopeClass;
 
     fn session(surface: SearchSurface) -> SearchQuerySession {
@@ -1334,6 +1363,35 @@ mod tests {
             SEARCH_PLANNER_ALPHA_VERSION,
             "warming",
             "mono:1",
+        )
+    }
+
+    fn outside_scope_truth() -> ScopeCandidateTruthRecord {
+        let counts = SearchScopeCountsRecord::derive(SearchScopeCountsInputs {
+            visible_rows: 0,
+            loaded_rows: Some(0),
+            all_matching_rows: Some(1),
+            hidden_by_current_scope_rows: 1,
+            hidden_by_policy_rows: 0,
+            hidden_by_remote_cache_rows: 0,
+            readiness_is_ready: true,
+        });
+        let hidden =
+            HiddenScopeDisclosure::derive("Selected workset · Editor core", &counts, None, false);
+        ScopeCandidateTruthRecord::new(
+            ScopeTruthSurface::GraphCandidate,
+            "Selected workset · Editor core",
+            "selected_workset",
+            Some("scope:editor_core".to_string()),
+            Some("sparse".to_string()),
+            Some("repo:payments-api".to_string()),
+            "authoritative_live",
+            true,
+            false,
+            counts,
+            SearchNoResultsState::NoResultsInThisWorkset,
+            hidden,
+            vec![],
         )
     }
 
@@ -1393,6 +1451,61 @@ mod tests {
         assert_eq!(
             output.result_set.rows[0].answer_role,
             PlannerPathDecisionClass::SelectedFallback
+        );
+    }
+
+    #[test]
+    fn graph_candidate_preserves_shared_scope_truth() {
+        let truth = outside_scope_truth();
+        let inputs = SearchPlannerInputs {
+            query_session: session(SearchSurface::SymbolSearch),
+            planner_pass_id: "search:planner:scope_truth".to_string(),
+            result_set_id: "search:result_set:scope_truth".to_string(),
+            planner_version: SEARCH_PLANNER_ALPHA_VERSION.to_string(),
+            observed_at: "mono:2".to_string(),
+            path_snapshots: vec![PlannerPathSnapshot {
+                path_kind: PlannerDataPath::GraphBacked,
+                snapshot_id: "search:snapshot:graph:scope_truth".to_string(),
+                readiness: PlannerPathReadiness::Ready,
+                freshness: PlannerFreshnessClass::AuthoritativeLive,
+                index_epoch: None,
+                graph_epoch: Some("graph:epoch:scope_truth".to_string()),
+                unavailable_reason: None,
+                partial_truth_causes: Vec::new(),
+                rows: vec![PlannerCandidate::symbol(
+                    "candidate:graph:outside_scope",
+                    "symbol:route:handler",
+                    "RouteHandler",
+                    "services/payments/src/routes.rs",
+                    "rust:fn:RouteHandler",
+                    vec![PlannerRankingReason::GraphExactSymbol],
+                )
+                .with_scope_truth(truth.clone())],
+            }],
+        };
+
+        let output = SearchPlannerAlpha::plan(inputs);
+        let row_truth = output.result_set.rows[0]
+            .scope_truth
+            .as_ref()
+            .expect("graph row must preserve shared scope truth");
+        assert_eq!(row_truth.surface_token, "graph_candidate");
+        assert_eq!(row_truth.candidate_scope_label, "Outside current scope");
+        assert_eq!(
+            row_truth.repo_or_module_ref.as_deref(),
+            Some("repo:payments-api")
+        );
+        assert_eq!(
+            row_truth.counts.hidden_by_current_scope_rows,
+            truth.counts.hidden_by_current_scope_rows
+        );
+        assert_eq!(
+            output.result_set.rows[0].contributions[0]
+                .scope_truth
+                .as_ref()
+                .expect("contribution must preserve shared scope truth")
+                .active_scope_label,
+            "Selected workset · Editor core"
         );
     }
 }
