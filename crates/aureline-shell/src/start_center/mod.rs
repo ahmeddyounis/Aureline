@@ -818,6 +818,296 @@ fn project_workspace_template_seed_manifest(
     Ok(rows)
 }
 
+const WARM_START_DESCRIPTOR_SEED_MANIFEST: (&str, &str) = (
+    "artifacts/templates/warm_start_descriptor_seed.yaml",
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../artifacts/templates/warm_start_descriptor_seed.yaml"
+    )),
+);
+
+/// Start Center projection for one warm-start descriptor seed row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StartCenterWarmStartDescriptorSeedRow {
+    /// Stable descriptor id from the warm-start seed manifest.
+    pub descriptor_id: String,
+    /// Human-readable descriptor label.
+    pub display_label: String,
+    /// Source class for the snapshot or cache metadata.
+    pub source_class: String,
+    /// Source artifact or object ref backing the descriptor.
+    pub source_ref: String,
+    /// Freshness state copied from the descriptor.
+    pub freshness_state: String,
+    /// Age class copied from the descriptor.
+    pub age_class: String,
+    /// Target class copied from the descriptor.
+    pub target_class: String,
+    /// Runtime boundary class copied from the descriptor.
+    pub boundary_class: String,
+    /// Environment capsule the descriptor was fingerprinted against.
+    pub environment_capsule_ref: String,
+    /// Warm-start state shared by launch, entry, and support review surfaces.
+    pub warm_start_state: String,
+    /// Prebuild reuse state from execution-context vocabulary.
+    pub reuse_state: String,
+    /// Cache disposition from execution-context vocabulary.
+    pub cache_disposition: String,
+    /// Optional invalidation reason for rejected descriptors.
+    pub invalidation_reason: Option<String>,
+    /// Resume posture for live or cached runtime state.
+    pub resume_capability: String,
+    /// Explicit materializer claim; seed rows must remain metadata-only.
+    pub materializer_claim: String,
+    /// Explicit live-runtime claim; seed rows must not pretend an attach exists.
+    pub live_runtime_claim: String,
+    /// Launch bundles that can surface this row.
+    pub launch_bundle_refs: Vec<String>,
+    /// Project-entry reviews that can surface this row.
+    pub project_entry_review_refs: Vec<String>,
+    /// Same-weight fallback action for cold, review, or reauth paths.
+    pub fallback_action_id: String,
+    /// Review surfaces that consume this descriptor.
+    pub review_surfaces: Vec<String>,
+    /// Number of drift markers attached to the descriptor.
+    pub drift_marker_count: usize,
+    /// Whether raw secret values were attempted in the seed.
+    pub raw_secret_values_included: bool,
+    /// Whether raw command lines were attempted in the seed.
+    pub raw_command_lines_included: bool,
+    /// Whether the descriptor requires secret or credential revalidation.
+    pub secret_revalidation_required: bool,
+    /// Reviewable summary for compact warm-start rows.
+    pub review_summary: String,
+}
+
+/// Error returned when the Start Center cannot project the warm-start seed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WarmStartDescriptorSeedError {
+    manifest_ref: &'static str,
+    message: String,
+}
+
+impl WarmStartDescriptorSeedError {
+    /// Returns the manifest path that failed to project.
+    pub const fn manifest_ref(&self) -> &'static str {
+        self.manifest_ref
+    }
+
+    /// Returns the parse or projection failure.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+}
+
+impl fmt::Display for WarmStartDescriptorSeedError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.manifest_ref, self.message)
+    }
+}
+
+impl std::error::Error for WarmStartDescriptorSeedError {}
+
+/// Builds Start Center rows from the canonical warm-start descriptor seed.
+///
+/// # Errors
+///
+/// Returns [`WarmStartDescriptorSeedError`] when the checked-in YAML manifest cannot
+/// be parsed, lacks launch or project-entry review reachability, or attempts to
+/// project raw secret or command material.
+pub fn build_warm_start_descriptor_seed_rows(
+) -> Result<Vec<StartCenterWarmStartDescriptorSeedRow>, WarmStartDescriptorSeedError> {
+    project_warm_start_descriptor_seed_manifest(
+        WARM_START_DESCRIPTOR_SEED_MANIFEST.0,
+        WARM_START_DESCRIPTOR_SEED_MANIFEST.1,
+    )
+}
+
+/// Renders the warm-start descriptor seed projection as deterministic plaintext.
+///
+/// # Errors
+///
+/// Returns [`WarmStartDescriptorSeedError`] when
+/// [`build_warm_start_descriptor_seed_rows`] cannot project the canonical seed.
+pub fn render_warm_start_descriptor_seed_plaintext() -> Result<String, WarmStartDescriptorSeedError>
+{
+    let rows = build_warm_start_descriptor_seed_rows()?;
+    let mut lines = vec![
+        "Warm-start descriptor seed gallery".to_string(),
+        "descriptor_id | source | freshness | target | warm_state | resume | claim".to_string(),
+    ];
+    for row in rows {
+        lines.push(format!(
+            "{} | {}:{} | {}/{} | {}/{} | {}/{} | {} | {}:{}",
+            row.descriptor_id,
+            row.source_class,
+            row.source_ref,
+            row.freshness_state,
+            row.age_class,
+            row.target_class,
+            row.boundary_class,
+            row.warm_start_state,
+            row.reuse_state,
+            row.resume_capability,
+            row.materializer_claim,
+            row.live_runtime_claim
+        ));
+    }
+    lines.push(String::new());
+    Ok(lines.join("\n"))
+}
+
+#[derive(Debug, Deserialize)]
+struct WarmStartDescriptorSeedManifestDoc {
+    prebuild_descriptors: Vec<PrebuildDescriptorAlphaDoc>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PrebuildDescriptorAlphaDoc {
+    descriptor_id: String,
+    display_label: String,
+    source_identity: WarmStartSourceIdentityDoc,
+    freshness: WarmStartFreshnessDoc,
+    target: WarmStartTargetDoc,
+    compatibility_fingerprint: WarmStartCompatibilityFingerprintDoc,
+    warm_start_descriptor: WarmStartDescriptorDoc,
+    safety: WarmStartSafetyDoc,
+    drift_markers: Vec<WarmStartDriftMarkerDoc>,
+    review_surfaces: Vec<String>,
+    launch_bundle_refs: Vec<String>,
+    project_entry_review_refs: Vec<String>,
+    review_summary: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WarmStartSourceIdentityDoc {
+    source_class: String,
+    source_ref: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WarmStartFreshnessDoc {
+    freshness_state: String,
+    age_class: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WarmStartTargetDoc {
+    target_class: String,
+    boundary_class: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WarmStartCompatibilityFingerprintDoc {
+    capsule_ref: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WarmStartDescriptorDoc {
+    warm_start_state: String,
+    reuse_state: String,
+    invalidation_reason: Option<String>,
+    cache_disposition: String,
+    resume_capability: String,
+    materializer_claim: String,
+    live_runtime_claim: String,
+    fallback_action_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WarmStartSafetyDoc {
+    raw_secret_values_included: bool,
+    raw_command_lines_included: bool,
+    secret_revalidation_required: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct WarmStartDriftMarkerDoc {}
+
+fn project_warm_start_descriptor_seed_manifest(
+    manifest_ref: &'static str,
+    contents: &str,
+) -> Result<Vec<StartCenterWarmStartDescriptorSeedRow>, WarmStartDescriptorSeedError> {
+    let doc: WarmStartDescriptorSeedManifestDoc =
+        serde_yaml::from_str(contents).map_err(|err| WarmStartDescriptorSeedError {
+            manifest_ref,
+            message: err.to_string(),
+        })?;
+    let mut rows = Vec::with_capacity(doc.prebuild_descriptors.len());
+    for descriptor in doc.prebuild_descriptors {
+        if descriptor.launch_bundle_refs.is_empty()
+            && descriptor.project_entry_review_refs.is_empty()
+        {
+            return Err(WarmStartDescriptorSeedError {
+                manifest_ref,
+                message: format!(
+                    "{} must be reachable from a launch-bundle or project-entry review",
+                    descriptor.descriptor_id
+                ),
+            });
+        }
+        if !descriptor
+            .review_surfaces
+            .iter()
+            .any(|surface| surface == "start_center")
+        {
+            return Err(WarmStartDescriptorSeedError {
+                manifest_ref,
+                message: format!(
+                    "{} is not projected to Start Center",
+                    descriptor.descriptor_id
+                ),
+            });
+        }
+        if descriptor.safety.raw_secret_values_included {
+            return Err(WarmStartDescriptorSeedError {
+                manifest_ref,
+                message: format!(
+                    "{} attempted to project raw secrets",
+                    descriptor.descriptor_id
+                ),
+            });
+        }
+        if descriptor.safety.raw_command_lines_included {
+            return Err(WarmStartDescriptorSeedError {
+                manifest_ref,
+                message: format!(
+                    "{} attempted to project raw command lines",
+                    descriptor.descriptor_id
+                ),
+            });
+        }
+        rows.push(StartCenterWarmStartDescriptorSeedRow {
+            descriptor_id: descriptor.descriptor_id,
+            display_label: descriptor.display_label,
+            source_class: descriptor.source_identity.source_class,
+            source_ref: descriptor.source_identity.source_ref,
+            freshness_state: descriptor.freshness.freshness_state,
+            age_class: descriptor.freshness.age_class,
+            target_class: descriptor.target.target_class,
+            boundary_class: descriptor.target.boundary_class,
+            environment_capsule_ref: descriptor.compatibility_fingerprint.capsule_ref,
+            warm_start_state: descriptor.warm_start_descriptor.warm_start_state,
+            reuse_state: descriptor.warm_start_descriptor.reuse_state,
+            cache_disposition: descriptor.warm_start_descriptor.cache_disposition,
+            invalidation_reason: descriptor.warm_start_descriptor.invalidation_reason,
+            resume_capability: descriptor.warm_start_descriptor.resume_capability,
+            materializer_claim: descriptor.warm_start_descriptor.materializer_claim,
+            live_runtime_claim: descriptor.warm_start_descriptor.live_runtime_claim,
+            launch_bundle_refs: descriptor.launch_bundle_refs,
+            project_entry_review_refs: descriptor.project_entry_review_refs,
+            fallback_action_id: descriptor.warm_start_descriptor.fallback_action_id,
+            review_surfaces: descriptor.review_surfaces,
+            drift_marker_count: descriptor.drift_markers.len(),
+            raw_secret_values_included: descriptor.safety.raw_secret_values_included,
+            raw_command_lines_included: descriptor.safety.raw_command_lines_included,
+            secret_revalidation_required: descriptor.safety.secret_revalidation_required,
+            review_summary: descriptor.review_summary,
+        });
+    }
+    Ok(rows)
+}
+
 fn override_open_folder_scope_to_workspace_file(
     argument_provenance_map: &mut [ArgumentProvenanceEntry],
 ) {
@@ -1077,6 +1367,65 @@ mod tests {
         assert!(text.contains("launch_bundle:typescript_web_app.seed"));
         assert!(text.contains("secret_aliases=1"));
         assert!(text.contains("raw_values=0"));
+    }
+
+    #[test]
+    fn warm_start_descriptor_seed_projects_source_freshness_target_and_resume() {
+        let rows = build_warm_start_descriptor_seed_rows().expect("warm-start rows project");
+        assert_eq!(rows.len(), 3);
+
+        let ts_web = rows
+            .iter()
+            .find(|row| row.descriptor_id == "prebuild.alpha.ts_web.local_dependency_cache")
+            .expect("typescript warm-start descriptor row");
+        assert_eq!(ts_web.source_class, "workspace_template_seed");
+        assert_eq!(ts_web.freshness_state, "cached");
+        assert_eq!(ts_web.target_class, "local_host");
+        assert_eq!(ts_web.warm_start_state, "warm_candidate");
+        assert_eq!(ts_web.reuse_state, "candidate");
+        assert_eq!(
+            ts_web.materializer_claim,
+            "metadata_only_no_materializer_claim"
+        );
+        assert!(!ts_web.raw_secret_values_included);
+        assert!(!ts_web.raw_command_lines_included);
+
+        let stale_python = rows
+            .iter()
+            .find(|row| row.descriptor_id == "prebuild.alpha.python.devcontainer.stale_snapshot")
+            .expect("python stale warm-start descriptor row");
+        assert_eq!(stale_python.freshness_state, "stale");
+        assert_eq!(stale_python.reuse_state, "rejected_drift");
+        assert_eq!(
+            stale_python.invalidation_reason.as_deref(),
+            Some("capsule_drift")
+        );
+        assert_eq!(stale_python.drift_marker_count, 1);
+
+        let managed_resume = rows
+            .iter()
+            .find(|row| row.descriptor_id == "prebuild.alpha.managed_workspace.resume_metadata")
+            .expect("managed resume descriptor row");
+        assert_eq!(managed_resume.target_class, "managed_workspace");
+        assert_eq!(managed_resume.warm_start_state, "live_resume_candidate");
+        assert_eq!(managed_resume.resume_capability, "resume_requires_reauth");
+        assert!(managed_resume.secret_revalidation_required);
+        assert!(managed_resume
+            .project_entry_review_refs
+            .iter()
+            .any(|entry| entry == "project_entry:resume_managed_workspace.seed"));
+    }
+
+    #[test]
+    fn warm_start_descriptor_plaintext_exposes_metadata_only_claims() {
+        let text = render_warm_start_descriptor_seed_plaintext().expect("warm-start plaintext");
+        assert!(text.contains("Warm-start descriptor seed gallery"));
+        assert!(text.contains("prebuild.alpha.ts_web.local_dependency_cache"));
+        assert!(text.contains("prebuild.alpha.python.devcontainer.stale_snapshot"));
+        assert!(text.contains("stale_warm_candidate/rejected_drift"));
+        assert!(text.contains("live_resume_candidate/candidate"));
+        assert!(text.contains("metadata_only_no_materializer_claim"));
+        assert!(text.contains("resume_requires_reauth"));
     }
 
     #[test]
