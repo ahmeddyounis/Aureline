@@ -45,6 +45,7 @@ pub mod deeplink;
 pub mod docs_browser;
 pub mod embedded;
 pub mod explorer;
+pub mod git_changes;
 pub mod graph_state_card;
 pub mod help;
 pub mod help_about;

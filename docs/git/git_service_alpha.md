@@ -25,6 +25,9 @@ All consumer records carry the same `truth_source_ref`, so support exports and
 tests can prove the surfaces came from one snapshot rather than duplicate Git
 commands.
 
+The shell change-list projection in `docs/git/change_list_alpha.md` consumes
+this snapshot directly for staged/unstaged grouping and file-state chips.
+
 ## Degraded Behavior
 
 - `not_repository`: the selected root is a plain folder; shell and review
