@@ -22,6 +22,6 @@ pub use registry::{
     GrammarRegistryRecord, TreeSitterGrammarRegistry, TREE_SITTER_GRAMMAR_REGISTRY_SCHEMA_VERSION,
 };
 pub use runtime::{
-    ParseOutput, ParseRequest, ParserLifecycleSnapshot, ParserRuntimeHandle,
+    ParseCacheContext, ParseOutput, ParseRequest, ParserLifecycleSnapshot, ParserRuntimeHandle,
     ParserRuntimeStateClass, ParserStartupError, TreeSitterParserSupervisor,
 };

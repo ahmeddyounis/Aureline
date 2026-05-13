@@ -10,6 +10,54 @@ use super::registry::{
     default_launch_grammar_registry, GrammarDescriptor, TreeSitterGrammarRegistry,
 };
 
+/// Cache context supplied by callers that reuse or invalidate syntax trees.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseCacheContext {
+    /// Cache status observed by this parse request.
+    pub cache_status_class: CacheStatusClass,
+    /// Cache key reference for support joins.
+    pub cache_key_ref: String,
+    /// Previous syntax-tree reference, or `syntax-tree:none`.
+    pub previous_tree_ref: String,
+    /// Cache invalidation reasons attached to this parse.
+    pub invalidation_reason_classes: Vec<CacheStatusClass>,
+    /// Reviewer-facing cache summary.
+    pub summary: String,
+}
+
+impl ParseCacheContext {
+    /// Builds the default cache-miss context for a fresh parse.
+    pub fn cache_miss(buffer_ref: &BufferRef) -> Self {
+        Self {
+            cache_status_class: CacheStatusClass::CacheMiss,
+            cache_key_ref: format!(
+                "cache-key:syntax:{}:{}",
+                buffer_ref.buffer_id, buffer_ref.buffer_version
+            ),
+            previous_tree_ref: "syntax-tree:none".into(),
+            invalidation_reason_classes: Vec::new(),
+            summary: "No reusable previous tree was available for this parse.".into(),
+        }
+    }
+
+    /// Builds an edit-invalidation context for an incremental parse.
+    pub fn invalidated_by_edit(
+        buffer_ref: &BufferRef,
+        previous_tree_ref: impl Into<String>,
+    ) -> Self {
+        Self {
+            cache_status_class: CacheStatusClass::InvalidatedByEdit,
+            cache_key_ref: format!(
+                "cache-key:syntax:{}:{}",
+                buffer_ref.buffer_id, buffer_ref.buffer_version
+            ),
+            previous_tree_ref: previous_tree_ref.into(),
+            invalidation_reason_classes: vec![CacheStatusClass::InvalidatedByEdit],
+            summary: "Previous syntax tree was edited and reused for an incremental parse.".into(),
+        }
+    }
+}
+
 /// Visible runtime state for a parser handle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ParserRuntimeStateClass {
@@ -328,6 +376,18 @@ impl ParserRuntimeHandle {
 
     /// Parses text and emits a parse-session record plus syntax tree.
     pub fn parse_text(&mut self, request: ParseRequest, source_text: &str) -> ParseOutput {
+        let cache_context = ParseCacheContext::cache_miss(&request.buffer_ref);
+        self.parse_text_with_cache_context(request, source_text, None, cache_context)
+    }
+
+    /// Parses text with an optional edited previous tree and explicit cache context.
+    pub fn parse_text_with_cache_context(
+        &mut self,
+        request: ParseRequest,
+        source_text: &str,
+        old_tree: Option<&::tree_sitter::Tree>,
+        cache_context: ParseCacheContext,
+    ) -> ParseOutput {
         if source_text.len() > request.incremental_budget.byte_budget {
             self.lifecycle.runtime_state_class = ParserRuntimeStateClass::Failed;
             self.lifecycle.parse_lifecycle_state_class =
@@ -384,7 +444,7 @@ impl ParserRuntimeHandle {
         };
 
         parser.set_timeout_micros(request.incremental_budget.burst_ceiling_ms * 1_000);
-        let Some(tree) = parser.parse(source_text, None) else {
+        let Some(tree) = parser.parse(source_text, old_tree) else {
             self.lifecycle.runtime_state_class = ParserRuntimeStateClass::Failed;
             self.lifecycle.parse_lifecycle_state_class = Some(ParseLifecycleStateClass::Failed);
             self.lifecycle.failure_reason_classes =
@@ -490,14 +550,7 @@ impl ParserRuntimeHandle {
             incremental_budget: request.incremental_budget.clone(),
             parse_state,
             syntax_tree_identity: Some(syntax_identity),
-            cache_record: cache_record(
-                CacheStatusClass::CacheMiss,
-                format!(
-                    "cache-key:syntax:{}:{}",
-                    request.buffer_ref.buffer_id, request.buffer_ref.buffer_version
-                ),
-                "No reusable previous tree was available for this parse.",
-            ),
+            cache_record: cache_record(cache_context),
             derived_cues: derived_cues(&request, &syntax_tree_id, parse_quality, &failure_reasons),
             current_epoch_bindings: epoch_bindings(
                 &request,
@@ -699,11 +752,13 @@ fn degraded_output(
         incremental_budget: request.incremental_budget.clone(),
         parse_state,
         syntax_tree_identity: None,
-        cache_record: cache_record(
-            CacheStatusClass::NotCacheable,
-            format!("cache-key:none:{}", sanitize_id(&request.language_id)),
-            "No reusable syntax tree is cacheable for this degraded parse.",
-        ),
+        cache_record: cache_record(ParseCacheContext {
+            cache_status_class: CacheStatusClass::NotCacheable,
+            cache_key_ref: format!("cache-key:none:{}", sanitize_id(&request.language_id)),
+            previous_tree_ref: "syntax-tree:none".into(),
+            invalidation_reason_classes: Vec::new(),
+            summary: "No reusable syntax tree is cacheable for this degraded parse.".into(),
+        }),
         derived_cues: derived_cues(&request, "syntax-tree:none", quality, &failure_reasons),
         current_epoch_bindings: vec![
             EpochBinding {
@@ -730,17 +785,13 @@ fn degraded_output(
     }
 }
 
-fn cache_record(
-    cache_status_class: CacheStatusClass,
-    cache_key_ref: String,
-    summary: impl Into<String>,
-) -> CacheRecord {
+fn cache_record(cache_context: ParseCacheContext) -> CacheRecord {
     CacheRecord {
-        cache_status_class,
-        cache_key_ref,
-        previous_tree_ref: "syntax-tree:none".into(),
-        invalidation_reason_classes: Vec::new(),
-        summary: summary.into(),
+        cache_status_class: cache_context.cache_status_class,
+        cache_key_ref: cache_context.cache_key_ref,
+        previous_tree_ref: cache_context.previous_tree_ref,
+        invalidation_reason_classes: cache_context.invalidation_reason_classes,
+        summary: cache_context.summary,
     }
 }
 

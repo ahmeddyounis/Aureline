@@ -642,6 +642,35 @@ impl PlannerPathSnapshot {
         }
     }
 
+    /// Builds a structural planner snapshot from a language symbol snapshot.
+    pub fn from_symbol_snapshot(
+        snapshot_id: impl Into<String>,
+        snapshot: &aureline_language::SymbolSnapshotRecord,
+    ) -> Self {
+        let rows = snapshot
+            .symbols
+            .iter()
+            .map(candidate_from_symbol_record)
+            .collect();
+        let readiness = readiness_from_symbol_snapshot(snapshot);
+
+        Self {
+            path_kind: PlannerDataPath::Structural,
+            snapshot_id: snapshot_id.into(),
+            readiness,
+            freshness: freshness_from_symbol_snapshot(snapshot),
+            index_epoch: Some(snapshot.state.symbol_epoch_ref.clone()),
+            graph_epoch: None,
+            unavailable_reason: if snapshot.state.search_consumable {
+                None
+            } else {
+                Some(PlannerUnavailableReason::LanguageUnavailable)
+            },
+            partial_truth_causes: snapshot.state.partial_truth_causes.clone(),
+            rows,
+        }
+    }
+
     fn can_answer(&self) -> bool {
         !self.rows.is_empty()
             && !self.readiness.is_unavailable_like()
@@ -1502,6 +1531,63 @@ fn freshness_from_graph_envelope(
         return PlannerFreshnessClass::Unknown;
     }
     PlannerFreshnessClass::AuthoritativeLive
+}
+
+fn candidate_from_symbol_record(symbol: &aureline_language::SymbolRecord) -> PlannerCandidate {
+    let mut ranking_reasons = vec![
+        PlannerRankingReason::StructuralSymbolMatch,
+        PlannerRankingReason::StructuralFallback,
+        PlannerRankingReason::SymbolKindPrior,
+    ];
+    if !symbol.partial_truth_causes.is_empty() {
+        ranking_reasons.push(PlannerRankingReason::PartialIndex);
+    }
+
+    PlannerCandidate {
+        candidate_id: symbol.symbol_id.clone(),
+        canonical_id: symbol.stable_symbol_ref.clone(),
+        target_kind: PlannerTargetKind::Symbol,
+        title: symbol.name.clone(),
+        relative_path: Some(symbol.workspace_relative_path.clone()),
+        symbol_ref: Some(symbol.stable_symbol_ref.clone()),
+        ranking_reasons,
+        partial_truth_causes: symbol.partial_truth_causes.clone(),
+        scope_truth: None,
+    }
+}
+
+fn readiness_from_symbol_snapshot(
+    snapshot: &aureline_language::SymbolSnapshotRecord,
+) -> PlannerPathReadiness {
+    match snapshot.state.completeness_class {
+        aureline_language::SymbolSnapshotCompletenessClass::CompleteCurrentFile => {
+            PlannerPathReadiness::Ready
+        }
+        aureline_language::SymbolSnapshotCompletenessClass::PartialParserErrors => {
+            PlannerPathReadiness::Partial
+        }
+        aureline_language::SymbolSnapshotCompletenessClass::UnavailableNoStructure => {
+            PlannerPathReadiness::Unavailable
+        }
+    }
+}
+
+fn freshness_from_symbol_snapshot(
+    snapshot: &aureline_language::SymbolSnapshotRecord,
+) -> PlannerFreshnessClass {
+    match snapshot.state.parse_freshness_class {
+        aureline_language::ParseFreshnessClass::CurrentBufferVersion => {
+            PlannerFreshnessClass::AuthoritativeLive
+        }
+        aureline_language::ParseFreshnessClass::WarmCached => PlannerFreshnessClass::WarmCached,
+        aureline_language::ParseFreshnessClass::StaleBufferVersion
+        | aureline_language::ParseFreshnessClass::StaleGrammarVersion => {
+            PlannerFreshnessClass::StaleCached
+        }
+        aureline_language::ParseFreshnessClass::UnverifiedImported => {
+            PlannerFreshnessClass::Unknown
+        }
+    }
 }
 
 fn default_planner_version() -> String {
