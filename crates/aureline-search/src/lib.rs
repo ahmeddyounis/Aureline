@@ -32,6 +32,9 @@
 //! - [`counts::SearchScopeCountsRecord`] distinguishes visible, loaded,
 //!   all-matching, and hidden rows, and [`counts::ScopeCandidateTruthRecord`]
 //!   carries the same scope truth onto graph-backed and AI context candidates.
+//! - [`remap::DeepLinkRemapPacket`] records old/new target identity, active
+//!   workset or slice, confidence, and recovery actions when a deep link,
+//!   bookmark, or history row drifts.
 //!
 //! Higher layers (the shell `search_shell` module) convert this vocabulary
 //! into chrome and persistable diagnostics; this crate only owns the
@@ -46,6 +49,7 @@ pub mod lexical;
 pub mod planner;
 pub mod query_session;
 pub mod readiness;
+pub mod remap;
 pub mod result_id;
 pub mod results;
 pub mod scope;
@@ -89,6 +93,13 @@ pub use readiness::{
     IndexedLaneKind, IndexedLaneState, IndexedLaneStateInput, IndexedLaneSupportRow,
     IndexedStateClass, IndexedStateReason, IndexedStateSupportArtifact,
     INDEXED_LANE_STATE_SCHEMA_VERSION, INDEXED_STATE_SUPPORT_ARTIFACT_SCHEMA_VERSION,
+};
+
+pub use remap::{
+    DeepLinkDriftState, DeepLinkRemapOutcome, DeepLinkRemapPacket, DeepLinkRemapPacketError,
+    DeepLinkRemapRecordKind, RemapConfidence, RemapConfidenceClass, RemapEvidenceClass,
+    RemapFailureReason, RemapScopePacket, RemapTarget, RemapTargetField, RemapTargetKind,
+    DEEP_LINK_REMAP_PACKET_SCHEMA_VERSION,
 };
 
 pub use result_id::{

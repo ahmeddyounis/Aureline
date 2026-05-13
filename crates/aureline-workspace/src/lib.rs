@@ -13,6 +13,7 @@
 pub mod admission;
 pub mod entry_flows;
 pub mod generated_artifacts;
+pub mod history;
 pub mod lifecycle;
 pub mod profiles;
 pub mod recent_work;
@@ -108,6 +109,13 @@ pub use generated_artifacts::{
     GeneratedArtifactCatalog, GeneratedArtifactClass, GeneratedArtifactRule, LineageFreshnessClass,
     LineageHintRecord, LineageHintRecordKind, LineageHintSchemaVersion, RuleMatcher,
     SourceCanonicalLink,
+};
+
+pub use history::{
+    NavigationArtifactKind, NavigationContinuityError, NavigationContinuityRecord,
+    NavigationContinuityRecordKind, NavigationContinuityState, NavigationDestinationVisibility,
+    NavigationFailureReason, NavigationOriginClass, NavigationRecoveryAction,
+    NavigationScopeIdentity, NavigationSurfaceClass, NAVIGATION_CONTINUITY_SCHEMA_VERSION,
 };
 
 pub use worksets::{
