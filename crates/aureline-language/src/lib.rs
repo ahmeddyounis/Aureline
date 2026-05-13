@@ -11,6 +11,7 @@
 pub mod diagnostics;
 pub mod invalidation;
 pub mod lsp_router;
+pub mod python;
 pub mod symbol_snapshot;
 pub mod tree_sitter;
 pub mod tsjs;
@@ -45,6 +46,24 @@ pub use lsp_router::{
     ScopeClaimClass as RouterScopeClaimClass, ScopeLimitClass, SupportClass as RouterSupportClass,
     SurfaceClass as RouterSurfaceClass, SurfaceReport as RouterSurfaceReport, SurfaceSupportClass,
     SurfaceSupportClassRow, WorkspaceLocalRouterRequest, ROUTER_DECISION_SCHEMA_VERSION,
+};
+pub use python::{
+    PythonAccessKindClass, PythonAmbiguityDescriptor, PythonAnchorRef, PythonAnswerLayerClass,
+    PythonApplyPostureClass, PythonCheckpointClass, PythonCompletenessClass,
+    PythonEnvironmentManagerClass, PythonGeneratedOrExternalStateClass, PythonHoverRecord,
+    PythonInlineVisibilityClass, PythonInterpreterContext, PythonInterpreterReadinessClass,
+    PythonInterpreterSelectionStateClass, PythonLaunchWedge, PythonLaunchWedgeSnapshot,
+    PythonNavigationError, PythonOccurrenceSeed, PythonProviderSnapshot,
+    PythonReferenceCountSummary, PythonReferenceSetRecord, PythonRelationClass,
+    PythonRenameAffectedScopeRow, PythonRenameCheckpointDescriptor, PythonRenameCountSummary,
+    PythonRenameCoverageLimitClass, PythonRenameEvidenceBinding,
+    PythonRenamePreviewCompletenessClass, PythonRenamePreviewRecord,
+    PythonRenamePreviewSchemaVersion, PythonRenameWarningClass, PythonRenameWarningRow,
+    PythonResultConfidenceClass, PythonRollbackPathClass, PythonScopeDescriptor,
+    PythonSemanticEvidenceBinding, PythonSemanticResultIdentityClass, PythonSemanticResultRecord,
+    PythonSemanticResultSchemaVersion, PythonSourceAnchor, PythonSourceAnchorKindClass,
+    PythonSymbolKindClass, PythonSymbolSeed, PythonWorkspaceContext,
+    PYTHON_NAV_ALPHA_SCHEMA_VERSION,
 };
 pub use symbol_snapshot::{
     SourcePoint, SourceRange, SymbolKindClass, SymbolProviderClass, SymbolRecord,
