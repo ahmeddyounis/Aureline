@@ -4233,9 +4233,15 @@ impl TerminalPaneRuntimeState {
     }
 
     fn snapshot(&self) -> Option<TerminalPaneSnapshot> {
-        self.active_workspace_id
-            .as_deref()
-            .map(|workspace_id| TerminalPaneSnapshot::project(workspace_id, &self.host))
+        self.active_workspace_id.as_deref().map(|workspace_id| {
+            let contexts: Vec<&ExecutionContext> = self
+                .host
+                .sessions()
+                .filter(|session| session.header().workspace_id == workspace_id)
+                .filter_map(|session| self.contexts_by_session.get(session.session_id()))
+                .collect();
+            TerminalPaneSnapshot::project(workspace_id, &self.host).with_run_contexts(contexts)
+        })
     }
 
     fn active_output_text(&self) -> &str {
@@ -4601,6 +4607,36 @@ mod terminal_routing_tests {
             PlatformClass::Macos,
         )
         .is_none());
+    }
+
+    #[test]
+    fn runtime_snapshot_attaches_execution_context_to_terminal_header() {
+        let workspace = tempfile::tempdir().expect("workspace tempdir");
+        let mut runtime = TerminalPaneRuntimeState::new();
+        runtime.open_workspace(
+            "ws-test".to_owned(),
+            workspace.path().to_path_buf(),
+            TrustState::Trusted,
+            "mono:0",
+        );
+
+        let snapshot = runtime.snapshot().expect("snapshot");
+        let tab = snapshot.tabs.first().expect("terminal tab");
+        assert_eq!(tab.header.runtime_chip.state_token, "current");
+        assert_eq!(
+            tab.header.runtime_chip.value_token,
+            "login_shell:shell.login_shell:seed"
+        );
+        assert_eq!(
+            tab.header
+                .runtime_source
+                .as_ref()
+                .expect("runtime source")
+                .surface_token,
+            "terminal"
+        );
+
+        runtime.close_active_workspace("mono:close", Some("test_complete"));
     }
 }
 
@@ -15349,13 +15385,25 @@ fn terminal_tab_badge_label(tab: &TerminalPaneTabRecord, active: bool) -> String
     if active {
         label.push(']');
     }
-    label.push(' ');
-    label.push_str(&tab.target_badge);
+    label.push_str(" target=");
+    label.push_str(&tab.header.target_chip.display_value);
+    label.push_str(" cwd=");
+    label.push_str(&compact_terminal_chip_value(
+        &tab.header.cwd_chip.display_value,
+        18,
+    ));
+    label.push_str(" runtime=");
+    label.push_str(&compact_terminal_chip_value(
+        &tab.header.runtime_chip.display_value,
+        18,
+    ));
+    label.push_str(" state=");
+    label.push_str(&tab.header.restore_chip.display_value);
     if let Some(token) = tab.degraded_token.as_deref() {
         label.push(' ');
         label.push_str(token);
     }
-    const MAX_LABEL_CHARS: usize = 28;
+    const MAX_LABEL_CHARS: usize = 72;
     if label.chars().count() <= MAX_LABEL_CHARS {
         return label;
     }
@@ -15365,6 +15413,24 @@ fn terminal_tab_badge_label(tab: &TerminalPaneTabRecord, active: bool) -> String
         .collect::<String>();
     truncated.push('~');
     truncated
+}
+
+fn compact_terminal_chip_value(value: &str, max_chars: usize) -> String {
+    if value.chars().count() <= max_chars {
+        return value.to_owned();
+    }
+    if max_chars <= 1 {
+        return "~".to_owned();
+    }
+    let mut tail = value
+        .chars()
+        .rev()
+        .take(max_chars.saturating_sub(1))
+        .collect::<Vec<_>>();
+    tail.reverse();
+    let mut compact = String::from("~");
+    compact.extend(tail);
+    compact
 }
 
 fn terminal_view_lines(text: &str, max_lines: usize) -> Vec<String> {

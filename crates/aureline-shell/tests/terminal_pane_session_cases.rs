@@ -264,6 +264,11 @@ fn run_fixture(path: &Path, fixture: &TerminalPaneFixture) {
             fixture.case_name
         );
         assert_eq!(
+            actual.header.target_chip.display_value, expected.target_badge,
+            "header target chip mismatch in {path:?} ({})",
+            fixture.case_name
+        );
+        assert_eq!(
             actual.boundary_cue_token, expected.boundary_cue_token,
             "boundary_cue_token mismatch in {path:?} ({})",
             fixture.case_name
@@ -281,6 +286,12 @@ fn run_fixture(path: &Path, fixture: &TerminalPaneFixture) {
         assert_eq!(
             actual.cwd_hint, expected.cwd_hint,
             "cwd_hint mismatch in {path:?} ({})",
+            fixture.case_name
+        );
+        assert_eq!(
+            actual.header.cwd_chip.display_value,
+            expected.cwd_hint.as_deref().unwrap_or("cwd unavailable"),
+            "header cwd chip mismatch in {path:?} ({})",
             fixture.case_name
         );
         assert_eq!(

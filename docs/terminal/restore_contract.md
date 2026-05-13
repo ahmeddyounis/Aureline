@@ -30,6 +30,9 @@ Machine-readable companions:
   — the bottom-panel consumer. `TerminalPaneSnapshot::with_restored_terminals`
   attaches restored rows to the same workspace-scoped snapshot the chrome
   already renders.
+- [`/docs/terminal/target_header_alpha.md`](./target_header_alpha.md)
+  — the target/cwd/runtime/restore header contract consumed by live terminal
+  tabs and restored transcript rows.
 - [`/fixtures/terminal/restore_cases/`](../../fixtures/terminal/restore_cases)
   — worked JSON fixtures covering the protected walk, the failure drill,
   and the declined-by-policy case.

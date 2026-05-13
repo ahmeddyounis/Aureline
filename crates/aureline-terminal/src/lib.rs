@@ -13,6 +13,8 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-terminal/0.0.0")]
 
+/// Terminal header strip and target/cwd/runtime/restore chip projection.
+pub mod headers;
 pub mod pty_host;
 /// Transcript / ended-session restore projection. Restored records never
 /// claim a live shell survived; auto-rerun is always forbidden.
@@ -21,6 +23,11 @@ pub mod restore;
 /// support / export bundles.
 pub mod scrollback;
 
+pub use headers::{
+    TerminalHeaderChip, TerminalHeaderChipKind, TerminalHeaderChipState, TerminalHeaderRecord,
+    TerminalHeaderRestoreState, TerminalHeaderSourceKind, TerminalRuntimeChipSource,
+    TERMINAL_HEADER_RECORD_KIND, TERMINAL_HEADER_SCHEMA_VERSION,
+};
 pub use portable_pty::PtySize;
 pub use pty_host::{
     HostClass, OpenSessionRequest, PtyCommand, PtyHost, PtyHostError, PtyLaunchFailureReason,

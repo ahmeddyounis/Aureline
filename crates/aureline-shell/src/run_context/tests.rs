@@ -117,6 +117,19 @@ fn terminal_tab_can_join_the_shared_summary_by_execution_context_ref() {
     assert_eq!(summary.execution_context_ref, tab.execution_context_ref);
     assert_eq!(summary.surface, SurfaceClass::Terminal);
     assert_eq!(summary.toolchain_class_token, "login_shell");
+    assert_eq!(tab.header.runtime_chip.state_token, "current");
+    assert_eq!(
+        tab.header.runtime_chip.value_token,
+        "login_shell:shell.login_shell:seed"
+    );
+    assert_eq!(
+        tab.header
+            .runtime_source
+            .as_ref()
+            .expect("runtime source")
+            .target_class_token,
+        "local_host"
+    );
 }
 
 #[test]

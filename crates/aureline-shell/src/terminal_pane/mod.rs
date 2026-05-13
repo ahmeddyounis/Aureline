@@ -32,7 +32,7 @@ use aureline_auth::{
 use aureline_runtime::ExecutionContext;
 use aureline_terminal::{
     HostClass, PtyHost, PtySession, PtySessionId, RestoredTerminalRecord, SessionLifecycleState,
-    TerminalTrustState,
+    TerminalHeaderRecord, TerminalRuntimeChipSource, TerminalTrustState,
 };
 
 use crate::run_context::RunContextSummary;
@@ -54,6 +54,8 @@ pub struct TerminalPaneTabRecord {
     pub session_id: PtySessionId,
     pub workspace_id: String,
     pub host_class: HostClass,
+    /// Canonical header strip with target, cwd, runtime, and restore chips.
+    pub header: TerminalHeaderRecord,
     pub target_badge: String,
     pub boundary_cue_token: String,
     /// True when the session's host is not the local desktop and the chrome
@@ -84,11 +86,13 @@ impl TerminalPaneTabRecord {
     /// Project a tab row from one tracked session.
     pub fn project(session: &PtySession) -> Self {
         let header = session.header();
+        let header_record = TerminalHeaderRecord::project_session(session);
         let degraded = derive_degraded_token(header.lifecycle_state, header.trust_state);
         Self {
             session_id: header.session_id.clone(),
             workspace_id: header.workspace_id.clone(),
             host_class: header.host_class,
+            header: header_record,
             target_badge: header.target_badge.clone(),
             boundary_cue_token: header.boundary_cue_token.clone(),
             boundary_cue_visible: header.host_class.needs_boundary_cue(),
@@ -160,6 +164,11 @@ pub struct TerminalPaneSnapshot {
     /// boundary. Empty when no prior session was restored.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub restored_terminals: Vec<RestoredTerminalRecord>,
+    /// Header strips for restored terminal rows. Kept parallel to
+    /// `restored_terminals` so restored transcript state is inspectable even
+    /// when there is no live tab.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restored_terminal_headers: Vec<TerminalHeaderRecord>,
 }
 
 impl TerminalPaneSnapshot {
@@ -206,6 +215,7 @@ impl TerminalPaneSnapshot {
             credential_state_chips: Vec::new(),
             claimed_identity_rows: Vec::new(),
             restored_terminals: Vec::new(),
+            restored_terminal_headers: Vec::new(),
         }
     }
 
@@ -272,10 +282,15 @@ impl TerminalPaneSnapshot {
     where
         I: IntoIterator<Item = RestoredTerminalRecord>,
     {
-        self.restored_terminals = restored
+        let restored_terminals: Vec<RestoredTerminalRecord> = restored
             .into_iter()
             .filter(|record| record.workspace_id == self.workspace_id)
             .collect();
+        self.restored_terminal_headers = restored_terminals
+            .iter()
+            .map(TerminalHeaderRecord::project_restored)
+            .collect();
+        self.restored_terminals = restored_terminals;
         self
     }
 
@@ -297,10 +312,26 @@ impl TerminalPaneSnapshot {
     {
         let summaries: Vec<RunContextSummary> = summaries.into_iter().collect();
         for tab in &mut self.tabs {
-            tab.context_summary = summaries
+            let summary = summaries
                 .iter()
-                .find(|summary| summary.execution_context_ref == tab.execution_context_ref)
-                .cloned();
+                .find(|summary| summary.execution_context_ref == tab.execution_context_ref);
+            tab.context_summary = summary.cloned();
+            if let Some(summary) = summary {
+                tab.header = tab
+                    .header
+                    .clone()
+                    .with_runtime_source(runtime_source_from_summary(summary));
+            }
+        }
+        for header in &mut self.restored_terminal_headers {
+            if let Some(summary) = summaries
+                .iter()
+                .find(|summary| summary.execution_context_ref == header.execution_context_ref)
+            {
+                *header = header
+                    .clone()
+                    .with_runtime_source(runtime_source_from_summary(summary));
+            }
         }
         self
     }
@@ -340,6 +371,20 @@ impl TerminalPaneSnapshot {
         self.claimed_identity_rows
             .iter()
             .any(|row| row.dead_end_without_local_continuation)
+    }
+}
+
+fn runtime_source_from_summary(summary: &RunContextSummary) -> TerminalRuntimeChipSource {
+    TerminalRuntimeChipSource {
+        execution_context_ref: summary.execution_context_ref.clone(),
+        surface_token: summary.surface_token.clone(),
+        target_class_token: summary.target_class_token.clone(),
+        toolchain_class_token: summary.toolchain_class_token.clone(),
+        toolchain_id: summary.toolchain_id.clone(),
+        resolved_version: summary.resolved_version.clone(),
+        target_confidence_level_token: summary.target_confidence_level_token.clone(),
+        prebuild_reuse_state_token: summary.prebuild_reuse_state_token.clone(),
+        mixed_version_state_token: summary.mixed_version_state_token.clone(),
     }
 }
 
