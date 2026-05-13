@@ -6,5 +6,6 @@
 //! contract and provides the smallest runnable shell integration for exercising
 //! owner/origin chrome plus a system-browser handoff escape hatch.
 
+pub mod boundary_alpha;
 pub mod boundary_card;
 pub mod docs_help;

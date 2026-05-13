@@ -17,6 +17,8 @@
 //! does not see raw URLs, raw callback bodies, or raw provider payloads;
 //! callers strip those before constructing a [`DeepLinkIntent`].
 
+pub mod native_handoff;
+
 use serde::{Deserialize, Serialize};
 
 /// Origin class for an inbound deep-link intent.

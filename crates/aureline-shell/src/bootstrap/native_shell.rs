@@ -44,6 +44,12 @@ use crate::commands::invocation_preview::{
     write_invocation_preview_sheet_log, CommandInvocationPreviewSheetRecord,
 };
 use crate::commands::CommandReviewRuntimeInputs;
+use crate::deeplink::native_handoff::{
+    seeded_native_boundary_handoff_packet, write_native_boundary_handoff_log,
+};
+use crate::embedded::boundary_alpha::{
+    seeded_embedded_boundary_alpha_snapshot, write_embedded_boundary_alpha_log,
+};
 use crate::embedded::boundary_card::EmbeddedBoundaryCardRecord;
 use crate::embedded::docs_help::{resolve_docs_help_handoff_url, seeded_docs_help_boundary_card};
 use crate::explorer::{
@@ -1176,6 +1182,25 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
     let mut session_restore_store = SessionRestoreStore::new(&recovery_root);
+
+    {
+        let embedded_boundary_snapshot =
+            seeded_embedded_boundary_alpha_snapshot(build_info::exact_build_identity_ref());
+        if let Err(err) =
+            write_embedded_boundary_alpha_log(&recovery_root, &embedded_boundary_snapshot)
+        {
+            command_runtime
+                .note_non_command_action(format!("embedded boundary log unavailable - {err}"));
+        }
+
+        let native_handoff_packet =
+            seeded_native_boundary_handoff_packet(build_info::exact_build_identity_ref());
+        if let Err(err) = write_native_boundary_handoff_log(&recovery_root, &native_handoff_packet)
+        {
+            command_runtime
+                .note_non_command_action(format!("native handoff log unavailable - {err}"));
+        }
+    }
 
     {
         let crash_journal_reader = CrashJournalStore::new(&recovery_root);
