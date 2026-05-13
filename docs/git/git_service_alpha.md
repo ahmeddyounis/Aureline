@@ -27,6 +27,8 @@ commands.
 
 The shell change-list projection in `docs/git/change_list_alpha.md` consumes
 this snapshot directly for staged/unstaged grouping and file-state chips.
+The diff-view projection in `docs/git/diff_view_alpha.md` then consumes public
+change-list diff-open targets while preserving the same `truth_source_ref`.
 
 ## Degraded Behavior
 

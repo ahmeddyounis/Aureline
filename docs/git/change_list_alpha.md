@@ -13,6 +13,8 @@ status model.
 - Untracked files and unresolved conflicts live in the `unstaged` group.
 - Rows carry one file-state chip set reused by shell change lists, editor tabs,
   and review entry points.
+- Rows carry a public `DiffOpenTarget` consumed by the review diff viewer, so a
+  diff can be opened from the change list without hidden shell state.
 - Large groups are materialized through a bounded viewport with total counts,
   hidden-before counts, and hidden-after counts so the UI can scale without
   claiming that only visible rows exist.
@@ -49,4 +51,10 @@ Run the protected proof path with:
 
 ```sh
 cargo test -p aureline-shell --test git_change_list_alpha
+```
+
+Diff-view fixtures live in `fixtures/git/diff_view_alpha/` and are covered by:
+
+```sh
+cargo test -p aureline-review --test diff_view_alpha
 ```

@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use aureline_git::{
     ChangeKind, ConsumerProjectionBundle, GitChange, GitServiceState, GitStatusSnapshot,
 };
+use aureline_review::diff::DiffOpenTarget;
 
 /// Stable record-kind tag for [`GitChangeListSurfaceBundle`].
 pub const GIT_CHANGE_LIST_SURFACE_BUNDLE_RECORD_KIND: &str = "git_change_list_surface_bundle";
@@ -373,6 +374,8 @@ pub struct GitChangeListRow {
     pub chips: GitFileStateChipSet,
     /// Command id that opens a local diff for this path and group.
     pub opens_diff_command_id: String,
+    /// Public diff-open target consumed by the review diff viewer.
+    pub diff_open_target: DiffOpenTarget,
     /// Review entry ref that quotes the same row state.
     pub review_entry_ref: String,
     /// Editor tab chip ref that quotes the same row state.
@@ -444,7 +447,7 @@ impl GitChangeListSurfaceBundle {
                 .truth_source_ref;
         let groups = [GitChangeGroupKind::Staged, GitChangeGroupKind::Unstaged]
             .into_iter()
-            .map(|group| materialize_group(snapshot, group, viewport))
+            .map(|group| materialize_group(snapshot, &truth_source_ref, group, viewport))
             .collect();
 
         Self {
@@ -498,13 +501,14 @@ impl GitChangeListSurfaceBundle {
 
 fn materialize_group(
     snapshot: &GitStatusSnapshot,
+    truth_source_ref: &str,
     group: GitChangeGroupKind,
     viewport: GitChangeListViewport,
 ) -> GitChangeListGroup {
     let mut rows: Vec<_> = snapshot
         .changes
         .iter()
-        .filter_map(|change| row_from_change(snapshot, group, change))
+        .filter_map(|change| row_from_change(snapshot, truth_source_ref, group, change))
         .collect();
     rows.sort_by(|left, right| {
         left.display_path
@@ -545,6 +549,7 @@ fn materialize_group(
 
 fn row_from_change(
     snapshot: &GitStatusSnapshot,
+    truth_source_ref: &str,
     group: GitChangeGroupKind,
     change: &GitChange,
 ) -> Option<GitChangeListRow> {
@@ -558,6 +563,16 @@ fn row_from_change(
         token.as_str()
     );
     let chips = GitFileStateChipSet::from_token(token);
+    let diff_open_target = DiffOpenTarget::from_change_list_row_parts(
+        &snapshot.workspace_ref,
+        truth_source_ref,
+        &row_ref,
+        group.as_str(),
+        change.path.clone(),
+        change.original_path.clone(),
+        &change.status_code,
+        token.as_str(),
+    );
 
     Some(GitChangeListRow {
         row_ref: row_ref.clone(),
@@ -568,7 +583,8 @@ fn row_from_change(
         display_path,
         original_path: change.original_path.clone(),
         status_code: change.status_code.clone(),
-        opens_diff_command_id: format!("cmd:git.diff.open_{}", group.as_str()),
+        opens_diff_command_id: diff_open_target.command_id.clone(),
+        diff_open_target,
         review_entry_ref: format!("review.entry.{row_ref}"),
         editor_tab_chip_ref: chips.editor_tab.chip_id.clone(),
         chips,
@@ -739,6 +755,18 @@ mod tests {
             .rows
             .iter()
             .any(|row| row.display_path == "src/app.rs" && row.file_state_token == "modified"));
+        let row = unstaged
+            .rows
+            .iter()
+            .find(|row| row.display_path == "src/app.rs")
+            .expect("unstaged diff row");
+        assert_eq!(row.opens_diff_command_id, row.diff_open_target.command_id);
+        assert_eq!(row.diff_open_target.group_token, "unstaged");
+        assert_eq!(
+            row.diff_open_target.truth_source_ref,
+            bundle.truth_source_ref
+        );
+        assert!(!row.diff_open_target.path_truth_ref.is_empty());
     }
 
     #[test]
