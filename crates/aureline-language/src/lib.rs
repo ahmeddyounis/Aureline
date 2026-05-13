@@ -13,6 +13,7 @@ pub mod invalidation;
 pub mod lsp_router;
 pub mod symbol_snapshot;
 pub mod tree_sitter;
+pub mod tsjs;
 
 pub use diagnostics::{
     DiagnosticAnchor, DiagnosticAnchorRemapStateClass, DiagnosticBus, DiagnosticBusAggregateCounts,
@@ -49,6 +50,20 @@ pub use symbol_snapshot::{
     SourcePoint, SourceRange, SymbolKindClass, SymbolProviderClass, SymbolRecord,
     SymbolSnapshotCompletenessClass, SymbolSnapshotExportRequest, SymbolSnapshotExporter,
     SymbolSnapshotRecord, SymbolSnapshotSchemaVersion, SymbolSnapshotState,
+};
+pub use tsjs::{
+    TsJsAccessKindClass, TsJsAmbiguityDescriptor, TsJsAnchorRef, TsJsAnswerLayerClass,
+    TsJsApplyPostureClass, TsJsCheckpointClass, TsJsCompletenessClass,
+    TsJsGeneratedOrExternalStateClass, TsJsHoverRecord, TsJsInlineVisibilityClass, TsJsLaunchWedge,
+    TsJsLaunchWedgeSnapshot, TsJsNavigationError, TsJsOccurrenceSeed, TsJsProviderSnapshot,
+    TsJsReferenceCountSummary, TsJsReferenceSetRecord, TsJsRelationClass,
+    TsJsRenameAffectedScopeRow, TsJsRenameCheckpointDescriptor, TsJsRenameCountSummary,
+    TsJsRenameCoverageLimitClass, TsJsRenameEvidenceBinding, TsJsRenamePreviewCompletenessClass,
+    TsJsRenamePreviewRecord, TsJsRenamePreviewSchemaVersion, TsJsRenameWarningClass,
+    TsJsRenameWarningRow, TsJsResultConfidenceClass, TsJsRollbackPathClass, TsJsScopeDescriptor,
+    TsJsSemanticEvidenceBinding, TsJsSemanticResultIdentityClass, TsJsSemanticResultRecord,
+    TsJsSemanticResultSchemaVersion, TsJsSourceAnchor, TsJsSourceAnchorKindClass,
+    TsJsSymbolKindClass, TsJsSymbolSeed, TsJsWorkspaceContext, TSJS_NAV_ALPHA_SCHEMA_VERSION,
 };
 
 pub use tree_sitter::{
