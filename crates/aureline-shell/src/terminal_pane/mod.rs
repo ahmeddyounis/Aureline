@@ -29,11 +29,13 @@ use aureline_auth::{
     BrowserCallbackPacket, ClaimedIdentityRow, ClaimedIdentitySurfaceRow, CredentialStateChip,
     CredentialStateRow, ProviderAccountRegistry, ShellAuthChip, SystemBrowserAlphaPacket,
 };
+use aureline_runtime::ExecutionContext;
 use aureline_terminal::{
     HostClass, PtyHost, PtySession, PtySessionId, RestoredTerminalRecord, SessionLifecycleState,
     TerminalTrustState,
 };
 
+use crate::run_context::RunContextSummary;
 use crate::state_cards::DegradedStateToken;
 
 /// Stable record-kind tag carried in serialized terminal-pane snapshots.
@@ -61,6 +63,10 @@ pub struct TerminalPaneTabRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd_hint: Option<String>,
     pub execution_context_ref: String,
+    /// Shared execution-context summary joined by `execution_context_ref`
+    /// when the caller has the canonical runtime record available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_summary: Option<RunContextSummary>,
     pub trust_state: TerminalTrustState,
     pub trust_state_token: String,
     pub lifecycle_state: SessionLifecycleState,
@@ -89,6 +95,7 @@ impl TerminalPaneTabRecord {
             display_title: header.display_title.clone(),
             cwd_hint: header.cwd_hint.clone(),
             execution_context_ref: header.execution_context_ref.clone(),
+            context_summary: None,
             trust_state: header.trust_state,
             trust_state_token: header.trust_state_token.clone(),
             lifecycle_state: header.lifecycle_state,
@@ -269,6 +276,32 @@ impl TerminalPaneSnapshot {
             .into_iter()
             .filter(|record| record.workspace_id == self.workspace_id)
             .collect();
+        self
+    }
+
+    /// Attach shared run-context summaries to matching terminal tabs.
+    ///
+    /// The join key is the terminal session header's `execution_context_ref`;
+    /// unmatched tabs remain visible without fabricating context truth.
+    pub fn with_run_contexts<'a, I>(self, contexts: I) -> Self
+    where
+        I: IntoIterator<Item = &'a ExecutionContext>,
+    {
+        self.with_run_context_summaries(contexts.into_iter().map(RunContextSummary::project))
+    }
+
+    /// Attach pre-projected summaries to matching terminal tabs.
+    pub fn with_run_context_summaries<I>(mut self, summaries: I) -> Self
+    where
+        I: IntoIterator<Item = RunContextSummary>,
+    {
+        let summaries: Vec<RunContextSummary> = summaries.into_iter().collect();
+        for tab in &mut self.tabs {
+            tab.context_summary = summaries
+                .iter()
+                .find(|summary| summary.execution_context_ref == tab.execution_context_ref)
+                .cloned();
+        }
         self
     }
 

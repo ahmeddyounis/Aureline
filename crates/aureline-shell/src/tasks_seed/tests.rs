@@ -49,11 +49,23 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     assert_eq!(surface.entry_point, BadgeEntryPoint::TaskSeed);
     assert_eq!(surface.workspace_id, "ws-test");
     assert_eq!(surface.execution_context_ref, context.execution_context_id);
+    assert_eq!(
+        surface.context_summary.record_kind,
+        crate::run_context::RUN_CONTEXT_SUMMARY_RECORD_KIND
+    );
+    assert_eq!(
+        surface.context_summary.execution_context_ref,
+        surface.execution_context_ref
+    );
     assert_eq!(surface.target_class, TargetBadgeClass::LocalDesktop);
     assert_eq!(surface.target_class_token, "local_desktop");
     assert_eq!(surface.target_label, "Local");
     assert_eq!(surface.toolchain_class, ToolchainClass::BuildDriverRuntime);
     assert_eq!(surface.toolchain_class_token, "build_driver_runtime");
+    assert_eq!(
+        surface.context_summary.toolchain_class_token,
+        surface.toolchain_class_token
+    );
     assert_eq!(surface.toolchain_class_label, "Build-driver runtime");
     assert_eq!(surface.working_directory.as_deref(), Some("/workspace"));
     assert_eq!(surface.boundary_cue, HostBoundaryCue::Hidden);

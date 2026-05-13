@@ -50,6 +50,7 @@ use aureline_runtime::{
 use crate::badges::target_origin::{
     BadgeEntryPoint, HostBoundaryCue, OriginBadgeClass, TargetBadgeClass, TargetOriginBadge,
 };
+use crate::run_context::RunContextSummary;
 
 /// Stable record-kind tag carried in serialized task-seed payloads.
 pub const TASK_SEED_SURFACE_RECORD_KIND: &str = "task_seed_surface_record";
@@ -303,6 +304,7 @@ pub struct TaskSeedSurface {
     pub entry_point: BadgeEntryPoint,
     pub workspace_id: String,
     pub execution_context_ref: String,
+    pub context_summary: RunContextSummary,
     pub badge: TargetOriginBadge,
     pub target_class: TargetBadgeClass,
     pub target_class_token: String,
@@ -334,6 +336,7 @@ impl TaskSeedSurface {
     /// Project a task seed surface from a resolved
     /// [`ExecutionContext`].
     pub fn project(context: &ExecutionContext) -> Self {
+        let context_summary = RunContextSummary::project(context);
         let badge = TargetOriginBadge::project(BadgeEntryPoint::TaskSeed, context);
         let prerequisites = collect_prerequisites(context);
         let trust_pending = matches!(
@@ -351,8 +354,8 @@ impl TaskSeedSurface {
             record_kind: TASK_SEED_SURFACE_RECORD_KIND.to_owned(),
             schema_version: TASK_SEED_SURFACE_SCHEMA_VERSION,
             entry_point: BadgeEntryPoint::TaskSeed,
-            workspace_id: context.invocation_subject.workspace_id.clone(),
-            execution_context_ref: context.execution_context_id.clone(),
+            workspace_id: context_summary.workspace_id.clone(),
+            execution_context_ref: context_summary.execution_context_ref.clone(),
             target_class: badge.target_class,
             target_class_token: badge.target_class_token.clone(),
             target_label: badge.target_label.clone(),
@@ -363,22 +366,17 @@ impl TaskSeedSurface {
             boundary_cue: badge.boundary_cue,
             boundary_cue_token: badge.boundary_cue_token.clone(),
             boundary_cue_visible: badge.boundary_cue_visible,
-            toolchain_class: context.toolchain_identity.toolchain_class,
-            toolchain_class_token: context
-                .toolchain_identity
-                .toolchain_class
-                .as_str()
+            toolchain_class: context_summary.toolchain_class,
+            toolchain_class_token: context_summary.toolchain_class_token.clone(),
+            toolchain_class_label: toolchain_class_label(context_summary.toolchain_class)
                 .to_owned(),
-            toolchain_class_label: toolchain_class_label(
-                context.toolchain_identity.toolchain_class,
-            )
-            .to_owned(),
-            toolchain_id: context.toolchain_identity.toolchain_id.clone(),
-            resolved_version: context.toolchain_identity.resolved_version.clone(),
-            working_directory: context.target_identity.working_directory.clone(),
-            trust_state: context.policy_and_trust.trust_state,
-            trust_state_token: trust_token(context.policy_and_trust.trust_state).to_owned(),
+            toolchain_id: context_summary.toolchain_id.clone(),
+            resolved_version: context_summary.resolved_version.clone(),
+            working_directory: context_summary.working_directory.clone(),
+            trust_state: context_summary.trust_state,
+            trust_state_token: context_summary.trust_state_token.clone(),
             seed_scope_notice: TASK_SEED_SCOPE_NOTICE.to_owned(),
+            context_summary,
             badge,
             actions,
             blocked_prerequisites: prerequisites,
@@ -546,14 +544,6 @@ fn is_policy_blocked(context: &ExecutionContext) -> bool {
                 | DegradedFieldReason::ActivatorBlockedByTrust
         )
     })
-}
-
-const fn trust_token(state: TrustState) -> &'static str {
-    match state {
-        TrustState::Trusted => "trusted",
-        TrustState::Restricted => "restricted",
-        TrustState::PendingEvaluation => "pending_evaluation",
-    }
 }
 
 const fn toolchain_class_label(class: ToolchainClass) -> &'static str {
