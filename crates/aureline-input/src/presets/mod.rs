@@ -265,7 +265,7 @@ pub fn preset_conflicts(
     Ok(packets)
 }
 
-const VS_CODE_SPECS: [PresetBindingSpec; 23] = [
+const VS_CODE_SPECS: [PresetBindingSpec; 25] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+P",
@@ -280,6 +280,16 @@ const VS_CODE_SPECS: [PresetBindingSpec; 23] = [
         command_id: "cmd:terminal.toggle",
         macos_sequence: "Cmd+`",
         other_sequence: "Ctrl+`",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:task.rerun_last",
+        macos_sequence: "Cmd+Alt+R",
+        other_sequence: "Ctrl+Alt+R",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:test.rerun_last",
+        macos_sequence: "Cmd+Alt+T",
+        other_sequence: "Ctrl+Alt+T",
     },
     PresetBindingSpec {
         command_id: "cmd:editor.find",
@@ -383,7 +393,7 @@ const VS_CODE_SPECS: [PresetBindingSpec; 23] = [
     },
 ];
 
-const INTELLIJ_SPECS: [PresetBindingSpec; 23] = [
+const INTELLIJ_SPECS: [PresetBindingSpec; 25] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+A",
@@ -398,6 +408,16 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 23] = [
         command_id: "cmd:terminal.toggle",
         macos_sequence: "Cmd+`",
         other_sequence: "Ctrl+`",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:task.rerun_last",
+        macos_sequence: "Cmd+Alt+R",
+        other_sequence: "Ctrl+Alt+R",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:test.rerun_last",
+        macos_sequence: "Cmd+Alt+T",
+        other_sequence: "Ctrl+Alt+T",
     },
     PresetBindingSpec {
         command_id: "cmd:editor.find",
@@ -501,7 +521,7 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 23] = [
     },
 ];
 
-const VIM_SPECS: [PresetBindingSpec; 24] = [
+const VIM_SPECS: [PresetBindingSpec; 26] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Ctrl+Shift+P",
@@ -516,6 +536,16 @@ const VIM_SPECS: [PresetBindingSpec; 24] = [
         command_id: "cmd:terminal.toggle",
         macos_sequence: "Cmd+`",
         other_sequence: "Ctrl+`",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:task.rerun_last",
+        macos_sequence: "Cmd+Alt+R",
+        other_sequence: "Ctrl+Alt+R",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:test.rerun_last",
+        macos_sequence: "Cmd+Alt+T",
+        other_sequence: "Ctrl+Alt+T",
     },
     PresetBindingSpec {
         command_id: "cmd:editor.find",
@@ -626,7 +656,7 @@ const VIM_SPECS: [PresetBindingSpec; 24] = [
     },
 ];
 
-const EMACS_SPECS: [PresetBindingSpec; 23] = [
+const EMACS_SPECS: [PresetBindingSpec; 25] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Alt+X",
@@ -641,6 +671,16 @@ const EMACS_SPECS: [PresetBindingSpec; 23] = [
         command_id: "cmd:terminal.toggle",
         macos_sequence: "Cmd+`",
         other_sequence: "Ctrl+`",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:task.rerun_last",
+        macos_sequence: "Cmd+Alt+R",
+        other_sequence: "Ctrl+Alt+R",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:test.rerun_last",
+        macos_sequence: "Cmd+Alt+T",
+        other_sequence: "Ctrl+Alt+T",
     },
     PresetBindingSpec {
         command_id: "cmd:editor.find",
@@ -743,3 +783,31 @@ const EMACS_SPECS: [PresetBindingSpec; 23] = [
         other_sequence: "Ctrl+Shift+Y",
     },
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rerun_last_task_and_test_are_keyboard_reachable_in_builtin_presets() {
+        for preset in KeymapPresetId::all() {
+            let rows = preset_binding_rows(preset, PlatformClass::Macos)
+                .expect("macOS preset rows should parse");
+            assert!(rows
+                .iter()
+                .any(|row| row.command_id == "cmd:task.rerun_last"));
+            assert!(rows
+                .iter()
+                .any(|row| row.command_id == "cmd:test.rerun_last"));
+
+            let rows = preset_binding_rows(preset, PlatformClass::Linux)
+                .expect("Linux preset rows should parse");
+            assert!(rows
+                .iter()
+                .any(|row| row.command_id == "cmd:task.rerun_last"));
+            assert!(rows
+                .iter()
+                .any(|row| row.command_id == "cmd:test.rerun_last"));
+        }
+    }
+}

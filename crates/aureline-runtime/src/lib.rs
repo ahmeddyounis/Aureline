@@ -23,6 +23,7 @@ pub mod detectors;
 pub mod discovery;
 pub mod execution_context;
 pub mod language_hosts;
+pub mod rerun;
 pub mod tasks;
 
 pub use detectors::node::{
@@ -80,6 +81,15 @@ pub use language_hosts::{
     LanguageHostSnapshot, LanguageHostSupervisor, LanguageHostSupervisorConfig,
     LanguageHostSupervisorError, LanguageHostSupervisorEvent, LanguageHostSupportPacket,
     LANGUAGE_HOST_SUPERVISION_SCHEMA_VERSION,
+};
+pub use rerun::{
+    built_in_rerun_command_bindings, RerunAttemptSummary, RerunCommandBinding, RerunContractKind,
+    RerunDiffClass, RerunDiffRow, RerunDispatchState, RerunKeyboardRoute, RerunLane,
+    RerunLastLaunch, RerunLastLoop, RerunPreparedAttempt, RerunRunContract, RerunSupportExport,
+    RerunTargetComparison, RerunTargetMode, RerunTargetSnapshot, RerunUnavailableReason,
+    RERUN_COMMAND_BINDING_RECORD_KIND, RERUN_LAST_LAUNCH_RECORD_KIND, RERUN_LAST_TASK_COMMAND_ID,
+    RERUN_LAST_TEST_COMMAND_ID, RERUN_LOOP_SCHEMA_VERSION, RERUN_PREPARED_ATTEMPT_RECORD_KIND,
+    RERUN_SUPPORT_EXPORT_RECORD_KIND, RERUN_TARGET_COMPARISON_RECORD_KIND,
 };
 pub use tasks::{
     RawEnvelopeRetentionState, RawTaskEventEnvelope, TaskActivityProjection, TaskArtifactKind,
