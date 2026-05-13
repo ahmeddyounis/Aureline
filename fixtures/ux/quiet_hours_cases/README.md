@@ -45,6 +45,14 @@ These fixtures are the truth a reviewer reads to confirm:
   preserves the in-product durable count and critical-safety subcount,
   and the privacy-safe label carries no raw object identity, actor, or
   summary copy.
+- `desktop_notification_badge_reopen_audit.json` — alpha taxonomy proof:
+  repeated failed test notifications coalesce under one durable truth
+  object while quiet hours holds toast and OS fanout; a critical OS
+  notification exposes privacy-safe summary copy, one safe primary
+  action, and exact reopen; action-state rows prove dismiss,
+  acknowledge, snooze, mute, resolve, and suppress reconcile badge
+  counts without deleting durable history; the suppression audit report
+  explains shown, held, deduped, and escalated outcomes.
 
 ## Layout
 
@@ -58,6 +66,11 @@ Each case carries:
   emitted by `NotificationRouter`.
 - `expected_badge_projection` — the `DurableBadgeProjection` derived
   from those routed records under the same posture.
+- `expected_os_payload`, `expected_badge_reconciliation`,
+  `expected_action_states`, and `expected_suppression_audit` appear on
+  the alpha taxonomy proof case. They are produced by the external
+  payload, action-state, badge, and audit modules rather than by
+  surface-local heuristics.
 
 ## Re-blessing
 
@@ -68,3 +81,12 @@ BLESS_QUIET_HOURS_FIXTURES=1 cargo test -p aureline-shell --test quiet_hours_pro
 ```
 
 to regenerate the fixtures from the current shell output.
+
+Run
+
+```sh
+BLESS_NOTIFICATION_TAXONOMY_ALPHA=1 cargo test -p aureline-shell --test notification_taxonomy_alpha_tests
+```
+
+to regenerate the alpha taxonomy fixture and its YAML suppression-audit
+artifact.

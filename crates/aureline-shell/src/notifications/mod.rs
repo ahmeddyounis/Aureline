@@ -21,6 +21,10 @@
 //!   ([`routes::NotificationSurfaceRow`],
 //!   [`routes::NotificationSurfaceSnapshot`]) the chrome reads when it
 //!   draws toasts, banners, status items, and durable activity rows.
+//! - [`external`] — privacy-safe OS, lock-screen, and companion payload
+//!   projection with one safe primary action plus exact reopen.
+//! - [`actions`] and [`audit`] — post-route action semantics, badge
+//!   reconciliation, and suppression/dedupe audit records.
 //!
 //! ## Failure-drill posture
 //!
@@ -31,17 +35,36 @@
 //! every receipt so the deduped row in the activity center still leads to
 //! the same canonical object — preventing split-brain state across surfaces.
 
+pub mod actions;
+pub mod audit;
 pub mod envelope;
+pub mod external;
 pub mod quiet_hours;
 pub mod router;
 pub mod routes;
 
+pub use actions::{
+    BadgeClass, NotificationActionRequest, NotificationAttentionState,
+    NotificationBadgeReconciliation, NotificationLifecycleActionKind,
+    NOTIFICATION_ACTION_STATE_SCHEMA_VERSION, NOTIFICATION_ATTENTION_STATE_RECORD_KIND,
+    NOTIFICATION_BADGE_RECONCILIATION_RECORD_KIND,
+};
+pub use audit::{
+    NotificationSuppressionAuditEntry, NotificationSuppressionAuditReport,
+    NotificationSuppressionExplanationClass, NOTIFICATION_SUPPRESSION_AUDIT_ENTRY_RECORD_KIND,
+    NOTIFICATION_SUPPRESSION_AUDIT_REPORT_RECORD_KIND,
+    NOTIFICATION_SUPPRESSION_AUDIT_SCHEMA_VERSION,
+};
 pub use envelope::{
     ClientScope, DedupeKeyScheme, FanoutReceipt, FanoutReceiptState, FanoutSurfaceClass,
     NotificationEnvelope, PrivacyClass, PrivacyPayloadClass, QuietHoursMode, RedactionClass,
     ReopenTarget, ReopenTargetKind, SeverityClass, SourceSubsystem, StableAction,
     StaleOrUndeliveredReason, StaleOrUndeliveredReasonClass, SuppressionReason, SuppressionState,
     FANOUT_RECEIPT_SCHEMA_VERSION, NOTIFICATION_ENVELOPE_SCHEMA_VERSION,
+};
+pub use external::{
+    ExternalNotificationPayload, ForbiddenShortcutActionClass,
+    EXTERNAL_NOTIFICATION_PAYLOAD_RECORD_KIND, EXTERNAL_NOTIFICATION_PAYLOAD_SCHEMA_VERSION,
 };
 pub use quiet_hours::{
     BadgeSeverityCounts, DurableBadgeProjection, QuietHoursPosture,
