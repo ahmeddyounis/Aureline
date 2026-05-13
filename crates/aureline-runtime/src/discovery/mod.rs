@@ -5,3 +5,4 @@
 //! emit explicit launch contracts for downstream task/test/debug surfaces.
 
 pub mod package_scripts;
+pub mod pytest;

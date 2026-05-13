@@ -53,6 +53,15 @@ pub use discovery::package_scripts::{
     PACKAGE_SCRIPT_DISCOVERY_RECORD_KIND, PACKAGE_SCRIPT_DISCOVERY_SCHEMA_VERSION,
     PACKAGE_SCRIPT_RUN_CONTRACT_RECORD_KIND,
 };
+pub use discovery::pytest::{
+    PytestBlockReason, PytestDiscoverer, PytestDiscovererConfig, PytestDiscovery,
+    PytestDiscoveryIssue, PytestDiscoveryIssueKind, PytestDiscoveryState, PytestDispatch,
+    PytestInvocationMode, PytestLaunchReadiness, PytestMissingRuntimeState, PytestRerunLineage,
+    PytestRerunMode, PytestRunContract, PytestRunSelection, PytestRunner, PytestRuntimeStatus,
+    PytestSelectionKind, PytestSourceKind, PytestTestDescriptor, PytestTestFileDescriptor,
+    PytestTestKind, PytestWarningClass, PYTEST_DISCOVERER_VERSION, PYTEST_DISCOVERY_RECORD_KIND,
+    PYTEST_DISCOVERY_SCHEMA_VERSION, PYTEST_RUN_CONTRACT_RECORD_KIND,
+};
 pub use execution_context::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
     DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextEffectClass,
