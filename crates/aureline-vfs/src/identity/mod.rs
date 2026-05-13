@@ -15,11 +15,19 @@
 //! summarizes where bytes will land before a write commits.
 
 pub mod alias_inspection;
+pub mod external_change_compare;
 pub mod path_truth;
+pub mod reference;
 pub mod save_target_review;
 
 pub use alias_inspection::{inspect_aliases, AliasInspectionEntry, AliasInspectionRecord};
+pub use external_change_compare::{
+    compare_external_change, ExternalChangeCompareOutcome, ExternalChangeCompareRecord,
+    ExternalChangeContentKind, ExternalChangeDiff, ExternalChangeDiffAvailability,
+    ExternalChangeResolutionAction,
+};
 pub use path_truth::{derive_path_truth_chip, PathTruthChip, PathTruthClass};
+pub use reference::{filesystem_identity_reference_set, FilesystemIdentityReferenceSet};
 pub use save_target_review::{
     review_save_target, PermissionSummary, SaveTargetReviewBlocker, SaveTargetReviewRecord,
 };
