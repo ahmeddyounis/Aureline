@@ -50,6 +50,9 @@ use crate::commands::CommandReviewRuntimeInputs;
 use crate::deeplink::native_handoff::{
     seeded_native_boundary_handoff_packet, write_native_boundary_handoff_log,
 };
+use crate::desktop_continuity_alpha::{
+    seeded_desktop_continuity_alpha_packet, write_desktop_continuity_alpha_log,
+};
 use crate::embedded::boundary_alpha::{
     seeded_embedded_boundary_alpha_snapshot, write_embedded_boundary_alpha_log,
 };
@@ -1204,6 +1207,15 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         {
             command_runtime
                 .note_non_command_action(format!("native handoff log unavailable - {err}"));
+        }
+
+        let desktop_continuity_packet =
+            seeded_desktop_continuity_alpha_packet(build_info::exact_build_identity_ref());
+        if let Err(err) =
+            write_desktop_continuity_alpha_log(&recovery_root, &desktop_continuity_packet)
+        {
+            command_runtime
+                .note_non_command_action(format!("desktop continuity log unavailable - {err}"));
         }
     }
 

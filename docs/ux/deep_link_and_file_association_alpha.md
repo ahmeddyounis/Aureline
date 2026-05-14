@@ -24,6 +24,7 @@ The runtime evidence files are:
 
 - `.logs/recovery/embedded_boundary_alpha_latest.json`
 - `.logs/recovery/native_boundary_handoff_latest.json`
+- `.logs/recovery/desktop_continuity_alpha_latest.json`
 
 ## Embedded Surface Rules
 

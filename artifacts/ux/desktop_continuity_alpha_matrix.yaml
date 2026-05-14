@@ -1,0 +1,311 @@
+# Desktop continuity alpha matrix.
+#
+# Machine-readable companion to docs/ux/desktop_continuity_interruption_alpha.md.
+# This artifact composes the existing native handoff, window-display,
+# restore-provenance, notification, and secret-broker records into one bounded
+# alpha wedge. It does not mint new source-surface, restore, notification, or
+# credential vocabulary.
+
+desktop_continuity_alpha_matrix_schema_version: 1
+
+runtime_packet:
+  record_kind: desktop_continuity_alpha_packet_record
+  schema_version: 1
+  packet_id: desktop-continuity-alpha:claimed-wedge
+  first_consuming_surface: crates/aureline-shell/src/desktop_continuity_alpha.rs
+  runtime_evidence_path: .logs/recovery/desktop_continuity_alpha_latest.json
+  support_export_record_kind: desktop_continuity_support_export_record
+  raw_secret_values_exported: false
+  ui_text_scrape_required: false
+
+source_contract_refs:
+  product_requirements:
+    - .t2/docs/Aureline_Milestones_Document.md#7.9
+    - .t2/docs/Aureline_Milestones_Document.md#7.20
+    - .t2/docs/Aureline_Milestones_Document.md#9.3
+  technical_design:
+    - .t2/docs/Aureline_Technical_Design_Document.md#5.2.1
+    - .t2/docs/Aureline_Technical_Design_Document.md#5.2.2
+    - .t2/docs/Aureline_Technical_Design_Document.md#7.1.11
+    - .t2/docs/Aureline_Technical_Design_Document.md#appendix-aa
+    - .t2/docs/Aureline_Technical_Design_Document.md#appendix-bt
+  ux_spec:
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.7
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.10
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.14
+  style_guide:
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#12.7
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#14.10
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#14.14
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#16.25
+
+consumed_runtime_contracts:
+  native_handoff_packet:
+    module: crates/aureline-shell/src/deeplink/native_handoff.rs
+    packet_id: native-boundary-handoff:alpha:seed
+    record_kind: native_boundary_handoff_packet_record
+  credential_store_packet:
+    module: crates/aureline-auth/src/secrets/mod.rs
+    packet_id: secret-broker-alpha-packet:failure-continuity
+    record_kind: secret_broker_alpha_packet_record
+  display_safety:
+    module: crates/aureline-shell/src/windowing/display_safety.rs
+    record_kinds:
+      - window_display_safety_record
+      - window_display_safety_topology_record
+
+entry_rows:
+  - row_id: desktop-continuity.entry.system_open
+    source_surface_class: system_open
+    literal_target_ref: literal:system-open:workspace-alpha-local
+    resulting_mode: workspace_open
+    required_before_high_risk_action:
+      - literal_target
+      - command_id
+      - owning_channel_ref
+      - owner_build_ref
+      - trust_profile_boundary
+    expected_review_surface: exact_open
+    fixture_refs:
+      - crates/aureline-shell/src/deeplink/native_handoff.rs::system_open_workspace_intent
+
+  - row_id: desktop-continuity.entry.file_association
+    source_surface_class: file_association
+    literal_target_ref: literal:file-association:demo-src-main
+    resulting_mode: local_file_open
+    required_before_high_risk_action:
+      - literal_target
+      - target_identity
+      - authority_delta
+      - owning_channel_ref
+      - owner_build_ref
+      - trust_profile_boundary
+    expected_review_surface: product_owned_native_review
+    fixture_refs:
+      - fixtures/platform/exact_target_reopen_cases/local_file_open_admitted_exact.yaml
+
+  - row_id: desktop-continuity.entry.default_browser_callback
+    source_surface_class: default_browser_callback
+    literal_target_ref: literal:auth-callback:oidc-session
+    resulting_mode: auth_callback
+    required_before_high_risk_action:
+      - literal_target
+      - origin
+      - requested_action_class
+      - target_scope
+      - replay_posture
+      - trust_profile_boundary
+    expected_review_surface: placeholder_recovery_card
+    fixture_refs:
+      - fixtures/platform/exact_target_reopen_cases/auth_callback_replay_denied_consumed.yaml
+
+  - row_id: desktop-continuity.entry.dock_taskbar_recent
+    source_surface_class: dock_taskbar_recent
+    literal_target_ref: literal:dock-taskbar-recent:payments-workspace
+    resulting_mode: workspace_open
+    target_availability: missing_or_unmounted
+    required_recovery_actions:
+      - locate
+      - open_cached_context
+      - close_placeholder
+    expected_review_surface: placeholder_recovery_card
+    fixture_refs:
+      - fixtures/platform/exact_target_reopen_cases/workspace_open_missing_target_denied.yaml
+
+  - row_id: desktop-continuity.entry.dock_taskbar_jump_action
+    source_surface_class: dock_taskbar_jump_action
+    literal_target_ref: literal:dock-taskbar-jump:alpha-workspace
+    resulting_mode: workspace_open
+    summary_surface_direct_execution_forbidden: true
+    expected_review_surface: exact_open
+    fixture_refs:
+      - crates/aureline-shell/src/deeplink/native_handoff.rs::dock_jump_workspace_intent
+
+target_recovery_rows:
+  - row_id: desktop-continuity.target-recovery.dock_taskbar_recent
+    target_kind: workspace_manifest
+    availability_class: missing_or_unmounted
+    recovery_surface: placeholder_recovery_card
+    required_recovery_actions:
+      - locate
+      - open_cached_context
+      - close_placeholder
+    preserves_user_intent: true
+
+  - row_id: desktop-continuity.target-recovery.removable_volume
+    target_kind: removable_volume
+    availability_class: missing_or_unmounted
+    recovery_surface: placeholder_recovery_surface
+    required_recovery_actions:
+      - locate
+      - open_cached_context
+      - close_placeholder
+    preserves_user_intent: true
+    fixture_refs:
+      - fixtures/platform/native_file_affordance_cases/removable_volume_missing_target_opens_placeholder_recovery.yaml
+
+topology_rows:
+  - row_id: desktop-continuity.topology.display-detach-safe-bounds
+    event_class: display_topology_change
+    display_context: monitor_topology_changed
+    topology_change_classes:
+      - display_removed
+      - display_added
+      - safe_bounds_changed
+    adjustment_classes:
+      - moved_to_primary_display
+      - snapped_to_safe_bounds
+      - dialog_recentered_to_owner
+      - stacking_repaired
+    resulting_fidelity: compatible_restore
+    fidelity_downgraded_by_adjustment: true
+    must_preserve:
+      - visible_bounds
+      - dominant_pane_focus_intent
+      - dialog_ownership
+    fixture_refs:
+      - fixtures/platform/window_display_cases/display_detach_dock_safe_bounds.json
+
+  - row_id: desktop-continuity.topology.mixed-dpi-cross-monitor
+    event_class: mixed_dpi_cross_monitor_reflow
+    display_context: mixed_dpi_multi_monitor
+    topology_change_classes:
+      - display_moved
+      - scale_changed
+      - safe_bounds_changed
+    adjustment_classes:
+      - scale_normalized
+      - snapped_to_safe_bounds
+      - native_chrome_reprojected
+    resulting_fidelity: compatible_restore
+    fidelity_downgraded_by_adjustment: true
+    must_preserve:
+      - visible_bounds
+      - keyboard_reachable_recovery_actions
+      - owner_sheet_relationship
+    fixture_refs:
+      - fixtures/platform/window_display_cases/mixed_dpi_cross_monitor_reflow.json
+
+  - row_id: desktop-continuity.topology.fullscreen-snapped-restore
+    event_class: fullscreen_or_snapped_restore
+    display_context: fullscreen_or_snap_state_narrowed
+    topology_change_classes:
+      - app_reopen
+      - fullscreen_state_rewritten
+      - snap_or_tile_state_rewritten
+      - virtual_desktop_changed
+    adjustment_classes:
+      - fullscreen_cleared
+      - snapped_layout_cleared
+      - virtual_desktop_fallback
+      - snapped_to_safe_bounds
+    resulting_fidelity: compatible_restore
+    fidelity_downgraded_by_adjustment: true
+    fixture_refs:
+      - fixtures/platform/window_display_cases/fullscreen_snapped_restore_intent.json
+
+lifecycle_rows:
+  - row_id: desktop-continuity.lifecycle.wake-from-sleep
+    lifecycle_event: wake_from_sleep
+    visible_state_tokens:
+      - reconnecting
+      - resume_review_needed
+    local_work_continues: true
+    privileged_or_mutating_work_paused: true
+    no_silent_rerun_or_authority_reuse: true
+    recovery_actions:
+      - continue_local
+      - reconnect
+      - reauthenticate
+      - export_restore_details
+    fixture_refs:
+      - fixtures/platform/native_lifecycle_cases/wake_from_sleep_local_context_preserved.yaml
+
+  - row_id: desktop-continuity.lifecycle.network-transition
+    lifecycle_event: network_transition
+    visible_state_tokens:
+      - reconnecting
+      - local_fallback
+      - stale
+    local_work_continues: true
+    privileged_or_mutating_work_paused: true
+    no_silent_rerun_or_authority_reuse: true
+    recovery_actions:
+      - continue_local
+      - reconnect
+      - reauthenticate
+      - export_restore_details
+    fixture_refs:
+      - fixtures/platform/native_lifecycle_cases/network_transition_remote_unreachable.yaml
+
+  - row_id: desktop-continuity.lifecycle.removable-root-loss
+    lifecycle_event: removable_volume_loss
+    visible_state_tokens:
+      - root_unavailable
+      - stale
+      - cached_context_available
+    local_work_continues: true
+    privileged_or_mutating_work_paused: true
+    no_silent_rerun_or_authority_reuse: true
+    recovery_actions:
+      - locate_target
+      - reconnect_volume
+      - open_cached_context
+      - export_context
+      - remove_root
+    fixture_refs:
+      - fixtures/platform/native_lifecycle_cases/removable_volume_loss_root_unavailable.yaml
+
+credential_store_rows:
+  - row_id: desktop-continuity.credential-store.registry_auth
+    continuity_state: paused_credential_store_locked
+    unlock_state: locked
+    affected_capabilities:
+      - registry_auth
+    denial_reason: trust_store_locked
+    recovery_actions:
+      - retry_after_credential_store_unlock
+      - continue_local_only
+      - export_support_metadata
+    plaintext_downgrade_forbidden: true
+    stale_authority_reuse_forbidden: true
+
+  - row_id: desktop-continuity.credential-store.managed_sign_in_refresh
+    continuity_state: paused_credential_store_unavailable
+    unlock_state: unavailable
+    affected_capabilities:
+      - managed_sign_in_refresh
+    denial_reason: trust_store_unavailable
+    recovery_actions:
+      - retry_after_credential_store_recovery
+      - reauthenticate_in_system_browser
+      - continue_local_only
+      - export_support_metadata
+    plaintext_downgrade_forbidden: true
+    stale_authority_reuse_forbidden: true
+
+  - row_id: desktop-continuity.credential-store.database_attach
+    continuity_state: paused_trust_store_changed
+    unlock_state: step_up_required
+    affected_capabilities:
+      - database_attach
+    denial_reason: trust_state_downgraded
+    recovery_actions:
+      - rebind_after_trust_store_change
+      - continue_local_only
+      - export_support_metadata
+    plaintext_downgrade_forbidden: true
+    stale_authority_reuse_forbidden: true
+
+support_export_reconstruction:
+  required_fields:
+    - interruption_cause_token
+    - continuity_state_tokens
+    - recovery_choice_tokens
+    - resulting_fidelity_token
+    - object_identity_ref
+    - source_evidence_ref
+  forbidden:
+    - raw_secret_values_exported
+    - raw_handle_ids_exported
+    - ui_text_scrape_required

@@ -1,0 +1,66 @@
+# Credential-store interruption alpha fixture manifest.
+
+fixture_manifest_schema_version: 1
+record_family: credential_store_interruption_alpha
+runtime_contract_ref: crates/aureline-auth/src/secrets/mod.rs
+runtime_consumer_ref: crates/aureline-shell/src/desktop_continuity_alpha.rs
+source_packet_ref: fixtures/auth/secret_broker_alpha/failure_locked_unavailable_trust_changed.json
+support_projection_ref: interruption_support_projection.json
+
+interruption_rows:
+  - row_id: credential-store-interruption.registry-auth.locked
+    source_secret_broker_row_ref: secret-broker-row:registry-auth:locked
+    affected_capabilities:
+      - registry_auth
+    continuity_state: paused_credential_store_locked
+    unlock_state: locked
+    denial_reason: trust_store_locked
+    recovery_actions:
+      - retry_after_credential_store_unlock
+      - continue_local_only
+      - export_support_metadata
+    local_work_continues: true
+    credentialed_actions_paused: true
+    plaintext_downgrade_forbidden: true
+    stale_authority_reuse_forbidden: true
+
+  - row_id: credential-store-interruption.managed-refresh.unavailable
+    source_secret_broker_row_ref: secret-broker-row:managed-refresh:store-unavailable
+    affected_capabilities:
+      - managed_sign_in_refresh
+    continuity_state: paused_credential_store_unavailable
+    unlock_state: unavailable
+    denial_reason: trust_store_unavailable
+    recovery_actions:
+      - retry_after_credential_store_recovery
+      - reauthenticate_in_system_browser
+      - continue_local_only
+      - export_support_metadata
+    local_work_continues: true
+    credentialed_actions_paused: true
+    plaintext_downgrade_forbidden: true
+    stale_authority_reuse_forbidden: true
+
+  - row_id: credential-store-interruption.database.trust-store-changed
+    source_secret_broker_row_ref: secret-broker-row:database:trust-store-changed
+    affected_capabilities:
+      - database_attach
+    continuity_state: paused_trust_store_changed
+    unlock_state: step_up_required
+    denial_reason: trust_state_downgraded
+    recovery_actions:
+      - rebind_after_trust_store_change
+      - continue_local_only
+      - export_support_metadata
+    local_work_continues: true
+    credentialed_actions_paused: true
+    plaintext_downgrade_forbidden: true
+    stale_authority_reuse_forbidden: true
+
+must_not_happen:
+  - raw_secret_value_exported
+  - raw_handle_id_exported
+  - plaintext_persistence_enabled
+  - silent_in_memory_promotion
+  - stale_ticket_reuse
+  - local_non_credential_work_blocked
