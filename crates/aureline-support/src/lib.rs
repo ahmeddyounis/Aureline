@@ -44,6 +44,10 @@
 //! - The [`advisory_baseline`] support projection — consumes the checked-in
 //!   affected-build scope example and projects advisory, exact-build,
 //!   rollback, known-limit, and support refs into metadata-only support rows.
+//! - The [`release_evidence`] alpha projection — consumes the checked-in
+//!   artifact graph and reconstructs release-center candidate, target,
+//!   digest-set, rollout, auth-source, rollback, and trust-domain fields for
+//!   metadata-only support/export review.
 //!
 //! ## Failure-drill posture
 //!
@@ -60,6 +64,7 @@ pub mod advisory_baseline;
 pub mod bundle;
 pub mod project_doctor;
 pub mod recovery_ladder;
+pub mod release_evidence;
 pub mod repair;
 pub mod runtime_health_alpha;
 pub mod scenario_scorecard;
