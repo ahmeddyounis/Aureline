@@ -57,3 +57,4 @@ pub mod bundle;
 pub mod project_doctor;
 pub mod recovery_ladder;
 pub mod repair;
+pub mod scenario_scorecard;

@@ -8,6 +8,10 @@ drill contracts without replacing their schemas.
 
 Companion artifacts:
 
+- [`/artifacts/support/diagnosis_latency_scorecard_alpha.yaml`](../../artifacts/support/diagnosis_latency_scorecard_alpha.yaml)
+  and [`/fixtures/support/seeded_scenarios_alpha/`](../../fixtures/support/seeded_scenarios_alpha/)
+  - external alpha scorecard and scenario corpus consumed by the support
+    crate for support-packet and review-dashboard projections.
 - [`/artifacts/support/diagnosis_slo_targets.yaml`](../../artifacts/support/diagnosis_slo_targets.yaml)
   - machine-readable diagnosis, accuracy, escalation, and drill targets.
 - [`/artifacts/support/redaction_accuracy_checks.yaml`](../../artifacts/support/redaction_accuracy_checks.yaml)

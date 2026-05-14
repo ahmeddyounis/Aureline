@@ -1,0 +1,350 @@
+# External alpha diagnosis-latency scorecard.
+#
+# This is the canonical support-scenario measurement source for the
+# external alpha lane. Support packets and review dashboards should consume
+# this scorecard rather than copying scenario status into prose.
+
+schema_version: 1
+record_kind: support_scenario_diagnosis_latency_scorecard
+scorecard_id: support.alpha.diagnosis_latency_scorecard.v1
+status: seeded_pending_measurement
+title: External alpha diagnosis-latency scorecard
+owner_lane: support_export
+
+source_refs:
+  project_doctor_runtime: crates/aureline-doctor/src/probes/mod.rs
+  project_doctor_fixture_manifest: fixtures/support/project_doctor_alpha/manifest.yaml
+  support_bundle_manifest_schema: schemas/support/support_bundle_manifest.schema.json
+  support_bundle_alpha_doc: docs/support/support_bundle_alpha.md
+  existing_slo_catalog: artifacts/support/diagnosis_slo_targets.yaml
+  existing_scoreboard_registry: artifacts/support/diagnosis_latency_scoreboard.yaml
+  scenario_corpus_dir: fixtures/support/seeded_scenarios_alpha
+  reviewer_doc: docs/support/alpha_support_scenarios.md
+
+consumer_contract:
+  first_runtime_consumer: crates/aureline-support/src/scenario_scorecard/mod.rs
+  support_packet_projection: support_scenario_scorecard_support_packet
+  review_dashboard_projection: support_scenario_scorecard_dashboard
+  support_packet_row_join: scenario_rows[].row_id
+  dashboard_row_join: scenario_rows[].dashboard_bindings.dashboard_row_ref
+  free_form_status_notes_allowed: false
+
+measurement_contract:
+  start_event: support_scenario_started
+  stop_event: first_actionable_result_packet_emitted
+  p90_target_seconds: 600
+  p90_yellow_seconds: 720
+  p90_red_seconds: 900
+  raw_private_material_excluded: true
+  result_packet_minimum_fields:
+    - finding_code
+    - result_packet_ref
+    - support_bundle_ref
+    - redaction_class
+    - exact_build_identity_ref
+    - next_action_class
+
+required_scenario_families:
+  - first_run
+  - search_index
+  - trust_policy
+  - restore_continuity
+  - provider_auth
+  - crash_loop
+
+required_launch_wedges:
+  - python_service
+  - tsjs_web
+
+required_support_contexts:
+  - desktop_support_center
+  - cli_headless_doctor
+
+scenario_rows:
+  - row_id: scorecard_row:support_alpha.first_run.entry_open
+    scenario_id: support_alpha.scenario.first_run.entry_open_target_unavailable
+    scenario_family: first_run
+    title: First-run entry target unavailable
+    fixture_ref: fixtures/support/seeded_scenarios_alpha/first_run_entry_open_target_unavailable.yaml
+    launch_wedges:
+      - python_service
+      - tsjs_web
+    support_contexts:
+      - desktop_support_center
+      - cli_headless_doctor
+    measurement_start_event: support_scenario_started
+    measurement_stop_event: first_actionable_result_packet_emitted
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    expected_result:
+      result_packet_class: doctor_finding
+      finding_code: doctor.finding.entry_open.target_unavailable
+      result_packet_ref: finding:project_doctor:alpha:entry_open_target_unavailable
+      support_bundle_ref: support.bundle.project_doctor.entry_open
+      next_action_class: locate_missing_target
+      useful_result_summary: >
+        The packet identifies the unavailable entry target and offers a
+        locate-or-open-minimal path before any restore replay or repo-owned
+        activation occurs.
+    support_packet_bindings:
+      pack_class: diagnosis_context_pack
+      support_bundle_manifest_ref: support.bundle.project_doctor.entry_open
+      required_item_ids:
+        - support.item.build_identity
+        - support.item.policy_trust_state
+        - support.item.execution_context_summary
+      exact_build_identity_required: true
+      redaction_class: metadata_safe_default
+      raw_private_material_excluded: true
+    dashboard_bindings:
+      dashboard_row_ref: dashboard_row:support_alpha.first_run.entry_open
+      dashboard_family_group: external_alpha_support
+      display_state: seeded_pending_measurement
+      scorecard_row_ref: scorecard_row:support_alpha.first_run.entry_open
+    no_touch_boundary_set:
+      - user_authored_files
+      - workspace_trust_store
+      - credential_store
+
+  - row_id: scorecard_row:support_alpha.search_index.readiness_stalled
+    scenario_id: support_alpha.scenario.search_index.readiness_stalled
+    scenario_family: search_index
+    title: Search and index readiness stalled
+    fixture_ref: fixtures/support/seeded_scenarios_alpha/search_index_readiness_stalled.yaml
+    launch_wedges:
+      - python_service
+      - tsjs_web
+    support_contexts:
+      - desktop_support_center
+      - cli_headless_doctor
+    measurement_start_event: support_scenario_started
+    measurement_stop_event: first_actionable_result_packet_emitted
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    expected_result:
+      result_packet_class: doctor_finding
+      finding_code: doctor.finding.search_index.readiness_stalled
+      result_packet_ref: finding:project_doctor:alpha:search_index_readiness_stalled
+      support_bundle_ref: support.bundle.project_doctor.search_index
+      next_action_class: open_index_status
+      useful_result_summary: >
+        The packet names the indexed lane, the stalled readiness state, and
+        the bounded rebuild preview instead of implying full-workspace search
+        is healthy.
+    support_packet_bindings:
+      pack_class: diagnosis_context_pack
+      support_bundle_manifest_ref: support.bundle.project_doctor.search_index
+      required_item_ids:
+        - support.item.build_identity
+        - support.item.policy_trust_state
+        - support.item.execution_context_summary
+      exact_build_identity_required: true
+      redaction_class: metadata_safe_default
+      raw_private_material_excluded: true
+    dashboard_bindings:
+      dashboard_row_ref: dashboard_row:support_alpha.search_index.readiness_stalled
+      dashboard_family_group: external_alpha_support
+      display_state: seeded_pending_measurement
+      scorecard_row_ref: scorecard_row:support_alpha.search_index.readiness_stalled
+    no_touch_boundary_set:
+      - user_authored_files
+      - workspace_trust_store
+      - credential_store
+
+  - row_id: scorecard_row:support_alpha.trust_policy.denied_capability
+    scenario_id: support_alpha.scenario.trust_policy.denied_capability
+    scenario_family: trust_policy
+    title: Trust or policy denied a capability
+    fixture_ref: fixtures/support/seeded_scenarios_alpha/trust_policy_denied_capability.yaml
+    launch_wedges:
+      - python_service
+      - tsjs_web
+    support_contexts:
+      - desktop_support_center
+      - cli_headless_doctor
+    measurement_start_event: support_scenario_started
+    measurement_stop_event: first_actionable_result_packet_emitted
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    expected_result:
+      result_packet_class: doctor_finding
+      finding_code: doctor.finding.trust_policy_blocked
+      result_packet_ref: finding:project_doctor:alpha:trust_policy_denied_capability
+      support_bundle_ref: support.bundle.project_doctor.trust_policy
+      next_action_class: open_policy_details
+      useful_result_summary: >
+        The packet names the deny reason and the affected capability while
+        keeping trust-state mutation behind a reviewed approval path.
+    support_packet_bindings:
+      pack_class: diagnosis_context_pack
+      support_bundle_manifest_ref: support.bundle.project_doctor.trust_policy
+      required_item_ids:
+        - support.item.build_identity
+        - support.item.policy_trust_state
+      exact_build_identity_required: true
+      redaction_class: metadata_safe_default
+      raw_private_material_excluded: true
+    dashboard_bindings:
+      dashboard_row_ref: dashboard_row:support_alpha.trust_policy.denied_capability
+      dashboard_family_group: external_alpha_support
+      display_state: seeded_pending_measurement
+      scorecard_row_ref: scorecard_row:support_alpha.trust_policy.denied_capability
+    no_touch_boundary_set:
+      - user_authored_files
+      - workspace_trust_store
+      - managed_policy_overrides
+      - credential_store
+
+  - row_id: scorecard_row:support_alpha.restore.replay_blocked
+    scenario_id: support_alpha.scenario.restore.replay_blocked
+    scenario_family: restore_continuity
+    title: Restore replay blocked to preserve continuity
+    fixture_ref: fixtures/support/seeded_scenarios_alpha/restore_replay_blocked.yaml
+    launch_wedges:
+      - python_service
+      - tsjs_web
+    support_contexts:
+      - desktop_support_center
+      - cli_headless_doctor
+    measurement_start_event: support_scenario_started
+    measurement_stop_event: first_actionable_result_packet_emitted
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    expected_result:
+      result_packet_class: doctor_finding
+      finding_code: doctor.finding.restore_continuity.replay_blocked
+      result_packet_ref: finding:project_doctor:alpha:restore_replay_blocked
+      support_bundle_ref: support.bundle.project_doctor.restore
+      next_action_class: open_without_restore
+      useful_result_summary: >
+        The packet explains why restore replay was blocked and gives an
+        open-without-restore path while preserving session evidence.
+    support_packet_bindings:
+      pack_class: diagnosis_context_pack
+      support_bundle_manifest_ref: support.bundle.project_doctor.restore
+      required_item_ids:
+        - support.item.build_identity
+        - support.item.policy_trust_state
+      exact_build_identity_required: true
+      redaction_class: metadata_safe_default
+      raw_private_material_excluded: true
+    dashboard_bindings:
+      dashboard_row_ref: dashboard_row:support_alpha.restore.replay_blocked
+      dashboard_family_group: external_alpha_support
+      display_state: seeded_pending_measurement
+      scorecard_row_ref: scorecard_row:support_alpha.restore.replay_blocked
+    no_touch_boundary_set:
+      - user_authored_files
+      - session_restore_store
+      - credential_store
+
+  - row_id: scorecard_row:support_alpha.provider_auth.credential_expired
+    scenario_id: support_alpha.scenario.provider_auth.credential_expired
+    scenario_family: provider_auth
+    title: Provider credential expired before external action
+    fixture_ref: fixtures/support/seeded_scenarios_alpha/provider_credential_expired.yaml
+    launch_wedges:
+      - python_service
+      - tsjs_web
+    support_contexts:
+      - desktop_support_center
+      - cli_headless_doctor
+    measurement_start_event: support_scenario_started
+    measurement_stop_event: first_actionable_result_packet_emitted
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    expected_result:
+      result_packet_class: doctor_finding
+      finding_code: doctor.finding.provider_auth.credential_expired
+      result_packet_ref: finding:project_doctor:alpha:provider_credential_expired
+      support_bundle_ref: support.bundle.project_doctor.provider_auth
+      next_action_class: reauthenticate_provider
+      useful_result_summary: >
+        The packet identifies the provider authority that requires renewal
+        and keeps raw credential handles out of the support path.
+    support_packet_bindings:
+      pack_class: diagnosis_context_pack
+      support_bundle_manifest_ref: support.bundle.project_doctor.provider_auth
+      required_item_ids:
+        - support.item.build_identity
+        - support.item.policy_trust_state
+        - support.item.secret_broker_state
+      exact_build_identity_required: true
+      redaction_class: metadata_safe_default
+      raw_private_material_excluded: true
+    dashboard_bindings:
+      dashboard_row_ref: dashboard_row:support_alpha.provider_auth.credential_expired
+      dashboard_family_group: external_alpha_support
+      display_state: seeded_pending_measurement
+      scorecard_row_ref: scorecard_row:support_alpha.provider_auth.credential_expired
+    no_touch_boundary_set:
+      - user_authored_files
+      - credential_store
+      - managed_policy_overrides
+
+  - row_id: scorecard_row:support_alpha.crash_loop.extension_quarantine
+    scenario_id: support_alpha.scenario.crash_loop.extension_quarantine
+    scenario_family: crash_loop
+    title: Crash loop enters safe mode and extension quarantine
+    fixture_ref: fixtures/support/seeded_scenarios_alpha/crash_loop_extension_quarantine.yaml
+    launch_wedges:
+      - python_service
+      - tsjs_web
+    support_contexts:
+      - safe_mode_support_center
+      - cli_headless_doctor
+    measurement_start_event: support_scenario_started
+    measurement_stop_event: first_actionable_result_packet_emitted
+    target_seconds: 600
+    yellow_seconds: 720
+    red_seconds: 900
+    expected_result:
+      result_packet_class: recovery_decision
+      finding_code: doctor.finding.extension_host_crash_loop_quarantined
+      result_packet_ref: recovery_ladder:decision:extension_quarantine.crash_loop
+      support_bundle_ref: support.bundle.project_doctor.extension_host
+      next_action_class: open_safe_mode_and_quarantine
+      useful_result_summary: >
+        The packet names the crash-loop fault domain, safe-mode entry, and
+        quarantine decision without attaching raw dumps by default.
+    support_packet_bindings:
+      pack_class: crash_symbolication_pack
+      support_bundle_manifest_ref: support.bundle.project_doctor.extension_host
+      required_item_ids:
+        - support.item.build_identity
+        - support.item.policy_trust_state
+        - support.item.extension_inventory
+      exact_build_identity_required: true
+      redaction_class: metadata_safe_default
+      raw_private_material_excluded: true
+    dashboard_bindings:
+      dashboard_row_ref: dashboard_row:support_alpha.crash_loop.extension_quarantine
+      dashboard_family_group: external_alpha_support
+      display_state: seeded_pending_measurement
+      scorecard_row_ref: scorecard_row:support_alpha.crash_loop.extension_quarantine
+    no_touch_boundary_set:
+      - user_authored_files
+      - credential_store
+      - installed_extension_marketplace_state
+      - workspace_trust_store
+
+quality_gates:
+  - gate_id: support.alpha.scorecard.coverage
+    gate_class: scenario_family_coverage
+    required_state: every_required_family_present
+  - gate_id: support.alpha.scorecard.measurement_window
+    gate_class: diagnosis_latency_window
+    required_state: scenario_start_to_first_actionable_result_packet
+  - gate_id: support.alpha.scorecard.redaction
+    gate_class: redaction_safety
+    required_state: raw_private_material_excluded
+  - gate_id: support.alpha.scorecard.consumer
+    gate_class: support_packet_and_dashboard_join
+    required_state: support_packet_and_dashboard_consume_scorecard_rows
+
+emitted_at: 2026-05-14T00:00:00Z

@@ -1,0 +1,91 @@
+schema_version: 1
+record_kind: support_alpha_seeded_scenario
+scenario_id: support_alpha.scenario.crash_loop.extension_quarantine
+title: Crash loop enters safe mode and extension quarantine
+scenario_family: crash_loop
+scorecard_row_ref: scorecard_row:support_alpha.crash_loop.extension_quarantine
+launch_wedges:
+  - python_service
+  - tsjs_web
+
+starting_condition:
+  state_ref: supervisor:extension_host.crash_loop
+  summary: >
+    An extension or runtime host crashed repeatedly during startup; the
+    product must enter a narrowed recovery posture and preserve evidence.
+
+trigger:
+  start_event: support_scenario_started
+  event_ref: scenario_start:crash_loop.extension_quarantine
+  support_context: safe_mode_support_center
+
+expected_first_actionable_result:
+  stop_event: first_actionable_result_packet_emitted
+  result_packet_class: recovery_decision
+  finding_code: doctor.finding.extension_host_crash_loop_quarantined
+  result_packet_ref: recovery_ladder:decision:extension_quarantine.crash_loop
+  next_action_class: open_safe_mode_and_quarantine
+  useful_result_summary: >
+    The result packet names safe-mode entry, the quarantined lane, and the
+    crash-loop fault domain without bundling raw dumps or re-enabling the
+    suspect host.
+
+measurement:
+  start_event: support_scenario_started
+  stop_event: first_actionable_result_packet_emitted
+  target_seconds: 600
+  yellow_seconds: 720
+  red_seconds: 900
+  evidence_required_before_stop:
+    - exact_build_identity_ref
+    - finding_code
+    - support_bundle_ref
+    - next_action_class
+
+evidence:
+  exact_build_identity_ref: exact_build:aureline.alpha.support_scenario.crash_loop
+  support_bundle_ref: support.bundle.project_doctor.extension_host
+  support_packet_refs:
+    - support.packet.scorecard.crash_loop.extension_quarantine
+  fixture_refs:
+    - fixtures/support/drill_scenarios/extension_regression_crash_loop.yaml
+    - fixtures/support/recovery_ladder_cases/crash_loop_safe_mode.yaml
+    - fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+  support_item_ids:
+    - support.item.build_identity
+    - support.item.policy_trust_state
+    - support.item.extension_inventory
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - credential_store
+    - installed_extension_marketplace_state
+    - workspace_trust_store
+
+support_packet_expectations:
+  pack_class: crash_symbolication_pack
+  redaction_class: metadata_safe_default
+  exact_build_identity_required: true
+  reviewed_preview_required: true
+  local_only_path_available: true
+
+dashboard_expectations:
+  dashboard_row_ref: dashboard_row:support_alpha.crash_loop.extension_quarantine
+  consumer_ref: support_scenario_scorecard_dashboard
+
+references:
+  scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+  doctor_fixture_ref: fixtures/support/drill_scenarios/extension_regression_crash_loop.yaml
+  support_bundle_alpha_ref: docs/support/support_bundle_alpha.md
+  escalation_case_ref: fixtures/support/escalation_packet_completeness_cases/extension_regression_crash_loop_quarantined.yaml
+
+emitted_at: 2026-05-14T00:00:00Z

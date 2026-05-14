@@ -1,0 +1,88 @@
+schema_version: 1
+record_kind: support_alpha_seeded_scenario
+scenario_id: support_alpha.scenario.restore.replay_blocked
+title: Restore replay blocked to preserve continuity
+scenario_family: restore_continuity
+scorecard_row_ref: scorecard_row:support_alpha.restore.replay_blocked
+launch_wedges:
+  - python_service
+  - tsjs_web
+
+starting_condition:
+  state_ref: restore:replay.blocked_after_crash
+  summary: >
+    A prior session has restorable layout and evidence, but replaying live
+    activity would rerun work or reuse authority that no longer exists.
+
+trigger:
+  start_event: support_scenario_started
+  event_ref: scenario_start:restore.replay_blocked
+  support_context: desktop_support_center
+
+expected_first_actionable_result:
+  stop_event: first_actionable_result_packet_emitted
+  result_packet_class: doctor_finding
+  finding_code: doctor.finding.restore_continuity.replay_blocked
+  result_packet_ref: finding:project_doctor:alpha:restore_replay_blocked
+  next_action_class: open_without_restore
+  useful_result_summary: >
+    Doctor explains the blocked replay and offers open-without-restore
+    while keeping restore evidence and user-authored state intact.
+
+measurement:
+  start_event: support_scenario_started
+  stop_event: first_actionable_result_packet_emitted
+  target_seconds: 600
+  yellow_seconds: 720
+  red_seconds: 900
+  evidence_required_before_stop:
+    - exact_build_identity_ref
+    - finding_code
+    - support_bundle_ref
+    - next_action_class
+
+evidence:
+  exact_build_identity_ref: exact_build:aureline.alpha.support_scenario.restore
+  support_bundle_ref: support.bundle.project_doctor.restore
+  support_packet_refs:
+    - support.packet.scorecard.restore.replay_blocked
+  fixture_refs:
+    - fixtures/support/project_doctor_alpha/restore_replay_blocked.yaml
+    - docs/recovery/restore_hydration_phases_contract.md
+  support_item_ids:
+    - support.item.build_identity
+    - support.item.policy_trust_state
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - session_restore_store
+    - credential_store
+
+support_packet_expectations:
+  pack_class: diagnosis_context_pack
+  redaction_class: metadata_safe_default
+  exact_build_identity_required: true
+  reviewed_preview_required: true
+  local_only_path_available: true
+
+dashboard_expectations:
+  dashboard_row_ref: dashboard_row:support_alpha.restore.replay_blocked
+  consumer_ref: support_scenario_scorecard_dashboard
+
+references:
+  scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+  doctor_fixture_ref: fixtures/support/project_doctor_alpha/restore_replay_blocked.yaml
+  support_bundle_alpha_ref: docs/support/support_bundle_alpha.md
+  escalation_case_ref: null
+
+emitted_at: 2026-05-14T00:00:00Z
+
