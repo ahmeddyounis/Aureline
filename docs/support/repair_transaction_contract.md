@@ -31,7 +31,8 @@ and this packet plus its companion artifacts update in the same change.
 
 - [`/schemas/support/repair_transaction.schema.json`](../../schemas/support/repair_transaction.schema.json)
   — boundary schema for `repair_transaction_record` and
-  `repair_seed_case_record`.
+  `repair_seed_case_record`, plus the metadata-safe
+  `repair_mutation_journal_entry` emitted with every outcome.
 - [`/schemas/support/repair_preview.schema.json`](../../schemas/support/repair_preview.schema.json)
   — boundary schema for `repair_preview_record`. Every transaction
   MUST own one preview record before apply.
@@ -42,6 +43,9 @@ and this packet plus its companion artifacts update in the same change.
   — one seed case per required scenario family: cache/index rebuild,
   extension quarantine, toolchain re-resolve, remote agent rollback,
   policy refresh, and escalation-only packet.
+- [`/fixtures/support/repair_preview_alpha/`](../../fixtures/support/repair_preview_alpha/)
+  — protected manifest that drives the first support-crate consumer
+  through preview, outcome, journal, and support-packet projections.
 - [`/docs/support/project_doctor_packet.md`](./project_doctor_packet.md)
   and
   [`/fixtures/support/scenario_matrix.yaml`](../../fixtures/support/scenario_matrix.yaml)
@@ -135,12 +139,11 @@ environment:
   environment_summary: >
     Seed packet over the frozen support-bundle, object-handoff, recovery-
     ladder, and project-doctor vocabularies already landed in this
-    repository. No live repair engine, transaction supervisor, or
-    Project Doctor runtime is wired to this packet yet. Claims are
-    structural: every transaction row reuses existing frozen tokens and
-    adds the repair-class-family, transaction-reversal-class, impacted-
-    state, runtime-requirement, and forbidden-action vocabularies this
-    milestone seeds.
+    repository. The support crate now owns the first preview compiler and
+    journal projection for the checked-in seed cases. No destructive apply
+    runtime or checkpoint store is claimed; the implementation emits typed
+    transaction, preview, outcome, and journal records for review and support
+    evidence.
 artifact_links:
   supporting_evidence_ids:
     - evidence.support.repair_transaction.seed
@@ -197,7 +200,14 @@ This seed packet freezes:
   executed (when a reversal ran), the failure-reason class (when
   apply failed), the runtime-requirements held block, the forbidden-
   action assertion result, the typed `remaining_unknowns`, and the
-  escalation-packet ref the outcome routed to (when applicable);
+  escalation-packet ref the outcome routed to (when applicable), plus
+  actor/source lineage that links the outcome back to the initiating
+  diagnosis;
+- one `repair_mutation_journal_entry` shape emitted beside every
+  outcome so local history, support bundles, and headless runs can join
+  repair transaction, preview, outcome, actor/source lineage, checkpoint
+  refs, reversal class, and initiating Doctor finding without scraping
+  rendered UI text;
 - one closed `repair_class_family` vocabulary covering disposable-
   state rebuild, extension isolation, extension rollback/reinstall,
   execution-context re-resolve, remote/runtime repair, policy/
@@ -230,13 +240,12 @@ This seed packet freezes:
   export flows reference repair transactions by stable id rather than
   free-text Fix-button copy.
 
-It does not claim a live repair engine, a live transaction supervisor,
-a live preview compiler, a live checkpoint store, or a hosted apply
-runtime is wired up. It claims only that the repair-transaction
-decision object, the preview/apply/rollback grammar, the forbidden-
-action contract, and the escalation-packet linkage rules now exist in
-one reviewable form and reuse the frozen support vocabulary already
-landed in this repository.
+It does not claim a destructive live repair engine, a checkpoint store,
+or a hosted apply runtime is wired up. It does claim a first support-
+crate consumer that compiles the checked-in repair seed cases into
+reviewable transaction, preview, outcome, journal, and support-packet
+records while preserving the frozen support vocabulary already landed
+in this repository.
 
 ## Claim coverage
 
@@ -496,6 +505,12 @@ The preview record carries:
   `managed_policy_changed_during_preview`.
 - `idempotency_key` — mirrors the transaction; preview is the surface
   that detects collisions.
+- `confirmation_requirement` — `confirmation_class`,
+  `stronger_confirmation_required`, `acknowledgement_token`,
+  `reason_summary`, and `applies_to_reversal_classes`. `compensating`
+  and `manual` reversal classes MUST require strong confirmation before
+  `dry_run_safe_apply_authorized`; escalation-only previews set
+  `confirmation_class = no_apply_escalation_only`.
 - `explanation_fields` — six reviewable sentences (preserved work,
   change summary, checkpoint summary, reversal summary, escalation
   summary, next step). The Support Center MAY render these verbatim.
@@ -553,6 +568,11 @@ The outcome record carries:
 - `escalation_packet_ref` — stable id of the
   `object_handoff_packet_record` the outcome routed to. Required for
   `escalated_no_apply` and `applied_failed_no_reversal_export_only`.
+- `journal_lineage` — `actor_lineage`, `source_lineage`, and
+  `initiating_diagnosis_refs`. This is the outcome's join point into
+  local history and support export; the actor/source pair MUST preserve
+  the reviewed surface and the Doctor finding that initiated the
+  transaction.
 - `explanation_fields` — five reviewable sentences (post-apply state,
   preserved state, reversal summary, escalation summary, next step).
 
@@ -658,6 +678,29 @@ The acceptance contract for "Fix" actions:
   `applied_partial_recovered_with_typed_unknowns` with non-empty
   `remaining_unknowns`.
 
+## Repair journal contract
+
+[`repair_transaction.schema.json`](../../schemas/support/repair_transaction.schema.json)
+also binds `repair_mutation_journal_entry`. The journal entry is the
+metadata-safe local-history record emitted next to the outcome. It
+captures:
+
+- `repair_transaction_ref`, `repair_preview_ref`, and
+  `repair_outcome_ref`;
+- `initiating_diagnosis_refs`, matching the transaction's
+  `initiating_finding_codes`;
+- `actor_lineage` with actor class, safe actor ref, reviewed surface,
+  and approval ref when consent was required;
+- `source_lineage` with source class, primary diagnosis ref, scenario
+  row ref, and recovery-action id when present;
+- `checkpoint_refs`, `reversal_class`, `mutation_scope`, and
+  `side_effect_summary`.
+
+Rule: every applied, refused, preview-only, or escalated repair outcome
+MUST have exactly one journal entry. Audit-only and escalation-only
+entries still journal the refusal because support needs to reconstruct
+why local apply was not offered.
+
 ## Seeded cases
 
 The seed corpus in
@@ -684,11 +727,10 @@ ref, and the preview/outcome record refs.
 
 ## What this seed does not promise
 
-- No live repair engine, transaction supervisor, preview compiler,
-  checkpoint store, or apply runtime is wired up. The transaction
-  decision object, the preview/apply/rollback grammar, the forbidden-
-  action contract, and the escalation linkage rules are reviewable
-  objects only.
+- No destructive live repair engine, checkpoint store, or apply runtime
+  is wired up. The support crate does compile preview, outcome, journal,
+  and support-packet records from the seed cases; it does not mutate
+  caches, settings, trust state, routes, extensions, or user files.
 - No checkpoint implementation, storage-reset flow, or extension-
   quarantine supervisor lands in this milestone.
 - No numeric idempotency horizon, retry budget, or apply-latency

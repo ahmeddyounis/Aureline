@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/support/repair_preview.schema.json",
   "title": "Aureline repair-preview contract",
-  "description": "Boundary schema for the repair_preview_record frozen in docs/support/repair_transaction_contract.md. Every typed repair transaction MUST own one preview before any apply path runs. The preview surfaces what will change, what will not change, the proposed checkpoint (or its explicit absence), the claimed reversal class, runtime requirements, the forbidden actions the transaction asserts it will not take, and the preview-blocker tokens that route the user to escalation instead of apply. Reuses the closed vocabularies frozen in schemas/support/repair_transaction.schema.json, schemas/support/recovery_action.schema.json, and schemas/support/object_handoff_packet.schema.json.",
+  "description": "Boundary schema for the repair_preview_record frozen in docs/support/repair_transaction_contract.md. Every typed repair transaction MUST own one preview before any apply path runs. The preview surfaces what will change, what will not change, the proposed checkpoint (or its explicit absence), the claimed reversal class, confirmation requirement, runtime requirements, the forbidden actions the transaction asserts it will not take, and the preview-blocker tokens that route the user to escalation instead of apply. Reuses the closed vocabularies frozen in schemas/support/repair_transaction.schema.json, schemas/support/recovery_action.schema.json, and schemas/support/object_handoff_packet.schema.json.",
   "type": "object",
   "$ref": "#/$defs/repair_preview_record",
   "$defs": {
@@ -209,6 +209,55 @@
       },
       "description": "What the preview proposes for checkpointing. checkpoint_ref MUST be null when checkpoint_class is no_checkpoint_observe_only, no_checkpoint_escalation_only, or checkpoint_capture_refused. checkpoint_ref MUST be non-null when checkpoint_class is ephemeral_pre_apply or durable_pre_apply."
     },
+    "confirmation_class": {
+      "type": "string",
+      "enum": [
+        "standard_review",
+        "strong_confirmation_required",
+        "no_apply_escalation_only"
+      ],
+      "description": "Review strength required before apply. standard_review is sufficient for exact or regenerate classes. strong_confirmation_required is mandatory for compensating or manual reversals. no_apply_escalation_only means the preview cannot advance to apply."
+    },
+    "confirmation_requirement_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirmation_class",
+        "stronger_confirmation_required",
+        "acknowledgement_token",
+        "reason_summary",
+        "applies_to_reversal_classes"
+      ],
+      "properties": {
+        "confirmation_class": {
+          "$ref": "#/$defs/confirmation_class"
+        },
+        "stronger_confirmation_required": {
+          "type": "boolean"
+        },
+        "acknowledgement_token": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/stable_token"
+            }
+          ]
+        },
+        "reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "applies_to_reversal_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/transaction_reversal_class"
+          }
+        }
+      },
+      "description": "Confirmation requirements shown beside the preview. Non-exact reversal classes cannot be authorized by an ordinary click-through review."
+    },
     "runtime_requirements_block": {
       "type": "object",
       "additionalProperties": false,
@@ -357,6 +406,7 @@
         "lost_capability_classes",
         "preview_blockers",
         "idempotency_key",
+        "confirmation_requirement",
         "explanation_fields",
         "governance_bindings",
         "emitted_at"
@@ -424,6 +474,9 @@
         },
         "idempotency_key": {
           "$ref": "#/$defs/stable_token"
+        },
+        "confirmation_requirement": {
+          "$ref": "#/$defs/confirmation_requirement_block"
         },
         "explanation_fields": {
           "$ref": "#/$defs/preview_explanation_fields_block"
@@ -504,6 +557,16 @@
                     "type": "null"
                   }
                 }
+              },
+              "confirmation_requirement": {
+                "properties": {
+                  "confirmation_class": {
+                    "const": "no_apply_escalation_only"
+                  },
+                  "stronger_confirmation_required": {
+                    "const": false
+                  }
+                }
               }
             }
           }
@@ -548,6 +611,38 @@
                     "managed_policy_changed_during_preview",
                     "managed_admin_consent_required"
                   ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "claimed_reversal_class": {
+                "enum": [
+                  "compensating",
+                  "manual"
+                ]
+              }
+            },
+            "required": [
+              "claimed_reversal_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "confirmation_requirement": {
+                "properties": {
+                  "confirmation_class": {
+                    "const": "strong_confirmation_required"
+                  },
+                  "stronger_confirmation_required": {
+                    "const": true
+                  },
+                  "acknowledgement_token": {
+                    "type": "string"
+                  }
                 }
               }
             }

@@ -38,6 +38,9 @@
 //! - The [`recovery_ladder`] alpha evaluator — consumes typed recovery
 //!   evidence and emits bounded safe-mode, quarantine, open-without-restore,
 //!   and cache/index repair decisions plus support/release projections.
+//! - The [`repair`] alpha preview compiler — consumes checked-in repair seed
+//!   cases and emits typed transaction, preview, outcome, and journal records
+//!   before any guided repair can apply.
 //!
 //! ## Failure-drill posture
 //!
@@ -53,3 +56,4 @@
 pub mod bundle;
 pub mod project_doctor;
 pub mod recovery_ladder;
+pub mod repair;
