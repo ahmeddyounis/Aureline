@@ -1,0 +1,468 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/approval_ticket_alpha.schema.json",
+  "title": "Aureline approval-ticket alpha packet",
+  "description": "Boundary schema for the approval_ticket_alpha_packet consumed by the aureline-provider crate. The packet binds high-risk provider and helper-backed mutations to a short-lived approval ticket or reviewed-scope object with actor class, target identity, side-effect class, sandbox profile, trust profile, policy epoch, expiry, evidence or rollback refs, and export-safe actor lineage. It consumes schemas/providers/connected_provider_registry.schema.json, schemas/runtime/approval_ticket.schema.json, schemas/integration/approval_ticket.schema.json, and schemas/security/audit_stream_record.schema.json by reference rather than cloning their full contracts. Raw secrets, raw delegated-token bodies, raw provider URLs, raw callback bodies, raw evidence bodies, and raw provider payload refs never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "approval_ticket_alpha_schema_version",
+    "packet_id",
+    "contract_refs",
+    "approval_tickets",
+    "reviewed_scopes",
+    "mutation_bindings",
+    "spend_attempts"
+  ],
+  "properties": {
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "const": "approval_ticket_alpha_packet" },
+    "approval_ticket_alpha_schema_version": { "$ref": "#/$defs/schema_version" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "contract_refs": { "$ref": "#/$defs/contract_refs" },
+    "approval_tickets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/approval_ticket_alpha_record" },
+      "minItems": 1
+    },
+    "reviewed_scopes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewed_scope_alpha_record" },
+      "minItems": 1
+    },
+    "mutation_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/mutation_authority_binding_record" },
+      "minItems": 1
+    },
+    "spend_attempts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/approval_ticket_spend_attempt_record" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref safe for logs, support bundles, and audit packets."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connected_provider_registry_schema_ref",
+        "runtime_approval_ticket_schema_ref",
+        "provider_plane_approval_ticket_schema_ref",
+        "audit_stream_schema_ref",
+        "provider_registry_packet_ref"
+      ],
+      "properties": {
+        "connected_provider_registry_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "runtime_approval_ticket_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_plane_approval_ticket_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_stream_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_registry_packet_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_credential",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "local_only_authority",
+        "unknown_actor_class"
+      ]
+    },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "human_session",
+        "installation_grant",
+        "delegated_credential",
+        "project_scoped_grant",
+        "policy_injected_service",
+        "local_only",
+        "browser_only",
+        "unknown_auth_source"
+      ]
+    },
+    "issuer_class": {
+      "type": "string",
+      "enum": ["shell", "policy_service", "supervisor"]
+    },
+    "request_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_shell_prompt",
+        "policy_decision",
+        "supervisor_control_path",
+        "ai_tool_plan",
+        "extension_request",
+        "cli_script_request",
+        "browser_companion_request",
+        "remote_helper_request",
+        "automation_scheduler_request"
+      ]
+    },
+    "target_class": {
+      "type": "string",
+      "enum": ["provider_object", "remote_helper_target", "local_only_target"]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "provider_review_comment_publish",
+        "provider_issue_update",
+        "provider_ci_rerun",
+        "remote_helper_mutation"
+      ]
+    },
+    "ticket_use_posture": {
+      "type": "string",
+      "enum": ["single_use", "bounded_reuse"]
+    },
+    "high_risk_action_class": {
+      "type": "string",
+      "enum": ["external_provider_mutation", "helper_backed_remote_mutation"]
+    },
+    "authority_requirement": {
+      "type": "string",
+      "enum": ["ticket_or_reviewed_scope", "approval_ticket_required", "reviewed_scope_required"]
+    },
+    "evaluation_outcome": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "denied_missing_authority",
+        "denied_expired",
+        "denied_target_drift",
+        "denied_trust_profile_drift",
+        "denied_sandbox_profile_drift",
+        "denied_policy_epoch_drift",
+        "denied_actor_scope_mismatch"
+      ]
+    },
+    "native_reapproval_route": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "native_reapproval_sheet",
+        "refresh_target_then_reapprove",
+        "reauth_then_reapprove",
+        "rescope_then_reapprove",
+        "inspect_only_denied"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_ref_class", "target_ref", "target_label"],
+      "properties": {
+        "target_ref_class": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "target_ref",
+        "target_fingerprint_ref",
+        "target_version_ref"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "target_ref": { "$ref": "#/$defs/target_ref" },
+        "target_fingerprint_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_version_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "actor_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "actor_subject_ref",
+        "granted_scope_refs",
+        "auth_source_class"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "granted_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" }
+      }
+    },
+    "actor_lineage_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lineage_ref",
+        "actor_class",
+        "actor_subject_ref",
+        "auth_source_class",
+        "authority_source_ref"
+      ],
+      "properties": {
+        "lineage_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "authority_source_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "approval_ticket_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_ticket_alpha_schema_version",
+        "approval_ticket_id",
+        "issuer_class",
+        "request_origin_class",
+        "actor_scope",
+        "target_identity",
+        "side_effect_class",
+        "sandbox_profile_ref",
+        "trust_profile_ref",
+        "policy_epoch_ref",
+        "issued_at",
+        "expires_at",
+        "use_posture",
+        "runtime_approval_ticket_ref",
+        "actor_lineage",
+        "evidence_refs",
+        "rollback_refs",
+        "raw_payload_refs_present",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "approval_ticket_alpha_record" },
+        "approval_ticket_alpha_schema_version": { "$ref": "#/$defs/schema_version" },
+        "approval_ticket_id": { "$ref": "#/$defs/opaque_id" },
+        "issuer_class": { "$ref": "#/$defs/issuer_class" },
+        "request_origin_class": { "$ref": "#/$defs/request_origin_class" },
+        "requesting_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_scope": { "$ref": "#/$defs/actor_scope" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "sandbox_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "issued_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp" },
+        "use_posture": { "$ref": "#/$defs/ticket_use_posture" },
+        "runtime_approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_plane_approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actor_lineage_entry" },
+          "minItems": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "rollback_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_payload_refs_present": { "type": "boolean", "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "reviewed_scope_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_ticket_alpha_schema_version",
+        "reviewed_scope_id",
+        "actor_scope",
+        "target_identity",
+        "side_effect_class",
+        "sandbox_profile_ref",
+        "trust_profile_ref",
+        "policy_epoch_ref",
+        "reviewed_at",
+        "expires_at",
+        "actor_lineage",
+        "evidence_refs",
+        "rollback_refs",
+        "raw_payload_refs_present",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "reviewed_scope_alpha_record" },
+        "approval_ticket_alpha_schema_version": { "$ref": "#/$defs/schema_version" },
+        "reviewed_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_scope": { "$ref": "#/$defs/actor_scope" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "sandbox_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "reviewed_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp" },
+        "actor_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actor_lineage_entry" },
+          "minItems": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "rollback_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_payload_refs_present": { "type": "boolean", "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "mutation_authority_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_ticket_alpha_schema_version",
+        "mutation_id",
+        "mutation_surface_ref",
+        "high_risk_action_class",
+        "side_effect_class",
+        "actor_scope",
+        "target_identity",
+        "sandbox_profile_ref",
+        "trust_profile_ref",
+        "policy_epoch_ref",
+        "authority_requirement",
+        "audit_event_refs",
+        "support_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "mutation_authority_binding_record" },
+        "approval_ticket_alpha_schema_version": { "$ref": "#/$defs/schema_version" },
+        "mutation_id": { "$ref": "#/$defs/opaque_id" },
+        "mutation_surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "high_risk_action_class": { "$ref": "#/$defs/high_risk_action_class" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "actor_scope": { "$ref": "#/$defs/actor_scope" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "sandbox_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "authority_requirement": { "$ref": "#/$defs/authority_requirement" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "reviewed_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1
+        },
+        "support_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "oneOf": [
+        { "required": ["approval_ticket_ref"], "not": { "required": ["reviewed_scope_ref"] } },
+        { "required": ["reviewed_scope_ref"], "not": { "required": ["approval_ticket_ref"] } }
+      ]
+    },
+    "approval_ticket_spend_attempt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_ticket_alpha_schema_version",
+        "spend_attempt_id",
+        "mutation_ref",
+        "current_actor_scope",
+        "current_target_identity",
+        "current_sandbox_profile_ref",
+        "current_trust_profile_ref",
+        "current_policy_epoch_ref",
+        "evaluated_at",
+        "evaluation_outcome",
+        "native_reapproval_route",
+        "explanation",
+        "audit_event_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "approval_ticket_spend_attempt_record" },
+        "approval_ticket_alpha_schema_version": { "$ref": "#/$defs/schema_version" },
+        "spend_attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "mutation_ref": { "$ref": "#/$defs/opaque_id" },
+        "presented_approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "presented_reviewed_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "current_actor_scope": { "$ref": "#/$defs/actor_scope" },
+        "current_target_identity": { "$ref": "#/$defs/target_identity" },
+        "current_sandbox_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "current_trust_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "current_policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "evaluated_at": { "$ref": "#/$defs/timestamp" },
+        "evaluation_outcome": { "$ref": "#/$defs/evaluation_outcome" },
+        "native_reapproval_route": { "$ref": "#/$defs/native_reapproval_route" },
+        "explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1
+        }
+      },
+      "oneOf": [
+        { "required": ["presented_approval_ticket_ref"], "not": { "required": ["presented_reviewed_scope_ref"] } },
+        { "required": ["presented_reviewed_scope_ref"], "not": { "required": ["presented_approval_ticket_ref"] } }
+      ]
+    }
+  }
+}
