@@ -4,6 +4,8 @@
 //! exported row shape settings, help, and support surfaces use after the
 //! keybinding resolver has produced winning-source and conflict truth.
 
+pub mod mode_state;
+
 use serde::{Deserialize, Serialize};
 
 /// Schema version for keybinding settings inspection records.

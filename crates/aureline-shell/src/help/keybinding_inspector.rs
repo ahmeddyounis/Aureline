@@ -9,6 +9,7 @@ use aureline_input::presets::{preset_binding_rows, preset_conflicts, KeymapPrese
 use crate::keybindings::build_alpha_keybinding_truth_lines;
 
 use super::keyboard_gap_audit::build_audit_summary_lines;
+use super::mode_state_orientation::build_alpha_mode_orientation_lines;
 
 fn stable_sort_key(command_id: &str, title: &str) -> (String, String) {
     (title.to_lowercase(), command_id.to_string())
@@ -100,6 +101,7 @@ pub fn build_inspector_lines(
     lines.extend(build_alpha_keybinding_truth_lines(
         registry, preset, platform,
     ));
+    lines.extend(build_alpha_mode_orientation_lines(preset, platform));
 
     lines
 }

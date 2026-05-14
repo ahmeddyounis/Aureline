@@ -36,6 +36,10 @@ pub mod keybindings;
 pub mod resolver;
 pub mod schema;
 
+pub use keybindings::mode_state::{
+    ModeStateOrientationSettingsSummary, ModeStateSettingsInspectionRecord,
+    ModeStateSettingsMacroRow, ModeStateSettingsRouteRow, MODE_STATE_SETTINGS_SCHEMA_VERSION,
+};
 pub use keybindings::{
     KeybindingNarrowingRecord, KeybindingSettingInspectionRecord, KeybindingSettingSourceLayer,
     KeybindingSettingSourceRecord, KeybindingSettingsConflictRecord,

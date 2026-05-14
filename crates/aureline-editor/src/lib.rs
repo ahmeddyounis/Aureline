@@ -14,6 +14,8 @@ pub mod clipboard;
 pub mod find_replace;
 pub mod highlight;
 pub mod large_file;
+pub mod modes;
+pub mod orientation;
 pub mod outline;
 pub mod paint;
 pub mod selection;
@@ -42,6 +44,18 @@ pub use large_file::{
     DocumentOpenError, DocumentOpenOutcome, FileMode, LargeFileDocument, LargeFileModeNotice,
     LargeFileOverrideInfo, LargeFileTrigger, LargeFileViewer, LargeFileViewerConfig,
     LargeFileViewerError, NormalDocument, ReaderMetrics,
+};
+pub use modes::{
+    build_alpha_mode_state_record, AlphaModeStateInput, EditorModeClass, EditorModeStateRecord,
+    MacroReplayOutcomeClass, MacroReplayReviewRecord, ModeRecoveryAction, PendingOperatorRecord,
+    RegisterRouteAvailability, RegisterRouteKind, RegisterRouteRecord, SequenceGuideOption,
+    SequenceGuideRecord, SequenceGuideState, MODE_STATE_SCHEMA_VERSION,
+};
+pub use orientation::{
+    build_alpha_orientation_truth_record, AlphaOrientationInput, BreadcrumbContinuityRecord,
+    EditorOrientationTruthRecord, FoldSummaryRecord, HiddenStateCounts, MultiCursorIndicatorRecord,
+    OrientationAidAvailability, OverviewAidKind, OverviewAidRecord,
+    ORIENTATION_TRUTH_SCHEMA_VERSION,
 };
 pub use outline::{
     EditorStructuralSnapshot, FoldRange, FoldVisibilityState, OutlineNode, OutlineNodeKind,
