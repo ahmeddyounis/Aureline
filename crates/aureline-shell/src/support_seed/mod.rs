@@ -35,6 +35,8 @@
 //!   [`crate::help_about`]. The support seed simply quotes the same
 //!   exact-build identity as a row inside the preview.
 
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 
 use aureline_support::bundle::{
@@ -45,6 +47,9 @@ use aureline_support::bundle::{
 
 use crate::activity_center::alpha::ActivityCenterSupportExport;
 use crate::activity_center::git_review::GitReviewSupportExport;
+use crate::drift_truth::{
+    DriftTruthExportAudience, DriftTruthSnapshot, DRIFT_TRUTH_EXPORT_PACKET_RECORD_KIND,
+};
 use crate::inspectors::schema_registry::EndpointPolicySupportExport;
 use crate::restore::provenance::RestoreProvenanceRecord;
 
@@ -342,6 +347,31 @@ impl SupportSeedSurface {
         ))
     }
 
+    /// Mint a local support preview that exports version-skew and drift truth
+    /// for helper, provider snapshot, and saved-artifact surfaces as
+    /// structured metadata.
+    pub fn drift_truth_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        drift_snapshot: &DriftTruthSnapshot,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:version-skew-drift-truth:0001",
+            "Version-skew and drift truth support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(drift_truth_seed(drift_snapshot));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support - version-skew and drift truth preview",
+        ))
+    }
+
     /// Convenience: the manifest the export writer would emit. Held as a
     /// borrowed accessor so the chrome never needs to clone the manifest
     /// just to render a row count.
@@ -624,6 +654,48 @@ fn schema_registry_endpoint_policy_seed(
             endpoint_policy_export.endpoint_policy_row_count(),
             endpoint_policy_export.operational_signal_slice_count(),
             endpoint_policy_export.raw_payloads_excluded,
+        ),
+    }
+}
+
+fn drift_truth_seed(drift_snapshot: &DriftTruthSnapshot) -> PreviewItemSeed {
+    let packet = drift_snapshot.export_packet(DriftTruthExportAudience::Support);
+    let mut source_refs = BTreeSet::new();
+    source_refs.insert("crates/aureline-shell/src/drift_truth/mod.rs".to_owned());
+    source_refs.insert("docs/compat/version_skew_alpha.md".to_owned());
+    source_refs.insert(packet.packet_id.clone());
+    for row in &packet.rows {
+        source_refs.extend(row.source_refs.iter().cloned());
+    }
+
+    PreviewItemSeed {
+        support_pack_item_id: "support.item.version_skew_drift_truth".into(),
+        title: "Version-skew and drift truth".into(),
+        data_class: DiagnosticDataClass::MetadataOnly,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "compatibility_and_drift_truth".into(),
+        artifact_kind_class: DRIFT_TRUTH_EXPORT_PACKET_RECORD_KIND.into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some(format!(
+            "manifest/compatibility/{}.json",
+            packet.packet_id.replace(':', "_")
+        )),
+        source_refs: source_refs.into_iter().collect(),
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some((packet.rows.len() as u64).saturating_mul(1024)),
+            confidence_class: "estimated".into(),
+            display_label: format!("{} drift row(s)", packet.rows.len()),
+            size_source_class: "row_count_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Without this row, support cannot tell whether helper, provider, or saved-artifact \
+             surfaces were blocked, stale, retry-only, or waiting for migration review."
+                .into(),
+        notes: format!(
+            "Structured drift export includes {} row(s); raw payload material excluded: {}.",
+            packet.rows.len(),
+            packet.raw_payloads_excluded,
         ),
     }
 }
