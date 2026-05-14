@@ -81,6 +81,14 @@ Frozen at this revision:
   by this descriptor family comes from the ADR-0013 subset and remains
   screenshot-safe and export-safe.
 
+Install topology is a local-only About/diagnostics destination while the
+installer and update surfaces are still alpha contracts. Route-bearing surfaces
+should point to
+[`/docs/install/install_topology_alpha.md`](../install/install_topology_alpha.md)
+and consume the `aureline-install` surface projection instead of inventing
+separate install-mode, channel, updater-owner, state-root, handler-owner, or
+rollback labels.
+
 Out of scope until a superseding decision row opens:
 
 - The full browser-handoff packet body. This contract points at the

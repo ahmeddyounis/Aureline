@@ -60,6 +60,13 @@ Companion artifacts:
   [`/docs/governance/managed_copy_vs_local_truth.md`](../governance/managed_copy_vs_local_truth.md)
   — alpha join point for support/export schema rows, local-vs-managed
   copy posture, and delete/export/hold semantics.
+- [`/crates/aureline-install`](../../crates/aureline-install),
+  [`/fixtures/install/topology_alpha/`](../../fixtures/install/topology_alpha/),
+  and
+  [`/docs/install/install_topology_alpha.md`](../install/install_topology_alpha.md)
+  — alpha install-topology packet and support-export projection for
+  install mode, channel, updater owner, state roots, handler ownership,
+  repair/verify support, mirror/offline posture, and rollback owner.
 - [`/docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md`](../adr/0007-secret-broker-credential-handle-trust-store-redaction.md)
   — secret/redaction defaults the bundle inherits for secret-bearing
   data classes.
