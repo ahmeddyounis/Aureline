@@ -1,7 +1,7 @@
-//! Extension-manifest baseline, effective-permission summary, and install /
+//! Extension-manifest baseline, effective-permission summary, and alpha
 //! review decision validator for the first ecosystem-bearing lane.
 //!
-//! This crate is the M1 seed for the extension-manifest lane. It owns:
+//! This crate owns:
 //!
 //! - one inspectable [`manifest_baseline::ExtensionManifestBaselineRecord`]
 //!   that pins publisher identity, lifecycle state, scope, declared
@@ -12,7 +12,11 @@
 //! - one [`manifest_baseline::ManifestInstallDecisionRecord`] projection
 //!   the install / review surface emits with a typed
 //!   [`manifest_baseline::InstallDecisionClass`] and a typed
-//!   [`manifest_baseline::InstallDecisionReasonClass`].
+//!   [`manifest_baseline::InstallDecisionReasonClass`], and
+//! - one [`review_alpha::ExtensionReviewAlphaPacketRecord`] projection
+//!   that combines install, update, disable, revoke, publisher-continuity,
+//!   revocation, and policy-pack truth for the first consuming review
+//!   surface.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -27,6 +31,7 @@
 //! [`/schemas/extensions/m1_extension_manifest.schema.json`](../../../schemas/extensions/m1_extension_manifest.schema.json).
 
 pub mod manifest_baseline;
+pub mod review_alpha;
 
 pub use manifest_baseline::{
     compute_effective_permission_baseline, decide_manifest_install,
@@ -39,4 +44,17 @@ pub use manifest_baseline::{
     PublisherTrustTierClass, RedactionClass, SummaryFreshnessClass,
     EFFECTIVE_PERMISSION_BASELINE_RECORD_KIND, EXTENSION_MANIFEST_BASELINE_RECORD_KIND,
     EXTENSION_MANIFEST_BASELINE_SCHEMA_VERSION, MANIFEST_INSTALL_DECISION_RECORD_KIND,
+};
+pub use review_alpha::{
+    evaluate_extension_review_alpha, project_review_alpha_surface,
+    validate_extension_review_alpha_packet, validate_publisher_continuity_alpha_record,
+    validate_revocation_alpha_record, ExtensionReviewAlphaInput, ExtensionReviewAlphaPacketRecord,
+    ExtensionReviewAlphaProjectionRecord, PolicyPackAlphaApplication, PolicyPackEffectClass,
+    PublisherContinuityAlphaRecord, PublisherContinuityStateClass, ReviewActionClass,
+    ReviewActionOfferClass, ReviewAlphaFinding, ReviewDecisionClass, ReviewDecisionReasonClass,
+    ReviewDisclosureClass, ReviewMutationClass, ReviewSurfaceClass, RevocationAlphaRecord,
+    RevocationSourceClass, RevocationStateClass, RevocationSubjectClass,
+    EXTENSION_REVIEW_ALPHA_PACKET_RECORD_KIND, EXTENSION_REVIEW_ALPHA_PROJECTION_RECORD_KIND,
+    PUBLISHER_CONTINUITY_ALPHA_RECORD_KIND, REVIEW_ALPHA_SCHEMA_VERSION,
+    REVOCATION_ALPHA_RECORD_KIND,
 };

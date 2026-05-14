@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/policy/policy_pack_alpha.schema.json",
+  "title": "Aureline extension policy-pack alpha draft",
+  "description": "Draft boundary schema for extension policy packs consumed by the alpha extension review, publisher-continuity, and revocation workflow. The pack is a signed, reviewable narrowing artifact for admin, mirror, offline, and support workflows. It carries policy refs, epochs, typed constraints, safe-default behavior, and export-safe projection metadata. Raw policy rule bodies, raw signatures, raw URLs, raw hostnames, raw filesystem paths, raw tenant names, raw user identifiers, raw artifact bytes, raw signing-key material, tokens, and secret material MUST NOT appear; records carry opaque refs and typed summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/policy_pack_alpha_record" },
+    { "$ref": "#/$defs/policy_pack_constraint_alpha_record" },
+    { "$ref": "#/$defs/policy_pack_review_projection_record" }
+  ],
+  "$defs": {
+    "policy_pack_alpha_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for alpha policy-pack records. Breaking payload changes bump this value; additive optional fields and additive enum members are additive-minor."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "policy_pack_alpha_record",
+        "policy_pack_constraint_alpha_record",
+        "policy_pack_review_projection_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, support exports, CLI output, and admin handoff."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short export-safe sentence suitable for UI, CLI, support export, and admin handoff."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "mirrored_current",
+        "mirrored_stale_within_grace",
+        "mirrored_stale_past_grace",
+        "offline_snapshot_unexpired",
+        "offline_snapshot_expired",
+        "manual_snapshot_current",
+        "manual_snapshot_stale",
+        "unknown"
+      ]
+    },
+    "signature_verification_state": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_with_rotation_statement",
+        "pending_review",
+        "verification_failed",
+        "revoked",
+        "not_applicable_runtime_preload"
+      ]
+    },
+    "policy_pack_state_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "stale_within_grace",
+        "stale_past_grace",
+        "superseded",
+        "revoked",
+        "verification_failed_quarantined"
+      ],
+      "description": "Lifecycle state of the pack itself. Active and stale states are explicit so offline and mirror workflows can explain why a prior pack is still used or rejected."
+    },
+    "policy_authority_class": {
+      "type": "string",
+      "enum": [
+        "embedded_product_default",
+        "local_admin_policy",
+        "managed_admin_policy",
+        "approved_private_registry",
+        "approved_mirror",
+        "offline_bundle",
+        "emergency_disable_bundle"
+      ],
+      "description": "Authority that authored or delivered the pack. Managed policy is optional authority; local-safe extension review still has an exportable packet without live vendor access."
+    },
+    "policy_scope_class": {
+      "type": "string",
+      "enum": [
+        "global_install",
+        "workspace",
+        "profile",
+        "publisher",
+        "extension",
+        "mirror_endpoint",
+        "offline_bundle",
+        "managed_org"
+      ],
+      "description": "Scope where the policy pack is authoritative."
+    },
+    "policy_pack_constraint_kind": {
+      "type": "string",
+      "enum": [
+        "allow_list",
+        "deny_list",
+        "publisher_trust_floor",
+        "version_pin",
+        "version_floor",
+        "permission_floor",
+        "mirror_rule",
+        "emergency_disable",
+        "signed_continuity_required",
+        "managed_only_narrowing",
+        "egress_host_narrowing",
+        "freshness_floor_narrowing",
+        "private_registry_parity_required"
+      ],
+      "description": "Constraint vocabulary for extension review. Each constraint narrows only; a constraint that would widen beyond manifest or continuity truth is rejected at pack load."
+    },
+    "policy_target_class": {
+      "type": "string",
+      "enum": [
+        "extension_identity",
+        "extension_version_range",
+        "publisher_identity",
+        "permission_scope",
+        "host_contract_family",
+        "artifact_transport_family",
+        "registry_source",
+        "mirror_endpoint",
+        "capability_lifecycle_row",
+        "boundary_manifest_row"
+      ]
+    },
+    "policy_decision_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_effect",
+        "narrow",
+        "step_up_required",
+        "deny",
+        "emergency_disable",
+        "signed_continuity_required",
+        "mirror_reverify_required"
+      ],
+      "description": "Effect projected into crates/aureline-extensions/src/review_alpha. Effects never widen authority."
+    },
+    "narrowing_direction": {
+      "type": "string",
+      "const": "narrow_only",
+      "description": "Pinned const. Extension policy packs can narrow, deny, require review, require reverify, or disable; they cannot widen trust, permission, identity, or mirror authority."
+    },
+    "fallback_path_class": {
+      "type": "string",
+      "enum": [
+        "local_safe_default",
+        "last_known_good_signed",
+        "offline_only",
+        "read_only_continuation",
+        "repair_hook_visible",
+        "no_fallback_emergency_disable",
+        "unavailable_with_reason"
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "install_review_sheet",
+        "cli_headless",
+        "support_export",
+        "admin_mirror_review",
+        "permission_inspector"
+      ]
+    },
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "description": "Source artifact refs. These point at signed bundles, registry rows, continuity rows, governance rows, or mirror rows; they never embed raw payloads."
+    },
+    "policy_pack_constraint_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "policy_pack_alpha_schema_version",
+        "constraint_id",
+        "policy_pack_ref",
+        "policy_epoch_ref",
+        "constraint_kind",
+        "target_class",
+        "target_ref",
+        "decision_effect_class",
+        "narrowing_direction",
+        "ceiling_summary",
+        "source_refs",
+        "audit_event_refs",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_pack_constraint_alpha_record" },
+        "policy_pack_alpha_schema_version": { "$ref": "#/$defs/policy_pack_alpha_schema_version" },
+        "constraint_id": {
+          "type": "string",
+          "pattern": "^policy_pack_constraint:[A-Za-z0-9_.:/#-]+$"
+        },
+        "policy_pack_ref": {
+          "type": "string",
+          "pattern": "^policy_pack:[A-Za-z0-9_.:/#-]+$"
+        },
+        "policy_epoch_ref": {
+          "type": "string",
+          "pattern": "^policy_epoch(\\.[a-z0-9_]+)+$"
+        },
+        "constraint_kind": { "$ref": "#/$defs/policy_pack_constraint_kind" },
+        "target_class": { "$ref": "#/$defs/policy_target_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "decision_effect_class": { "$ref": "#/$defs/policy_decision_effect_class" },
+        "narrowing_direction": { "$ref": "#/$defs/narrowing_direction" },
+        "ceiling_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "mirror_workflow_eligible": {
+          "type": "boolean",
+          "description": "True when a mirror or offline review can evaluate this constraint without live managed service access."
+        },
+        "admin_review_required": {
+          "type": "boolean",
+          "description": "True when applying or clearing this constraint requires admin or mirror-operator review."
+        },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "policy_pack_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "policy_pack_alpha_schema_version",
+        "policy_pack_id",
+        "policy_epoch_ref",
+        "pack_state_class",
+        "authority_class",
+        "scope_class",
+        "scope_ref",
+        "issued_at",
+        "effective_at",
+        "expires_at",
+        "source_bundle_ref",
+        "signature_verification_state",
+        "freshness_class",
+        "constraint_refs",
+        "safe_default_on_stale",
+        "fallback_path_class",
+        "admin_workflow_ready",
+        "mirror_workflow_ready",
+        "consumer_projection_refs",
+        "source_refs",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_pack_alpha_record" },
+        "policy_pack_alpha_schema_version": { "$ref": "#/$defs/policy_pack_alpha_schema_version" },
+        "policy_pack_id": {
+          "type": "string",
+          "pattern": "^policy_pack:[A-Za-z0-9_.:/#-]+$"
+        },
+        "policy_epoch_ref": {
+          "type": "string",
+          "pattern": "^policy_epoch(\\.[a-z0-9_]+)+$"
+        },
+        "pack_state_class": { "$ref": "#/$defs/policy_pack_state_class" },
+        "authority_class": { "$ref": "#/$defs/policy_authority_class" },
+        "scope_class": { "$ref": "#/$defs/policy_scope_class" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "effective_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "source_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_verification_state": { "$ref": "#/$defs/signature_verification_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "constraint_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^policy_pack_constraint:[A-Za-z0-9_.:/#-]+$"
+          }
+        },
+        "safe_default_on_stale": { "$ref": "#/$defs/reviewable_sentence" },
+        "fallback_path_class": { "$ref": "#/$defs/fallback_path_class" },
+        "admin_workflow_ready": {
+          "type": "boolean",
+          "description": "True when admin review can render pack state, constraints, source refs, and fallback behavior from this record without console-only context."
+        },
+        "mirror_workflow_ready": {
+          "type": "boolean",
+          "description": "True when mirror or offline review can evaluate the pack from signed refs, constraint rows, and safe-default behavior without schema reset."
+        },
+        "consumer_projection_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "policy_pack_review_projection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "policy_pack_alpha_schema_version",
+        "projection_id",
+        "policy_pack_ref",
+        "surface_class",
+        "rendered_constraint_refs",
+        "decision_effect_classes",
+        "freshness_class",
+        "signature_verification_state",
+        "blocked_mutation",
+        "export_safe_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_pack_review_projection_record" },
+        "policy_pack_alpha_schema_version": { "$ref": "#/$defs/policy_pack_alpha_schema_version" },
+        "projection_id": {
+          "type": "string",
+          "pattern": "^policy_pack_projection:[A-Za-z0-9_.:/#-]+$"
+        },
+        "policy_pack_ref": {
+          "type": "string",
+          "pattern": "^policy_pack:[A-Za-z0-9_.:/#-]+$"
+        },
+        "surface_class": { "$ref": "#/$defs/consumer_surface_class" },
+        "rendered_constraint_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^policy_pack_constraint:[A-Za-z0-9_.:/#-]+$"
+          }
+        },
+        "decision_effect_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/policy_decision_effect_class" }
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "signature_verification_state": { "$ref": "#/$defs/signature_verification_state" },
+        "blocked_mutation": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}
