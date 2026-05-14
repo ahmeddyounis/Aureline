@@ -1,0 +1,643 @@
+case_id: admin.delete_hold_policy_alpha.support_offboarding
+input:
+  packet_id: admin-alpha-packet:support-offboarding-delete-review:0001
+  generated_at:
+    utc_instant: "2026-05-14T09:15:00Z"
+    local_iso_with_offset: "2026-05-14T02:15:00-07:00"
+    timezone_id: America/Los_Angeles
+    offset_at_instant: "-07:00"
+    source_clock_class: local_wall_clock_synchronized
+    ordering_key: admin-alpha:generated:0001
+  source_refs:
+    - docs/governance/record_state_and_policy_simulation_models.md
+    - docs/governance/retention_deletion_matrix_contract.md
+    - docs/admin/policy_explainability_contract.md
+    - docs/admin/admin_audit_export_contract.md
+    - fixtures/service/deletion_jobs/support_bundle_completed_all.json
+    - fixtures/service/deletion_jobs/collaboration_archive_blocked_by_hold.json
+    - fixtures/service/deletion_jobs/usage_export_completed_partial_policy_retention.json
+    - fixtures/admin/policy_history_rows/support_bundle_delete_blocked_by_hold.json
+  support_export_id: admin-alpha-support-export:support-offboarding-delete-review:0001
+  delete_flows:
+    - flow_id: delete-flow:support-offboarding:0001
+      title: Support and offboarding delete review
+      source_refs:
+        - fixtures/service/deletion_jobs/support_bundle_completed_all.json
+        - fixtures/service/deletion_jobs/collaboration_archive_blocked_by_hold.json
+        - fixtures/service/deletion_jobs/usage_export_completed_partial_policy_retention.json
+      rows:
+        - row_id: delete-row:support-bundle:completed:0001
+          flow_id: delete-flow:support-offboarding:0001
+          record_class_id: support_bundle_archive
+          subject_ref: support-bundle:case-close-clean:0001
+          operation_class: delete
+          result_class: completed
+          stable_delete_state: delete_completed
+          completion_claim: delete_completed_all_destroyed
+          policy_source_ref: policy-bundle:support-retention:current
+          chronology:
+            utc_instant: "2026-04-24T10:45:00Z"
+            local_iso_with_offset: "2026-04-24T03:45:00-07:00"
+            timezone_id: America/Los_Angeles
+            offset_at_instant: "-07:00"
+            source_clock_class: local_wall_clock_synchronized
+            ordering_key: delete-row:support-bundle:completed:0001
+          archive_search:
+            posture_class: search_complete
+            search_index_ref: archive-search:support-bundle:case-close-clean:0001
+            searched_record_class_refs:
+              - support_bundle_archive
+            coverage_summary: Archive search covered the support case archive and found no held managed copies.
+          hold_scope:
+            selector_class: none
+            selector_refs: []
+            matched_hold_refs: []
+            affected_record_class_refs:
+              - support_bundle_archive
+            read_rights_widened: false
+            summary: No active hold matched the support bundle archive at final execution.
+          redaction_boundary:
+            redaction_profile_ref: docs/governance/storage_and_retention_vocabulary.md
+            included_data_classes:
+              - record_state.axes
+              - receipt.refs
+              - audit.refs
+            omitted_data_classes:
+              - support.bundle_body
+              - raw.logs
+              - secret.material
+            raw_payloads_excluded: true
+            summary: The row carries metadata, refs, and receipt ids only.
+          chain_of_custody:
+            custody_event_refs:
+              - audit-event:support-bundle-delete-started:0001
+              - audit-event:support-bundle-delete-completed:0001
+            source_packet_refs:
+              - deletion-job:support_bundle_case_close_clean
+            verifier_refs:
+              - verifier:receipt-ledger:managed-support:0001
+            summary: Delete execution and receipt ledger refs prove the case archive path.
+          destruction_receipt:
+            availability_class: available
+            receipt_refs:
+              - destruction_receipt_support_bundle_case_close_clean
+            unavailable_reason: null
+            durable_receipt_expected: true
+          export_before_delete:
+            option_class: available
+            export_manifest_refs:
+              - export-manifest:support-bundle:case-close-clean:pre-delete
+            summary: The user could export the support bundle manifest before deleting; raw bundle bodies remained excluded unless explicitly included.
+          remaining_location_classes: []
+          partial_blocker_classes: []
+          linked_policy_diff_refs:
+            - policy-diff:admin-retention-support-offboarding:preview:0001
+          result_summary: Delete completed for the in-scope support bundle archive and emitted a durable destruction receipt.
+
+        - row_id: delete-row:usage-export:partial-policy-retention:0001
+          flow_id: delete-flow:support-offboarding:0001
+          record_class_id: entitlement_usage_export_packet
+          subject_ref: usage-export:billing-period:2026-04
+          operation_class: offboarding_delete
+          result_class: partial
+          stable_delete_state: policy_retention
+          completion_claim: delete_completed_with_retained_subset
+          policy_source_ref: policy-bundle:billing-retention:current
+          chronology:
+            utc_instant: "2026-04-21T02:00:00Z"
+            local_iso_with_offset: "2026-04-20T19:00:00-07:00"
+            timezone_id: America/Los_Angeles
+            offset_at_instant: "-07:00"
+            source_clock_class: local_wall_clock_synchronized
+            ordering_key: delete-row:usage-export:partial-policy-retention:0001
+          archive_search:
+            posture_class: search_complete
+            search_index_ref: archive-search:usage-export:2026-04
+            searched_record_class_refs:
+              - entitlement_usage_export_packet
+              - destruction_receipt_record
+            coverage_summary: Archive search found the user-facing export copy and the billing aggregate governed by a retention floor.
+          hold_scope:
+            selector_class: retention_floor
+            selector_refs:
+              - retention-floor:billing-aggregate:2026-04
+            matched_hold_refs: []
+            affected_record_class_refs:
+              - entitlement_usage_export_packet
+            read_rights_widened: false
+            summary: No legal hold matched; a policy retention floor kept the managed billing aggregate.
+          redaction_boundary:
+            redaction_profile_ref: docs/governance/storage_and_retention_vocabulary.md
+            included_data_classes:
+              - usage.aggregate_refs
+              - receipt.refs
+              - retention.policy_refs
+            omitted_data_classes:
+              - billing.raw_line_items
+              - payment.identifiers
+              - tenant.directory_payload
+            raw_payloads_excluded: true
+            summary: The row includes aggregate and receipt refs but omits billing payload detail.
+          chain_of_custody:
+            custody_event_refs:
+              - audit-event:usage-export-delete-requested:0001
+              - audit-event:usage-export-retained-subset:0001
+            source_packet_refs:
+              - deletion-job:usage_export_partial_policy_retention
+            verifier_refs:
+              - verifier:receipt-ledger:managed-usage:0001
+            summary: Custody links the deleted user-facing export copy to the retained billing-policy subset.
+          destruction_receipt:
+            availability_class: available
+            receipt_refs:
+              - destruction_receipt_usage_export_with_retained_subset
+            unavailable_reason: null
+            durable_receipt_expected: true
+          export_before_delete:
+            option_class: required_before_delete
+            export_manifest_refs:
+              - export-manifest:usage-export:2026-04
+            summary: Offboarding review requires the export manifest to remain available before deletion of the user-facing copy.
+          remaining_location_classes:
+            - managed_archive_policy_retained
+            - local_export_copy
+            - destruction_receipt_only
+          partial_blocker_classes:
+            - policy_retention_floor
+          linked_policy_diff_refs:
+            - policy-diff:admin-retention-support-offboarding:preview:0001
+          result_summary: User-facing export copy was destroyed, but billing aggregates remain retained by policy and are listed as a retained subset.
+
+        - row_id: delete-row:collaboration-archive:blocked-by-hold:0001
+          flow_id: delete-flow:support-offboarding:0001
+          record_class_id: collaboration_evidence_packet
+          subject_ref: collaboration-archive:review-session:0042
+          operation_class: delete
+          result_class: blocked_by_hold
+          stable_delete_state: legal_hold
+          completion_claim: legal_hold_not_complete
+          policy_source_ref: policy-bundle:collaboration-archive-retention:current
+          chronology:
+            utc_instant: "2026-04-22T09:00:00Z"
+            local_iso_with_offset: "2026-04-22T02:00:00-07:00"
+            timezone_id: America/Los_Angeles
+            offset_at_instant: "-07:00"
+            source_clock_class: local_wall_clock_synchronized
+            ordering_key: delete-row:collaboration-archive:blocked-by-hold:0001
+          archive_search:
+            posture_class: search_complete
+            search_index_ref: archive-search:collaboration-archive:0042
+            searched_record_class_refs:
+              - collaboration_evidence_packet
+            coverage_summary: Archive search found one managed collaboration archive matching the active hold selector.
+          hold_scope:
+            selector_class: administrative_legal_hold
+            selector_refs:
+              - hold-selector:collaboration-archive:review-session:0042
+            matched_hold_refs:
+              - legal-hold:collaboration-archive:hold-0042
+            affected_record_class_refs:
+              - collaboration_evidence_packet
+            read_rights_widened: false
+            summary: The hold selector matches the managed collaboration archive and blocks destructive completion without changing read authority.
+          redaction_boundary:
+            redaction_profile_ref: docs/governance/storage_and_retention_vocabulary.md
+            included_data_classes:
+              - hold.refs
+              - record_state.axes
+              - audit.refs
+            omitted_data_classes:
+              - collaboration.transcript_body
+              - participant.raw_identifiers
+              - raw.terminal_payloads
+            raw_payloads_excluded: true
+            summary: The row exposes hold and archive refs, not transcript or participant payloads.
+          chain_of_custody:
+            custody_event_refs:
+              - audit-event:collaboration-archive-delete-requested:0001
+              - audit-event:collaboration-archive-hold-applied:0001
+            source_packet_refs:
+              - deletion-job:collaboration_archive_legal_hold_extends_retention
+            verifier_refs:
+              - verifier:hold-registry:customer-admin:0001
+            summary: Custody links delete request, active hold, and managed archive refs.
+          destruction_receipt:
+            availability_class: pending_after_hold_clear
+            receipt_refs: []
+            unavailable_reason: Receipt cannot be issued until the active legal hold clears and the managed archive is destroyed.
+            durable_receipt_expected: true
+          export_before_delete:
+            option_class: available
+            export_manifest_refs:
+              - export-manifest:collaboration-archive:review-session:0042
+            summary: Admin export remains available under the hold, using the same redaction boundary.
+          remaining_location_classes:
+            - managed_archive_held
+          partial_blocker_classes:
+            - legal_hold
+          linked_policy_diff_refs:
+            - policy-diff:admin-retention-support-offboarding:preview:0001
+          result_summary: Delete is blocked by an active legal hold; the managed archive remains held and cannot be reported as destroyed.
+
+        - row_id: delete-row:policy-history:policy-retained:0001
+          flow_id: delete-flow:support-offboarding:0001
+          record_class_id: policy_history_ledger
+          subject_ref: policy-history:retention-change:0001
+          operation_class: cleanup
+          result_class: policy_retained
+          stable_delete_state: policy_retention
+          completion_claim: policy_retention_not_complete
+          policy_source_ref: policy-bundle:audit-ledger-retention:current
+          chronology:
+            utc_instant: "2026-04-25T20:21:09Z"
+            local_iso_with_offset: "2026-04-25T13:21:09-07:00"
+            timezone_id: America/Los_Angeles
+            offset_at_instant: "-07:00"
+            source_clock_class: local_wall_clock_synchronized
+            ordering_key: delete-row:policy-history:policy-retained:0001
+          archive_search:
+            posture_class: search_partial
+            search_index_ref: archive-search:policy-history:retention-change:0001
+            searched_record_class_refs:
+              - policy_history_ledger
+            coverage_summary: Archive search found ledger metadata; redacted policy bodies were not searched or exported.
+          hold_scope:
+            selector_class: retention_minimum
+            selector_refs:
+              - retention-minimum:policy-ledger:90-days
+            matched_hold_refs: []
+            affected_record_class_refs:
+              - policy_history_ledger
+            read_rights_widened: false
+            summary: No legal hold matched; audit-ledger policy retention blocks cleanup.
+          redaction_boundary:
+            redaction_profile_ref: docs/admin/policy_explainability_contract.md
+            included_data_classes:
+              - policy.metadata
+              - audit.refs
+            omitted_data_classes:
+              - policy.rule_body
+              - bundle.signature_bytes
+              - tenant.directory_payload
+            raw_payloads_excluded: true
+            summary: Ledger metadata and refs are exportable; raw policy bundle bodies are omitted.
+          chain_of_custody:
+            custody_event_refs:
+              - audit-event:policy-ledger-cleanup-requested:0001
+              - audit-event:policy-ledger-retained:0001
+            source_packet_refs:
+              - admin-policy-history-support-bundle-delete-blocked-0001
+            verifier_refs:
+              - verifier:audit-ledger:policy-history:0001
+            summary: Custody links cleanup request to the policy history row and audit-ledger verifier.
+          destruction_receipt:
+            availability_class: pending_policy_floor
+            receipt_refs: []
+            unavailable_reason: Receipt cannot be issued because the policy-history ledger remains under the audit retention floor.
+            durable_receipt_expected: true
+          export_before_delete:
+            option_class: available
+            export_manifest_refs:
+              - export-manifest:policy-history:retention-change:0001
+            summary: Redacted policy-history export is available before cleanup once the retention floor allows action.
+          remaining_location_classes:
+            - managed_archive_policy_retained
+          partial_blocker_classes:
+            - policy_retention_floor
+          linked_policy_diff_refs:
+            - policy-diff:admin-retention-support-offboarding:preview:0001
+          result_summary: Cleanup is policy-retained by the audit ledger floor and remains visible as retained, not deleted.
+
+        - row_id: delete-row:external-provider-audit:outside-scope:0001
+          flow_id: delete-flow:support-offboarding:0001
+          record_class_id: imported_external_audit_trail
+          subject_ref: external-provider-audit:provider-origin:0001
+          operation_class: offboarding_delete
+          result_class: outside_platform_scope
+          stable_delete_state: delete_requested
+          completion_claim: failed_no_completion
+          policy_source_ref: policy-bundle:provider-import-boundary:current
+          chronology:
+            utc_instant: "2026-05-01T16:00:00Z"
+            local_iso_with_offset: "2026-05-01T09:00:00-07:00"
+            timezone_id: America/Los_Angeles
+            offset_at_instant: "-07:00"
+            source_clock_class: imported_external_wall_clock
+            ordering_key: delete-row:external-provider-audit:outside-scope:0001
+          archive_search:
+            posture_class: not_applicable
+            search_index_ref: null
+            searched_record_class_refs:
+              - imported_external_audit_trail
+            coverage_summary: Aureline does not own the provider-origin archive and cannot search or mutate it as a managed copy.
+          hold_scope:
+            selector_class: outside_platform_scope
+            selector_refs:
+              - import-origin:provider-audit:0001
+            matched_hold_refs: []
+            affected_record_class_refs:
+              - imported_external_audit_trail
+            read_rights_widened: false
+            summary: Provider-origin records remain outside Aureline hold and delete authority.
+          redaction_boundary:
+            redaction_profile_ref: docs/admin/admin_audit_export_contract.md
+            included_data_classes:
+              - import.refs
+              - boundary.summary
+            omitted_data_classes:
+              - provider.raw_payload
+              - provider.urls
+              - provider.identifiers
+            raw_payloads_excluded: true
+            summary: The row states the boundary and import refs without provider payloads.
+          chain_of_custody:
+            custody_event_refs:
+              - audit-event:provider-import-boundary-reviewed:0001
+            source_packet_refs:
+              - import-packet:external-provider-audit:0001
+            verifier_refs:
+              - verifier:import-boundary:0001
+            summary: Custody stops at the imported provider packet; provider-origin deletion must be handled outside Aureline.
+          destruction_receipt:
+            availability_class: not_available_outside_scope
+            receipt_refs: []
+            unavailable_reason: Aureline cannot issue a destruction receipt for provider-origin records it never possessed as managed data.
+            durable_receipt_expected: false
+          export_before_delete:
+            option_class: not_required
+            export_manifest_refs:
+              - export-manifest:provider-import-boundary:0001
+            summary: Aureline can export the boundary packet, but provider-origin delete/export must be requested at the provider.
+          remaining_location_classes:
+            - import_source_origin
+          partial_blocker_classes:
+            - outside_platform_scope
+          linked_policy_diff_refs:
+            - policy-diff:admin-retention-support-offboarding:preview:0001
+          result_summary: Provider-origin records are outside Aureline platform scope; the row reports the boundary instead of claiming deletion.
+
+        - row_id: delete-row:local-workspace-evidence:manual-capture:0001
+          flow_id: delete-flow:support-offboarding:0001
+          record_class_id: local_workspace_evidence
+          subject_ref: local-evidence:workspace-device:0001
+          operation_class: export
+          result_class: manual_local_capture_required
+          stable_delete_state: exported_copy_remains_local
+          completion_claim: exported_copy_remains_no_managed_delete
+          policy_source_ref: policy-bundle:local-only-boundary:current
+          chronology:
+            utc_instant: "2026-05-01T16:05:00Z"
+            local_iso_with_offset: "2026-05-01T09:05:00-07:00"
+            timezone_id: America/Los_Angeles
+            offset_at_instant: "-07:00"
+            source_clock_class: local_wall_clock_synchronized
+            ordering_key: delete-row:local-workspace-evidence:manual-capture:0001
+          archive_search:
+            posture_class: not_applicable
+            search_index_ref: null
+            searched_record_class_refs:
+              - local_workspace_evidence
+            coverage_summary: Local-only workspace evidence is not in a managed archive; the user must capture it from the device.
+          hold_scope:
+            selector_class: local_only_not_held_by_platform
+            selector_refs:
+              - local-device:current
+            matched_hold_refs: []
+            affected_record_class_refs:
+              - local_workspace_evidence
+            read_rights_widened: false
+            summary: Platform hold and delete workflows do not reach unsynced local-only copies.
+          redaction_boundary:
+            redaction_profile_ref: docs/governance/managed_copy_vs_local_truth.md
+            included_data_classes:
+              - local.boundary
+              - guidance.refs
+            omitted_data_classes:
+              - local.file_paths
+              - local.file_contents
+              - raw.logs
+            raw_payloads_excluded: true
+            summary: The row provides capture guidance and excludes local paths and payloads.
+          chain_of_custody:
+            custody_event_refs:
+              - audit-event:local-capture-required:0001
+            source_packet_refs:
+              - local-boundary:workspace-evidence:0001
+            verifier_refs:
+              - verifier:local-boundary-guidance:0001
+            summary: Custody remains on the user's device until the user captures or deletes local evidence.
+          destruction_receipt:
+            availability_class: manual_local_action_required
+            receipt_refs: []
+            unavailable_reason: A platform receipt cannot be issued for local-only evidence until the user captures or deletes it locally.
+            durable_receipt_expected: false
+          export_before_delete:
+            option_class: manual_local_capture_required
+            export_manifest_refs: []
+            summary: The user must capture local-only evidence from the device before support or admin can review it.
+          remaining_location_classes:
+            - local_device_only
+          partial_blocker_classes:
+            - manual_local_capture_required
+          linked_policy_diff_refs:
+            - policy-diff:admin-retention-support-offboarding:preview:0001
+          result_summary: Local-only evidence remains under device control and requires manual capture; Aureline does not claim remote export, hold, or delete.
+
+        - row_id: delete-row:raw-secret-payload:omitted-by-redaction:0001
+          flow_id: delete-flow:support-offboarding:0001
+          record_class_id: raw_secret_payload
+          subject_ref: secret-payload:omitted:0001
+          operation_class: export
+          result_class: omitted_by_redaction
+          stable_delete_state: delete_requested
+          completion_claim: failed_no_completion
+          policy_source_ref: policy-bundle:redaction-boundary:current
+          chronology:
+            utc_instant: "2026-05-01T16:10:00Z"
+            local_iso_with_offset: "2026-05-01T09:10:00-07:00"
+            timezone_id: America/Los_Angeles
+            offset_at_instant: "-07:00"
+            source_clock_class: local_wall_clock_synchronized
+            ordering_key: delete-row:raw-secret-payload:omitted-by-redaction:0001
+          archive_search:
+            posture_class: search_partial
+            search_index_ref: archive-search:redaction-boundary:0001
+            searched_record_class_refs:
+              - raw_secret_payload
+            coverage_summary: Archive search counted the redacted payload class but did not expose raw secret material.
+          hold_scope:
+            selector_class: redaction_boundary
+            selector_refs:
+              - redaction-profile:secret-material-excluded
+            matched_hold_refs: []
+            affected_record_class_refs:
+              - raw_secret_payload
+            read_rights_widened: false
+            summary: Redaction policy excludes the raw payload and does not change hold or read authority.
+          redaction_boundary:
+            redaction_profile_ref: docs/governance/storage_and_retention_vocabulary.md
+            included_data_classes:
+              - redaction.decision
+              - payload.class_label
+            omitted_data_classes:
+              - secret.material
+              - raw.env
+              - raw.credential_files
+            raw_payloads_excluded: true
+            summary: Raw secret material is intentionally omitted; only the omission decision and class label are exported.
+          chain_of_custody:
+            custody_event_refs:
+              - audit-event:redaction-omitted-secret-payload:0001
+            source_packet_refs:
+              - redaction-report:admin-delete-hold-policy:0001
+            verifier_refs:
+              - verifier:redaction-profile:secret-material-excluded
+            summary: Custody records the redaction decision and verifier, not the secret payload.
+          destruction_receipt:
+            availability_class: omitted_by_redaction
+            receipt_refs: []
+            unavailable_reason: Receipt detail is omitted because it would reveal the redacted secret-bearing payload class.
+            durable_receipt_expected: false
+          export_before_delete:
+            option_class: unavailable_by_redaction
+            export_manifest_refs:
+              - export-manifest:redaction-omission:0001
+            summary: Export preserves the omission reason while keeping raw secret material out of the packet.
+          remaining_location_classes:
+            - no_remaining_location
+          partial_blocker_classes:
+            - redaction_policy
+          linked_policy_diff_refs:
+            - policy-diff:admin-retention-support-offboarding:preview:0001
+          result_summary: Secret-bearing payload detail is omitted by redaction, and the support export preserves that result instead of silently dropping the row.
+
+  policy_diff_preview:
+    diff_id: policy-diff:admin-retention-support-offboarding:preview:0001
+    preview_state: preview_before_apply
+    current_policy_source:
+      source_ref: policy-source:admin-retention-current:0001
+      source_label: Current support and offboarding retention policy
+      policy_epoch: policy_epoch.self_hosted.20260501.0009
+      distribution_freshness_class: authoritative_live
+      validation_state: verified_current
+    baseline_source:
+      source_ref: policy-source:admin-retention-baseline:0001
+      source_label: Prior support retention policy
+      policy_epoch: policy_epoch.self_hosted.20260424.0007
+      distribution_freshness_class: authoritative_live
+      validation_state: verified_current
+    proposed_source:
+      source_ref: policy-source:admin-retention-proposed:0001
+      source_label: Proposed offboarding retention policy
+      policy_epoch: policy_epoch.self_hosted.20260501.0010-preview
+      distribution_freshness_class: locally_previewed
+      validation_state: verified_preview
+    preview_generated_at:
+      utc_instant: "2026-05-14T09:10:00Z"
+      local_iso_with_offset: "2026-05-14T02:10:00-07:00"
+      timezone_id: America/Los_Angeles
+      offset_at_instant: "-07:00"
+      source_clock_class: local_wall_clock_synchronized
+      ordering_key: policy-diff:admin-retention-support-offboarding:preview:0001
+    apply_requires_preview_ack: true
+    diff_rows:
+      - diff_row_id: policy-diff-row:receipt-required:0001
+        affected_target_ref: retention-matrix:support_bundle_archive
+        previous_projection: Delete could complete without a visible receipt reference on the admin row.
+        effective_projection: Delete completion must cite a durable receipt or explain why one cannot be issued.
+        user_visible_consequence: Completed support-bundle deletes now show a receipt ref in support/admin exports.
+        lifecycle_refs:
+          - fixtures/service/deletion_jobs/support_bundle_completed_all.json
+          - schemas/governance/delete_request_state.schema.json
+        result_class: completed
+        redaction_boundary:
+          redaction_profile_ref: docs/admin/policy_explainability_contract.md
+          included_data_classes:
+            - policy.metadata
+            - receipt.refs
+          omitted_data_classes:
+            - policy.rule_body
+            - support.bundle_body
+          raw_payloads_excluded: true
+          summary: Diff row exposes receipt requirement metadata only.
+      - diff_row_id: policy-diff-row:legal-hold-block:0001
+        affected_target_ref: retention-matrix:collaboration_evidence_packet
+        previous_projection: Legal-hold interaction was visible only through the deletion job.
+        effective_projection: Admin review rows show hold selector, matched hold refs, and remaining managed archive.
+        user_visible_consequence: Held collaboration archives render blocked_by_hold and cannot be mistaken for completed deletion.
+        lifecycle_refs:
+          - fixtures/service/deletion_jobs/collaboration_archive_blocked_by_hold.json
+          - fixtures/governance/record_delete_cases/support_bundle_archive_legal_hold.yaml
+        result_class: blocked_by_hold
+        redaction_boundary:
+          redaction_profile_ref: docs/admin/policy_explainability_contract.md
+          included_data_classes:
+            - hold.refs
+            - record_state.axes
+          omitted_data_classes:
+            - collaboration.transcript_body
+            - participant.raw_identifiers
+          raw_payloads_excluded: true
+          summary: Diff row exposes hold refs and axes without transcript payloads.
+      - diff_row_id: policy-diff-row:policy-retained-subset:0001
+        affected_target_ref: retention-matrix:entitlement_usage_export_packet
+        previous_projection: Retained billing aggregates were represented as generic retained data.
+        effective_projection: Retained subset is reported as partial or policy_retained with remaining locations and receipt posture.
+        user_visible_consequence: Admin review can distinguish partial completion from a pure policy-retained blocker.
+        lifecycle_refs:
+          - fixtures/service/deletion_jobs/usage_export_completed_partial_policy_retention.json
+          - docs/governance/retention_deletion_matrix_contract.md
+        result_class: partial
+        redaction_boundary:
+          redaction_profile_ref: docs/admin/policy_explainability_contract.md
+          included_data_classes:
+            - usage.aggregate_refs
+            - retention.policy_refs
+          omitted_data_classes:
+            - billing.raw_line_items
+            - payment.identifiers
+          raw_payloads_excluded: true
+          summary: Diff row names aggregate retention without raw billing detail.
+      - diff_row_id: policy-diff-row:redaction-boundary:0001
+        affected_target_ref: support-export:redaction-boundary
+        previous_projection: Redacted payload classes could disappear from export summaries.
+        effective_projection: Redacted payload classes remain as omitted_by_redaction rows with omission reasons.
+        user_visible_consequence: Support exports preserve the omitted_by_redaction result rather than silently hiding the row.
+        lifecycle_refs:
+          - docs/admin/admin_audit_export_contract.md
+          - docs/governance/storage_and_retention_vocabulary.md
+        result_class: omitted_by_redaction
+        redaction_boundary:
+          redaction_profile_ref: docs/admin/policy_explainability_contract.md
+          included_data_classes:
+            - redaction.decision
+            - payload.class_label
+          omitted_data_classes:
+            - secret.material
+            - raw.credentials
+          raw_payloads_excluded: true
+          summary: Diff row names redaction effects without exposing raw secret material.
+    export_pair_refs:
+      - human-summary:policy-diff:admin-retention-support-offboarding:preview:0001
+      - machine-packet:policy-diff:admin-retention-support-offboarding:preview:0001
+    redaction_boundary:
+      redaction_profile_ref: docs/admin/policy_explainability_contract.md
+      included_data_classes:
+        - policy.metadata
+        - lifecycle.refs
+        - redaction.decisions
+      omitted_data_classes:
+        - policy.rule_body
+        - support.bundle_body
+        - secret.material
+        - tenant.directory_payload
+      raw_payloads_excluded: true
+      summary: Policy diff preview includes refs and consequence summaries, not raw policy bodies or payloads.
+    summary: Preview compares current and proposed support/offboarding retention policy before apply and ties every changed lifecycle consequence to the current policy source.
+expect:
+  min_delete_rows: 7
+  requires_durable_receipt: true
+  requires_timezone_aware_chronology: true
+  requires_policy_diff_preview_before_apply: true
+  requires_support_export_result_vocabulary: true
+  raw_payloads_excluded: true

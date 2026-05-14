@@ -47,6 +47,7 @@ use aureline_support::bundle::{
 
 use crate::activity_center::alpha::ActivityCenterSupportExport;
 use crate::activity_center::git_review::GitReviewSupportExport;
+use crate::admin_alpha::{AdminAlphaSupportExport, ADMIN_ALPHA_SUPPORT_EXPORT_RECORD_KIND};
 use crate::drift_truth::{
     DriftTruthExportAudience, DriftTruthSnapshot, DRIFT_TRUTH_EXPORT_PACKET_RECORD_KIND,
 };
@@ -345,6 +346,30 @@ impl SupportSeedSurface {
         Ok(Self::from_preview(
             preview,
             "Support — schema and endpoint policy preview",
+        ))
+    }
+
+    /// Mint a local support preview that exports admin delete, legal-hold,
+    /// chronology, and policy-diff truth as structured metadata.
+    pub fn admin_delete_hold_policy_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        admin_export: &AdminAlphaSupportExport,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:admin-delete-hold-policy:0001",
+            "Admin delete, hold, and policy diff support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(admin_delete_hold_policy_seed(admin_export));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support - admin delete and policy truth preview",
         ))
     }
 
@@ -680,6 +705,47 @@ fn schema_registry_endpoint_policy_seed(
             endpoint_policy_export.endpoint_policy_row_count(),
             endpoint_policy_export.operational_signal_slice_count(),
             endpoint_policy_export.raw_payloads_excluded,
+        ),
+    }
+}
+
+fn admin_delete_hold_policy_seed(admin_export: &AdminAlphaSupportExport) -> PreviewItemSeed {
+    PreviewItemSeed {
+        support_pack_item_id: "support.item.admin_delete_hold_policy_truth".into(),
+        title: "Admin delete, hold, chronology, and policy diff truth".into(),
+        data_class: DiagnosticDataClass::MetadataOnly,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "governance_and_export_controls".into(),
+        artifact_kind_class: ADMIN_ALPHA_SUPPORT_EXPORT_RECORD_KIND.into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some(format!(
+            "manifest/admin_delete_hold_policy/{}.json",
+            admin_export.export_id.replace(':', "_")
+        )),
+        source_refs: vec![
+            "crates/aureline-shell/src/admin_alpha/mod.rs".into(),
+            "docs/admin/policy_diff_alpha.md".into(),
+            admin_export.export_id.clone(),
+        ],
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some((admin_export.row_count() as u64).saturating_mul(1536)),
+            confidence_class: "estimated".into(),
+            display_label: format!("{} admin delete/export row(s)", admin_export.row_count()),
+            size_source_class: "row_count_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Without this row, support cannot tell whether delete/export results were completed, \
+             partial, blocked by hold, policy-retained, outside platform scope, manually local, \
+             or omitted by redaction."
+                .into(),
+        notes: format!(
+            "Structured admin export includes {} delete/export row(s), {} result token(s), and \
+             policy diff {}; raw payload material excluded: {}.",
+            admin_export.row_count(),
+            admin_export.result_vocabulary.len(),
+            admin_export.policy_diff_preview.diff_id,
+            admin_export.raw_payloads_excluded,
         ),
     }
 }

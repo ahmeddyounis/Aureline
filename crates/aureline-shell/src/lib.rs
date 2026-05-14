@@ -31,6 +31,7 @@
 
 pub(crate) mod a11y;
 pub mod activity_center;
+pub mod admin_alpha;
 pub mod ai_context_inspector;
 pub mod ai_truth_strip;
 pub mod app_frame;
