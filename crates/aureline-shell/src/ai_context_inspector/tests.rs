@@ -1,7 +1,12 @@
 use aureline_ai::{
-    AttachmentKind, AttachmentStatusClass, ComposerAttachment, ComposerDraft, ComposerMention,
-    ComposerSlashCommandInvocation, MentionKind, MentionResolutionState, SelectionReasonClass,
-    SourceClass, TrustPosture,
+    AttachmentKind, AttachmentStatusClass, BudgetPressureClass, CitationAnchorAvailabilityClass,
+    ComposerAttachment, ComposerAttachmentPill, ComposerBudgetStrip, ComposerContextAlphaSnapshot,
+    ComposerContextItem, ComposerContextReviewLock, ComposerContextReviewState, ComposerDraft,
+    ComposerMention, ComposerMentionPreview, ComposerSlashCommandInvocation, ContextFreshnessClass,
+    ContextGroupClass, ContextItemStateClass, ContextLocalityClass, ContextTrustClass,
+    DocsKnowledgeIdentity, DocsKnowledgeSourceClass, ExecutionBoundaryClass, IntentModeClass,
+    MentionKind, MentionPreviewStateClass, MentionResolutionState, ReviewLockClass,
+    SelectionReasonClass, SourceClass, SourceLanguageFallbackClass, TrustPosture,
 };
 use aureline_commands::registry::seeded_registry;
 use aureline_search::{
@@ -347,4 +352,133 @@ fn draft_state_section_quotes_dispatch_disabled_label_for_m1_seed() {
         Some("dispatch_disabled_in_m1_seed")
     );
     assert_eq!(row.status, InspectorRowStatusClass::DispatchDisabled);
+}
+
+fn alpha_docs_identity() -> DocsKnowledgeIdentity {
+    DocsKnowledgeIdentity {
+        docs_node_ref: "docs-node:payments:retry-policy".to_owned(),
+        source_class: DocsKnowledgeSourceClass::MirroredDocsPack,
+        version_or_revision_ref: "docs-revision:payments:2026-05-01".to_owned(),
+        docs_pack_ref: Some("docs-pack:payments".to_owned()),
+        exact_anchor_ref: Some("citation-anchor:payments#retry-policy".to_owned()),
+        citation_availability_class: CitationAnchorAvailabilityClass::ExactAnchorAvailable,
+        citation_note: None,
+        source_language: "en-US".to_owned(),
+        active_language: "fr-FR".to_owned(),
+        source_language_fallback_class: SourceLanguageFallbackClass::FallbackToSourceLanguage,
+    }
+}
+
+fn alpha_snapshot() -> ComposerContextAlphaSnapshot {
+    ComposerContextAlphaSnapshot {
+        record_kind: aureline_ai::COMPOSER_CONTEXT_ALPHA_RECORD_KIND.to_owned(),
+        schema_version: aureline_ai::COMPOSER_CONTEXT_ALPHA_SCHEMA_VERSION,
+        composer_draft_id: "turn-draft:alpha:0001".to_owned(),
+        composer_session_id: "composer-session:alpha:0001".to_owned(),
+        request_workspace_id: "request-workspace:alpha:0001".to_owned(),
+        intent_text: "Review retry path".to_owned(),
+        intent_mode: IntentModeClass::ReviewDiff,
+        scope_label: "Current diff".to_owned(),
+        execution_boundary_class: ExecutionBoundaryClass::ManagedHosted,
+        action_identity_ref: Some("cmd:ai.review_diff".to_owned()),
+        mention_previews: vec![ComposerMentionPreview {
+            mention_id: "mention.docs.retry-policy".to_owned(),
+            kind: MentionKind::DocsAnchorMention,
+            preview_state: MentionPreviewStateClass::ResolvedExact,
+            target_stable_id: Some("docs-node:payments:retry-policy".to_owned()),
+            candidate_target_refs: Vec::new(),
+            display_label: "@payments/retry-policy".to_owned(),
+            docs_identity: Some(alpha_docs_identity()),
+        }],
+        attachment_pills: vec![ComposerAttachmentPill {
+            attachment_id: "att.docs.retry-policy".to_owned(),
+            kind: AttachmentKind::RetrievedDocument,
+            source_class: SourceClass::DocsPackExcerpt,
+            trust_posture: TrustPosture::ReviewedDerived,
+            selection_reason: SelectionReasonClass::UserPinned,
+            status: AttachmentStatusClass::Live,
+            context_state: ContextItemStateClass::Pinned,
+            display_label: "Payments retry policy docs".to_owned(),
+            estimated_byte_size: 2048,
+            removable: true,
+            docs_identity: Some(alpha_docs_identity()),
+        }],
+        context_items: vec![
+            ComposerContextItem {
+                context_item_id: "ctx.docs.retry-policy".to_owned(),
+                group_class: ContextGroupClass::DocsKnowledgeSources,
+                state_class: ContextItemStateClass::Pinned,
+                source_class: SourceClass::DocsPackExcerpt,
+                stable_identity_ref: "docs-node:payments:retry-policy".to_owned(),
+                display_label: "Payments retry policy".to_owned(),
+                freshness_class: ContextFreshnessClass::WarmCached,
+                trust_class: ContextTrustClass::TrustedAuthority,
+                locality_class: ContextLocalityClass::MirroredDocsPack,
+                estimated_byte_size: 2048,
+                omission_reason_class: None,
+                source_attachment_ref: Some("att.docs.retry-policy".to_owned()),
+                source_mention_ref: Some("mention.docs.retry-policy".to_owned()),
+                docs_identity: Some(alpha_docs_identity()),
+            },
+            ComposerContextItem {
+                context_item_id: "ctx.diff.omitted".to_owned(),
+                group_class: ContextGroupClass::DiffsHistory,
+                state_class: ContextItemStateClass::Omitted,
+                source_class: SourceClass::WorkspaceSearchResult,
+                stable_identity_ref: "diff-history:payments:large".to_owned(),
+                display_label: "Large prior diff".to_owned(),
+                freshness_class: ContextFreshnessClass::WarmCached,
+                trust_class: ContextTrustClass::ReviewedDerived,
+                locality_class: ContextLocalityClass::LocalCache,
+                estimated_byte_size: 4096,
+                omission_reason_class: Some(aureline_ai::ContextOmissionReasonClass::Budget),
+                source_attachment_ref: None,
+                source_mention_ref: None,
+                docs_identity: None,
+            },
+        ],
+        budget_strip: ComposerBudgetStrip {
+            aggregate_byte_estimate: 6144,
+            budget_byte_ceiling: 32768,
+            pressure_class: BudgetPressureClass::WithinBudget,
+            included_context_group_tokens: vec!["docs_knowledge_sources".to_owned()],
+            omitted_or_trimmed_group_tokens: vec!["diffs_history".to_owned()],
+            selected_provider_label: "Aureline managed hosted AI".to_owned(),
+            selected_model_label: "Hosted context review preview".to_owned(),
+            quota_state_token: "within_limit".to_owned(),
+            cost_envelope_token: "vendor_hosted_entitlement_band".to_owned(),
+        },
+        review_lock: ComposerContextReviewLock {
+            lock_class: ReviewLockClass::FrozenForReview,
+            context_snapshot_ref: "context-snapshot:alpha:0001".to_owned(),
+            route_snapshot_ref: "ai-routing-packet:alpha:0001".to_owned(),
+            review_started_at: Some("2026-05-14T12:00:00Z".to_owned()),
+        },
+        review_state: ComposerContextReviewState::ReadyToSend,
+    }
+}
+
+#[test]
+fn alpha_projection_quotes_docs_citation_and_omitted_context_truth() {
+    let snapshot = alpha_snapshot();
+    assert!(snapshot.validate().is_empty());
+    let projection = AiContextInspectorAlphaProjection::project(&snapshot);
+
+    assert_eq!(
+        projection.record_kind,
+        AI_CONTEXT_INSPECTOR_ALPHA_PROJECTION_RECORD_KIND
+    );
+    assert!(projection.has_docs_citation_truth);
+    assert!(projection.has_non_included_context_truth);
+    assert_eq!(projection.evidence_handoff_row_count, 2);
+    assert!(projection.rows.iter().any(|row| {
+        row.row_id == "attachment_att.docs.retry-policy"
+            && row.value.contains("exact_anchor_available")
+            && row.value.contains("fallback_to_source_language")
+    }));
+    assert!(projection.rows.iter().any(|row| {
+        row.row_id == "context_ctx.diff.omitted"
+            && row.value_token == "omitted"
+            && row.status == InspectorRowStatusClass::Informational
+    }));
 }

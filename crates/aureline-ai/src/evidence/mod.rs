@@ -14,6 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::context_inspector::{AiContextEvidenceHandoff, AiContextEvidenceHandoffRow};
 use crate::routing::{AiRoutingPacket, RoutingPolicyContext};
 
 /// Stable record-kind tag carried on serialized [`AiMutationEvidencePacket`] payloads.
@@ -825,6 +826,9 @@ pub struct AiMutationEvidencePacket {
     pub derived_explanations: Vec<DerivedExplanationLineage>,
     /// Tainted-context fences.
     pub tainted_context_fences: Vec<TaintedContextFence>,
+    /// Context handoff rows consumed from the pre-send composer/context inspector.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_handoff: Option<AiContextEvidenceHandoff>,
     /// Review and mutation lineage.
     pub review_lineage: MutationReviewLineage,
     /// Source contracts consumed by this packet.
@@ -861,6 +865,7 @@ impl AiMutationEvidencePacket {
             cited_sources: input.cited_sources,
             derived_explanations: input.derived_explanations,
             tainted_context_fences: input.tainted_context_fences,
+            context_handoff: input.context_handoff,
             review_lineage: input.review_lineage,
             source_contract_refs: input.source_contract_refs,
             policy_context: input.policy_context,
@@ -984,6 +989,11 @@ impl AiMutationEvidencePacket {
                 .iter()
                 .map(AiMutationEvidenceFenceSupportRow::from_fence)
                 .collect(),
+            context_handoff_rows: self
+                .context_handoff
+                .as_ref()
+                .map(|handoff| handoff.context_rows.clone())
+                .unwrap_or_default(),
             review_surface_ref: self.review_lineage.review_surface_ref.clone(),
             patch_review_summary_ref: self.review_lineage.patch_review_summary_ref.clone(),
             validation_summary_refs: self.review_lineage.validation_summary_refs.clone(),
@@ -1253,6 +1263,18 @@ impl AiMutationEvidencePacket {
             }
         }
 
+        if let Some(handoff) = &self.context_handoff {
+            if !handoff.validate().is_empty() {
+                violations.push(AiMutationEvidenceViolation::ContextHandoffInvalid);
+            }
+            if handoff.composer_session_ref != self.composer_session_ref
+                || handoff.turn_draft_ref != self.turn_draft_ref
+                || handoff.request_workspace_ref != self.request_workspace_ref
+            {
+                violations.push(AiMutationEvidenceViolation::ContextHandoffIdentityMismatch);
+            }
+        }
+
         if packet_contains_forbidden_boundary_material(self) {
             violations.push(AiMutationEvidenceViolation::RawBoundaryMaterialInExport);
         }
@@ -1290,6 +1312,8 @@ pub struct AiMutationEvidencePacketInput {
     pub derived_explanations: Vec<DerivedExplanationLineage>,
     /// Tainted context fences.
     pub tainted_context_fences: Vec<TaintedContextFence>,
+    /// Context handoff from the pre-send composer/context inspector.
+    pub context_handoff: Option<AiContextEvidenceHandoff>,
     /// Review lineage.
     pub review_lineage: MutationReviewLineage,
     /// Source contract refs.
@@ -1381,6 +1405,9 @@ pub struct AiMutationEvidenceSupportPacket {
     pub derived_explanation_rows: Vec<AiMutationEvidenceDerivedSupportRow>,
     /// Tainted fence rows.
     pub tainted_fence_rows: Vec<AiMutationEvidenceFenceSupportRow>,
+    /// Context handoff rows consumed from the composer/context inspector.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_handoff_rows: Vec<AiContextEvidenceHandoffRow>,
     /// Review surface ref.
     pub review_surface_ref: String,
     /// Patch review summary ref.
@@ -1599,6 +1626,10 @@ pub enum AiMutationEvidenceViolation {
     MissingSourceContractRefs,
     /// Packet contains raw boundary material forbidden in exports.
     RawBoundaryMaterialInExport,
+    /// Context handoff rows failed their own validation.
+    ContextHandoffInvalid,
+    /// Context handoff points at a different composer session, draft, or workspace.
+    ContextHandoffIdentityMismatch,
 }
 
 impl AiMutationEvidenceViolation {
@@ -1635,6 +1666,8 @@ impl AiMutationEvidenceViolation {
             Self::MissingRunningBuildIdentityRef => "missing_running_build_identity_ref",
             Self::MissingSourceContractRefs => "missing_source_contract_refs",
             Self::RawBoundaryMaterialInExport => "raw_boundary_material_in_export",
+            Self::ContextHandoffInvalid => "context_handoff_invalid",
+            Self::ContextHandoffIdentityMismatch => "context_handoff_identity_mismatch",
         }
     }
 }
@@ -1724,6 +1757,10 @@ fn packet_contains_forbidden_boundary_material(packet: &AiMutationEvidencePacket
             .tainted_context_fences
             .iter()
             .any(fence_contains_forbidden_boundary_material)
+        || packet
+            .context_handoff
+            .as_ref()
+            .is_some_and(context_handoff_contains_forbidden_boundary_material)
 }
 
 fn approval_contains_forbidden_boundary_material(approval: &ApprovalLineageEntry) -> bool {
@@ -1791,6 +1828,70 @@ fn fence_contains_forbidden_boundary_material(fence: &TaintedContextFence) -> bo
             .source_reference_ref
             .as_deref()
             .is_some_and(contains_forbidden_boundary_material)
+}
+
+fn context_handoff_contains_forbidden_boundary_material(
+    handoff: &AiContextEvidenceHandoff,
+) -> bool {
+    [
+        handoff.handoff_id.as_str(),
+        handoff.composer_context_snapshot_ref.as_str(),
+        handoff.composer_session_ref.as_str(),
+        handoff.turn_draft_ref.as_str(),
+        handoff.request_workspace_ref.as_str(),
+    ]
+    .iter()
+    .any(|value| contains_forbidden_boundary_material(value))
+        || handoff.context_rows.iter().any(|row| {
+            [
+                row.context_item_id.as_str(),
+                row.group_token.as_str(),
+                row.state_token.as_str(),
+                row.source_class_token.as_str(),
+                row.stable_identity_ref.as_str(),
+                row.freshness_token.as_str(),
+                row.trust_token.as_str(),
+                row.locality_token.as_str(),
+            ]
+            .iter()
+            .any(|value| contains_forbidden_boundary_material(value))
+                || row
+                    .omission_reason_token
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || row
+                    .source_attachment_ref
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || row
+                    .source_mention_ref
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || row
+                    .docs_node_ref
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || row
+                    .docs_source_class_token
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || row
+                    .version_or_revision_ref
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || row
+                    .exact_anchor_ref
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || row
+                    .citation_availability_token
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || row
+                    .source_language_fallback_token
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+        })
 }
 
 fn contains_forbidden_boundary_material(value: &str) -> bool {

@@ -29,6 +29,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
 pub mod composer;
+pub mod context_inspector;
 pub mod evidence;
 pub mod routing;
 
@@ -38,6 +39,17 @@ pub use composer::{
     MentionKind, MentionResolutionState, PrototypeLabel, ProviderClass, RoutePathClass,
     RoutePlaceholder, SelectionReasonClass, SlashCommandResolutionState, SourceClass, TrustPosture,
     ValidationOutcome, COMPOSER_DRAFT_RECORD_KIND, COMPOSER_DRAFT_SCHEMA_VERSION,
+};
+pub use context_inspector::{
+    AiContextEvidenceHandoff, AiContextEvidenceHandoffRow, BudgetPressureClass,
+    CitationAnchorAvailabilityClass, ComposerAttachmentPill, ComposerBudgetStrip,
+    ComposerContextAlphaInput, ComposerContextAlphaSnapshot, ComposerContextAlphaViolation,
+    ComposerContextItem, ComposerContextReviewLock, ComposerContextReviewState,
+    ComposerMentionPreview, ContextFreshnessClass, ContextGroupClass, ContextItemStateClass,
+    ContextLocalityClass, ContextOmissionReasonClass, ContextTrustClass, DocsKnowledgeIdentity,
+    DocsKnowledgeSourceClass, ExecutionBoundaryClass, IntentModeClass, MentionPreviewStateClass,
+    ReviewLockClass, SourceLanguageFallbackClass, AI_CONTEXT_EVIDENCE_HANDOFF_RECORD_KIND,
+    COMPOSER_CONTEXT_ALPHA_RECORD_KIND, COMPOSER_CONTEXT_ALPHA_SCHEMA_VERSION,
 };
 pub use evidence::{
     AiMutationEvidenceCitationSupportRow, AiMutationEvidenceDerivedSupportRow,

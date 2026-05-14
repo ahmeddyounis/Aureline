@@ -1,5 +1,9 @@
 use std::path::Path;
 
+use crate::context_inspector::{
+    AiContextEvidenceHandoff, AiContextEvidenceHandoffRow, AI_CONTEXT_EVIDENCE_HANDOFF_RECORD_KIND,
+    COMPOSER_CONTEXT_ALPHA_SCHEMA_VERSION,
+};
 use crate::routing::{
     AiRouteCandidate, AiRouteProviderClass, AiRoutingPacket, CostEnvelopeClass,
     CostVisibilityClass, DeploymentProfileClass, ExecutionLocusClass, ExhaustionStateClass,
@@ -222,6 +226,7 @@ fn packet(
         cited_sources: docs_sources(),
         derived_explanations: derived_explanations(),
         tainted_context_fences: Vec::new(),
+        context_handoff: None,
         review_lineage: review_lineage(apply_outcome_class),
         source_contract_refs: vec![
             "docs/ai/context_assembly_contract.md".to_owned(),
@@ -281,6 +286,58 @@ fn tainted_rejected_packet() -> AiMutationEvidencePacket {
     packet
 }
 
+fn context_handoff() -> AiContextEvidenceHandoff {
+    AiContextEvidenceHandoff {
+        record_kind: AI_CONTEXT_EVIDENCE_HANDOFF_RECORD_KIND.to_owned(),
+        schema_version: COMPOSER_CONTEXT_ALPHA_SCHEMA_VERSION,
+        handoff_id: "context-handoff:mutation-alpha:0001".to_owned(),
+        composer_context_snapshot_ref: "context-snapshot:mutation-alpha:0001".to_owned(),
+        composer_session_ref: "composer-session:ai-mutation:alpha:0001".to_owned(),
+        turn_draft_ref: "turn-draft:ai-mutation:alpha:0001".to_owned(),
+        request_workspace_ref: "request-workspace:ai-mutation:alpha:0001".to_owned(),
+        context_rows: vec![
+            AiContextEvidenceHandoffRow {
+                context_item_id: "ctx.docs.payments-guide".to_owned(),
+                group_token: "docs_knowledge_sources".to_owned(),
+                state_token: "pinned".to_owned(),
+                source_class_token: "docs_pack_excerpt".to_owned(),
+                stable_identity_ref: "docs-node:payments-guide:create-charge".to_owned(),
+                freshness_token: "authoritative_live".to_owned(),
+                trust_token: "trusted_authority".to_owned(),
+                locality_token: "mirrored_docs_pack".to_owned(),
+                omission_reason_token: None,
+                source_attachment_ref: Some("att.docs.payments-guide".to_owned()),
+                source_mention_ref: Some("mention.docs.payments-guide".to_owned()),
+                docs_node_ref: Some("docs-node:payments-guide:create-charge".to_owned()),
+                docs_source_class_token: Some("mirrored_docs_pack".to_owned()),
+                version_or_revision_ref: Some("doc-revision:payments-guide:2026-05-01".to_owned()),
+                exact_anchor_ref: Some("citation-anchor:payments-guide#create-charge".to_owned()),
+                citation_availability_token: Some("exact_anchor_available".to_owned()),
+                source_language_fallback_token: Some("fallback_to_source_language".to_owned()),
+            },
+            AiContextEvidenceHandoffRow {
+                context_item_id: "ctx.history.omitted".to_owned(),
+                group_token: "diffs_history".to_owned(),
+                state_token: "omitted".to_owned(),
+                source_class_token: "workspace_search_result".to_owned(),
+                stable_identity_ref: "diff-history:payments:large".to_owned(),
+                freshness_token: "warm_cached".to_owned(),
+                trust_token: "reviewed_derived".to_owned(),
+                locality_token: "local_cache".to_owned(),
+                omission_reason_token: Some("budget".to_owned()),
+                source_attachment_ref: None,
+                source_mention_ref: None,
+                docs_node_ref: None,
+                docs_source_class_token: None,
+                version_or_revision_ref: None,
+                exact_anchor_ref: None,
+                citation_availability_token: None,
+                source_language_fallback_token: None,
+            },
+        ],
+    }
+}
+
 #[test]
 fn docs_backed_pre_apply_packet_exports_route_spend_approval_and_citations() {
     let packet = packet(
@@ -331,6 +388,41 @@ fn docs_backed_pre_apply_packet_exports_route_spend_approval_and_citations() {
         .review_rows()
         .iter()
         .any(|row| row.row_id == "approval" && row.value_token == "pending_user_review"));
+}
+
+#[test]
+fn evidence_packet_ingests_context_handoff_without_restating_context_truth() {
+    let mut packet = packet(
+        MutationEvidenceState::ReviewPreApply,
+        ApprovalDecisionClass::PendingUserReview,
+        ApplyOutcomeClass::NotAppliedPendingReview,
+    );
+    packet.context_handoff = Some(context_handoff());
+
+    assert!(packet.validate().is_empty());
+    let support = packet.support_packet();
+    assert!(support
+        .context_handoff_rows
+        .iter()
+        .any(|row| row.state_token == "pinned"
+            && row.docs_node_ref.as_deref() == Some("docs-node:payments-guide:create-charge")
+            && row.exact_anchor_ref.as_deref()
+                == Some("citation-anchor:payments-guide#create-charge")));
+    assert!(support
+        .context_handoff_rows
+        .iter()
+        .any(|row| row.state_token == "omitted"
+            && row.omission_reason_token.as_deref() == Some("budget")));
+
+    let mut mismatch = packet;
+    mismatch
+        .context_handoff
+        .as_mut()
+        .expect("handoff")
+        .request_workspace_ref = "request-workspace:other".to_owned();
+    assert!(mismatch
+        .validate()
+        .contains(&AiMutationEvidenceViolation::ContextHandoffIdentityMismatch));
 }
 
 #[test]

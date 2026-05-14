@@ -35,8 +35,9 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_ai::{
-    BlockReason, ComposerAttachment, ComposerDraft, ComposerDraftState, ComposerMention,
-    ComposerSlashCommandInvocation, PrototypeLabel, ValidationOutcome,
+    BlockReason, ComposerAttachment, ComposerContextAlphaSnapshot, ComposerDraft,
+    ComposerDraftState, ComposerMention, ComposerSlashCommandInvocation, PrototypeLabel,
+    ValidationOutcome,
 };
 
 /// Stable record-kind tag carried in serialized inspector snapshots.
@@ -781,6 +782,208 @@ fn project_draft_state_section(state: ComposerDraftState) -> InspectorSection {
         blocked_reason_token: None,
     }];
     InspectorSection::new(InspectorSectionId::DraftState, rows)
+}
+
+/// Stable record-kind tag for shell projections of the alpha composer context snapshot.
+pub const AI_CONTEXT_INSPECTOR_ALPHA_PROJECTION_RECORD_KIND: &str =
+    "ai_context_inspector_alpha_projection_record";
+
+/// Shell-side projection of [`ComposerContextAlphaSnapshot`].
+///
+/// The projection is intentionally shallow: it quotes the AI crate snapshot's
+/// tokens and labels into shell rows so the UI can render the alpha context
+/// inspector without owning a second context state model.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiContextInspectorAlphaProjection {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version from the source snapshot.
+    pub schema_version: u32,
+    /// Composer context snapshot ref.
+    pub composer_context_snapshot_ref: String,
+    /// Composer draft id.
+    pub composer_draft_id: String,
+    /// Composer session id.
+    pub composer_session_id: String,
+    /// Request workspace id.
+    pub request_workspace_id: String,
+    /// Rows rendered by the shell.
+    pub rows: Vec<AlphaInspectorRow>,
+    /// True when the source snapshot has docs rows with visible citation truth.
+    pub has_docs_citation_truth: bool,
+    /// True when omitted, blocked, stale, or tainted context is visible.
+    pub has_non_included_context_truth: bool,
+    /// Evidence handoff row count produced from the same source snapshot.
+    pub evidence_handoff_row_count: usize,
+}
+
+impl AiContextInspectorAlphaProjection {
+    /// Project shell rows from the canonical AI context snapshot.
+    pub fn project(snapshot: &ComposerContextAlphaSnapshot) -> Self {
+        let mut rows = vec![
+            AlphaInspectorRow {
+                row_id: "intent_mode".to_owned(),
+                label: "Intent mode".to_owned(),
+                value: snapshot.intent_mode.as_str().to_owned(),
+                value_token: snapshot.intent_mode.as_str().to_owned(),
+                status: InspectorRowStatusClass::Live,
+                source_ref: snapshot.composer_draft_id.clone(),
+            },
+            AlphaInspectorRow {
+                row_id: "scope".to_owned(),
+                label: "Scope".to_owned(),
+                value: snapshot.scope_label.clone(),
+                value_token: snapshot.scope_label.clone(),
+                status: InspectorRowStatusClass::Live,
+                source_ref: snapshot.request_workspace_id.clone(),
+            },
+            AlphaInspectorRow {
+                row_id: "budget".to_owned(),
+                label: "Budget".to_owned(),
+                value: format!(
+                    "{} ({} / {} bytes)",
+                    snapshot.budget_strip.pressure_class.as_str(),
+                    snapshot.budget_strip.aggregate_byte_estimate,
+                    snapshot.budget_strip.budget_byte_ceiling
+                ),
+                value_token: snapshot.budget_strip.pressure_class.as_str().to_owned(),
+                status: alpha_state_status(snapshot.budget_strip.pressure_class.as_str()),
+                source_ref: snapshot.review_lock.context_snapshot_ref.clone(),
+            },
+            AlphaInspectorRow {
+                row_id: "route".to_owned(),
+                label: "Route".to_owned(),
+                value: format!(
+                    "{} / {} / {}",
+                    snapshot.budget_strip.selected_provider_label,
+                    snapshot.budget_strip.selected_model_label,
+                    snapshot.budget_strip.quota_state_token
+                ),
+                value_token: snapshot.review_lock.route_snapshot_ref.clone(),
+                status: InspectorRowStatusClass::Live,
+                source_ref: snapshot.review_lock.route_snapshot_ref.clone(),
+            },
+        ];
+
+        for mention in &snapshot.mention_previews {
+            rows.push(AlphaInspectorRow {
+                row_id: format!("mention_{}", mention.mention_id),
+                label: mention.kind.as_str().to_owned(),
+                value: mention.display_label.clone(),
+                value_token: mention.preview_state.as_str().to_owned(),
+                status: alpha_state_status(mention.preview_state.as_str()),
+                source_ref: mention
+                    .target_stable_id
+                    .clone()
+                    .unwrap_or_else(|| mention.mention_id.clone()),
+            });
+        }
+
+        for pill in &snapshot.attachment_pills {
+            let docs_tail = pill
+                .docs_identity
+                .as_ref()
+                .map(|docs| {
+                    format!(
+                        " / {} / {}",
+                        docs.citation_availability_class.as_str(),
+                        docs.source_language_fallback_class.as_str()
+                    )
+                })
+                .unwrap_or_default();
+            rows.push(AlphaInspectorRow {
+                row_id: format!("attachment_{}", pill.attachment_id),
+                label: pill.kind.as_str().to_owned(),
+                value: format!(
+                    "{} / {} / {}{}",
+                    pill.display_label,
+                    pill.source_class.as_str(),
+                    pill.context_state.as_str(),
+                    docs_tail
+                ),
+                value_token: pill.context_state.as_str().to_owned(),
+                status: alpha_state_status(pill.context_state.as_str()),
+                source_ref: pill.attachment_id.clone(),
+            });
+        }
+
+        for item in &snapshot.context_items {
+            rows.push(AlphaInspectorRow {
+                row_id: format!("context_{}", item.context_item_id),
+                label: item.group_class.label().to_owned(),
+                value: format!(
+                    "{} / {} / {} / {} / {}",
+                    item.display_label,
+                    item.state_class.as_str(),
+                    item.source_class.as_str(),
+                    item.freshness_class.as_str(),
+                    item.trust_class.as_str()
+                ),
+                value_token: item.state_class.as_str().to_owned(),
+                status: alpha_state_status(item.state_class.as_str()),
+                source_ref: item.stable_identity_ref.clone(),
+            });
+        }
+
+        let handoff = snapshot.evidence_handoff(format!(
+            "context-handoff:{}",
+            snapshot.review_lock.context_snapshot_ref
+        ));
+        let has_docs_citation_truth = snapshot.context_items.iter().any(|item| {
+            item.docs_identity
+                .as_ref()
+                .is_some_and(|docs| docs.exact_anchor_ref.is_some() || docs.citation_note.is_some())
+        });
+        let has_non_included_context_truth = snapshot.context_items.iter().any(|item| {
+            matches!(
+                item.state_class.as_str(),
+                "omitted" | "blocked" | "stale" | "tainted" | "summarized"
+            )
+        });
+
+        Self {
+            record_kind: AI_CONTEXT_INSPECTOR_ALPHA_PROJECTION_RECORD_KIND.to_owned(),
+            schema_version: snapshot.schema_version,
+            composer_context_snapshot_ref: snapshot.review_lock.context_snapshot_ref.clone(),
+            composer_draft_id: snapshot.composer_draft_id.clone(),
+            composer_session_id: snapshot.composer_session_id.clone(),
+            request_workspace_id: snapshot.request_workspace_id.clone(),
+            rows,
+            has_docs_citation_truth,
+            has_non_included_context_truth,
+            evidence_handoff_row_count: handoff.context_rows.len(),
+        }
+    }
+}
+
+/// One shell row projected from the alpha context snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AlphaInspectorRow {
+    /// Stable row id.
+    pub row_id: String,
+    /// User-visible row label.
+    pub label: String,
+    /// User-visible row value.
+    pub value: String,
+    /// Stable token backing the value.
+    pub value_token: String,
+    /// Row status.
+    pub status: InspectorRowStatusClass,
+    /// Source ref used for open/inspect actions.
+    pub source_ref: String,
+}
+
+fn alpha_state_status(token: &str) -> InspectorRowStatusClass {
+    match token {
+        "blocked"
+        | "stale"
+        | "ambiguous"
+        | "unresolved"
+        | "budget_review_required"
+        | "overflow" => InspectorRowStatusClass::Blocked,
+        "omitted" | "tainted" | "summarized" => InspectorRowStatusClass::Informational,
+        _ => InspectorRowStatusClass::Live,
+    }
 }
 
 #[cfg(test)]
