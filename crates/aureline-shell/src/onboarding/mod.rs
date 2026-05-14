@@ -18,6 +18,12 @@ use crate::help::docs_pack::{
     current_docs_pack_manifest, DocsPackAlphaManifest, DocsPackInstallState,
     DocsPackLocaleAvailability, DocsPackLocalityState, DocsPackNode,
 };
+use crate::help::onboarding_help_pack::{
+    current_onboarding_help_pack_alpha_manifest, OnboardingHelpPackAlphaItem,
+    OnboardingHelpPackAlphaManifest, OnboardingHelpPackCommandMetadataSource,
+    OnboardingHelpPackFallbackClass, OnboardingHelpPackInstallState, OnboardingHelpPackItemKind,
+    OnboardingHelpPackLocaleAvailability, OnboardingHelpPackOfflinePosture,
+};
 use crate::start_center::{
     build_action_rows, StartCenterPrimaryActionId, StartCenterRuntimeInputs,
 };
@@ -586,6 +592,8 @@ pub enum PackRole {
     FirstRunStarterPack,
     /// Migration welcome or bridge content.
     MigrationWelcomePack,
+    /// Glossary bundle content.
+    GlossaryBundle,
     /// Guided learning digest content.
     GuidedContentPack,
 }
@@ -768,6 +776,7 @@ pub fn build_onboarding_alpha_surface(
     let registry = seeded_registry();
     let alpha_registry = alpha_command_registry();
     let docs_manifest = current_docs_pack_manifest().ok();
+    let onboarding_help_manifest = current_onboarding_help_pack_alpha_manifest().ok();
     OnboardingAlphaSurfaceRecord {
         record_kind: "onboarding_alpha_surface_record".to_string(),
         onboarding_alpha_schema_version: ONBOARDING_ALPHA_SCHEMA_VERSION,
@@ -784,7 +793,11 @@ pub fn build_onboarding_alpha_surface(
         entry_verbs: entry_verb_rows(registry),
         recommendation_cards: recommendation_cards(registry),
         teaching_cards: teaching_cards(registry),
-        help_search: help_search_projection(registry, docs_manifest.as_ref()),
+        help_search: help_search_projection(
+            registry,
+            docs_manifest.as_ref(),
+            onboarding_help_manifest.as_ref(),
+        ),
         portable_state: portable_state_projection(),
         learning_digest: learning_digest_projection(docs_manifest.as_ref()),
         command_descriptor_round_trips: alpha_command_descriptor_round_trips(alpha_registry),
@@ -1046,7 +1059,12 @@ fn teaching_cards(registry: &CommandRegistry) -> Vec<OnboardingTeachingCard> {
 fn help_search_projection(
     registry: &CommandRegistry,
     docs_manifest: Option<&DocsPackAlphaManifest>,
+    onboarding_help_manifest: Option<&OnboardingHelpPackAlphaManifest>,
 ) -> OnboardingHelpSearchProjection {
+    if let Some(projection) = onboarding_help_pack_projection(registry, onboarding_help_manifest) {
+        return projection;
+    }
+
     if let Some(projection) = manifest_help_search_projection(registry, docs_manifest) {
         return projection;
     }
@@ -1148,6 +1166,200 @@ fn help_search_projection(
             },
         ],
         support_export_reconstructable: true,
+    }
+}
+
+fn onboarding_help_pack_projection(
+    registry: &CommandRegistry,
+    manifest: Option<&OnboardingHelpPackAlphaManifest>,
+) -> Option<OnboardingHelpSearchProjection> {
+    let manifest = manifest?;
+    let local_item = manifest.item("ohp:item:first_run.open_folder")?;
+    let fallback_item = manifest.item("ohp:item:keymap_bridge.command_palette")?;
+    let glossary_item = manifest.item("ohp:item:glossary.workset")?;
+    let missing_item = manifest.item("ohp:item:learning_digest.not_installed")?;
+
+    let pack_states = [local_item, fallback_item, glossary_item, missing_item]
+        .into_iter()
+        .map(|item| onboarding_pack_state_from_help_pack_item(manifest, item))
+        .collect::<Option<Vec<_>>>()?;
+
+    Some(OnboardingHelpSearchProjection {
+        projection_id: "discoverability:onboarding_help_pack_alpha:first_run".to_string(),
+        help_search_command: OnboardingCommandAnchor::alpha_owned(
+            "cmd:help.search",
+            "Cmd/Ctrl+Shift+H",
+            "docs:anchor:onboarding_alpha:help_search",
+        ),
+        pack_states,
+        items: vec![
+            onboarding_help_item_from_help_pack_item(
+                local_item,
+                registry,
+                HelpSurfaceClass::HelpSearch,
+            ),
+            onboarding_help_item_from_help_pack_item(
+                fallback_item,
+                registry,
+                HelpSurfaceClass::SourceLanguageFallback,
+            ),
+            onboarding_help_item_from_help_pack_item(
+                glossary_item,
+                registry,
+                HelpSurfaceClass::HelpSearch,
+            ),
+            onboarding_help_item_from_help_pack_item(
+                missing_item,
+                registry,
+                HelpSurfaceClass::ContextualTip,
+            ),
+        ],
+        support_export_reconstructable: true,
+    })
+}
+
+fn onboarding_pack_state_from_help_pack_item(
+    manifest: &OnboardingHelpPackAlphaManifest,
+    item: &OnboardingHelpPackAlphaItem,
+) -> Option<OnboardingPackState> {
+    let pack = manifest.pack(&item.pack_id)?;
+    Some(OnboardingPackState {
+        pack_id: pack.pack_id.clone(),
+        pack_role: match item.item_kind {
+            OnboardingHelpPackItemKind::StartCenterCard => PackRole::FirstRunStarterPack,
+            OnboardingHelpPackItemKind::KeymapBridge
+            | OnboardingHelpPackItemKind::MigrationGuidance
+            | OnboardingHelpPackItemKind::ContextualHint => PackRole::MigrationWelcomePack,
+            OnboardingHelpPackItemKind::GlossaryPackItem => PackRole::GlossaryBundle,
+            OnboardingHelpPackItemKind::FutureGuidedLearningRef => PackRole::GuidedContentPack,
+        },
+        source_version_ref: pack.pack_revision_ref.clone(),
+        install_state: pack_install_state_from_help_pack(pack.install_state),
+        locale_availability: locale_availability_from_help_pack_item(item),
+        offline_posture: offline_posture_from_help_pack(pack.offline_posture),
+        citations_exportable: item.citation.availability
+            == crate::help::onboarding_help_pack::OnboardingHelpPackCitationAvailability::Available
+            && !item.citation.citation_refs.is_empty(),
+    })
+}
+
+fn onboarding_help_item_from_help_pack_item(
+    item: &OnboardingHelpPackAlphaItem,
+    registry: &CommandRegistry,
+    surface_class: HelpSurfaceClass,
+) -> OnboardingHelpSearchItem {
+    OnboardingHelpSearchItem {
+        item_id: item.item_id.clone(),
+        pack_id: item.pack_id.clone(),
+        surface_class,
+        command: command_anchor_from_help_pack_item(item, registry),
+        requested_locale: item.locale.requested_locale.clone(),
+        effective_locale: item.locale.effective_locale.clone(),
+        source_language_fallback_class: source_language_fallback_from_help_pack_item(item),
+        pack_install_state: pack_install_state_from_help_pack_item(item),
+        citation_refs: item.citation.citation_refs.clone(),
+        docs_node_id: Some(item.docs_node_id.clone()),
+        source_pack_revision_ref: Some(item.pack_revision_ref.clone()),
+        source_strip_ref: item.citation.source_strip_ref.clone(),
+        citation_drawer_ref: item.citation.citation_drawer_ref.clone(),
+        exact_reopen_ref: Some(item.exact_reopen_ref.clone()),
+    }
+}
+
+fn command_anchor_from_help_pack_item(
+    item: &OnboardingHelpPackAlphaItem,
+    registry: &CommandRegistry,
+) -> OnboardingCommandAnchor {
+    let entry = registry.get(&item.command_hint.command_id);
+    OnboardingCommandAnchor {
+        command_id: item.command_hint.command_id.clone(),
+        keyboard_route: item.command_hint.keyboard_route.clone(),
+        anchor_source: match item.command_hint.metadata_source {
+            OnboardingHelpPackCommandMetadataSource::CommandRegistry if entry.is_some() => {
+                CommandAnchorSource::SeededCommandRegistry
+            }
+            _ => CommandAnchorSource::OnboardingAlphaOwned,
+        },
+        registry_entry_id: entry.map(|entry| entry.registry_entry_id.clone()),
+        docs_anchor_ref: Some(item.command_hint.help_anchor_id.clone()),
+    }
+}
+
+fn pack_install_state_from_help_pack(
+    install_state: OnboardingHelpPackInstallState,
+) -> PackInstallState {
+    match install_state {
+        OnboardingHelpPackInstallState::LocalOnlyStarter => PackInstallState::LocalOnlyStarter,
+        OnboardingHelpPackInstallState::CachedSnapshotCurrent
+        | OnboardingHelpPackInstallState::CachedSnapshotStale
+        | OnboardingHelpPackInstallState::MirrorOnlyVerified => {
+            PackInstallState::CachedSnapshotCurrent
+        }
+        OnboardingHelpPackInstallState::NotInstalled => PackInstallState::NotInstalled,
+    }
+}
+
+fn pack_install_state_from_help_pack_item(item: &OnboardingHelpPackAlphaItem) -> PackInstallState {
+    match item.content_render_state {
+        crate::help::onboarding_help_pack::OnboardingHelpPackRenderState::BlockedNotInstalled => {
+            PackInstallState::NotInstalled
+        }
+        _ => match item.pack_id.as_str() {
+            "pack:onboarding-help:first-run-alpha" | "pack:onboarding-help:glossary-alpha" => {
+                PackInstallState::LocalOnlyStarter
+            }
+            _ => PackInstallState::CachedSnapshotCurrent,
+        },
+    }
+}
+
+fn locale_availability_from_help_pack_item(
+    item: &OnboardingHelpPackAlphaItem,
+) -> LocaleAvailability {
+    match item.locale.locale_availability {
+        OnboardingHelpPackLocaleAvailability::LocaleAvailableReviewed => {
+            LocaleAvailability::LocaleAvailableReviewed
+        }
+        OnboardingHelpPackLocaleAvailability::LocaleAvailableStaleCopy
+        | OnboardingHelpPackLocaleAvailability::LocaleMissingFallbackToPrimary => {
+            LocaleAvailability::LocaleMissingFallbackToPrimary
+        }
+        OnboardingHelpPackLocaleAvailability::LocaleMissingNotInstalled => {
+            LocaleAvailability::LocaleMissingNotInstalled
+        }
+    }
+}
+
+fn offline_posture_from_help_pack(
+    offline_posture: OnboardingHelpPackOfflinePosture,
+) -> OfflinePosture {
+    match offline_posture {
+        OnboardingHelpPackOfflinePosture::FullyAvailableOfflineLocalBuild => {
+            OfflinePosture::FullyAvailableOfflineLocalBuild
+        }
+        OnboardingHelpPackOfflinePosture::CachedSnapshotOffline
+        | OnboardingHelpPackOfflinePosture::MirrorVerifiedOffline => {
+            OfflinePosture::CachedSnapshotOffline
+        }
+        OnboardingHelpPackOfflinePosture::NotAvailableOffline => {
+            OfflinePosture::NotAvailableOffline
+        }
+    }
+}
+
+fn source_language_fallback_from_help_pack_item(
+    item: &OnboardingHelpPackAlphaItem,
+) -> SourceLanguageFallbackClass {
+    match item.source_language_fallback.fallback_class {
+        OnboardingHelpPackFallbackClass::NoFallbackPrimaryLocaleOnly => {
+            SourceLanguageFallbackClass::NoFallbackPrimaryLocaleOnly
+        }
+        OnboardingHelpPackFallbackClass::FallbackToSourceLanguageDisclosed => {
+            SourceLanguageFallbackClass::FallbackToSourceLanguageDisclosed
+        }
+        OnboardingHelpPackFallbackClass::FallbackBlockedPackMissing => {
+            SourceLanguageFallbackClass::FallbackBlockedPackMissing
+        }
     }
 }
 
