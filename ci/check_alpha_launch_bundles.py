@@ -20,17 +20,21 @@ DEFAULT_FIXTURE_REGISTER_REL = "artifacts/benchmarks/m2_fixture_register.yaml"
 DEFAULT_MATRIX_REL = "artifacts/milestones/m2/alpha_wedge_matrix.yaml"
 DEFAULT_PROOF_PACKET_REL = "artifacts/milestones/m2/proof_packets/launch_bundles_and_archetypes.md"
 DEFAULT_START_CENTER_REL = "crates/aureline-shell/src/start_center/mod.rs"
+DEFAULT_SCORECARD_REL = "artifacts/compat/workflow_bundle_scorecard_sample.json"
+DEFAULT_DRIFT_PACKET_REL = "artifacts/compat/bundle_drift_packet_sample.json"
 
 EXPECTED_BUNDLES = {
     "launch_bundle:typescript_web_app.seed": {
         "path": DEFAULT_TSJS_BUNDLE_REL,
         "wedge_ref": "alpha_wedge:typescript_javascript",
+        "archetype_row_ref": "archetype_row:ts_web_app_or_service",
         "archetype_seed_row_ref": "archetype_certification_seed:ts_web_app_or_service",
         "benchmark_fixture_register_row_ref": "fixture_register:external_alpha.ts_web_app_reference",
     },
     "launch_bundle:python_service_or_data_app.seed": {
         "path": DEFAULT_PYTHON_BUNDLE_REL,
         "wedge_ref": "alpha_wedge:python",
+        "archetype_row_ref": "archetype_row:python_service_or_data_app",
         "archetype_seed_row_ref": "archetype_certification_seed:python_service_or_data_app",
         "benchmark_fixture_register_row_ref": "fixture_register:external_alpha.python_service_data_reference",
     },
@@ -61,6 +65,37 @@ REQUIRED_PRESERVATION_GUARANTEES = {
     "preserve_imported_mappings",
     "preserve_local_history",
     "preserve_non_bundle_owned_artifacts",
+}
+
+REQUIRED_SCORECARD_STATUS_CLASSES = {
+    "certified",
+    "managed_approved",
+    "community",
+    "imported",
+    "local_draft",
+    "partial",
+    "retest_pending",
+}
+
+REQUIRED_LIFECYCLE_ACTIONS = {
+    "apply",
+    "compare",
+    "keep_local",
+    "adopt_bundle",
+    "remove_bundle",
+    "rebase_to_bundle",
+}
+
+REQUIRED_DRIFT_STATES = {
+    "local_override",
+    "missing_artifact",
+    "bundle_version_drift",
+}
+
+REQUIRED_REMOVE_SAFE_CLASSES = {
+    "safe_to_remove_no_user_data",
+    "safe_to_remove_user_overlay_preserved",
+    "review_required_user_data_co_resident",
 }
 
 REQUIRED_MIRROR_SOURCES = {
@@ -128,6 +163,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--matrix", default=DEFAULT_MATRIX_REL)
     parser.add_argument("--proof-packet", default=DEFAULT_PROOF_PACKET_REL)
     parser.add_argument("--start-center", default=DEFAULT_START_CENTER_REL)
+    parser.add_argument("--scorecard", default=DEFAULT_SCORECARD_REL)
+    parser.add_argument("--drift-packet", default=DEFAULT_DRIFT_PACKET_REL)
     parser.add_argument("--report", default=None)
     parser.add_argument(
         "--render-gallery",
@@ -162,6 +199,15 @@ def render_yaml_as_json(path: Path) -> Any:
         return json.loads(ruby.stdout)
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Ruby/Psych emitted invalid JSON for {path}: {exc}") from exc
+
+
+def read_json(path: Path) -> Any:
+    if not path.exists():
+        raise SystemExit(f"missing JSON file: {path}")
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"invalid JSON at {path}: {exc}") from exc
 
 
 def ensure_dict(value: Any, label: str) -> dict[str, Any]:
@@ -464,6 +510,333 @@ def validate_badges(repo_root: Path, bundle: dict[str, Any], bundle_id: str, fin
     ):
         ref = ensure_str(badges.get(key), f"{bundle_id}.badge_actions.{key}")
         validate_path_ref(repo_root, ref, f"bundle.badge_actions.{key}", findings)
+
+
+def validate_scorecard_packet(
+    repo_root: Path,
+    packet: dict[str, Any],
+    bundles_by_id: dict[str, dict[str, Any]],
+    findings: list[Finding],
+) -> dict[str, dict[str, Any]]:
+    if ensure_str(packet.get("record_kind"), "scorecard.record_kind") != "workflow_bundle_scorecard_packet_record":
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="scorecard.record_kind",
+                message="workflow bundle scorecard packet has the wrong record kind",
+                remediation="Use record_kind = workflow_bundle_scorecard_packet_record.",
+                ref=DEFAULT_SCORECARD_REL,
+            )
+        )
+    if ensure_int(packet.get("bundle_scorecard_schema_version"), "scorecard.bundle_scorecard_schema_version") != 1:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="scorecard.schema_version",
+                message="workflow bundle scorecard schema version must be 1",
+                remediation="Update the validator alongside any schema-version change.",
+                ref=DEFAULT_SCORECARD_REL,
+            )
+        )
+
+    vocabulary = {
+        ensure_str(raw.get("status_class"), "scorecard.status_vocabulary[].status_class")
+        for raw in (ensure_dict(raw, "scorecard.status_vocabulary[]") for raw in ensure_list(packet.get("status_vocabulary"), "scorecard.status_vocabulary"))
+    }
+    missing_statuses = REQUIRED_SCORECARD_STATUS_CLASSES - vocabulary
+    if missing_statuses:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="scorecard.status_vocabulary.missing",
+                message="workflow bundle scorecard omits required explicit status classes",
+                remediation="Include Certified, Managed approved, Community, Imported, Local draft, Partial, and Retest pending classes.",
+                ref=DEFAULT_SCORECARD_REL,
+                details={"missing": sorted(missing_statuses)},
+            )
+        )
+
+    rows_by_bundle: dict[str, dict[str, Any]] = {}
+    for raw_row in ensure_list(packet.get("rows"), "scorecard.rows"):
+        row = ensure_dict(raw_row, "scorecard.rows[]")
+        bundle = ensure_dict(row.get("bundle"), "scorecard.rows[].bundle")
+        bundle_id = ensure_str(bundle.get("bundle_id"), "scorecard.rows[].bundle.bundle_id")
+        rows_by_bundle[bundle_id] = row
+        if bundle_id not in bundles_by_id:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="scorecard.bundle_ref.unknown",
+                    message=f"scorecard row cites unknown bundle {bundle_id}",
+                    remediation="Scorecard rows must cite checked launch bundle ids.",
+                    ref=bundle_id,
+                )
+            )
+            continue
+
+        status = ensure_str(row.get("compatibility_status_class"), f"{bundle_id}.scorecard.status")
+        if status not in vocabulary:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="scorecard.status.not_in_vocabulary",
+                    message=f"{bundle_id} scorecard status is not declared in the packet vocabulary",
+                    remediation="Add the status class to status_vocabulary or correct the row.",
+                    ref=bundle_id,
+                )
+            )
+        manifest_ref = ensure_str(bundle.get("manifest_ref"), f"{bundle_id}.scorecard.bundle.manifest_ref")
+        validate_path_ref(repo_root, manifest_ref, "scorecard.bundle.manifest_ref", findings)
+
+        expected = EXPECTED_BUNDLES.get(bundle_id)
+        archetype_refs = {
+            ensure_str(binding.get("archetype_row_ref"), f"{bundle_id}.scorecard.archetype_bindings[].archetype_row_ref")
+            for binding in (ensure_dict(raw, f"{bundle_id}.scorecard.archetype_bindings[]") for raw in ensure_list(row.get("archetype_bindings"), f"{bundle_id}.scorecard.archetype_bindings"))
+        }
+        if expected and not any(expected["archetype_row_ref"] in ref for ref in archetype_refs):
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="scorecard.archetype_binding.missing",
+                    message=f"{bundle_id} scorecard is not tied to its expected archetype row",
+                    remediation="Bind the scorecard row to the same archetype row as the launch bundle.",
+                    ref=bundle_id,
+                    details={"expected": expected["archetype_row_ref"]},
+                )
+            )
+
+        for ref in ensure_list(row.get("evidence_refs"), f"{bundle_id}.scorecard.evidence_refs"):
+            validate_path_ref(repo_root, ensure_str(ref, f"{bundle_id}.scorecard.evidence_refs[]"), "scorecard.evidence_refs", findings)
+
+        review = ensure_dict(row.get("review_refs"), f"{bundle_id}.scorecard.review_refs")
+        for key in ("install_preview_ref", "update_preview_ref", "remove_review_ref", "drift_packet_ref"):
+            ensure_str(review.get(key), f"{bundle_id}.scorecard.review_refs.{key}")
+        if ensure_str(review.get("rollback_checkpoint_policy"), f"{bundle_id}.scorecard.review_refs.rollback_checkpoint_policy") != "create_before_apply_update_remove_or_rebase":
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="scorecard.rollback_checkpoint_policy",
+                    message=f"{bundle_id} scorecard does not require rollback checkpoints for lifecycle review",
+                    remediation="Use create_before_apply_update_remove_or_rebase.",
+                    ref=bundle_id,
+                )
+            )
+
+        templates = ensure_list(row.get("template_scaffold_refs"), f"{bundle_id}.scorecard.template_scaffold_refs")
+        if not templates:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="scorecard.template_refs.empty",
+                    message=f"{bundle_id} scorecard omits template/scaffold refs",
+                    remediation="Keep template/scaffold refs explicit and mirrorable.",
+                    ref=bundle_id,
+                )
+            )
+        for raw_template in templates:
+            template = ensure_dict(raw_template, f"{bundle_id}.scorecard.template_scaffold_refs[]")
+            validate_path_ref(
+                repo_root,
+                ensure_str(template.get("template_manifest_ref"), f"{bundle_id}.scorecard.template_manifest_ref"),
+                "scorecard.template_manifest_ref",
+                findings,
+            )
+            validate_path_ref(
+                repo_root,
+                ensure_str(template.get("generated_lineage_contract_ref"), f"{bundle_id}.scorecard.generated_lineage_contract_ref"),
+                "scorecard.generated_lineage_contract_ref",
+                findings,
+            )
+            if template.get("mirrorable") is not True or template.get("opaque_generation_behavior_allowed") is not False:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="scorecard.template_refs.not_mirrorable",
+                        message=f"{bundle_id} scorecard has non-mirrorable or opaque template/scaffold behavior",
+                        remediation="Set mirrorable true and opaque_generation_behavior_allowed false.",
+                        ref=bundle_id,
+                    )
+                )
+
+        support = ensure_dict(row.get("support_export"), f"{bundle_id}.scorecard.support_export")
+        if support.get("raw_content_export_allowed") is not False:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="scorecard.support_export.raw_content",
+                    message=f"{bundle_id} scorecard would export raw content",
+                    remediation="Keep scorecard support exports metadata-only.",
+                    ref=bundle_id,
+                )
+            )
+        if not ensure_list(support.get("export_packet_refs"), f"{bundle_id}.scorecard.support_export.export_packet_refs"):
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="scorecard.support_export.refs_empty",
+                    message=f"{bundle_id} scorecard lacks support export refs",
+                    remediation="Add support export refs that can reconstruct the row.",
+                    ref=bundle_id,
+                )
+            )
+
+        projection = ensure_dict(row.get("surface_projection"), f"{bundle_id}.scorecard.surface_projection")
+        consumers = set(ensure_list(projection.get("surface_consumers"), f"{bundle_id}.scorecard.surface_projection.surface_consumers"))
+        missing_consumers = {"start_center_bundle_detail", "migration_handoff", "docs_help_badge", "support_export"} - consumers
+        if missing_consumers:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="scorecard.surface_consumers.missing",
+                    message=f"{bundle_id} scorecard is not projected to all required consumer surfaces",
+                    remediation="Project scorecards to Start Center, migration handoff, docs/help, and support export.",
+                    ref=bundle_id,
+                    details={"missing": sorted(missing_consumers)},
+                )
+            )
+
+    missing_rows = set(EXPECTED_BUNDLES) - set(rows_by_bundle)
+    if missing_rows:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="scorecard.rows.missing_required",
+                message="workflow bundle scorecard omits required launch bundles",
+                remediation="Add one scorecard row for each checked launch bundle.",
+                ref=DEFAULT_SCORECARD_REL,
+                details={"missing": sorted(missing_rows)},
+            )
+        )
+    return rows_by_bundle
+
+
+def validate_drift_packet(
+    packet: dict[str, Any],
+    scorecard_rows_by_bundle: dict[str, dict[str, Any]],
+    findings: list[Finding],
+) -> None:
+    if ensure_str(packet.get("record_kind"), "drift_packet.record_kind") != "workflow_bundle_drift_packet_record":
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="drift_packet.record_kind",
+                message="workflow bundle drift packet has the wrong record kind",
+                remediation="Use record_kind = workflow_bundle_drift_packet_record.",
+                ref=DEFAULT_DRIFT_PACKET_REL,
+            )
+        )
+    if ensure_int(packet.get("bundle_drift_packet_schema_version"), "drift_packet.bundle_drift_packet_schema_version") != 1:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="drift_packet.schema_version",
+                message="workflow bundle drift packet schema version must be 1",
+                remediation="Update the validator alongside any schema-version change.",
+                ref=DEFAULT_DRIFT_PACKET_REL,
+            )
+        )
+
+    states_by_bundle: dict[str, set[str]] = {}
+    actions_by_bundle: dict[str, set[str]] = {}
+    for raw_row in ensure_list(packet.get("drift_rows"), "drift_packet.drift_rows"):
+        row = ensure_dict(raw_row, "drift_packet.drift_rows[]")
+        bundle = ensure_dict(row.get("bundle"), "drift_packet.drift_rows[].bundle")
+        bundle_id = ensure_str(bundle.get("bundle_id"), "drift_packet.drift_rows[].bundle.bundle_id")
+        states_by_bundle.setdefault(bundle_id, set()).add(
+            ensure_str(row.get("drift_state_class"), f"{bundle_id}.drift_state_class")
+        )
+        actions_by_bundle.setdefault(bundle_id, set()).update(
+            ensure_list(row.get("visible_actions"), f"{bundle_id}.visible_actions")
+        )
+        if row.get("preserves_local_artifacts") is not True:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="drift_packet.preserves_local_artifacts",
+                    message=f"{bundle_id} drift row does not preserve local artifacts",
+                    remediation="Set preserves_local_artifacts true and route durable changes through review.",
+                    ref=bundle_id,
+                )
+            )
+        ensure_str(row.get("support_export_ref"), f"{bundle_id}.drift_row.support_export_ref")
+
+    ts_bundle_id = "launch_bundle:typescript_web_app.seed"
+    missing_states = REQUIRED_DRIFT_STATES - states_by_bundle.get(ts_bundle_id, set())
+    if missing_states:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="drift_packet.states.missing",
+                message="TypeScript launch-bundle drift packet omits required drift states",
+                remediation="Include local override, missing artifact, and bundle version drift rows.",
+                ref=ts_bundle_id,
+                details={"missing": sorted(missing_states)},
+            )
+        )
+    missing_actions = (REQUIRED_LIFECYCLE_ACTIONS - {"apply", "remove_bundle"}) - actions_by_bundle.get(ts_bundle_id, set())
+    if missing_actions:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="drift_packet.actions.missing",
+                message="TypeScript launch-bundle drift packet omits required drift actions",
+                remediation="Expose compare, keep local, adopt bundle, and rebase to bundle.",
+                ref=ts_bundle_id,
+                details={"missing": sorted(missing_actions)},
+            )
+        )
+
+    for raw_review in ensure_list(packet.get("remove_reviews"), "drift_packet.remove_reviews"):
+        review = ensure_dict(raw_review, "drift_packet.remove_reviews[]")
+        bundle = ensure_dict(review.get("bundle"), "drift_packet.remove_reviews[].bundle")
+        bundle_id = ensure_str(bundle.get("bundle_id"), "drift_packet.remove_reviews[].bundle.bundle_id")
+        if bundle_id not in scorecard_rows_by_bundle:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="drift_packet.remove_review.bundle_unknown",
+                    message=f"remove review cites unknown bundle {bundle_id}",
+                    remediation="Remove reviews must cite a scorecard bundle row.",
+                    ref=bundle_id,
+                )
+            )
+        if review.get("raw_user_content_exported") is not False:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="drift_packet.remove_review.raw_content",
+                    message=f"{bundle_id} remove review would export raw user content",
+                    remediation="Keep remove-review support packet metadata-only.",
+                    ref=bundle_id,
+                )
+            )
+        safe_classes = set(ensure_list(review.get("safe_to_remove_classes"), f"{bundle_id}.remove_review.safe_to_remove_classes"))
+        missing_safe_classes = REQUIRED_REMOVE_SAFE_CLASSES - safe_classes
+        if bundle_id == ts_bundle_id and missing_safe_classes:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="drift_packet.remove_review.safe_classes",
+                    message="TypeScript remove review omits required safe-to-remove classes",
+                    remediation="Represent no-user-data, user-overlay-preserved, and co-resident-user-data classifications.",
+                    ref=bundle_id,
+                    details={"missing": sorted(missing_safe_classes)},
+                )
+            )
+        ensure_str(review.get("rollback_checkpoint_linkage_ref"), f"{bundle_id}.remove_review.rollback_checkpoint_linkage_ref")
+        ensure_list(review.get("retained_local_override_refs"), f"{bundle_id}.remove_review.retained_local_override_refs")
+
+    support = ensure_dict(packet.get("support_export"), "drift_packet.support_export")
+    if support.get("raw_content_export_allowed") is not False:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="drift_packet.support_export.raw_content",
+                message="drift packet would export raw content",
+                remediation="Keep drift packet support exports metadata-only.",
+                ref=DEFAULT_DRIFT_PACKET_REL,
+            )
+        )
 
 
 def validate_bundle(
@@ -775,6 +1148,8 @@ def main() -> int:
     certification = ensure_dict(render_yaml_as_json(repo_root / args.certification), "certification")
     fixture_register = ensure_dict(render_yaml_as_json(repo_root / args.fixture_register), "fixture_register")
     matrix = ensure_dict(render_yaml_as_json(repo_root / args.matrix), "matrix")
+    scorecard = ensure_dict(read_json(repo_root / args.scorecard), "scorecard")
+    drift_packet = ensure_dict(read_json(repo_root / args.drift_packet), "drift_packet")
 
     findings: list[Finding] = []
     for path in [
@@ -785,6 +1160,8 @@ def main() -> int:
         args.certification,
         args.fixture_register,
         args.matrix,
+        args.scorecard,
+        args.drift_packet,
     ]:
         validate_path_ref(repo_root, path, "primary_refs", findings)
 
@@ -823,6 +1200,18 @@ def main() -> int:
             fixture_rows=fixture_rows,
             findings=findings,
         )
+
+    scorecard_rows_by_bundle = validate_scorecard_packet(
+        repo_root=repo_root,
+        packet=scorecard,
+        bundles_by_id=bundles_by_id,
+        findings=findings,
+    )
+    validate_drift_packet(
+        packet=drift_packet,
+        scorecard_rows_by_bundle=scorecard_rows_by_bundle,
+        findings=findings,
+    )
 
     if args.report:
         write_report(repo_root / args.report, list(bundles_by_id), findings)

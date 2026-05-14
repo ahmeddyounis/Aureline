@@ -23,6 +23,7 @@ use crate::restore::placeholders::{
 };
 
 pub mod admission_review;
+pub mod bundles;
 pub mod first_useful_work;
 
 /// Presentation label rendered for the Start Center surface.
