@@ -1,12 +1,19 @@
 //! Support-bundle alpha manifest reconstruction tests.
 
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use aureline_commands::enablement::CommandEnablementContext;
 use aureline_commands::registry::seeded_registry;
 use aureline_shell::commands::review_enforcement::materialize_alpha_review_enforcement_snapshot;
 use aureline_shell::commands::{argument_provenance_map_for, CommandReviewRuntimeInputs};
 use aureline_shell::palette::materialize_invocation_session_for_review;
 use aureline_shell::support_seed::SupportSeedSurface;
-use aureline_support::bundle::{ExactBuildCapture, RedactionState, ReleaseChannelClass};
+use aureline_support::bundle::{
+    CrashDumpManifest, CrashEnvelope, CrashIncidentTrail, CrashIncidentTrailInputs,
+    ExactBuildCapture, RedactionState, ReleaseChannelClass, SymbolicationReport,
+    SymbolicationState, SUPPORT_ITEM_CRASH_INCIDENT_TRAIL,
+};
 
 fn fixture_capture() -> ExactBuildCapture {
     ExactBuildCapture::for_fixture(
@@ -14,6 +21,46 @@ fn fixture_capture() -> ExactBuildCapture {
         "0.0.0",
         ReleaseChannelClass::DevLocal,
     )
+}
+
+fn incident_fixture_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("repo root")
+        .join("fixtures")
+        .join("support")
+        .join("incident_trail_alpha")
+}
+
+fn load_incident_json<T>(name: &str) -> T
+where
+    T: serde::de::DeserializeOwned,
+{
+    let path = incident_fixture_dir().join(name);
+    serde_json::from_slice(
+        &fs::read(&path).unwrap_or_else(|err| panic!("read fixture {}: {err}", path.display())),
+    )
+    .unwrap_or_else(|err| panic!("parse fixture {}: {err}", path.display()))
+}
+
+fn crash_incident_trail_fixture() -> CrashIncidentTrail {
+    CrashIncidentTrail::from_inputs(CrashIncidentTrailInputs {
+        incident_trail_id: "crash-incident-trail:alpha-preview:renderer-panic:0001".into(),
+        generated_at: "2026-05-14T06:30:00Z".into(),
+        alpha_channel_ref: "alpha-channel:preview:design-partner-linux".into(),
+        crash_envelope: load_incident_json::<CrashEnvelope>("crash_envelope.json"),
+        crash_dump_manifest: load_incident_json::<CrashDumpManifest>("crash_dump_manifest.json"),
+        symbolication_report: Some(load_incident_json::<SymbolicationReport>(
+            "symbolication_report_exact.json",
+        )),
+        support_bundle_manifest_ref: Some(
+            "support.bundle.manifest.alpha_preview.renderer_panic.local_review".into(),
+        ),
+        support_preview_snapshot_ref: Some(
+            "preview-snapshot:support-bundle:alpha-preview:renderer-panic".into(),
+        ),
+    })
 }
 
 #[test]
@@ -108,4 +155,36 @@ fn support_manifest_reconstructs_reviewed_command_route_and_policy_source() {
     );
     assert_eq!(context.exact_build_refs, fixture_capture().exact_build_refs);
     assert!(!context.raw_content_exported);
+}
+
+#[test]
+fn shell_support_surface_consumes_crash_incident_trail() {
+    let trail = crash_incident_trail_fixture();
+    let surface = SupportSeedSurface::crash_incident_trail_preview(
+        ExactBuildCapture::for_fixture(
+            "build-id:aureline:preview:0.8.0-alpha.1:x86_64-unknown-linux-gnu:release:9f0e7d6c5b4a",
+            "0.8.0-alpha.1",
+            ReleaseChannelClass::Preview,
+        ),
+        "2026-05-14T06:31:00Z",
+        &trail,
+    )
+    .expect("support preview builds");
+    let manifest = surface.manifest();
+
+    assert_eq!(trail.symbolication_state, SymbolicationState::Exact);
+    assert!(trail.is_support_bundle_linked());
+    assert!(trail.preserves_safe_next_actions());
+    assert_eq!(surface.preview_row_count(), 1);
+    assert_eq!(
+        manifest.preview_items[0]
+            .parity_binding
+            .support_pack_item_id,
+        SUPPORT_ITEM_CRASH_INCIDENT_TRAIL
+    );
+    assert!(manifest.has_exact_build_identity());
+    assert!(manifest.preview_items[0]
+        .redaction
+        .visible_high_risk_label
+        .is_none());
 }

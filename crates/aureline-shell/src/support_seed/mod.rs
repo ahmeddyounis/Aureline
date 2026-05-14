@@ -41,10 +41,11 @@ use aureline_commands::invocation::CommandInvocationSession;
 use serde::{Deserialize, Serialize};
 
 use aureline_support::bundle::{
-    ActionPolicySourceContext, ActionReconstructionSeed, ActionabilityImpactClass,
-    DiagnosticDataClass, ExactBuildCapture, HighRiskContentClass, LocalFirstDefaults,
-    PreviewItemSeed, RedactionState, SizeEstimate, SupportBundleManifest, SupportBundlePreview,
-    SupportBundlePreviewBuilder, SupportBundlePreviewError,
+    crash_incident_trail_preview as build_crash_incident_trail_preview, ActionPolicySourceContext,
+    ActionReconstructionSeed, ActionabilityImpactClass, CrashIncidentTrail, DiagnosticDataClass,
+    ExactBuildCapture, HighRiskContentClass, LocalFirstDefaults, PreviewItemSeed, RedactionState,
+    SizeEstimate, SupportBundleManifest, SupportBundlePreview, SupportBundlePreviewBuilder,
+    SupportBundlePreviewError,
 };
 
 use crate::activity_center::alpha::ActivityCenterSupportExport;
@@ -355,6 +356,21 @@ impl SupportSeedSurface {
         Ok(Self::from_preview(
             preview,
             "Support - reviewed command route preview",
+        ))
+    }
+
+    /// Mint a local support preview that links a crash envelope,
+    /// exact-build symbolication status, trace IDs, and support-bundle
+    /// manifest ref into one incident trail row.
+    pub fn crash_incident_trail_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        trail: &CrashIncidentTrail,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let preview = build_crash_incident_trail_preview(exact_build, generated_at, trail)?;
+        Ok(Self::from_preview(
+            preview,
+            "Support - crash incident trail preview",
         ))
     }
 

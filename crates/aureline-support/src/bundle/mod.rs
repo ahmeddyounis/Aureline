@@ -15,13 +15,25 @@
 //! - [`preview`] — [`SupportBundlePreviewBuilder`] and
 //!   [`SupportBundlePreview`]: the live local-preview projection the
 //!   chrome renders before any export step.
+//! - [`crash_linkage`] — support preview row generation for
+//!   [`aureline_crash::CrashIncidentTrail`].
 
+pub mod crash_linkage;
 pub mod exact_build;
 pub mod manifest;
 pub mod preview;
 pub mod redaction;
 pub mod vocabulary;
 
+pub use aureline_crash::{
+    CrashDumpManifest, CrashEnvelope, CrashIncidentTrail, CrashIncidentTrailInputs, CrashModule,
+    IncidentEvidenceKind, IncidentEvidenceRef, ModuleIncidentSummary, ModuleMappingQuality,
+    NextSafeAction, NextSafeActionKind, SupportBundleLinkage, SupportBundleLinkageState,
+    SymbolicatedModuleResult, SymbolicationReport, SymbolicationState,
+};
+pub use crash_linkage::{
+    crash_incident_trail_preview, crash_incident_trail_seed, SUPPORT_ITEM_CRASH_INCIDENT_TRAIL,
+};
 pub use exact_build::ExactBuildCapture;
 pub use manifest::{
     ActionPolicySourceContext, ActionReconstructionContext, ActionabilityImpact,
