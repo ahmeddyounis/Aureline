@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/templates/scaffold_run_alpha.schema.json",
+  "title": "Aureline scaffold run alpha contract",
+  "description": "Alpha boundary schema for a reviewed scaffold preflight and applied run. The record preserves target scope, file and directory impact, dependency and setup-task plans, rollback boundary, review/export state, created and modified artifacts, invoked declared hooks and setup tasks, checkpoint reference, outcome, actor, and generated-project lineage reference. The schema keeps no-writes-before-review and undeclared-action denial machine-checkable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "scaffold_run_alpha_schema_version",
+    "scaffold_run_id",
+    "manifest_ref",
+    "preflight_ref",
+    "target",
+    "file_impact",
+    "dependency_plan",
+    "setup_task_plan",
+    "rollback_boundary",
+    "review_state",
+    "created_artifacts",
+    "modified_artifacts",
+    "invoked_declared_hook_ids",
+    "invoked_declared_setup_task_ids",
+    "checkpoint_ref",
+    "outcome_class",
+    "actor",
+    "created_lineage_ref",
+    "no_writes_before_review",
+    "undeclared_actions_blocked",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "scaffold_run_alpha_record" },
+    "scaffold_run_alpha_schema_version": { "type": "integer", "const": 1 },
+    "scaffold_run_id": { "$ref": "#/$defs/opaque_id" },
+    "manifest_ref": { "$ref": "#/$defs/opaque_id" },
+    "preflight_ref": { "$ref": "#/$defs/opaque_id" },
+    "target": { "$ref": "#/$defs/scaffold_target" },
+    "file_impact": { "$ref": "#/$defs/file_impact" },
+    "dependency_plan": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dependency_plan_row" }
+    },
+    "setup_task_plan": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/setup_task_plan_row" }
+    },
+    "rollback_boundary": { "$ref": "#/$defs/rollback_boundary" },
+    "review_state": { "$ref": "#/$defs/review_state" },
+    "created_artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "modified_artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "invoked_declared_hook_ids": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "invoked_declared_setup_task_ids": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "dry_run_preview_only_no_files_written",
+        "applied_with_post_create_actions_deferred",
+        "applied_all_declared_actions",
+        "blocked_before_apply",
+        "rolled_back_after_partial_apply"
+      ]
+    },
+    "actor": {
+      "type": "string",
+      "enum": ["user", "imported_handoff", "admin_policy", "ai_proposed_pending_review"]
+    },
+    "created_lineage_ref": { "$ref": "#/$defs/opaque_id" },
+    "no_writes_before_review": { "const": true },
+    "undeclared_actions_blocked": { "const": true },
+    "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for support export."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "scaffold_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_path_ref", "scope", "destination_class"],
+      "properties": {
+        "target_path_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope": {
+          "type": "string",
+          "enum": ["new_project", "new_service", "new_module", "feature_slice", "repair_existing"]
+        },
+        "destination_class": {
+          "type": "string",
+          "enum": ["user_selected_workspace_relative", "policy_limited_workspace_relative", "staged_inspection_only"]
+        }
+      }
+    },
+    "file_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "create_count",
+        "modify_count",
+        "delete_count",
+        "directory_count",
+        "generated_artifact_refs"
+      ],
+      "properties": {
+        "create_count": { "type": "integer", "minimum": 0 },
+        "modify_count": { "type": "integer", "minimum": 0 },
+        "delete_count": { "type": "integer", "minimum": 0 },
+        "directory_count": { "type": "integer", "minimum": 0 },
+        "generated_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "dependency_plan_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ecosystem", "action_class", "network_egress", "runs_before_review", "summary"],
+      "properties": {
+        "ecosystem": { "$ref": "#/$defs/opaque_id" },
+        "action_class": { "$ref": "#/$defs/opaque_id" },
+        "network_egress": { "$ref": "#/$defs/opaque_id" },
+        "runs_before_review": { "const": false },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "setup_task_plan_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "declared_in_manifest", "timing", "network_egress", "summary"],
+      "properties": {
+        "task_id": { "$ref": "#/$defs/opaque_id" },
+        "declared_in_manifest": { "const": true },
+        "timing": {
+          "type": "string",
+          "enum": ["runs_on_apply_after_review", "run_later", "offered_after_create"]
+        },
+        "network_egress": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "rollback_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_ref", "boundary_class", "summary"],
+      "properties": {
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "boundary_class": {
+          "type": "string",
+          "enum": ["delete_generated_or_restore_checkpoint", "restore_checkpoint_only", "delete_generated_only"]
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "review_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_writes_before_review",
+        "review_export_available",
+        "review_export_ref",
+        "create_empty_path_id",
+        "continue_without_starter_path_id"
+      ],
+      "properties": {
+        "no_writes_before_review": { "const": true },
+        "review_export_available": { "const": true },
+        "review_export_ref": { "$ref": "#/$defs/opaque_id" },
+        "create_empty_path_id": { "$ref": "#/$defs/bypass_path_id" },
+        "continue_without_starter_path_id": { "$ref": "#/$defs/bypass_path_id" }
+      }
+    },
+    "bypass_path_id": {
+      "type": "string",
+      "enum": [
+        "bypass.open_folder_without_starter",
+        "bypass.open_workspace_without_starter",
+        "bypass.clone_repository_without_starter",
+        "bypass.create_empty_workspace",
+        "bypass.open_prebuild_minimal",
+        "bypass.set_up_later",
+        "bypass.continue_without_starter"
+      ]
+    }
+  }
+}

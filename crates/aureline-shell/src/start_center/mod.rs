@@ -25,6 +25,7 @@ use crate::restore::placeholders::{
 pub mod admission_review;
 pub mod bundles;
 pub mod first_useful_work;
+pub mod templates;
 
 /// Presentation label rendered for the Start Center surface.
 pub const START_CENTER_PRESENTATION_LABEL: &str = "Start Center";

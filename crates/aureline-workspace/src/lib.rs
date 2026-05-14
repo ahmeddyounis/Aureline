@@ -13,6 +13,7 @@
 pub mod admission;
 pub mod entry_flows;
 pub mod generated_artifacts;
+pub mod generated_projects;
 pub mod history;
 pub mod lifecycle;
 pub mod mutation_journal;
@@ -110,6 +111,13 @@ pub use generated_artifacts::{
     GeneratedArtifactCatalog, GeneratedArtifactClass, GeneratedArtifactRule, LineageFreshnessClass,
     LineageHintRecord, LineageHintRecordKind, LineageHintSchemaVersion, RuleMatcher,
     SourceCanonicalLink,
+};
+
+pub use generated_projects::{
+    project_template_scaffold_alpha_packet, GeneratedProjectLineageAlphaProjection,
+    ScaffoldRunAlphaProjection, TemplateHealthAlphaProjection, TemplateScaffoldAlphaError,
+    TemplateScaffoldAlphaProjection, TemplateScaffoldAlphaValidationError,
+    TemplateScaffoldPreflightProjection, TEMPLATE_HEALTH_ALPHA_FRESHNESS_SOURCES,
 };
 
 pub use mutation_journal::{
