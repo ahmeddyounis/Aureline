@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/connected_provider_registry.schema.json",
+  "title": "Aureline connected-provider registry alpha",
+  "description": "Boundary schema for the connected_provider_alpha_packet consumed by the aureline-provider crate. The packet publishes one descriptor family for code-host, issue/planning, and CI/check providers; keeps local draft, publish-now, open-in-provider, publish-later queue, and inspect-only states explicit; and projects pipeline run, log, artifact, annotation, and auditable rerun/cancel/retry control descriptors without cloning the upstream publish-later, deferred-publish, browser-handoff, approval-ticket, or CI schemas it references. Raw provider URLs, raw provider payloads, raw tokens, callback bodies, and artifact bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "connected_provider_registry_schema_version",
+    "packet_id",
+    "contract_refs",
+    "descriptors",
+    "surface_claims",
+    "pipeline_overlays",
+    "run_controls"
+  ],
+  "properties": {
+    "record_kind": { "const": "connected_provider_alpha_packet" },
+    "connected_provider_registry_schema_version": { "$ref": "#/$defs/schema_version" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "contract_refs": { "$ref": "#/$defs/contract_refs" },
+    "descriptors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/connected_provider_descriptor_record" },
+      "minItems": 1
+    },
+    "surface_claims": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claimed_provider_surface_record" },
+      "minItems": 1
+    },
+    "pipeline_overlays": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pipeline_overlay_descriptor_record" },
+      "minItems": 1
+    },
+    "run_controls": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/run_control_descriptor_record" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref safe for logs, support bundles, and audit packets. Raw provider URLs and raw tokens are forbidden."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640
+    },
+    "provider_family": {
+      "type": "string",
+      "enum": ["code_host", "issue_tracker", "ci_checks"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": ["code_host_surface", "issue_or_planning_surface", "ci_or_checks_surface"]
+    },
+    "object_kind": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "branch",
+        "issue_or_work_item",
+        "check_run",
+        "pipeline_run",
+        "pipeline_log",
+        "pipeline_artifact",
+        "pipeline_annotation"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": ["live_provider", "cached_provider_overlay", "imported_snapshot", "mirrored_or_self_hosted"]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ]
+    },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "human_session",
+        "installation_grant",
+        "delegated_credential",
+        "project_scoped_grant",
+        "policy_injected_service",
+        "browser_only",
+        "unknown_auth_source"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale_within_window",
+        "expired_beyond_window",
+        "never_observed",
+        "revoked_or_disconnected"
+      ]
+    },
+    "mutation_surface_state": {
+      "type": "string",
+      "enum": ["local_draft", "publish_now", "open_in_provider", "publish_later_queue", "inspect_only"]
+    },
+    "fallback_mode": {
+      "type": "string",
+      "enum": ["copy_or_export", "open_in_provider", "publish_later_queue", "inspect_only"]
+    },
+    "pipeline_overlay_kind": {
+      "type": "string",
+      "enum": ["run", "log", "artifact", "annotation"]
+    },
+    "truth_source_class": {
+      "type": "string",
+      "enum": ["current_local_task_truth", "imported_provider_truth", "live_provider_truth", "cached_provider_truth"]
+    },
+    "local_truth_authority_class": {
+      "type": "string",
+      "enum": [
+        "local_truth_is_authoritative",
+        "provider_overlay_is_authoritative",
+        "local_and_provider_disagree_review_required",
+        "no_local_correspondent"
+      ]
+    },
+    "artifact_trust_class": {
+      "type": "string",
+      "enum": ["metadata_only", "sanitized_rich", "isolated_remote_active", "raw_text", "download_only"]
+    },
+    "run_control_class": {
+      "type": "string",
+      "enum": ["rerun", "cancel", "retry"]
+    },
+    "run_control_mutation_mode": {
+      "type": "string",
+      "enum": ["publish_now", "open_in_provider", "deferred_publish", "inspect_only"]
+    },
+    "upstream_mutation_scope_class": {
+      "type": "string",
+      "enum": ["entire_workflow_run", "failed_jobs_only", "single_job_only", "single_step_only"]
+    },
+    "stale_target_risk_class": {
+      "type": "string",
+      "enum": ["target_unchanged", "stale_target_review_required", "target_identity_changed", "actor_scope_changed"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connected_account_registry_schema_ref",
+        "publish_later_record_schema_ref",
+        "deferred_publish_queue_schema_ref",
+        "pipeline_run_row_schema_ref",
+        "pipeline_log_view_schema_ref",
+        "pipeline_artifact_card_schema_ref",
+        "pipeline_annotation_row_schema_ref",
+        "run_control_review_schema_ref"
+      ],
+      "properties": {
+        "connected_account_registry_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "publish_later_record_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "deferred_publish_queue_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "pipeline_run_row_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "pipeline_log_view_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "pipeline_artifact_card_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "pipeline_annotation_row_schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "run_control_review_schema_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "provider_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "canonical_host_ref", "tenant_or_org_scope_ref"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "canonical_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_or_org_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "actor_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_actor_class", "actor_subject_ref", "granted_scope_refs", "auth_source_class"],
+      "properties": {
+        "primary_actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "granted_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" }
+      }
+    },
+    "freshness_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness_class", "freshness_floor_ref"],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "observed_at": { "type": "string", "format": "date-time" },
+        "freshness_floor_ref": { "$ref": "#/$defs/opaque_id" },
+        "stale_after": { "type": "string" },
+        "degraded_reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "import_session_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "target_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_ref_class", "target_ref", "target_label"],
+      "properties": {
+        "target_ref_class": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "connected_provider_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_provider_registry_schema_version",
+        "descriptor_id",
+        "connected_provider_record_ref",
+        "provider_family",
+        "surface_class",
+        "source",
+        "actor_scope",
+        "freshness",
+        "supported_object_kinds",
+        "supported_surface_states",
+        "fallback_modes",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "connected_provider_descriptor_record" },
+        "connected_provider_registry_schema_version": { "$ref": "#/$defs/schema_version" },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_family": { "$ref": "#/$defs/provider_family" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "source": { "$ref": "#/$defs/provider_source" },
+        "actor_scope": { "$ref": "#/$defs/actor_scope" },
+        "freshness": { "$ref": "#/$defs/freshness_truth" },
+        "supported_object_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/object_kind" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "supported_surface_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mutation_surface_state" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "fallback_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_mode" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "surface_action_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "action_label", "mutation_state"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "mutation_state": { "$ref": "#/$defs/mutation_surface_state" },
+        "local_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "publish_later_queue_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "imported_snapshot_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "claimed_provider_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_provider_registry_schema_version",
+        "surface_id",
+        "provider_descriptor_ref",
+        "surface_class",
+        "actions",
+        "surface_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "claimed_provider_surface_record" },
+        "connected_provider_registry_schema_version": { "$ref": "#/$defs/schema_version" },
+        "surface_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_action_descriptor" },
+          "minItems": 1
+        },
+        "surface_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "pipeline_overlay_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_provider_registry_schema_version",
+        "overlay_id",
+        "provider_descriptor_ref",
+        "overlay_kind",
+        "truth_source_class",
+        "target_ref",
+        "freshness",
+        "actor_scope",
+        "local_truth_authority_class",
+        "schema_ref",
+        "overlay_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "pipeline_overlay_descriptor_record" },
+        "connected_provider_registry_schema_version": { "$ref": "#/$defs/schema_version" },
+        "overlay_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_kind": { "$ref": "#/$defs/pipeline_overlay_kind" },
+        "truth_source_class": { "$ref": "#/$defs/truth_source_class" },
+        "target_ref": { "$ref": "#/$defs/target_ref" },
+        "freshness": { "$ref": "#/$defs/freshness_truth" },
+        "actor_scope": { "$ref": "#/$defs/actor_scope" },
+        "local_truth_authority_class": { "$ref": "#/$defs/local_truth_authority_class" },
+        "artifact_trust_class": { "$ref": "#/$defs/artifact_trust_class" },
+        "schema_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "run_control_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_provider_registry_schema_version",
+        "run_control_id",
+        "provider_descriptor_ref",
+        "pipeline_overlay_ref",
+        "control_class",
+        "mutation_mode",
+        "upstream_mutation_scope",
+        "auth_source_class",
+        "target_ref",
+        "freshness",
+        "actor_scope",
+        "stale_target_risk_class",
+        "fallback_mode",
+        "disclosure_summary",
+        "audit_event_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_control_descriptor_record" },
+        "connected_provider_registry_schema_version": { "$ref": "#/$defs/schema_version" },
+        "run_control_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "pipeline_overlay_ref": { "$ref": "#/$defs/opaque_id" },
+        "control_class": { "$ref": "#/$defs/run_control_class" },
+        "mutation_mode": { "$ref": "#/$defs/run_control_mutation_mode" },
+        "upstream_mutation_scope": { "$ref": "#/$defs/upstream_mutation_scope_class" },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "target_ref": { "$ref": "#/$defs/target_ref" },
+        "freshness": { "$ref": "#/$defs/freshness_truth" },
+        "actor_scope": { "$ref": "#/$defs/actor_scope" },
+        "stale_target_risk_class": { "$ref": "#/$defs/stale_target_risk_class" },
+        "fallback_mode": { "$ref": "#/$defs/fallback_mode" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "publish_later_queue_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "disclosure_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/publish_later_queue_alpha.schema.json",
+  "title": "Aureline publish-later queue alpha item",
+  "description": "Boundary schema for publish_later_queue_alpha_item_record consumed by the aureline-provider crate. The record composes with publish_later_record.schema.json and deferred_publish_queue_item.schema.json by reference and carries dependency order, stale-target risk, reauth/rescope requirements, support-export safety, and freshness truth for deferred provider mutations. Raw provider URLs, raw tokens, raw provider payloads, callback bodies, and preview bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "queue_item_id",
+    "provider_descriptor_ref",
+    "connected_provider_record_ref",
+    "surface_class",
+    "action_kind",
+    "target_ref",
+    "actor_scope",
+    "freshness",
+    "dependency_chain",
+    "stale_target_risk_class",
+    "reauth_requirement",
+    "rescope_requirement",
+    "queue_state",
+    "linked_publish_later_queue_item_ref",
+    "local_draft_ref",
+    "export_safety",
+    "raw_payload_refs_present",
+    "next_safe_action",
+    "support_export_summary",
+    "audit_event_refs",
+    "queued_at",
+    "expires_at",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": { "const": "publish_later_queue_alpha_item_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "queue_item_id": { "$ref": "#/$defs/opaque_id" },
+    "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+    "connected_provider_record_ref": { "$ref": "#/$defs/opaque_id" },
+    "surface_class": { "$ref": "connected_provider_registry.schema.json#/$defs/surface_class" },
+    "action_kind": { "$ref": "#/$defs/action_kind" },
+    "target_ref": { "$ref": "connected_provider_registry.schema.json#/$defs/target_ref" },
+    "actor_scope": { "$ref": "connected_provider_registry.schema.json#/$defs/actor_scope" },
+    "freshness": { "$ref": "connected_provider_registry.schema.json#/$defs/freshness_truth" },
+    "dependency_chain": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/queue_dependency" },
+      "minItems": 1
+    },
+    "stale_target_risk_class": { "$ref": "connected_provider_registry.schema.json#/$defs/stale_target_risk_class" },
+    "reauth_requirement": { "$ref": "#/$defs/reauth_requirement" },
+    "rescope_requirement": { "$ref": "#/$defs/rescope_requirement" },
+    "queue_state": { "$ref": "#/$defs/queue_state" },
+    "linked_publish_later_queue_item_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_deferred_publish_queue_item_ref": { "$ref": "#/$defs/opaque_id" },
+    "local_draft_ref": { "$ref": "#/$defs/opaque_id" },
+    "export_safety": { "$ref": "#/$defs/export_safety" },
+    "raw_payload_refs_present": {
+      "type": "boolean",
+      "const": false,
+      "description": "Must be false. Queue alpha rows use opaque refs and structured summaries only."
+    },
+    "next_safe_action": { "$ref": "#/$defs/next_safe_action" },
+    "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "audit_event_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "minItems": 1
+    },
+    "queued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "redaction_class": { "$ref": "connected_provider_registry.schema.json#/$defs/redaction_class" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": [
+        "pull_request_review_comment_publish",
+        "issue_update",
+        "check_run_request_rerun"
+      ]
+    },
+    "queue_state": {
+      "type": "string",
+      "enum": [
+        "captured_offline",
+        "pending_dependency",
+        "pending_reauth",
+        "pending_rescope",
+        "pending_target_refresh",
+        "ready_for_drain",
+        "drained_committed",
+        "cancelled_by_user"
+      ]
+    },
+    "dependency_class": {
+      "type": "string",
+      "enum": [
+        "connectivity_restored",
+        "approval_ticket_admitted",
+        "freshness_floor_satisfied",
+        "predecessor_queue_item",
+        "reauth_completed",
+        "rescope_completed",
+        "conflict_resolved"
+      ]
+    },
+    "dependency_state": {
+      "type": "string",
+      "enum": ["unmet", "met", "waived_by_reviewer"]
+    },
+    "queue_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_class",
+        "dependency_state",
+        "dependency_order_index",
+        "rationale_summary"
+      ],
+      "properties": {
+        "dependency_class": { "$ref": "#/$defs/dependency_class" },
+        "dependency_state": { "$ref": "#/$defs/dependency_state" },
+        "dependency_order_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "reauth_requirement": {
+      "type": "string",
+      "enum": ["not_required", "session_renewal_required", "step_up_required"]
+    },
+    "rescope_requirement": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "additional_scopes_required",
+        "tenant_or_org_scope_realignment_required"
+      ]
+    },
+    "export_safety": {
+      "type": "string",
+      "enum": ["support_export_safe", "support_export_blocked"]
+    },
+    "next_safe_action": {
+      "type": "string",
+      "enum": [
+        "drain_now",
+        "refresh_target_then_review",
+        "reauth_then_retry",
+        "rescope_then_retry",
+        "open_in_provider",
+        "export_evidence_packet"
+      ]
+    }
+  }
+}
