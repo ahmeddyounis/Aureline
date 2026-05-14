@@ -1,0 +1,330 @@
+# Canonical alpha outage taxonomy for backup, restore, and failover rehearsal.
+
+schema_version: 1
+record_kind: outage_taxonomy_alpha
+taxonomy_id: ops.outage_taxonomy.alpha
+as_of: "2026-05-14"
+owner_role: support_room_owner
+status_class: protected_alpha_seed
+stability_label: alpha_contract
+
+source_refs:
+  - docs/ops/backup_restore_failover_rehearsal_plan.md
+  - docs/ops/failover_continuity_banner_contract.md
+  - docs/ops/maintenance_migration_failover_contract.md
+  - docs/ops/incident_workspace_contract.md
+  - docs/ux/control_data_plane_status_contract.md
+  - docs/deployment/locality_and_continuity_seed.md
+  - docs/runtime/connectivity_and_reconciliation_contract.md
+  - docs/runtime/fault_domains_and_restart_policy.md
+  - docs/managed/region_residency_alpha.md
+  - artifacts/managed/local_baseline_proof.yaml
+
+first_consumer:
+  consumer_id: ops.backup_restore_failover.validator
+  surface_class: ci_validator_and_support_export_projection
+  validator_ref: ci/check_backup_restore_failover_alpha.py
+  render_command: python3 ci/check_backup_restore_failover_alpha.py --repo-root . --render-support-projection
+  consumed_artifacts:
+    - artifacts/ops/outage_taxonomy_alpha.yaml
+    - fixtures/ops/backup_restore_failover_rehearsal_cases/manifest.yaml
+    - docs/ops/backup_restore_failover_rehearsal_plan.md
+    - artifacts/ops/control_plane_vs_data_plane_examples.md
+  projection_contract: >
+    The validator emits a metadata-only support/release projection with one
+    row per outage class, retained local-safe posture, blocked managed action
+    posture, recovery action count, and proof-artifact refs. It does not
+    upload evidence or collect raw payloads.
+
+taxonomy_axes:
+  plane_classes:
+    - local_core
+    - control_plane
+    - data_plane
+    - target_authority
+  product_posture_classes:
+    - continue_local_with_limits
+    - managed_actions_blocked_or_reviewed
+    - live_runtime_blocked_cached_reads_labeled
+    - restore_or_locate_target_required
+  recovery_action_classes:
+    - continue_local
+    - export_diagnostics
+    - open_project_doctor
+    - open_safe_mode
+    - preserve_checkpoint
+    - compare_before_restore
+    - review_new_boundary
+    - reconnect_or_reauth
+    - restore_from_authoritative_backup
+    - restore_from_local_checkpoint
+    - locate_or_replace_target
+    - escalate_with_redacted_packet
+
+outage_classes:
+  - class_id: local_core_continuity
+    title: Local-core continuity with optional plane degradation
+    summary: >
+      The local desktop core remains productive while a helper-backed,
+      provider-linked, or managed-adjacent lane is unavailable, stale, or
+      recovering. The product must make the retained local-safe baseline
+      explicit instead of only naming the unavailable service.
+    primary_plane_class: local_core
+    distinguished_from:
+      - control_plane_impairment
+      - data_plane_impairment
+      - full_target_loss
+    affected_plane_states:
+      local_core: available_local_safe
+      control_plane: not_required_or_degraded_optional
+      data_plane: not_required_or_cached_with_label
+      target_authority: unchanged_or_not_applicable
+    expected_product_posture:
+      posture_class: continue_local_with_limits
+      local_core_available: true
+      user_visible_status: Local edit, save, search, Git, export, diagnostics, and cached docs remain available.
+      managed_action_posture: Optional managed/provider actions are unavailable, retryable, queued only when replay semantics are explicit, or blocked with a typed reason.
+      restore_posture: No restore is implied. Users may create or preserve a checkpoint before attempting broader repair.
+      support_export_posture: Metadata-only continuity packet may be exported locally with exact build, deployment profile, and freshness labels.
+      boundary_review_required: false
+      forbidden_postures:
+        - all_work_broken
+        - generic_service_unavailable_without_local_safe_baseline
+        - silent_retry_of_authority_changing_action
+    recovery_actions:
+      - action_id: continue_local_work
+        action_class: continue_local
+        sequence: 1
+        required: true
+        summary: Continue local editing, save, search, Git, export, and diagnostics from the retained local-safe baseline.
+      - action_id: export_local_continuity_packet
+        action_class: export_diagnostics
+        sequence: 2
+        required: true
+        summary: Export a metadata-only continuity packet if support or release review needs evidence.
+      - action_id: preserve_pre_repair_checkpoint
+        action_class: preserve_checkpoint
+        sequence: 3
+        required: false
+        summary: Preserve a checkpoint before any repair that could alter durable local state.
+    proof_requirements:
+      - proof_id: local_safe_baseline_visible
+        artifact_refs:
+          - artifacts/managed/local_baseline_proof.yaml
+          - fixtures/ops/failover_continuity_cases/local_safe_only_mode.yaml
+      - proof_id: no_silent_managed_replay
+        artifact_refs:
+          - docs/runtime/connectivity_and_reconciliation_contract.md
+
+  - class_id: control_plane_impairment
+    title: Control-plane impairment
+    summary: >
+      Identity, policy, entitlement, catalog, quota, tenant routing, region
+      assignment, key-state, or orchestration authority is unavailable, stale,
+      failed over, or waiting for reconciliation while local files and some
+      already-materialized data-plane work may remain usable.
+    primary_plane_class: control_plane
+    distinguished_from:
+      - local_core_continuity
+      - data_plane_impairment
+      - full_target_loss
+    affected_plane_states:
+      local_core: available_local_safe
+      control_plane: unavailable_stale_or_boundary_recheck_required
+      data_plane: healthy_or_cached_until_authority_refresh
+      target_authority: stale_or_review_required
+    expected_product_posture:
+      posture_class: managed_actions_blocked_or_reviewed
+      local_core_available: true
+      user_visible_status: Control-plane authority is impaired; local work continues and managed writes wait for reconnect, reauth, policy refresh, or boundary review.
+      managed_action_posture: New managed writes, route changes, policy refreshes, auth refreshes, quota-consuming calls, and authority-changing actions fail closed or wait for review.
+      restore_posture: Restore must use last-known-good signed state only as labeled stale evidence until the authority plane refreshes.
+      support_export_posture: Metadata-only packet includes exact build, policy epoch, last successful sync, affected service families, and boundary axes without raw tenant or endpoint payloads.
+      boundary_review_required: true
+      forbidden_postures:
+        - cached_policy_presented_as_live
+        - generic_all_clear_after_failover
+        - replay_across_changed_tenant_region_key_or_endpoint
+    recovery_actions:
+      - action_id: continue_local_and_label_stale_authority
+        action_class: continue_local
+        sequence: 1
+        required: true
+        summary: Keep local work available while labeling cached authority, policy, and entitlement state as stale or bounded-stale.
+      - action_id: open_boundary_details
+        action_class: review_new_boundary
+        sequence: 2
+        required: true
+        summary: Review tenant, region, residency, key-ownership, and endpoint identity before managed routes resume.
+      - action_id: reconnect_or_reauth_after_recovery
+        action_class: reconnect_or_reauth
+        sequence: 3
+        required: true
+        summary: Reconnect or reauthenticate only after the control-plane source is current and route facts still match.
+      - action_id: export_control_plane_impairment_packet
+        action_class: export_diagnostics
+        sequence: 4
+        required: true
+        summary: Export exact-build, last-sync, policy-epoch, and boundary-axis metadata for support or release review.
+    proof_requirements:
+      - proof_id: boundary_axes_rechecked
+        artifact_refs:
+          - fixtures/ops/failover_continuity_cases/regional_failover_changed_boundary.yaml
+          - docs/managed/region_residency_alpha.md
+      - proof_id: cached_authority_labeled
+        artifact_refs:
+          - fixtures/ops/outage_notices/regional_failover_review_boundary.json
+
+  - class_id: data_plane_impairment
+    title: Data-plane impairment
+    summary: >
+      Interactive session traffic, remote attach streams, artifact bytes,
+      upload/download replication, prompt/response streams, presence fan-out,
+      or live runtime IO is impaired while authority metadata may still be
+      reachable enough to explain the narrowed capability.
+    primary_plane_class: data_plane
+    distinguished_from:
+      - local_core_continuity
+      - control_plane_impairment
+      - full_target_loss
+    affected_plane_states:
+      local_core: available_local_safe_or_partial
+      control_plane: healthy_or_read_only_explainer_available
+      data_plane: unavailable_degraded_or_reconciling
+      target_authority: unchanged_but_live_io_blocked
+    expected_product_posture:
+      posture_class: live_runtime_blocked_cached_reads_labeled
+      local_core_available: true
+      user_visible_status: Live runtime or artifact transport is impaired; cached or local reads are labeled, and live writes or dispatch require reconnect or manual rerun.
+      managed_action_posture: Live remote execution, shell input, artifact upload/download, AI dispatch, or collaboration traffic is blocked, retryable, or manually rerunnable by action class.
+      restore_posture: Restore can use local checkpoints or mirror/cache sources only after compare-before-restore discloses retained and replaced classes.
+      support_export_posture: Metadata-only packet includes affected data-plane family, last successful probe, cached artifact refs, retry or manual-rerun posture, and excluded payload classes.
+      boundary_review_required: false
+      forbidden_postures:
+        - live_again_when_stream_is_stale
+        - unreviewed_upload_replay
+        - treating_cached_artifact_as_authoritative_without_freshness
+    recovery_actions:
+      - action_id: freeze_live_runtime_and_preserve_local_state
+        action_class: preserve_checkpoint
+        sequence: 1
+        required: true
+        summary: Preserve local buffers, terminals transcripts, checkpoints, and cached metadata before retrying live runtime actions.
+      - action_id: run_project_doctor_transport_probe
+        action_class: open_project_doctor
+        sequence: 2
+        required: true
+        summary: Run metadata-only Project Doctor probes for transport, route, mirror, upload, and remote attach health.
+      - action_id: compare_before_data_restore
+        action_class: compare_before_restore
+        sequence: 3
+        required: true
+        summary: Compare cached, mirrored, or checkpointed artifacts before replacing any durable user-owned state.
+      - action_id: export_data_plane_impairment_packet
+        action_class: export_diagnostics
+        sequence: 4
+        required: true
+        summary: Export redaction-safe transport and artifact-freshness metadata; do not bundle raw artifact bodies by default.
+    proof_requirements:
+      - proof_id: data_plane_cached_reads_labeled
+        artifact_refs:
+          - fixtures/ops/failover_continuity_cases/partial_queue_retry_continuity.yaml
+          - docs/runtime/connectivity_and_reconciliation_contract.md
+      - proof_id: compare_before_restore_visible
+        artifact_refs:
+          - docs/ops/backup_restore_failover_rehearsal_plan.md#restore-destination-review
+
+  - class_id: full_target_loss
+    title: Full target loss
+    summary: >
+      The active target, workspace root, device, managed workspace, remote
+      agent, or mounted filesystem cannot be reached or trusted as the same
+      target. The product must stop live target actions and move into
+      locate, restore, or escalation flow without implying an exact restore
+      unless evidence proves it.
+    primary_plane_class: target_authority
+    distinguished_from:
+      - local_core_continuity
+      - control_plane_impairment
+      - data_plane_impairment
+    affected_plane_states:
+      local_core: available_for_review_export_and_recovery_where_installed
+      control_plane: may_be_healthy_but_target_authority_missing
+      data_plane: unavailable_for_lost_target
+      target_authority: missing_or_untrusted
+    expected_product_posture:
+      posture_class: restore_or_locate_target_required
+      local_core_available: true
+      user_visible_status: Target is missing or untrusted; live actions are stopped and recovery starts with locate, compare, restore, or escalation.
+      managed_action_posture: No target mutation, route replay, task rerun, or shared-control resume is allowed until target identity is restored or replaced under review.
+      restore_posture: Restore source, schema version, producer build, retained classes, replaced classes, checkpoint behavior, and compatibility limits must be reviewed before commit.
+      support_export_posture: Metadata-only packet includes last-known target identity, backup/checkpoint refs, restore source class, compatibility note, and excluded secret or code-bearing classes.
+      boundary_review_required: true
+      forbidden_postures:
+        - exact_restore_without_matching_target_evidence
+        - destructive_reset_before_export_review
+        - automatic_reattach_or_rerun
+    recovery_actions:
+      - action_id: stop_live_target_actions
+        action_class: open_safe_mode
+        sequence: 1
+        required: true
+        summary: Stop live target actions, disable automatic reattach/rerun, and keep local review, export, and diagnostics available.
+      - action_id: locate_or_replace_target_identity
+        action_class: locate_or_replace_target
+        sequence: 2
+        required: true
+        summary: Locate the original target or select a replacement target with explicit identity and authority review.
+      - action_id: restore_from_reviewed_source
+        action_class: restore_from_authoritative_backup
+        sequence: 3
+        required: true
+        summary: Restore only from a reviewed authoritative backup, local checkpoint, mirror, or exported package with compare-before-restore.
+      - action_id: escalate_if_target_identity_cannot_be_proved
+        action_class: escalate_with_redacted_packet
+        sequence: 4
+        required: true
+        summary: Escalate with redacted metadata if target identity, backup compatibility, or recovery safety cannot be proved locally.
+    proof_requirements:
+      - proof_id: target_loss_blocks_live_actions
+        artifact_refs:
+          - fixtures/entry/missing_target_recovery_cases/README.md
+          - docs/ux/recent_work_and_restore_card_contract.md
+      - proof_id: restore_review_before_overwrite
+        artifact_refs:
+          - docs/ops/backup_restore_failover_rehearsal_plan.md#restore-destination-review
+
+rehearsal_controls:
+  owners:
+    accountable_owner_role: support_room_owner
+    release_decision_owner_role: release_captain
+    recovery_execution_owner_role: supportability_engineer
+    privacy_review_owner_role: security_privacy_reviewer
+    docs_truth_owner_role: docs_comms_owner
+  cadence:
+    alpha_rehearsal: monthly
+    release_candidate_rehearsal: before_each_release_candidate
+    incident_escape_review: within_next_readiness_review
+    taxonomy_refresh: when_a_new_outage_class_or_plane_boundary_is_claimed
+  required_proof_artifacts:
+    - artifacts/ops/outage_taxonomy_alpha.yaml
+    - artifacts/ops/backup_restore_failover_rehearsal_proof.md
+    - docs/ops/backup_restore_failover_rehearsal_plan.md
+    - artifacts/ops/control_plane_vs_data_plane_examples.md
+    - fixtures/ops/backup_restore_failover_rehearsal_cases/manifest.yaml
+    - ci/check_backup_restore_failover_alpha.py
+  acceptance_states:
+    - taxonomy_covers_four_required_outage_classes
+    - each_outage_class_has_expected_product_posture
+    - each_outage_class_has_recovery_action_list
+    - rehearsal_plan_names_owners_cadence_and_proof_artifacts
+    - protected_fixtures_cover_all_outage_classes
+    - support_projection_is_metadata_only
+
+export_safety:
+  raw_payload_exported: false
+  raw_tenant_names_exported: false
+  raw_urls_or_hostnames_exported: false
+  raw_secret_material_exported: false
+  exact_build_identity_required: true
+  redaction_default_class: metadata_only

@@ -1,0 +1,53 @@
+schema_version: 1
+record_kind: backup_restore_failover_rehearsal_case
+case_id: ops.rehearsal.control_plane_impairment.regional_failover
+outage_class_id: control_plane_impairment
+primary_plane_class: control_plane
+scenario: >
+  Regional failover changes region, key-ownership route, and endpoint
+  identity. The control plane requires boundary review before managed
+  routes, cached approvals, or replay queues resume.
+
+source_refs:
+  - artifacts/ops/outage_taxonomy_alpha.yaml#control_plane_impairment
+  - fixtures/ops/failover_continuity_cases/regional_failover_changed_boundary.yaml
+  - fixtures/ops/outage_notices/regional_failover_review_boundary.json
+
+plane_observation:
+  local_core_state: available_local_safe
+  control_plane_state: failover_boundary_recheck_required
+  data_plane_state: local_data_path_healthy_managed_attach_waits
+  target_authority_state: stale_until_boundary_review
+  target_reachable: true
+
+expected_product_posture:
+  posture_class: managed_actions_blocked_or_reviewed
+  local_core_available: true
+  must_surface_local_safe_baseline: true
+  must_label_cached_or_optional_state: true
+  boundary_review_required: true
+  restore_claim_class: last_known_good_is_stale_evidence_only
+
+expected_recovery_actions:
+  - continue_local_and_label_stale_authority
+  - open_boundary_details
+  - reconnect_or_reauth_after_recovery
+  - export_control_plane_impairment_packet
+
+proof_artifacts:
+  - docs/managed/region_residency_alpha.md
+  - docs/ops/maintenance_migration_failover_contract.md
+  - artifacts/ops/control_plane_vs_data_plane_examples.md
+
+acceptance_assertions:
+  boundary_axes_rechecked: true
+  cached_authority_not_presented_as_live: true
+  replay_across_changed_boundary_blocked: true
+  exact_build_identity_required: true
+
+export_safety:
+  metadata_only: true
+  raw_payload_exported: false
+  raw_tenant_names_exported: false
+  raw_urls_or_hostnames_exported: false
+  raw_secret_material_exported: false

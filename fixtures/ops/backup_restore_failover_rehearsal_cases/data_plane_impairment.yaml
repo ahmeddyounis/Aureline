@@ -1,0 +1,52 @@
+schema_version: 1
+record_kind: backup_restore_failover_rehearsal_case
+case_id: ops.rehearsal.data_plane_impairment.collaboration_relay_drain
+outage_class_id: data_plane_impairment
+primary_plane_class: data_plane
+scenario: >
+  Collaboration relay traffic is draining and new live joins are blocked.
+  The maintenance/control metadata is current, but live data-plane traffic
+  cannot accept new sessions until reconnect.
+
+source_refs:
+  - artifacts/ops/outage_taxonomy_alpha.yaml#data_plane_impairment
+  - fixtures/ops/maintenance_cases/drain_before_failover.yaml
+  - fixtures/ops/failover_continuity_cases/partial_queue_retry_continuity.yaml
+
+plane_observation:
+  local_core_state: available_local_safe
+  control_plane_state: healthy_read_only_explainer_available
+  data_plane_state: drain_new_live_sessions_blocked
+  target_authority_state: unchanged_but_live_io_blocked
+  target_reachable: true
+
+expected_product_posture:
+  posture_class: live_runtime_blocked_cached_reads_labeled
+  local_core_available: true
+  must_surface_local_safe_baseline: true
+  must_label_cached_or_optional_state: true
+  boundary_review_required: false
+  restore_claim_class: compare_before_restore_required_for_cached_or_mirror_data
+
+expected_recovery_actions:
+  - freeze_live_runtime_and_preserve_local_state
+  - run_project_doctor_transport_probe
+  - compare_before_data_restore
+  - export_data_plane_impairment_packet
+
+proof_artifacts:
+  - docs/runtime/connectivity_and_reconciliation_contract.md
+  - docs/ops/failover_continuity_banner_contract.md
+  - artifacts/ops/control_plane_vs_data_plane_examples.md
+
+acceptance_assertions:
+  live_runtime_not_marked_live_again_when_stale: true
+  cached_data_has_freshness_label: true
+  compare_before_restore_visible: true
+  exact_build_identity_required: true
+
+export_safety:
+  metadata_only: true
+  raw_payload_exported: false
+  raw_urls_or_hostnames_exported: false
+  raw_secret_material_exported: false
