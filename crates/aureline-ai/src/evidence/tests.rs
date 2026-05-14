@@ -1,5 +1,13 @@
 use std::path::Path;
 
+use aureline_docs::{
+    CitationAnchorAlpha, CitationAnchorAlphaInput,
+    CitationAnchorAvailability as DocsCitationAnchorAvailability, CitationConfidenceClass,
+    CitationInferenceMarker, CitationLocalityClass, CitationSourceClass,
+    DocsFreshnessClass as CanonicalDocsFreshnessClass, DocsNodeIdentity, DocsNodeIdentityInput,
+    DocsNodeKind, DocsScopeClass, LocaleOverlayState, VersionMatchState as DocsVersionMatchState,
+};
+
 use crate::context_inspector::{
     AiContextEvidenceHandoff, AiContextEvidenceHandoffRow, AI_CONTEXT_EVIDENCE_HANDOFF_RECORD_KIND,
     COMPOSER_CONTEXT_ALPHA_SCHEMA_VERSION,
@@ -108,6 +116,100 @@ fn routing_packet() -> AiRoutingPacket {
     )
 }
 
+fn payments_docs_node_identity() -> DocsNodeIdentity {
+    DocsNodeIdentity::new(DocsNodeIdentityInput {
+        docs_node_id: "docs-node:payments-guide:create-charge".to_owned(),
+        doc_kind: DocsNodeKind::ReferencePage,
+        source_class: CitationSourceClass::MirroredOfficialDocs,
+        scope_class: DocsScopeClass::AiEvidence,
+        source_pack_ref: "docs-pack:payments-guide".to_owned(),
+        source_pack_revision_ref: "docs-pack-revision:payments-guide:2026-05-01".to_owned(),
+        version_or_revision_ref: "doc-revision:payments-guide:2026-05-01".to_owned(),
+        version_match_state: DocsVersionMatchState::ExactBuildMatch,
+        freshness_class: CanonicalDocsFreshnessClass::AuthoritativeLive,
+        locality_class: CitationLocalityClass::MirroredOffline,
+        source_locale: "en-US".to_owned(),
+        requested_locale: "en-US".to_owned(),
+        effective_locale: "en-US".to_owned(),
+        locale_overlay_state: LocaleOverlayState::SourceLanguageOriginal,
+        source_language_fallback_ref: None,
+        citation_availability: DocsCitationAnchorAvailability::ExactAnchorAvailable,
+        citation_anchor_refs: vec!["citation-anchor:payments-guide#create-charge".to_owned()],
+        exact_reopen_ref: "reopen:docs-node:payments-guide:create-charge@docs-pack-revision:payments-guide:2026-05-01#en-US".to_owned(),
+        hidden_or_omitted_note: None,
+    })
+}
+
+fn payments_docs_citation_anchor() -> CitationAnchorAlpha {
+    CitationAnchorAlpha::new(CitationAnchorAlphaInput {
+        anchor_id: "citation-anchor:payments-guide#create-charge".to_owned(),
+        docs_node_ref: "docs-node:payments-guide:create-charge".to_owned(),
+        source_class: CitationSourceClass::MirroredOfficialDocs,
+        source_pack_ref: "docs-pack:payments-guide".to_owned(),
+        source_pack_revision_ref: "docs-pack-revision:payments-guide:2026-05-01".to_owned(),
+        target_ref: "docs-node:payments-guide:create-charge".to_owned(),
+        exact_anchor_ref: Some("citation-anchor:payments-guide#create-charge".to_owned()),
+        locale: "en-US".to_owned(),
+        version_match_state: DocsVersionMatchState::ExactBuildMatch,
+        freshness_class: CanonicalDocsFreshnessClass::AuthoritativeLive,
+        locality_class: CitationLocalityClass::MirroredOffline,
+        citation_availability: DocsCitationAnchorAvailability::ExactAnchorAvailable,
+        inference_marker: CitationInferenceMarker::RawSource,
+        confidence_class: CitationConfidenceClass::EvidenceBacked,
+        hidden_or_omitted_note: None,
+    })
+}
+
+fn glossary_docs_node_identity() -> DocsNodeIdentity {
+    DocsNodeIdentity::new(DocsNodeIdentityInput {
+        docs_node_id: "glossary-entry:payments:charge-state".to_owned(),
+        doc_kind: DocsNodeKind::GlossaryItem,
+        source_class: CitationSourceClass::CuratedKnowledgePack,
+        scope_class: DocsScopeClass::HelpPack,
+        source_pack_ref: "glossary-pack:payments".to_owned(),
+        source_pack_revision_ref: "glossary-pack-revision:payments:2026-05-01".to_owned(),
+        version_or_revision_ref: "glossary-revision:payments:2026-05-01".to_owned(),
+        version_match_state: DocsVersionMatchState::CompatibleMinorDrift,
+        freshness_class: CanonicalDocsFreshnessClass::WarmCached,
+        locality_class: CitationLocalityClass::CachedLocal,
+        source_locale: "en-US".to_owned(),
+        requested_locale: "en-US".to_owned(),
+        effective_locale: "en-US".to_owned(),
+        locale_overlay_state: LocaleOverlayState::SourceLanguageOriginal,
+        source_language_fallback_ref: None,
+        citation_availability: DocsCitationAnchorAvailability::AnchorUnavailableDisclosed,
+        citation_anchor_refs: Vec::new(),
+        exact_reopen_ref: "reopen:glossary-entry:payments:charge-state@glossary-pack-revision:payments:2026-05-01#en-US".to_owned(),
+        hidden_or_omitted_note: Some(
+            "Glossary entry came from a mirrored pack that does not expose section anchors."
+                .to_owned(),
+        ),
+    })
+}
+
+fn glossary_docs_citation_anchor() -> CitationAnchorAlpha {
+    CitationAnchorAlpha::new(CitationAnchorAlphaInput {
+        anchor_id: "citation-anchor:glossary:payments:charge-state:missing".to_owned(),
+        docs_node_ref: "glossary-entry:payments:charge-state".to_owned(),
+        source_class: CitationSourceClass::CuratedKnowledgePack,
+        source_pack_ref: "glossary-pack:payments".to_owned(),
+        source_pack_revision_ref: "glossary-pack-revision:payments:2026-05-01".to_owned(),
+        target_ref: "glossary-entry:payments:charge-state".to_owned(),
+        exact_anchor_ref: None,
+        locale: "en-US".to_owned(),
+        version_match_state: DocsVersionMatchState::CompatibleMinorDrift,
+        freshness_class: CanonicalDocsFreshnessClass::WarmCached,
+        locality_class: CitationLocalityClass::CachedLocal,
+        citation_availability: DocsCitationAnchorAvailability::AnchorUnavailableDisclosed,
+        inference_marker: CitationInferenceMarker::GeneratedSummary,
+        confidence_class: CitationConfidenceClass::Inferred,
+        hidden_or_omitted_note: Some(
+            "Glossary entry came from a mirrored pack that does not expose section anchors."
+                .to_owned(),
+        ),
+    })
+}
+
 fn docs_sources() -> Vec<CitedSourceReference> {
     vec![
         CitedSourceReference {
@@ -118,40 +220,25 @@ fn docs_sources() -> Vec<CitedSourceReference> {
             docs_pack_ref: None,
             docs_pack_revision_ref: None,
             exact_anchor_ref: None,
+            docs_node_identity: None,
+            citation_anchor: None,
             citation_visibility_class: CitationVisibilityClass::NotCitationBearing,
             hidden_or_omitted_citation_note: None,
             source_posture: EvidenceSourcePosture::TrustedFirstParty,
             freshness_class: EvidenceFreshnessClass::AuthoritativeLive,
         },
-        CitedSourceReference {
-            source_reference_id: "source-ref:docs-pack:payments-guide".to_owned(),
-            source_class: CitedSourceClass::DocsPackExcerpt,
-            source_identity_ref: "docs-node:payments-guide:create-charge".to_owned(),
-            source_revision_ref: Some("doc-revision:payments-guide:2026-05-01".to_owned()),
-            docs_pack_ref: Some("docs-pack:payments-guide".to_owned()),
-            docs_pack_revision_ref: Some("docs-pack-revision:payments-guide:2026-05-01".to_owned()),
-            exact_anchor_ref: Some("citation-anchor:payments-guide#create-charge".to_owned()),
-            citation_visibility_class: CitationVisibilityClass::AnchorAvailable,
-            hidden_or_omitted_citation_note: None,
-            source_posture: EvidenceSourcePosture::TrustedAuthority,
-            freshness_class: EvidenceFreshnessClass::AuthoritativeLive,
-        },
-        CitedSourceReference {
-            source_reference_id: "source-ref:glossary:charge-state".to_owned(),
-            source_class: CitedSourceClass::GlossaryEntry,
-            source_identity_ref: "glossary-entry:payments:charge-state".to_owned(),
-            source_revision_ref: Some("glossary-revision:payments:2026-05-01".to_owned()),
-            docs_pack_ref: Some("glossary-pack:payments".to_owned()),
-            docs_pack_revision_ref: Some("glossary-pack-revision:payments:2026-05-01".to_owned()),
-            exact_anchor_ref: None,
-            citation_visibility_class: CitationVisibilityClass::AnchorUnavailableDisclosed,
-            hidden_or_omitted_citation_note: Some(
-                "Glossary entry came from a mirrored pack that does not expose section anchors."
-                    .to_owned(),
-            ),
-            source_posture: EvidenceSourcePosture::ReviewedDerived,
-            freshness_class: EvidenceFreshnessClass::WarmCached,
-        },
+        CitedSourceReference::from_docs_citation(
+            "source-ref:docs-pack:payments-guide",
+            payments_docs_node_identity(),
+            payments_docs_citation_anchor(),
+            EvidenceSourcePosture::TrustedAuthority,
+        ),
+        CitedSourceReference::from_docs_citation(
+            "source-ref:glossary:charge-state",
+            glossary_docs_node_identity(),
+            glossary_docs_citation_anchor(),
+            EvidenceSourcePosture::ReviewedDerived,
+        ),
     ]
 }
 
@@ -260,6 +347,8 @@ fn tainted_rejected_packet() -> AiMutationEvidencePacket {
         docs_pack_ref: None,
         docs_pack_revision_ref: None,
         exact_anchor_ref: None,
+        docs_node_identity: None,
+        citation_anchor: None,
         citation_visibility_class: CitationVisibilityClass::NotCitationBearing,
         hidden_or_omitted_citation_note: None,
         source_posture: EvidenceSourcePosture::TaintedExternal,
@@ -367,6 +456,16 @@ fn docs_backed_pre_apply_packet_exports_route_spend_approval_and_citations() {
             |row| row.docs_pack_ref.as_deref() == Some("docs-pack:payments-guide")
                 && row.exact_anchor_ref.as_deref()
                     == Some("citation-anchor:payments-guide#create-charge")
+                && row
+                    .docs_node_identity
+                    .as_ref()
+                    .is_some_and(|identity| identity.docs_node_id
+                        == "docs-node:payments-guide:create-charge")
+                && row
+                    .citation_anchor
+                    .as_ref()
+                    .is_some_and(|anchor| anchor.citation_availability
+                        == DocsCitationAnchorAvailability::ExactAnchorAvailable)
         ));
     assert!(support
         .citation_rows

@@ -8,6 +8,13 @@
 
 use std::collections::BTreeMap;
 
+use aureline_docs::{
+    CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
+    CitationConfidenceClass, CitationDrawerEvidenceView, CitationInferenceMarker,
+    CitationLocalityClass, CitationSourceClass, DocsFreshnessClass as CanonicalDocsFreshnessClass,
+    DocsNodeIdentity, DocsNodeIdentityInput, DocsNodeKind, DocsScopeClass, LocaleOverlayState,
+    SourcePrecedenceClass, VersionMatchState,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -811,6 +818,104 @@ impl DocsLinkedReference {
             scope_truth: None,
         }
     }
+
+    fn docs_node_identity(&self) -> DocsNodeIdentity {
+        let hidden_or_omitted_note =
+            if self.exact_anchor.citation_availability == DocsCitationAvailability::Missing {
+                Some(
+                    self.missing_anchor_downgrade
+                        .as_ref()
+                        .map(|downgrade| {
+                            format!(
+                                "{} via {}",
+                                downgrade.downgrade_reason_ref,
+                                downgrade.downgrade_state.as_str()
+                            )
+                        })
+                        .unwrap_or_else(|| "exact citation anchor is missing".to_owned()),
+                )
+            } else {
+                None
+            };
+
+        DocsNodeIdentity::new(DocsNodeIdentityInput {
+            docs_node_id: format!("docs-node:{}", self.exact_anchor.anchor_id),
+            doc_kind: docs_node_kind_from_doc_kind(self.exact_anchor.doc_kind),
+            source_class: citation_source_class_from_docs(self.exact_anchor.source_class),
+            scope_class: docs_scope_from_subject(self.subject_kind),
+            source_pack_ref: self.exact_anchor.pack_id.clone(),
+            source_pack_revision_ref: self.exact_anchor.pack_revision_ref.clone(),
+            version_or_revision_ref: self.exact_anchor.source_version.clone(),
+            version_match_state: version_match_from_docs(self.exact_anchor.version_match_state),
+            freshness_class: freshness_from_docs(self.exact_anchor.freshness),
+            locality_class: locality_from_docs(self.exact_anchor.locality),
+            source_locale: "en".to_owned(),
+            requested_locale: "en".to_owned(),
+            effective_locale: "en".to_owned(),
+            locale_overlay_state: LocaleOverlayState::SourceLanguageOriginal,
+            source_language_fallback_ref: None,
+            citation_availability: citation_availability_from_docs(
+                self.exact_anchor.citation_availability,
+            ),
+            citation_anchor_refs: self.citation_drawer_hook.citation_anchor_refs.clone(),
+            exact_reopen_ref: self.citation_drawer_hook.exact_reopen_ref.clone(),
+            hidden_or_omitted_note,
+        })
+    }
+
+    fn citation_anchor_alpha(&self) -> CitationAnchorAlpha {
+        let availability = citation_availability_from_docs(self.exact_anchor.citation_availability);
+        let hidden_or_omitted_note = if availability.requires_note() {
+            Some(
+                self.missing_anchor_downgrade
+                    .as_ref()
+                    .map(|downgrade| {
+                        format!(
+                            "{} via {}",
+                            downgrade.downgrade_reason_ref,
+                            downgrade.downgrade_state.as_str()
+                        )
+                    })
+                    .unwrap_or_else(|| "exact citation anchor is missing".to_owned()),
+            )
+        } else {
+            None
+        };
+
+        CitationAnchorAlpha::new(CitationAnchorAlphaInput {
+            anchor_id: self.exact_anchor.anchor_id.clone(),
+            docs_node_ref: format!("docs-node:{}", self.exact_anchor.anchor_id),
+            source_class: citation_source_class_from_docs(self.exact_anchor.source_class),
+            source_pack_ref: self.exact_anchor.pack_id.clone(),
+            source_pack_revision_ref: self.exact_anchor.pack_revision_ref.clone(),
+            target_ref: self.subject_ref.clone(),
+            exact_anchor_ref: availability
+                .is_exact()
+                .then(|| self.exact_anchor.exact_anchor_ref.clone()),
+            locale: "en".to_owned(),
+            version_match_state: version_match_from_docs(self.exact_anchor.version_match_state),
+            freshness_class: freshness_from_docs(self.exact_anchor.freshness),
+            locality_class: locality_from_docs(self.exact_anchor.locality),
+            citation_availability: availability,
+            inference_marker: CitationInferenceMarker::RawSource,
+            confidence_class: if availability.is_exact() {
+                CitationConfidenceClass::EvidenceBacked
+            } else {
+                CitationConfidenceClass::LowConfidence
+            },
+            hidden_or_omitted_note,
+        })
+    }
+
+    fn citation_evidence_view(&self) -> CitationDrawerEvidenceView {
+        CitationDrawerEvidenceView::from_node_and_anchors(
+            self.citation_drawer_hook.hook_id.clone(),
+            self.docs_node_identity(),
+            [self.citation_anchor_alpha()],
+            source_precedence_from_docs(self.project_vs_vendor_truth_cue),
+            self.citation_drawer_hook.exact_reopen_ref.clone(),
+        )
+    }
 }
 
 /// Inputs for one docs-linked search projection.
@@ -956,6 +1061,12 @@ impl DocsLinkedSearchProjection {
                     "docs row does not open a citation drawer or evidence view",
                 ));
             }
+            if !row.citation_evidence_view.validate().is_empty() {
+                findings.push(DocsLinkingValidationFinding::new(
+                    row.result_id.clone(),
+                    "docs row citation evidence view failed canonical validation",
+                ));
+            }
             match row.citation_availability {
                 DocsCitationAvailability::Available
                     if row.citation_drawer_hook.citation_anchor_refs.is_empty() =>
@@ -1038,6 +1149,10 @@ pub struct DocsLinkedSearchResult {
     pub citation_availability: DocsCitationAvailability,
     /// Citation drawer or evidence-view hook.
     pub citation_drawer_hook: DocsCitationDrawerHook,
+    /// Canonical docs-node identity shared by docs/help, onboarding, graph, and AI.
+    pub docs_node_identity: DocsNodeIdentity,
+    /// Canonical citation drawer or equivalent evidence view.
+    pub citation_evidence_view: CitationDrawerEvidenceView,
     /// Project-docs versus vendor-docs precedence cue.
     pub project_vs_vendor_truth_cue: DocsProjectVendorTruthCue,
     /// Symbol-link resolution class.
@@ -1081,6 +1196,8 @@ impl DocsLinkedSearchResult {
             freshness: reference.exact_anchor.freshness,
             citation_availability: reference.exact_anchor.citation_availability,
             citation_drawer_hook: reference.citation_drawer_hook.clone(),
+            docs_node_identity: reference.docs_node_identity(),
+            citation_evidence_view: reference.citation_evidence_view(),
             project_vs_vendor_truth_cue: reference.project_vs_vendor_truth_cue,
             resolution_class: reference.resolution_class,
             missing_anchor_downgrade_state: reference
@@ -1164,6 +1281,8 @@ pub struct DocsLinkingSupportRow {
     pub subject_ref: String,
     /// Exact anchor ref.
     pub exact_anchor_ref: String,
+    /// Canonical docs-node identity for support reconstruction.
+    pub docs_node_identity: DocsNodeIdentity,
     /// Doc kind token.
     pub doc_kind_token: String,
     /// Source class token.
@@ -1209,6 +1328,7 @@ impl DocsLinkingSupportRow {
             result_id: row.result_id.clone(),
             subject_ref: row.subject_ref.clone(),
             exact_anchor_ref: row.exact_anchor.exact_anchor_ref.clone(),
+            docs_node_identity: row.docs_node_identity.clone(),
             doc_kind_token: row.doc_kind.as_str().to_string(),
             source_class_token: row.source_class.as_str().to_string(),
             source_version: row.exact_anchor.source_version.clone(),
@@ -1264,6 +1384,106 @@ impl DocsLinkingValidationFinding {
 fn push_unique(target: &mut Vec<String>, value: &str) {
     if !target.iter().any(|existing| existing == value) {
         target.push(value.to_string());
+    }
+}
+
+fn docs_node_kind_from_doc_kind(kind: DocsDocKind) -> DocsNodeKind {
+    match kind {
+        DocsDocKind::ApiReference | DocsDocKind::GeneratedReference | DocsDocKind::ReleaseNote => {
+            DocsNodeKind::ReferencePage
+        }
+        DocsDocKind::Guide
+        | DocsDocKind::Example
+        | DocsDocKind::MigrationNote
+        | DocsDocKind::HelpArticle => DocsNodeKind::ProductHelp,
+        DocsDocKind::Runbook => DocsNodeKind::SupportRunbook,
+        DocsDocKind::Glossary => DocsNodeKind::GlossaryItem,
+    }
+}
+
+fn citation_source_class_from_docs(source_class: DocsSourceClass) -> CitationSourceClass {
+    match source_class {
+        DocsSourceClass::ProjectDocs => CitationSourceClass::ProjectDocs,
+        DocsSourceClass::GeneratedReference => CitationSourceClass::GeneratedReference,
+        DocsSourceClass::MirroredOfficialDocs => CitationSourceClass::MirroredOfficialDocs,
+        DocsSourceClass::CuratedKnowledgePack => CitationSourceClass::CuratedKnowledgePack,
+        DocsSourceClass::DerivedExplanation => CitationSourceClass::DerivedExplanation,
+        DocsSourceClass::VendorProviderDocs | DocsSourceClass::ExternalStatusFeed => {
+            CitationSourceClass::VendorProviderDocs
+        }
+        DocsSourceClass::SupportRunbook => CitationSourceClass::SupportRunbook,
+    }
+}
+
+fn freshness_from_docs(freshness: DocsFreshnessClass) -> CanonicalDocsFreshnessClass {
+    match freshness {
+        DocsFreshnessClass::AuthoritativeLive => CanonicalDocsFreshnessClass::AuthoritativeLive,
+        DocsFreshnessClass::WarmCached => CanonicalDocsFreshnessClass::WarmCached,
+        DocsFreshnessClass::DegradedCached => CanonicalDocsFreshnessClass::DegradedCached,
+        DocsFreshnessClass::Stale => CanonicalDocsFreshnessClass::Stale,
+        DocsFreshnessClass::Unverified => CanonicalDocsFreshnessClass::Unverified,
+    }
+}
+
+fn version_match_from_docs(version_match: DocsVersionMatchState) -> VersionMatchState {
+    match version_match {
+        DocsVersionMatchState::ExactBuildMatch => VersionMatchState::ExactBuildMatch,
+        DocsVersionMatchState::CompatibleMinorDrift => VersionMatchState::CompatibleMinorDrift,
+        DocsVersionMatchState::IncompatibleDriftDetected => {
+            VersionMatchState::IncompatibleDriftDetected
+        }
+        DocsVersionMatchState::PreReleaseUnverified => VersionMatchState::PreReleaseUnverified,
+        DocsVersionMatchState::UnknownTargetBuild => VersionMatchState::UnknownTargetBuild,
+    }
+}
+
+fn locality_from_docs(locality: DocsLocalityClass) -> CitationLocalityClass {
+    match locality {
+        DocsLocalityClass::LocalProjectPack => CitationLocalityClass::LocalProjectPack,
+        DocsLocalityClass::GeneratedLocal => CitationLocalityClass::GeneratedLocal,
+        DocsLocalityClass::MirroredOffline => CitationLocalityClass::MirroredOffline,
+        DocsLocalityClass::CachedLocal => CitationLocalityClass::CachedLocal,
+        DocsLocalityClass::VendorLive => CitationLocalityClass::VendorLive,
+        DocsLocalityClass::SupportPack => CitationLocalityClass::SupportPack,
+    }
+}
+
+fn citation_availability_from_docs(
+    availability: DocsCitationAvailability,
+) -> CitationAnchorAvailability {
+    match availability {
+        DocsCitationAvailability::Available => CitationAnchorAvailability::ExactAnchorAvailable,
+        DocsCitationAvailability::Missing => CitationAnchorAvailability::AnchorUnavailableDisclosed,
+        DocsCitationAvailability::NotRequired => CitationAnchorAvailability::NotCitationBearing,
+    }
+}
+
+fn docs_scope_from_subject(subject_kind: DocsSubjectKind) -> DocsScopeClass {
+    match subject_kind {
+        DocsSubjectKind::GlossaryTerm => DocsScopeClass::HelpPack,
+        DocsSubjectKind::OnboardingStep => DocsScopeClass::Onboarding,
+        DocsSubjectKind::RunbookStep | DocsSubjectKind::ServiceHealthEvent => {
+            DocsScopeClass::SupportExport
+        }
+        _ => DocsScopeClass::DocsHelp,
+    }
+}
+
+fn source_precedence_from_docs(cue: DocsProjectVendorTruthCue) -> SourcePrecedenceClass {
+    match cue {
+        DocsProjectVendorTruthCue::ProjectAuthoritativeOnly => {
+            SourcePrecedenceClass::ProjectAuthoritativeOnly
+        }
+        DocsProjectVendorTruthCue::ProjectOutranksVendorDefault => {
+            SourcePrecedenceClass::ProjectOutranksVendorDefault
+        }
+        DocsProjectVendorTruthCue::VendorOverridesProjectByPolicy
+        | DocsProjectVendorTruthCue::VendorProviderOverlayInspectOnly => {
+            SourcePrecedenceClass::VendorOverrideDisclosed
+        }
+        DocsProjectVendorTruthCue::NoProjectClaimVendorAvailable => {
+            SourcePrecedenceClass::ProjectVendorDisagreementInspectable
+        }
     }
 }
 

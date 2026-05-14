@@ -9,6 +9,15 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use aureline_docs::{
+    CitationAnchorAlpha, CitationAnchorAlphaInput,
+    CitationAnchorAvailability as CanonicalCitationAnchorAvailability, CitationConfidenceClass,
+    CitationDrawerEvidenceView, CitationEvidenceExport, CitationEvidenceExportInput,
+    CitationInferenceMarker, CitationLocalityClass, CitationSourceClass,
+    DocsFreshnessClass as CanonicalDocsFreshnessClass, DocsNodeIdentity, DocsNodeIdentityInput,
+    DocsNodeKind, DocsScopeClass, HelpPackItemEvidence, LocaleOverlayState, SourcePrecedenceClass,
+    VersionMatchState as CanonicalVersionMatchState,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::embedded::boundary_card::{FreshnessClass, SourceClass, VersionMatchState};
@@ -101,6 +110,86 @@ impl DocsPackAlphaManifest {
             exact_reopen_ref: node.exact_reopen_ref.clone(),
             source_strip: source_strip.clone(),
             citation_drawer: citation_drawer.clone(),
+        })
+    }
+
+    /// Projects the canonical docs-node identity for a shell docs-pack node.
+    pub fn canonical_docs_node_identity(&self, doc_node_id: &str) -> Option<DocsNodeIdentity> {
+        let node = self.node(doc_node_id)?;
+        Some(DocsNodeIdentity::new(DocsNodeIdentityInput {
+            docs_node_id: node.doc_node_id.clone(),
+            doc_kind: canonical_docs_node_kind(node.doc_kind),
+            source_class: canonical_source_class(node.source_class),
+            scope_class: canonical_scope_class(node.source_scope),
+            source_pack_ref: node.source_pack_ref.clone(),
+            source_pack_revision_ref: node.source_pack_revision_ref.clone(),
+            version_or_revision_ref: node.version_or_revision.clone(),
+            version_match_state: canonical_version_match_state(node.version_match_state),
+            freshness_class: canonical_freshness_class(node.freshness_class),
+            locality_class: canonical_locality_class(node.locality_state, node.install_state),
+            source_locale: node.primary_locale.clone(),
+            requested_locale: node.requested_locale.clone(),
+            effective_locale: node.effective_locale.clone(),
+            locale_overlay_state: canonical_locale_overlay_state(node.locale_availability),
+            source_language_fallback_ref: node.source_language_fallback_ref.clone(),
+            citation_availability: canonical_citation_availability(
+                node.citation_anchor_availability,
+            ),
+            citation_anchor_refs: node.citation_anchor_refs.clone(),
+            exact_reopen_ref: node.exact_reopen_ref.clone(),
+            hidden_or_omitted_note: canonical_anchor_note(node),
+        }))
+    }
+
+    /// Projects the canonical citation drawer/evidence view for a shell docs-pack node.
+    pub fn canonical_citation_evidence_for_node(
+        &self,
+        doc_node_id: &str,
+    ) -> Option<CitationDrawerEvidenceView> {
+        let node = self.node(doc_node_id)?;
+        let drawer = self.citation_drawer(&node.citation_drawer_ref)?;
+        let docs_node = self.canonical_docs_node_identity(doc_node_id)?;
+        let anchors = canonical_citation_anchors_for_drawer(node, drawer);
+        Some(CitationDrawerEvidenceView::from_node_and_anchors(
+            node.citation_drawer_ref.clone(),
+            docs_node,
+            anchors,
+            canonical_source_precedence(node.source_class),
+            format!("non-canvas:{}", node.citation_drawer_ref),
+        ))
+    }
+
+    /// Projects an export-safe canonical citation packet for docs/help support handoff.
+    pub fn canonical_citation_evidence_export(
+        &self,
+        export_id: impl Into<String>,
+        generated_at: impl Into<String>,
+    ) -> CitationEvidenceExport {
+        let docs_nodes = self
+            .docs_nodes
+            .iter()
+            .filter_map(|node| self.canonical_docs_node_identity(&node.doc_node_id))
+            .collect::<Vec<_>>();
+        let citation_drawers = self
+            .docs_nodes
+            .iter()
+            .filter_map(|node| self.canonical_citation_evidence_for_node(&node.doc_node_id))
+            .collect::<Vec<_>>();
+        let help_pack_items = self
+            .docs_nodes
+            .iter()
+            .map(canonical_help_pack_item_for_node)
+            .collect::<Vec<_>>();
+
+        CitationEvidenceExport::new(CitationEvidenceExportInput {
+            export_id: export_id.into(),
+            surface_ref: "docs-help:shell-docs-pack".to_owned(),
+            generated_at: generated_at.into(),
+            docs_nodes,
+            citation_drawers,
+            help_pack_items,
+            ai_evidence_packet_refs: Vec::new(),
+            explainer_packet_refs: Vec::new(),
         })
     }
 
@@ -913,6 +1002,231 @@ impl DocsPackCitationAnchorAvailability {
     }
 }
 
+fn canonical_docs_node_kind(doc_kind: DocsPackDocKind) -> DocsNodeKind {
+    match doc_kind {
+        DocsPackDocKind::ProductHelp => DocsNodeKind::ProductHelp,
+        DocsPackDocKind::OnboardingStep => DocsNodeKind::OnboardingCard,
+        DocsPackDocKind::ReferencePage => DocsNodeKind::ReferencePage,
+        DocsPackDocKind::TroubleshootingRunbook => DocsNodeKind::SupportRunbook,
+        DocsPackDocKind::MigrationNote | DocsPackDocKind::StaleExampleWarning => {
+            DocsNodeKind::ProductHelp
+        }
+    }
+}
+
+fn canonical_source_class(source_class: DocsPackSourceClass) -> CitationSourceClass {
+    match source_class {
+        DocsPackSourceClass::ProjectDocs => CitationSourceClass::ProjectDocs,
+        DocsPackSourceClass::GeneratedReference => CitationSourceClass::GeneratedReference,
+        DocsPackSourceClass::MirroredOfficialDocs => CitationSourceClass::MirroredOfficialDocs,
+        DocsPackSourceClass::CuratedKnowledgePack => CitationSourceClass::CuratedKnowledgePack,
+        DocsPackSourceClass::SupportRunbook => CitationSourceClass::SupportRunbook,
+    }
+}
+
+fn canonical_scope_class(scope_class: DocsPackScopeClass) -> DocsScopeClass {
+    match scope_class {
+        DocsPackScopeClass::LaunchWedge | DocsPackScopeClass::DocsMaintenance => {
+            DocsScopeClass::DocsHelp
+        }
+        DocsPackScopeClass::Onboarding => DocsScopeClass::Onboarding,
+        DocsPackScopeClass::Troubleshooting => DocsScopeClass::SupportExport,
+    }
+}
+
+fn canonical_version_match_state(
+    version_match_state: DocsPackVersionMatchState,
+) -> CanonicalVersionMatchState {
+    match version_match_state {
+        DocsPackVersionMatchState::ExactBuildMatch => CanonicalVersionMatchState::ExactBuildMatch,
+        DocsPackVersionMatchState::CompatibleMinorDrift => {
+            CanonicalVersionMatchState::CompatibleMinorDrift
+        }
+        DocsPackVersionMatchState::IncompatibleDriftDetected => {
+            CanonicalVersionMatchState::IncompatibleDriftDetected
+        }
+        DocsPackVersionMatchState::PreReleaseUnverified => {
+            CanonicalVersionMatchState::PreReleaseUnverified
+        }
+        DocsPackVersionMatchState::UnknownTargetBuild => {
+            CanonicalVersionMatchState::UnknownTargetBuild
+        }
+    }
+}
+
+fn canonical_freshness_class(
+    freshness_class: DocsPackFreshnessClass,
+) -> CanonicalDocsFreshnessClass {
+    match freshness_class {
+        DocsPackFreshnessClass::AuthoritativeLive => CanonicalDocsFreshnessClass::AuthoritativeLive,
+        DocsPackFreshnessClass::WarmCached => CanonicalDocsFreshnessClass::WarmCached,
+        DocsPackFreshnessClass::DegradedCached => CanonicalDocsFreshnessClass::DegradedCached,
+        DocsPackFreshnessClass::Stale => CanonicalDocsFreshnessClass::Stale,
+        DocsPackFreshnessClass::Unverified => CanonicalDocsFreshnessClass::Unverified,
+    }
+}
+
+fn canonical_locality_class(
+    locality_state: DocsPackLocalityState,
+    install_state: DocsPackInstallState,
+) -> CitationLocalityClass {
+    match (locality_state, install_state) {
+        (DocsPackLocalityState::NotInstalled, _) | (_, DocsPackInstallState::NotInstalled) => {
+            CitationLocalityClass::NotInstalled
+        }
+        (DocsPackLocalityState::LocalOnly, _) => CitationLocalityClass::LocalProjectPack,
+        (DocsPackLocalityState::MirrorOnly, _) | (_, DocsPackInstallState::MirrorOnlyVerified) => {
+            CitationLocalityClass::MirroredOffline
+        }
+        (DocsPackLocalityState::WarmLocalCache, _) | (_, DocsPackInstallState::CachedOnly) => {
+            CitationLocalityClass::CachedLocal
+        }
+        (DocsPackLocalityState::LiveInstalledCurrent, _) => CitationLocalityClass::CachedLocal,
+    }
+}
+
+fn canonical_locale_overlay_state(
+    locale_availability: DocsPackLocaleAvailability,
+) -> LocaleOverlayState {
+    match locale_availability {
+        DocsPackLocaleAvailability::RequestedLocaleAuthoritative => {
+            LocaleOverlayState::RequestedLocaleAvailable
+        }
+        DocsPackLocaleAvailability::RequestedLocalePartial => {
+            LocaleOverlayState::LocaleOverlayPartial
+        }
+        DocsPackLocaleAvailability::RequestedLocaleMissingFallbackToPrimary => {
+            LocaleOverlayState::LocaleMissingFallbackToSourceLanguage
+        }
+        DocsPackLocaleAvailability::RequestedLocaleNotInstalled => {
+            LocaleOverlayState::LocaleMissingNotInstalled
+        }
+    }
+}
+
+fn canonical_citation_availability(
+    availability: DocsPackCitationAnchorAvailability,
+) -> CanonicalCitationAnchorAvailability {
+    match availability {
+        DocsPackCitationAnchorAvailability::Available => {
+            CanonicalCitationAnchorAvailability::ExactAnchorAvailable
+        }
+        DocsPackCitationAnchorAvailability::RequiredMissing => {
+            CanonicalCitationAnchorAvailability::AnchorUnavailableDisclosed
+        }
+        DocsPackCitationAnchorAvailability::NotRequired => {
+            CanonicalCitationAnchorAvailability::NotCitationBearing
+        }
+    }
+}
+
+fn canonical_source_precedence(source_class: DocsPackSourceClass) -> SourcePrecedenceClass {
+    match source_class {
+        DocsPackSourceClass::ProjectDocs => SourcePrecedenceClass::ProjectAuthoritativeOnly,
+        _ => SourcePrecedenceClass::NotApplicable,
+    }
+}
+
+fn canonical_anchor_note(node: &DocsPackNode) -> Option<String> {
+    if node.citation_anchor_availability == DocsPackCitationAnchorAvailability::RequiredMissing {
+        Some(format!(
+            "Citation anchor unavailable; disclosed degraded reasons: {}.",
+            node.degraded_reasons.join(",")
+        ))
+    } else if node.locale_availability
+        == DocsPackLocaleAvailability::RequestedLocaleMissingFallbackToPrimary
+    {
+        Some(
+            "Requested locale falls back to the source language while preserving citation refs."
+                .to_owned(),
+        )
+    } else {
+        None
+    }
+}
+
+fn canonical_citation_anchors_for_drawer(
+    node: &DocsPackNode,
+    drawer: &DocsPackCitationDrawer,
+) -> Vec<CitationAnchorAlpha> {
+    if drawer.rows.is_empty()
+        && node.citation_anchor_availability == DocsPackCitationAnchorAvailability::RequiredMissing
+    {
+        return vec![canonical_missing_anchor_for_node(node)];
+    }
+
+    drawer
+        .rows
+        .iter()
+        .map(|row| canonical_citation_anchor_for_row(node, row))
+        .collect()
+}
+
+fn canonical_missing_anchor_for_node(node: &DocsPackNode) -> CitationAnchorAlpha {
+    CitationAnchorAlpha::new(CitationAnchorAlphaInput {
+        anchor_id: format!("citation:missing:{}", node.doc_node_id),
+        docs_node_ref: node.doc_node_id.clone(),
+        source_class: canonical_source_class(node.source_class),
+        source_pack_ref: node.source_pack_ref.clone(),
+        source_pack_revision_ref: node.source_pack_revision_ref.clone(),
+        target_ref: node
+            .help_anchor_id
+            .clone()
+            .unwrap_or_else(|| node.doc_node_id.clone()),
+        exact_anchor_ref: None,
+        locale: node.effective_locale.clone(),
+        version_match_state: canonical_version_match_state(node.version_match_state),
+        freshness_class: canonical_freshness_class(node.freshness_class),
+        locality_class: canonical_locality_class(node.locality_state, node.install_state),
+        citation_availability: CanonicalCitationAnchorAvailability::AnchorUnavailableDisclosed,
+        inference_marker: CitationInferenceMarker::RawSource,
+        confidence_class: CitationConfidenceClass::UnknownUnverified,
+        hidden_or_omitted_note: canonical_anchor_note(node),
+    })
+}
+
+fn canonical_citation_anchor_for_row(
+    node: &DocsPackNode,
+    row: &DocsPackCitationRow,
+) -> CitationAnchorAlpha {
+    let availability = canonical_citation_availability(node.citation_anchor_availability);
+    CitationAnchorAlpha::new(CitationAnchorAlphaInput {
+        anchor_id: row.citation_ref.clone(),
+        docs_node_ref: node.doc_node_id.clone(),
+        source_class: canonical_source_class(node.source_class),
+        source_pack_ref: node.source_pack_ref.clone(),
+        source_pack_revision_ref: row.pack_revision_ref.clone(),
+        target_ref: row.anchor_ref.clone(),
+        exact_anchor_ref: availability.is_exact().then(|| row.anchor_ref.clone()),
+        locale: node.effective_locale.clone(),
+        version_match_state: canonical_version_match_state(node.version_match_state),
+        freshness_class: canonical_freshness_class(row.freshness_class),
+        locality_class: canonical_locality_class(node.locality_state, node.install_state),
+        citation_availability: availability,
+        inference_marker: CitationInferenceMarker::RawSource,
+        confidence_class: CitationConfidenceClass::EvidenceBacked,
+        hidden_or_omitted_note: availability
+            .requires_note()
+            .then(|| canonical_anchor_note(node))
+            .flatten(),
+    })
+}
+
+fn canonical_help_pack_item_for_node(node: &DocsPackNode) -> HelpPackItemEvidence {
+    HelpPackItemEvidence {
+        pack_id: node.source_pack_ref.clone(),
+        item_id: node.doc_node_id.clone(),
+        item_kind: canonical_docs_node_kind(node.doc_kind),
+        pack_revision_ref: node.source_pack_revision_ref.clone(),
+        requested_locale: node.requested_locale.clone(),
+        effective_locale: node.effective_locale.clone(),
+        locale_overlay_state: canonical_locale_overlay_state(node.locale_availability),
+        source_language_fallback_ref: node.source_language_fallback_ref.clone(),
+        citation_anchor_refs: node.citation_anchor_refs.clone(),
+        citation_availability: canonical_citation_availability(node.citation_anchor_availability),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -1075,6 +1389,35 @@ mod tests {
     }
 
     #[test]
+    fn canonical_citation_drawer_preserves_exact_and_missing_anchor_truth() {
+        let manifest = current_docs_pack_manifest().expect("manifest parses");
+
+        let exact = manifest
+            .canonical_citation_evidence_for_node("docs-node:project-entry.open-folder")
+            .expect("exact citation evidence exists");
+        assert!(exact.validate().is_empty());
+        assert_eq!(
+            exact.docs_node.citation_availability,
+            CanonicalCitationAnchorAvailability::ExactAnchorAvailable
+        );
+        assert_eq!(
+            exact.rows[0].exact_anchor_ref.as_deref(),
+            Some("docs:anchor:workspace:open_folder_overview")
+        );
+
+        let missing = manifest
+            .canonical_citation_evidence_for_node("docs-node:onboarding.deep-dive.not-installed")
+            .expect("missing citation evidence exists");
+        assert!(missing.validate().is_empty());
+        assert!(missing.degrades_certainty());
+        assert_eq!(
+            missing.rows[0].citation_availability,
+            CanonicalCitationAnchorAvailability::AnchorUnavailableDisclosed
+        );
+        assert!(missing.rows[0].hidden_or_omitted_note.is_some());
+    }
+
+    #[test]
     fn locale_overlay_preserves_source_fallback_and_citation_continuity() {
         let manifest = current_docs_pack_manifest().expect("manifest parses");
         let node = manifest
@@ -1096,6 +1439,22 @@ mod tests {
             .citation_drawer_for_node(&node.doc_node_id)
             .expect("fallback node has drawer");
         assert_eq!(drawer.citation_drawer.rows.len(), 2);
+
+        let canonical_export = manifest.canonical_citation_evidence_export(
+            "citation-export:docs-pack-alpha:test",
+            "2026-05-13T12:00:00Z",
+        );
+        assert!(canonical_export.validate().is_empty());
+        assert!(canonical_export.help_pack_items.iter().any(|item| {
+            item.item_id == "docs-node:onboarding.keymap-bridge"
+                && item.locale_overlay_state
+                    == LocaleOverlayState::LocaleMissingFallbackToSourceLanguage
+                && item.source_language_fallback_ref.as_deref()
+                    == Some("docs-node:onboarding.keymap-bridge#en-US")
+        }));
+        assert!(canonical_export.export_safe_json().contains(
+            "\"source_language_fallback_ref\": \"docs-node:onboarding.keymap-bridge#en-US\""
+        ));
     }
 
     #[test]

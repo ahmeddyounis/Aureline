@@ -8,9 +8,16 @@
 
 use std::collections::BTreeSet;
 
+use aureline_docs::{
+    CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
+    CitationConfidenceClass, CitationDrawerEvidenceView, CitationInferenceMarker,
+    CitationLocalityClass, CitationSourceClass, DocsFreshnessClass, DocsNodeIdentity,
+    DocsNodeIdentityInput, DocsNodeKind, DocsScopeClass, LocaleOverlayState, SourcePrecedenceClass,
+    VersionMatchState,
+};
 use aureline_graph_proto::{
-    ConfidenceLevel, EdgeClass, EdgeEvidenceState, Freshness, GraphEdge, GraphNode, NodeBody,
-    ProvenanceClass, QueryFamilyTag, SourceClass,
+    AnchorKind, ConfidenceLevel, EdgeClass, EdgeEvidenceState, Freshness, GraphEdge, GraphNode,
+    NodeBody, ProvenanceClass, QueryFamilyTag, SourceClass,
 };
 use serde::{Deserialize, Serialize};
 
@@ -276,6 +283,8 @@ pub struct EvidenceCitation {
     pub symbol_ref: Option<String>,
     /// Stable docs ref when a cited node resolves to a docs object.
     pub doc_ref: Option<String>,
+    /// Canonical docs-node identity when the citation points at docs or help.
+    pub docs_node_identity: Option<DocsNodeIdentity>,
 }
 
 /// Compact evidence card rendered beside an impact explainer packet.
@@ -299,6 +308,8 @@ pub struct EvidenceCard {
     pub cited_doc_count: usize,
     /// Ordered citations backing this card.
     pub citations: Vec<EvidenceCitation>,
+    /// Canonical citation drawers for cited docs nodes.
+    pub citation_evidence_views: Vec<CitationDrawerEvidenceView>,
     /// Open-detail actions exposed by this card.
     pub open_detail_actions: Vec<OpenDetailAction>,
 }
@@ -672,6 +683,10 @@ fn evidence_card_for_packet(
         cited_file_count,
         cited_symbol_count,
         cited_doc_count,
+        citation_evidence_views: citations
+            .iter()
+            .filter_map(|citation| docs_citation_view_for_evidence(citation, packet_id))
+            .collect(),
         citations,
         open_detail_actions: open_detail_actions(envelope, packet_id, impact_summary),
     }
@@ -832,6 +847,7 @@ fn node_citation(index: usize, node: &GraphNode) -> EvidenceCitation {
         file_path: file_path_for_node(node),
         symbol_ref: symbol_ref_for_node(node),
         doc_ref: doc_ref_for_node(node),
+        docs_node_identity: docs_node_identity_for_node(node),
     }
 }
 
@@ -848,6 +864,7 @@ fn edge_citation(index: usize, edge: &GraphEdge) -> EvidenceCitation {
         file_path: None,
         symbol_ref: None,
         doc_ref: None,
+        docs_node_identity: None,
     }
 }
 
@@ -1012,6 +1029,204 @@ fn doc_ref_for_node(node: &GraphNode) -> Option<String> {
     match &node.node_body {
         NodeBody::Doc { doc_ref, .. } => Some(doc_ref.clone()),
         _ => None,
+    }
+}
+
+fn docs_node_identity_for_node(node: &GraphNode) -> Option<DocsNodeIdentity> {
+    let NodeBody::Doc {
+        doc_kind, doc_ref, ..
+    } = &node.node_body
+    else {
+        return None;
+    };
+    let exact_anchor_ref = first_source_anchor_ref(node);
+    let citation_availability = if exact_anchor_ref.is_some() {
+        CitationAnchorAvailability::ExactAnchorAvailable
+    } else {
+        CitationAnchorAvailability::AnchorUnavailableDisclosed
+    };
+    let source_pack_ref = node
+        .provenance_stamp
+        .imported_bundle_ref
+        .clone()
+        .or_else(|| node.provenance_stamp.producer_ref.clone())
+        .unwrap_or_else(|| "graph-docs-pack:unknown".to_owned());
+    let source_pack_revision_ref = node
+        .provenance_stamp
+        .producer_version
+        .clone()
+        .unwrap_or_else(|| node.provenance_stamp.recorded_at.clone());
+    let hidden_or_omitted_note = if citation_availability.requires_note() {
+        Some("graph docs node did not carry an exact source anchor".to_owned())
+    } else {
+        None
+    };
+
+    Some(DocsNodeIdentity::new(DocsNodeIdentityInput {
+        docs_node_id: node.node_id.clone(),
+        doc_kind: docs_node_kind_from_graph_doc_kind(doc_kind),
+        source_class: citation_source_class_from_graph(node.provenance_stamp.source_class),
+        scope_class: DocsScopeClass::Explainer,
+        source_pack_ref,
+        source_pack_revision_ref: source_pack_revision_ref.clone(),
+        version_or_revision_ref: source_pack_revision_ref,
+        version_match_state: version_match_from_graph_freshness(node.freshness_frame.freshness),
+        freshness_class: freshness_from_graph(node.freshness_frame.freshness),
+        locality_class: locality_from_graph_source(node.provenance_stamp.source_class),
+        source_locale: "en".to_owned(),
+        requested_locale: "en".to_owned(),
+        effective_locale: "en".to_owned(),
+        locale_overlay_state: LocaleOverlayState::SourceLanguageOriginal,
+        source_language_fallback_ref: None,
+        citation_availability,
+        citation_anchor_refs: exact_anchor_ref.into_iter().collect(),
+        exact_reopen_ref: format!("reopen:{doc_ref}"),
+        hidden_or_omitted_note,
+    }))
+}
+
+fn docs_citation_view_for_evidence(
+    citation: &EvidenceCitation,
+    packet_id: &str,
+) -> Option<CitationDrawerEvidenceView> {
+    let docs_node = citation.docs_node_identity.clone()?;
+    let anchor_ref = docs_node
+        .citation_anchor_refs
+        .first()
+        .cloned()
+        .unwrap_or_else(|| format!("missing-anchor:{}", citation.subject_ref));
+    let availability = docs_node.citation_availability;
+    let anchor = CitationAnchorAlpha::new(CitationAnchorAlphaInput {
+        anchor_id: anchor_ref.clone(),
+        docs_node_ref: docs_node.docs_node_id.clone(),
+        source_class: docs_node.source_class,
+        source_pack_ref: docs_node.source_pack_ref.clone(),
+        source_pack_revision_ref: docs_node.source_pack_revision_ref.clone(),
+        target_ref: citation
+            .doc_ref
+            .clone()
+            .unwrap_or_else(|| citation.subject_ref.clone()),
+        exact_anchor_ref: availability.is_exact().then(|| anchor_ref.clone()),
+        locale: docs_node.effective_locale.clone(),
+        version_match_state: docs_node.version_match_state,
+        freshness_class: docs_node.freshness_class,
+        locality_class: docs_node.locality_class,
+        citation_availability: availability,
+        inference_marker: inference_marker_from_evidence(citation),
+        confidence_class: confidence_from_token(&citation.confidence),
+        hidden_or_omitted_note: docs_node.hidden_or_omitted_note.clone(),
+    });
+    Some(CitationDrawerEvidenceView::from_node_and_anchors(
+        format!("citation-drawer:{packet_id}:{}", citation.citation_id),
+        docs_node,
+        [anchor],
+        SourcePrecedenceClass::NotApplicable,
+        format!("{packet_id}:non_canvas_citations"),
+    ))
+}
+
+fn first_source_anchor_ref(node: &GraphNode) -> Option<String> {
+    node.source_anchors
+        .iter()
+        .find(|anchor| {
+            matches!(
+                anchor.anchor_kind,
+                AnchorKind::DocsPackEntry
+                    | AnchorKind::SymbolDefinitionSite
+                    | AnchorKind::FilesystemIdentity
+                    | AnchorKind::AnnotationNote
+            ) && !anchor.anchor_ref.trim().is_empty()
+        })
+        .map(|anchor| anchor.anchor_ref.clone())
+}
+
+fn docs_node_kind_from_graph_doc_kind(doc_kind: &str) -> DocsNodeKind {
+    let normalized = doc_kind.to_ascii_lowercase();
+    if normalized.contains("glossary") {
+        DocsNodeKind::GlossaryItem
+    } else if normalized.contains("onboarding") {
+        DocsNodeKind::OnboardingCard
+    } else if normalized.contains("runbook") {
+        DocsNodeKind::SupportRunbook
+    } else if normalized.contains("explain") {
+        DocsNodeKind::DerivedExplainer
+    } else {
+        DocsNodeKind::ReferencePage
+    }
+}
+
+fn citation_source_class_from_graph(source_class: SourceClass) -> CitationSourceClass {
+    match source_class {
+        SourceClass::WorkspaceFilesystem | SourceClass::ManualAnnotation => {
+            CitationSourceClass::ProjectDocs
+        }
+        SourceClass::DocsPack | SourceClass::ImportedBundle => {
+            CitationSourceClass::MirroredOfficialDocs
+        }
+        SourceClass::CodegenTool | SourceClass::BuildToolchain => {
+            CitationSourceClass::GeneratedReference
+        }
+        SourceClass::ConnectedProvider | SourceClass::RemoteAgent => {
+            CitationSourceClass::VendorProviderDocs
+        }
+        SourceClass::AiInference => CitationSourceClass::DerivedExplanation,
+        _ => CitationSourceClass::ProjectDocs,
+    }
+}
+
+fn freshness_from_graph(freshness: Freshness) -> DocsFreshnessClass {
+    match freshness {
+        Freshness::Authoritative => DocsFreshnessClass::AuthoritativeLive,
+        Freshness::Warming | Freshness::Cached => DocsFreshnessClass::WarmCached,
+        Freshness::Stale => DocsFreshnessClass::Stale,
+        Freshness::Replayed | Freshness::Imported => DocsFreshnessClass::DegradedCached,
+    }
+}
+
+fn version_match_from_graph_freshness(freshness: Freshness) -> VersionMatchState {
+    match freshness {
+        Freshness::Authoritative => VersionMatchState::ExactBuildMatch,
+        Freshness::Cached | Freshness::Warming => VersionMatchState::CompatibleMinorDrift,
+        Freshness::Stale | Freshness::Imported | Freshness::Replayed => {
+            VersionMatchState::UnknownTargetBuild
+        }
+    }
+}
+
+fn locality_from_graph_source(source_class: SourceClass) -> CitationLocalityClass {
+    match source_class {
+        SourceClass::WorkspaceFilesystem | SourceClass::ManualAnnotation => {
+            CitationLocalityClass::LocalProjectPack
+        }
+        SourceClass::DocsPack | SourceClass::ImportedBundle => {
+            CitationLocalityClass::MirroredOffline
+        }
+        SourceClass::CodegenTool | SourceClass::BuildToolchain => {
+            CitationLocalityClass::GeneratedLocal
+        }
+        SourceClass::ConnectedProvider | SourceClass::RemoteAgent => {
+            CitationLocalityClass::VendorLive
+        }
+        _ => CitationLocalityClass::CachedLocal,
+    }
+}
+
+fn inference_marker_from_evidence(citation: &EvidenceCitation) -> CitationInferenceMarker {
+    if citation.source_kind == ExplainerSourceKind::Generated {
+        CitationInferenceMarker::GeneratedSummary
+    } else if matches!(citation.confidence.as_str(), "low" | "unknown") {
+        CitationInferenceMarker::Heuristic
+    } else {
+        CitationInferenceMarker::RawSource
+    }
+}
+
+fn confidence_from_token(confidence: &str) -> CitationConfidenceClass {
+    match confidence {
+        "high" => CitationConfidenceClass::EvidenceBacked,
+        "medium" => CitationConfidenceClass::Inferred,
+        "low" => CitationConfidenceClass::LowConfidence,
+        _ => CitationConfidenceClass::UnknownUnverified,
     }
 }
 

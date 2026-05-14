@@ -12,6 +12,10 @@
 //! raw provider payloads, exact token counts, exact cost amounts, or
 //! credential material.
 
+use aureline_docs::{
+    CitationAnchorAlpha, CitationAnchorAvailability as DocsCitationAnchorAvailability,
+    CitationSourceClass, DocsFreshnessClass, DocsNodeIdentity,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::context_inspector::{AiContextEvidenceHandoff, AiContextEvidenceHandoffRow};
@@ -579,6 +583,12 @@ pub struct CitedSourceReference {
     /// Exact citation anchor ref when available.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exact_anchor_ref: Option<String>,
+    /// Canonical docs-node identity when the source came from docs/help knowledge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_node_identity: Option<DocsNodeIdentity>,
+    /// Canonical citation anchor record when the source can preserve one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citation_anchor: Option<CitationAnchorAlpha>,
     /// Citation visibility posture.
     pub citation_visibility_class: CitationVisibilityClass,
     /// Note explaining hidden, omitted, or unavailable citation truth.
@@ -591,6 +601,33 @@ pub struct CitedSourceReference {
 }
 
 impl CitedSourceReference {
+    /// Builds an AI source reference from canonical docs citation records.
+    pub fn from_docs_citation(
+        source_reference_id: impl Into<String>,
+        docs_node_identity: DocsNodeIdentity,
+        citation_anchor: CitationAnchorAlpha,
+        source_posture: EvidenceSourcePosture,
+    ) -> Self {
+        let source_class = cited_source_class_from_docs_source(citation_anchor.source_class);
+        let citation_visibility_class =
+            citation_visibility_from_docs_anchor(citation_anchor.citation_availability);
+        Self {
+            source_reference_id: source_reference_id.into(),
+            source_class,
+            source_identity_ref: docs_node_identity.docs_node_id.clone(),
+            source_revision_ref: Some(docs_node_identity.version_or_revision_ref.clone()),
+            docs_pack_ref: Some(docs_node_identity.source_pack_ref.clone()),
+            docs_pack_revision_ref: Some(docs_node_identity.source_pack_revision_ref.clone()),
+            exact_anchor_ref: citation_anchor.exact_anchor_ref.clone(),
+            docs_node_identity: Some(docs_node_identity),
+            citation_anchor: Some(citation_anchor.clone()),
+            citation_visibility_class,
+            hidden_or_omitted_citation_note: citation_anchor.hidden_or_omitted_note,
+            source_posture,
+            freshness_class: evidence_freshness_from_docs(citation_anchor.freshness_class),
+        }
+    }
+
     /// True when the source row has enough docs-pack or revision truth
     /// to reconstruct the citation context.
     pub fn has_reconstructible_docs_identity(&self) -> bool {
@@ -1211,6 +1248,30 @@ impl AiMutationEvidencePacket {
             {
                 violations.push(AiMutationEvidenceViolation::HiddenOrOmittedCitationNoteMissing);
             }
+            if source
+                .docs_node_identity
+                .as_ref()
+                .is_some_and(|identity| !identity.validate().is_empty())
+            {
+                violations.push(AiMutationEvidenceViolation::DocsCitationRecordInvalid);
+            }
+            if source
+                .citation_anchor
+                .as_ref()
+                .is_some_and(|anchor| !anchor.validate().is_empty())
+            {
+                violations.push(AiMutationEvidenceViolation::DocsCitationRecordInvalid);
+            }
+            if let (Some(identity), Some(anchor)) =
+                (&source.docs_node_identity, &source.citation_anchor)
+            {
+                if identity.docs_node_id != anchor.docs_node_ref
+                    || identity.source_pack_revision_ref != anchor.source_pack_revision_ref
+                    || source.source_identity_ref != identity.docs_node_id
+                {
+                    violations.push(AiMutationEvidenceViolation::DocsCitationRecordMismatch);
+                }
+            }
             if source.source_posture == EvidenceSourcePosture::TaintedExternal {
                 let has_fence = self.tainted_context_fences.iter().any(|fence| {
                     fence.source_reference_ref.as_deref()
@@ -1470,6 +1531,12 @@ pub struct AiMutationEvidenceCitationSupportRow {
     /// Exact anchor ref.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exact_anchor_ref: Option<String>,
+    /// Canonical docs-node identity preserved for support reconstruction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_node_identity: Option<DocsNodeIdentity>,
+    /// Canonical citation anchor preserved for support reconstruction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citation_anchor: Option<CitationAnchorAlpha>,
     /// Citation visibility token.
     pub citation_visibility_token: String,
     /// Hidden or omitted citation note.
@@ -1491,6 +1558,8 @@ impl AiMutationEvidenceCitationSupportRow {
             docs_pack_ref: source.docs_pack_ref.clone(),
             docs_pack_revision_ref: source.docs_pack_revision_ref.clone(),
             exact_anchor_ref: source.exact_anchor_ref.clone(),
+            docs_node_identity: source.docs_node_identity.clone(),
+            citation_anchor: source.citation_anchor.clone(),
             citation_visibility_token: source.citation_visibility_class.as_str().to_owned(),
             hidden_or_omitted_citation_note: source.hidden_or_omitted_citation_note.clone(),
             source_posture_token: source.source_posture.as_str().to_owned(),
@@ -1630,6 +1699,10 @@ pub enum AiMutationEvidenceViolation {
     ContextHandoffInvalid,
     /// Context handoff points at a different composer session, draft, or workspace.
     ContextHandoffIdentityMismatch,
+    /// Canonical docs citation records failed their own validation.
+    DocsCitationRecordInvalid,
+    /// Canonical docs citation records disagree with the AI source row identity.
+    DocsCitationRecordMismatch,
 }
 
 impl AiMutationEvidenceViolation {
@@ -1668,7 +1741,49 @@ impl AiMutationEvidenceViolation {
             Self::RawBoundaryMaterialInExport => "raw_boundary_material_in_export",
             Self::ContextHandoffInvalid => "context_handoff_invalid",
             Self::ContextHandoffIdentityMismatch => "context_handoff_identity_mismatch",
+            Self::DocsCitationRecordInvalid => "docs_citation_record_invalid",
+            Self::DocsCitationRecordMismatch => "docs_citation_record_mismatch",
         }
+    }
+}
+
+fn cited_source_class_from_docs_source(source_class: CitationSourceClass) -> CitedSourceClass {
+    match source_class {
+        CitationSourceClass::ProjectDocs
+        | CitationSourceClass::MirroredOfficialDocs
+        | CitationSourceClass::VendorProviderDocs
+        | CitationSourceClass::SupportRunbook => CitedSourceClass::DocsPackExcerpt,
+        CitationSourceClass::GeneratedReference => CitedSourceClass::GeneratedReference,
+        CitationSourceClass::CuratedKnowledgePack => CitedSourceClass::GlossaryEntry,
+        CitationSourceClass::DerivedExplanation => CitedSourceClass::ExplainerSnapshot,
+    }
+}
+
+fn citation_visibility_from_docs_anchor(
+    availability: DocsCitationAnchorAvailability,
+) -> CitationVisibilityClass {
+    match availability {
+        DocsCitationAnchorAvailability::ExactAnchorAvailable => {
+            CitationVisibilityClass::AnchorAvailable
+        }
+        DocsCitationAnchorAvailability::AnchorUnavailableDisclosed => {
+            CitationVisibilityClass::AnchorUnavailableDisclosed
+        }
+        DocsCitationAnchorAvailability::HiddenByPolicy => CitationVisibilityClass::HiddenByPolicy,
+        DocsCitationAnchorAvailability::OmittedByPolicy => CitationVisibilityClass::OmittedByPolicy,
+        DocsCitationAnchorAvailability::NotCitationBearing => {
+            CitationVisibilityClass::NotCitationBearing
+        }
+    }
+}
+
+fn evidence_freshness_from_docs(freshness_class: DocsFreshnessClass) -> EvidenceFreshnessClass {
+    match freshness_class {
+        DocsFreshnessClass::AuthoritativeLive => EvidenceFreshnessClass::AuthoritativeLive,
+        DocsFreshnessClass::WarmCached => EvidenceFreshnessClass::WarmCached,
+        DocsFreshnessClass::DegradedCached => EvidenceFreshnessClass::DegradedCached,
+        DocsFreshnessClass::Stale => EvidenceFreshnessClass::Stale,
+        DocsFreshnessClass::Unverified => EvidenceFreshnessClass::Unverified,
     }
 }
 
@@ -1801,6 +1916,64 @@ fn source_contains_forbidden_boundary_material(source: &CitedSourceReference) ->
             .is_some_and(contains_forbidden_boundary_material)
         || source
             .hidden_or_omitted_citation_note
+            .as_deref()
+            .is_some_and(contains_forbidden_boundary_material)
+        || source
+            .docs_node_identity
+            .as_ref()
+            .is_some_and(docs_node_identity_contains_forbidden_boundary_material)
+        || source
+            .citation_anchor
+            .as_ref()
+            .is_some_and(citation_anchor_contains_forbidden_boundary_material)
+}
+
+fn docs_node_identity_contains_forbidden_boundary_material(identity: &DocsNodeIdentity) -> bool {
+    [
+        identity.record_kind.as_str(),
+        identity.docs_node_id.as_str(),
+        identity.source_pack_ref.as_str(),
+        identity.source_pack_revision_ref.as_str(),
+        identity.version_or_revision_ref.as_str(),
+        identity.source_locale.as_str(),
+        identity.requested_locale.as_str(),
+        identity.effective_locale.as_str(),
+        identity.exact_reopen_ref.as_str(),
+    ]
+    .iter()
+    .any(|value| contains_forbidden_boundary_material(value))
+        || identity
+            .source_language_fallback_ref
+            .as_deref()
+            .is_some_and(contains_forbidden_boundary_material)
+        || identity
+            .hidden_or_omitted_note
+            .as_deref()
+            .is_some_and(contains_forbidden_boundary_material)
+        || identity
+            .citation_anchor_refs
+            .iter()
+            .any(|value| contains_forbidden_boundary_material(value))
+}
+
+fn citation_anchor_contains_forbidden_boundary_material(anchor: &CitationAnchorAlpha) -> bool {
+    [
+        anchor.record_kind.as_str(),
+        anchor.anchor_id.as_str(),
+        anchor.docs_node_ref.as_str(),
+        anchor.source_pack_ref.as_str(),
+        anchor.source_pack_revision_ref.as_str(),
+        anchor.target_ref.as_str(),
+        anchor.locale.as_str(),
+    ]
+    .iter()
+    .any(|value| contains_forbidden_boundary_material(value))
+        || anchor
+            .exact_anchor_ref
+            .as_deref()
+            .is_some_and(contains_forbidden_boundary_material)
+        || anchor
+            .hidden_or_omitted_note
             .as_deref()
             .is_some_and(contains_forbidden_boundary_material)
 }
