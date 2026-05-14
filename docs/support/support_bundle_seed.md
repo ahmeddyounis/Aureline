@@ -22,6 +22,8 @@ control. The seed never invents private field shapes.
   [`/docs/support/support_bundle_contract.md`](./support_bundle_contract.md)
 - Redaction guide for this seed:
   [`/docs/support/support_bundle_redaction_guide.md`](./support_bundle_redaction_guide.md)
+- Alpha manifest reconstruction guide:
+  [`/docs/support/support_bundle_alpha.md`](./support_bundle_alpha.md)
 - Vocabulary seed for this seed:
   [`/docs/support/support_export_vocabulary_seed.md`](./support_export_vocabulary_seed.md)
 - Git/review event export:
@@ -55,6 +57,12 @@ control. The seed never invents private field shapes.
     Git/review activity export to the manifest by bundle-member ref so
     support readers can reconstruct branch, target, action, and exact
     reopen identity without scraping activity-center text.
+  - `reviewed_command_route_preview(...)`, which consumes the reviewed
+    command enforcement row plus the command invocation session and
+    writes `action_reconstruction_contexts[]` into the manifest so
+    support readers can resolve command, invocation, target, route,
+    exposure, policy source, redaction class, and exact-build refs
+    without scraping UI text.
 
 ## What this seed does NOT own
 
@@ -84,6 +92,10 @@ control. The seed never invents private field shapes.
    writer) via `SupportBundlePreviewBuilder::write_preview_snapshot`.
    Reopening the same path returns the same preview manifest verbatim
    without contacting any support service.
+5. For reviewed commands, the route preview includes an
+   `action_reconstruction_contexts[]` entry with command,
+   invocation, target, route, exposure, policy source, redaction class,
+   and exact-build refs.
 
 The protected walk is exercised by the unit tests
 `crates/aureline-support/src/bundle/preview.rs` →
@@ -136,6 +148,11 @@ in `aureline-support` and
   structured source. The support preview references the matching
   `git_review_event_support_export` member rather than rendering or
   parsing activity-center labels.
+- **Reviewed command route truth.** Destructive or external-effect
+  command rows consume the reviewed command enforcement projection and
+  command invocation session. The support manifest stores those values
+  as typed action reconstruction context instead of rephrasing shell
+  text.
 - **Redaction profile.** The defaults mirror
   `support.redaction.local_first_default`; no new profile is invented.
 

@@ -134,6 +134,22 @@ so the manifest never silently labels an unknown channel as `stable`.
 | `portable_preview` | Portable preview build. |
 | `dev_local` | Local dev build. |
 
+## Action reconstruction fields
+
+Reviewed-command rows use manifest fields rather than rendered text:
+
+| Field | Meaning |
+|---|---|
+| `command_id` | Command Aureline believed it was running. |
+| `command_descriptor_ref` | Descriptor or revision ref used for the command. |
+| `invocation_session_id` | Invocation session joined to command result and incident packets. |
+| `target_identity_ref` | Target identity ref or typed target token. |
+| `action_origin_class` | Origin token from the route taxonomy. |
+| `action_target_class` | Target token from the route taxonomy. |
+| `action_route_class` | Route token from the route taxonomy. |
+| `action_exposure_class` | Exposure token from the route taxonomy. |
+| `policy_source` | Policy source, epoch, trust state, and optional bundle/context ref. |
+
 ## Stable command ids the seed routes
 
 | Command id | Where the chrome routes it |

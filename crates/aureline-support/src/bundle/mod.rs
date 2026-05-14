@@ -24,15 +24,18 @@ pub mod vocabulary;
 
 pub use exact_build::ExactBuildCapture;
 pub use manifest::{
-    ActionabilityImpact, ActionabilityWarning, BuildIdentity, CollectionContext, ExcludedClass,
-    FileSectionIdentity, ParityBinding, PolicyContext, PolicyLock, PolicyNote, PreviewExportParity,
-    Redaction, RedactionReport, ReopenAfterExportPath, ReviewDecision, SecretScanSummary,
-    SizeEstimate, SupportBundleManifest, SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION,
-    SUPPORT_BUNDLE_MANIFEST_RECORD_KIND, SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND,
+    ActionPolicySourceContext, ActionReconstructionContext, ActionabilityImpact,
+    ActionabilityWarning, BuildIdentity, CollectionContext, ExcludedClass, FileSectionIdentity,
+    ParityBinding, PolicyContext, PolicyLock, PolicyNote, PreviewClassificationSummary,
+    PreviewExportParity, Redaction, RedactionControl, RedactionReport, ReopenAfterExportPath,
+    ReviewDecision, SecretScanSummary, SizeEstimate, SupportBundleManifest,
+    SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
+    SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND,
 };
 pub use preview::{
-    PreviewItemSeed, SupportBundlePreview, SupportBundlePreviewBuilder, SupportBundlePreviewError,
-    SUPPORT_BUNDLE_PREVIEW_RECORD_KIND, SUPPORT_BUNDLE_PREVIEW_SEED_SCOPE_NOTICE,
+    ActionReconstructionSeed, PreviewItemSeed, SupportBundlePreview, SupportBundlePreviewBuilder,
+    SupportBundlePreviewError, SUPPORT_BUNDLE_PREVIEW_RECORD_KIND,
+    SUPPORT_BUNDLE_PREVIEW_SEED_SCOPE_NOTICE,
 };
 pub use redaction::LocalFirstDefaults;
 pub use vocabulary::{

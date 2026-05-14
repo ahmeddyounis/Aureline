@@ -74,6 +74,20 @@ pinned to `false` by the schema and by the seed. If a future profile
 ever needs to flip this bit, that change has to land in a separate
 profile id; this seed never writes `true` to that field.
 
+## Redaction controls
+
+Every preview row also has a matching `redaction_controls[]` entry in
+the manifest. Controls expose the default state, the selected state, and
+the narrower states a reviewer may choose without broadening capture.
+They do not expose raw export in the alpha path:
+
+- `raw_content_export_allowed` is always `false`;
+- `broadening_requires_review` is always `true`;
+- prohibited rows have no allowed narrower states and stay visible only
+  as omission markers;
+- code-adjacent rows can only be kept omitted or narrowed to local-only
+  retention until a separate reviewed packet exists.
+
 ## Reviewing a manifest
 
 A reviewer asking "did this bundle leak something it should not have?"

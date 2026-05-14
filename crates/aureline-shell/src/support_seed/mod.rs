@@ -37,17 +37,20 @@
 
 use std::collections::BTreeSet;
 
+use aureline_commands::invocation::CommandInvocationSession;
 use serde::{Deserialize, Serialize};
 
 use aureline_support::bundle::{
-    ActionabilityImpactClass, DiagnosticDataClass, ExactBuildCapture, HighRiskContentClass,
-    LocalFirstDefaults, PreviewItemSeed, RedactionState, SizeEstimate, SupportBundleManifest,
-    SupportBundlePreview, SupportBundlePreviewBuilder, SupportBundlePreviewError,
+    ActionPolicySourceContext, ActionReconstructionSeed, ActionabilityImpactClass,
+    DiagnosticDataClass, ExactBuildCapture, HighRiskContentClass, LocalFirstDefaults,
+    PreviewItemSeed, RedactionState, SizeEstimate, SupportBundleManifest, SupportBundlePreview,
+    SupportBundlePreviewBuilder, SupportBundlePreviewError,
 };
 
 use crate::activity_center::alpha::ActivityCenterSupportExport;
 use crate::activity_center::git_review::GitReviewSupportExport;
 use crate::admin_alpha::{AdminAlphaSupportExport, ADMIN_ALPHA_SUPPORT_EXPORT_RECORD_KIND};
+use crate::commands::review_enforcement::AlphaReviewEnforcementRow;
 use crate::drift_truth::{
     DriftTruthExportAudience, DriftTruthSnapshot, DRIFT_TRUTH_EXPORT_PACKET_RECORD_KIND,
 };
@@ -321,6 +324,37 @@ impl SupportSeedSurface {
         Ok(Self::from_preview(
             preview,
             "Support — Git/review activity preview",
+        ))
+    }
+
+    /// Mint a local support preview for a reviewed command invocation.
+    /// The manifest records the command id, invocation id, target,
+    /// route, exposure, policy source, redaction class, and exact-build
+    /// refs without scraping command-palette or activity-center text.
+    pub fn reviewed_command_route_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        review_row: &AlphaReviewEnforcementRow,
+        invocation_session: &CommandInvocationSession,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:reviewed-command-route:0001",
+            "Reviewed command route support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(reviewed_command_route_seed(review_row, invocation_session));
+        builder.add_action_reconstruction_context(reviewed_command_action_reconstruction_seed(
+            review_row,
+            invocation_session,
+        ));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support - reviewed command route preview",
         ))
     }
 
@@ -664,6 +698,156 @@ fn git_review_event_seed(git_review_export: &GitReviewSupportExport) -> PreviewI
             git_review_export.branch_target_action_complete_count,
             git_review_export.raw_private_material_excluded,
         ),
+    }
+}
+
+fn reviewed_command_route_seed(
+    review_row: &AlphaReviewEnforcementRow,
+    invocation_session: &CommandInvocationSession,
+) -> PreviewItemSeed {
+    PreviewItemSeed {
+        support_pack_item_id: "support.item.execution_context_summary".into(),
+        title: "Reviewed command, target, route, and policy source".into(),
+        data_class: DiagnosticDataClass::EnvironmentAdjacent,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "route_and_execution_truth".into(),
+        artifact_kind_class: "action_route_truth_packet".into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some(format!(
+            "manifest/route_and_execution/{}.json",
+            invocation_session
+                .invocation_session_id
+                .replace([':', '/'], "_")
+        )),
+        source_refs: vec![
+            "docs/commands/alpha_preview_apply_revert.md".into(),
+            "docs/support/reconstruction_drill.md".into(),
+            review_row.command_revision_ref.clone(),
+            invocation_session.invocation_session_id.clone(),
+        ],
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some(8192),
+            confidence_class: "estimated".into(),
+            display_label: "8 KB".into(),
+            size_source_class: "collector_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Without this row, support cannot reconstruct the command, target, route, exposure, \
+             policy source, or reviewed invocation posture."
+                .into(),
+        notes: format!(
+            "Reviewed command {} uses {} through {}; raw arguments and payload bodies excluded.",
+            review_row.command_id,
+            action_target_class_for_review(review_row),
+            action_route_class_for_review(review_row),
+        ),
+    }
+}
+
+fn reviewed_command_action_reconstruction_seed(
+    review_row: &AlphaReviewEnforcementRow,
+    invocation_session: &CommandInvocationSession,
+) -> ActionReconstructionSeed {
+    ActionReconstructionSeed {
+        support_pack_item_id: "support.item.execution_context_summary".into(),
+        command_id: review_row.command_id.clone(),
+        command_descriptor_ref: review_row.command_revision_ref.clone(),
+        invocation_session_id: invocation_session.invocation_session_id.clone(),
+        target_identity_ref: target_identity_ref_for_invocation(invocation_session),
+        action_route_packet_ref: invocation_session
+            .preview_posture
+            .preview_record_ref
+            .as_ref()
+            .map(|preview_ref| format!("route-packet:{preview_ref}")),
+        action_origin_class: action_origin_class_for_invocation(invocation_session).into(),
+        action_target_class: action_target_class_for_review(review_row).into(),
+        action_route_class: action_route_class_for_review(review_row).into(),
+        action_exposure_class: action_exposure_class_for_review(review_row).into(),
+        policy_source: ActionPolicySourceContext {
+            policy_source_ref: format!(
+                "policy-source:{}",
+                invocation_session.policy_context.policy_epoch
+            ),
+            policy_epoch: invocation_session.policy_context.policy_epoch.clone(),
+            trust_state: invocation_session.policy_context.trust_state.clone(),
+            policy_bundle_ref: invocation_session
+                .policy_context
+                .execution_context_id
+                .clone(),
+            source_class: "invocation_policy_context".into(),
+        },
+        route_summary:
+            "Support can reconstruct command, invocation, target, route, exposure, policy source, \
+             and exact build from this manifest row."
+                .into(),
+        reviewed_enforcement_ref: Some(format!(
+            "alpha-review-enforcement:{}",
+            review_row.command_id
+        )),
+        redaction_class: invocation_session.redaction_class.clone(),
+    }
+}
+
+fn target_identity_ref_for_invocation(invocation_session: &CommandInvocationSession) -> String {
+    invocation_session
+        .context_refs
+        .context_object_refs
+        .first()
+        .cloned()
+        .or_else(|| {
+            invocation_session
+                .context_snapshot
+                .focused_entity_ref
+                .clone()
+        })
+        .or_else(|| {
+            invocation_session
+                .context_snapshot
+                .execution_context_id
+                .clone()
+        })
+        .unwrap_or_else(|| "target:unknown_target_class".into())
+}
+
+fn action_origin_class_for_invocation(
+    invocation_session: &CommandInvocationSession,
+) -> &'static str {
+    match invocation_session.issuing_surface.as_str() {
+        "headless_cli" | "cli" | "cli_headless" => "cli_invocation_local",
+        "ai_tool_surface" | "ai_composer" => "ai_tool_call_local",
+        "extension_host" => "extension_host_local",
+        _ => "user_keystroke_local",
+    }
+}
+
+fn action_target_class_for_review(review_row: &AlphaReviewEnforcementRow) -> &'static str {
+    match review_row.lane_class.as_str() {
+        "ai_mutation" => "ai_sandbox_target",
+        "provider" | "git" => "connected_provider_target",
+        "install" | "workspace" => "local_host_target",
+        _ if review_row.effect_class == "external_effect" => "connected_provider_target",
+        _ => "unknown_target_class",
+    }
+}
+
+fn action_route_class_for_review(review_row: &AlphaReviewEnforcementRow) -> &'static str {
+    match review_row.lane_class.as_str() {
+        "provider" => "browser_handoff_route",
+        "git" | "ai_mutation" => "approval_gated_route",
+        "install" | "workspace" => "in_process_route",
+        _ if review_row.approval_posture_class != "no_approval_required" => "approval_gated_route",
+        _ => "heuristic_unknown_route",
+    }
+}
+
+fn action_exposure_class_for_review(review_row: &AlphaReviewEnforcementRow) -> &'static str {
+    match review_row.dominant_side_effect_class.as_str() {
+        "provider_visible_mutation" | "remote_mutation" => "provider_visible_mutation",
+        "install_or_update" | "writes_files" => "workspace_visible_mutation",
+        "remote_publish" | "public_publish" => "publicly_visible_publish",
+        _ if review_row.effect_class == "external_effect" => "exposure_unknown_requires_review",
+        _ => "local_only_mutation",
     }
 }
 

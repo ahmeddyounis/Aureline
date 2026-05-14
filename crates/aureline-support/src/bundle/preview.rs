@@ -20,11 +20,12 @@ use serde::{Deserialize, Serialize};
 
 use super::exact_build::ExactBuildCapture;
 use super::manifest::{
-    ActionabilityImpact, ActionabilityWarning, CollectionContext, ExcludedClass,
-    FileSectionIdentity, HighRiskItemEntry, ParityBinding, PolicyContext, PolicyLock, PolicyNote,
-    PreviewExportParity, Redaction, RedactionReport, ReopenAfterExportPath, ReviewDecision,
-    SecretScanSummary, SizeEstimate, SupportBundleManifest, SupportBundlePreviewItem,
-    COLLECTION_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
+    ActionPolicySourceContext, ActionReconstructionContext, ActionabilityImpact,
+    ActionabilityWarning, CollectionContext, ExcludedClass, FileSectionIdentity, HighRiskItemEntry,
+    ParityBinding, PolicyContext, PolicyLock, PolicyNote, PreviewClassificationSummary,
+    PreviewExportParity, Redaction, RedactionControl, RedactionReport, ReopenAfterExportPath,
+    ReviewDecision, SecretScanSummary, SizeEstimate, SupportBundleManifest,
+    SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
     SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND, SUPPORT_BUNDLE_PREVIEW_ITEM_SCHEMA_VERSION,
 };
 use super::redaction::LocalFirstDefaults;
@@ -100,6 +101,39 @@ impl PreviewItemSeed {
     }
 }
 
+/// Caller-supplied route and command reconstruction data for one preview row.
+#[derive(Debug, Clone)]
+pub struct ActionReconstructionSeed {
+    /// Support-pack item id for the preview row that carries this context.
+    pub support_pack_item_id: String,
+    /// Command Aureline believed it was running.
+    pub command_id: String,
+    /// Descriptor or revision ref used by the command.
+    pub command_descriptor_ref: String,
+    /// Invocation session id recorded by the command lane.
+    pub invocation_session_id: String,
+    /// Target identity ref or typed absent/unknown token.
+    pub target_identity_ref: String,
+    /// Optional route-truth packet ref.
+    pub action_route_packet_ref: Option<String>,
+    /// Origin class from the action-route taxonomy.
+    pub action_origin_class: String,
+    /// Target class from the action-route taxonomy.
+    pub action_target_class: String,
+    /// Route class from the action-route taxonomy.
+    pub action_route_class: String,
+    /// Exposure class from the action-route taxonomy.
+    pub action_exposure_class: String,
+    /// Policy source that governed the action.
+    pub policy_source: ActionPolicySourceContext,
+    /// Redaction-safe summary for support/incident readers.
+    pub route_summary: String,
+    /// Optional link to the reviewed-command enforcement row.
+    pub reviewed_enforcement_ref: Option<String>,
+    /// Redaction class for the reconstruction context.
+    pub redaction_class: String,
+}
+
 /// Read-only projection of a built support-bundle preview. The shell
 /// renders rows and the export writer emits the manifest verbatim, so
 /// both surfaces agree on what would leave the machine.
@@ -136,6 +170,9 @@ pub enum SupportBundlePreviewError {
     /// requires the subtype to be set explicitly so the manifest can
     /// label the row honestly.
     MissingHighRiskSubtype { support_pack_item_id: String },
+    /// An action reconstruction seed cited a support-pack item id that
+    /// was not queued as a preview row.
+    ActionContextMissingPreviewItem { support_pack_item_id: String },
     /// The caller queued zero rows. The schema requires at least one
     /// preview item per manifest so the seed refuses to mint an empty
     /// bundle.
@@ -155,6 +192,13 @@ impl std::fmt::Display for SupportBundlePreviewError {
                 f,
                 "preview row {support_pack_item_id} queued as high_risk but did not name a \
                  high_risk_content_class subtype"
+            ),
+            Self::ActionContextMissingPreviewItem {
+                support_pack_item_id,
+            } => write!(
+                f,
+                "action reconstruction context references {support_pack_item_id}, but no preview \
+                 row with that support-pack item id was queued"
             ),
             Self::EmptyPreview => write!(f, "support-bundle preview must contain at least one row"),
             Self::Io(err) => write!(f, "support-bundle preview io error: {err}"),
@@ -189,6 +233,7 @@ pub struct SupportBundlePreviewBuilder {
     collection_intent: String,
     exact_build: ExactBuildCapture,
     seeds: Vec<PreviewItemSeed>,
+    action_contexts: Vec<ActionReconstructionSeed>,
 }
 
 impl SupportBundlePreviewBuilder {
@@ -216,6 +261,7 @@ impl SupportBundlePreviewBuilder {
                 .into(),
             exact_build,
             seeds: Vec::new(),
+            action_contexts: Vec::new(),
         }
     }
 
@@ -242,6 +288,16 @@ impl SupportBundlePreviewBuilder {
     /// Queue one preview row.
     pub fn add_item(&mut self, seed: PreviewItemSeed) -> &mut Self {
         self.seeds.push(seed);
+        self
+    }
+
+    /// Queue one action reconstruction context. The context must cite a
+    /// support-pack item id already queued through [`Self::add_item`].
+    pub fn add_action_reconstruction_context(
+        &mut self,
+        seed: ActionReconstructionSeed,
+    ) -> &mut Self {
+        self.action_contexts.push(seed);
         self
     }
 
@@ -276,6 +332,10 @@ impl SupportBundlePreviewBuilder {
         let mut applied_rule_refs: Vec<String> = Vec::new();
         let mut high_risk_items: Vec<HighRiskItemEntry> = Vec::new();
         let mut prohibited_items: Vec<String> = Vec::new();
+        let mut redaction_controls: Vec<RedactionControl> = Vec::with_capacity(self.seeds.len());
+        let mut data_classes_present: Vec<DiagnosticDataClass> = Vec::new();
+        let mut included_support_pack_item_ids: Vec<String> = Vec::new();
+        let mut excluded_support_pack_item_ids: Vec<String> = Vec::new();
         let mut any_prohibited_row = false;
 
         for (index, seed) in self.seeds.iter().enumerate() {
@@ -287,6 +347,9 @@ impl SupportBundlePreviewBuilder {
             // rows it summarizes.
             if !redaction_states_present.contains(&posture.redaction_state) {
                 redaction_states_present.push(posture.redaction_state);
+            }
+            if !data_classes_present.contains(&seed.data_class) {
+                data_classes_present.push(seed.data_class);
             }
             for rule_ref in &posture.rule_refs {
                 let owned = (*rule_ref).to_owned();
@@ -439,6 +502,19 @@ impl SupportBundlePreviewBuilder {
                 redaction_summary_ref: format!("redaction_report:{}", self.bundle_id),
             };
 
+            redaction_controls.push(RedactionControl {
+                control_id: format!("redaction-control:{}", seed.support_pack_item_id),
+                preview_item_id: preview_item_id.clone(),
+                support_pack_item_id: seed.support_pack_item_id.clone(),
+                default_redaction_state: posture.redaction_state,
+                selected_redaction_state: posture.redaction_state,
+                allowed_narrower_states: allowed_narrower_states(posture.redaction_state),
+                broadening_requires_review: true,
+                raw_content_export_allowed: false,
+                policy_locked: matches!(posture.redaction_state, RedactionState::PolicyLocked),
+                control_note: control_note_for_state(posture.redaction_state).to_owned(),
+            });
+
             let preview_item = SupportBundlePreviewItem {
                 support_bundle_preview_item_schema_version:
                     SUPPORT_BUNDLE_PREVIEW_ITEM_SCHEMA_VERSION,
@@ -509,6 +585,9 @@ impl SupportBundlePreviewBuilder {
             // and (for prohibited rows) on the prohibited-confirmed-
             // absent list with a high-risk-items annotation.
             if posture.is_excluded_from_export {
+                if !excluded_support_pack_item_ids.contains(&seed.support_pack_item_id) {
+                    excluded_support_pack_item_ids.push(seed.support_pack_item_id.clone());
+                }
                 if let Some(reason) = posture.exclusion_reason {
                     excluded_classes.push(ExcludedClass {
                         data_class: seed.data_class,
@@ -524,6 +603,8 @@ impl SupportBundlePreviewBuilder {
                         ),
                     });
                 }
+            } else if !included_support_pack_item_ids.contains(&seed.support_pack_item_id) {
+                included_support_pack_item_ids.push(seed.support_pack_item_id.clone());
             }
             if matches!(posture.redaction_state, RedactionState::Prohibited) {
                 any_prohibited_row = true;
@@ -600,6 +681,72 @@ impl SupportBundlePreviewBuilder {
             reviewer_visible_summary,
         };
 
+        let retained_local_only_count = preview_items
+            .iter()
+            .filter(|item| {
+                matches!(
+                    item.redaction.redaction_state,
+                    RedactionState::RetainedLocalOnly
+                )
+            })
+            .count() as u32;
+        let prohibited_count = preview_items
+            .iter()
+            .filter(|item| matches!(item.redaction.redaction_state, RedactionState::Prohibited))
+            .count() as u32;
+        let included_count = included_support_pack_item_ids.len() as u32;
+        let excluded_count = excluded_support_pack_item_ids.len() as u32;
+        let preview_classification_summary = PreviewClassificationSummary {
+            included_count,
+            excluded_count,
+            retained_local_only_count,
+            prohibited_count,
+            data_classes_present,
+            redaction_states_present: redaction_report.redaction_states_present.clone(),
+            included_support_pack_item_ids,
+            excluded_support_pack_item_ids,
+            summary: format!(
+                "{} preview row(s) included by default; {} row(s) excluded, retained locally, \
+                 policy locked, or prohibited before export.",
+                included_count, excluded_count
+            ),
+        };
+
+        let mut action_reconstruction_contexts = Vec::with_capacity(self.action_contexts.len());
+        for action_seed in &self.action_contexts {
+            let Some(preview_item) = preview_items.iter().find(|item| {
+                item.parity_binding.support_pack_item_id == action_seed.support_pack_item_id
+            }) else {
+                return Err(SupportBundlePreviewError::ActionContextMissingPreviewItem {
+                    support_pack_item_id: action_seed.support_pack_item_id.clone(),
+                });
+            };
+
+            action_reconstruction_contexts.push(ActionReconstructionContext {
+                reconstruction_context_id: format!(
+                    "action-reconstruction:{}:{}",
+                    self.bundle_id, action_seed.support_pack_item_id
+                ),
+                preview_item_id: preview_item.preview_item_id.clone(),
+                support_pack_item_id: action_seed.support_pack_item_id.clone(),
+                command_id: action_seed.command_id.clone(),
+                command_descriptor_ref: action_seed.command_descriptor_ref.clone(),
+                invocation_session_id: action_seed.invocation_session_id.clone(),
+                target_identity_ref: action_seed.target_identity_ref.clone(),
+                action_route_packet_ref: action_seed.action_route_packet_ref.clone(),
+                action_origin_class: action_seed.action_origin_class.clone(),
+                action_target_class: action_seed.action_target_class.clone(),
+                action_route_class: action_seed.action_route_class.clone(),
+                action_exposure_class: action_seed.action_exposure_class.clone(),
+                policy_source: action_seed.policy_source.clone(),
+                route_summary: action_seed.route_summary.clone(),
+                reviewed_enforcement_ref: action_seed.reviewed_enforcement_ref.clone(),
+                exact_build_refs: self.exact_build.exact_build_refs.clone(),
+                redaction_class: action_seed.redaction_class.clone(),
+                raw_content_exported: false,
+            });
+        }
+
         let preview_snapshot_ref = format!("preview-snapshot:{}", self.bundle_id);
 
         let reopen_after_export_path = ReopenAfterExportPath {
@@ -633,6 +780,9 @@ impl SupportBundlePreviewBuilder {
                 "preview_items[].redaction".into(),
                 "review_decisions[]".into(),
                 "redaction_report".into(),
+                "preview_classification_summary".into(),
+                "redaction_controls[]".into(),
+                "action_reconstruction_contexts[]".into(),
             ],
             item_decision_refs,
             unknown_field_policy: "preserve_unknown_unless_redacted".into(),
@@ -696,6 +846,9 @@ impl SupportBundlePreviewBuilder {
             review_decisions,
             excluded_classes,
             redaction_report,
+            preview_classification_summary,
+            redaction_controls,
+            action_reconstruction_contexts,
             actionability_warnings,
             reopen_after_export_path,
             preview_export_parity,
@@ -746,6 +899,43 @@ fn write_preview_snapshot_to_path(
     let bytes = serde_json::to_vec_pretty(preview)?;
     fs::write(path, bytes)?;
     Ok(())
+}
+
+fn allowed_narrower_states(redaction_state: RedactionState) -> Vec<RedactionState> {
+    match redaction_state {
+        RedactionState::NotRequiredMetadata
+        | RedactionState::RedactedSummary
+        | RedactionState::SanitizedSnapshot => vec![
+            RedactionState::RedactedSummary,
+            RedactionState::RetainedLocalOnly,
+        ],
+        RedactionState::OmittedPendingOptIn => vec![RedactionState::RetainedLocalOnly],
+        RedactionState::RetainedLocalOnly => vec![RedactionState::Prohibited],
+        RedactionState::Prohibited | RedactionState::PolicyLocked => Vec::new(),
+    }
+}
+
+fn control_note_for_state(redaction_state: RedactionState) -> &'static str {
+    match redaction_state {
+        RedactionState::NotRequiredMetadata => {
+            "Reviewer may narrow metadata rows; broadening beyond metadata requires a reviewed path."
+        }
+        RedactionState::RedactedSummary | RedactionState::SanitizedSnapshot => {
+            "Reviewer may retain or omit this row locally; raw content export is not available here."
+        }
+        RedactionState::OmittedPendingOptIn => {
+            "Row is omitted by default; this alpha path only permits narrower local retention."
+        }
+        RedactionState::RetainedLocalOnly => {
+            "Row is retained locally and can only be narrowed further to an omission marker."
+        }
+        RedactionState::Prohibited => {
+            "Prohibited rows stay visible as omission markers and cannot be exported as raw content."
+        }
+        RedactionState::PolicyLocked => {
+            "Active policy locks this row; the manifest records the lock instead of hiding it."
+        }
+    }
 }
 
 #[cfg(test)]
@@ -812,6 +1002,60 @@ mod tests {
         }
     }
 
+    fn route_seed() -> PreviewItemSeed {
+        PreviewItemSeed {
+            support_pack_item_id: "support.item.execution_context_summary".into(),
+            title: "Command and route reconstruction".into(),
+            data_class: DiagnosticDataClass::EnvironmentAdjacent,
+            high_risk_content_class: HighRiskContentClass::NotApplicable,
+            bundle_section_class: "route_and_execution_truth".into(),
+            artifact_kind_class: "action_route_truth_packet".into(),
+            manifest_path_ref: "preview_items[1]".into(),
+            bundle_member_path_ref: Some("manifest/route/command.json".into()),
+            source_refs: vec!["docs/support/reconstruction_drill.md".into()],
+            size_estimate: SizeEstimate {
+                estimated_bytes: Some(4096),
+                confidence_class: "estimated".into(),
+                display_label: "4 KB".into(),
+                size_source_class: "collector_estimate".into(),
+            },
+            impact_class: ActionabilityImpactClass::High,
+            impact_summary:
+                "Without this row, support cannot reconstruct command, target, route, or policy."
+                    .into(),
+            notes: "Metadata-only route truth; raw command arguments are excluded.".into(),
+        }
+    }
+
+    fn action_context_seed() -> ActionReconstructionSeed {
+        ActionReconstructionSeed {
+            support_pack_item_id: "support.item.execution_context_summary".into(),
+            command_id: "cmd:workspace.import_profile".into(),
+            command_descriptor_ref: "cmd-rev:workspace.import_profile:alpha".into(),
+            invocation_session_id: "inv:workspace.import_profile:fixture".into(),
+            target_identity_ref: "target:local:workspace".into(),
+            action_route_packet_ref: Some("route-packet:workspace.import_profile:fixture".into()),
+            action_origin_class: "user_keystroke_local".into(),
+            action_target_class: "local_host_target".into(),
+            action_route_class: "approval_gated_route".into(),
+            action_exposure_class: "workspace_visible_mutation".into(),
+            policy_source: ActionPolicySourceContext {
+                policy_source_ref: "policy-source:local-default:1".into(),
+                policy_epoch: "1".into(),
+                trust_state: "trusted".into(),
+                policy_bundle_ref: Some("policy-bundle:local-default:0001".into()),
+                source_class: "invocation_policy_context".into(),
+            },
+            route_summary:
+                "Reviewed command route captures command, invocation, target, route, and policy."
+                    .into(),
+            reviewed_enforcement_ref: Some(
+                "alpha-review-enforcement:cmd:workspace.import_profile".into(),
+            ),
+            redaction_class: "metadata_safe_default".into(),
+        }
+    }
+
     #[test]
     fn protected_walk_metadata_only_preview_carries_exact_build_identity() {
         let mut builder = SupportBundlePreviewBuilder::new(
@@ -840,6 +1084,53 @@ mod tests {
             RedactionState::NotRequiredMetadata
         );
         assert!(row.redaction.visible_high_risk_label.is_none());
+        assert_eq!(
+            preview
+                .manifest
+                .preview_classification_summary
+                .included_count,
+            1
+        );
+        assert_eq!(preview.manifest.redaction_controls.len(), 1);
+        assert!(
+            !preview.manifest.redaction_controls[0].raw_content_export_allowed,
+            "local-first controls must not expose raw-content export"
+        );
+    }
+
+    #[test]
+    fn action_reconstruction_context_records_command_route_policy_and_exact_build() {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:action-context:0001",
+            "Action reconstruction preview",
+            "2026-05-10T05:15:00Z",
+            fixture_capture(),
+        );
+        builder.add_item(metadata_seed());
+        builder.add_item(route_seed());
+        builder.add_action_reconstruction_context(action_context_seed());
+
+        let preview = builder.build().expect("build action context preview");
+        assert_eq!(preview.manifest.action_reconstruction_contexts.len(), 1);
+        let context = &preview.manifest.action_reconstruction_contexts[0];
+        assert_eq!(context.command_id, "cmd:workspace.import_profile");
+        assert_eq!(
+            context.invocation_session_id,
+            "inv:workspace.import_profile:fixture"
+        );
+        assert_eq!(context.action_route_class, "approval_gated_route");
+        assert_eq!(
+            context.policy_source.source_class,
+            "invocation_policy_context"
+        );
+        assert_eq!(context.exact_build_refs, fixture_capture().exact_build_refs);
+        assert!(!context.raw_content_exported);
+        assert!(preview
+            .manifest
+            .preview_export_parity
+            .reconstruction_fields
+            .iter()
+            .any(|field| field == "action_reconstruction_contexts[]"));
     }
 
     #[test]

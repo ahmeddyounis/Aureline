@@ -265,6 +265,11 @@ inventing side metadata:
 
 - build/install truth lives in `build_and_install_context`;
 - execution/route truth lives in `route_and_execution_context`;
+  preview/export manifests also carry
+  `action_reconstruction_contexts[]` for reviewed command rows so
+  support readers can resolve command id, invocation id, target, route,
+  exposure, policy source, redaction class, and exact-build refs without
+  reading UI text;
 - locality/tenant/key posture and continuity drill bindings live in
   `locality_and_continuity_context`;
 - fault-domain ids, restart counts, restart-lineage refs, and

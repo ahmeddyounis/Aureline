@@ -49,7 +49,9 @@ Frozen at this revision:
 - a manifest record with `collection_schema_version`, build id,
   exact-build refs, active redaction profile, policy notes, preview
   items, review decisions, excluded classes, redaction report,
-  actionability warnings, reopen-after-export path, and parity digests;
+  preview classification summary, redaction controls, action
+  reconstruction contexts, actionability warnings,
+  reopen-after-export path, and parity digests;
 - rules for item deselection and stronger redaction where diagnostic
   integrity permits;
 - preview/export parity fields that let a post-export reader
@@ -123,6 +125,14 @@ Required manifest fields:
 - `redaction_report` with applied rules, redaction states present,
   high-risk items, prohibited items confirmed absent, and secret-scan
   outcome.
+- `preview_classification_summary` with included and excluded counts
+  plus the support-pack item ids in each posture.
+- `redaction_controls[]` with the selected state, allowed narrower
+  states, and `raw_content_export_allowed = false` for the alpha path.
+- `action_reconstruction_contexts[]` for reviewed commands or
+  externalized flows, carrying command id, descriptor ref, invocation
+  session id, target identity ref, origin/target/route/exposure classes,
+  policy source, redaction class, and exact-build refs.
 - `actionability_warnings[]` for any deselection or stronger redaction
   that reduces diagnosis potential.
 - `reopen_after_export_path` so the exact preview can be reopened from
@@ -176,6 +186,8 @@ To satisfy parity, every manifest records:
   body;
 - exact-build refs used during collection;
 - active redaction profile and applied rule refs;
+- typed action reconstruction context for every reviewed command row
+  that claims route or external-effect truth;
 - excluded class rows with explicit reasons;
 - unknown-field handling policy;
 - a reopen-after-export path.

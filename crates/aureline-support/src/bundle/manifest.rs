@@ -46,7 +46,7 @@ pub struct BuildIdentity {
 pub struct PolicyContext {
     pub policy_epoch: u64,
     pub trust_state: TrustState,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub policy_bundle_ref: Option<String>,
 }
 
@@ -78,7 +78,7 @@ pub struct FileSectionIdentity {
     pub artifact_kind_class: String,
     pub preview_label: String,
     pub manifest_path_ref: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub bundle_member_path_ref: Option<String>,
     pub source_refs: Vec<String>,
 }
@@ -86,7 +86,7 @@ pub struct FileSectionIdentity {
 /// Mirrors the schema's `support_bundle_preview_item.size_estimate`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SizeEstimate {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub estimated_bytes: Option<u64>,
     pub confidence_class: String,
     pub display_label: String,
@@ -100,7 +100,7 @@ pub struct Redaction {
     pub high_risk_content_class: HighRiskContentClass,
     pub redaction_class: String,
     pub redaction_state: RedactionState,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub visible_high_risk_label: Option<String>,
     pub redaction_rule_refs: Vec<String>,
     pub redaction_summary_ref: String,
@@ -112,7 +112,7 @@ pub struct ActionabilityImpact {
     pub impact_class: ActionabilityImpactClass,
     pub affects_first_actionable_diagnosis: bool,
     pub warning_required: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub warning_text: Option<String>,
     pub impact_summary: String,
 }
@@ -124,7 +124,7 @@ pub struct ParityBinding {
     pub inclusion_rule_ref: String,
     pub export_manifest_field_ref: String,
     pub preview_decision_ref: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub item_digest_ref: Option<String>,
     pub exact_build_identity_refs: Vec<String>,
     pub post_export_reconstruction_fields: Vec<String>,
@@ -135,7 +135,7 @@ pub struct ParityBinding {
 pub struct PolicyLock {
     pub locked_by_policy: bool,
     pub reason_class: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub policy_ref: Option<String>,
     pub reason_summary: String,
 }
@@ -171,7 +171,7 @@ pub struct ReviewDecision {
     pub selected_redaction_state: RedactionState,
     pub decided_by_class: ReviewDecidedByClass,
     pub decision_reason: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub actionability_warning_ack_ref: Option<String>,
 }
 
@@ -180,12 +180,12 @@ pub struct ReviewDecision {
 pub struct ExcludedClass {
     pub data_class: DiagnosticDataClass,
     pub high_risk_content_class: HighRiskContentClass,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub support_pack_item_id: Option<String>,
     pub artifact_kind_class: String,
     pub exclusion_reason_class: ExcludedReasonClass,
     pub explicit_reason: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub policy_ref: Option<String>,
     pub omission_marker_ref: String,
 }
@@ -224,6 +224,54 @@ pub struct RedactionReport {
     pub reviewer_visible_summary: String,
 }
 
+/// Roll-up of included and excluded preview classes before export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreviewClassificationSummary {
+    /// Count of preview rows that are included in the default export.
+    pub included_count: u32,
+    /// Count of preview rows omitted, retained locally, policy locked, or prohibited.
+    pub excluded_count: u32,
+    /// Count of rows retained on the local machine only.
+    pub retained_local_only_count: u32,
+    /// Count of rows prohibited from export.
+    pub prohibited_count: u32,
+    /// Diagnostic data classes present in the preview.
+    pub data_classes_present: Vec<DiagnosticDataClass>,
+    /// Redaction states present in the preview.
+    pub redaction_states_present: Vec<RedactionState>,
+    /// Support-pack item ids included by default.
+    pub included_support_pack_item_ids: Vec<String>,
+    /// Support-pack item ids excluded before export.
+    pub excluded_support_pack_item_ids: Vec<String>,
+    /// Reviewer-visible summary for the preview classification.
+    pub summary: String,
+}
+
+/// Redaction control exposed for one preview item.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RedactionControl {
+    /// Stable control id for audit and preview/export parity.
+    pub control_id: String,
+    /// Preview item controlled by this row.
+    pub preview_item_id: String,
+    /// Support-pack item id controlled by this row.
+    pub support_pack_item_id: String,
+    /// Default redaction state from the active profile.
+    pub default_redaction_state: RedactionState,
+    /// Redaction state selected for this manifest.
+    pub selected_redaction_state: RedactionState,
+    /// States the reviewer may choose without broadening capture.
+    pub allowed_narrower_states: Vec<RedactionState>,
+    /// Whether a broader capture would require a reviewed follow-up path.
+    pub broadening_requires_review: bool,
+    /// Whether raw content may be exported through this control.
+    pub raw_content_export_allowed: bool,
+    /// Whether active policy locks the row.
+    pub policy_locked: bool,
+    /// Reviewer-visible reason for the available control set.
+    pub control_note: String,
+}
+
 /// Mirrors the schema's `actionability_warning`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActionabilityWarning {
@@ -232,7 +280,7 @@ pub struct ActionabilityWarning {
     pub impact_class: ActionabilityImpactClass,
     pub warning_text: String,
     pub required_before_export: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub acknowledged_by_ref: Option<String>,
 }
 
@@ -261,6 +309,65 @@ pub struct PreviewExportParity {
     pub parity_assertions: Vec<String>,
 }
 
+/// Policy source active for a reconstructed action.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActionPolicySourceContext {
+    /// Stable policy source ref, policy bundle ref, or typed local default token.
+    pub policy_source_ref: String,
+    /// Policy epoch active when the action was reviewed or invoked.
+    pub policy_epoch: String,
+    /// Trust state active when the action was reviewed or invoked.
+    pub trust_state: String,
+    /// Optional policy bundle or execution-context ref backing the decision.
+    #[serde(default)]
+    pub policy_bundle_ref: Option<String>,
+    /// Source class for this policy context.
+    pub source_class: String,
+}
+
+/// Typed route and command reconstruction context for one reviewed action.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActionReconstructionContext {
+    /// Stable context id within the manifest.
+    pub reconstruction_context_id: String,
+    /// Preview row that carries the action-route truth packet.
+    pub preview_item_id: String,
+    /// Support-pack item id for the action-route truth packet.
+    pub support_pack_item_id: String,
+    /// Command Aureline believed it was running.
+    pub command_id: String,
+    /// Descriptor or revision ref used for the command.
+    pub command_descriptor_ref: String,
+    /// Invocation session id joined to command result and incident packets.
+    pub invocation_session_id: String,
+    /// Target identity ref or typed target token.
+    pub target_identity_ref: String,
+    /// Optional route-truth packet ref.
+    #[serde(default)]
+    pub action_route_packet_ref: Option<String>,
+    /// Origin class from the action-route taxonomy.
+    pub action_origin_class: String,
+    /// Target class from the action-route taxonomy.
+    pub action_target_class: String,
+    /// Route class from the action-route taxonomy.
+    pub action_route_class: String,
+    /// Exposure class from the action-route taxonomy.
+    pub action_exposure_class: String,
+    /// Policy source that governed the action.
+    pub policy_source: ActionPolicySourceContext,
+    /// Redaction-safe route summary.
+    pub route_summary: String,
+    /// Optional link to the reviewed-command enforcement row.
+    #[serde(default)]
+    pub reviewed_enforcement_ref: Option<String>,
+    /// Exact-build refs copied from the manifest build identity.
+    pub exact_build_refs: Vec<String>,
+    /// Redaction class applied to this reconstruction row.
+    pub redaction_class: String,
+    /// Always false for the alpha manifest path.
+    pub raw_content_exported: bool,
+}
+
 /// Top-level support-bundle manifest record. Mirrors
 /// `support_bundle_manifest_record` in the boundary schema.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -276,6 +383,9 @@ pub struct SupportBundleManifest {
     pub review_decisions: Vec<ReviewDecision>,
     pub excluded_classes: Vec<ExcludedClass>,
     pub redaction_report: RedactionReport,
+    pub preview_classification_summary: PreviewClassificationSummary,
+    pub redaction_controls: Vec<RedactionControl>,
+    pub action_reconstruction_contexts: Vec<ActionReconstructionContext>,
     pub actionability_warnings: Vec<ActionabilityWarning>,
     pub reopen_after_export_path: ReopenAfterExportPath,
     pub preview_export_parity: PreviewExportParity,
