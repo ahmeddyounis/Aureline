@@ -7,6 +7,7 @@
 
 use std::path::Path;
 
+use aureline_commands::alpha::{alpha_command_registry, AlphaCommandRegistryRecord};
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{CommandRegistry, PreflightDecisionClass};
 use aureline_input::keybindings::PlatformClass;
@@ -38,6 +39,8 @@ pub struct OnboardingAlphaSurfaceRecord {
     pub generated_at: String,
     /// Launch context and account posture for the first-run surface.
     pub launch_context: OnboardingLaunchContext,
+    /// Alpha command-registry publication consumed by this onboarding projection.
+    pub alpha_command_registry_ref: String,
     /// Proof that local useful work remains available without account setup.
     pub no_account_path: NoAccountPathProof,
     /// Distinct entry verbs surfaced on the first-run wedge.
@@ -52,6 +55,8 @@ pub struct OnboardingAlphaSurfaceRecord {
     pub portable_state: OnboardingPortableStateProjection,
     /// Learning-digest handoff or truthful not-installed placeholder.
     pub learning_digest: LearningDigestProjection,
+    /// Round-trip proofs from alpha command descriptors into onboarding consumers.
+    pub command_descriptor_round_trips: Vec<OnboardingCommandDescriptorRoundTrip>,
 }
 
 impl OnboardingAlphaSurfaceRecord {
@@ -123,9 +128,36 @@ impl OnboardingAlphaSurfaceRecord {
             self.learning_digest.availability_class.as_str(),
             self.learning_digest.open_or_placeholder_command.command_id
         ));
+        lines.push(format!(
+            "alpha_command_registry_ref: {}",
+            self.alpha_command_registry_ref
+        ));
         lines.push(String::new());
         lines.join("\n")
     }
+}
+
+/// Round-trip proof from the alpha command descriptor into onboarding surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OnboardingCommandDescriptorRoundTrip {
+    /// Consumer class such as Start Center, onboarding hint, or help search.
+    pub consumer_class: String,
+    /// Stable consumer ref inside the owning onboarding or help surface.
+    pub consumer_ref: String,
+    /// Stable command id projected from the alpha registry.
+    pub command_id: String,
+    /// Keyboard or intent route shown by the consumer.
+    pub keyboard_route: String,
+    /// Docs/help anchor projected from the descriptor.
+    pub descriptor_anchor_ref: String,
+    /// Invocation or result fixture that proves the route, when runnable.
+    pub invocation_packet_ref: Option<String>,
+    /// Whether preview/apply semantics are preserved by the consumer.
+    pub preserves_preview_apply_semantics: bool,
+    /// Disabled-reason handling mode used by the consumer.
+    pub disabled_reason_mode: String,
+    /// Exact reopen ref preserved for Start Center/help/support consumers.
+    pub exact_reopen_ref: Option<String>,
 }
 
 /// Launch context projected onto the first-run surface.
@@ -734,6 +766,7 @@ pub fn build_onboarding_alpha_surface(
     generated_at: impl Into<String>,
 ) -> OnboardingAlphaSurfaceRecord {
     let registry = seeded_registry();
+    let alpha_registry = alpha_command_registry();
     let docs_manifest = current_docs_pack_manifest().ok();
     OnboardingAlphaSurfaceRecord {
         record_kind: "onboarding_alpha_surface_record".to_string(),
@@ -746,6 +779,7 @@ pub fn build_onboarding_alpha_surface(
             account_prompt_class: AccountPromptClass::NoPrompt,
             account_content_secondary: true,
         },
+        alpha_command_registry_ref: alpha_registry.registry_id.clone(),
         no_account_path: no_account_path(registry),
         entry_verbs: entry_verb_rows(registry),
         recommendation_cards: recommendation_cards(registry),
@@ -753,6 +787,7 @@ pub fn build_onboarding_alpha_surface(
         help_search: help_search_projection(registry, docs_manifest.as_ref()),
         portable_state: portable_state_projection(),
         learning_digest: learning_digest_projection(docs_manifest.as_ref()),
+        command_descriptor_round_trips: alpha_command_descriptor_round_trips(alpha_registry),
     }
 }
 
@@ -803,6 +838,37 @@ fn no_account_path(registry: &CommandRegistry) -> NoAccountPathProof {
         ],
         local_command_ids,
     }
+}
+
+fn alpha_command_descriptor_round_trips(
+    alpha_registry: &AlphaCommandRegistryRecord,
+) -> Vec<OnboardingCommandDescriptorRoundTrip> {
+    alpha_registry
+        .claimed_commands
+        .iter()
+        .flat_map(|claim| claim.discoverability_record.consumer_refs.iter())
+        .filter(|consumer| {
+            matches!(
+                consumer.consumer_class.as_str(),
+                "start_center_card"
+                    | "onboarding_hint"
+                    | "keymap_bridge"
+                    | "help_search_result"
+                    | "migration_guidance"
+            )
+        })
+        .map(|consumer| OnboardingCommandDescriptorRoundTrip {
+            consumer_class: consumer.consumer_class.clone(),
+            consumer_ref: consumer.consumer_ref.clone(),
+            command_id: consumer.command_id.clone(),
+            keyboard_route: consumer.keyboard_route.clone(),
+            descriptor_anchor_ref: consumer.descriptor_anchor_ref.clone(),
+            invocation_packet_ref: consumer.invocation_packet_ref.clone(),
+            preserves_preview_apply_semantics: consumer.preserves_preview_apply_semantics,
+            disabled_reason_mode: consumer.disabled_reason_mode.clone(),
+            exact_reopen_ref: consumer.exact_reopen_ref.clone(),
+        })
+        .collect()
 }
 
 fn entry_verb_rows(registry: &CommandRegistry) -> Vec<OnboardingEntryVerbRow> {
@@ -1475,5 +1541,39 @@ mod tests {
                 .command_id,
             "cmd:help.search"
         );
+    }
+
+    #[test]
+    fn alpha_command_registry_round_trips_cover_onboarding_consumers() {
+        use std::collections::BTreeSet;
+
+        let surface = build_onboarding_alpha_surface(ONBOARDING_ALPHA_FIXTURE_GENERATED_AT);
+        assert_eq!(
+            surface.alpha_command_registry_ref,
+            "command-registry:alpha:launch-wedge:01"
+        );
+        let consumer_classes = surface
+            .command_descriptor_round_trips
+            .iter()
+            .map(|row| row.consumer_class.as_str())
+            .collect::<BTreeSet<_>>();
+        for required in [
+            "start_center_card",
+            "onboarding_hint",
+            "keymap_bridge",
+            "help_search_result",
+            "migration_guidance",
+        ] {
+            assert!(consumer_classes.contains(required), "missing {required}");
+        }
+        for row in &surface.command_descriptor_round_trips {
+            assert!(row.command_id.starts_with("cmd:"));
+            assert!(row.preserves_preview_apply_semantics);
+            assert_eq!(
+                row.disabled_reason_mode,
+                "typed_reason_required_when_unavailable"
+            );
+            assert!(row.exact_reopen_ref.is_some());
+        }
     }
 }

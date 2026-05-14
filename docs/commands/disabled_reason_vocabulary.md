@@ -53,3 +53,18 @@ When an enablement decision is not `enabled`, the decision MUST carry both the
 typed `disabled_reason_code` and a `repair_hook_ref`. A surface that renders
 “disabled” with no typed reason or no repair hook is non-conforming.
 
+## Alpha cause-family mapping
+
+The alpha command-descriptor baseline adds a reviewer-facing cause-family layer
+without minting a second machine vocabulary. The manifest at
+`fixtures/commands/disabled_reason_alpha/manifest.json` maps:
+
+- focus and selection gaps to `required_argument_unresolved`
+- lifecycle state gaps to `command_retired`
+- missing dependency gaps to `required_provider_unlinked`
+- policy gaps to `policy_blocked_in_context`
+- entitlement gaps to `managed_only_channel_required`
+- remote or host mismatch gaps to `client_scope_excludes_surface`
+
+Surfaces may localize the cause-family copy, but exports and parity packets
+continue to join on the canonical `disabled_reason_code`.

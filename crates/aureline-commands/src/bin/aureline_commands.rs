@@ -1,7 +1,9 @@
+use aureline_commands::alpha::alpha_command_registry;
 use aureline_commands::registry::seeded_registry;
 
 fn main() {
     let registry = seeded_registry();
+    let alpha_registry = alpha_command_registry();
 
     let mut out = String::new();
     out.push_str(
@@ -28,6 +30,8 @@ fn main() {
         push_json_string(&mut out, &entry.descriptor.palette_visibility);
         out.push_str(",\n      \"lifecycle_state\": ");
         push_json_string(&mut out, &entry.descriptor.lifecycle_state);
+        out.push_str(",\n      \"automation_labels\": ");
+        push_json_array(&mut out, &entry.automation_labels);
         out.push_str(",\n      \"enablement\": {\n        \"decision_class\": ");
         push_json_string(
             &mut out,
@@ -45,8 +49,39 @@ fn main() {
         }
         out.push('\n');
     }
-    out.push_str("  ]\n}\n");
+    out.push_str("  ],\n  \"alpha_publication\": {\n");
+    out.push_str("    \"registry_id\": ");
+    push_json_string(&mut out, &alpha_registry.registry_id);
+    out.push_str(",\n    \"descriptor_schema_ref\": ");
+    push_json_string(&mut out, &alpha_registry.descriptor_schema_ref);
+    out.push_str(",\n    \"invocation_session_schema_ref\": ");
+    push_json_string(&mut out, &alpha_registry.invocation_session_schema_ref);
+    out.push_str(",\n    \"parity_report_ref\": ");
+    push_json_string(&mut out, &alpha_registry.parity_report_ref);
+    out.push_str(",\n    \"claimed_command_ids\": ");
+    let claimed_command_ids = alpha_registry
+        .claimed_commands
+        .iter()
+        .map(|claim| claim.command_id.clone())
+        .collect::<Vec<_>>();
+    push_json_array(&mut out, &claimed_command_ids);
+    out.push_str(",\n    \"surface_families\": ");
+    push_json_array(&mut out, &alpha_registry.surface_family_set);
+    out.push_str(",\n    \"disabled_reason_vocabulary_ref\": ");
+    push_json_string(&mut out, &alpha_registry.disabled_reason_vocabulary_ref);
+    out.push_str("\n  }\n}\n");
     print!("{out}");
+}
+
+fn push_json_array(out: &mut String, values: &[String]) {
+    out.push('[');
+    for (idx, value) in values.iter().enumerate() {
+        if idx != 0 {
+            out.push_str(", ");
+        }
+        push_json_string(out, value);
+    }
+    out.push(']');
 }
 
 fn push_json_string(out: &mut String, value: &str) {
