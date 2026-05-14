@@ -1,0 +1,108 @@
+$schema: "../../../schemas/transport/transport_decision_alpha.schema.json"
+__fixture__:
+  name: wrong_target_denied
+  scenario: Debug attach resolves a different managed workspace than the intended target and is denied with a typed wrong-target state.
+  expected_truth_state: denied_wrong_target
+  expected_support_projection:
+    - target_match_state
+    - intended_target_ref
+    - observed_target_ref
+    - decision_outcome
+    - fallback_posture
+    - repair_hook_ref
+
+schema_version: 1
+record_kind: transport_decision_alpha_record
+decision_id: transport:decision:wrong_target_denied:0001
+matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.wrong_target_denied
+transport_policy_snapshot_ref: transport:policy:remote_attach:0001
+
+command:
+  command_id: cmd:debug.attach_managed_workspace
+  command_descriptor_ref: command:descriptor:debug.attach_managed_workspace:alpha
+  invocation_session_id: inv:debug.attach_managed_workspace:alpha:0001
+  command_family: debug
+
+actor:
+  actor_class: human_user
+  actor_ref: actor:human:local:0001
+  issuing_surface: debug_attach_sheet
+
+origin:
+  origin_scope: desktop_client
+  traffic_origin: desktop_client
+  expected_origin_scope: desktop_client
+  origin_match_state: origin_matches_expected
+  origin_ref: origin:desktop_client:debug_attach:0001
+
+target:
+  target_class: managed_workspace_target
+  endpoint_class: remote_attach
+  target_identity_ref: target:managed_workspace:intended:0001
+  intended_target_ref: target:managed_workspace:intended:0001
+  observed_target_ref: target:managed_workspace:observed:0002
+  target_match_state: wrong_target_detected
+
+route:
+  route_choice: blocked
+  route_label: wrong_target_blocked
+  traffic_origin: desktop_client
+  egress_class: deny_all
+  auth_posture: session
+  route_changed: true
+  route_change_reason_code: route_changed_wrong_target_detected
+  prior_route_choice: target_local
+  prior_target_ref: target:managed_workspace:observed:0002
+  exposure_posture: no_external_route_used
+  route_summary: Debug attach was blocked because the observed managed workspace did not match the intended target.
+
+policy:
+  policy_source_class: transport_policy_snapshot
+  policy_source_ref: policy:transport:remote_attach:0001
+  policy_epoch: epoch:42
+  policy_bundle_ref: policy:bundle:org:alpha
+  policy_summary: Transport policy requires exact target identity before managed debug attach.
+
+decision_result:
+  decision_outcome: deny_wrong_target
+  route_truth_state: denied_wrong_target
+  denial_reason_code: wrong_target_detected
+  outcome_summary: The action was denied before side effects because target identity did not match.
+  repair_hook_ref: repair:remote_attach:select_target:0001
+
+fallback:
+  fallback_posture: wrong_target_denied
+  declared_to_user: true
+  direct_fallback_allowed: false
+  hidden_fallback_detected: false
+  fallback_summary: No fallback was attempted; the user must reselect or reapprove the target.
+
+timestamps:
+  planned_at: "2026-05-14T16:04:00Z"
+  decided_at: "2026-05-14T16:04:02Z"
+  completed_at: null
+
+export_projection:
+  consumer_surfaces:
+    - product_ui
+    - cli_explain
+    - support_bundle
+    - incident_packet
+  support_packet_field_refs:
+    - target.intended_target_ref
+    - target.observed_target_ref
+    - target.target_match_state
+    - decision_result.decision_outcome
+    - decision_result.repair_hook_ref
+    - fallback.fallback_posture
+  support_bundle_preview_field_refs:
+    - action_reconstruction_contexts[].target_identity_ref
+    - action_reconstruction_contexts[].decision_outcome
+    - action_reconstruction_contexts[].fallback_posture
+    - action_reconstruction_contexts[].route_truth_state
+  raw_material_excluded: true
+
+redaction_class: metadata_safe_default
+trace_refs:
+  - trace:route_origin:wrong_target_denied:0001
+notes: The originally observed target remains visible as an opaque ref so support can explain the mismatch.

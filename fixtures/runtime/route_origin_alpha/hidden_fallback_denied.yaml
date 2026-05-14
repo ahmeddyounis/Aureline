@@ -1,0 +1,109 @@
+$schema: "../../../schemas/transport/transport_decision_alpha.schema.json"
+__fixture__:
+  name: hidden_fallback_denied
+  scenario: A mirror-only provider action tries to fall through to a public direct route and is denied as hidden fallback.
+  expected_truth_state: denied_hidden_fallback
+  expected_support_projection:
+    - prior_route_choice
+    - route_choice
+    - direct_fallback_allowed
+    - hidden_fallback_detected
+    - decision_outcome
+    - fallback_posture
+
+schema_version: 1
+record_kind: transport_decision_alpha_record
+decision_id: transport:decision:hidden_fallback_denied:0001
+matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.hidden_fallback_denied
+transport_policy_snapshot_ref: transport:policy:mirror_only:0001
+
+command:
+  command_id: cmd:provider.restore_dependency
+  command_descriptor_ref: command:descriptor:provider.restore_dependency:alpha
+  invocation_session_id: inv:provider.restore_dependency:alpha:0001
+  command_family: provider
+
+actor:
+  actor_class: local_automation
+  actor_ref: actor:automation:restore:0001
+  issuing_surface: dependency_restore
+
+origin:
+  origin_scope: desktop_client
+  traffic_origin: desktop_client
+  expected_origin_scope: desktop_client
+  origin_match_state: origin_matches_expected
+  origin_ref: origin:desktop_client:restore:0001
+
+target:
+  target_class: connected_provider_target
+  endpoint_class: mirror_or_private_registry
+  target_identity_ref: target:mirror_registry:alpha:0001
+  intended_target_ref: target:mirror_registry:alpha:0001
+  observed_target_ref: target:public_registry:alpha:0002
+  target_match_state: target_matches_intent
+
+route:
+  route_choice: public_direct
+  route_label: undeclared_public_direct_fallback
+  traffic_origin: desktop_client
+  egress_class: public_internet
+  auth_posture: secret_handle
+  route_changed: true
+  route_change_reason_code: route_changed_target_unreachable
+  prior_route_choice: mirror_route
+  prior_target_ref: target:mirror_registry:alpha:0001
+  exposure_posture: provider_visible_mutation
+  route_summary: Mirror route became unavailable and the attempted public direct fallback was not declared or allowed.
+
+policy:
+  policy_source_class: org_admin_policy
+  policy_source_ref: policy:org_admin:mirror_only:0001
+  policy_epoch: epoch:42
+  policy_bundle_ref: policy:bundle:org:alpha
+  policy_summary: Mirror-only policy forbids direct public fallback without a new reviewed decision.
+
+decision_result:
+  decision_outcome: deny_hidden_fallback
+  route_truth_state: denied_hidden_fallback
+  denial_reason_code: hidden_public_fallback_detected
+  outcome_summary: The public direct fallback was denied and surfaced as hidden fallback.
+  repair_hook_ref: repair:mirror_route:refresh_or_review:0001
+
+fallback:
+  fallback_posture: hidden_fallback_denied
+  declared_to_user: false
+  direct_fallback_allowed: false
+  hidden_fallback_detected: true
+  fallback_summary: Direct fallback was forbidden by policy and cannot be represented as mirror continuity.
+
+timestamps:
+  planned_at: "2026-05-14T16:07:00Z"
+  decided_at: "2026-05-14T16:07:02Z"
+  completed_at: null
+
+export_projection:
+  consumer_surfaces:
+    - product_ui
+    - cli_explain
+    - support_bundle
+    - incident_packet
+    - admin_export
+  support_packet_field_refs:
+    - route.prior_route_choice
+    - route.route_choice
+    - fallback.direct_fallback_allowed
+    - fallback.hidden_fallback_detected
+    - decision_result.decision_outcome
+    - decision_result.repair_hook_ref
+  support_bundle_preview_field_refs:
+    - action_reconstruction_contexts[].route_choice
+    - action_reconstruction_contexts[].fallback_posture
+    - action_reconstruction_contexts[].decision_outcome
+    - action_reconstruction_contexts[].route_truth_state
+  raw_material_excluded: true
+
+redaction_class: metadata_safe_default
+trace_refs:
+  - trace:route_origin:hidden_fallback_denied:0001
+notes: Hidden fallback is a distinct denial, not a generic transport failure.

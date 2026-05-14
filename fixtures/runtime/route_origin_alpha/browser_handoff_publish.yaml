@@ -1,0 +1,110 @@
+$schema: "../../../schemas/transport/transport_decision_alpha.schema.json"
+__fixture__:
+  name: browser_handoff_publish
+  scenario: Provider publish changes route to a system-browser handoff and records the handoff as degraded route truth, not local continuity.
+  expected_truth_state: degraded_browser_handoff
+  expected_support_projection:
+    - origin_scope
+    - target_class
+    - route_choice
+    - traffic_origin
+    - route_change_reason_code
+    - decision_outcome
+    - fallback_posture
+
+schema_version: 1
+record_kind: transport_decision_alpha_record
+decision_id: transport:decision:browser_handoff_publish:0001
+matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.browser_handoff_publish
+transport_policy_snapshot_ref: transport:policy:provider_publish:0001
+
+command:
+  command_id: cmd:provider.publish_release_notes
+  command_descriptor_ref: command:descriptor:provider.publish_release_notes:alpha
+  invocation_session_id: inv:provider.publish_release_notes:alpha:0001
+  command_family: boundary_handoff
+
+actor:
+  actor_class: human_user
+  actor_ref: actor:human:local:0001
+  issuing_surface: publish_review_sheet
+
+origin:
+  origin_scope: desktop_client
+  traffic_origin: system_browser
+  expected_origin_scope: desktop_client
+  origin_match_state: origin_matches_expected
+  origin_ref: origin:desktop_client:publish_review:0001
+
+target:
+  target_class: system_browser_target
+  endpoint_class: browser_handoff
+  target_identity_ref: target:system_browser:provider_publish:0001
+  intended_target_ref: target:provider:publish:0001
+  observed_target_ref: target:system_browser:provider_publish:0001
+  target_match_state: target_matches_intent
+
+route:
+  route_choice: browser_handoff
+  route_label: system_browser_handoff_required
+  traffic_origin: system_browser
+  egress_class: public_internet
+  auth_posture: system_browser_callback
+  route_changed: true
+  route_change_reason_code: route_escalated_to_browser_handoff
+  prior_route_choice: org_approved_direct
+  prior_target_ref: target:provider:publish:0001
+  exposure_posture: provider_visible_mutation
+  route_summary: Provider publish moved to the system browser because the provider required interactive consent.
+
+policy:
+  policy_source_class: provider_policy
+  policy_source_ref: policy:provider:interactive_consent:0001
+  policy_epoch: epoch:42
+  policy_bundle_ref: policy:bundle:org:alpha
+  policy_summary: Provider policy required interactive browser consent for this publish action.
+
+decision_result:
+  decision_outcome: degraded_route_changed
+  route_truth_state: degraded_browser_handoff
+  denial_reason_code: null
+  outcome_summary: The route changed to browser handoff and support export records the changed route.
+  repair_hook_ref: null
+
+fallback:
+  fallback_posture: browser_handoff_required
+  declared_to_user: true
+  direct_fallback_allowed: false
+  hidden_fallback_detected: false
+  fallback_summary: Browser handoff was declared before activation and is not treated as ordinary local continuity.
+
+timestamps:
+  planned_at: "2026-05-14T16:02:00Z"
+  decided_at: "2026-05-14T16:02:03Z"
+  completed_at: null
+
+export_projection:
+  consumer_surfaces:
+    - product_ui
+    - cli_explain
+    - support_bundle
+    - incident_packet
+  support_packet_field_refs:
+    - command.command_id
+    - route.route_change_reason_code
+    - route.prior_route_choice
+    - route.route_choice
+    - origin.traffic_origin
+    - target.target_class
+    - fallback.fallback_posture
+  support_bundle_preview_field_refs:
+    - action_reconstruction_contexts[].route_choice
+    - action_reconstruction_contexts[].traffic_origin
+    - action_reconstruction_contexts[].fallback_posture
+    - action_reconstruction_contexts[].route_truth_state
+  raw_material_excluded: true
+
+redaction_class: metadata_safe_default
+trace_refs:
+  - trace:route_origin:browser_handoff_publish:0001
+notes: The packet carries the route change and browser target by typed refs only.

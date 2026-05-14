@@ -776,10 +776,22 @@ fn reviewed_command_action_reconstruction_seed(
             .preview_record_ref
             .as_ref()
             .map(|preview_ref| format!("route-packet:{preview_ref}")),
+        transport_decision_ref: None,
         action_origin_class: action_origin_class_for_invocation(invocation_session).into(),
         action_target_class: action_target_class_for_review(review_row).into(),
         action_route_class: action_route_class_for_review(review_row).into(),
         action_exposure_class: action_exposure_class_for_review(review_row).into(),
+        origin_scope: None,
+        traffic_origin: None,
+        endpoint_class: None,
+        transport_target_class: None,
+        route_choice: None,
+        egress_class: None,
+        decision_outcome: None,
+        route_truth_state: None,
+        fallback_posture: None,
+        actor_ref: None,
+        occurred_at: None,
         policy_source: ActionPolicySourceContext {
             policy_source_ref: format!(
                 "policy-source:{}",

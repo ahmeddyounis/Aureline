@@ -1,0 +1,720 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/transport/transport_decision_alpha.schema.json",
+  "title": "Aureline alpha transport decision record",
+  "description": "Boundary schema for one alpha transport_decision_alpha_record. The record preserves the origin scope, traffic origin, target class, route choice, policy source, actor, timestamps, outcome, and fallback posture that live product, CLI, support bundles, incident packets, and release evidence render for claimed externalized actions. Raw endpoint URLs, host names, payloads, credentials, tokens, cookies, private keys, and command bodies are excluded; only closed vocabulary tokens, opaque refs, and short reviewable sentences cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "decision_id",
+    "matrix_row_ref",
+    "command",
+    "actor",
+    "origin",
+    "target",
+    "route",
+    "policy",
+    "decision_result",
+    "fallback",
+    "timestamps",
+    "export_projection",
+    "redaction_class"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "transport_decision_alpha_record"
+    },
+    "decision_id": { "$ref": "#/$defs/opaque_id" },
+    "matrix_row_ref": { "$ref": "#/$defs/non_empty_string" },
+    "transport_policy_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+    "command": { "$ref": "#/$defs/command_ref" },
+    "actor": { "$ref": "#/$defs/actor" },
+    "origin": { "$ref": "#/$defs/origin" },
+    "target": { "$ref": "#/$defs/target" },
+    "route": { "$ref": "#/$defs/route" },
+    "policy": { "$ref": "#/$defs/policy" },
+    "decision_result": { "$ref": "#/$defs/decision_result" },
+    "fallback": { "$ref": "#/$defs/fallback" },
+    "timestamps": { "$ref": "#/$defs/timestamps" },
+    "export_projection": { "$ref": "#/$defs/export_projection" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "trace_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "notes": { "$ref": "#/$defs/reviewable_sentence" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+  },
+  "allOf": [
+    {
+      "description": "Wrong-target denials preserve intended and observed target refs.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "decision_outcome": { "const": "deny_wrong_target" }
+            },
+            "required": ["decision_outcome"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "target": {
+            "properties": {
+              "target_match_state": { "const": "wrong_target_detected" },
+              "intended_target_ref": { "not": { "type": "null" } },
+              "observed_target_ref": { "not": { "type": "null" } }
+            },
+            "required": [
+              "target_match_state",
+              "intended_target_ref",
+              "observed_target_ref"
+            ]
+          },
+          "fallback": {
+            "properties": {
+              "fallback_posture": { "const": "wrong_target_denied" }
+            },
+            "required": ["fallback_posture"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Wrong-origin denials preserve the expected origin and observed traffic origin.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "decision_outcome": { "const": "deny_wrong_origin" }
+            },
+            "required": ["decision_outcome"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "origin": {
+            "properties": {
+              "origin_match_state": { "const": "wrong_origin_detected" },
+              "expected_origin_scope": { "not": { "type": "null" } }
+            },
+            "required": [
+              "origin_match_state",
+              "expected_origin_scope",
+              "traffic_origin"
+            ]
+          },
+          "fallback": {
+            "properties": {
+              "fallback_posture": { "const": "wrong_origin_denied" }
+            },
+            "required": ["fallback_posture"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Hidden relay denials must identify the relay route and forbid treating it as local continuity.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "decision_outcome": { "const": "deny_hidden_relay" }
+            },
+            "required": ["decision_outcome"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "route": {
+            "properties": {
+              "route_choice": { "const": "managed_relay" }
+            },
+            "required": ["route_choice"]
+          },
+          "fallback": {
+            "properties": {
+              "fallback_posture": { "const": "hidden_relay_denied" },
+              "declared_to_user": { "const": false },
+              "hidden_fallback_detected": { "const": true }
+            },
+            "required": [
+              "fallback_posture",
+              "declared_to_user",
+              "hidden_fallback_detected"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Hidden fallback denials must forbid direct fallback and name the prior route.",
+      "if": {
+        "properties": {
+          "decision_result": {
+            "properties": {
+              "decision_outcome": { "const": "deny_hidden_fallback" }
+            },
+            "required": ["decision_outcome"]
+          }
+        },
+        "required": ["decision_result"]
+      },
+      "then": {
+        "properties": {
+          "route": {
+            "properties": {
+              "route_changed": { "const": true },
+              "prior_route_choice": { "not": { "type": "null" } }
+            },
+            "required": ["route_changed", "prior_route_choice"]
+          },
+          "fallback": {
+            "properties": {
+              "fallback_posture": { "const": "hidden_fallback_denied" },
+              "direct_fallback_allowed": { "const": false },
+              "hidden_fallback_detected": { "const": true }
+            },
+            "required": [
+              "fallback_posture",
+              "direct_fallback_allowed",
+              "hidden_fallback_detected"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Browser-handoff decisions must use the browser route choice and system-browser target.",
+      "if": {
+        "properties": {
+          "route": {
+            "properties": {
+              "route_choice": { "const": "browser_handoff" }
+            },
+            "required": ["route_choice"]
+          }
+        },
+        "required": ["route"]
+      },
+      "then": {
+        "properties": {
+          "target": {
+            "properties": {
+              "target_class": { "const": "system_browser_target" }
+            },
+            "required": ["target_class"]
+          },
+          "fallback": {
+            "properties": {
+              "fallback_posture": { "const": "browser_handoff_required" }
+            },
+            "required": ["fallback_posture"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Short reviewable sentence safe for UI, CLI, support export, and admin evidence."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "origin_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_client",
+        "remote_target",
+        "managed_service",
+        "extension_host",
+        "headless_runner",
+        "system_browser",
+        "local_helper"
+      ]
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "local_host_target",
+        "user_mode_sandbox_target",
+        "container_local_target",
+        "devcontainer_target",
+        "remote_ssh_target",
+        "remote_agent_target",
+        "managed_workspace_target",
+        "notebook_kernel_local_target",
+        "notebook_kernel_remote_target",
+        "ai_sandbox_target",
+        "connected_provider_target",
+        "embedded_webview_target",
+        "system_browser_target",
+        "native_os_callback_target",
+        "publish_release_target",
+        "tunnel_exposed_target",
+        "bridged_helper_target",
+        "unknown_target_class"
+      ]
+    },
+    "endpoint_class": {
+      "type": "string",
+      "enum": [
+        "git_remote",
+        "extension_registry",
+        "update_channel",
+        "docs_pack",
+        "ai_gateway",
+        "api_request",
+        "remote_attach",
+        "route_share",
+        "telemetry",
+        "support_upload",
+        "provider_api",
+        "browser_handoff",
+        "publish_registry",
+        "local_runtime",
+        "mirror_or_private_registry",
+        "unknown_endpoint"
+      ]
+    },
+    "egress_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "target_local",
+        "org_approved_external",
+        "public_internet",
+        "mirror_only",
+        "deny_all"
+      ]
+    },
+    "route_choice": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "target_local",
+        "public_direct",
+        "org_approved_direct",
+        "mirror_route",
+        "local_file_bundle",
+        "managed_relay",
+        "browser_handoff",
+        "publish_pipeline",
+        "blocked",
+        "deferred"
+      ]
+    },
+    "auth_posture": {
+      "type": "string",
+      "enum": [
+        "none",
+        "session",
+        "secret_handle",
+        "delegated_token",
+        "client_certificate",
+        "ssh_identity",
+        "managed_service_assertion",
+        "system_browser_callback",
+        "auth_unknown"
+      ]
+    },
+    "decision_outcome": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "allow_mirror",
+        "deny_policy",
+        "deny_proxy_resolution",
+        "deny_trust",
+        "offline_deferred",
+        "stale_mirror",
+        "unsupported_auth_mode",
+        "degraded_route_changed",
+        "deny_wrong_target",
+        "deny_wrong_origin",
+        "deny_hidden_relay",
+        "deny_hidden_fallback"
+      ]
+    },
+    "route_truth_state": {
+      "type": "string",
+      "enum": [
+        "route_authoritative",
+        "route_changed_declared",
+        "degraded_browser_handoff",
+        "degraded_offline_deferred",
+        "denied_wrong_target",
+        "denied_wrong_origin",
+        "denied_hidden_relay",
+        "denied_hidden_fallback"
+      ]
+    },
+    "fallback_posture": {
+      "type": "string",
+      "enum": [
+        "no_fallback",
+        "explicit_user_selected_fallback",
+        "policy_narrowed_fallback",
+        "browser_handoff_required",
+        "managed_relay_declared",
+        "direct_fallback_forbidden",
+        "mirror_only_no_direct",
+        "offline_deferred_idempotent",
+        "hidden_fallback_denied",
+        "hidden_relay_denied",
+        "wrong_target_denied",
+        "wrong_origin_denied"
+      ]
+    },
+    "policy_source_class": {
+      "type": "string",
+      "enum": [
+        "local_default",
+        "user_profile",
+        "workspace_policy",
+        "org_admin_policy",
+        "transport_policy_snapshot",
+        "provider_policy",
+        "emergency_policy",
+        "unknown_policy_source"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_user",
+        "local_automation",
+        "extension",
+        "ai_agent",
+        "managed_service",
+        "provider_callback",
+        "support_operator",
+        "unknown_actor"
+      ]
+    },
+    "origin_match_state": {
+      "type": "string",
+      "enum": [
+        "origin_matches_expected",
+        "wrong_origin_detected",
+        "origin_unknown_requires_review"
+      ]
+    },
+    "target_match_state": {
+      "type": "string",
+      "enum": [
+        "target_matches_intent",
+        "wrong_target_detected",
+        "target_unknown_requires_review",
+        "target_not_applicable"
+      ]
+    },
+    "route_change_reason_code": {
+      "type": "string",
+      "enum": [
+        "canonical_no_route_change",
+        "route_escalated_to_approval_required",
+        "route_escalated_to_browser_handoff",
+        "route_escalated_to_publish_pipeline",
+        "route_escalated_to_tunnel_exposure",
+        "route_changed_target_unreachable",
+        "route_changed_target_reassigned",
+        "route_changed_policy_narrowed",
+        "route_changed_authority_escalation",
+        "route_changed_wrong_target_detected",
+        "route_changed_approval_withdrawn",
+        "route_changed_freshness_floor_unmet",
+        "route_changed_host_mismatch",
+        "route_unknown_requires_review"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "product_ui",
+        "cli_explain",
+        "support_bundle",
+        "incident_packet",
+        "admin_export",
+        "release_evidence"
+      ]
+    },
+    "command_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "command_descriptor_ref",
+        "invocation_session_id",
+        "command_family"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_descriptor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "invocation_session_id": { "$ref": "#/$defs/opaque_id" },
+        "command_family": {
+          "type": "string",
+          "enum": [
+            "task",
+            "debug",
+            "prepublish",
+            "provider",
+            "boundary_handoff",
+            "support_export"
+          ]
+        }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "actor_ref", "issuing_surface"],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "issuing_surface": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_scope",
+        "traffic_origin",
+        "expected_origin_scope",
+        "origin_match_state",
+        "origin_ref"
+      ],
+      "properties": {
+        "origin_scope": { "$ref": "#/$defs/origin_scope" },
+        "traffic_origin": { "$ref": "#/$defs/origin_scope" },
+        "expected_origin_scope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/origin_scope" }
+          ]
+        },
+        "origin_match_state": { "$ref": "#/$defs/origin_match_state" },
+        "origin_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "endpoint_class",
+        "target_identity_ref",
+        "intended_target_ref",
+        "observed_target_ref",
+        "target_match_state"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "endpoint_class": { "$ref": "#/$defs/endpoint_class" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "intended_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "observed_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_match_state": { "$ref": "#/$defs/target_match_state" }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_choice",
+        "route_label",
+        "traffic_origin",
+        "egress_class",
+        "auth_posture",
+        "route_changed",
+        "route_change_reason_code",
+        "prior_route_choice",
+        "exposure_posture",
+        "route_summary"
+      ],
+      "properties": {
+        "route_choice": { "$ref": "#/$defs/route_choice" },
+        "route_label": { "$ref": "#/$defs/non_empty_string" },
+        "traffic_origin": { "$ref": "#/$defs/origin_scope" },
+        "egress_class": { "$ref": "#/$defs/egress_class" },
+        "auth_posture": { "$ref": "#/$defs/auth_posture" },
+        "route_changed": { "type": "boolean" },
+        "route_change_reason_code": { "$ref": "#/$defs/route_change_reason_code" },
+        "prior_route_choice": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/route_choice" }
+          ]
+        },
+        "prior_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "exposure_posture": { "$ref": "#/$defs/non_empty_string" },
+        "route_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_source_class",
+        "policy_source_ref",
+        "policy_epoch",
+        "policy_summary"
+      ],
+      "properties": {
+        "policy_source_class": { "$ref": "#/$defs/policy_source_class" },
+        "policy_source_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "policy_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "decision_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_outcome",
+        "route_truth_state",
+        "outcome_summary",
+        "repair_hook_ref"
+      ],
+      "properties": {
+        "decision_outcome": { "$ref": "#/$defs/decision_outcome" },
+        "route_truth_state": { "$ref": "#/$defs/route_truth_state" },
+        "denial_reason_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "outcome_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "repair_hook_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fallback_posture",
+        "declared_to_user",
+        "direct_fallback_allowed",
+        "hidden_fallback_detected",
+        "fallback_summary"
+      ],
+      "properties": {
+        "fallback_posture": { "$ref": "#/$defs/fallback_posture" },
+        "declared_to_user": { "type": "boolean" },
+        "direct_fallback_allowed": { "type": "boolean" },
+        "hidden_fallback_detected": { "type": "boolean" },
+        "fallback_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planned_at", "decided_at", "completed_at"],
+      "properties": {
+        "planned_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "decided_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      }
+    },
+    "export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surfaces",
+        "support_packet_field_refs",
+        "support_bundle_preview_field_refs",
+        "raw_material_excluded"
+      ],
+      "properties": {
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_class" },
+          "uniqueItems": true
+        },
+        "support_packet_field_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "support_bundle_preview_field_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "raw_material_excluded": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "expected_truth_state": { "$ref": "#/$defs/route_truth_state" },
+        "expected_support_projection": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

@@ -345,6 +345,10 @@ pub struct ActionReconstructionContext {
     /// Optional route-truth packet ref.
     #[serde(default)]
     pub action_route_packet_ref: Option<String>,
+    /// Optional transport-decision ref carrying origin, route, traffic,
+    /// outcome, and fallback truth.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport_decision_ref: Option<String>,
     /// Origin class from the action-route taxonomy.
     pub action_origin_class: String,
     /// Target class from the action-route taxonomy.
@@ -353,6 +357,39 @@ pub struct ActionReconstructionContext {
     pub action_route_class: String,
     /// Exposure class from the action-route taxonomy.
     pub action_exposure_class: String,
+    /// Origin scope exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin_scope: Option<String>,
+    /// Traffic origin exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traffic_origin: Option<String>,
+    /// Endpoint class exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint_class: Option<String>,
+    /// Transport target class exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport_target_class: Option<String>,
+    /// Route choice exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route_choice: Option<String>,
+    /// Egress class exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub egress_class: Option<String>,
+    /// Decision outcome exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decision_outcome: Option<String>,
+    /// Route truth state exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route_truth_state: Option<String>,
+    /// Fallback posture exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_posture: Option<String>,
+    /// Actor ref exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actor_ref: Option<String>,
+    /// Decision timestamp exported from the transport decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub occurred_at: Option<String>,
     /// Policy source that governed the action.
     pub policy_source: ActionPolicySourceContext,
     /// Redaction-safe route summary.

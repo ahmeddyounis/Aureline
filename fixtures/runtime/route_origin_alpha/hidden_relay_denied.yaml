@@ -1,0 +1,109 @@
+$schema: "../../../schemas/transport/transport_decision_alpha.schema.json"
+__fixture__:
+  name: hidden_relay_denied
+  scenario: A managed relay route appears after a local-looking remote attach and is denied because the relay was not declared to the user.
+  expected_truth_state: denied_hidden_relay
+  expected_support_projection:
+    - route_choice
+    - traffic_origin
+    - fallback_posture
+    - declared_to_user
+    - hidden_fallback_detected
+    - decision_outcome
+
+schema_version: 1
+record_kind: transport_decision_alpha_record
+decision_id: transport:decision:hidden_relay_denied:0001
+matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.hidden_relay_denied
+transport_policy_snapshot_ref: transport:policy:hidden_relay:0001
+
+command:
+  command_id: cmd:remote.attach_workspace
+  command_descriptor_ref: command:descriptor:remote.attach_workspace:alpha
+  invocation_session_id: inv:remote.attach_workspace:alpha:0001
+  command_family: boundary_handoff
+
+actor:
+  actor_class: human_user
+  actor_ref: actor:human:local:0001
+  issuing_surface: remote_attach_sheet
+
+origin:
+  origin_scope: desktop_client
+  traffic_origin: managed_service
+  expected_origin_scope: desktop_client
+  origin_match_state: origin_matches_expected
+  origin_ref: origin:desktop_client:remote_attach:0001
+
+target:
+  target_class: managed_workspace_target
+  endpoint_class: remote_attach
+  target_identity_ref: target:managed_workspace:relay:0001
+  intended_target_ref: target:managed_workspace:relay:0001
+  observed_target_ref: target:managed_workspace:relay:0001
+  target_match_state: target_matches_intent
+
+route:
+  route_choice: managed_relay
+  route_label: undeclared_managed_relay
+  traffic_origin: managed_service
+  egress_class: org_approved_external
+  auth_posture: managed_service_assertion
+  route_changed: true
+  route_change_reason_code: route_changed_authority_escalation
+  prior_route_choice: target_local
+  prior_target_ref: target:managed_workspace:relay:0001
+  exposure_posture: workspace_visible_mutation
+  route_summary: Managed relay was detected after the action was presented as target-local.
+
+policy:
+  policy_source_class: transport_policy_snapshot
+  policy_source_ref: policy:transport:hidden_relay:0001
+  policy_epoch: epoch:42
+  policy_bundle_ref: policy:bundle:org:alpha
+  policy_summary: Transport policy denies undeclared managed relay routes on remote attach.
+
+decision_result:
+  decision_outcome: deny_hidden_relay
+  route_truth_state: denied_hidden_relay
+  denial_reason_code: hidden_relay_detected
+  outcome_summary: The route was denied because a managed relay was not declared before activation.
+  repair_hook_ref: repair:route_visibility:declare_relay:0001
+
+fallback:
+  fallback_posture: hidden_relay_denied
+  declared_to_user: false
+  direct_fallback_allowed: false
+  hidden_fallback_detected: true
+  fallback_summary: The relay was blocked and recorded as hidden rather than converted into local continuity.
+
+timestamps:
+  planned_at: "2026-05-14T16:06:00Z"
+  decided_at: "2026-05-14T16:06:02Z"
+  completed_at: null
+
+export_projection:
+  consumer_surfaces:
+    - product_ui
+    - cli_explain
+    - support_bundle
+    - incident_packet
+    - admin_export
+  support_packet_field_refs:
+    - route.route_choice
+    - route.traffic_origin
+    - fallback.declared_to_user
+    - fallback.hidden_fallback_detected
+    - decision_result.decision_outcome
+    - decision_result.repair_hook_ref
+  support_bundle_preview_field_refs:
+    - action_reconstruction_contexts[].route_choice
+    - action_reconstruction_contexts[].traffic_origin
+    - action_reconstruction_contexts[].fallback_posture
+    - action_reconstruction_contexts[].decision_outcome
+  raw_material_excluded: true
+
+redaction_class: metadata_safe_default
+trace_refs:
+  - trace:route_origin:hidden_relay_denied:0001
+notes: Hidden relay denial keeps the managed route visible to support and admin review.

@@ -116,6 +116,9 @@ pub struct ActionReconstructionSeed {
     pub target_identity_ref: String,
     /// Optional route-truth packet ref.
     pub action_route_packet_ref: Option<String>,
+    /// Optional transport-decision ref carrying origin, route, traffic,
+    /// outcome, and fallback truth.
+    pub transport_decision_ref: Option<String>,
     /// Origin class from the action-route taxonomy.
     pub action_origin_class: String,
     /// Target class from the action-route taxonomy.
@@ -124,6 +127,28 @@ pub struct ActionReconstructionSeed {
     pub action_route_class: String,
     /// Exposure class from the action-route taxonomy.
     pub action_exposure_class: String,
+    /// Origin scope from the transport decision.
+    pub origin_scope: Option<String>,
+    /// Traffic origin from the transport decision.
+    pub traffic_origin: Option<String>,
+    /// Endpoint class from the transport decision.
+    pub endpoint_class: Option<String>,
+    /// Target class from the transport decision.
+    pub transport_target_class: Option<String>,
+    /// Route choice from the transport decision.
+    pub route_choice: Option<String>,
+    /// Egress class from the transport decision.
+    pub egress_class: Option<String>,
+    /// Decision outcome from the transport decision.
+    pub decision_outcome: Option<String>,
+    /// Route truth state from the transport decision.
+    pub route_truth_state: Option<String>,
+    /// Fallback posture from the transport decision.
+    pub fallback_posture: Option<String>,
+    /// Actor ref from the transport decision.
+    pub actor_ref: Option<String>,
+    /// Decision timestamp from the transport decision.
+    pub occurred_at: Option<String>,
     /// Policy source that governed the action.
     pub policy_source: ActionPolicySourceContext,
     /// Redaction-safe summary for support/incident readers.
@@ -734,10 +759,22 @@ impl SupportBundlePreviewBuilder {
                 invocation_session_id: action_seed.invocation_session_id.clone(),
                 target_identity_ref: action_seed.target_identity_ref.clone(),
                 action_route_packet_ref: action_seed.action_route_packet_ref.clone(),
+                transport_decision_ref: action_seed.transport_decision_ref.clone(),
                 action_origin_class: action_seed.action_origin_class.clone(),
                 action_target_class: action_seed.action_target_class.clone(),
                 action_route_class: action_seed.action_route_class.clone(),
                 action_exposure_class: action_seed.action_exposure_class.clone(),
+                origin_scope: action_seed.origin_scope.clone(),
+                traffic_origin: action_seed.traffic_origin.clone(),
+                endpoint_class: action_seed.endpoint_class.clone(),
+                transport_target_class: action_seed.transport_target_class.clone(),
+                route_choice: action_seed.route_choice.clone(),
+                egress_class: action_seed.egress_class.clone(),
+                decision_outcome: action_seed.decision_outcome.clone(),
+                route_truth_state: action_seed.route_truth_state.clone(),
+                fallback_posture: action_seed.fallback_posture.clone(),
+                actor_ref: action_seed.actor_ref.clone(),
+                occurred_at: action_seed.occurred_at.clone(),
                 policy_source: action_seed.policy_source.clone(),
                 route_summary: action_seed.route_summary.clone(),
                 reviewed_enforcement_ref: action_seed.reviewed_enforcement_ref.clone(),
@@ -1035,10 +1072,22 @@ mod tests {
             invocation_session_id: "inv:workspace.import_profile:fixture".into(),
             target_identity_ref: "target:local:workspace".into(),
             action_route_packet_ref: Some("route-packet:workspace.import_profile:fixture".into()),
+            transport_decision_ref: None,
             action_origin_class: "user_keystroke_local".into(),
             action_target_class: "local_host_target".into(),
             action_route_class: "approval_gated_route".into(),
             action_exposure_class: "workspace_visible_mutation".into(),
+            origin_scope: None,
+            traffic_origin: None,
+            endpoint_class: None,
+            transport_target_class: None,
+            route_choice: None,
+            egress_class: None,
+            decision_outcome: None,
+            route_truth_state: None,
+            fallback_posture: None,
+            actor_ref: None,
+            occurred_at: None,
             policy_source: ActionPolicySourceContext {
                 policy_source_ref: "policy-source:local-default:1".into(),
                 policy_epoch: "1".into(),

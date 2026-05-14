@@ -1,0 +1,112 @@
+$schema: "../../../schemas/transport/transport_decision_alpha.schema.json"
+__fixture__:
+  name: provider_preflight
+  scenario: Provider preflight uses an organization-approved direct route with provider-visible exposure and no hidden browser handoff.
+  expected_truth_state: route_authoritative
+  expected_support_projection:
+    - origin_scope
+    - target_class
+    - route_choice
+    - traffic_origin
+    - policy_source_class
+    - actor_ref
+    - decision_outcome
+    - fallback_posture
+
+schema_version: 1
+record_kind: transport_decision_alpha_record
+decision_id: transport:decision:provider_preflight:0001
+matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.provider_preflight
+transport_policy_snapshot_ref: transport:policy:org_alpha:0001
+
+command:
+  command_id: cmd:provider.review_preflight
+  command_descriptor_ref: command:descriptor:provider.review_preflight:alpha
+  invocation_session_id: inv:provider.review_preflight:alpha:0001
+  command_family: provider
+
+actor:
+  actor_class: human_user
+  actor_ref: actor:human:local:0001
+  issuing_surface: review_panel
+
+origin:
+  origin_scope: desktop_client
+  traffic_origin: desktop_client
+  expected_origin_scope: desktop_client
+  origin_match_state: origin_matches_expected
+  origin_ref: origin:desktop_client:review:0001
+
+target:
+  target_class: connected_provider_target
+  endpoint_class: provider_api
+  target_identity_ref: target:provider:review:0001
+  intended_target_ref: target:provider:review:0001
+  observed_target_ref: target:provider:review:0001
+  target_match_state: target_matches_intent
+
+route:
+  route_choice: org_approved_direct
+  route_label: org_approved_provider_route
+  traffic_origin: desktop_client
+  egress_class: org_approved_external
+  auth_posture: delegated_token
+  route_changed: false
+  route_change_reason_code: canonical_no_route_change
+  prior_route_choice: null
+  prior_target_ref: null
+  exposure_posture: provider_visible_mutation
+  route_summary: Provider preflight used the approved provider route from the desktop client under organization policy.
+
+policy:
+  policy_source_class: org_admin_policy
+  policy_source_ref: policy:org_admin:provider:0001
+  policy_epoch: epoch:42
+  policy_bundle_ref: policy:bundle:org:alpha
+  policy_summary: Organization policy allowed this provider API route and required delegated-handle auth.
+
+decision_result:
+  decision_outcome: allow
+  route_truth_state: route_authoritative
+  denial_reason_code: null
+  outcome_summary: Provider preflight was allowed through the approved provider route.
+  repair_hook_ref: null
+
+fallback:
+  fallback_posture: no_fallback
+  declared_to_user: true
+  direct_fallback_allowed: false
+  hidden_fallback_detected: false
+  fallback_summary: No browser or relay fallback was used; the provider route remained explicit.
+
+timestamps:
+  planned_at: "2026-05-14T16:01:00Z"
+  decided_at: "2026-05-14T16:01:01Z"
+  completed_at: "2026-05-14T16:01:05Z"
+
+export_projection:
+  consumer_surfaces:
+    - product_ui
+    - cli_explain
+    - support_bundle
+    - incident_packet
+    - admin_export
+  support_packet_field_refs:
+    - command.command_id
+    - command.invocation_session_id
+    - origin.traffic_origin
+    - target.endpoint_class
+    - route.route_choice
+    - policy.policy_source_ref
+    - decision_result.decision_outcome
+  support_bundle_preview_field_refs:
+    - action_reconstruction_contexts[].traffic_origin
+    - action_reconstruction_contexts[].endpoint_class
+    - action_reconstruction_contexts[].route_choice
+    - action_reconstruction_contexts[].policy_source.policy_source_ref
+  raw_material_excluded: true
+
+redaction_class: metadata_safe_default
+trace_refs:
+  - trace:route_origin:provider_preflight:0001
+notes: Provider identity is represented by opaque refs; raw provider host and payload data are absent.

@@ -52,6 +52,10 @@
 //!   publication manifest and exposes clean-room, mirror-only, deny-all,
 //!   offline, notice, SBOM, provenance, blocker, and live-truth degradation
 //!   state for metadata-only support/export review.
+//! - The [`route_origin_alpha`] projection — consumes the checked-in
+//!   route-origin matrix, transport-decision fixtures, and reconstruction
+//!   packet so support/export previews can rebuild command, target, route,
+//!   traffic-origin, policy, outcome, and fallback truth.
 //!
 //! ## Failure-drill posture
 //!
@@ -71,5 +75,6 @@ pub mod publication_dry_run;
 pub mod recovery_ladder;
 pub mod release_evidence;
 pub mod repair;
+pub mod route_origin_alpha;
 pub mod runtime_health_alpha;
 pub mod scenario_scorecard;

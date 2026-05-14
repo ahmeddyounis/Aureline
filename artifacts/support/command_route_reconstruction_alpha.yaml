@@ -1,0 +1,317 @@
+# Support/export reconstruction packet for alpha route-origin truth.
+#
+# This packet is the first support/export consumer of the alpha
+# route-origin matrix and alpha transport decision schema. It tells support
+# bundles and incident packets how to reconstruct command, target, route,
+# policy, actor, timestamps, outcome, and fallback posture without scraping
+# UI text.
+
+schema_version: 1
+record_kind: command_route_reconstruction_alpha_packet
+packet_id: support.command_route_reconstruction.alpha.v1
+status: seeded
+owner_dri: "@support-export"
+as_of: "2026-05-14"
+
+consumes:
+  route_origin_matrix_ref: artifacts/routes/alpha_route_origin_matrix.yaml
+  transport_decision_schema_ref: schemas/transport/transport_decision_alpha.schema.json
+  support_bundle_manifest_schema_ref: schemas/support/support_bundle_manifest.schema.json
+  command_invocation_schema_ref: schemas/commands/invocation_session_alpha.schema.json
+  route_taxonomy_ref: docs/runtime/origin_target_route_taxonomy.md
+  fixture_manifest_ref: fixtures/runtime/route_origin_alpha/manifest.yaml
+
+first_consumers:
+  rust_support_module: crates/aureline-support/src/route_origin_alpha/mod.rs
+  rust_support_test: crates/aureline-support/tests/route_origin_alpha.rs
+  support_bundle_manifest_block: action_reconstruction_contexts
+  docs_runtime_projection: docs/runtime/route_origin_alpha.md
+
+packet_contract:
+  support_item_id: support.item.route_origin_alpha_reconstruction
+  preview_title: Alpha command, route, and origin reconstruction
+  preview_bundle_section_class: route_and_execution_truth
+  preview_artifact_kind_class: command_route_reconstruction_alpha_packet
+  data_class: environment_adjacent
+  high_risk_content_class: not_applicable
+  default_redaction_state: not_required_metadata
+  raw_content_export_allowed: false
+  required_manifest_fields:
+    - build_identity.exact_build_refs
+    - action_reconstruction_contexts[].command_id
+    - action_reconstruction_contexts[].invocation_session_id
+    - action_reconstruction_contexts[].target_identity_ref
+    - action_reconstruction_contexts[].transport_decision_ref
+    - action_reconstruction_contexts[].origin_scope
+    - action_reconstruction_contexts[].target_class
+    - action_reconstruction_contexts[].route_choice
+    - action_reconstruction_contexts[].traffic_origin
+    - action_reconstruction_contexts[].decision_outcome
+    - action_reconstruction_contexts[].fallback_posture
+    - action_reconstruction_contexts[].policy_source.policy_source_ref
+    - action_reconstruction_contexts[].actor_ref
+    - action_reconstruction_contexts[].occurred_at
+  absent_fields_must_be_typed:
+    - transport_decision_ref
+    - target_identity_ref
+    - action_route_packet_ref
+    - repair_hook_ref
+
+projection_rows:
+  - projection_id: local_task_debug
+    matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.local_task_debug
+    command_family: task
+    support_context: local_debug_or_task
+    support_item_id: support.item.route_origin_alpha_reconstruction.local_task_debug
+    fixture_ref: fixtures/runtime/route_origin_alpha/local_task_debug.yaml
+    expected_route_truth_state: route_authoritative
+    expected_outcome: allow
+    reconstructs_without_ui_text: true
+    route_fields:
+      - origin_scope
+      - target_class
+      - route_choice
+      - traffic_origin
+      - policy_source_class
+      - actor_ref
+      - decided_at
+      - fallback_posture
+
+  - projection_id: provider_preflight
+    matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.provider_preflight
+    command_family: provider
+    support_context: provider_preflight
+    support_item_id: support.item.route_origin_alpha_reconstruction.provider_preflight
+    fixture_ref: fixtures/runtime/route_origin_alpha/provider_preflight.yaml
+    expected_route_truth_state: route_authoritative
+    expected_outcome: allow
+    reconstructs_without_ui_text: true
+    route_fields:
+      - origin_scope
+      - target_class
+      - endpoint_class
+      - route_choice
+      - egress_class
+      - policy_source_class
+      - actor_ref
+      - decided_at
+      - fallback_posture
+
+  - projection_id: browser_handoff_publish
+    matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.browser_handoff_publish
+    command_family: boundary_handoff
+    support_context: browser_handoff
+    support_item_id: support.item.route_origin_alpha_reconstruction.browser_handoff_publish
+    fixture_ref: fixtures/runtime/route_origin_alpha/browser_handoff_publish.yaml
+    expected_route_truth_state: degraded_browser_handoff
+    expected_outcome: degraded_route_changed
+    reconstructs_without_ui_text: true
+    route_fields:
+      - origin_scope
+      - traffic_origin
+      - target_class
+      - route_choice
+      - route_change_reason_code
+      - fallback_posture
+      - policy_source_class
+      - actor_ref
+      - decided_at
+
+  - projection_id: publish_pipeline
+    matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.publish_pipeline
+    command_family: prepublish
+    support_context: publish_capable
+    support_item_id: support.item.route_origin_alpha_reconstruction.publish_pipeline
+    fixture_ref: fixtures/runtime/route_origin_alpha/publish_pipeline.yaml
+    expected_route_truth_state: route_authoritative
+    expected_outcome: allow
+    reconstructs_without_ui_text: true
+    route_fields:
+      - origin_scope
+      - traffic_origin
+      - target_class
+      - route_choice
+      - exposure_posture
+      - policy_source_class
+      - actor_ref
+      - decided_at
+      - fallback_posture
+
+  - projection_id: wrong_target_denied
+    matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.wrong_target_denied
+    command_family: debug
+    support_context: denial_or_degraded
+    support_item_id: support.item.route_origin_alpha_reconstruction.wrong_target_denied
+    fixture_ref: fixtures/runtime/route_origin_alpha/wrong_target_denied.yaml
+    expected_route_truth_state: denied_wrong_target
+    expected_outcome: deny_wrong_target
+    reconstructs_without_ui_text: true
+    route_fields:
+      - target_match_state
+      - intended_target_ref
+      - observed_target_ref
+      - decision_outcome
+      - fallback_posture
+      - repair_hook_ref
+
+  - projection_id: wrong_origin_denied
+    matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.wrong_origin_denied
+    command_family: provider
+    support_context: denial_or_degraded
+    support_item_id: support.item.route_origin_alpha_reconstruction.wrong_origin_denied
+    fixture_ref: fixtures/runtime/route_origin_alpha/wrong_origin_denied.yaml
+    expected_route_truth_state: denied_wrong_origin
+    expected_outcome: deny_wrong_origin
+    reconstructs_without_ui_text: true
+    route_fields:
+      - origin_match_state
+      - expected_origin_scope
+      - traffic_origin
+      - decision_outcome
+      - fallback_posture
+      - repair_hook_ref
+
+  - projection_id: hidden_relay_denied
+    matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.hidden_relay_denied
+    command_family: boundary_handoff
+    support_context: denial_or_degraded
+    support_item_id: support.item.route_origin_alpha_reconstruction.hidden_relay_denied
+    fixture_ref: fixtures/runtime/route_origin_alpha/hidden_relay_denied.yaml
+    expected_route_truth_state: denied_hidden_relay
+    expected_outcome: deny_hidden_relay
+    reconstructs_without_ui_text: true
+    route_fields:
+      - route_choice
+      - traffic_origin
+      - fallback_posture
+      - declared_to_user
+      - hidden_fallback_detected
+      - decision_outcome
+
+  - projection_id: hidden_fallback_denied
+    matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.hidden_fallback_denied
+    command_family: provider
+    support_context: denial_or_degraded
+    support_item_id: support.item.route_origin_alpha_reconstruction.hidden_fallback_denied
+    fixture_ref: fixtures/runtime/route_origin_alpha/hidden_fallback_denied.yaml
+    expected_route_truth_state: denied_hidden_fallback
+    expected_outcome: deny_hidden_fallback
+    reconstructs_without_ui_text: true
+    route_fields:
+      - prior_route_choice
+      - route_choice
+      - direct_fallback_allowed
+      - hidden_fallback_detected
+      - decision_outcome
+      - fallback_posture
+
+support_bundle_projection:
+  preview_row:
+    support_pack_item_id: support.item.route_origin_alpha_reconstruction
+    bundle_section_class: route_and_execution_truth
+    artifact_kind_class: command_route_reconstruction_alpha_packet
+    source_refs:
+      - artifacts/routes/alpha_route_origin_matrix.yaml
+      - schemas/transport/transport_decision_alpha.schema.json
+      - artifacts/support/command_route_reconstruction_alpha.yaml
+      - fixtures/runtime/route_origin_alpha/manifest.yaml
+  action_reconstruction_context_mapping:
+    command_id: command.command_id
+    command_descriptor_ref: command.command_descriptor_ref
+    invocation_session_id: command.invocation_session_id
+    target_identity_ref: target.target_identity_ref
+    action_route_packet_ref: decision_id
+    transport_decision_ref: decision_id
+    action_origin_class: origin.origin_scope
+    action_target_class: target.target_class
+    action_route_class: route.route_choice
+    action_exposure_class: route.exposure_posture
+    origin_scope: origin.origin_scope
+    traffic_origin: origin.traffic_origin
+    endpoint_class: target.endpoint_class
+    target_class: target.target_class
+    route_choice: route.route_choice
+    egress_class: route.egress_class
+    decision_outcome: decision_result.decision_outcome
+    route_truth_state: decision_result.route_truth_state
+    fallback_posture: fallback.fallback_posture
+    actor_ref: actor.actor_ref
+    occurred_at: timestamps.decided_at
+    policy_source.policy_source_ref: policy.policy_source_ref
+    policy_source.source_class: policy.policy_source_class
+
+denial_and_degraded_state_mapping:
+  wrong_target:
+    outcome: deny_wrong_target
+    route_truth_state: denied_wrong_target
+    fallback_posture: wrong_target_denied
+    required_refs:
+      - target.intended_target_ref
+      - target.observed_target_ref
+      - decision_result.repair_hook_ref
+  wrong_origin:
+    outcome: deny_wrong_origin
+    route_truth_state: denied_wrong_origin
+    fallback_posture: wrong_origin_denied
+    required_refs:
+      - origin.expected_origin_scope
+      - origin.traffic_origin
+      - decision_result.repair_hook_ref
+  hidden_relay:
+    outcome: deny_hidden_relay
+    route_truth_state: denied_hidden_relay
+    fallback_posture: hidden_relay_denied
+    required_refs:
+      - route.route_choice
+      - fallback.declared_to_user
+      - fallback.hidden_fallback_detected
+  hidden_fallback:
+    outcome: deny_hidden_fallback
+    route_truth_state: denied_hidden_fallback
+    fallback_posture: hidden_fallback_denied
+    required_refs:
+      - route.prior_route_choice
+      - fallback.direct_fallback_allowed
+      - fallback.hidden_fallback_detected
+  browser_handoff:
+    outcome: degraded_route_changed
+    route_truth_state: degraded_browser_handoff
+    fallback_posture: browser_handoff_required
+    required_refs:
+      - route.route_change_reason_code
+      - target.target_identity_ref
+
+quality_gates:
+  - gate_id: route_origin.fixture_coverage
+    description: Fixture corpus covers local, provider, browser-handoff, publish-capable, wrong-target, wrong-origin, hidden-relay, and hidden-fallback rows.
+    required_projection_ids:
+      - local_task_debug
+      - provider_preflight
+      - browser_handoff_publish
+      - publish_pipeline
+      - wrong_target_denied
+      - wrong_origin_denied
+      - hidden_relay_denied
+      - hidden_fallback_denied
+  - gate_id: route_origin.support_bundle_reconstructs_without_ui_text
+    description: Rust support consumer projects every fixture into action_reconstruction_contexts with transport decision fields and exact-build refs.
+    validator_ref: crates/aureline-support/tests/route_origin_alpha.rs
+  - gate_id: route_origin.no_raw_material
+    description: Raw URLs, hostnames, command bodies, provider payloads, and secret material remain excluded from support/export projection.
+    validator_ref: schemas/transport/transport_decision_alpha.schema.json
+
+redaction:
+  redaction_class: metadata_safe_default
+  raw_material_excluded: true
+  excluded_material_classes:
+    - raw_endpoint_url
+    - raw_hostname
+    - raw_command_line
+    - request_or_response_body
+    - bearer_token
+    - cookie
+    - private_key
+    - provider_payload
+  review_widening_requires: operator_only_restricted_export_review
+
+emitted_at: "2026-05-14T00:00:00Z"

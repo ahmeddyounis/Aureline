@@ -1,0 +1,111 @@
+$schema: "../../../schemas/transport/transport_decision_alpha.schema.json"
+__fixture__:
+  name: publish_pipeline
+  scenario: Publish-capable release action uses a declared publish pipeline and records managed-service traffic origin explicitly.
+  expected_truth_state: route_authoritative
+  expected_support_projection:
+    - origin_scope
+    - traffic_origin
+    - target_class
+    - route_choice
+    - policy_source_class
+    - actor_ref
+    - decision_outcome
+    - fallback_posture
+
+schema_version: 1
+record_kind: transport_decision_alpha_record
+decision_id: transport:decision:publish_pipeline:0001
+matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.publish_pipeline
+transport_policy_snapshot_ref: transport:policy:publish_pipeline:0001
+
+command:
+  command_id: cmd:release.prepublish_check
+  command_descriptor_ref: command:descriptor:release.prepublish_check:alpha
+  invocation_session_id: inv:release.prepublish_check:alpha:0001
+  command_family: prepublish
+
+actor:
+  actor_class: human_user
+  actor_ref: actor:human:local:0001
+  issuing_surface: release_center
+
+origin:
+  origin_scope: desktop_client
+  traffic_origin: managed_service
+  expected_origin_scope: desktop_client
+  origin_match_state: origin_matches_expected
+  origin_ref: origin:desktop_client:release_center:0001
+
+target:
+  target_class: publish_release_target
+  endpoint_class: publish_registry
+  target_identity_ref: target:publish_registry:alpha:0001
+  intended_target_ref: target:publish_registry:alpha:0001
+  observed_target_ref: target:publish_registry:alpha:0001
+  target_match_state: target_matches_intent
+
+route:
+  route_choice: publish_pipeline
+  route_label: managed_publish_pipeline
+  traffic_origin: managed_service
+  egress_class: org_approved_external
+  auth_posture: managed_service_assertion
+  route_changed: false
+  route_change_reason_code: canonical_no_route_change
+  prior_route_choice: null
+  prior_target_ref: null
+  exposure_posture: publicly_visible_publish
+  route_summary: Publish preflight used the declared publish pipeline with managed-service traffic origin.
+
+policy:
+  policy_source_class: org_admin_policy
+  policy_source_ref: policy:org_admin:publish:0001
+  policy_epoch: epoch:42
+  policy_bundle_ref: policy:bundle:org:alpha
+  policy_summary: Organization release policy allowed the publish pipeline and forbade direct public fallback.
+
+decision_result:
+  decision_outcome: allow
+  route_truth_state: route_authoritative
+  denial_reason_code: null
+  outcome_summary: Publish preflight was allowed through the declared pipeline.
+  repair_hook_ref: null
+
+fallback:
+  fallback_posture: no_fallback
+  declared_to_user: true
+  direct_fallback_allowed: false
+  hidden_fallback_detected: false
+  fallback_summary: No fallback route is available for publish-capable actions without a new decision.
+
+timestamps:
+  planned_at: "2026-05-14T16:03:00Z"
+  decided_at: "2026-05-14T16:03:02Z"
+  completed_at: "2026-05-14T16:03:20Z"
+
+export_projection:
+  consumer_surfaces:
+    - product_ui
+    - support_bundle
+    - incident_packet
+    - release_evidence
+  support_packet_field_refs:
+    - command.command_id
+    - origin.traffic_origin
+    - target.target_class
+    - route.route_choice
+    - route.exposure_posture
+    - policy.policy_source_ref
+    - timestamps.decided_at
+  support_bundle_preview_field_refs:
+    - action_reconstruction_contexts[].traffic_origin
+    - action_reconstruction_contexts[].target_class
+    - action_reconstruction_contexts[].route_choice
+    - action_reconstruction_contexts[].decision_outcome
+  raw_material_excluded: true
+
+redaction_class: metadata_safe_default
+trace_refs:
+  - trace:route_origin:publish_pipeline:0001
+notes: Publish-capable route truth is explicit so release evidence and support export agree.

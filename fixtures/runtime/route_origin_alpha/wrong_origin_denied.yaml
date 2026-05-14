@@ -1,0 +1,109 @@
+$schema: "../../../schemas/transport/transport_decision_alpha.schema.json"
+__fixture__:
+  name: wrong_origin_denied
+  scenario: Provider mutation was expected to originate from the desktop client but attempted to originate from a managed service and is denied.
+  expected_truth_state: denied_wrong_origin
+  expected_support_projection:
+    - origin_match_state
+    - expected_origin_scope
+    - traffic_origin
+    - decision_outcome
+    - fallback_posture
+    - repair_hook_ref
+
+schema_version: 1
+record_kind: transport_decision_alpha_record
+decision_id: transport:decision:wrong_origin_denied:0001
+matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.wrong_origin_denied
+transport_policy_snapshot_ref: transport:policy:provider_origin:0001
+
+command:
+  command_id: cmd:provider.publish_comment
+  command_descriptor_ref: command:descriptor:provider.publish_comment:alpha
+  invocation_session_id: inv:provider.publish_comment:alpha:0001
+  command_family: provider
+
+actor:
+  actor_class: managed_service
+  actor_ref: actor:managed_service:provider:0001
+  issuing_surface: deferred_provider_queue
+
+origin:
+  origin_scope: managed_service
+  traffic_origin: managed_service
+  expected_origin_scope: desktop_client
+  origin_match_state: wrong_origin_detected
+  origin_ref: origin:managed_service:provider_queue:0001
+
+target:
+  target_class: connected_provider_target
+  endpoint_class: provider_api
+  target_identity_ref: target:provider:review:0002
+  intended_target_ref: target:provider:review:0002
+  observed_target_ref: target:provider:review:0002
+  target_match_state: target_matches_intent
+
+route:
+  route_choice: blocked
+  route_label: wrong_origin_blocked
+  traffic_origin: managed_service
+  egress_class: deny_all
+  auth_posture: managed_service_assertion
+  route_changed: true
+  route_change_reason_code: route_changed_policy_narrowed
+  prior_route_choice: org_approved_direct
+  prior_target_ref: target:provider:review:0002
+  exposure_posture: no_external_route_used
+  route_summary: Provider mutation was blocked because policy required desktop-originated traffic for this action.
+
+policy:
+  policy_source_class: org_admin_policy
+  policy_source_ref: policy:org_admin:provider_origin:0001
+  policy_epoch: epoch:42
+  policy_bundle_ref: policy:bundle:org:alpha
+  policy_summary: Organization policy forbids managed-service origin for this provider mutation.
+
+decision_result:
+  decision_outcome: deny_wrong_origin
+  route_truth_state: denied_wrong_origin
+  denial_reason_code: wrong_origin_detected
+  outcome_summary: The action was denied before provider egress because the observed traffic origin was not permitted.
+  repair_hook_ref: repair:provider_origin:reroute_desktop:0001
+
+fallback:
+  fallback_posture: wrong_origin_denied
+  declared_to_user: true
+  direct_fallback_allowed: false
+  hidden_fallback_detected: false
+  fallback_summary: No fallback was attempted; the user must rerun from an allowed origin.
+
+timestamps:
+  planned_at: "2026-05-14T16:05:00Z"
+  decided_at: "2026-05-14T16:05:02Z"
+  completed_at: null
+
+export_projection:
+  consumer_surfaces:
+    - product_ui
+    - cli_explain
+    - support_bundle
+    - incident_packet
+    - admin_export
+  support_packet_field_refs:
+    - origin.expected_origin_scope
+    - origin.traffic_origin
+    - origin.origin_match_state
+    - decision_result.decision_outcome
+    - decision_result.repair_hook_ref
+    - fallback.fallback_posture
+  support_bundle_preview_field_refs:
+    - action_reconstruction_contexts[].origin_scope
+    - action_reconstruction_contexts[].traffic_origin
+    - action_reconstruction_contexts[].decision_outcome
+    - action_reconstruction_contexts[].fallback_posture
+  raw_material_excluded: true
+
+redaction_class: metadata_safe_default
+trace_refs:
+  - trace:route_origin:wrong_origin_denied:0001
+notes: Wrong-origin denial is distinct from generic provider failure.
