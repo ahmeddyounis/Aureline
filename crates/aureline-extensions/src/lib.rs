@@ -17,6 +17,10 @@
 //!   that combines install, update, disable, revoke, publisher-continuity,
 //!   revocation, and policy-pack truth for the first consuming review
 //!   surface.
+//! - one [`install_review::InstallReviewAlphaPacketRecord`] projection that
+//!   consumes review, provider/runtime boundary, compatibility,
+//!   activation-budget, and install-topology truth for the first
+//!   marketplace/package review lane.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -30,9 +34,22 @@
 //! the cross-tool boundary schema is
 //! [`/schemas/extensions/m1_extension_manifest.schema.json`](../../../schemas/extensions/m1_extension_manifest.schema.json).
 
+pub mod install_review;
 pub mod manifest_baseline;
 pub mod review_alpha;
 
+pub use install_review::{
+    evaluate_install_review_alpha, project_install_review_alpha_surface,
+    validate_install_review_alpha_packet, ActivationBudgetDisclosure, BridgeStateClass,
+    CompatibilityClaimClass, CompatibilityLabelBlock, InstallReviewActionClass,
+    InstallReviewActionOfferClass, InstallReviewAlphaEvaluation, InstallReviewAlphaFinding,
+    InstallReviewAlphaInput, InstallReviewAlphaPacketRecord, InstallReviewAlphaProjectionRecord,
+    InstallReviewBoundaryTruth, InstallReviewContentSourceClass, InstallReviewDecisionClass,
+    InstallReviewDecisionReasonClass, InstallReviewDisclosureClass, InstallReviewSurfaceClass,
+    NativeReviewAuthorityClass, RuntimeCostClass, RuntimeCostEvidenceClass,
+    INSTALL_REVIEW_ALPHA_PACKET_RECORD_KIND, INSTALL_REVIEW_ALPHA_PROJECTION_RECORD_KIND,
+    INSTALL_REVIEW_ALPHA_SCHEMA_VERSION,
+};
 pub use manifest_baseline::{
     compute_effective_permission_baseline, decide_manifest_install,
     validate_manifest_baseline_record, DeclaredVsEffectiveDiffEntry,
