@@ -20,7 +20,13 @@
 //!   device-code and stay-local fallback paths; and
 //! - one [`identity_modes::IdentityModeBaselinePacket`] alpha contract that
 //!   keeps account-free local, self-hosted, and managed convenience rows
-//!   separate while exposing policy-source and offline-entitlement inspectors.
+//!   separate while exposing policy-source and offline-entitlement inspectors;
+//!   and
+//! - one [`secrets::SecretBrokerAlphaPacket`] alpha contract that lets
+//!   provider, registry, database, and remote lanes reference OS credential-
+//!   store handles, session-only broker memory, and delegated credentials
+//!   while exporting only redaction-safe metadata and first-class continuity
+//!   results.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -33,8 +39,9 @@
 //! The reviewer-facing landing pages are
 //! [`/docs/auth/system_browser_seed.md`](../../../docs/auth/system_browser_seed.md),
 //! [`/docs/auth/credential_state_seed.md`](../../../docs/auth/credential_state_seed.md),
+//! [`/docs/identity/local_vs_managed_alpha.md`](../../../docs/identity/local_vs_managed_alpha.md),
 //! and
-//! [`/docs/identity/local_vs_managed_alpha.md`](../../../docs/identity/local_vs_managed_alpha.md).
+//! [`/docs/security/secret_broker_alpha.md`](../../../docs/security/secret_broker_alpha.md).
 //! The frozen cross-tool boundary vocabularies live in
 //! [`/docs/auth/system_browser_callback_packet.md`](../../../docs/auth/system_browser_callback_packet.md),
 //! [`/schemas/auth/auth_callback_state.schema.json`](../../../schemas/auth/auth_callback_state.schema.json),
@@ -50,6 +57,7 @@
 pub mod browser_callback;
 pub mod credential_state;
 pub mod identity_modes;
+pub mod secrets;
 pub mod system_browser;
 pub mod trust;
 
@@ -82,6 +90,18 @@ pub use identity_modes::{
     PolicySourceClass, ProvisioningClass, StageIdentityModeBaselineRowRequest,
     IDENTITY_MODE_BASELINE_PACKET_RECORD_KIND, IDENTITY_MODE_BASELINE_ROW_RECORD_KIND,
     IDENTITY_MODE_BASELINE_SCHEMA_VERSION, REQUIRED_LOCAL_CORE_CAPABILITY_IDS,
+};
+
+pub use secrets::{
+    AffectedCapabilityClass, ContinuityStateClass, LocalContinuationClass, ProjectionModeClass,
+    RecoveryActionClass, SecretBrokerAlphaPacket, SecretBrokerAlphaRow, SecretBrokerDenialReason,
+    SecretBrokerPacketError, SecretBrokerRowError, SecretBrokerSupportExport,
+    SecretBrokerSupportExportRow, SecretBrokerSurfaceRow, SecretClass, SecretConsumerIdentity,
+    SecretContinuityResult, SecretExportPosture, SecretReference, SecretReferenceMode,
+    SecretStorageBinding, TrustStoreClass, UnlockStateClass,
+    SECRET_BROKER_ALPHA_PACKET_RECORD_KIND, SECRET_BROKER_ALPHA_SCHEMA_VERSION,
+    SECRET_BROKER_ROW_RECORD_KIND, SECRET_BROKER_SUPPORT_EXPORT_RECORD_KIND,
+    SECRET_BROKER_SUPPORT_EXPORT_ROW_RECORD_KIND,
 };
 
 pub use system_browser::{
