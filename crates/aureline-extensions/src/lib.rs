@@ -21,6 +21,9 @@
 //!   consumes review, provider/runtime boundary, compatibility,
 //!   activation-budget, and install-topology truth for the first
 //!   marketplace/package review lane.
+//! - one [`collections::ExtensionInstallCollectionAlphaPacket`] projection
+//!   that renders package/inventory rows through the shared dense-collection
+//!   filter, counter, selection, and batch-review contract.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -34,10 +37,16 @@
 //! the cross-tool boundary schema is
 //! [`/schemas/extensions/m1_extension_manifest.schema.json`](../../../schemas/extensions/m1_extension_manifest.schema.json).
 
+pub mod collections;
 pub mod install_review;
 pub mod manifest_baseline;
 pub mod review_alpha;
 
+pub use collections::{
+    ExtensionInstallCollectionAlphaInput, ExtensionInstallCollectionAlphaPacket,
+    EXTENSION_INSTALL_COLLECTION_ALPHA_PACKET_RECORD_KIND,
+    EXTENSION_INSTALL_COLLECTION_ALPHA_SCHEMA_VERSION,
+};
 pub use install_review::{
     evaluate_install_review_alpha, project_install_review_alpha_surface,
     validate_install_review_alpha_packet, ActivationBudgetDisclosure, BridgeStateClass,

@@ -4,13 +4,19 @@
 //! local Git change-list rows into inspectable diff-open targets and renders
 //! alpha diff packets with syntax labels, suspicious-text cues, representation
 //! safe copy actions, exact path truth, reopen continuity records, review
-//! workspace seeds, stable row anchors, and work-item relation projections.
+//! workspace seeds, stable row anchors, work-item relation projections, and
+//! shared collection-view batch-review packets.
 
 #![doc(html_root_url = "https://docs.rs/aureline-review/0.0.0")]
 
+pub mod collections;
 pub mod diff;
 pub mod workspace;
 
+pub use collections::{
+    ReviewCollectionAlphaInput, ReviewCollectionAlphaPacket,
+    REVIEW_COLLECTION_ALPHA_PACKET_RECORD_KIND, REVIEW_COLLECTION_ALPHA_SCHEMA_VERSION,
+};
 pub use diff::{
     DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,
     DiffCopyRepresentation, DiffFileInput, DiffHunkInput, DiffHunkView, DiffLineInput,

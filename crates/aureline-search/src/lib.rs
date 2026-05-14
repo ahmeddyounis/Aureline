@@ -35,6 +35,9 @@
 //! - [`counts::SearchScopeCountsRecord`] distinguishes visible, loaded,
 //!   all-matching, and hidden rows, and [`counts::ScopeCandidateTruthRecord`]
 //!   carries the same scope truth onto graph-backed and AI context candidates.
+//! - [`collections::CollectionViewAlphaRecord`] carries typed filters,
+//!   saved-view refs, scope counters, stable selection state, and
+//!   batch-review sheets for dense search, review, and package lanes.
 //! - [`remap::DeepLinkRemapPacket`] records old/new target identity, active
 //!   workset or slice, confidence, and recovery actions when a deep link,
 //!   bookmark, or history row drifts.
@@ -48,6 +51,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-search/0.0.0")]
 
+pub mod collections;
 pub mod counts;
 pub mod docs_linking;
 pub mod hot_set;
@@ -62,6 +66,22 @@ pub mod results;
 pub mod scope;
 pub mod session_ledger;
 
+pub use collections::{
+    consumed_scope_counts_schema_version, BatchActionClass, BatchAftermathSummary,
+    BatchExecutionOriginClass, BatchMemberDisposition, BatchReviewMember, BatchReviewSheet,
+    CollectionCountStatus, CollectionCountTerm, CollectionCountValue, CollectionFilterAst,
+    CollectionFilterChip, CollectionFilterClause, CollectionFilterExpression,
+    CollectionFilterLiteral, CollectionFilterOperator, CollectionFilterSourceClass,
+    CollectionScopeCounters, CollectionSelectionState, CollectionSortKey, CollectionSurfaceFamily,
+    CollectionValidationFinding, CollectionValidationFindingKind, CollectionViewAlphaRecord,
+    FilterLiteralMaterialClass, FilterRoundTripState, SavedCollectionView,
+    SavedViewFallbackBehavior, SavedViewOwnerScope, SavedViewPrivacyClass,
+    SearchCollectionViewInputs, SelectionScopeClass, StableCollectionItemRef,
+    BATCH_REVIEW_SHEET_RECORD_KIND, COLLECTION_FILTER_AST_RECORD_KIND,
+    COLLECTION_SELECTION_STATE_RECORD_KIND, COLLECTION_VIEW_ALPHA_RECORD_KIND,
+    COLLECTION_VIEW_ALPHA_SCHEMA_VERSION, FILTER_AST_ALPHA_SCHEMA_VERSION,
+    SAVED_COLLECTION_VIEW_RECORD_KIND, SAVED_VIEW_ALPHA_SCHEMA_VERSION,
+};
 pub use counts::{
     HiddenScopeDisclosure, HiddenScopeReason, ScopeCandidateTruthRecord, ScopeTruthLabel,
     ScopeTruthSurface, ScopeWarningKind, ScopeWarningRecord, SearchNoResultsState,

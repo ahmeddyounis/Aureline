@@ -159,3 +159,28 @@ fn hosted_provider_lane_cannot_hide_boundary_truth() {
         |finding| finding.check_id == "install_review_alpha.packet.required_disclosure_missing"
     ));
 }
+
+#[test]
+fn marketplace_package_lane_reuses_collection_batch_review_truth() {
+    let packet = evaluate_fixture(load_fixture("native_marketplace_package_lane"));
+    let collection =
+        crate::collections::ExtensionInstallCollectionAlphaPacket::from_install_review_packet(
+            crate::collections::ExtensionInstallCollectionAlphaInput {
+                collection_view_id: "collection.package.fixture.native".to_string(),
+                batch_review_id: "batch.package.fixture.native".to_string(),
+                selected_subject_refs: vec![packet.subject_ref.clone()],
+                hidden_subject_refs: Vec::new(),
+                blocked_subject_refs: Vec::new(),
+                stale_subject_refs: Vec::new(),
+                generated_at: "2026-05-14T10:05:00Z".to_string(),
+            },
+            &packet,
+        );
+
+    assert!(collection.collection_view.surfaces_hidden_narrowing());
+    assert!(collection.routes_mutation_through_review_sheet());
+    assert!(collection.batch_review_sheet.validate().is_empty());
+    assert_eq!(collection.collection_view.counters.selected.value, Some(1));
+    assert_eq!(collection.batch_review_sheet.included_item_id_refs.len(), 1);
+    assert_eq!(collection.batch_review_sheet.blocked_item_id_refs.len(), 0);
+}

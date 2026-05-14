@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collections/filter_ast_alpha.schema.json",
+  "title": "Aureline collection filter AST alpha contract",
+  "description": "Typed, serializable filter grammar shared by dense collection surfaces. Clauses carry operator, source, lock, redaction, and round-trip state so policy/workset/provider/client narrowing stays visible in UI, CLI, support, and saved-view artifacts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "filter_ast_id",
+    "compatibility_version",
+    "root",
+    "scope_label",
+    "created_by",
+    "created_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "collection_filter_ast_alpha" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "filter_ast_id": { "$ref": "#/$defs/opaque_id" },
+    "compatibility_version": { "type": "string", "minLength": 1 },
+    "root": { "$ref": "#/$defs/filter_expression" },
+    "scope_label": { "$ref": "#/$defs/reviewable_label" },
+    "degradation_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewable_label" }
+    },
+    "created_by": { "$ref": "#/$defs/opaque_id" },
+    "created_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_or_fixture_time": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "operator": {
+      "type": "string",
+      "enum": [
+        "free_text",
+        "equals",
+        "not_equals",
+        "contains",
+        "prefix",
+        "in",
+        "range",
+        "exists",
+        "greater_or_equal",
+        "less_or_equal"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "saved_view",
+        "policy",
+        "workset",
+        "provider_limit",
+        "client_limit",
+        "partial_data"
+      ]
+    },
+    "literal_material_class": {
+      "type": "string",
+      "enum": [
+        "raw_local_only",
+        "redacted_text",
+        "hashed_literal",
+        "operator_only"
+      ]
+    },
+    "round_trip_state": {
+      "type": "string",
+      "enum": [
+        "round_trippable",
+        "unsupported_by_provider",
+        "stale_provider_data",
+        "literal_withheld_by_policy"
+      ]
+    },
+    "filter_literal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["material_class"],
+      "properties": {
+        "material_class": { "$ref": "#/$defs/literal_material_class" },
+        "display_value": { "$ref": "#/$defs/reviewable_label" },
+        "value_hash": { "type": "string", "minLength": 1 }
+      }
+    },
+    "filter_clause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clause_id",
+        "field_id",
+        "label",
+        "operator",
+        "source_class",
+        "locked",
+        "negated",
+        "hidden_narrowing",
+        "round_trip_state"
+      ],
+      "properties": {
+        "clause_id": { "$ref": "#/$defs/opaque_id" },
+        "field_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "operator": { "$ref": "#/$defs/operator" },
+        "literal": { "$ref": "#/$defs/filter_literal" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "locked": { "type": "boolean" },
+        "negated": { "type": "boolean" },
+        "hidden_narrowing": { "type": "boolean" },
+        "round_trip_state": { "$ref": "#/$defs/round_trip_state" },
+        "fallback_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "filter_expression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["expression_kind", "clause"],
+          "properties": {
+            "expression_kind": { "const": "clause" },
+            "clause": { "$ref": "#/$defs/filter_clause" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["expression_kind", "children"],
+          "properties": {
+            "expression_kind": { "enum": ["and", "or"] },
+            "children": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/filter_expression" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["expression_kind", "child"],
+          "properties": {
+            "expression_kind": { "const": "not" },
+            "child": { "$ref": "#/$defs/filter_expression" }
+          }
+        }
+      ]
+    }
+  }
+}
