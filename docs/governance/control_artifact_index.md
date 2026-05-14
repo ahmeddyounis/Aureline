@@ -474,6 +474,11 @@ and scopes.
   retention, export, hold, delete, and offboarding posture that
   support bundles, issue handoff packets, and later managed support
   claims must quote instead of re-labelling privately.
+- The `archive_search_destruction_alpha` row is the canonical alpha
+  home for archive-search posture, redaction-boundary locality,
+  partial-result vocabulary, and destruction-receipt chain-of-custody
+  requirements. Admin, support, export, and offboarding surfaces cite
+  it before rendering delete or retained-state outcomes.
 - The records-governance indicator scoreboard contract now lives at
   [`/docs/governance/records_indicator_contract.md`](./records_indicator_contract.md)
   with the seeded register at

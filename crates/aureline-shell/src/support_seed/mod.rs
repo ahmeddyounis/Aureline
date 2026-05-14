@@ -50,7 +50,10 @@ use aureline_support::bundle::{
 
 use crate::activity_center::alpha::ActivityCenterSupportExport;
 use crate::activity_center::git_review::GitReviewSupportExport;
-use crate::admin_alpha::{AdminAlphaSupportExport, ADMIN_ALPHA_SUPPORT_EXPORT_RECORD_KIND};
+use crate::admin_alpha::{
+    AdminAlphaSupportExport, ADMIN_ALPHA_ARCHIVE_BOUNDARY_CONTRACT_REF,
+    ADMIN_ALPHA_DESTRUCTION_RECEIPT_SCHEMA_REF, ADMIN_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
+};
 use crate::commands::review_enforcement::AlphaReviewEnforcementRow;
 use crate::drift_truth::{
     DriftTruthExportAudience, DriftTruthSnapshot, DRIFT_TRUTH_EXPORT_PACKET_RECORD_KIND,
@@ -937,6 +940,9 @@ fn admin_delete_hold_policy_seed(admin_export: &AdminAlphaSupportExport) -> Prev
         source_refs: vec![
             "crates/aureline-shell/src/admin_alpha/mod.rs".into(),
             "docs/admin/policy_diff_alpha.md".into(),
+            "docs/governance/archive_search_destruction_alpha.md".into(),
+            ADMIN_ALPHA_ARCHIVE_BOUNDARY_CONTRACT_REF.into(),
+            ADMIN_ALPHA_DESTRUCTION_RECEIPT_SCHEMA_REF.into(),
             admin_export.export_id.clone(),
         ],
         size_estimate: SizeEstimate {

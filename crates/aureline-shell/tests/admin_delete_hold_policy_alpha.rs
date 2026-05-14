@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use aureline_shell::admin_alpha::{
     AdminAlphaInput, AdminAlphaInspector, AdminAlphaPacket, AdminAlphaResultClass,
+    ADMIN_ALPHA_ARCHIVE_BOUNDARY_CONTRACT_REF, ADMIN_ALPHA_DESTRUCTION_RECEIPT_SCHEMA_REF,
     ADMIN_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
 };
 use aureline_shell::support_seed::SupportSeedSurface;
@@ -42,6 +43,7 @@ fn admin_delete_hold_policy_fixture_projects_required_truth() {
         assert!(packet.has_result_vocabulary_floor());
         assert!(packet.support_export_preserves_result_vocabulary());
         assert!(packet.has_durable_destruction_receipt());
+        assert!(packet.all_receipt_truth_is_chain_reconstructable());
         assert!(packet
             .policy_diff_preview
             .is_pre_apply_preview_for_current_source());
@@ -107,6 +109,21 @@ fn support_seed_consumes_admin_delete_hold_policy_export() {
         .source_refs
         .iter()
         .any(|item| item == "docs/admin/policy_diff_alpha.md"));
+    assert!(admin_row
+        .file_section_identity
+        .source_refs
+        .iter()
+        .any(|item| item == "docs/governance/archive_search_destruction_alpha.md"));
+    assert!(admin_row
+        .file_section_identity
+        .source_refs
+        .iter()
+        .any(|item| item == ADMIN_ALPHA_ARCHIVE_BOUNDARY_CONTRACT_REF));
+    assert!(admin_row
+        .file_section_identity
+        .source_refs
+        .iter()
+        .any(|item| item == ADMIN_ALPHA_DESTRUCTION_RECEIPT_SCHEMA_REF));
 }
 
 #[test]

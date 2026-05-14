@@ -86,13 +86,15 @@ remain outside the packet.
 
 `SupportSeedSurface::admin_delete_hold_policy_preview` adds the packet
 as a metadata-only support bundle row. The row carries result counts,
-policy diff id, and redaction posture so support can inspect the same
-state vocabulary without scraping UI text or screenshots.
+policy diff id, archive/redaction contract ref, destruction-receipt
+schema ref, and redaction posture so support can inspect the same state
+vocabulary without scraping UI text or screenshots.
 
 ## Verification
 
 Run:
 
 ```sh
+python3 ci/check_archive_destruction_alpha.py --repo-root .
 cargo test -p aureline-shell admin_delete_hold_policy_alpha
 ```

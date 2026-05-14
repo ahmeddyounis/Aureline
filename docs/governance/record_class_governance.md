@@ -17,6 +17,12 @@ Companion artifacts:
   — per-record state machine and chronology model. The registry in this
   document is class-level posture; the state model is the per-record
   truth each instance moves through.
+- [`./archive_search_destruction_alpha.md`](./archive_search_destruction_alpha.md),
+  [`/artifacts/governance/archive_redaction_boundary_alpha.yaml`](../../artifacts/governance/archive_redaction_boundary_alpha.yaml),
+  and [`/schemas/governance/destruction_receipt_alpha.schema.json`](../../schemas/governance/destruction_receipt_alpha.schema.json)
+  — alpha archive-search, redaction-boundary, locality, result, and
+  destruction-receipt chain-of-custody contract that consumes these
+  record classes.
 - [`../support/support_center_concept.md`](../support/support_center_concept.md)
   — supportability consumer of these rows. Support-bundle preview and
   issue handoff quote record classes rather than inventing their own

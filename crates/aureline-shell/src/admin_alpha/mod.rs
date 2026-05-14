@@ -19,6 +19,14 @@ pub const ADMIN_ALPHA_PACKET_RECORD_KIND: &str = "admin_delete_hold_policy_alpha
 pub const ADMIN_ALPHA_SUPPORT_EXPORT_RECORD_KIND: &str =
     "admin_delete_hold_policy_alpha_support_export";
 
+/// Canonical archive-search and redaction-boundary contract consumed by admin alpha.
+pub const ADMIN_ALPHA_ARCHIVE_BOUNDARY_CONTRACT_REF: &str =
+    "artifacts/governance/archive_redaction_boundary_alpha.yaml";
+
+/// Canonical destruction-receipt schema consumed by admin alpha.
+pub const ADMIN_ALPHA_DESTRUCTION_RECEIPT_SCHEMA_REF: &str =
+    "schemas/governance/destruction_receipt_alpha.schema.json";
+
 /// Schema version for admin alpha packets and projections.
 pub const ADMIN_ALPHA_SCHEMA_VERSION: u32 = 1;
 
@@ -309,6 +317,24 @@ pub struct DestructionReceiptAvailability {
     pub unavailable_reason: Option<String>,
     /// True when a durable receipt is expected after the blocker clears.
     pub durable_receipt_expected: bool,
+    /// Policy version or epoch that governed the receipt decision.
+    pub policy_version: String,
+    /// Receipt, ledger, or boundary verifiers that can reconstruct custody.
+    pub verifier_refs: Vec<String>,
+    /// Execution time for emitted receipts; `None` when no destructive action ran.
+    pub executed_at: Option<AdminAlphaChronology>,
+    /// Held refs skipped by the destructive action.
+    pub skipped_held_refs: Vec<String>,
+    /// Refs retained by policy or receipt-only metadata.
+    pub retained_refs: Vec<String>,
+    /// Refs outside platform authority.
+    pub outside_scope_refs: Vec<String>,
+    /// Local-only refs requiring user capture or local deletion.
+    pub manual_local_capture_refs: Vec<String>,
+    /// Refs intentionally hidden by redaction policy.
+    pub omitted_by_redaction_refs: Vec<String>,
+    /// Mirror, replication, backlog, or lag note relevant to the result.
+    pub mirror_or_lag_note: String,
 }
 
 impl DestructionReceiptAvailability {
@@ -319,6 +345,17 @@ impl DestructionReceiptAvailability {
                 .unavailable_reason
                 .as_ref()
                 .is_some_and(|reason| !reason.trim().is_empty())
+    }
+
+    /// True when custody details can reconstruct what happened.
+    pub fn has_chain_of_custody_truth(&self) -> bool {
+        !self.policy_version.trim().is_empty()
+            && !self.verifier_refs.is_empty()
+            && !self.mirror_or_lag_note.trim().is_empty()
+            && self.executed_at.as_ref().map_or(
+                self.receipt_refs.is_empty(),
+                AdminAlphaChronology::is_timezone_aware,
+            )
     }
 }
 
@@ -561,6 +598,10 @@ pub struct AdminAlphaDesktopProjection {
     pub display_timezone_id: String,
     /// Result vocabulary available to the surface.
     pub result_vocabulary: Vec<AdminAlphaResultClass>,
+    /// Canonical archive-search and redaction-boundary contract ref.
+    pub archive_boundary_contract_ref: String,
+    /// Canonical destruction-receipt schema ref.
+    pub destruction_receipt_schema_ref: String,
     /// Compact delete/export cards.
     pub delete_cards: Vec<AdminDeleteDesktopCard>,
     /// Policy diff id shown by the desktop projection.
@@ -593,6 +634,10 @@ pub struct AdminAlphaSupportExport {
     pub generated_at: AdminAlphaChronology,
     /// Full result vocabulary preserved by the export.
     pub result_vocabulary: Vec<AdminAlphaResultClass>,
+    /// Canonical archive-search and redaction-boundary contract ref.
+    pub archive_boundary_contract_ref: String,
+    /// Canonical destruction-receipt schema ref.
+    pub destruction_receipt_schema_ref: String,
     /// Counts by result class.
     pub result_counts: Vec<AdminAlphaResultCount>,
     /// Delete/export rows carried by the export.
@@ -612,6 +657,12 @@ impl AdminAlphaSupportExport {
     /// True when every required result token is preserved in the export.
     pub fn preserves_result_vocabulary(&self) -> bool {
         self.result_vocabulary == AdminAlphaResultClass::vocabulary()
+    }
+
+    /// True when support export cites the canonical archive and receipt contracts.
+    pub fn preserves_archive_and_receipt_contract_refs(&self) -> bool {
+        self.archive_boundary_contract_ref == ADMIN_ALPHA_ARCHIVE_BOUNDARY_CONTRACT_REF
+            && self.destruction_receipt_schema_ref == ADMIN_ALPHA_DESTRUCTION_RECEIPT_SCHEMA_REF
     }
 }
 
@@ -682,6 +733,16 @@ impl AdminAlphaPacket {
             .iter()
             .any(|row| !row.destruction_receipt.receipt_refs.is_empty())
     }
+
+    /// True when every row carries receipt-chain details or an explicit non-receipt reason.
+    pub fn all_receipt_truth_is_chain_reconstructable(&self) -> bool {
+        self.delete_review_rows.iter().all(|row| {
+            row.destruction_receipt.has_receipt_or_reason()
+                && row.destruction_receipt.has_chain_of_custody_truth()
+        }) && self
+            .support_export
+            .preserves_archive_and_receipt_contract_refs()
+    }
 }
 
 /// Errors returned while projecting admin alpha rows.
@@ -750,6 +811,8 @@ impl AdminAlphaInspector {
             source_packet_id: input.packet_id.clone(),
             generated_at: input.generated_at.clone(),
             result_vocabulary: AdminAlphaResultClass::vocabulary(),
+            archive_boundary_contract_ref: ADMIN_ALPHA_ARCHIVE_BOUNDARY_CONTRACT_REF.to_owned(),
+            destruction_receipt_schema_ref: ADMIN_ALPHA_DESTRUCTION_RECEIPT_SCHEMA_REF.to_owned(),
             result_counts,
             delete_review_rows: delete_review_rows.clone(),
             policy_diff_preview: input.policy_diff_preview.clone(),
@@ -860,8 +923,58 @@ fn validate_delete_row(row: &AdminDeleteReviewRow) -> Result<(), AdminAlphaError
             "destruction receipt must be linked or explicitly unavailable",
         ));
     }
+    if !row.destruction_receipt.has_chain_of_custody_truth() {
+        return Err(invalid(
+            "destruction receipt must cite policy, verifier, execution, and mirror truth",
+        ));
+    }
     if row.result_class.is_completion() && row.destruction_receipt.receipt_refs.is_empty() {
         return Err(invalid("completed rows must cite a durable receipt"));
+    }
+    if row.destruction_receipt.receipt_refs.is_empty()
+        && row.destruction_receipt.executed_at.is_some()
+    {
+        return Err(invalid(
+            "non-receipt rows must not claim an executed destruction time",
+        ));
+    }
+    if !row.destruction_receipt.receipt_refs.is_empty()
+        && row.destruction_receipt.executed_at.is_none()
+    {
+        return Err(invalid("receipt rows must cite executed_at"));
+    }
+    if row.result_class == AdminAlphaResultClass::BlockedByHold
+        && row.destruction_receipt.skipped_held_refs.is_empty()
+    {
+        return Err(invalid("blocked_by_hold rows must list skipped held refs"));
+    }
+    if matches!(
+        row.result_class,
+        AdminAlphaResultClass::Partial | AdminAlphaResultClass::PolicyRetained
+    ) && row.destruction_receipt.retained_refs.is_empty()
+    {
+        return Err(invalid(
+            "partial or policy-retained rows must list retained refs",
+        ));
+    }
+    if row.result_class == AdminAlphaResultClass::OutsidePlatformScope
+        && row.destruction_receipt.outside_scope_refs.is_empty()
+    {
+        return Err(invalid("outside-scope rows must list outside-scope refs"));
+    }
+    if row.result_class == AdminAlphaResultClass::ManualLocalCaptureRequired
+        && row.destruction_receipt.manual_local_capture_refs.is_empty()
+    {
+        return Err(invalid(
+            "manual-local rows must list manual local capture refs",
+        ));
+    }
+    if row.result_class == AdminAlphaResultClass::OmittedByRedaction
+        && row.destruction_receipt.omitted_by_redaction_refs.is_empty()
+    {
+        return Err(invalid(
+            "redaction-omitted rows must list omitted-by-redaction refs",
+        ));
     }
     if !row.export_before_delete.is_declared() {
         return Err(invalid("export-before-delete posture is required"));
@@ -885,6 +998,8 @@ fn desktop_projection(
         packet_id: input.packet_id.clone(),
         display_timezone_id: input.generated_at.timezone_id.clone(),
         result_vocabulary: AdminAlphaResultClass::vocabulary(),
+        archive_boundary_contract_ref: ADMIN_ALPHA_ARCHIVE_BOUNDARY_CONTRACT_REF.to_owned(),
+        destruction_receipt_schema_ref: ADMIN_ALPHA_DESTRUCTION_RECEIPT_SCHEMA_REF.to_owned(),
         delete_cards: rows.iter().map(delete_desktop_card).collect(),
         policy_diff_id: input.policy_diff_preview.diff_id.clone(),
         policy_diff_summary: input.policy_diff_preview.summary.clone(),
