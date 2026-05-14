@@ -43,6 +43,7 @@ pub mod clone;
 pub mod commands;
 pub mod debug_seed;
 pub mod deeplink;
+pub mod diagnostics;
 pub mod docs_browser;
 pub mod drift_truth;
 pub mod efficiency;

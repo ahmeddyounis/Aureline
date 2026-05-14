@@ -1,0 +1,827 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/diagnostics/scanner_import_session_alpha.schema.json",
+  "title": "Aureline scanner import session alpha contract",
+  "description": "Boundary schema for scanner-import alpha sessions, run descriptors, suppression/baseline registers, review packets, Problems projections, and support-export packets. Imported findings remain attributable, read-only by default, and distinct from live diagnostics. Raw scanner payloads, raw source text, raw paths, raw URLs, command lines, logs, provider payloads, and secret material never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/scanner_import_session_alpha" },
+    { "$ref": "#/$defs/suppression_baseline_register_alpha" },
+    { "$ref": "#/$defs/diagnostic_review_packet_alpha" },
+    { "$ref": "#/$defs/imported_scanner_problems_projection_alpha" },
+    { "$ref": "#/$defs/imported_scanner_support_export_alpha" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["error", "warning", "notice", "hint"]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_file",
+        "current_root",
+        "selected_workset",
+        "workspace",
+        "changed_files",
+        "review_diff",
+        "baseline_family",
+        "release_candidate",
+        "support_export",
+        "provider_project",
+        "target_scope_unknown_requires_review"
+      ]
+    },
+    "baseline_family_state_class": {
+      "type": "string",
+      "enum": [
+        "compatible",
+        "compatible_with_local_confirmation",
+        "stale_but_comparable",
+        "incompatible_rule_pack",
+        "incompatible_profile",
+        "incompatible_mapping_family",
+        "compatibility_unknown_requires_review"
+      ]
+    },
+    "mapping_quality_class": {
+      "type": "string",
+      "enum": ["exact_static", "contextual", "unmapped"]
+    },
+    "truth_class": {
+      "type": "string",
+      "enum": ["imported_only", "locally_confirmed"]
+    },
+    "local_confirmation_state_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "confirmed",
+        "blocked_by_unmapped_anchor",
+        "unavailable"
+      ]
+    },
+    "delta_state_class": {
+      "type": "string",
+      "enum": [
+        "new",
+        "resolved",
+        "persisting",
+        "suppressed",
+        "waived",
+        "unmapped"
+      ]
+    },
+    "remap_state_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "contextual",
+        "stale",
+        "unmapped",
+        "imported_static",
+        "not_applicable"
+      ]
+    },
+    "debt_state": {
+      "type": "string",
+      "enum": ["suppressed", "waived"]
+    },
+    "reopen_rule_class": {
+      "type": "string",
+      "enum": [
+        "reopen_on_expiry",
+        "reopen_on_rule_change",
+        "reopen_on_anchor_remap_failure",
+        "reopen_on_profile_or_target_drift",
+        "manual_review_only"
+      ]
+    },
+    "compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible_exact",
+        "compatible_with_local_confirmation",
+        "blocked_profile_or_tool_mismatch",
+        "blocked_rule_pack_mismatch",
+        "blocked_anchor_mapping_uncertain",
+        "not_comparable_unknown_requires_review"
+      ]
+    },
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_scope_class",
+        "scope_ref",
+        "execution_context_ref",
+        "environment_ref",
+        "summary"
+      ],
+      "properties": {
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "scope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "environment_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "revision_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_revision_ref",
+        "current_revision_ref",
+        "compatibility_note"
+      ],
+      "properties": {
+        "target_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "current_revision_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "compatibility_note": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "rule_pack_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_pack_ref",
+        "rule_pack_version",
+        "rule_pack_digest_ref",
+        "baseline_family_ref",
+        "baseline_family_state_class"
+      ],
+      "properties": {
+        "rule_pack_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rule_pack_version": { "$ref": "#/$defs/opaque_ref" },
+        "rule_pack_digest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_family_state_class": {
+          "$ref": "#/$defs/baseline_family_state_class"
+        }
+      }
+    },
+    "run_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "tool_id",
+        "tool_name",
+        "tool_version",
+        "adapter_id",
+        "adapter_version",
+        "provider_ref",
+        "rule_pack_ref",
+        "rule_pack_version",
+        "target_scope",
+        "revision_binding",
+        "media_type",
+        "mapping_quality_class",
+        "baseline_family_ref",
+        "raw_payload_refs",
+        "category_refs",
+        "result_count",
+        "scan_completed_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "run_id": { "$ref": "#/$defs/opaque_ref" },
+        "tool_id": { "$ref": "#/$defs/opaque_ref" },
+        "tool_name": { "$ref": "#/$defs/opaque_ref" },
+        "tool_version": { "$ref": "#/$defs/opaque_ref" },
+        "adapter_id": { "$ref": "#/$defs/opaque_ref" },
+        "adapter_version": { "$ref": "#/$defs/opaque_ref" },
+        "provider_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "rule_pack_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rule_pack_version": { "$ref": "#/$defs/opaque_ref" },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "revision_binding": { "$ref": "#/$defs/revision_binding" },
+        "media_type": { "$ref": "#/$defs/opaque_ref" },
+        "mapping_quality_class": { "$ref": "#/$defs/mapping_quality_class" },
+        "baseline_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "raw_payload_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "category_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "result_count": { "type": "integer", "minimum": 0 },
+        "scan_completed_at": { "$ref": "#/$defs/timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_family_id",
+        "current_anchor_ref",
+        "artifact_ref",
+        "anchor_fingerprint_ref",
+        "remap_state_class",
+        "mapping_quality_class",
+        "summary"
+      ],
+      "properties": {
+        "anchor_family_id": { "$ref": "#/$defs/opaque_ref" },
+        "current_anchor_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "anchor_fingerprint_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "remap_state_class": { "$ref": "#/$defs/remap_state_class" },
+        "mapping_quality_class": { "$ref": "#/$defs/mapping_quality_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "diagnostic_id",
+        "run_id",
+        "rule_id_ref",
+        "rule_family_ref",
+        "severity_class",
+        "category_refs",
+        "truth_class",
+        "delta_state_class",
+        "anchor",
+        "completeness_class",
+        "local_confirmation_state_class",
+        "local_confirmation_action_ref",
+        "local_confirmation_ref",
+        "read_only",
+        "raw_payload_ref",
+        "evidence_refs",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/opaque_ref" },
+        "diagnostic_id": { "$ref": "#/$defs/opaque_ref" },
+        "run_id": { "$ref": "#/$defs/opaque_ref" },
+        "rule_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rule_family_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "category_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "truth_class": { "$ref": "#/$defs/truth_class" },
+        "delta_state_class": { "$ref": "#/$defs/delta_state_class" },
+        "anchor": { "$ref": "#/$defs/anchor" },
+        "completeness_class": {
+          "type": "string",
+          "enum": [
+            "complete_for_claimed_scope",
+            "partial_for_claimed_scope",
+            "unavailable_for_claimed_scope"
+          ]
+        },
+        "local_confirmation_state_class": {
+          "$ref": "#/$defs/local_confirmation_state_class"
+        },
+        "local_confirmation_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_confirmation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "read_only": { "type": "boolean", "const": true },
+        "raw_payload_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "delta_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "new_count",
+        "resolved_count",
+        "persisting_count",
+        "suppressed_count",
+        "waived_count",
+        "unmapped_count"
+      ],
+      "properties": {
+        "new_count": { "type": "integer", "minimum": 0 },
+        "resolved_count": { "type": "integer", "minimum": 0 },
+        "persisting_count": { "type": "integer", "minimum": 0 },
+        "suppressed_count": { "type": "integer", "minimum": 0 },
+        "waived_count": { "type": "integer", "minimum": 0 },
+        "unmapped_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "finding_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delta_id",
+        "delta_state_class",
+        "current_finding_ref",
+        "baseline_ref",
+        "suppression_ref",
+        "local_confirmation_ref",
+        "compatibility_note",
+        "supporting_evidence_refs",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "delta_id": { "$ref": "#/$defs/opaque_ref" },
+        "delta_state_class": { "$ref": "#/$defs/delta_state_class" },
+        "current_finding_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "baseline_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "suppression_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_confirmation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "compatibility_note": { "$ref": "#/$defs/short_sentence" },
+        "supporting_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "delta_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "diagnostic_delta_schema_version",
+        "delta_packet_id",
+        "import_session_ref",
+        "baseline_family_ref",
+        "compatibility_class",
+        "delta_counts",
+        "finding_deltas",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "diagnostic_delta_alpha_record"
+        },
+        "diagnostic_delta_schema_version": { "$ref": "#/$defs/schema_version" },
+        "delta_packet_id": { "$ref": "#/$defs/opaque_ref" },
+        "import_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "compatibility_class": { "$ref": "#/$defs/compatibility_class" },
+        "delta_counts": { "$ref": "#/$defs/delta_counts" },
+        "finding_deltas": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding_delta" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "baseline_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline_entry_id",
+        "baseline_ref",
+        "rule_id_ref",
+        "anchor_fingerprint_ref",
+        "owner_ref",
+        "version",
+        "release_visible",
+        "summary"
+      ],
+      "properties": {
+        "baseline_entry_id": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rule_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "anchor_fingerprint_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "owner_ref": { "$ref": "#/$defs/opaque_ref" },
+        "version": { "type": "integer", "minimum": 1 },
+        "release_visible": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "suppression_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suppression_id",
+        "rule_id_ref",
+        "anchor_fingerprint_ref",
+        "debt_state",
+        "owner_ref",
+        "actor_ref",
+        "reason_ref",
+        "expires_at",
+        "reopen_rule_class",
+        "evidence_refs",
+        "version",
+        "release_visible",
+        "summary"
+      ],
+      "properties": {
+        "suppression_id": { "$ref": "#/$defs/opaque_ref" },
+        "rule_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "anchor_fingerprint_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "debt_state": { "$ref": "#/$defs/debt_state" },
+        "owner_ref": { "$ref": "#/$defs/opaque_ref" },
+        "actor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "reason_ref": { "$ref": "#/$defs/opaque_ref" },
+        "expires_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/timestamp" },
+            { "type": "null" }
+          ]
+        },
+        "reopen_rule_class": { "$ref": "#/$defs/reopen_rule_class" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "version": { "type": "integer", "minimum": 1 },
+        "release_visible": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "suppression_baseline_register_alpha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scanner_import_schema_version",
+        "register_id",
+        "import_session_ref",
+        "baseline_family_ref",
+        "register_version",
+        "baseline_entries",
+        "suppression_entries",
+        "release_visible_debt_count",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "suppression_baseline_register_alpha"
+        },
+        "scanner_import_schema_version": { "$ref": "#/$defs/schema_version" },
+        "register_id": { "$ref": "#/$defs/opaque_ref" },
+        "import_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "register_version": { "type": "integer", "minimum": 1 },
+        "baseline_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/baseline_entry" }
+        },
+        "suppression_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_entry" }
+        },
+        "release_visible_debt_count": { "type": "integer", "minimum": 0 },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "local_confirmation_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_ref",
+        "rule_family_ref",
+        "local_provider_ref",
+        "local_rule_ref",
+        "required_before_mutation",
+        "summary"
+      ],
+      "properties": {
+        "action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rule_family_ref": { "$ref": "#/$defs/opaque_ref" },
+        "local_provider_ref": { "$ref": "#/$defs/opaque_ref" },
+        "local_rule_ref": { "$ref": "#/$defs/opaque_ref" },
+        "required_before_mutation": { "type": "boolean", "const": true },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "diagnostic_review_packet_alpha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scanner_import_schema_version",
+        "packet_id",
+        "change_scope_ref",
+        "import_session_ref",
+        "diagnostic_delta_packet_ref",
+        "suppression_baseline_register_ref",
+        "included_finding_ids",
+        "quality_action_refs",
+        "local_confirmation_actions",
+        "imported_finding_count",
+        "locally_confirmed_finding_count",
+        "release_visible_debt_count",
+        "profile_drift_note",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "diagnostic_review_packet_alpha"
+        },
+        "scanner_import_schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_ref" },
+        "change_scope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "import_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "diagnostic_delta_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "suppression_baseline_register_ref": { "$ref": "#/$defs/opaque_ref" },
+        "included_finding_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "quality_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "local_confirmation_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_confirmation_action" }
+        },
+        "imported_finding_count": { "type": "integer", "minimum": 0 },
+        "locally_confirmed_finding_count": { "type": "integer", "minimum": 0 },
+        "release_visible_debt_count": { "type": "integer", "minimum": 0 },
+        "profile_drift_note": { "$ref": "#/$defs/short_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "scanner_import_session_alpha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scanner_import_schema_version",
+        "import_id",
+        "workspace_id",
+        "collection_id",
+        "media_type",
+        "source_artifact_ref",
+        "raw_payload_refs",
+        "target_scope",
+        "revision_binding",
+        "run_descriptors",
+        "findings",
+        "delta_packet",
+        "suppression_baseline_register",
+        "review_packet",
+        "redaction_class",
+        "imported_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "scanner_import_session_alpha"
+        },
+        "scanner_import_schema_version": { "$ref": "#/$defs/schema_version" },
+        "import_id": { "$ref": "#/$defs/opaque_ref" },
+        "workspace_id": { "$ref": "#/$defs/opaque_ref" },
+        "collection_id": { "$ref": "#/$defs/opaque_ref" },
+        "media_type": { "$ref": "#/$defs/opaque_ref" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "raw_payload_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "revision_binding": { "$ref": "#/$defs/revision_binding" },
+        "run_descriptors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/run_descriptor" }
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding" }
+        },
+        "delta_packet": { "$ref": "#/$defs/delta_packet" },
+        "suppression_baseline_register": {
+          "$ref": "#/$defs/suppression_baseline_register_alpha"
+        },
+        "review_packet": { "$ref": "#/$defs/diagnostic_review_packet_alpha" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "imported_at": { "$ref": "#/$defs/timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "problem_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "diagnostic_id",
+        "rule_id_ref",
+        "severity_class",
+        "truth_class",
+        "delta_state_class",
+        "local_confirmation_state_class",
+        "local_confirmation_action_ref",
+        "read_only",
+        "raw_payload_ref",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/opaque_ref" },
+        "diagnostic_id": { "$ref": "#/$defs/opaque_ref" },
+        "rule_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "truth_class": { "$ref": "#/$defs/truth_class" },
+        "delta_state_class": { "$ref": "#/$defs/delta_state_class" },
+        "local_confirmation_state_class": {
+          "$ref": "#/$defs/local_confirmation_state_class"
+        },
+        "local_confirmation_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "read_only": { "type": "boolean", "const": true },
+        "raw_payload_ref": { "$ref": "#/$defs/opaque_ref" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "imported_scanner_problems_projection_alpha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scanner_import_schema_version",
+        "projection_id",
+        "import_session_ref",
+        "diagnostic_bus_snapshot_ref",
+        "imported_count",
+        "locally_confirmed_count",
+        "read_only_count",
+        "rows",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "imported_scanner_problems_projection_alpha"
+        },
+        "scanner_import_schema_version": { "$ref": "#/$defs/schema_version" },
+        "projection_id": { "$ref": "#/$defs/opaque_ref" },
+        "import_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "diagnostic_bus_snapshot_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "imported_count": { "type": "integer", "minimum": 0 },
+        "locally_confirmed_count": { "type": "integer", "minimum": 0 },
+        "read_only_count": { "type": "integer", "minimum": 0 },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/problem_row" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "diagnostic_id",
+        "rule_id_ref",
+        "rule_family_ref",
+        "delta_state_class",
+        "truth_class",
+        "local_confirmation_ref",
+        "local_confirmation_action_ref",
+        "read_only",
+        "raw_payload_ref",
+        "evidence_refs",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/opaque_ref" },
+        "diagnostic_id": { "$ref": "#/$defs/opaque_ref" },
+        "rule_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rule_family_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "delta_state_class": { "$ref": "#/$defs/delta_state_class" },
+        "truth_class": { "$ref": "#/$defs/truth_class" },
+        "local_confirmation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "local_confirmation_action_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "read_only": { "type": "boolean", "const": true },
+        "raw_payload_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "imported_scanner_support_export_alpha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scanner_import_schema_version",
+        "export_id",
+        "support_pack_item_id",
+        "import_session_ref",
+        "diagnostic_bus_snapshot_ref",
+        "diagnostic_delta_packet_ref",
+        "suppression_baseline_register_ref",
+        "review_packet_ref",
+        "imported_finding_count",
+        "locally_confirmed_count",
+        "read_only_count",
+        "release_visible_debt_count",
+        "delta_counts",
+        "raw_payload_refs",
+        "raw_private_material_excluded",
+        "rows",
+        "redaction_class",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "imported_scanner_support_export_alpha"
+        },
+        "scanner_import_schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_ref" },
+        "support_pack_item_id": {
+          "type": "string",
+          "const": "support.item.imported_diagnostics"
+        },
+        "import_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "diagnostic_bus_snapshot_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "diagnostic_delta_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "suppression_baseline_register_ref": { "$ref": "#/$defs/opaque_ref" },
+        "review_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "imported_finding_count": { "type": "integer", "minimum": 0 },
+        "locally_confirmed_count": { "type": "integer", "minimum": 0 },
+        "read_only_count": { "type": "integer", "minimum": 0 },
+        "release_visible_debt_count": { "type": "integer", "minimum": 0 },
+        "delta_counts": { "$ref": "#/$defs/delta_counts" },
+        "raw_payload_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_row" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}
