@@ -1,0 +1,92 @@
+schema_version: 1
+record_kind: runtime_fault_domain_drill_case
+case_id: runtime.drill.knowledge_worker_budget_exhaustion
+lane_id: workspace_knowledge_lane
+fault_domain_id: workspace_knowledge_workers
+host_class_id: index_workers
+scenario_summary: >
+  An index worker crashes repeatedly while rebuilding semantic graph state.
+  Automatic restart is admitted while the lane is inside budget, then fails
+  closed into quarantine when the medium-window strike budget is exceeded.
+budget:
+  strike_window_class: medium_window
+  window_seconds: 30
+  automatic_restarts_in_window: 3
+  counted_strikes: 4
+  budget_exhausted: true
+  automatic_restart_admitted_after_budget: false
+expected_final_state_class: quarantined
+health_events:
+  - event_id: runtime.health.workspace_knowledge.start.0001
+    event_class: supervisor_health_started
+    transition_class: start
+    state_before: not_started
+    state_after: warming
+    strike_count_at_event: 0
+    restart_attempt_in_window: 0
+    observed_at: "2026-05-14T08:31:00Z"
+    forensic_packet_ref: null
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.knowledge.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.knowledge.0001
+    repair_transaction_ref: null
+    summary: Index worker supervision started and the knowledge lane is warming.
+  - event_id: runtime.health.workspace_knowledge.degrade.0001
+    event_class: supervisor_health_degraded
+    transition_class: degrade
+    state_before: ready
+    state_after: degraded
+    strike_count_at_event: 2
+    restart_attempt_in_window: 2
+    observed_at: "2026-05-14T08:31:14Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/knowledge_worker_quarantine.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.knowledge.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.knowledge.0001
+    repair_transaction_ref: repair_transaction:disposable_state_rebuild.cache_index_repair
+    summary: Search and graph surfaces move to partial freshness while the shell stays responsive.
+  - event_id: runtime.health.workspace_knowledge.restart.0001
+    event_class: supervisor_health_restart_scheduled
+    transition_class: restart
+    state_before: degraded
+    state_after: warming
+    strike_count_at_event: 2
+    restart_attempt_in_window: 3
+    observed_at: "2026-05-14T08:31:16Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/knowledge_worker_quarantine.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.knowledge.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.knowledge.0001
+    repair_transaction_ref: repair_transaction:disposable_state_rebuild.cache_index_repair
+    summary: Supervisor schedules the last in-budget restart from the declared checkpoint.
+  - event_id: runtime.health.workspace_knowledge.quarantine.0001
+    event_class: supervisor_health_quarantined
+    transition_class: quarantine
+    state_before: degraded
+    state_after: quarantined
+    strike_count_at_event: 4
+    restart_attempt_in_window: 3
+    observed_at: "2026-05-14T08:31:25Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/knowledge_worker_quarantine.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.knowledge.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.knowledge.0001
+    repair_transaction_ref: repair_transaction:disposable_state_rebuild.cache_index_repair
+    summary: Budget exhaustion pauses automatic restart and routes to reviewed cache or index repair.
+projection_assertions:
+  ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#workspace-knowledge-lane
+  support_bundle_item_id: support.item.runtime_fault_domains_alpha
+  incident_packet_item_id: incident.item.runtime_fault_domain.workspace_knowledge
+  required_projection_fields:
+    - lane_id
+    - fault_domain_id
+    - host_class_id
+    - current_state_class
+    - restart_budget_ref
+    - strike_count
+    - forensic_packet_ref
+    - repair_transaction_ref
+repair_handoff:
+  repair_transaction_ref: repair_transaction:disposable_state_rebuild.cache_index_repair
+  repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+  preview_required_before_mutation: true
+security_privacy_assertions:
+  redaction_class: metadata_safe_default
+  raw_payload_included: false
+  exact_build_identity_required: true

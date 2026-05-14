@@ -1,0 +1,534 @@
+schema_version: 1
+record_kind: runtime_fault_domain_taxonomy_alpha
+taxonomy_id: runtime.fault_domains.alpha
+title: Alpha runtime fault-domain taxonomy and restart-budget join table
+owner_lane: runtime_supportability
+source_contract_refs:
+  restart_budget_contract: artifacts/runtime/restart_budgets.yaml
+  restart_budget_design: docs/runtime/fault_domains_and_restart_policy.md
+  forensic_packet_schema: schemas/runtime/forensic_packet.schema.json
+  repair_transaction_schema: schemas/support/repair_transaction.schema.json
+  repair_preview_alpha: docs/support/repair_preview_alpha.md
+  support_bundle_contract: docs/support/support_bundle_contract.md
+  incident_workspace_alpha: artifacts/support/incident_workspace_alpha.md
+companion_artifacts:
+  supervisor_health_events_ref: artifacts/runtime/supervisor_health_events_alpha.yaml
+  restart_budget_alpha_doc_ref: docs/runtime/restart_budget_alpha.md
+  drill_manifest_ref: fixtures/runtime/fault_domain_drills_alpha/manifest.yaml
+consumer_contract:
+  first_consumer_ref: crates/aureline-support/src/runtime_health_alpha/mod.rs
+  support_packet_record_kind: runtime_fault_domain_support_packet
+  support_bundle_item_id: support.item.runtime_fault_domains_alpha
+  ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#ui-state-copy-projection
+  incident_packet_join_ref: artifacts/support/incident_workspace_alpha.md
+  default_redaction_class: metadata_safe_default
+closed_vocabularies:
+  transition_classes:
+    - start
+    - degrade
+    - restart
+    - quarantine
+    - recover
+  escalation_state_classes:
+    - ready
+    - warming
+    - degraded
+    - disabled
+    - quarantined
+    - offline
+    - lost
+  support_context_classes:
+    - ui_state_copy
+    - support_bundle
+    - incident_packet
+  explicit_recovery_state_classes:
+    - degraded
+    - quarantined
+    - disabled
+    - offline
+    - lost
+alpha_runtime_lanes:
+  - lane_id: desktop_shell_lane
+    lane_label: Desktop shell
+    host_class_id: desktop_shell
+    fault_domain_id: shell_interaction_core
+    supervision_owner_host_class: null
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/shell_interaction_core
+    strike_budget:
+      strike_window_class: short_window
+      window_seconds: 5
+      automatic_restarts_in_window: 0
+      backoff_profile_class: no_auto_restart
+      budget_exhaustion_behavior: user_relaunch_required
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: lost
+      quarantine_state_class: lost
+      fail_closed_state_class: lost
+      recovery_state_class: lost
+      user_visible_summary: The desktop shell is never silently restarted; loss is visible app loss with relaunch.
+    repair_handoff:
+      repair_transaction_ref: null
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: non_restartable_shell_boundary
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.desktop_shell
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#desktop-shell-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - fail_closed_state_class
+        - forensic_packet_ref
+      redaction_class: metadata_safe_default
+    notes: Shell loss is explicit recovery state, not a hidden restart lane.
+
+  - lane_id: workspace_knowledge_lane
+    lane_label: Workspace knowledge workers
+    host_class_id: index_workers
+    fault_domain_id: workspace_knowledge_workers
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/workspace_knowledge_workers
+    strike_budget:
+      strike_window_class: medium_window
+      window_seconds: 30
+      automatic_restarts_in_window: 3
+      backoff_profile_class: exponential_capped
+      budget_exhaustion_behavior: fail_closed_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: quarantined
+      recovery_state_class: ready
+      user_visible_summary: Search and graph remain available with stale or partial truth until the lane is repaired or resumed.
+    repair_handoff:
+      repair_transaction_ref: repair_transaction:disposable_state_rebuild.cache_index_repair
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: null
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.workspace_knowledge
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#workspace-knowledge-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+        - repair_transaction_ref
+      redaction_class: metadata_safe_default
+    notes: Budget exhaustion pauses automatic rebuild loops before the index lane can starve protected editing.
+
+  - lane_id: language_service_lane
+    lane_label: Language service sessions
+    host_class_id: language_hosts
+    fault_domain_id: session_scoped_execution_hosts
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/session_scoped_execution_hosts
+    strike_budget:
+      strike_window_class: medium_window
+      window_seconds: 30
+      automatic_restarts_in_window: 3
+      backoff_profile_class: linear_short
+      budget_exhaustion_behavior: fail_closed_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: quarantined
+      recovery_state_class: ready
+      user_visible_summary: LSP capabilities degrade by session and language; other editor sessions remain usable.
+    repair_handoff:
+      repair_transaction_ref: repair_transaction:execution_context_reresolve.toolchain_required_component
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: null
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.language_service
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#language-service-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+        - repair_transaction_ref
+      redaction_class: metadata_safe_default
+    notes: This row binds existing language-host supervision packets to the shared restart vocabulary.
+
+  - lane_id: debug_adapter_lane
+    lane_label: Debug adapter sessions
+    host_class_id: debug_hosts
+    fault_domain_id: session_scoped_execution_hosts
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/session_scoped_execution_hosts
+    strike_budget:
+      strike_window_class: medium_window
+      window_seconds: 30
+      automatic_restarts_in_window: 3
+      backoff_profile_class: linear_short
+      budget_exhaustion_behavior: fail_closed_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: quarantined
+      recovery_state_class: ready
+      user_visible_summary: One failed debug session does not reattach or rerun hidden work without review.
+    repair_handoff:
+      repair_transaction_ref: repair_transaction:execution_context_reresolve.toolchain_required_component
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: null
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.debug_adapter
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#debug-adapter-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+        - repair_transaction_ref
+      redaction_class: metadata_safe_default
+    notes: Mutating debug attach or rerun requires fresh replay or reapproval after host failure.
+
+  - lane_id: git_worker_lane
+    lane_label: Git worker sessions
+    host_class_id: git_worker
+    fault_domain_id: session_scoped_execution_hosts
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/session_scoped_execution_hosts
+    strike_budget:
+      strike_window_class: medium_window
+      window_seconds: 30
+      automatic_restarts_in_window: 3
+      backoff_profile_class: linear_short
+      budget_exhaustion_behavior: fail_closed_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: quarantined
+      recovery_state_class: ready
+      user_visible_summary: Git status and review stay inspectable; mutations require a fresh reviewed command after failure.
+    repair_handoff:
+      repair_transaction_ref: null
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: command_replay_requires_fresh_review
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.git_worker
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#git-worker-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+      redaction_class: metadata_safe_default
+    notes: A crashed Git worker must not replay stage, commit, rebase, push, or discard operations.
+
+  - lane_id: terminal_pty_lane
+    lane_label: Terminal PTY sessions
+    host_class_id: pty_host
+    fault_domain_id: session_scoped_execution_hosts
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/session_scoped_execution_hosts
+    strike_budget:
+      strike_window_class: medium_window
+      window_seconds: 30
+      automatic_restarts_in_window: 3
+      backoff_profile_class: linear_short
+      budget_exhaustion_behavior: fail_closed_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: quarantined
+      recovery_state_class: ready
+      user_visible_summary: Transcript evidence can remain visible, but commands are not rerun by restore or restart.
+    repair_handoff:
+      repair_transaction_ref: null
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: terminal_command_replay_forbidden
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.terminal_pty
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#terminal-pty-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+      redaction_class: metadata_safe_default
+    notes: PTY restart preserves transcript references without claiming the session survived.
+
+  - lane_id: wasm_tool_lane
+    lane_label: Wasm tool host pool
+    host_class_id: wasm_host_pool
+    fault_domain_id: extension_and_tool_hosts
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/extension_and_tool_hosts
+    strike_budget:
+      strike_window_class: long_window
+      window_seconds: 120
+      automatic_restarts_in_window: 3
+      backoff_profile_class: exponential_capped
+      budget_exhaustion_behavior: fail_closed_disable_or_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: disabled
+      recovery_state_class: ready
+      user_visible_summary: The failing tool lane is disabled or quarantined without inheriting prior permissions on restart.
+    repair_handoff:
+      repair_transaction_ref: repair_transaction:extension_isolation.suspect_host_quarantine
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: null
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.wasm_tool
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#wasm-tool-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+        - repair_transaction_ref
+      redaction_class: metadata_safe_default
+    notes: Capability manifests are revoked before any rehydrate.
+
+  - lane_id: external_extension_lane
+    lane_label: External extension host
+    host_class_id: external_extension_hosts
+    fault_domain_id: extension_and_tool_hosts
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/extension_and_tool_hosts
+    strike_budget:
+      strike_window_class: long_window
+      window_seconds: 120
+      automatic_restarts_in_window: 3
+      backoff_profile_class: exponential_capped
+      budget_exhaustion_behavior: fail_closed_disable_or_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: disabled
+      recovery_state_class: ready
+      user_visible_summary: Extension commands and contributed views degrade by package while shell editing continues.
+    repair_handoff:
+      repair_transaction_ref: repair_transaction:extension_isolation.suspect_host_quarantine
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: null
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.external_extension
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#external-extension-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+        - repair_transaction_ref
+      redaction_class: metadata_safe_default
+    notes: Disablement by policy or kill switch is still exported as a supervised health transition.
+
+  - lane_id: ai_runtime_lane
+    lane_label: AI and external-tool broker
+    host_class_id: ai_runtime
+    fault_domain_id: ai_and_external_tool_brokers
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/ai_and_external_tool_brokers
+    strike_budget:
+      strike_window_class: long_window
+      window_seconds: 120
+      automatic_restarts_in_window: 4
+      backoff_profile_class: exponential_jittered
+      budget_exhaustion_behavior: fail_closed_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: quarantined
+      recovery_state_class: ready
+      user_visible_summary: AI and provider-tool capabilities narrow without blocking editing, save, or local navigation.
+    repair_handoff:
+      repair_transaction_ref: null
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: provider_or_policy_recovery_requires_specific_finding
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.ai_runtime
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#ai-runtime-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+      redaction_class: metadata_safe_default
+    notes: Provider handles and credential aliases are revoked before restart.
+
+  - lane_id: remote_connector_lane
+    lane_label: Remote connector
+    host_class_id: remote_connector
+    fault_domain_id: remote_connectors
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/remote_connectors
+    strike_budget:
+      strike_window_class: long_window
+      window_seconds: 120
+      automatic_restarts_in_window: 4
+      backoff_profile_class: exponential_jittered
+      budget_exhaustion_behavior: fail_closed_offline_or_quarantine
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: offline
+      quarantine_state_class: quarantined
+      fail_closed_state_class: offline
+      recovery_state_class: ready
+      user_visible_summary: Remote capability can go offline while local files, review, and cached evidence remain available.
+    repair_handoff:
+      repair_transaction_ref: repair_transaction:remote_runtime_repair.remote_agent_rollback
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: null
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.remote_connector
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#remote-connector-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+        - repair_transaction_ref
+      redaction_class: metadata_safe_default
+    notes: Reconnect starts from warming and must not reuse stale transport authority.
+
+  - lane_id: local_supervisor_lane
+    lane_label: Local supervisor
+    host_class_id: local_supervisor
+    fault_domain_id: policy_entitlement_and_verifier_helpers
+    supervision_owner_host_class: null
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/policy_entitlement_and_verifier_helpers
+    strike_budget:
+      strike_window_class: medium_window
+      window_seconds: 30
+      automatic_restarts_in_window: 2
+      backoff_profile_class: exponential_capped
+      budget_exhaustion_behavior: fail_closed_degraded_lifecycle
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: degraded
+      recovery_state_class: ready
+      user_visible_summary: Lifecycle and policy routing degrade visibly; child lanes are not reported healthier than evidence proves.
+    repair_handoff:
+      repair_transaction_ref: repair_transaction:policy_entitlement_refresh.trust_approval_reacquire
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: null
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.local_supervisor
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#local-supervisor-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+        - repair_transaction_ref
+      redaction_class: metadata_safe_default
+    notes: Supervisor recovery re-establishes routing before child lanes can claim ready.
+
+  - lane_id: observability_collector_lane
+    lane_label: Observability collector
+    host_class_id: observability_collector
+    fault_domain_id: policy_entitlement_and_verifier_helpers
+    supervision_owner_host_class: local_supervisor
+    restart_budget_ref: artifacts/runtime/restart_budgets.yaml#/fault_domains/policy_entitlement_and_verifier_helpers
+    strike_budget:
+      strike_window_class: medium_window
+      window_seconds: 30
+      automatic_restarts_in_window: 2
+      backoff_profile_class: exponential_capped
+      budget_exhaustion_behavior: fail_closed_degraded_lifecycle
+    visible_state_contract:
+      nominal_state_class: ready
+      degraded_state_class: degraded
+      quarantine_state_class: quarantined
+      fail_closed_state_class: degraded
+      recovery_state_class: ready
+      user_visible_summary: Support and telemetry assembly degrade without blocking protected emitters.
+    repair_handoff:
+      repair_transaction_ref: null
+      repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+      preview_required_before_mutation: true
+      no_repair_reason_class: collector_backpressure_is_nonblocking
+    projection_contract:
+      support_bundle_item_id: support.item.runtime_fault_domains_alpha
+      incident_packet_item_id: incident.item.runtime_fault_domain.observability_collector
+      ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#observability-collector-lane
+      required_projection_fields:
+        - lane_id
+        - host_class_id
+        - fault_domain_id
+        - restart_budget_ref
+        - current_state_class
+        - strike_count
+        - forensic_packet_ref
+      redaction_class: metadata_safe_default
+    notes: Emitters buffer or drop bounded metadata rather than blocking on collector health.
+acceptance_proof:
+  lane_count: 12
+  restartable_lane_count: 11
+  named_fault_domain_per_lane: true
+  strike_budget_per_lane: true
+  visible_fail_closed_state_per_lane: true
+  support_bundle_projection_per_lane: true
+  incident_packet_projection_per_lane: true
+  ui_state_copy_projection_per_lane: true
+emitted_at: "2026-05-14T08:30:00Z"

@@ -1,0 +1,92 @@
+schema_version: 1
+record_kind: runtime_fault_domain_drill_case
+case_id: runtime.drill.extension_host_quarantine_recovery
+lane_id: external_extension_lane
+fault_domain_id: extension_and_tool_hosts
+host_class_id: external_extension_hosts
+scenario_summary: >
+  A third-party extension host exhausts the long-window crash budget, enters
+  fail-closed disablement, and only returns to ready after a reviewed extension
+  isolation repair preview and explicit resume.
+budget:
+  strike_window_class: long_window
+  window_seconds: 120
+  automatic_restarts_in_window: 3
+  counted_strikes: 3
+  budget_exhausted: true
+  automatic_restart_admitted_after_budget: false
+expected_final_state_class: ready
+health_events:
+  - event_id: runtime.health.external_extension.start.0001
+    event_class: supervisor_health_started
+    transition_class: start
+    state_before: not_started
+    state_after: ready
+    strike_count_at_event: 0
+    restart_attempt_in_window: 0
+    observed_at: "2026-05-14T08:32:00Z"
+    forensic_packet_ref: null
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.extension.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.extension.0001
+    repair_transaction_ref: null
+    summary: Extension host started with an admitted permission manifest.
+  - event_id: runtime.health.external_extension.degrade.0001
+    event_class: supervisor_health_degraded
+    transition_class: degrade
+    state_before: ready
+    state_after: degraded
+    strike_count_at_event: 1
+    restart_attempt_in_window: 1
+    observed_at: "2026-05-14T08:32:26Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/extension_host_disabled_by_kill_switch.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.extension.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.extension.0001
+    repair_transaction_ref: repair_transaction:extension_isolation.suspect_host_quarantine
+    summary: Extension commands remain visible as degraded while local editing remains healthy.
+  - event_id: runtime.health.external_extension.quarantine.0001
+    event_class: supervisor_health_quarantined
+    transition_class: quarantine
+    state_before: degraded
+    state_after: disabled
+    strike_count_at_event: 3
+    restart_attempt_in_window: 3
+    observed_at: "2026-05-14T08:33:05Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/extension_host_disabled_by_kill_switch.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.extension.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.extension.0001
+    repair_transaction_ref: repair_transaction:extension_isolation.suspect_host_quarantine
+    summary: Extension host is disabled by fail-closed policy; restart is paused pending reviewed repair.
+  - event_id: runtime.health.external_extension.recover.0001
+    event_class: supervisor_health_recovered
+    transition_class: recover
+    state_before: disabled
+    state_after: ready
+    strike_count_at_event: 0
+    restart_attempt_in_window: 0
+    observed_at: "2026-05-14T08:35:20Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/wasm_sandbox_recovery_transition.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.extension.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.extension.0001
+    repair_transaction_ref: repair_transaction:extension_isolation.suspect_host_quarantine
+    summary: Reviewed extension isolation completed and the lane recovered without silent reinstall.
+projection_assertions:
+  ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#external-extension-lane
+  support_bundle_item_id: support.item.runtime_fault_domains_alpha
+  incident_packet_item_id: incident.item.runtime_fault_domain.external_extension
+  required_projection_fields:
+    - lane_id
+    - fault_domain_id
+    - host_class_id
+    - current_state_class
+    - restart_budget_ref
+    - strike_count
+    - forensic_packet_ref
+    - repair_transaction_ref
+repair_handoff:
+  repair_transaction_ref: repair_transaction:extension_isolation.suspect_host_quarantine
+  repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+  preview_required_before_mutation: true
+security_privacy_assertions:
+  redaction_class: metadata_safe_default
+  raw_payload_included: false
+  exact_build_identity_required: true

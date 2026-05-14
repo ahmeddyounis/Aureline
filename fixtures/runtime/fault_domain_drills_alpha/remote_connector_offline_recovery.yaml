@@ -1,0 +1,92 @@
+schema_version: 1
+record_kind: runtime_fault_domain_drill_case
+case_id: runtime.drill.remote_connector_offline_recovery
+lane_id: remote_connector_lane
+fault_domain_id: remote_connectors
+host_class_id: remote_connector
+scenario_summary: >
+  A remote connector loses transport, discloses local-only continuity, retries
+  within the long-window reconnect budget, and recovers only after fresh remote
+  transport authority is established.
+budget:
+  strike_window_class: long_window
+  window_seconds: 120
+  automatic_restarts_in_window: 4
+  counted_strikes: 2
+  budget_exhausted: false
+  automatic_restart_admitted_after_budget: false
+expected_final_state_class: ready
+health_events:
+  - event_id: runtime.health.remote_connector.start.0001
+    event_class: supervisor_health_started
+    transition_class: start
+    state_before: not_started
+    state_after: ready
+    strike_count_at_event: 0
+    restart_attempt_in_window: 0
+    observed_at: "2026-05-14T08:36:00Z"
+    forensic_packet_ref: null
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.remote.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.remote.0001
+    repair_transaction_ref: null
+    summary: Remote connector is ready with current transport authority.
+  - event_id: runtime.health.remote_connector.degrade.0001
+    event_class: supervisor_health_degraded
+    transition_class: degrade
+    state_before: ready
+    state_after: offline
+    strike_count_at_event: 1
+    restart_attempt_in_window: 1
+    observed_at: "2026-05-14T08:36:21Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/remote_connector_disconnect_offline.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.remote.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.remote.0001
+    repair_transaction_ref: repair_transaction:remote_runtime_repair.remote_agent_rollback
+    summary: Remote capability is offline; local editing and cached evidence remain available.
+  - event_id: runtime.health.remote_connector.restart.0001
+    event_class: supervisor_health_restart_scheduled
+    transition_class: restart
+    state_before: offline
+    state_after: warming
+    strike_count_at_event: 2
+    restart_attempt_in_window: 2
+    observed_at: "2026-05-14T08:36:45Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/remote_connector_disconnect_offline.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.remote.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.remote.0001
+    repair_transaction_ref: repair_transaction:remote_runtime_repair.remote_agent_rollback
+    summary: Reconnect is still inside budget and starts from warming with fresh authority.
+  - event_id: runtime.health.remote_connector.recover.0001
+    event_class: supervisor_health_recovered
+    transition_class: recover
+    state_before: warming
+    state_after: ready
+    strike_count_at_event: 0
+    restart_attempt_in_window: 0
+    observed_at: "2026-05-14T08:37:10Z"
+    forensic_packet_ref: fixtures/runtime/fault_domain_cases/remote_connector_disconnect_offline.json
+    support_packet_ref: support.packet.runtime_fault_domains.alpha.remote.0001
+    incident_packet_ref: incident.packet.runtime_fault_domains.alpha.remote.0001
+    repair_transaction_ref: repair_transaction:remote_runtime_repair.remote_agent_rollback
+    summary: Remote connector recovered after transport revalidation; queued high-impact work still requires review.
+projection_assertions:
+  ui_state_copy_ref: docs/runtime/restart_budget_alpha.md#remote-connector-lane
+  support_bundle_item_id: support.item.runtime_fault_domains_alpha
+  incident_packet_item_id: incident.item.runtime_fault_domain.remote_connector
+  required_projection_fields:
+    - lane_id
+    - fault_domain_id
+    - host_class_id
+    - current_state_class
+    - restart_budget_ref
+    - strike_count
+    - forensic_packet_ref
+    - repair_transaction_ref
+repair_handoff:
+  repair_transaction_ref: repair_transaction:remote_runtime_repair.remote_agent_rollback
+  repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+  preview_required_before_mutation: true
+security_privacy_assertions:
+  redaction_class: metadata_safe_default
+  raw_payload_included: false
+  exact_build_identity_required: true

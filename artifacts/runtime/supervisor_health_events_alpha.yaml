@@ -1,0 +1,242 @@
+schema_version: 1
+record_kind: supervisor_health_events_alpha
+event_catalog_id: runtime.supervisor_health_events.alpha
+title: Alpha supervisor health event catalog
+source_contract_refs:
+  fault_domain_taxonomy_alpha: artifacts/runtime/fault_domain_taxonomy_alpha.yaml
+  restart_budget_contract: artifacts/runtime/restart_budgets.yaml
+  forensic_packet_schema: schemas/runtime/forensic_packet.schema.json
+  support_bundle_contract: docs/support/support_bundle_contract.md
+  incident_workspace_alpha: artifacts/support/incident_workspace_alpha.md
+  repair_transaction_schema: schemas/support/repair_transaction.schema.json
+consumer_routes:
+  ui_state_copy:
+    route_ref: docs/runtime/restart_budget_alpha.md#ui-state-copy-projection
+    consumable: true
+    required_fields:
+      - event_class
+      - lane_id
+      - fault_domain_id
+      - host_class_id
+      - state_after
+      - user_visible_summary
+  support_bundle:
+    route_ref: support.item.runtime_fault_domains_alpha
+    consumable: true
+    required_fields:
+      - event_id
+      - event_class
+      - lane_id
+      - strike_count_at_event
+      - restart_budget_ref
+      - forensic_packet_ref
+      - repair_transaction_ref
+      - redaction_class
+  incident_packet:
+    route_ref: artifacts/support/incident_workspace_alpha.md
+    consumable: true
+    required_fields:
+      - event_id
+      - event_class
+      - lane_id
+      - fault_domain_id
+      - state_before
+      - state_after
+      - forensic_packet_ref
+      - support_packet_ref
+required_transition_classes:
+  - start
+  - degrade
+  - restart
+  - quarantine
+  - recover
+event_classes:
+  - event_class: supervisor_health_started
+    transition_class: start
+    summary: Host or lane supervision began and the lane is warming or ready.
+    state_before_classes:
+      - not_started
+      - lost
+      - quarantined
+      - offline
+    state_after_classes:
+      - warming
+      - ready
+    required_fields:
+      - event_id
+      - lane_id
+      - fault_domain_id
+      - host_class_id
+      - observed_at
+      - state_after
+      - restart_budget_ref
+    consumer_payload_fields:
+      - user_visible_summary
+      - support_packet_ref
+      - incident_packet_ref
+      - redaction_class
+    support_bundle_projection:
+      consumable: true
+      item_id: support.item.runtime_fault_domains_alpha
+    incident_packet_projection:
+      consumable: true
+      item_id: incident.item.runtime_fault_domain.health_event
+    ui_state_copy_projection:
+      consumable: true
+      state_copy_class: warming_or_ready
+
+  - event_class: supervisor_health_degraded
+    transition_class: degrade
+    summary: Lane health narrowed after a restart, stall, policy disablement, or transport impairment.
+    state_before_classes:
+      - ready
+      - warming
+    state_after_classes:
+      - degraded
+      - offline
+      - disabled
+    required_fields:
+      - event_id
+      - lane_id
+      - fault_domain_id
+      - host_class_id
+      - observed_at
+      - state_before
+      - state_after
+      - strike_count_at_event
+      - forensic_packet_ref
+    consumer_payload_fields:
+      - user_visible_summary
+      - support_packet_ref
+      - incident_packet_ref
+      - redaction_class
+    support_bundle_projection:
+      consumable: true
+      item_id: support.item.runtime_fault_domains_alpha
+    incident_packet_projection:
+      consumable: true
+      item_id: incident.item.runtime_fault_domain.health_event
+    ui_state_copy_projection:
+      consumable: true
+      state_copy_class: degraded
+
+  - event_class: supervisor_health_restart_scheduled
+    transition_class: restart
+    summary: Supervisor admitted a bounded restart while the lane remains inside its strike budget.
+    state_before_classes:
+      - degraded
+      - offline
+    state_after_classes:
+      - warming
+    required_fields:
+      - event_id
+      - lane_id
+      - fault_domain_id
+      - host_class_id
+      - observed_at
+      - state_before
+      - state_after
+      - strike_count_at_event
+      - restart_attempt_in_window
+      - restart_budget_ref
+    consumer_payload_fields:
+      - user_visible_summary
+      - support_packet_ref
+      - incident_packet_ref
+      - redaction_class
+    support_bundle_projection:
+      consumable: true
+      item_id: support.item.runtime_fault_domains_alpha
+    incident_packet_projection:
+      consumable: true
+      item_id: incident.item.runtime_fault_domain.health_event
+    ui_state_copy_projection:
+      consumable: true
+      state_copy_class: warming
+
+  - event_class: supervisor_health_quarantined
+    transition_class: quarantine
+    summary: Restart or reconnect budget was exhausted, or policy forced a fail-closed runtime state.
+    state_before_classes:
+      - warming
+      - degraded
+      - offline
+    state_after_classes:
+      - quarantined
+      - disabled
+      - offline
+      - lost
+    required_fields:
+      - event_id
+      - lane_id
+      - fault_domain_id
+      - host_class_id
+      - observed_at
+      - state_before
+      - state_after
+      - strike_count_at_event
+      - restart_budget_ref
+      - forensic_packet_ref
+    consumer_payload_fields:
+      - user_visible_summary
+      - repair_transaction_ref
+      - support_packet_ref
+      - incident_packet_ref
+      - redaction_class
+    support_bundle_projection:
+      consumable: true
+      item_id: support.item.runtime_fault_domains_alpha
+    incident_packet_projection:
+      consumable: true
+      item_id: incident.item.runtime_fault_domain.health_event
+    ui_state_copy_projection:
+      consumable: true
+      state_copy_class: fail_closed
+
+  - event_class: supervisor_health_recovered
+    transition_class: recover
+    summary: Lane returned to ready after explicit resume, verified repair, or the declared recovery condition.
+    state_before_classes:
+      - degraded
+      - quarantined
+      - disabled
+      - offline
+      - warming
+    state_after_classes:
+      - ready
+    required_fields:
+      - event_id
+      - lane_id
+      - fault_domain_id
+      - host_class_id
+      - observed_at
+      - state_before
+      - state_after
+      - forensic_packet_ref
+    consumer_payload_fields:
+      - user_visible_summary
+      - repair_transaction_ref
+      - support_packet_ref
+      - incident_packet_ref
+      - redaction_class
+    support_bundle_projection:
+      consumable: true
+      item_id: support.item.runtime_fault_domains_alpha
+    incident_packet_projection:
+      consumable: true
+      item_id: incident.item.runtime_fault_domain.health_event
+    ui_state_copy_projection:
+      consumable: true
+      state_copy_class: recovered
+outside_budget_policy:
+  automatic_restart_after_budget_allowed: false
+  fail_closed_required: true
+  explicit_recovery_state_classes:
+    - degraded
+    - quarantined
+    - disabled
+    - offline
+    - lost
+  repair_preview_required_for_mutating_recovery: true
+  repair_transaction_contract_ref: schemas/support/repair_transaction.schema.json
+emitted_at: "2026-05-14T08:30:00Z"
