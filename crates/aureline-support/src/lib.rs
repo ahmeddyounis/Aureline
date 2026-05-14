@@ -32,6 +32,9 @@
 //! - The full diagnostic_artifact_matrix item set. The seed surfaces the
 //!   minimum row classes needed to prove the protected walk and the
 //!   failure drill (metadata + secret-bearing prohibited).
+//! - A live Project Doctor runtime. The [`project_doctor`] module consumes
+//!   the checked-in read-only alpha probe pack and proves the support/export
+//!   projection, but it does not execute probes or apply repairs.
 //!
 //! ## Failure-drill posture
 //!
@@ -45,3 +48,4 @@
 #![doc(html_root_url = "https://docs.rs/aureline-support/0.0.0")]
 
 pub mod bundle;
+pub mod project_doctor;

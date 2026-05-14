@@ -19,6 +19,14 @@ systems must emit once implemented.
 
 ## Companion Artifacts
 
+- [`/docs/support/project_doctor_contract_alpha.md`](./project_doctor_contract_alpha.md),
+  [`/schemas/project_doctor/probe.schema.json`](../../schemas/project_doctor/probe.schema.json),
+  [`/schemas/project_doctor/finding.schema.json`](../../schemas/project_doctor/finding.schema.json),
+  and
+  [`/artifacts/support/project_doctor_probe_pack_alpha.yaml`](../../artifacts/support/project_doctor_probe_pack_alpha.yaml)
+  publish the alpha Project Doctor probe/finding contract and read-only
+  probe-pack baseline consumed by the support crate. They reuse the
+  vocabularies below rather than replacing them.
 - [`/docs/support/probe_family_matrix.md`](./probe_family_matrix.md) and
   [`/artifacts/support/probe_families.yaml`](../../artifacts/support/probe_families.yaml)
   publish the probe-family matrix and non-destructive diagnosis rules

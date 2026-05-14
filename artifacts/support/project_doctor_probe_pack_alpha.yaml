@@ -1,0 +1,743 @@
+# Project Doctor alpha read-only probe pack.
+#
+# This pack is the support/export baseline consumed by aureline-support.
+# Diagnosis probes may read existing metadata, hashes, manifests, health
+# events, counters, and consented reachability observations. They do not
+# mutate user files, caches, trust, credentials, routes, extensions, or
+# external services.
+
+schema_version: 1
+record_kind: project_doctor_probe_pack_record
+pack_id: project_doctor.probe_pack.alpha.read_only_baseline
+title: Project Doctor alpha read-only probe pack
+owner_ref: lane:support_export
+
+schema_refs:
+  probe_schema: schemas/project_doctor/probe.schema.json
+  finding_schema: schemas/project_doctor/finding.schema.json
+  support_probe_catalog_schema: schemas/support/probe_catalog_entry.schema.json
+  support_doctor_probe_schema: schemas/support/doctor_probe.schema.json
+  support_doctor_finding_schema: schemas/support/doctor_finding.schema.json
+
+source_contract_refs:
+  - docs/support/project_doctor_contract_alpha.md
+  - docs/support/project_doctor_probe_contract.md
+  - docs/support/project_doctor_packet.md
+  - docs/support/probe_family_matrix.md
+  - docs/support/supportability_slo_and_pack_contract.md
+
+default_execution_policy:
+  read_only_by_default: true
+  permitted_mutability_classes:
+    - non_mutating_read_only
+    - metadata_write_local_evidence_only
+  permitted_admission_classes:
+    - admitted_safe_probe
+    - admitted_metadata_evidence_only
+  forbidden_during_diagnosis: &mutating_side_effects
+    - execute_repo_owned_code
+    - mutate_cache_or_index
+    - mutate_target_or_route
+    - mutate_user_files
+    - mutate_trust_policy_or_credentials
+    - external_service_mutation
+    - activate_third_party_extension
+    - collect_high_risk_payload
+  allowed_local_writes:
+    - write_local_evidence_row
+    - create_local_preview_manifest
+  unknown_state_policy: >
+    Probes that cannot establish truth emit typed unknowns or unsupported
+    findings; Doctor does not fold them into generic failure text.
+  repair_handoff_policy: >
+    Probes may name repair candidates, repair previews, runbooks, support
+    bundles, and escalation packets, but any mutation is outside diagnosis.
+
+vocabulary_bindings:
+  probe_family_class: schemas/support/probe_catalog_entry.schema.json#/$defs/probe_family_class
+  probe_class: schemas/support/doctor_probe.schema.json#/$defs/probe_class
+  invocation_policy: schemas/support/doctor_probe.schema.json#/$defs/probe_invocation_policy
+  severity_class: schemas/support/doctor_finding.schema.json#/$defs/severity_class
+  confidence_class: schemas/support/doctor_finding.schema.json#/$defs/confidence_class
+  scope_class: schemas/support/doctor_finding.schema.json#/$defs/scope_class
+  evidence_source_class: schemas/support/probe_catalog_entry.schema.json#/$defs/evidence_source_class
+  signal_class: schemas/support/probe_catalog_entry.schema.json#/$defs/signal_class
+  diagnostic_data_class: schemas/support/probe_catalog_entry.schema.json#/$defs/diagnostic_data_class
+  support_redaction_class: schemas/support/probe_catalog_entry.schema.json#/$defs/support_redaction_class
+  support_pack_inclusion_class: schemas/support/probe_catalog_entry.schema.json#/$defs/support_pack_inclusion_class
+  repair_availability_class: schemas/project_doctor/probe.schema.json#/$defs/repair_availability_class
+
+output_routing:
+  machine_readable_output_ref: project_doctor.output.alpha.headless_json
+  human_readable_output_ref: project_doctor.output.alpha.summary_rows
+  shared_finding_vocabulary_ref: "#/finding_vocabulary"
+  default_redaction_class: metadata_safe_default
+  default_support_pack_inclusion_class: included_by_reference
+  route_classes:
+    - doctor_headless_json
+    - doctor_human_summary
+    - support_bundle_manifest_ref
+    - runbook_handoff_ref
+    - escalation_packet_ref
+
+finding_vocabulary:
+  - finding_code: doctor.finding.toolchain_missing_required_component
+    severity_class: blocking
+    confidence_class: observed_with_gap
+    display_severity_class: blocked
+    repair_availability_class: preview_only
+    unsupported_state_class: none
+    summary_key: doctor.finding.toolchain_missing_required_component.summary
+    next_action_key: doctor.finding.toolchain_missing_required_component.next_action
+  - finding_code: doctor.finding.toolchain_version_out_of_range
+    severity_class: degraded
+    confidence_class: observed_with_gap
+    display_severity_class: degraded
+    repair_availability_class: preview_only
+    unsupported_state_class: none
+    summary_key: doctor.finding.toolchain_version_out_of_range.summary
+    next_action_key: doctor.finding.toolchain_version_out_of_range.next_action
+  - finding_code: doctor.finding.trust_policy_blocked
+    severity_class: blocking
+    confidence_class: observed_authoritative
+    display_severity_class: blocked
+    repair_availability_class: reviewed_repair_available
+    unsupported_state_class: none
+    summary_key: doctor.finding.trust_policy_blocked.summary
+    next_action_key: doctor.finding.trust_policy_blocked.next_action
+  - finding_code: doctor.finding.watcher_observe_only_baseline
+    severity_class: degraded
+    confidence_class: observed_authoritative
+    display_severity_class: degraded
+    repair_availability_class: preview_only
+    unsupported_state_class: none
+    summary_key: doctor.finding.watcher_observe_only_baseline.summary
+    next_action_key: doctor.finding.watcher_observe_only_baseline.next_action
+  - finding_code: doctor.finding.proxy_or_ca_failure
+    severity_class: degraded
+    confidence_class: inferred_from_evidence
+    display_severity_class: warning
+    repair_availability_class: preview_only
+    unsupported_state_class: none
+    summary_key: doctor.finding.proxy_or_ca_failure.summary
+    next_action_key: doctor.finding.proxy_or_ca_failure.next_action
+  - finding_code: doctor.finding.extension_host_crash_loop_quarantined
+    severity_class: blocking
+    confidence_class: observed_authoritative
+    display_severity_class: blocked
+    repair_availability_class: preview_only
+    unsupported_state_class: none
+    summary_key: doctor.finding.extension_host_crash_loop_quarantined.summary
+    next_action_key: doctor.finding.extension_host_crash_loop_quarantined.next_action
+  - finding_code: doctor.finding.cache_schema_version_drift
+    severity_class: degraded
+    confidence_class: observed_with_gap
+    display_severity_class: degraded
+    repair_availability_class: preview_only
+    unsupported_state_class: none
+    summary_key: doctor.finding.cache_schema_version_drift.summary
+    next_action_key: doctor.finding.cache_schema_version_drift.next_action
+  - finding_code: doctor.finding.local_history_integrity_unsupported
+    severity_class: unsupported
+    confidence_class: unknown_requires_probe
+    display_severity_class: warning
+    repair_availability_class: unsupported
+    unsupported_state_class: unsupported_probe_target
+    summary_key: doctor.finding.local_history_integrity_unsupported.summary
+    next_action_key: doctor.finding.local_history_integrity_unsupported.next_action
+  - finding_code: doctor.finding.wrong_target_detected_requires_reapproval
+    severity_class: blocking
+    confidence_class: inferred_from_evidence
+    display_severity_class: blocked
+    repair_availability_class: reviewed_repair_available
+    unsupported_state_class: none
+    summary_key: doctor.finding.wrong_target_detected_requires_reapproval.summary
+    next_action_key: doctor.finding.wrong_target_detected_requires_reapproval.next_action
+  - finding_code: doctor.finding.remote_route_unknown_offline
+    severity_class: unsupported
+    confidence_class: unknown_requires_probe
+    display_severity_class: warning
+    repair_availability_class: handoff_only
+    unsupported_state_class: unsupported_offline_state
+    summary_key: doctor.finding.remote_route_unknown_offline.summary
+    next_action_key: doctor.finding.remote_route_unknown_offline.next_action
+  - finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+    severity_class: unsupported
+    confidence_class: unknown_requires_probe
+    display_severity_class: warning
+    repair_availability_class: handoff_only
+    unsupported_state_class: none
+    summary_key: doctor.finding.probe_evidence_insufficient_for_diagnosis.summary
+    next_action_key: doctor.finding.probe_evidence_insufficient_for_diagnosis.next_action
+
+probes:
+  - project_doctor_probe_schema_version: 1
+    record_kind: project_doctor_probe_record
+    probe_id: doctor.probe.execution_context.toolchain_resolution
+    probe_code: doctor.probe.execution_context.toolchain_resolution
+    probe_family_class: execution_context_toolchains
+    probe_version: probe.execution_context.toolchain_resolution.v1
+    lifecycle_status: active
+    target_scope:
+      scope_class: target
+      scope_ref: target:active.execution_context
+      support_context_classes: &all_contexts
+        - desktop
+        - cli_headless
+        - remote_managed
+        - offline_local
+    probe_class: read_only_inspection
+    diagnosis_posture_default: proving_diagnosis
+    invocation_policy: automatic
+    read_only_default: true
+    mutability_class: non_mutating_read_only
+    doctor_admission_class: admitted_safe_probe
+    allowed_side_effects: &metadata_reads
+      - read_existing_metadata
+      - hash_existing_artifact
+    forbidden_side_effects: *mutating_side_effects
+    evidence_routes:
+      - evidence_key: evidence.execution_context.required_toolchain
+        source_class: existing_manifest
+        signal_class: manifest
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - doctor_human_summary
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/runtime/execution_context.schema.json
+      - evidence_key: evidence.execution_context.resolution_policy
+        source_class: policy_decision
+        signal_class: policy_decision
+        data_class: metadata_only
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_default_metadata
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/governance/policy_decision_explain.schema.json
+    output_contract:
+      finding_codes:
+        - doctor.finding.toolchain_missing_required_component
+        - doctor.finding.toolchain_version_out_of_range
+      unknown_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      unsupported_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      headless_exit_code_class: exit_findings_actionable
+      machine_readable_fields: &machine_fields
+        - finding_id
+        - finding_code
+        - rule_id
+        - probe_id
+        - probe_class
+        - diagnosis_posture
+        - confidence_class
+        - confidence_score
+        - affected_scope_class
+        - affected_scope_ref
+        - root_cause_class
+        - evidence_refs
+        - remaining_unknowns
+        - unsupported_state_class
+        - suggested_next_action_id
+        - repair_preview_ref
+        - support_bundle_ref
+        - escalation_packet_ref
+        - exit_code_class
+    repair_handoff:
+      repair_availability_class: preview_only
+      repair_candidate_ids:
+        - repair.execution_context.reresolve.preview
+      repair_preview_ref: repair.preview.execution_context.reresolve
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      runbook_ref: docs/support/runbook_execution_contract.md#execution-context
+      support_bundle_ref: support.bundle.project_doctor.execution_context
+      escalation_packet_ref: escalation.packet.project_doctor.execution_context
+    human_output:
+      title_key: doctor.probe.execution_context.toolchain_resolution.title
+      summary_key: doctor.probe.execution_context.toolchain_resolution.summary
+      next_action_key: doctor.probe.execution_context.toolchain_resolution.next_action
+      unsupported_state_key: doctor.probe.execution_context.toolchain_resolution.unsupported
+    source_contract_refs:
+      - docs/support/project_doctor_probe_contract.md#probe-catalog-entry
+      - docs/support/probe_family_matrix.md#execution_context_toolchains
+
+  - project_doctor_probe_schema_version: 1
+    record_kind: project_doctor_probe_record
+    probe_id: doctor.probe.trust.policy_gate
+    probe_code: doctor.probe.trust.policy_gate
+    probe_family_class: trust_identity_policy
+    probe_version: probe.trust.policy_gate.v1
+    lifecycle_status: active
+    target_scope:
+      scope_class: workspace
+      scope_ref: workspace:active.trust_policy
+      support_context_classes: *all_contexts
+    probe_class: read_only_inspection
+    diagnosis_posture_default: proving_diagnosis
+    invocation_policy: automatic
+    read_only_default: true
+    mutability_class: non_mutating_read_only
+    doctor_admission_class: admitted_safe_probe
+    allowed_side_effects: *metadata_reads
+    forbidden_side_effects: *mutating_side_effects
+    evidence_routes:
+      - evidence_key: evidence.trust.policy_denial
+        source_class: policy_decision
+        signal_class: policy_decision
+        data_class: metadata_only
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_default_metadata
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - doctor_human_summary
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/governance/policy_decision_explain.schema.json
+      - evidence_key: evidence.trust.approval_state
+        source_class: existing_manifest
+        signal_class: manifest
+        data_class: metadata_only
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/trust/approval_ticket.schema.json
+    output_contract:
+      finding_codes:
+        - doctor.finding.trust_policy_blocked
+      unknown_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      unsupported_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      headless_exit_code_class: exit_findings_actionable
+      machine_readable_fields: *machine_fields
+    repair_handoff:
+      repair_availability_class: reviewed_repair_available
+      repair_candidate_ids:
+        - repair.trust.review_approval.preview
+      repair_preview_ref: repair.preview.trust.approval_review
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      runbook_ref: docs/support/runbook_execution_contract.md#trust-policy
+      support_bundle_ref: support.bundle.project_doctor.trust_policy
+      escalation_packet_ref: escalation.packet.project_doctor.trust_policy
+    human_output:
+      title_key: doctor.probe.trust.policy_gate.title
+      summary_key: doctor.probe.trust.policy_gate.summary
+      next_action_key: doctor.probe.trust.policy_gate.next_action
+      unsupported_state_key: doctor.probe.trust.policy_gate.unsupported
+    source_contract_refs:
+      - docs/support/project_doctor_probe_contract.md#probe-catalog-entry
+      - docs/support/probe_family_matrix.md#trust_identity_policy
+
+  - project_doctor_probe_schema_version: 1
+    record_kind: project_doctor_probe_record
+    probe_id: doctor.probe.filesystem.watcher_health
+    probe_code: doctor.probe.filesystem.watcher_health
+    probe_family_class: filesystem_watchers
+    probe_version: probe.filesystem.watcher_health.v1
+    lifecycle_status: active
+    target_scope:
+      scope_class: workspace
+      scope_ref: workspace:active.root_watchers
+      support_context_classes: *all_contexts
+    probe_class: read_only_inspection
+    diagnosis_posture_default: proving_diagnosis
+    invocation_policy: automatic
+    read_only_default: true
+    mutability_class: non_mutating_read_only
+    doctor_admission_class: admitted_safe_probe
+    allowed_side_effects: *metadata_reads
+    forbidden_side_effects: *mutating_side_effects
+    evidence_routes:
+      - evidence_key: evidence.filesystem.watcher_health
+        source_class: health_event
+        signal_class: health_event
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - doctor_human_summary
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/files/watch_fidelity_state.schema.json
+      - evidence_key: evidence.filesystem.root_capability
+        source_class: existing_manifest
+        signal_class: manifest
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_hashes_only
+        output_route_classes:
+          - doctor_headless_json
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/workspace/repo_topology_state.schema.json
+    output_contract:
+      finding_codes:
+        - doctor.finding.watcher_observe_only_baseline
+      unknown_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      unsupported_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      headless_exit_code_class: exit_findings_actionable
+      machine_readable_fields: *machine_fields
+    repair_handoff:
+      repair_availability_class: preview_only
+      repair_candidate_ids:
+        - repair.filesystem.watcher_reseed.preview
+      repair_preview_ref: repair.preview.filesystem.watcher_reseed
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      runbook_ref: docs/support/runbook_execution_contract.md#filesystem-watchers
+      support_bundle_ref: support.bundle.project_doctor.filesystem_watchers
+      escalation_packet_ref: escalation.packet.project_doctor.filesystem_watchers
+    human_output:
+      title_key: doctor.probe.filesystem.watcher_health.title
+      summary_key: doctor.probe.filesystem.watcher_health.summary
+      next_action_key: doctor.probe.filesystem.watcher_health.next_action
+      unsupported_state_key: doctor.probe.filesystem.watcher_health.unsupported
+    source_contract_refs:
+      - docs/support/project_doctor_probe_contract.md#probe-catalog-entry
+      - docs/support/probe_family_matrix.md#filesystem_watchers
+
+  - project_doctor_probe_schema_version: 1
+    record_kind: project_doctor_probe_record
+    probe_id: doctor.probe.network.proxy_ca_transport
+    probe_code: doctor.probe.network.proxy_ca_transport
+    probe_family_class: network_proxy_ca_transport
+    probe_version: probe.network.proxy_ca_transport.v1
+    lifecycle_status: active
+    target_scope:
+      scope_class: device
+      scope_ref: device:active.transport_profile
+      support_context_classes: *all_contexts
+    probe_class: environment_check
+    diagnosis_posture_default: inferring_from_partial_evidence
+    invocation_policy: with_user_consent
+    read_only_default: true
+    mutability_class: non_mutating_read_only
+    doctor_admission_class: admitted_safe_probe
+    allowed_side_effects:
+      - read_existing_metadata
+      - run_network_reachability_check
+    forbidden_side_effects: *mutating_side_effects
+    evidence_routes:
+      - evidence_key: evidence.network.transport_decision
+        source_class: route_decision
+        signal_class: route_decision
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - doctor_human_summary
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/network/transport_decision.schema.json
+      - evidence_key: evidence.network.certificate_summary
+        source_class: probe_observation
+        signal_class: probe_observation
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: review_required_before_export
+        replayability_class: replayable_from_hashes_only
+        output_route_classes:
+          - doctor_headless_json
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/network/certificate_detail_card.schema.json
+    output_contract:
+      finding_codes:
+        - doctor.finding.proxy_or_ca_failure
+      unknown_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      unsupported_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      headless_exit_code_class: exit_blocked_consent_required
+      machine_readable_fields: *machine_fields
+    repair_handoff:
+      repair_availability_class: preview_only
+      repair_candidate_ids:
+        - repair.network.transport_review.preview
+      repair_preview_ref: repair.preview.network.transport_review
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      runbook_ref: docs/support/runbook_execution_contract.md#network-transport
+      support_bundle_ref: support.bundle.project_doctor.network_transport
+      escalation_packet_ref: escalation.packet.project_doctor.network_transport
+    human_output:
+      title_key: doctor.probe.network.proxy_ca_transport.title
+      summary_key: doctor.probe.network.proxy_ca_transport.summary
+      next_action_key: doctor.probe.network.proxy_ca_transport.next_action
+      unsupported_state_key: doctor.probe.network.proxy_ca_transport.unsupported
+    source_contract_refs:
+      - docs/support/project_doctor_probe_contract.md#probe-class-and-invocation-policy
+      - docs/support/probe_family_matrix.md#network_proxy_ca_transport
+
+  - project_doctor_probe_schema_version: 1
+    record_kind: project_doctor_probe_record
+    probe_id: doctor.probe.extension.runtime_health
+    probe_code: doctor.probe.extension.runtime_health
+    probe_family_class: extension_runtime_health
+    probe_version: probe.extension.runtime_health.v1
+    lifecycle_status: active
+    target_scope:
+      scope_class: extension
+      scope_ref: extension:active.host_runtime
+      support_context_classes: *all_contexts
+    probe_class: read_only_inspection
+    diagnosis_posture_default: proving_diagnosis
+    invocation_policy: automatic
+    read_only_default: true
+    mutability_class: non_mutating_read_only
+    doctor_admission_class: admitted_safe_probe
+    allowed_side_effects: *metadata_reads
+    forbidden_side_effects: *mutating_side_effects
+    evidence_routes:
+      - evidence_key: evidence.extension.host_health
+        source_class: health_event
+        signal_class: health_event
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - doctor_human_summary
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/extensions/host_negotiation.schema.json
+      - evidence_key: evidence.extension.crash_envelope
+        source_class: crash_envelope
+        signal_class: crash_envelope
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: review_required_before_export
+        replayability_class: requires_local_retained_artifact
+        output_route_classes:
+          - doctor_headless_json
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/execution/crash_dump_card.schema.json
+    output_contract:
+      finding_codes:
+        - doctor.finding.extension_host_crash_loop_quarantined
+      unknown_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      unsupported_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      headless_exit_code_class: exit_findings_actionable
+      machine_readable_fields: *machine_fields
+    repair_handoff:
+      repair_availability_class: preview_only
+      repair_candidate_ids:
+        - repair.extension.quarantine.preview
+        - repair.extension.bisect.preview
+      repair_preview_ref: repair.preview.extension.quarantine_or_bisect
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      runbook_ref: docs/support/runbook_execution_contract.md#extension-runtime
+      support_bundle_ref: support.bundle.project_doctor.extension_runtime
+      escalation_packet_ref: escalation.packet.project_doctor.extension_runtime
+    human_output:
+      title_key: doctor.probe.extension.runtime_health.title
+      summary_key: doctor.probe.extension.runtime_health.summary
+      next_action_key: doctor.probe.extension.runtime_health.next_action
+      unsupported_state_key: doctor.probe.extension.runtime_health.unsupported
+    source_contract_refs:
+      - docs/support/project_doctor_probe_contract.md#read-only-by-default-finding-card
+      - docs/support/probe_family_matrix.md#extension_runtime_health
+
+  - project_doctor_probe_schema_version: 1
+    record_kind: project_doctor_probe_record
+    probe_id: doctor.probe.local_state.cache_schema
+    probe_code: doctor.probe.local_state.cache_schema
+    probe_family_class: caches_schema_local_state
+    probe_version: probe.local_state.cache_schema.v1
+    lifecycle_status: active
+    target_scope:
+      scope_class: storage_class
+      scope_ref: storage:derived.cache_schema
+      support_context_classes: *all_contexts
+    probe_class: read_only_inspection
+    diagnosis_posture_default: proving_diagnosis
+    invocation_policy: automatic
+    read_only_default: true
+    mutability_class: non_mutating_read_only
+    doctor_admission_class: admitted_safe_probe
+    allowed_side_effects: *metadata_reads
+    forbidden_side_effects: *mutating_side_effects
+    evidence_routes:
+      - evidence_key: evidence.local_state.schema_versions
+        source_class: existing_manifest
+        signal_class: manifest
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - doctor_human_summary
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/runtime/cache_entry_manifest.schema.json
+      - evidence_key: evidence.local_state.integrity_marker
+        source_class: health_event
+        signal_class: health_event
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_hashes_only
+        output_route_classes:
+          - doctor_headless_json
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/storage/storage_inspector_card.schema.json
+    output_contract:
+      finding_codes:
+        - doctor.finding.cache_schema_version_drift
+      unknown_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      unsupported_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      headless_exit_code_class: exit_findings_actionable
+      machine_readable_fields: *machine_fields
+    repair_handoff:
+      repair_availability_class: preview_only
+      repair_candidate_ids:
+        - repair.cache.rebuild.preview
+      repair_preview_ref: repair.preview.cache.rebuild
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      runbook_ref: docs/support/runbook_execution_contract.md#cache-schema
+      support_bundle_ref: support.bundle.project_doctor.cache_schema
+      escalation_packet_ref: escalation.packet.project_doctor.cache_schema
+    human_output:
+      title_key: doctor.probe.local_state.cache_schema.title
+      summary_key: doctor.probe.local_state.cache_schema.summary
+      next_action_key: doctor.probe.local_state.cache_schema.next_action
+      unsupported_state_key: doctor.probe.local_state.cache_schema.unsupported
+    source_contract_refs:
+      - docs/support/project_doctor_probe_contract.md#repair-handoff
+      - docs/support/probe_family_matrix.md#caches_schema_local_state
+
+  - project_doctor_probe_schema_version: 1
+    record_kind: project_doctor_probe_record
+    probe_id: doctor.probe.local_state.local_history_integrity
+    probe_code: doctor.probe.local_state.local_history_integrity
+    probe_family_class: caches_schema_local_state
+    probe_version: probe.local_state.local_history_integrity.v1
+    lifecycle_status: active
+    target_scope:
+      scope_class: storage_class
+      scope_ref: storage:durable.local_history
+      support_context_classes: *all_contexts
+    probe_class: read_only_inspection
+    diagnosis_posture_default: inferring_from_partial_evidence
+    invocation_policy: automatic_inferring_only
+    read_only_default: true
+    mutability_class: non_mutating_read_only
+    doctor_admission_class: admitted_safe_probe
+    allowed_side_effects: *metadata_reads
+    forbidden_side_effects: *mutating_side_effects
+    evidence_routes:
+      - evidence_key: evidence.local_history.integrity_summary
+        source_class: existing_manifest
+        signal_class: manifest
+        data_class: metadata_only
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_hashes_only
+        output_route_classes:
+          - doctor_headless_json
+          - doctor_human_summary
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/history/local_history_alpha.schema.json
+    output_contract:
+      finding_codes:
+        - doctor.finding.local_history_integrity_unsupported
+      unknown_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      unsupported_finding_code: doctor.finding.local_history_integrity_unsupported
+      headless_exit_code_class: exit_unsupported_context
+      machine_readable_fields: *machine_fields
+    repair_handoff:
+      repair_availability_class: unsupported
+      repair_candidate_ids: []
+      repair_preview_ref: null
+      repair_transaction_schema_ref: null
+      runbook_ref: docs/support/runbook_execution_contract.md#local-history
+      support_bundle_ref: support.bundle.project_doctor.local_history
+      escalation_packet_ref: escalation.packet.project_doctor.local_history
+    human_output:
+      title_key: doctor.probe.local_state.local_history_integrity.title
+      summary_key: doctor.probe.local_state.local_history_integrity.summary
+      next_action_key: doctor.probe.local_state.local_history_integrity.next_action
+      unsupported_state_key: doctor.probe.local_state.local_history_integrity.unsupported
+    source_contract_refs:
+      - docs/support/project_doctor_probe_contract.md#failure-and-unsupported-states
+      - docs/support/probe_family_matrix.md#caches_schema_local_state
+
+  - project_doctor_probe_schema_version: 1
+    record_kind: project_doctor_probe_record
+    probe_id: doctor.probe.remote.target_mismatch
+    probe_code: doctor.probe.remote.target_mismatch
+    probe_family_class: remote_routes_collaboration
+    probe_version: probe.remote.target_mismatch.v1
+    lifecycle_status: active
+    target_scope:
+      scope_class: target
+      scope_ref: target:active.remote_route
+      support_context_classes: *all_contexts
+    probe_class: simulation
+    diagnosis_posture_default: simulating_hypothetical
+    invocation_policy: automatic_inferring_only
+    read_only_default: true
+    mutability_class: non_mutating_read_only
+    doctor_admission_class: admitted_safe_probe
+    allowed_side_effects: *metadata_reads
+    forbidden_side_effects: *mutating_side_effects
+    evidence_routes:
+      - evidence_key: evidence.remote.agent_envelope
+        source_class: existing_manifest
+        signal_class: manifest
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - doctor_human_summary
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/runtime/remote_agent_hello.schema.json
+      - evidence_key: evidence.remote.route_decision
+        source_class: route_decision
+        signal_class: route_decision
+        data_class: environment_adjacent
+        redaction_class: metadata_safe_default
+        support_pack_inclusion_class: included_by_reference
+        replayability_class: replayable_from_refs
+        output_route_classes:
+          - doctor_headless_json
+          - support_bundle_manifest_ref
+        evidence_ref_contract: schemas/runtime/target_context.schema.json
+    output_contract:
+      finding_codes:
+        - doctor.finding.wrong_target_detected_requires_reapproval
+        - doctor.finding.remote_route_unknown_offline
+      unknown_finding_code: doctor.finding.probe_evidence_insufficient_for_diagnosis
+      unsupported_finding_code: doctor.finding.remote_route_unknown_offline
+      headless_exit_code_class: exit_findings_actionable
+      machine_readable_fields: *machine_fields
+    repair_handoff:
+      repair_availability_class: reviewed_repair_available
+      repair_candidate_ids:
+        - repair.remote.target_reapproval.preview
+      repair_preview_ref: repair.preview.remote.target_reapproval
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      runbook_ref: docs/support/runbook_execution_contract.md#remote-targets
+      support_bundle_ref: support.bundle.project_doctor.remote_target
+      escalation_packet_ref: escalation.packet.project_doctor.remote_target
+    human_output:
+      title_key: doctor.probe.remote.target_mismatch.title
+      summary_key: doctor.probe.remote.target_mismatch.summary
+      next_action_key: doctor.probe.remote.target_mismatch.next_action
+      unsupported_state_key: doctor.probe.remote.target_mismatch.unsupported
+    source_contract_refs:
+      - docs/support/project_doctor_probe_contract.md#failure-and-unsupported-states
+      - docs/support/probe_family_matrix.md#remote_routes_collaboration
+
+acceptance_proof:
+  read_only_probe_count: 8
+  repair_available_count: 2
+  preview_only_count: 5
+  unsupported_state_count: 2
+  machine_human_vocab_shared: true
+
+emitted_at: "2026-05-14T00:00:00Z"
