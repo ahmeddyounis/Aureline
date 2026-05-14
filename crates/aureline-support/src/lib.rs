@@ -35,6 +35,9 @@
 //! - Live Project Doctor probe ownership. The [`project_doctor`] module
 //!   consumes the checked-in read-only alpha probe pack and the runtime
 //!   support projection from `aureline-doctor`, but it does not apply repairs.
+//! - The [`recovery_ladder`] alpha evaluator — consumes typed recovery
+//!   evidence and emits bounded safe-mode, quarantine, open-without-restore,
+//!   and cache/index repair decisions plus support/release projections.
 //!
 //! ## Failure-drill posture
 //!
@@ -49,3 +52,4 @@
 
 pub mod bundle;
 pub mod project_doctor;
+pub mod recovery_ladder;

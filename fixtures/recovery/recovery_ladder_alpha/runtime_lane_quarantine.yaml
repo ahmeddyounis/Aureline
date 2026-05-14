@@ -1,0 +1,88 @@
+schema_version: 1
+record_kind: recovery_ladder_alpha_scenario
+scenario_id: recovery_ladder_alpha.runtime_lane_quarantine
+title: Runtime lane quarantined after language-host restart budget is exceeded
+captured_at: "2026-05-14T04:04:00Z"
+support_packet_ref: support:recovery-ladder-alpha:runtime-quarantine
+release_packet_ref: release:evidence:recovery-ladder-alpha:runtime-quarantine
+entry:
+  entry_reason_class: runtime_restart_budget_exceeded
+  fault_domain_ref: fault_domain:session_scoped_execution_hosts
+  strike_count: 3
+  strike_budget: 3
+  hidden_restart_attempts: 3
+  last_failure_reason_class: language_host_rpc_contract_mismatch
+  doctor_finding_ref: doctor.finding.search_index.readiness_stalled
+target:
+  target_id: target:runtime:language-host-typescript
+  target_kind: runtime_host_lane
+  lane_ref: runtime-lane:language-host-typescript
+  display_label: TypeScript language-host runtime lane
+requested_rung: runtime_extension_quarantine
+mutation:
+  changes:
+    - quarantine_target_lane
+    - disable_heavy_background_services
+  preserved_state_classes:
+    - user_authored_files
+    - open_buffer_selection
+    - durable_workspace_indexes
+    - workspace_trust_store
+    - credential_store
+    - support_export_store
+  disabled_capability_classes:
+    - background_rebuild
+  disposable_state_classes: []
+  user_owned_state_deleted: false
+  durable_state_deleted: false
+return_path:
+  fuller_mode_class: lane_readmitted
+  return_action:
+    action_id: action:recovery.runtime-lane.review-readmit
+    action_class: reenable_quarantined_lane
+    requires_review: true
+    summary: Retry the runtime lane only after the selected execution context and provider admission are reviewed.
+  restore_conditions:
+    - Runtime provider selection still points to the intended workspace target.
+    - Restart budget is reset by an explicit retry review.
+quarantine:
+  lane_ref: runtime-lane:language-host-typescript
+  owner_ref: owner:supervisor.language-hosts
+  reason_class: runtime_restart_budget_exceeded
+  expires_at: "2026-06-14T04:04:00Z"
+  release_visibility: release_evidence
+  restore_conditions:
+    - Execution-context provenance is rechecked.
+    - User explicitly retries the runtime lane.
+  clear_action:
+    action_id: action:recovery.runtime-lane.clear-quarantine
+    action_class: clear_quarantine
+    requires_review: true
+    summary: Clear the quarantine record while keeping the runtime lane stopped until retry is chosen.
+  reenable_action:
+    action_id: action:recovery.runtime-lane.reenable
+    action_class: reenable_quarantined_lane
+    requires_review: true
+    summary: Retry the runtime lane after provenance and provider checks pass.
+  evidence_refs:
+    - evidence:recovery-ladder:runtime-host-strikes
+    - evidence:recovery-ladder:runtime-host-last-failure
+evidence:
+  - evidence_ref: doctor.finding.search_index.readiness_stalled
+    evidence_kind: project_doctor_finding
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Project Doctor classified the language-backed search/index lane as readiness stalled.
+  - evidence_ref: evidence:recovery-ladder:runtime-host-strikes
+    evidence_kind: restart_budget
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Language-host runtime reached three strikes in the active restart window.
+  - evidence_ref: evidence:recovery-ladder:runtime-host-last-failure
+    evidence_kind: fault_domain_event
+    data_class: environment_adjacent
+    redaction_class: metadata_safe_default
+    summary: Last failure is a typed runtime mismatch reason; raw command lines are excluded.
+expected:
+  ladder_state_class: runtime_or_extension_quarantined
+  visible_state_class: quarantined

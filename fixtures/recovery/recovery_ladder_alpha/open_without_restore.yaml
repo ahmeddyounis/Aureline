@@ -1,0 +1,65 @@
+schema_version: 1
+record_kind: recovery_ladder_alpha_scenario
+scenario_id: recovery_ladder_alpha.open_without_restore
+title: Workspace opens without restore replay while preserving restore records
+captured_at: "2026-05-14T04:06:00Z"
+support_packet_ref: support:recovery-ladder-alpha:open-without-restore
+release_packet_ref: release:evidence:recovery-ladder-alpha:open-without-restore
+entry:
+  entry_reason_class: restore_replay_unsafe
+  fault_domain_ref: restore:session-replay
+  strike_count: 0
+  strike_budget: 3
+  hidden_restart_attempts: 0
+  last_failure_reason_class: restore_replay_blocked_to_avoid_unsafe_rerun
+  doctor_finding_ref: doctor.finding.restore_continuity.replay_blocked
+target:
+  target_id: target:workspace:alpha-web
+  target_kind: workspace_session
+  lane_ref: workspace:alpha-web
+  display_label: Alpha web workspace session
+requested_rung: open_without_restore
+mutation:
+  changes:
+    - disable_restore_replay
+    - keep_session_restore_store_read_only
+  preserved_state_classes:
+    - user_authored_files
+    - open_buffer_selection
+    - durable_workspace_indexes
+    - workspace_trust_store
+    - credential_store
+    - session_restore_store
+    - support_export_store
+  disabled_capability_classes:
+    - session_restore_auto_reopen
+    - remote_helper_attach
+    - background_rebuild
+  disposable_state_classes: []
+  user_owned_state_deleted: false
+  durable_state_deleted: false
+return_path:
+  fuller_mode_class: restore_enabled_entry
+  return_action:
+    action_id: action:recovery.open-without-restore.reenable-restore
+    action_class: reopen_with_restore_enabled
+    requires_review: true
+    summary: Reopen with restore enabled after the unsafe replay reason is reviewed.
+  restore_conditions:
+    - Prior restore record remains available for preview.
+    - User chooses restore-enabled reopen from the recovery surface.
+quarantine: null
+evidence:
+  - evidence_ref: doctor.finding.restore_continuity.replay_blocked
+    evidence_kind: project_doctor_finding
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Project Doctor classified restore replay as blocked for continuity safety.
+  - evidence_ref: evidence:recovery-ladder:restore-replay-blocked
+    evidence_kind: restore_guard
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Restore replay was blocked because mutating work must not rerun automatically.
+expected:
+  ladder_state_class: opened_without_restore
+  visible_state_class: recovered_with_limits

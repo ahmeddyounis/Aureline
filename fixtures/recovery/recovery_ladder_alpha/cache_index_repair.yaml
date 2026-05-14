@@ -1,0 +1,64 @@
+schema_version: 1
+record_kind: recovery_ladder_alpha_scenario
+scenario_id: recovery_ladder_alpha.cache_index_repair
+title: Cache and index repair regenerates disposable state only
+captured_at: "2026-05-14T04:08:00Z"
+support_packet_ref: support:recovery-ladder-alpha:cache-index-repair
+release_packet_ref: release:evidence:recovery-ladder-alpha:cache-index-repair
+entry:
+  entry_reason_class: cache_index_integrity_failure
+  fault_domain_ref: fault_domain:workspace_knowledge_workers
+  strike_count: 1
+  strike_budget: 3
+  hidden_restart_attempts: 0
+  last_failure_reason_class: cache_index_integrity_marker_failed
+  doctor_finding_ref: doctor.finding.cache_schema_version_drift
+target:
+  target_id: target:cache-index:workspace-knowledge
+  target_kind: cache_index_lane
+  lane_ref: cache-index-lane:workspace-knowledge
+  display_label: Workspace search and graph cache/index lane
+requested_rung: cache_index_repair
+mutation:
+  changes:
+    - dispose_disposable_index_shards
+    - schedule_index_rebuild
+  preserved_state_classes:
+    - user_authored_files
+    - open_buffer_selection
+    - workspace_trust_store
+    - credential_store
+    - session_restore_store
+    - support_export_store
+  disabled_capability_classes:
+    - background_rebuild
+    - docs_pack_live_fetch
+  disposable_state_classes:
+    - disposable_cache_index
+  user_owned_state_deleted: false
+  durable_state_deleted: false
+return_path:
+  fuller_mode_class: rebuilt_index_ready
+  return_action:
+    action_id: action:recovery.cache-index.rebuild
+    action_class: rebuild_cache_index
+    requires_review: true
+    summary: Rebuild cache and index shards from authoritative workspace state.
+  restore_conditions:
+    - Disposable cache/index scope is previewed before apply.
+    - Rebuild starts from authoritative workspace state, not from user-authored file deletion.
+quarantine: null
+evidence:
+  - evidence_ref: doctor.finding.cache_schema_version_drift
+    evidence_kind: project_doctor_finding
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Project Doctor classified the cache/index schema state as drifted.
+  - evidence_ref: evidence:recovery-ladder:cache-index-integrity
+    evidence_kind: integrity_marker
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Cache/index integrity marker failed; authored files and restore records are not included.
+expected:
+  ladder_state_class: cache_index_repair_applied
+  visible_state_class: applying

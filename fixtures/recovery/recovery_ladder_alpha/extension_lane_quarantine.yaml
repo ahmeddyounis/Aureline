@@ -1,0 +1,90 @@
+schema_version: 1
+record_kind: recovery_ladder_alpha_scenario
+scenario_id: recovery_ladder_alpha.extension_lane_quarantine
+title: Extension lane quarantined after repeated host failures
+captured_at: "2026-05-14T04:02:00Z"
+support_packet_ref: support:recovery-ladder-alpha:extension-quarantine
+release_packet_ref: release:evidence:recovery-ladder-alpha:extension-quarantine
+entry:
+  entry_reason_class: extension_restart_budget_exceeded
+  fault_domain_ref: fault_domain:extension_and_tool_hosts
+  strike_count: 3
+  strike_budget: 3
+  hidden_restart_attempts: 3
+  last_failure_reason_class: extension_host_restart_budget_exceeded
+  doctor_finding_ref: doctor.finding.extension_host_crash_loop_quarantined
+target:
+  target_id: target:extension:typescript-helper
+  target_kind: extension_lane
+  lane_ref: extension-lane:typescript-helper
+  display_label: TypeScript helper extension lane
+requested_rung: runtime_extension_quarantine
+mutation:
+  changes:
+    - quarantine_target_lane
+    - disable_heavy_background_services
+  preserved_state_classes:
+    - user_authored_files
+    - open_buffer_selection
+    - durable_workspace_indexes
+    - workspace_trust_store
+    - credential_store
+    - support_export_store
+  disabled_capability_classes:
+    - extension_auto_activation
+    - extension_host_launch
+    - background_rebuild
+  disposable_state_classes: []
+  user_owned_state_deleted: false
+  durable_state_deleted: false
+return_path:
+  fuller_mode_class: lane_readmitted
+  return_action:
+    action_id: action:recovery.extension-lane.review-readmit
+    action_class: reenable_quarantined_lane
+    requires_review: true
+    summary: Re-enable the extension lane only after quarantine evidence and capability admission are reviewed.
+  restore_conditions:
+    - Quarantine evidence still references the same extension lane.
+    - Capability admission is re-run before the lane starts.
+quarantine:
+  lane_ref: extension-lane:typescript-helper
+  owner_ref: owner:supervisor.extension-hosts
+  reason_class: extension_restart_budget_exceeded
+  expires_at: "2026-06-14T04:02:00Z"
+  release_visibility: release_evidence
+  restore_conditions:
+    - Extension manifest admission is re-evaluated.
+    - User or signed policy explicitly chooses re-enable.
+  clear_action:
+    action_id: action:recovery.extension-lane.clear-quarantine
+    action_class: clear_quarantine
+    requires_review: true
+    summary: Clear the quarantine record while leaving the extension disabled until readmission is chosen.
+  reenable_action:
+    action_id: action:recovery.extension-lane.reenable
+    action_class: reenable_quarantined_lane
+    requires_review: true
+    summary: Re-enable the extension lane after evidence review and manifest admission.
+  evidence_refs:
+    - evidence:recovery-ladder:extension-host-strikes
+    - evidence:recovery-ladder:extension-host-last-failure
+evidence:
+  - evidence_ref: doctor.finding.extension_host_crash_loop_quarantined
+    evidence_kind: project_doctor_finding
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Project Doctor classified the extension host as crash-loop quarantined.
+  - evidence_ref: evidence:recovery-ladder:extension-host-strikes
+    evidence_kind: restart_budget
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Extension host reached three strikes in the active restart window.
+  - evidence_ref: evidence:recovery-ladder:extension-host-last-failure
+    evidence_kind: fault_domain_event
+    data_class: environment_adjacent
+    redaction_class: metadata_safe_default
+    summary: Last failure is represented by a typed reason class; raw logs are excluded.
+expected:
+  ladder_state_class: runtime_or_extension_quarantined
+  visible_state_class: quarantined

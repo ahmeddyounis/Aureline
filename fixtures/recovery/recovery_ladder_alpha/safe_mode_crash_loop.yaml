@@ -1,0 +1,70 @@
+schema_version: 1
+record_kind: recovery_ladder_alpha_scenario
+scenario_id: recovery_ladder_alpha.safe_mode_crash_loop
+title: Safe mode entered after startup crash-loop budget is exhausted
+captured_at: "2026-05-14T04:00:00Z"
+support_packet_ref: support:recovery-ladder-alpha:crash-loop
+release_packet_ref: release:evidence:recovery-ladder-alpha:crash-loop
+entry:
+  entry_reason_class: crash_loop_detected
+  fault_domain_ref: fault_domain:shell_interaction_core
+  strike_count: 3
+  strike_budget: 3
+  hidden_restart_attempts: 3
+  last_failure_reason_class: startup_crash_loop_detected
+  doctor_finding_ref: doctor.finding.restore_continuity.replay_blocked
+target:
+  target_id: target:workspace:alpha-web
+  target_kind: workspace_session
+  lane_ref: workspace:alpha-web
+  display_label: Alpha web workspace session
+requested_rung: safe_mode
+mutation:
+  changes:
+    - disable_third_party_extension_activation
+    - disable_restore_replay
+    - disable_remote_auto_reattach
+    - disable_heavy_background_services
+  preserved_state_classes:
+    - user_authored_files
+    - open_buffer_selection
+    - durable_workspace_indexes
+    - workspace_trust_store
+    - credential_store
+    - session_restore_store
+    - support_export_store
+  disabled_capability_classes:
+    - extension_auto_activation
+    - extension_host_launch
+    - session_restore_auto_reopen
+    - remote_helper_attach
+    - ai_runtime_access
+    - background_rebuild
+  disposable_state_classes: []
+  user_owned_state_deleted: false
+  durable_state_deleted: false
+return_path:
+  fuller_mode_class: full_mode
+  return_action:
+    action_id: action:recovery.safe-mode.exit
+    action_class: exit_safe_mode
+    requires_review: true
+    summary: Exit safe mode after the crash-loop finding is reviewed and normal launch is explicitly selected.
+  restore_conditions:
+    - Crash-loop strike window has been reviewed.
+    - User chooses normal launch from the recovery surface.
+quarantine: null
+evidence:
+  - evidence_ref: doctor.finding.restore_continuity.replay_blocked
+    evidence_kind: project_doctor_finding
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Project Doctor classified restore continuity as unsafe to replay during startup recovery.
+  - evidence_ref: evidence:recovery-ladder:startup-strikes
+    evidence_kind: restart_budget
+    data_class: metadata
+    redaction_class: metadata_safe_default
+    summary: Startup attempts exceeded the configured restart budget; raw stacks and paths are excluded.
+expected:
+  ladder_state_class: safe_mode
+  visible_state_class: degraded
