@@ -38,6 +38,7 @@
 use std::collections::BTreeSet;
 
 use aureline_commands::invocation::CommandInvocationSession;
+use aureline_runtime::RuntimeEvidenceSupportExport;
 use serde::{Deserialize, Serialize};
 
 use aureline_support::bundle::{
@@ -476,6 +477,31 @@ impl SupportSeedSurface {
         ))
     }
 
+    /// Mint a local support preview that exports profile-session,
+    /// trace-bundle, replay-capability, and comparison-class truth as one
+    /// structured runtime-evidence row.
+    pub fn runtime_evidence_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        runtime_evidence: &RuntimeEvidenceSupportExport,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:runtime-evidence:0001",
+            "Runtime evidence support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(runtime_evidence_seed(runtime_evidence));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support - runtime evidence preview",
+        ))
+    }
+
     /// Convenience: the manifest the export writer would emit. Held as a
     /// borrowed accessor so the chrome never needs to clone the manifest
     /// just to render a row count.
@@ -603,6 +629,58 @@ fn failure_drill_secret_seed() -> PreviewItemSeed {
         notes: "Failure drill: the local-first defaults rewrite this row to 'prohibited' before \
                 export."
             .into(),
+    }
+}
+
+fn runtime_evidence_seed(runtime_evidence: &RuntimeEvidenceSupportExport) -> PreviewItemSeed {
+    PreviewItemSeed {
+        support_pack_item_id: runtime_evidence.support_pack_item_id.clone(),
+        title: "Profile, trace-bundle, replay capability, and comparison truth".into(),
+        data_class: DiagnosticDataClass::HighRisk,
+        high_risk_content_class: HighRiskContentClass::RawTraceOrTranscript,
+        bundle_section_class: "logs_traces_and_manifests".into(),
+        artifact_kind_class: "runtime_evidence_trace_bundle_manifest".into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some("manifest/runtime_evidence/support_export.json".into()),
+        source_refs: vec![
+            "schemas/runtime/profile_session_alpha.schema.json".into(),
+            "schemas/runtime/trace_bundle_alpha.schema.json".into(),
+            "schemas/runtime/replay_capability_alpha.schema.json".into(),
+            "schemas/runtime/runtime_evidence_comparison_alpha.schema.json".into(),
+            "docs/runtime/trace_replay_alpha.md".into(),
+            "artifacts/support/support_evidence_pack_matrix.yaml#support.item.runtime_traces"
+                .into(),
+        ],
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some(8192),
+            confidence_class: "estimated".into(),
+            display_label: "8 KB manifest".into(),
+            size_source_class: "manifest_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Removing this row would drop mapping quality, comparison class, replay capability, \
+             redaction, and retention truth from runtime-evidence support review."
+                .into(),
+        notes: format!(
+            "Runtime evidence support export {}; profile {}; trace {}; replay {}; comparison {}; \
+             context {}; exact build {}; mapping {}; comparison class {}; replay lane {}; \
+             redaction {}; retention {}; raw payload exported: {}; import/view-only: {}.",
+            runtime_evidence.export_id,
+            runtime_evidence.profile_session_id,
+            runtime_evidence.trace_bundle_id,
+            runtime_evidence.replay_descriptor_id,
+            runtime_evidence.comparison_packet_id,
+            runtime_evidence.execution_context_id,
+            runtime_evidence.exact_build_identity_ref,
+            runtime_evidence.mapping_quality_state.as_str(),
+            runtime_evidence.comparison_class.as_str(),
+            runtime_evidence.replay_lane_state.as_str(),
+            runtime_evidence.redaction_mode.as_str(),
+            runtime_evidence.retention_class.as_str(),
+            runtime_evidence.raw_payload_exported,
+            runtime_evidence.import_view_only
+        ),
     }
 }
 

@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/replay_capability_alpha.schema.json",
+  "title": "Aureline replay-capability alpha descriptor",
+  "description": "Boundary schema for one alpha replay-capability descriptor. The descriptor states backend family/version, supported runtime/toolchain ranges, reverse-step/frame/data/timeline/checkpoint support, determinism caveats, overhead/storage band, export posture, and whether the current lane is supported, limited, record_only, profile_only, or import_view_only. The descriptor is capability truth only; it does not carry raw program state or live replay controls.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "descriptor_id",
+    "backend",
+    "supported_ranges",
+    "support_matrix",
+    "lane_state",
+    "determinism_caveats",
+    "overhead_storage_band",
+    "export_posture"
+  ],
+  "properties": {
+    "record_kind": { "const": "replay_capability_alpha_descriptor" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "descriptor_id": { "$ref": "#/$defs/opaque_ref" },
+    "backend": { "$ref": "#/$defs/replay_backend_identity" },
+    "supported_ranges": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/replay_runtime_toolchain_range" }
+    },
+    "support_matrix": { "$ref": "#/$defs/replay_support_matrix" },
+    "lane_state": { "$ref": "#/$defs/replay_lane_state" },
+    "determinism_caveats": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/short_sentence" }
+    },
+    "overhead_storage_band": { "$ref": "#/$defs/replay_overhead_storage_band" },
+    "import_view_only_reason": { "$ref": "#/$defs/short_sentence" },
+    "export_posture": { "$ref": "#/$defs/replay_export_posture" }
+  },
+  "$defs": {
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 640 },
+    "runtime_evidence_data_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "redacted_summary",
+        "environment_adjacent",
+        "high_risk_raw_capture"
+      ]
+    },
+    "trace_redaction_mode": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "redacted_summary",
+        "local_only_raw_retained",
+        "raw_payload_review_required",
+        "withheld_by_policy"
+      ]
+    },
+    "trace_retention_class": {
+      "type": "string",
+      "enum": [
+        "local_rotation_7_days",
+        "pinned_local_evidence",
+        "support_bundle_manifest_only",
+        "managed_archive",
+        "not_retained_ephemeral"
+      ]
+    },
+    "overhead_class": {
+      "type": "string",
+      "enum": ["negligible", "low", "moderate", "high", "unknown"]
+    },
+    "replay_lane_state": {
+      "type": "string",
+      "enum": ["supported", "limited", "record_only", "profile_only", "import_view_only"]
+    },
+    "replay_feature_state": {
+      "type": "string",
+      "enum": ["supported", "limited", "unsupported"]
+    },
+    "replay_backend_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend_family", "backend_version", "adapter_version"],
+      "properties": {
+        "backend_family": { "$ref": "#/$defs/opaque_ref" },
+        "backend_version": { "$ref": "#/$defs/opaque_ref" },
+        "adapter_version": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "replay_runtime_toolchain_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_family",
+        "supported_runtime_range",
+        "toolchain_family",
+        "supported_toolchain_range"
+      ],
+      "properties": {
+        "runtime_family": { "$ref": "#/$defs/opaque_ref" },
+        "supported_runtime_range": { "$ref": "#/$defs/opaque_ref" },
+        "toolchain_family": { "$ref": "#/$defs/opaque_ref" },
+        "supported_toolchain_range": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "replay_feature_support": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reason"],
+      "properties": {
+        "state": { "$ref": "#/$defs/replay_feature_state" },
+        "reason": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "replay_support_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reverse_step",
+        "frame_inspection",
+        "data_inspection",
+        "timeline_scrub",
+        "checkpoint_bookmarks"
+      ],
+      "properties": {
+        "reverse_step": { "$ref": "#/$defs/replay_feature_support" },
+        "frame_inspection": { "$ref": "#/$defs/replay_feature_support" },
+        "data_inspection": { "$ref": "#/$defs/replay_feature_support" },
+        "timeline_scrub": { "$ref": "#/$defs/replay_feature_support" },
+        "checkpoint_bookmarks": { "$ref": "#/$defs/replay_feature_support" }
+      }
+    },
+    "replay_overhead_storage_band": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overhead_class", "storage_growth_class", "cost_note"],
+      "properties": {
+        "overhead_class": { "$ref": "#/$defs/overhead_class" },
+        "storage_growth_class": { "$ref": "#/$defs/opaque_ref" },
+        "cost_note": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "replay_export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_class",
+        "redaction_mode",
+        "retention_class",
+        "raw_snapshots_exported_by_default"
+      ],
+      "properties": {
+        "data_class": { "$ref": "#/$defs/runtime_evidence_data_class" },
+        "redaction_mode": { "$ref": "#/$defs/trace_redaction_mode" },
+        "retention_class": { "$ref": "#/$defs/trace_retention_class" },
+        "raw_snapshots_exported_by_default": { "type": "boolean" }
+      }
+    }
+  }
+}

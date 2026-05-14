@@ -5,9 +5,11 @@ use std::path::{Path, PathBuf};
 
 use aureline_commands::enablement::CommandEnablementContext;
 use aureline_commands::registry::seeded_registry;
+use aureline_runtime::RuntimeEvidenceAlphaPacket;
 use aureline_shell::commands::review_enforcement::materialize_alpha_review_enforcement_snapshot;
 use aureline_shell::commands::{argument_provenance_map_for, CommandReviewRuntimeInputs};
 use aureline_shell::palette::materialize_invocation_session_for_review;
+use aureline_shell::profiling_alpha::{ProfilingTraceActionKind, ProfilingTraceReplayAlphaSurface};
 use aureline_shell::support_seed::SupportSeedSurface;
 use aureline_support::bundle::{
     CrashDumpManifest, CrashEnvelope, CrashIncidentTrail, CrashIncidentTrailInputs,
@@ -187,4 +189,64 @@ fn shell_support_surface_consumes_crash_incident_trail() {
         .redaction
         .visible_high_risk_label
         .is_none());
+}
+
+#[test]
+fn runtime_evidence_surface_and_support_preview_preserve_import_view_only_truth() {
+    let packet = RuntimeEvidenceAlphaPacket::import_view_only_baseline();
+    let profiler_surface = ProfilingTraceReplayAlphaSurface::from_packet(&packet);
+
+    assert!(profiler_surface.preserves_runtime_truth());
+    assert_eq!(
+        profiler_surface.profile_session.mapping_quality_token,
+        "symbolized_with_partial_source_maps"
+    );
+    assert_eq!(
+        profiler_surface.comparison.comparison_class_token,
+        "import_view_only_not_comparable"
+    );
+    let live_replay = profiler_surface
+        .find_action(ProfilingTraceActionKind::ReservedStartLiveReplay)
+        .expect("reserved live replay action exists");
+    assert!(!live_replay.is_live);
+
+    let support_surface = SupportSeedSurface::runtime_evidence_preview(
+        fixture_capture(),
+        "2026-05-14T18:46:00Z",
+        &packet.support_export,
+    )
+    .expect("runtime evidence support preview builds");
+    let manifest = support_surface.manifest();
+
+    assert!(manifest.has_exact_build_identity());
+    assert_eq!(manifest.preview_items.len(), 3);
+    let runtime_row = manifest
+        .preview_items
+        .iter()
+        .find(|item| item.parity_binding.support_pack_item_id == "support.item.runtime_traces")
+        .expect("runtime evidence preview row exists");
+    assert_eq!(
+        runtime_row.redaction.redaction_state,
+        RedactionState::RetainedLocalOnly
+    );
+    assert!(runtime_row
+        .redaction
+        .visible_high_risk_label
+        .as_deref()
+        .expect("high-risk label")
+        .contains("raw trace or transcript"));
+    assert!(runtime_row
+        .notes
+        .contains("mapping symbolized_with_partial_source_maps"));
+    assert!(runtime_row
+        .notes
+        .contains("comparison class import_view_only_not_comparable"));
+    assert!(runtime_row.notes.contains("replay lane import_view_only"));
+    assert!(manifest
+        .preview_classification_summary
+        .excluded_support_pack_item_ids
+        .contains(&"support.item.runtime_traces".to_string()));
+    assert!(manifest.excluded_classes.iter().any(|excluded| {
+        excluded.support_pack_item_id.as_deref() == Some("support.item.runtime_traces")
+    }));
 }

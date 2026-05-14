@@ -36,6 +36,7 @@ pub mod rerun;
 pub mod targets;
 pub mod tasks;
 pub mod tests;
+pub mod trace_replay_alpha;
 
 pub use detectors::node::{
     NodePackageManagerKind, NodePackageManagerRequirement, NodePackageManagerResolution,
@@ -168,4 +169,21 @@ pub use tests::{
     TEST_ATTEMPT_SUPPORT_EXPORT_RECORD_KIND, TEST_ITEM_IDENTITY_PROJECTION_RECORD_KIND,
     TEST_LAUNCH_WEDGE_PROJECTION_RECORD_KIND, TEST_SESSION_PLAN_RECORD_KIND,
     TEST_STABILITY_VERDICT_RECORD_KIND, TEST_WATCH_CONTROLLER_RECORD_KIND,
+};
+pub use trace_replay_alpha::{
+    BuildRuntimeIdentity, CaptureMode, CaptureSource, CaptureWindow, ComparisonClass,
+    ComparisonClassAlphaPacket, ComparisonRuntimeToolchain, ComparisonSourceClass,
+    DerivedTraceView, DerivedViewKind, DigestAlgorithm, DigestEntry, HardwarePowerProfile,
+    MappingQualityState, MappingQualitySummary, OverheadClass, ProfileCaptureDescriptor,
+    ProfileExportPolicy, ProfileSessionAlpha, ProfileTargetIdentity, RawTraceBundle,
+    ReplayBackendIdentity, ReplayCapabilityAlphaDescriptor, ReplayExportPosture,
+    ReplayFeatureState, ReplayFeatureSupport, ReplayLaneState, ReplayOverheadStorageBand,
+    ReplayRuntimeToolchainRange, ReplaySupportMatrix, RuntimeEvidenceAlphaPacket,
+    RuntimeEvidenceDataClass, RuntimeEvidenceDataPosture, RuntimeEvidenceSupportExport,
+    TraceBundleAlphaManifest, TraceBundleImmutability, TraceBundleRedaction, TraceBundleRetention,
+    TraceMetricFamily, TraceRedactionMode, TraceRetentionClass, VarianceWindow,
+    COMPARISON_CLASS_ALPHA_RECORD_KIND, PROFILE_SESSION_ALPHA_RECORD_KIND,
+    REPLAY_CAPABILITY_ALPHA_RECORD_KIND, RUNTIME_EVIDENCE_ALPHA_PACKET_RECORD_KIND,
+    RUNTIME_EVIDENCE_ALPHA_SCHEMA_VERSION, RUNTIME_EVIDENCE_SUPPORT_EXPORT_RECORD_KIND,
+    SUPPORT_ITEM_RUNTIME_TRACES, TRACE_BUNDLE_ALPHA_RECORD_KIND,
 };

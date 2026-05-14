@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/trace_bundle_alpha.schema.json",
+  "title": "Aureline trace-bundle alpha manifest",
+  "description": "Boundary schema for an immutable alpha trace-bundle manifest. The manifest distinguishes raw bundles from derived flamegraph, call-tree, timeline, regression, or advisory views; binds every bundle to one profile_session_ref, execution_context_id, exact_build_identity_ref, mapping-quality state, redaction mode, retention class, and digest set; and keeps raw trace bodies local or by reference unless explicit export review widens them. Raw payload bodies, command lines, environment bodies, source bodies, paths, URLs, hostnames, credentials, and secrets never appear in this manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "bundle_id",
+    "profile_session_ref",
+    "execution_context_id",
+    "exact_build_identity_ref",
+    "raw_bundle",
+    "derived_views",
+    "mapping_quality",
+    "redaction",
+    "retention",
+    "digest_set",
+    "immutability"
+  ],
+  "properties": {
+    "record_kind": { "const": "trace_bundle_alpha_manifest" },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "bundle_id": { "$ref": "#/$defs/opaque_ref" },
+    "profile_session_ref": { "$ref": "#/$defs/opaque_ref" },
+    "execution_context_id": { "$ref": "#/$defs/opaque_ref" },
+    "exact_build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+    "raw_bundle": { "$ref": "#/$defs/raw_trace_bundle" },
+    "derived_views": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/derived_trace_view" }
+    },
+    "mapping_quality": { "$ref": "#/$defs/mapping_quality_summary" },
+    "redaction": { "$ref": "#/$defs/trace_bundle_redaction" },
+    "retention": { "$ref": "#/$defs/trace_bundle_retention" },
+    "digest_set": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/digest_entry" }
+    },
+    "immutability": { "$ref": "#/$defs/trace_bundle_immutability" }
+  },
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "date_time": { "type": "string", "format": "date-time" },
+    "short_sentence": { "type": "string", "minLength": 1, "maxLength": 640 },
+    "non_negative_integer": { "type": "integer", "minimum": 0 },
+    "mapping_quality_state": {
+      "type": "string",
+      "enum": [
+        "exact_symbols_and_sources",
+        "exact_symbols_partial_sources",
+        "approximate_symbols",
+        "symbolized_with_partial_source_maps",
+        "raw_addresses_only",
+        "stale_source_maps",
+        "unresolved"
+      ]
+    },
+    "trace_metric_family": {
+      "type": "string",
+      "enum": ["cpu", "wall_time", "runtime_events", "memory", "io"]
+    },
+    "derived_view_kind": {
+      "type": "string",
+      "enum": [
+        "flamegraph",
+        "call_tree",
+        "timeline",
+        "regression_summary",
+        "advisory_summary"
+      ]
+    },
+    "trace_redaction_mode": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "redacted_summary",
+        "local_only_raw_retained",
+        "raw_payload_review_required",
+        "withheld_by_policy"
+      ]
+    },
+    "trace_retention_class": {
+      "type": "string",
+      "enum": [
+        "local_rotation_7_days",
+        "pinned_local_evidence",
+        "support_bundle_manifest_only",
+        "managed_archive",
+        "not_retained_ephemeral"
+      ]
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "blake3"]
+    },
+    "raw_trace_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_bundle_ref",
+        "raw_bundle_kind",
+        "storage_class",
+        "chunk_refs",
+        "metric_families"
+      ],
+      "properties": {
+        "raw_bundle_ref": { "$ref": "#/$defs/opaque_ref" },
+        "raw_bundle_kind": { "$ref": "#/$defs/opaque_ref" },
+        "storage_class": { "$ref": "#/$defs/opaque_ref" },
+        "chunk_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "metric_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/trace_metric_family" }
+        }
+      }
+    },
+    "derived_trace_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "view_kind",
+        "source_bundle_id",
+        "provenance_ref",
+        "freshness_class",
+        "digest_ref"
+      ],
+      "properties": {
+        "view_id": { "$ref": "#/$defs/opaque_ref" },
+        "view_kind": { "$ref": "#/$defs/derived_view_kind" },
+        "source_bundle_id": { "$ref": "#/$defs/opaque_ref" },
+        "provenance_ref": { "$ref": "#/$defs/opaque_ref" },
+        "freshness_class": { "$ref": "#/$defs/opaque_ref" },
+        "digest_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "mapping_quality_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "symbol_manifest_ref",
+        "source_map_manifest_ref",
+        "exact_frame_count",
+        "approximate_frame_count",
+        "unresolved_frame_count",
+        "note"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/mapping_quality_state" },
+        "symbol_manifest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_map_manifest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "exact_frame_count": { "$ref": "#/$defs/non_negative_integer" },
+        "approximate_frame_count": { "$ref": "#/$defs/non_negative_integer" },
+        "unresolved_frame_count": { "$ref": "#/$defs/non_negative_integer" },
+        "note": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+    "trace_bundle_redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_mode",
+        "redaction_profile_ref",
+        "raw_payload_export_default",
+        "support_bundle_posture"
+      ],
+      "properties": {
+        "redaction_mode": { "$ref": "#/$defs/trace_redaction_mode" },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "raw_payload_export_default": { "$ref": "#/$defs/opaque_ref" },
+        "support_bundle_posture": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "trace_bundle_retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention_class", "retention_owner"],
+      "properties": {
+        "retention_class": { "$ref": "#/$defs/trace_retention_class" },
+        "retention_owner": { "$ref": "#/$defs/opaque_ref" },
+        "expires_at": { "$ref": "#/$defs/date_time" },
+        "pin_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "digest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "object_ref", "digest"],
+      "properties": {
+        "algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "object_ref": { "$ref": "#/$defs/opaque_ref" },
+        "digest": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "trace_bundle_immutability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frozen_at",
+        "immutability_state",
+        "raw_bundle_digest_ref",
+        "note"
+      ],
+      "properties": {
+        "frozen_at": { "$ref": "#/$defs/date_time" },
+        "immutability_state": { "const": "captured_immutable" },
+        "raw_bundle_digest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "note": { "$ref": "#/$defs/short_sentence" }
+      }
+    }
+  }
+}
