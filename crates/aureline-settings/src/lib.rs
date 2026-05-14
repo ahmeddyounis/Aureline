@@ -31,11 +31,21 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-settings/0.0.0")]
 
+pub mod experiments;
 pub mod inspector;
 pub mod keybindings;
 pub mod resolver;
 pub mod schema;
 
+pub use experiments::{
+    inspect_default_inventory, load_default_inventory, project_cli_inventory,
+    project_support_export as project_experiments_support_export, ArtifactDependencyWarning,
+    CapabilityDependencyMarker, CapabilityLifecycleState, DependencyEffectOnParent, DisableSource,
+    ExperimentsInventory, ExperimentsInventoryCliProjection, ExperimentsInventoryError,
+    ExperimentsInventoryInspectionRecord, ExperimentsInventorySupportExportProjection,
+    KillSwitchSourceClass, DEFAULT_EXPERIMENTS_INVENTORY_SOURCE_REF,
+    EXPERIMENTS_INVENTORY_SCHEMA_VERSION,
+};
 pub use keybindings::mode_state::{
     ModeStateOrientationSettingsSummary, ModeStateSettingsInspectionRecord,
     ModeStateSettingsMacroRow, ModeStateSettingsRouteRow, MODE_STATE_SETTINGS_SCHEMA_VERSION,

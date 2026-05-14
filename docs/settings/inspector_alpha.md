@@ -46,6 +46,14 @@ effective-setting record. `preview-write` emits a scope-explicit write
 preview without mutating the live resolver. `support-export` embeds the
 same effective-setting records consumed by the CLI projection.
 
+The same binary also exposes the experiments inventory consumer documented in
+[`docs/settings/experiments_inventory_alpha.md`](./experiments_inventory_alpha.md):
+
+```sh
+cargo run -q -p aureline-settings --bin aureline_settings_inspect -- experiments-inventory
+cargo run -q -p aureline-settings --bin aureline_settings_inspect -- experiments-support-export
+```
+
 ## Fixtures
 
 Protected fixtures live in

@@ -1,5 +1,9 @@
 //! CLI consumer for the schema-backed settings inspector.
 
+use aureline_settings::experiments::{
+    inspect_default_inventory, project_cli_inventory as project_experiments_cli_inventory,
+    project_support_export as project_experiments_support_export,
+};
 use aureline_settings::inspector::{
     inspect_all_settings, inspect_setting, preview_write, project_cli_inspect,
     project_support_export, SettingWritePreviewRequest, SettingsInspectionContext, WriteActorClass,
@@ -19,6 +23,14 @@ struct CliInspectEnvelope<T> {
     effective_setting: serde_json::Value,
 }
 
+#[derive(Serialize)]
+struct CliExperimentsInventoryEnvelope<T> {
+    record_kind: &'static str,
+    shared_contract_ref: &'static str,
+    cli_projection: T,
+    experiments_inventory: serde_json::Value,
+}
+
 fn main() {
     if let Err(err) = run() {
         eprintln!("{err}");
@@ -32,6 +44,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let context = seeded_context(&resolver);
 
     match args.first().map(String::as_str) {
+        Some("experiments-inventory") => {
+            let inventory = inspect_default_inventory()?;
+            let cli = project_experiments_cli_inventory(&inventory);
+            let envelope = CliExperimentsInventoryEnvelope {
+                record_kind: "experiments_inventory_cli_envelope",
+                shared_contract_ref: "settings:experiments_inventory_alpha:v1",
+                cli_projection: cli,
+                experiments_inventory: serde_json::to_value(inventory)?,
+            };
+            print_json(&envelope)?;
+        }
+        Some("experiments-support-export") => {
+            let inventory = inspect_default_inventory()?;
+            let export =
+                project_experiments_support_export("support-export:experiments:alpha", &inventory);
+            print_json(&export)?;
+        }
         Some("support-export") => {
             let records = inspect_all_settings(&resolver, &context)?;
             let export = project_support_export("support-export:settings:alpha", records);

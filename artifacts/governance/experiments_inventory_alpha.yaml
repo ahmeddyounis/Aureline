@@ -1,0 +1,406 @@
+# Experiments and capability-dependency inventory alpha.
+#
+# Canonical runtime-facing inventory for Labs, Preview, Beta, Stable,
+# Deprecated, DisabledByPolicy, and Retired capability states that can affect
+# settings, profiles, workspace manifests, saved views, migration packets, and
+# support exports. Product consumers read this file through
+# crates/aureline-settings/src/experiments instead of cloning lifecycle copy.
+
+record_kind: experiments_inventory_alpha
+schema_version: 1
+inventory_id: experiments_inventory_alpha
+source_inventory_ref: artifacts/governance/experiments_inventory_alpha.yaml
+as_of: "2026-05-14"
+owner: "@ahmeddyounis"
+
+source_contract_refs:
+  - artifacts/governance/capability_lifecycle_registry.yaml
+  - artifacts/governance/experiments_register.yaml
+  - artifacts/governance/labs_register.yaml
+  - artifacts/governance/feature_flag_provider_chain.yaml
+  - docs/settings/inspector_alpha.md
+  - docs/settings/effective_control_stack_contract.md
+  - docs/governance/experiment_expiry_and_schema_review_contract.md
+
+lifecycle_vocabulary:
+  - Labs
+  - Preview
+  - Beta
+  - Stable
+  - Deprecated
+  - DisabledByPolicy
+  - Retired
+
+required_lifecycle_state_coverage:
+  - Labs
+  - Preview
+  - Beta
+  - Stable
+  - Deprecated
+  - DisabledByPolicy
+  - Retired
+
+kill_switch_precedence:
+  - emergency_security_response
+  - admin_policy_ceiling
+  - release_channel_or_rollout_override
+  - cohort_or_ring_assignment
+  - user_opt_in_or_local_preview_toggle
+
+named_consumers:
+  - consumer_id: settings_cli_experiments_inventory
+    surface_class: cli_and_support_export
+    consumer_ref: crates/aureline-settings/src/bin/aureline_settings_inspect.rs
+    commands:
+      - cargo run -q -p aureline-settings --bin aureline_settings_inspect -- experiments-inventory
+      - cargo run -q -p aureline-settings --bin aureline_settings_inspect -- experiments-support-export
+    consumed_fields:
+      - capability_id
+      - declared_lifecycle_state
+      - effective_lifecycle_state
+      - owner
+      - target_workflow
+      - review_or_expiry_date
+      - enrollment
+      - disable_sources
+      - dependency_marker_ids
+  - consumer_id: shell_diagnostics_experiments_inventory
+    surface_class: diagnostics_panel
+    consumer_ref: crates/aureline-shell/src/diagnostics/experiments_inventory.rs
+    consumed_fields:
+      - capability_id
+      - effective_lifecycle_state
+      - owner
+      - cohort_or_ring
+      - winning_disable_source
+      - artifact_dependency_count
+
+rows:
+  - capability_id: shell.labs.wedge_inspector_overlay
+    title: Shell wedge inspector overlay
+    target_workflow: local proof and diagnostics overlay inspection
+    owner: "@ahmeddyounis"
+    declared_lifecycle_state: Labs
+    effective_lifecycle_state: Labs
+    default_posture: off_by_default
+    support_promise: internal_contract_only
+    review_or_expiry_date: "2026-06-30"
+    enrollment:
+      scope: user
+      enabled_state: off_by_default
+      source: user_or_workspace_setting
+      cohort_or_ring: maintainer_and_contributor_local
+      public_label: Shell wedge inspector overlay
+    disable_sources:
+      - source_class: user_opt_in_or_local_preview_toggle
+        source_ref: setting:shell.labs.wedge_inspector_enabled
+        active: false
+        reason: Local opt-in controls the overlay.
+        last_refreshed_at: "2026-05-14T00:00:00Z"
+        preserve_user_data: true
+        preserved_data_scope: User and workspace settings remain stored but the overlay stays hidden.
+        fallback_path: Inspect source fixtures and diagnostics records without opening the overlay.
+    dependency_marker_ids:
+      - dep.shell_labs_wedge.profile_artifact
+    source_refs:
+      - artifacts/governance/labs_register.yaml#lab.shell.wedge_inspector_overlay
+      - crates/aureline-settings/src/schema/registry.rs
+    claimed_alpha_visible: true
+
+  - capability_id: alpha.ts_js.launch_wedge
+    title: TypeScript and JavaScript launch wedge
+    target_workflow: TypeScript and JavaScript open, navigate, test, debug, and review loop
+    owner: "@ahmeddyounis"
+    declared_lifecycle_state: Preview
+    effective_lifecycle_state: Preview
+    default_posture: visible_named_cohort
+    support_promise: alpha_limited_support
+    review_or_expiry_date: "2026-06-09"
+    enrollment:
+      scope: ring
+      enabled_state: named_preview_cohort
+      source: external_alpha_ring
+      cohort_or_ring: public_preview_alpha
+      public_label: TypeScript and JavaScript preview wedge
+    disable_sources:
+      - source_class: release_channel_or_rollout_override
+        source_ref: policy:alpha.lifecycle.ts_js_wedge.disable
+        active: false
+        reason: Release owner may pause the preview wedge when fixture evidence expires.
+        last_refreshed_at: "2026-05-14T00:00:00Z"
+        preserve_user_data: true
+        preserved_data_scope: Workspace files, profile imports, and saved views remain readable.
+        fallback_path: Continue with local editing, Git review, and static diagnostics.
+    dependency_marker_ids:
+      - dep.ts_js.workspace_manifest_preview
+      - dep.ts_js.support_export_preview
+    source_refs:
+      - artifacts/governance/capability_lifecycle_registry.yaml#capability_lifecycle:alpha.ts_js.launch_wedge
+    claimed_alpha_visible: true
+
+  - capability_id: settings.sync_conflict_review
+    title: Settings sync conflict review
+    target_workflow: settings profile import, sync conflict review, and keep-local or keep-synced decisions
+    owner: "@ahmeddyounis"
+    declared_lifecycle_state: Beta
+    effective_lifecycle_state: Beta
+    default_posture: visible_review_surface
+    support_promise: alpha_best_effort
+    review_or_expiry_date: "2026-07-31"
+    enrollment:
+      scope: workspace
+      enabled_state: enabled_when_fixture_current
+      source: signed_local_admin_bundle
+      cohort_or_ring: design_partner_beta_seed
+      public_label: Settings sync conflict review beta
+    disable_sources:
+      - source_class: admin_policy_ceiling
+        source_ref: policy:settings.sync_conflict_review.disable
+        active: false
+        reason: Admin policy may force local-only settings continuity.
+        last_refreshed_at: "2026-05-14T00:00:00Z"
+        preserve_user_data: true
+        preserved_data_scope: Local settings and conflict packets remain available for export.
+        fallback_path: Keep local settings and export the conflict review packet.
+    dependency_marker_ids:
+      - dep.settings_sync.saved_conflict_packet
+    source_refs:
+      - docs/settings/sync_conflict_review_alpha.md
+      - fixtures/settings/sync_conflicts/README.md
+    claimed_alpha_visible: true
+
+  - capability_id: settings.effective_inspector
+    title: Effective settings inspector
+    target_workflow: inspect active setting value, source chain, policy lock, restart posture, and support export
+    owner: "@ahmeddyounis"
+    declared_lifecycle_state: Stable
+    effective_lifecycle_state: Stable
+    default_posture: on_by_default
+    support_promise: alpha_limited_support
+    review_or_expiry_date: "2026-07-31"
+    enrollment:
+      scope: user
+      enabled_state: enabled_by_default
+      source: embedded_default
+      cohort_or_ring: all_alpha_users
+      public_label: Effective settings inspector
+    disable_sources:
+      - source_class: emergency_security_response
+        source_ref: emergency:disable:settings_inspector_export
+        active: false
+        reason: Emergency response may disable export projection while retaining local inspection.
+        last_refreshed_at: "2026-05-14T00:00:00Z"
+        preserve_user_data: true
+        preserved_data_scope: Setting overlays remain intact; export projection can be regenerated later.
+        fallback_path: Use local CLI inspect without support-export attachment.
+    dependency_marker_ids:
+      - dep.settings_inspector.support_export
+    source_refs:
+      - docs/settings/inspector_alpha.md
+      - fixtures/settings/inspector_alpha/support_export_shared_contract.json
+    claimed_alpha_visible: true
+
+  - capability_id: settings.legacy_ai_egress_alias
+    title: Legacy AI egress setting alias
+    target_workflow: migration from legacy AI network setting ids
+    owner: "@ahmeddyounis"
+    declared_lifecycle_state: Deprecated
+    effective_lifecycle_state: Deprecated
+    default_posture: visible_migration_only
+    support_promise: alpha_best_effort
+    review_or_expiry_date: "2026-06-30"
+    enrollment:
+      scope: profile
+      enabled_state: migration_alias_only
+      source: imported_profile_default
+      cohort_or_ring: imported_profile_migration
+      public_label: Legacy AI egress alias
+    disable_sources:
+      - source_class: release_channel_or_rollout_override
+        source_ref: migration:settings.ai_egress_alias.sunset
+        active: false
+        reason: Alias remains discoverable only to teach migration.
+        last_refreshed_at: "2026-05-14T00:00:00Z"
+        preserve_user_data: true
+        preserved_data_scope: Imported profile values remain attached to the canonical setting during migration.
+        fallback_path: Migrate to security.ai.egress_policy with a scope-explicit write preview.
+    dependency_marker_ids:
+      - dep.legacy_ai_alias.profile_migration
+    source_refs:
+      - crates/aureline-settings/src/schema/registry.rs
+      - docs/settings/inspector_alpha.md
+    claimed_alpha_visible: true
+
+  - capability_id: alpha.managed_cloud_daily_driver
+    title: Managed cloud daily-driver parity
+    target_workflow: managed workspace daily-driver parity outside the current external alpha scope
+    owner: "@ahmeddyounis"
+    declared_lifecycle_state: DisabledByPolicy
+    effective_lifecycle_state: DisabledByPolicy
+    default_posture: disabled_until_scope_review
+    support_promise: no_external_support
+    review_or_expiry_date: "2026-06-09"
+    enrollment:
+      scope: org
+      enabled_state: blocked_by_policy
+      source: admin_policy
+      cohort_or_ring: out_of_scope_alpha
+      public_label: Managed cloud daily-driver parity
+    disable_sources:
+      - source_class: user_opt_in_or_local_preview_toggle
+        source_ref: setting:managed_cloud.preview_requested
+        active: true
+        reason: User requested a preview path, but this request cannot widen alpha scope.
+        last_refreshed_at: "2026-05-14T00:00:00Z"
+        preserve_user_data: true
+        preserved_data_scope: Local workspace state remains available; managed workspace data is not modified.
+        fallback_path: Continue locally or attach direct remote targets with visible boundary labels.
+      - source_class: admin_policy_ceiling
+        source_ref: policy:alpha.scope.managed_cloud_out_of_scope
+        active: true
+        reason: The alpha scope policy blocks managed-cloud daily-driver claims.
+        last_refreshed_at: "2026-05-14T00:00:00Z"
+        preserve_user_data: true
+        preserved_data_scope: Local workspace state remains available; managed workspace data is not modified.
+        fallback_path: Continue locally or attach direct remote targets with visible boundary labels.
+    dependency_marker_ids:
+      - dep.managed_cloud.policy_disable_export
+    source_refs:
+      - artifacts/governance/capability_lifecycle_registry.yaml#capability_lifecycle:alpha.managed_cloud_disabled
+    claimed_alpha_visible: true
+
+  - capability_id: settings.legacy_global_ai_toggle
+    title: Retired global AI enablement toggle
+    target_workflow: downgrade and import handling for retired AI enablement artifacts
+    owner: "@ahmeddyounis"
+    declared_lifecycle_state: Retired
+    effective_lifecycle_state: Retired
+    default_posture: tombstone_only
+    support_promise: no_external_support
+    review_or_expiry_date: "2026-06-30"
+    enrollment:
+      scope: profile
+      enabled_state: retired_tombstone
+      source: migration_tombstone
+      cohort_or_ring: import_and_downgrade_only
+      public_label: Retired global AI toggle
+    disable_sources:
+      - source_class: release_channel_or_rollout_override
+        source_ref: migration:settings.global_ai_toggle.retired
+        active: true
+        reason: Retired setting cannot be re-enabled; imports keep a tombstone for explanation.
+        last_refreshed_at: "2026-05-14T00:00:00Z"
+        preserve_user_data: true
+        preserved_data_scope: Imported values are preserved as tombstones but do not mutate active settings.
+        fallback_path: Review security.ai.egress_policy and provider-specific settings before apply.
+    dependency_marker_ids:
+      - dep.retired_ai_toggle.import_tombstone
+    source_refs:
+      - docs/settings/inspector_alpha.md
+      - docs/settings/portable_profile_alpha.md
+    claimed_alpha_visible: true
+
+dependency_markers:
+  - marker_id: dep.shell_labs_wedge.profile_artifact
+    parent_capability_id: shell.labs.wedge_inspector_overlay
+    artifact_class: profile_artifact
+    artifact_ref: setting:shell.labs.wedge_inspector_enabled
+    required_capability_id: shell.labs.wedge_inspector_overlay
+    required_lifecycle_state: Labs
+    effect_on_parent: declares_artifact_dependency
+    reason_code: non_stable_saved_setting
+    warning_on_missing: Saved profiles that enable the wedge overlay must warn before hiding the command and overlay.
+    fallback_path: Leave the setting stored and keep the overlay closed.
+    export_visibility: export_safe_summary
+    disclosure_summary: The saved setting depends on a Labs overlay capability.
+
+  - marker_id: dep.ts_js.workspace_manifest_preview
+    parent_capability_id: alpha.ts_js.launch_wedge
+    artifact_class: workspace_manifest
+    artifact_ref: fixture:typescript_javascript_reference_workspace_manifest
+    required_capability_id: alpha.ts_js.launch_wedge
+    required_lifecycle_state: Preview
+    effect_on_parent: narrows_lifecycle
+    reason_code: dependency_state_below_parent_declared_state
+    warning_on_missing: Opening this workspace on a build without the preview wedge narrows test/debug and review affordances.
+    fallback_path: Continue with local editing, static diagnostics, and Git review.
+    export_visibility: export_safe_summary
+    disclosure_summary: Workspace manifest and saved launch evidence are preview-scoped.
+
+  - marker_id: dep.ts_js.support_export_preview
+    parent_capability_id: alpha.ts_js.launch_wedge
+    artifact_class: support_export
+    artifact_ref: support_export:alpha.ts_js.lifecycle_projection
+    required_capability_id: settings.effective_inspector
+    required_lifecycle_state: Stable
+    effect_on_parent: declares_artifact_dependency
+    reason_code: support_export_carries_marker
+    warning_on_missing: Support exports must keep preview lifecycle markers instead of flattening the wedge to stable.
+    fallback_path: Export the lifecycle summary without workspace content.
+    export_visibility: export_safe_summary
+    disclosure_summary: Support export rows carry marker ids and lifecycle summaries.
+
+  - marker_id: dep.settings_sync.saved_conflict_packet
+    parent_capability_id: settings.sync_conflict_review
+    artifact_class: migration_packet
+    artifact_ref: fixtures/settings/sync_conflicts/keep_local_over_stale_remote.json
+    required_capability_id: settings.sync_conflict_review
+    required_lifecycle_state: Beta
+    effect_on_parent: declares_artifact_dependency
+    reason_code: beta_conflict_packet_schema
+    warning_on_missing: Downgrade or headless flows must preserve the conflict class instead of applying a remote value silently.
+    fallback_path: Keep local settings and export the conflict packet for review.
+    export_visibility: export_safe_summary
+    disclosure_summary: Conflict packets depend on the beta review schema.
+
+  - marker_id: dep.settings_inspector.support_export
+    parent_capability_id: settings.effective_inspector
+    artifact_class: support_export
+    artifact_ref: fixtures/settings/inspector_alpha/support_export_shared_contract.json
+    required_capability_id: settings.effective_inspector
+    required_lifecycle_state: Stable
+    effect_on_parent: declares_artifact_dependency
+    reason_code: support_export_shared_contract
+    warning_on_missing: Support bundles must retain effective-setting source records and policy-lock explanations.
+    fallback_path: Emit local CLI inspection records without uploading a support bundle.
+    export_visibility: export_safe_summary
+    disclosure_summary: Effective-setting support export uses the shared inspector record.
+
+  - marker_id: dep.legacy_ai_alias.profile_migration
+    parent_capability_id: settings.legacy_ai_egress_alias
+    artifact_class: settings_profile
+    artifact_ref: alias:ai.network.egress_policy
+    required_capability_id: security.ai.egress_policy
+    required_lifecycle_state: Deprecated
+    effect_on_parent: declares_artifact_dependency
+    reason_code: deprecated_alias_migration
+    warning_on_missing: Imported profiles using the legacy alias must show the replacement before applying.
+    fallback_path: Migrate to security.ai.egress_policy with a scope-explicit preview.
+    export_visibility: export_safe_summary
+    disclosure_summary: Legacy alias is preserved only as a migration dependency marker.
+
+  - marker_id: dep.managed_cloud.policy_disable_export
+    parent_capability_id: alpha.managed_cloud_daily_driver
+    artifact_class: support_export
+    artifact_ref: support_export:alpha.managed_cloud.policy_disable
+    required_capability_id: alpha.managed_cloud_daily_driver
+    required_lifecycle_state: DisabledByPolicy
+    effect_on_parent: gates_capability
+    reason_code: dependency_disabled_by_policy
+    warning_on_missing: Support exports must show the policy disable source and fallback instead of hiding the row.
+    fallback_path: Continue locally or use direct remote attach where supported.
+    export_visibility: export_safe_summary
+    disclosure_summary: Managed cloud parity is policy-disabled for the current alpha scope.
+
+  - marker_id: dep.retired_ai_toggle.import_tombstone
+    parent_capability_id: settings.legacy_global_ai_toggle
+    artifact_class: settings_profile
+    artifact_ref: tombstone:settings.legacy_global_ai_toggle
+    required_capability_id: settings.legacy_global_ai_toggle
+    required_lifecycle_state: Retired
+    effect_on_parent: gates_capability
+    reason_code: dependency_retired
+    warning_on_missing: Imports must preserve the retired dependency marker and refuse to reactivate the old global toggle.
+    fallback_path: Review security.ai.egress_policy and provider-specific settings before apply.
+    export_visibility: export_safe_summary
+    disclosure_summary: Retired profile values remain inspectable as tombstones.
