@@ -48,6 +48,10 @@
 //!   artifact graph and reconstructs release-center candidate, target,
 //!   digest-set, rollout, auth-source, rollback, and trust-domain fields for
 //!   metadata-only support/export review.
+//! - The [`publication_dry_run`] alpha projection — consumes the checked-in
+//!   publication manifest and exposes clean-room, mirror-only, deny-all,
+//!   offline, notice, SBOM, provenance, blocker, and live-truth degradation
+//!   state for metadata-only support/export review.
 //!
 //! ## Failure-drill posture
 //!
@@ -63,6 +67,7 @@
 pub mod advisory_baseline;
 pub mod bundle;
 pub mod project_doctor;
+pub mod publication_dry_run;
 pub mod recovery_ladder;
 pub mod release_evidence;
 pub mod repair;
