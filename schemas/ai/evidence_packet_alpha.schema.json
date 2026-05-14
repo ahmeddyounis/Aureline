@@ -1,0 +1,522 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/evidence_packet_alpha.schema.json",
+  "title": "Aureline AI mutation evidence packet alpha",
+  "description": "Boundary schema for the alpha AI-assisted mutation evidence packet. The packet is minted before apply, preserves route and spend refs, approval lineage, cited-source truth, tainted-context fences, review lineage, and support-export metadata without carrying raw prompts, raw diff bodies, raw document bodies, raw source paths, raw URLs, credential material, exact token counts, or exact cost amounts.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/ai_mutation_evidence_packet_alpha_record" },
+    { "$ref": "#/$defs/ai_mutation_evidence_support_packet_alpha_record" },
+    { "$ref": "#/$defs/ai_mutation_evidence_review_row_alpha_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "anyOf": [
+          { "pattern": "://" },
+          { "pattern": "(?i)api_key" },
+          { "pattern": "(?i)oauth_token" },
+          { "pattern": "(?i)bearer\\s+" }
+        ]
+      }
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "packet_state": {
+      "type": "string",
+      "enum": ["review_pre_apply", "applied", "rejected"]
+    },
+    "intent_class": {
+      "type": "string",
+      "enum": ["local_reversible_edit", "local_destructive_edit", "branch_agent_dispatch"]
+    },
+    "apply_outcome_class": {
+      "type": "string",
+      "enum": [
+        "not_applied_pending_review",
+        "applied_success",
+        "rejected_no_apply",
+        "blocked_no_apply",
+        "reverted_after_apply"
+      ]
+    },
+    "validation_outcome_class": {
+      "type": "string",
+      "enum": ["not_run", "passed", "failed", "skipped_with_reason"]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_file_slice",
+        "workspace_symbol",
+        "docs_pack_excerpt",
+        "generated_reference",
+        "glossary_entry",
+        "explainer_snapshot",
+        "search_result",
+        "diagnostic",
+        "review_artifact"
+      ]
+    },
+    "citation_visibility_class": {
+      "type": "string",
+      "enum": [
+        "anchor_available",
+        "anchor_unavailable_disclosed",
+        "hidden_by_policy",
+        "omitted_by_policy",
+        "not_citation_bearing"
+      ]
+    },
+    "source_posture": {
+      "type": "string",
+      "enum": [
+        "trusted_first_party",
+        "trusted_authority",
+        "reviewed_derived",
+        "unreviewed_derived",
+        "tainted_external"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"]
+    },
+    "inference_class": {
+      "type": "string",
+      "enum": ["raw_source", "derived_single_source", "derived_multiple_sources", "heuristic_bridge"]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["evidence_backed", "inferred", "low_confidence", "unknown_unverified"]
+    },
+    "tainted_source_class": {
+      "type": "string",
+      "enum": [
+        "retrieved_document",
+        "terminal_snippet",
+        "log_snippet",
+        "request_response_payload",
+        "user_supplied_text",
+        "tool_call_return_value",
+        "extension_proposed_payload",
+        "connected_provider_payload",
+        "ai_prior_turn_output",
+        "policy_quarantined_source"
+      ]
+    },
+    "fence_strategy": {
+      "type": "string",
+      "enum": [
+        "instruction_stripped",
+        "quoted_as_data_only",
+        "summary_only_no_body",
+        "metadata_only_no_content",
+        "citation_reference_only"
+      ]
+    },
+    "usage_constraint": {
+      "type": "string",
+      "enum": [
+        "must_not_gain_tool_permission",
+        "must_not_escalate_scope",
+        "must_not_mint_citations",
+        "must_not_override_instruction_bundle",
+        "must_not_publish_externally",
+        "must_not_commit_to_repo",
+        "must_not_dispatch_branch_agent",
+        "must_not_route_to_higher_cost_tier",
+        "must_preserve_fence_in_downstream_packet"
+      ]
+    },
+    "fence_reason_class": {
+      "type": "string",
+      "enum": [
+        "tainted_context",
+        "policy_disallowed_context",
+        "secret_projection_denied",
+        "approval_renewal_required",
+        "unknown_unclassified_source"
+      ]
+    },
+    "approval_decision_class": {
+      "type": "string",
+      "enum": ["pending_user_review", "approved", "rejected", "blocked_by_policy", "revoked"]
+    },
+    "approval_actor_class": {
+      "type": "string",
+      "enum": ["local_user", "admin_policy", "platform_control", "automated_policy_gate"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch_ref", "trust_state", "deployment_profile_class"],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted", "unknown_unverified"] },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": ["individual_local", "managed_cloud", "self_hosted_enterprise", "air_gapped", "unknown_unverified"]
+        },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "route_spend_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "routing_packet_ref",
+        "route_receipt_ref",
+        "spend_receipt_ref",
+        "selected_provider_entry_ref",
+        "selected_model_entry_ref",
+        "selected_provider_label",
+        "selected_model_label",
+        "execution_locus_token",
+        "route_origin_token",
+        "quota_state_token",
+        "cost_envelope_token",
+        "cost_visibility_token",
+        "budget_owner_ref",
+        "route_change_lineage_refs"
+      ],
+      "properties": {
+        "routing_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "route_receipt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "spend_receipt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selected_provider_entry_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selected_model_entry_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selected_provider_label": { "type": "string", "minLength": 1 },
+        "selected_model_label": { "type": "string", "minLength": 1 },
+        "execution_locus_token": { "type": "string", "minLength": 1 },
+        "route_origin_token": { "type": "string", "minLength": 1 },
+        "quota_state_token": { "type": "string", "minLength": 1 },
+        "cost_envelope_token": { "type": "string", "minLength": 1 },
+        "cost_visibility_token": { "type": "string", "minLength": 1 },
+        "budget_owner_ref": { "$ref": "#/$defs/opaque_ref" },
+        "route_change_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "originating_route_approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "approval_lineage_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_lineage_id",
+        "approval_ticket_ref",
+        "decision_class",
+        "actor_class",
+        "preview_ref",
+        "policy_epoch_ref",
+        "decided_at",
+        "summary_label"
+      ],
+      "properties": {
+        "approval_lineage_id": { "$ref": "#/$defs/opaque_ref" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" },
+        "decision_class": { "$ref": "#/$defs/approval_decision_class" },
+        "actor_class": { "$ref": "#/$defs/approval_actor_class" },
+        "preview_ref": { "$ref": "#/$defs/opaque_ref" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "decided_at": { "$ref": "#/$defs/timestamp" },
+        "summary_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "cited_source_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_reference_id",
+        "source_class",
+        "source_identity_ref",
+        "citation_visibility_class",
+        "source_posture",
+        "freshness_class"
+      ],
+      "properties": {
+        "source_reference_id": { "$ref": "#/$defs/opaque_ref" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "docs_pack_ref": { "$ref": "#/$defs/opaque_ref" },
+        "docs_pack_revision_ref": { "$ref": "#/$defs/opaque_ref" },
+        "exact_anchor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "citation_visibility_class": { "$ref": "#/$defs/citation_visibility_class" },
+        "hidden_or_omitted_citation_note": { "type": "string", "minLength": 1 },
+        "source_posture": { "$ref": "#/$defs/source_posture" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_class": {
+                "enum": ["docs_pack_excerpt", "generated_reference", "glossary_entry", "explainer_snapshot"]
+              }
+            },
+            "required": ["source_class"]
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["source_revision_ref"] },
+              { "required": ["docs_pack_ref"] },
+              { "required": ["docs_pack_revision_ref"] }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": { "citation_visibility_class": { "const": "anchor_available" } },
+            "required": ["citation_visibility_class"]
+          },
+          "then": { "required": ["exact_anchor_ref"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "citation_visibility_class": {
+                "enum": ["anchor_unavailable_disclosed", "hidden_by_policy", "omitted_by_policy"]
+              }
+            },
+            "required": ["citation_visibility_class"]
+          },
+          "then": { "required": ["hidden_or_omitted_citation_note"] }
+        }
+      ]
+    },
+    "derived_explanation_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explanation_ref",
+        "basis_source_reference_refs",
+        "inference_class",
+        "confidence_class",
+        "confidence_reason_label"
+      ],
+      "properties": {
+        "explanation_ref": { "$ref": "#/$defs/opaque_ref" },
+        "basis_source_reference_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "inference_class": { "$ref": "#/$defs/inference_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "confidence_reason_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "tainted_context_fence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fence_id",
+        "segment_id_ref",
+        "tainted_source_class",
+        "source_posture",
+        "fence_strategy",
+        "usage_constraints",
+        "reason_class",
+        "user_visible_explanation_label"
+      ],
+      "properties": {
+        "fence_id": { "$ref": "#/$defs/opaque_ref" },
+        "segment_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_reference_ref": { "$ref": "#/$defs/opaque_ref" },
+        "tainted_source_class": { "$ref": "#/$defs/tainted_source_class" },
+        "source_posture": { "$ref": "#/$defs/source_posture" },
+        "fence_strategy": { "$ref": "#/$defs/fence_strategy" },
+        "usage_constraints": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/usage_constraint" },
+          "uniqueItems": true
+        },
+        "reason_class": { "$ref": "#/$defs/fence_reason_class" },
+        "user_visible_explanation_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "mutation_review_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_surface_ref",
+        "patch_review_summary_ref",
+        "produced_artifact_refs",
+        "changed_file_count",
+        "generated_artifact_count",
+        "validation_summary_refs",
+        "validation_outcome_class",
+        "apply_outcome_class"
+      ],
+      "properties": {
+        "review_surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "patch_review_summary_ref": { "$ref": "#/$defs/opaque_ref" },
+        "produced_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "changed_file_count": { "type": "integer", "minimum": 0 },
+        "generated_artifact_count": { "type": "integer", "minimum": 0 },
+        "validation_summary_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "validation_outcome_class": { "$ref": "#/$defs/validation_outcome_class" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "mutation_journal_ref": { "$ref": "#/$defs/opaque_ref" },
+        "apply_outcome_class": { "$ref": "#/$defs/apply_outcome_class" }
+      }
+    },
+    "ai_mutation_evidence_packet_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evidence_packet_id",
+        "mutation_wedge_ref",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "request_workspace_ref",
+        "assembly_ref",
+        "packet_state",
+        "intent_class",
+        "route_spend_lineage",
+        "approval_lineage",
+        "cited_sources",
+        "derived_explanations",
+        "tainted_context_fences",
+        "review_lineage",
+        "source_contract_refs",
+        "policy_context",
+        "running_build_identity_ref",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "ai_mutation_evidence_packet_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "evidence_packet_id": { "$ref": "#/$defs/opaque_ref" },
+        "mutation_wedge_ref": { "$ref": "#/$defs/opaque_ref" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_ref" },
+        "request_workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "assembly_ref": { "$ref": "#/$defs/opaque_ref" },
+        "packet_state": { "$ref": "#/$defs/packet_state" },
+        "intent_class": { "$ref": "#/$defs/intent_class" },
+        "route_spend_lineage": { "$ref": "#/$defs/route_spend_lineage" },
+        "approval_lineage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/approval_lineage_entry" }
+        },
+        "cited_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cited_source_reference" }
+        },
+        "derived_explanations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/derived_explanation_lineage" }
+        },
+        "tainted_context_fences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tainted_context_fence" }
+        },
+        "review_lineage": { "$ref": "#/$defs/mutation_review_lineage" },
+        "source_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "running_build_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/timestamp" },
+        "completed_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "packet_state": { "const": "review_pre_apply" } },
+            "required": ["packet_state"]
+          },
+          "then": {
+            "properties": {
+              "review_lineage": {
+                "properties": {
+                  "apply_outcome_class": { "const": "not_applied_pending_review" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "packet_state": { "const": "applied" } },
+            "required": ["packet_state"]
+          },
+          "then": {
+            "properties": {
+              "review_lineage": {
+                "required": ["rollback_checkpoint_ref", "mutation_journal_ref"],
+                "properties": {
+                  "apply_outcome_class": { "const": "applied_success" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ai_mutation_evidence_support_packet_alpha_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["record_kind", "schema_version", "support_packet_id", "evidence_packet_ref"],
+      "properties": {
+        "record_kind": { "const": "ai_mutation_evidence_support_packet_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_packet_id": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "ai_mutation_evidence_review_row_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "row_id", "label", "value_label", "value_token"],
+      "properties": {
+        "record_kind": { "const": "ai_mutation_evidence_review_row_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "row_id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "value_label": { "type": "string", "minLength": 1 },
+        "value_token": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
