@@ -51,6 +51,7 @@ use crate::drift_truth::{
     DriftTruthExportAudience, DriftTruthSnapshot, DRIFT_TRUTH_EXPORT_PACKET_RECORD_KIND,
 };
 use crate::inspectors::schema_registry::EndpointPolicySupportExport;
+use crate::managed_truth::{ManagedTruthSnapshot, MANAGED_TRUTH_EXPORT_PACKET_RECORD_KIND};
 use crate::restore::provenance::RestoreProvenanceRecord;
 
 /// Stable record-kind tag carried in serialized support-seed surfaces.
@@ -369,6 +370,31 @@ impl SupportSeedSurface {
         Ok(Self::from_preview(
             preview,
             "Support - version-skew and drift truth preview",
+        ))
+    }
+
+    /// Mint a local support preview that exports managed/provider-linked
+    /// region, residency, tenant, storage/copy, key, and plane-state truth as
+    /// structured metadata.
+    pub fn managed_truth_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        managed_truth: &ManagedTruthSnapshot,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:managed-truth:0001",
+            "Managed region, residency, tenant, and key truth support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(managed_truth_seed(managed_truth));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support - managed region and key truth preview",
         ))
     }
 
@@ -694,6 +720,49 @@ fn drift_truth_seed(drift_snapshot: &DriftTruthSnapshot) -> PreviewItemSeed {
                 .into(),
         notes: format!(
             "Structured drift export includes {} row(s); raw payload material excluded: {}.",
+            packet.rows.len(),
+            packet.raw_payloads_excluded,
+        ),
+    }
+}
+
+fn managed_truth_seed(managed_truth: &ManagedTruthSnapshot) -> PreviewItemSeed {
+    let packet = managed_truth.export_packet();
+    let mut source_refs = BTreeSet::new();
+    source_refs.insert("crates/aureline-shell/src/managed_truth/mod.rs".to_owned());
+    source_refs.insert("docs/managed/region_residency_alpha.md".to_owned());
+    source_refs.insert(packet.packet_id.clone());
+    for row in &packet.rows {
+        source_refs.extend(row.source_refs.iter().cloned());
+    }
+
+    PreviewItemSeed {
+        support_pack_item_id: "support.item.managed_region_residency_truth".into(),
+        title: "Managed and provider-linked boundary truth".into(),
+        data_class: DiagnosticDataClass::MetadataOnly,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "managed_boundary_truth".into(),
+        artifact_kind_class: MANAGED_TRUTH_EXPORT_PACKET_RECORD_KIND.into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some(format!(
+            "manifest/managed_truth/{}.json",
+            packet.packet_id.replace(':', "_")
+        )),
+        source_refs: source_refs.into_iter().collect(),
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some((packet.rows.len() as u64).saturating_mul(1280)),
+            confidence_class: "estimated".into(),
+            display_label: format!("{} managed truth row(s)", packet.rows.len()),
+            size_source_class: "row_count_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Without this row, support cannot tell where claimed managed/provider-linked work \
+             runs, where data or copies live, which tenant/key boundary applies, or whether a \
+             control-plane versus data-plane impairment narrowed the action."
+                .into(),
+        notes: format!(
+            "Structured managed-truth export includes {} row(s); raw payload material excluded: {}.",
             packet.rows.len(),
             packet.raw_payloads_excluded,
         ),

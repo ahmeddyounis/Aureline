@@ -55,6 +55,7 @@ pub mod import;
 pub mod inspectors;
 pub mod install_review_fact_grid;
 pub mod layout;
+pub mod managed_truth;
 pub mod managed_workspace_labels;
 pub mod notebook_alpha;
 pub mod notebook_trust_badges;
