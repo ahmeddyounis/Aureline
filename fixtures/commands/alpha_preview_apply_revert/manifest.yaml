@@ -1,0 +1,115 @@
+record_kind: alpha_review_enforcement_fixture_manifest
+schema_version: 1
+fixture_id: alpha_preview_apply_revert.review_enforcement
+acceptance:
+  every_destructive_or_external_effect_command_reviewed_or_out_of_scope: true
+  git_provider_install_ai_lanes_have_review_rows: true
+  reviewed_command_bypass_attempts_are_denied: true
+  explicit_out_of_scope_rows_are_visible: true
+required_rows:
+  - command_id: cmd:workspace.clone_repository
+    lane_class: workspace
+    enforcement_status: enforced
+    review_requirement_class: review_required
+    preview_class: structured_diff_preview
+    approval_posture_class: no_approval_required
+    required_evidence_refs:
+      - preview_record_ref
+      - mutation_journal_entry_ref
+  - command_id: cmd:workspace.import_profile
+    lane_class: workspace
+    enforcement_status: enforced
+    review_requirement_class: review_required
+    preview_class: structured_diff_preview
+    approval_posture_class: explicit_confirmation_required
+    required_evidence_refs:
+      - preview_record_ref
+      - mutation_journal_entry_ref
+      - rollback_ticket_ref
+  - command_id: cmd:workspace.restore_from_checkpoint
+    lane_class: workspace
+    enforcement_status: enforced
+    review_requirement_class: review_required
+    preview_class: structured_diff_preview
+    approval_posture_class: explicit_confirmation_required
+    required_evidence_refs:
+      - preview_record_ref
+      - mutation_journal_entry_ref
+      - rollback_ticket_ref
+  - command_id: cmd:git.push_branch
+    lane_class: git
+    enforcement_status: enforced
+    review_requirement_class: review_required
+    preview_class: irreversible_publish_preview
+    approval_posture_class: second_party_review_required
+    required_evidence_refs:
+      - preview_record_ref
+      - approval_ticket_ref
+      - mutation_journal_entry_ref
+      - browser_handoff_packet_ref
+  - command_id: cmd:provider.publish_release_notes
+    lane_class: provider
+    enforcement_status: enforced
+    review_requirement_class: review_required
+    preview_class: externally_mutating_preview
+    approval_posture_class: explicit_confirmation_required
+    required_evidence_refs:
+      - preview_record_ref
+      - approval_ticket_ref
+      - browser_handoff_packet_ref
+      - audit_event_ref
+  - command_id: cmd:package.install.apply
+    lane_class: install
+    enforcement_status: enforced
+    review_requirement_class: review_required
+    preview_class: install_or_update_preview
+    approval_posture_class: explicit_confirmation_required
+    required_evidence_refs:
+      - package_review_packet_ref
+      - rollback_checkpoint_ref
+      - approval_ticket_ref
+  - command_id: cmd:ai.apply_patch
+    lane_class: ai_mutation
+    enforcement_status: enforced
+    review_requirement_class: review_required
+    preview_class: structured_diff_preview
+    approval_posture_class: explicit_confirmation_required
+    required_evidence_refs:
+      - preview_record_ref
+      - approval_ticket_ref
+      - ai_evidence_packet_ref
+      - rollback_checkpoint_ref
+required_out_of_scope_rows:
+  - command_id: cmd:docs.open_in_browser
+    reason: read_only_docs_handoff_emits_browser_handoff_packet_but_no_mutating_apply
+  - command_id: cmd:terminal.toggle
+    reason: opens_terminal_surface_only_shell_input_and_paste_have_separate_review_lanes
+  - command_id: cmd:task.rerun_last
+    reason: seed_descriptor_only_task_rerun_router_lands_in_execution_context_lane
+  - command_id: cmd:test.rerun_last
+    reason: seed_descriptor_only_test_rerun_router_lands_in_execution_context_lane
+bypass_attempts:
+  - case_id: import_profile_global_menu_apply_direct
+    command_id: cmd:workspace.import_profile
+    issuing_surface: global_application_menu
+    execution_intent: apply_direct_trusted_path
+    preview_shown: false
+    approval_state: approval_granted
+    expected_decision_class: denied_preview_required
+    expected_disabled_reason_code: preview_required_not_shown
+  - case_id: import_profile_preview_without_approval
+    command_id: cmd:workspace.import_profile
+    issuing_surface: command_palette
+    execution_intent: apply_after_preview
+    preview_shown: true
+    approval_state: approval_pending
+    expected_decision_class: denied_approval_required
+    expected_disabled_reason_code: approval_denial_no_approval_path
+  - case_id: import_profile_reviewed_apply_admitted
+    command_id: cmd:workspace.import_profile
+    issuing_surface: command_palette
+    execution_intent: apply_after_preview
+    preview_shown: true
+    approval_state: approval_granted
+    expected_decision_class: admitted_reviewed_apply
+    expected_disabled_reason_code: null

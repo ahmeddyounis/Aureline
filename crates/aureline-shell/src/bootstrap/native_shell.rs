@@ -45,6 +45,7 @@ use crate::commands::invocation_preview::{
     invocation_preview_sheet_lines, materialize_command_invocation_preview_sheet_record,
     write_invocation_preview_sheet_log, CommandInvocationPreviewSheetRecord,
 };
+use crate::commands::review_enforcement::enforce_invocation_review_path;
 use crate::commands::CommandReviewRuntimeInputs;
 use crate::deeplink::native_handoff::{
     seeded_native_boundary_handoff_packet, write_native_boundary_handoff_log,
@@ -8688,6 +8689,24 @@ fn dispatch_registry_entry(
         return true;
     }
 
+    let enforcement = enforce_invocation_review_path(entry, &session);
+    if let Some(denied_code) = enforcement.disabled_reason_code {
+        command_runtime.record(invocation_and_result_denied(&session, denied_code));
+        let record = materialize_command_diagnostics_sheet_record_with_arguments(
+            entry,
+            review_runtime,
+            session.argument_provenance_map.clone(),
+        );
+        write_diagnostics_sheet_log(&record);
+        *overlay = Some(ShellOverlayState::command_diagnostics(
+            frame.focused_zone(),
+            frame.focused_editor_group(),
+            record,
+        ));
+        frame.focus_zone(ShellZoneId::TransientOverlay);
+        return true;
+    }
+
     match entry.descriptor.command_id.as_str() {
         "cmd:command_palette.open" => {
             let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
@@ -10193,6 +10212,15 @@ fn finalize_command_overlay_decision(
 ) {
     match decision {
         CommandOverlayDecision::PreviewApproved { entry, session } => {
+            let enforcement = enforce_invocation_review_path(&entry, &session);
+            if let Some(denied_code) = enforcement.disabled_reason_code {
+                command_runtime.record(invocation_and_result_denied(&session, denied_code));
+                command_runtime.note_non_command_action(format!(
+                    "command review enforcement denied apply - {}",
+                    denied_code.as_str()
+                ));
+                return;
+            }
             match entry.descriptor.command_id.as_str() {
                 "cmd:workspace.import_profile" => {
                     let review = import_review_from_argument_map(&session.argument_provenance_map);

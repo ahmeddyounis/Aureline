@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod diagnostics_sheet;
 pub mod invocation_preview;
+pub mod review_enforcement;
 
 /// Runtime inputs required to evaluate command enablement and preflight posture
 /// for review sheets.

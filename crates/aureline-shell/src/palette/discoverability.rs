@@ -28,6 +28,9 @@ use crate::commands::diagnostics_sheet::{
 use crate::commands::invocation_preview::{
     materialize_command_invocation_preview_sheet_record, CommandInvocationPreviewSheetRecord,
 };
+use crate::commands::review_enforcement::{
+    review_enforcement_row_for_entry, AlphaReviewEnforcementRow,
+};
 use crate::commands::{argument_provenance_map_for, CommandReviewRuntimeInputs};
 
 /// Maximum rows surfaced per category in the alpha discoverability snapshot.
@@ -273,6 +276,9 @@ pub struct CommandDeepLinkReviewRecord {
     pub route_outcome_class: String,
     /// Strict no-bypass guard set inherited by command result packets.
     pub no_bypass_guards: NoBypassGuards,
+    /// Review-enforcement row proving whether the command is reviewed,
+    /// directly allowed, or explicitly outside this alpha lane.
+    pub review_enforcement: AlphaReviewEnforcementRow,
     /// Diagnostics sheet when the command is disabled or blocked.
     pub diagnostics_sheet: Option<CommandDiagnosticsSheetRecord>,
     /// Invocation preview sheet when preview or approval is required.
@@ -443,6 +449,7 @@ pub fn materialize_command_deep_link_review(
         preflight_decision_class,
         route_outcome_class,
         no_bypass_guards: NoBypassGuards::strict(),
+        review_enforcement: review_enforcement_row_for_entry(entry),
         diagnostics_sheet,
         invocation_preview_sheet,
     })
