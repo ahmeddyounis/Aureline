@@ -41,6 +41,9 @@
 //! - The [`repair`] alpha preview compiler — consumes checked-in repair seed
 //!   cases and emits typed transaction, preview, outcome, and journal records
 //!   before any guided repair can apply.
+//! - The [`advisory_baseline`] support projection — consumes the checked-in
+//!   affected-build scope example and projects advisory, exact-build,
+//!   rollback, known-limit, and support refs into metadata-only support rows.
 //!
 //! ## Failure-drill posture
 //!
@@ -53,6 +56,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-support/0.0.0")]
 
+pub mod advisory_baseline;
 pub mod bundle;
 pub mod project_doctor;
 pub mod recovery_ladder;
