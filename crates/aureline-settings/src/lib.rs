@@ -32,9 +32,15 @@
 #![doc(html_root_url = "https://docs.rs/aureline-settings/0.0.0")]
 
 pub mod inspector;
+pub mod keybindings;
 pub mod resolver;
 pub mod schema;
 
+pub use keybindings::{
+    KeybindingNarrowingRecord, KeybindingSettingInspectionRecord, KeybindingSettingSourceLayer,
+    KeybindingSettingSourceRecord, KeybindingSettingsConflictRecord,
+    KEYBINDING_SETTINGS_SCHEMA_VERSION,
+};
 pub use resolver::{
     EffectiveSettingsResolver, EffectiveValue, LockReason, LockState, PolicyConstraint,
     ResolveError, ScopeOverlay, ShadowChainEntry, ShadowRelation, WriteAttemptOutcome,

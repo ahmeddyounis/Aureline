@@ -8,6 +8,7 @@ by the command registry and palette.
 ## Canonical sources
 
 - Runtime preset definitions: `crates/aureline-input/src/presets/mod.rs`
+- Alpha keybinding projection: `docs/ux/alpha_keybinding_resolver.md`
 - Resolver contract: `docs/ux/keybinding_resolver_contract.md`
 - Resolver schema: `schemas/commands/keybinding_resolver.schema.json`
 - Seeded command registry: `artifacts/commands/command_registry_seed.yaml`
@@ -36,6 +37,9 @@ Then:
 - Use `Left` / `Right` arrow keys to switch presets.
 - The inspector lists bindings as `title — command_id => shortcut(s)` and lists
   any detected same-layer collisions as conflicts requiring review.
+- The alpha truth summary appended to that sheet links preset fidelity,
+  current winning-source attribution, conflict rows, settings inspection rows,
+  and the retained migration report.
 
 ## Notes on current limitations
 
@@ -45,4 +49,6 @@ Then:
 - A conflict review is emitted when multiple equally-specific candidates contend
   for the same sequence in the same resolver layer; help surfaces should prefer
   quoting the conflict-review packet fields over recreating local summaries.
-
+- Alpha parity rows are exported in
+  `artifacts/commands/alpha_keybinding_parity_report.json`; non-exact preset
+  translations are labeled rather than inferred.

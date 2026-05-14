@@ -6,6 +6,8 @@ use aureline_commands::CommandRegistry;
 use aureline_input::keybindings::PlatformClass;
 use aureline_input::presets::{preset_binding_rows, preset_conflicts, KeymapPresetId};
 
+use crate::keybindings::build_alpha_keybinding_truth_lines;
+
 use super::keyboard_gap_audit::build_audit_summary_lines;
 
 fn stable_sort_key(command_id: &str, title: &str) -> (String, String) {
@@ -95,6 +97,9 @@ pub fn build_inspector_lines(
     }
 
     lines.extend(build_audit_summary_lines(registry, preset, platform));
+    lines.extend(build_alpha_keybinding_truth_lines(
+        registry, preset, platform,
+    ));
 
     lines
 }

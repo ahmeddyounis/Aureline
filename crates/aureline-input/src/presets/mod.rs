@@ -358,8 +358,8 @@ const VS_CODE_SPECS: [PresetBindingSpec; 25] = [
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",
-        macos_sequence: "Cmd+Shift+O",
-        other_sequence: "Ctrl+Shift+O",
+        macos_sequence: "Cmd+O",
+        other_sequence: "Ctrl+K Ctrl+O",
     },
     PresetBindingSpec {
         command_id: "cmd:explorer.toggle",
