@@ -27,6 +27,12 @@ systems must emit once implemented.
   publish the alpha Project Doctor probe/finding contract and read-only
   probe-pack baseline consumed by the support crate. They reuse the
   vocabularies below rather than replacing them.
+- [`/docs/support/project_doctor_probe_matrix_alpha.md`](./project_doctor_probe_matrix_alpha.md)
+  and
+  [`/fixtures/support/project_doctor_alpha/`](../../fixtures/support/project_doctor_alpha/)
+  publish the first executable alpha probe matrix for entry/open,
+  toolchain, search/index, trust/policy, Git, provider/auth, and restore
+  continuity failures.
 - [`/docs/support/probe_family_matrix.md`](./probe_family_matrix.md) and
   [`/artifacts/support/probe_families.yaml`](../../artifacts/support/probe_families.yaml)
   publish the probe-family matrix and non-destructive diagnosis rules

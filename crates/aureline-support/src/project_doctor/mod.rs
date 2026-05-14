@@ -22,6 +22,10 @@ pub const PROJECT_DOCTOR_HEADLESS_OUTPUT_RECORD_KIND: &str = "project_doctor_hea
 /// Stable record-kind tag for the human Project Doctor projection.
 pub const PROJECT_DOCTOR_HUMAN_OUTPUT_RECORD_KIND: &str = "project_doctor_human_output";
 
+/// Stable support/export packet id for executable alpha Doctor findings.
+pub const PROJECT_DOCTOR_ALPHA_RUNTIME_SUPPORT_PACKET_ID: &str =
+    "support.project_doctor.alpha_runtime";
+
 /// Repository-relative path of the alpha probe-pack artifact.
 pub const CURRENT_ALPHA_PROBE_PACK_PATH: &str =
     "artifacts/support/project_doctor_probe_pack_alpha.yaml";
@@ -55,6 +59,21 @@ const REQUIRED_FORBIDDEN_SIDE_EFFECTS: [&str; 8] = [
 /// [`ProjectDoctorProbePack`].
 pub fn current_alpha_probe_pack() -> Result<ProjectDoctorProbePack, serde_yaml::Error> {
     serde_yaml::from_str(CURRENT_ALPHA_PROBE_PACK_YAML)
+}
+
+/// Builds the support/export projection for executable alpha Doctor findings.
+///
+/// The support crate consumes the runtime projection without reclassifying
+/// probe results or scraping rendered text. The `aureline-doctor` crate remains
+/// the finding owner; this function only gives support bundles a stable packet
+/// id and export-safe row shape.
+pub fn alpha_runtime_support_output(
+    findings: &[aureline_doctor::probes::DoctorFinding],
+) -> aureline_doctor::probes::DoctorSupportExport {
+    aureline_doctor::probes::DoctorSupportExport::from_findings(
+        PROJECT_DOCTOR_ALPHA_RUNTIME_SUPPORT_PACKET_ID,
+        findings,
+    )
 }
 
 /// A parsed `project_doctor_probe_pack_record` artifact.

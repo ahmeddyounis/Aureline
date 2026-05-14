@@ -1,0 +1,68 @@
+schema_version: 1
+record_kind: project_doctor_alpha_probe_scenario
+scenario_id: project_doctor.alpha.search_index_readiness_stalled
+title: Search index readiness stalled below requested scope
+family: search_index_readiness
+probe_id: doctor.probe.search.index_readiness
+probe_version: probe.search.index_readiness.v1
+support_context: desktop
+
+scope:
+  scope_class: workspace
+  scope_ref: workspace:active.search_scope
+
+observed_state:
+  problem_class: search_index_readiness_stalled
+  expected_ref: search:index.fully_indexed_or_hot_set_ready
+  observed_ref: search:index.partial_stalled
+  expected_key: doctor.search_index.expected.ready_or_hot_set
+  observed_key: doctor.search_index.observed.partial_stalled
+
+evidence:
+  - evidence_ref: evidence:search.indexed_lane_state
+    evidence_role: primary
+    source_class: health_event
+    signal_class: health_event
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_default_metadata
+    replayability_class: replayable_from_refs
+  - evidence_ref: evidence:activity.indexing_job_row
+    evidence_role: corroborating
+    source_class: metric_counter
+    signal_class: metric
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_reference
+    replayability_class: replayable_from_refs
+
+safety:
+  read_only_by_default: true
+  allowed_side_effects:
+    - read_existing_metadata
+  forbidden_side_effects:
+    - activate_third_party_extension
+    - collect_high_risk_payload
+    - execute_repo_owned_code
+    - external_service_mutation
+    - mutate_cache_or_index
+    - mutate_target_or_route
+    - mutate_trust_policy_or_credentials
+    - mutate_user_files
+  later_repair_flow_required_for_mutation: true
+
+recovery:
+  recovery_action_id: action.search_index.open_status
+  recovery_action_class: open_index_status
+  repair_availability_class: preview_only
+  repair_candidate_ids:
+    - repair.search_index.rebuild.preview
+  recovery_path_ref: repair.preview.search_index.rebuild
+  runbook_ref: docs/support/runbook_execution_contract.md#search-index
+  support_bundle_ref: support.bundle.project_doctor.search_index
+  escalation_packet_ref: escalation.packet.project_doctor.search_index
+
+expected:
+  finding_id: finding:project_doctor:alpha:search_index_readiness_stalled
+  finding_code: doctor.finding.search_index.readiness_stalled
+  recovery_action_class: open_index_status

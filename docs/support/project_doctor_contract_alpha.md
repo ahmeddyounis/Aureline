@@ -14,6 +14,15 @@ are the canonical source for the lane:
   is the first support/export consumer. It parses the pack, validates the
   read-only invariants, and projects machine-readable and human-readable
   outputs from the same finding vocabulary.
+- [`/crates/aureline-doctor/src/probes`](../../crates/aureline-doctor/src/probes)
+  is the first executable alpha probe runtime. It consumes typed evidence from
+  entry, execution-context, search/index, trust, Git, provider/auth, and restore
+  surfaces, then emits read-only findings with exact recovery or escalation
+  refs.
+- [`/fixtures/support/project_doctor_alpha/`](../../fixtures/support/project_doctor_alpha/)
+  and
+  [`project_doctor_probe_matrix_alpha.md`](./project_doctor_probe_matrix_alpha.md)
+  publish the protected runtime proof matrix for those alpha failure families.
 
 The contract narrows the earlier supportability artifacts into one
 runtime-consumable shape. It reuses these existing sources instead of
@@ -125,4 +134,5 @@ Run:
 
 ```sh
 cargo test -p aureline-support project_doctor
+cargo test -p aureline-doctor
 ```

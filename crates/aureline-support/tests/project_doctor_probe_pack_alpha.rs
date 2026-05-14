@@ -7,8 +7,10 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use aureline_doctor::probes::{load_alpha_probe_scenario, ProjectDoctorAlpha};
 use aureline_support::project_doctor::{
-    current_alpha_probe_pack, ProjectDoctorProbePack, CURRENT_ALPHA_PROBE_PACK_PATH,
+    alpha_runtime_support_output, current_alpha_probe_pack, ProjectDoctorProbePack,
+    CURRENT_ALPHA_PROBE_PACK_PATH, PROJECT_DOCTOR_ALPHA_RUNTIME_SUPPORT_PACKET_ID,
     PROJECT_DOCTOR_HEADLESS_OUTPUT_RECORD_KIND, PROJECT_DOCTOR_HUMAN_OUTPUT_RECORD_KIND,
 };
 
@@ -184,4 +186,30 @@ fn project_doctor_alpha_schemas_and_artifact_are_valid_json_yaml_inputs() {
             schema
         );
     }
+}
+
+#[test]
+fn project_doctor_alpha_runtime_findings_project_to_support_export() {
+    let root = repo_root();
+    let path = root.join("fixtures/support/project_doctor_alpha/toolchain_missing_component.yaml");
+    let yaml = std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("read alpha runtime case {}: {err}", path.display()));
+    let scenario =
+        load_alpha_probe_scenario(&yaml).expect("project doctor alpha runtime case parses");
+    let finding = ProjectDoctorAlpha::new()
+        .diagnose(&scenario)
+        .expect("project doctor alpha runtime emits finding");
+
+    let export = alpha_runtime_support_output(&[finding]);
+
+    assert_eq!(
+        export.packet_id,
+        PROJECT_DOCTOR_ALPHA_RUNTIME_SUPPORT_PACKET_ID
+    );
+    assert_eq!(export.rows.len(), 1);
+    assert!(export.is_export_safe());
+    assert_eq!(
+        export.rows[0].finding_code,
+        "doctor.finding.toolchain_missing_required_component"
+    );
 }

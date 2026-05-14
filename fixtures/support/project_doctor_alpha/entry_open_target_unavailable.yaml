@@ -1,0 +1,68 @@
+schema_version: 1
+record_kind: project_doctor_alpha_probe_scenario
+scenario_id: project_doctor.alpha.entry_open_target_unavailable
+title: Entry target unavailable after recent workspace open
+family: entry_open
+probe_id: doctor.probe.entry.open_readiness
+probe_version: probe.entry.open_readiness.v1
+support_context: cli_headless
+
+scope:
+  scope_class: workspace
+  scope_ref: workspace:recent.checkout
+
+observed_state:
+  problem_class: entry_target_unavailable
+  expected_ref: admission:recent_workspace.target_available
+  observed_ref: admission:recent_workspace.target_missing
+  expected_key: doctor.entry_open.expected.target_available
+  observed_key: doctor.entry_open.observed.target_missing
+
+evidence:
+  - evidence_ref: evidence:admission.recent_workspace.target
+    evidence_role: primary
+    source_class: existing_manifest
+    signal_class: manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_default_metadata
+    replayability_class: replayable_from_refs
+  - evidence_ref: evidence:entry.intent.restore_last_session
+    evidence_role: corroborating
+    source_class: existing_manifest
+    signal_class: manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_reference
+    replayability_class: replayable_from_refs
+
+safety:
+  read_only_by_default: true
+  allowed_side_effects:
+    - read_existing_metadata
+  forbidden_side_effects:
+    - activate_third_party_extension
+    - collect_high_risk_payload
+    - execute_repo_owned_code
+    - external_service_mutation
+    - mutate_cache_or_index
+    - mutate_target_or_route
+    - mutate_trust_policy_or_credentials
+    - mutate_user_files
+  later_repair_flow_required_for_mutation: true
+
+recovery:
+  recovery_action_id: action.entry_open.locate_missing_target
+  recovery_action_class: locate_missing_target
+  repair_availability_class: reviewed_repair_available
+  repair_candidate_ids:
+    - repair.entry.locate_or_open_minimal
+  recovery_path_ref: recovery.entry.locate_or_open_minimal
+  runbook_ref: docs/support/runbook_execution_contract.md#entry-open
+  support_bundle_ref: support.bundle.project_doctor.entry_open
+  escalation_packet_ref: escalation.packet.project_doctor.entry_open
+
+expected:
+  finding_id: finding:project_doctor:alpha:entry_open_target_unavailable
+  finding_code: doctor.finding.entry_open.target_unavailable
+  recovery_action_class: locate_missing_target

@@ -1,0 +1,68 @@
+schema_version: 1
+record_kind: project_doctor_alpha_probe_scenario
+scenario_id: project_doctor.alpha.restore_replay_blocked
+title: Restore replay blocked to protect continuity
+family: restore_continuity
+probe_id: doctor.probe.restore.continuity
+probe_version: probe.restore.continuity.v1
+support_context: offline_local
+
+scope:
+  scope_class: workspace
+  scope_ref: workspace:restore.last_session
+
+observed_state:
+  problem_class: restore_replay_blocked
+  expected_ref: restore:session.safe_rehydrate_without_rerun
+  observed_ref: restore:session.unsafe_replay_blocked
+  expected_key: doctor.restore.expected.safe_rehydrate
+  observed_key: doctor.restore.observed.unsafe_replay_blocked
+
+evidence:
+  - evidence_ref: evidence:restore.hydration_phase_event
+    evidence_role: primary
+    source_class: health_event
+    signal_class: health_event
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_default_metadata
+    replayability_class: replayable_from_refs
+  - evidence_ref: evidence:restore.provenance.placeholder
+    evidence_role: corroborating
+    source_class: existing_manifest
+    signal_class: manifest
+    data_class: metadata_only
+    redaction_class: metadata_safe_default
+    support_pack_inclusion_class: included_by_reference
+    replayability_class: replayable_from_refs
+
+safety:
+  read_only_by_default: true
+  allowed_side_effects:
+    - read_existing_metadata
+  forbidden_side_effects:
+    - activate_third_party_extension
+    - collect_high_risk_payload
+    - execute_repo_owned_code
+    - external_service_mutation
+    - mutate_cache_or_index
+    - mutate_target_or_route
+    - mutate_trust_policy_or_credentials
+    - mutate_user_files
+  later_repair_flow_required_for_mutation: true
+
+recovery:
+  recovery_action_id: action.restore.open_without_restore
+  recovery_action_class: open_without_restore
+  repair_availability_class: preview_only
+  repair_candidate_ids:
+    - repair.restore.open_without_replay.preview
+  recovery_path_ref: recovery.restore.open_without_replay
+  runbook_ref: docs/support/runbook_execution_contract.md#restore-continuity
+  support_bundle_ref: support.bundle.project_doctor.restore_continuity
+  escalation_packet_ref: escalation.packet.project_doctor.restore_continuity
+
+expected:
+  finding_id: finding:project_doctor:alpha:restore_replay_blocked
+  finding_code: doctor.finding.restore_continuity.replay_blocked
+  recovery_action_class: open_without_restore
