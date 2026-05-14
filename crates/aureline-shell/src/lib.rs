@@ -91,4 +91,5 @@ pub mod tasks_seed;
 pub mod terminal_pane;
 pub mod wedge_inspector;
 pub mod windowing;
+pub mod workset_switcher;
 pub mod workspace_switcher;

@@ -35,6 +35,14 @@ pub enum ScopeTruthChipRecordKind {
     ScopeTruthChipRecord,
 }
 
+/// Identifies the `scope_widen_diff_record` record kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeWidenDiffRecordKind {
+    /// `scope_widen_diff_record`.
+    ScopeWidenDiffRecord,
+}
+
 /// Frozen scope-class vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -866,6 +874,257 @@ pub struct ScopeTruthChipRecord {
     pub emitted_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+}
+
+/// Typed class for one workset/slice diff entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeDiffClass {
+    /// Stable identity changed, which is invalid for widening diff records.
+    IdentityChange,
+    /// A root, folder, module, manifest entry, or graph seed was added.
+    MemberAdded,
+    /// A root, folder, module, manifest entry, or graph seed was removed.
+    MemberRemoved,
+    /// An include/exclude pattern admits more content in the candidate.
+    PatternBroadened,
+    /// An include/exclude pattern admits less content in the candidate.
+    PatternNarrowed,
+    /// A policy overlay hides more content in the candidate.
+    PolicyNarrowed,
+    /// A policy overlay exposes more content in the candidate.
+    PolicyWidened,
+    /// Readiness changed between the base and candidate artifacts.
+    ReadinessChanged,
+    /// Portability changed between the base and candidate artifacts.
+    PortabilityChanged,
+    /// Only presentation text changed.
+    PresentationOnly,
+}
+
+impl ScopeDiffClass {
+    /// Returns true when the entry contributes to a widening signal.
+    pub const fn widens_scope(self) -> bool {
+        matches!(
+            self,
+            Self::MemberAdded | Self::PatternBroadened | Self::PolicyWidened
+        )
+    }
+
+    /// Returns true when the entry contributes to a narrowing signal.
+    pub const fn narrows_scope(self) -> bool {
+        matches!(
+            self,
+            Self::MemberRemoved | Self::PatternNarrowed | Self::PolicyNarrowed
+        )
+    }
+}
+
+/// Rough index or fetch cost for materializing a scope candidate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpectedIndexCostClass {
+    /// No index or fetch work is expected.
+    None,
+    /// Existing warm caches can satisfy the candidate.
+    CacheWarm,
+    /// A bounded index pass is needed for newly visible members.
+    TargetedIndex,
+    /// A full index rebuild is needed.
+    FullReindex,
+    /// Remote data must be fetched before the candidate can be authoritative.
+    RemoteFetchRequired,
+}
+
+/// One typed entry in a scope widen or narrow diff.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeDiffEntry {
+    /// Class of change represented by this entry.
+    pub diff_class: ScopeDiffClass,
+    /// Member affected by the change, when the diff is member-scoped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub affected_member_ref: Option<MemberRef>,
+    /// Pattern affected by the change, when the diff is pattern-scoped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub affected_pattern: Option<PatternEntry>,
+    /// Redaction-aware explanation rendered by review and support surfaces.
+    pub note: String,
+}
+
+/// Typed diff between two workset artifacts or scope candidates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeWidenDiffRecord {
+    /// Discriminator for the serialized record shape.
+    pub record_kind: ScopeWidenDiffRecordKind,
+    /// Schema version for the serialized diff shape.
+    pub workset_artifact_schema_version: WorksetArtifactSchemaVersion,
+    /// Stable diff identity.
+    pub diff_id: String,
+    /// Active workset before the diff is applied.
+    pub base_workset_ref: String,
+    /// Candidate workset after widening or narrowing.
+    pub candidate_workset_ref: String,
+    /// Typed entry list; never empty.
+    pub entries: Vec<ScopeDiffEntry>,
+    /// True when the candidate admits more scope than the base.
+    pub widens_scope: bool,
+    /// True when the candidate admits less scope than the base.
+    pub narrows_scope: bool,
+    /// True when the candidate changes portability posture.
+    pub changes_portability: bool,
+    /// True when the candidate changes readiness posture.
+    pub changes_readiness: bool,
+    /// True only when every entry is presentation-only.
+    pub presentation_only: bool,
+    /// Rough index/fetch cost for materializing the candidate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_index_cost_class: Option<ExpectedIndexCostClass>,
+    /// Whether a remote fetch is required before the candidate can activate.
+    #[serde(default)]
+    pub remote_fetch_required: bool,
+    /// Producer-local monotonic timestamp.
+    pub emitted_at: String,
+    /// Optional redaction-aware notes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+}
+
+/// Errors detected while validating a [`ScopeWidenDiffRecord`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScopeWidenDiffError {
+    /// The diff schema version is not supported by this crate.
+    SchemaVersionMismatch(WorksetArtifactSchemaVersion),
+    /// The diff id is missing.
+    EmptyDiffId,
+    /// The base workset ref is missing.
+    EmptyBaseWorksetRef,
+    /// The candidate workset ref is missing.
+    EmptyCandidateWorksetRef,
+    /// Base and candidate refs must be different stable identities.
+    CandidateReusesBaseIdentity,
+    /// Diff entries are required.
+    EmptyEntries,
+    /// A diff entry used the forbidden identity-change class.
+    IdentityChangeForbidden,
+    /// Presentation-only diffs cannot also widen, narrow, or change readiness/portability.
+    PresentationOnlyHasBehavioralChange,
+    /// A behavioral diff was marked presentation-only.
+    BehavioralDiffMarkedPresentationOnly,
+    /// The widens_scope flag does not match the entries.
+    WidenFlagMismatch,
+    /// The narrows_scope flag does not match the entries.
+    NarrowFlagMismatch,
+    /// Remote fetch cost must disclose a remote fetch requirement.
+    RemoteFetchCostWithoutRemoteRequirement,
+}
+
+impl std::fmt::Display for ScopeWidenDiffError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SchemaVersionMismatch(version) => write!(
+                f,
+                "unsupported workset_artifact_schema_version {version}; this seed accepts version 1"
+            ),
+            Self::EmptyDiffId => write!(f, "diff_id must not be empty"),
+            Self::EmptyBaseWorksetRef => write!(f, "base_workset_ref must not be empty"),
+            Self::EmptyCandidateWorksetRef => write!(f, "candidate_workset_ref must not be empty"),
+            Self::CandidateReusesBaseIdentity => {
+                write!(f, "candidate_workset_ref must not equal base_workset_ref")
+            }
+            Self::EmptyEntries => write!(f, "entries must contain at least one diff entry"),
+            Self::IdentityChangeForbidden => {
+                write!(f, "identity_change is forbidden on scope widen diff records")
+            }
+            Self::PresentationOnlyHasBehavioralChange => write!(
+                f,
+                "presentation_only diffs must not widen, narrow, or change readiness/portability"
+            ),
+            Self::BehavioralDiffMarkedPresentationOnly => {
+                write!(f, "behavioral diff entries cannot be marked presentation_only")
+            }
+            Self::WidenFlagMismatch => write!(f, "widens_scope does not match diff entries"),
+            Self::NarrowFlagMismatch => write!(f, "narrows_scope does not match diff entries"),
+            Self::RemoteFetchCostWithoutRemoteRequirement => write!(
+                f,
+                "expected_index_cost_class remote_fetch_required requires remote_fetch_required = true"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ScopeWidenDiffError {}
+
+impl ScopeWidenDiffRecord {
+    /// Validates the diff record against the portable workset alpha invariants.
+    pub fn validate(&self) -> Result<(), ScopeWidenDiffError> {
+        if self.workset_artifact_schema_version != 1 {
+            return Err(ScopeWidenDiffError::SchemaVersionMismatch(
+                self.workset_artifact_schema_version,
+            ));
+        }
+        if self.diff_id.is_empty() {
+            return Err(ScopeWidenDiffError::EmptyDiffId);
+        }
+        if self.base_workset_ref.is_empty() {
+            return Err(ScopeWidenDiffError::EmptyBaseWorksetRef);
+        }
+        if self.candidate_workset_ref.is_empty() {
+            return Err(ScopeWidenDiffError::EmptyCandidateWorksetRef);
+        }
+        if self.base_workset_ref == self.candidate_workset_ref {
+            return Err(ScopeWidenDiffError::CandidateReusesBaseIdentity);
+        }
+        if self.entries.is_empty() {
+            return Err(ScopeWidenDiffError::EmptyEntries);
+        }
+        if self
+            .entries
+            .iter()
+            .any(|entry| entry.diff_class == ScopeDiffClass::IdentityChange)
+        {
+            return Err(ScopeWidenDiffError::IdentityChangeForbidden);
+        }
+
+        let all_presentation = self
+            .entries
+            .iter()
+            .all(|entry| entry.diff_class == ScopeDiffClass::PresentationOnly);
+        if self.presentation_only {
+            if !all_presentation {
+                return Err(ScopeWidenDiffError::BehavioralDiffMarkedPresentationOnly);
+            }
+            if self.widens_scope
+                || self.narrows_scope
+                || self.changes_portability
+                || self.changes_readiness
+            {
+                return Err(ScopeWidenDiffError::PresentationOnlyHasBehavioralChange);
+            }
+        } else if all_presentation {
+            return Err(ScopeWidenDiffError::BehavioralDiffMarkedPresentationOnly);
+        }
+
+        let entry_widens = self
+            .entries
+            .iter()
+            .any(|entry| entry.diff_class.widens_scope());
+        if self.widens_scope != entry_widens {
+            return Err(ScopeWidenDiffError::WidenFlagMismatch);
+        }
+        let entry_narrows = self
+            .entries
+            .iter()
+            .any(|entry| entry.diff_class.narrows_scope());
+        if self.narrows_scope != entry_narrows {
+            return Err(ScopeWidenDiffError::NarrowFlagMismatch);
+        }
+        if self.expected_index_cost_class == Some(ExpectedIndexCostClass::RemoteFetchRequired)
+            && !self.remote_fetch_required
+        {
+            return Err(ScopeWidenDiffError::RemoteFetchCostWithoutRemoteRequirement);
+        }
+        Ok(())
+    }
 }
 
 /// Consumer class that projects a workset/scope binding.
