@@ -30,6 +30,7 @@ pub mod discovery;
 pub mod execution_context;
 pub mod language_hosts;
 pub mod managed_alpha;
+pub mod packages;
 pub mod provenance;
 pub mod rerun;
 pub mod targets;
@@ -102,6 +103,24 @@ pub use managed_alpha::{
     MANAGED_WORKSPACE_ALPHA_LANE_ID, MANAGED_WORKSPACE_ALPHA_RECORD_KIND,
     MANAGED_WORKSPACE_ALPHA_SCHEMA_VERSION, MANAGED_WORKSPACE_RUNTIME_INSPECTION_RECORD_KIND,
     MANAGED_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use packages::{
+    DependencySection, LockfileAlphaRef, LockfileCouplingClass, LockfileImpactAlphaRecord,
+    LockfileImpactClass, LockfileMutationMode, ManifestDeltaClass, ManifestRequirementState,
+    ManifestScopeAlphaDescriptor, ManifestScopeClass, MirrorOrOfflineStateClass,
+    NodePackageMutationReviewRequest, NodePackageMutationReviewer,
+    NodePackageMutationReviewerConfig, PackageAuditResultClass, PackageManagerFamily,
+    PackageOperationAlphaPacket, PackageOperationAlphaViolation, PackageOperationAuditLineage,
+    PackageOperationAuditPacket, PackageOperationClass, PackageOperationNoHiddenMutationGuards,
+    PackageOperationSupportExport, PackageOperationSupportExportRow, PackageRedactionClass,
+    PackageResolverIdentity, PackageReviewOutcomeClass, RegistryAuthModeClass,
+    RegistryFreshnessClass, RegistryRevocationStateClass, RegistrySourceAlphaDescriptor,
+    RegistrySourceClass, RollbackCheckpointAlphaSummary, RollbackPostureClass,
+    ScriptRiskAlphaDescriptor, ScriptRiskClass, TransitiveImpactClass, ValidationTaskClass,
+    LOCKFILE_IMPACT_ALPHA_RECORD_KIND, MANIFEST_SCOPE_ALPHA_RECORD_KIND,
+    PACKAGE_MUTATION_REVIEWER_VERSION, PACKAGE_OPERATION_ALPHA_RECORD_KIND,
+    PACKAGE_OPERATION_ALPHA_SCHEMA_VERSION, PACKAGE_OPERATION_AUDIT_RECORD_KIND,
+    PACKAGE_OPERATION_SUPPORT_EXPORT_RECORD_KIND, REGISTRY_SOURCE_ALPHA_RECORD_KIND,
 };
 pub use provenance::{
     dedupe_context_provenance, ExecutionEventProvenance, ExecutionProvenanceEvent,

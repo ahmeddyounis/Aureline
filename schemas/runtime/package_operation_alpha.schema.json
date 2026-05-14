@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/package_operation_alpha.schema.json",
+  "title": "Aureline package-operation alpha packet",
+  "description": "Boundary schema for package_operation_alpha_packet, package_operation_audit_packet, and package_operation_support_export records. The packet makes one TS/JS dependency mutation reviewable: manifest scope, registry/auth source, script/native-build risk, lockfile-impact regenerate mode, rollback checkpoint, validation tasks, and audit lineage are explicit before apply. Raw manifests, lockfiles, lifecycle scripts, package-manager logs, registry URLs, tokens, and certificate material never appear.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/package_operation_alpha_packet" },
+    { "$ref": "#/$defs/package_operation_audit_packet" },
+    { "$ref": "#/$defs/package_operation_support_export" }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_non_empty_string": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+    },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "package_manager_family": {
+      "type": "string",
+      "enum": ["npm", "pnpm", "package_manager_unknown_requires_review"]
+    },
+    "package_operation_class": {
+      "type": "string",
+      "enum": [
+        "install_new_dependency",
+        "upgrade_existing_dependency",
+        "remove_existing_dependency",
+        "audit_only_no_state_change",
+        "restore_lockfile_to_checkpoint"
+      ]
+    },
+    "dependency_section": {
+      "type": "string",
+      "enum": ["dependencies", "dev_dependencies", "optional_dependencies", "peer_dependencies"]
+    },
+    "manifest_delta_class": {
+      "type": "string",
+      "enum": [
+        "dependency_entry_added",
+        "dependency_entry_updated",
+        "dependency_entry_removed",
+        "manifest_unchanged_audit_only",
+        "manifest_delta_unknown_requires_review"
+      ]
+    },
+    "manifest_requirement_state": {
+      "type": "string",
+      "enum": [
+        "absent",
+        "present_same_requirement",
+        "present_different_requirement",
+        "unknown_manifest_unavailable"
+      ]
+    },
+    "script_risk_class": {
+      "type": "string",
+      "enum": [
+        "no_script_no_native_build",
+        "declarative_metadata_only",
+        "post_install_script_runs_in_sandbox",
+        "post_install_script_runs_unsandboxed_user_consent_required",
+        "native_compilation_required_local_toolchain",
+        "prebuilt_binary_with_runtime_loader",
+        "platform_specific_binary_unverified_origin",
+        "script_risk_unknown_requires_review"
+      ]
+    },
+    "rollback_posture_class": {
+      "type": "string",
+      "enum": [
+        "rollback_via_lockfile_checkpoint",
+        "rollback_via_workspace_snapshot_checkpoint",
+        "rollback_requires_re_resolve_no_inline_checkpoint",
+        "rollback_blocked_native_artifacts_must_be_recompiled",
+        "rollback_blocked_post_install_script_was_unsandboxed",
+        "rollback_unavailable_destructive_remove_with_no_checkpoint",
+        "rollback_posture_not_applicable_read_only"
+      ]
+    },
+    "validation_task_class": {
+      "type": "string",
+      "enum": [
+        "typecheck",
+        "lint",
+        "build",
+        "unit_test",
+        "integration_test",
+        "license_audit",
+        "security_audit",
+        "dependency_audit",
+        "format_check"
+      ]
+    },
+    "review_outcome_class": {
+      "type": "string",
+      "enum": [
+        "review_admitted_apply_pending",
+        "review_blocked_pending_native_build_consent",
+        "review_blocked_pending_lockfile_resolution",
+        "review_blocked_pending_policy",
+        "review_blocked_pending_user_decision",
+        "review_reported_read_only"
+      ]
+    },
+    "audit_result_class": {
+      "type": "string",
+      "enum": [
+        "preview_created",
+        "apply_pending_user_confirmation",
+        "apply_blocked_by_review",
+        "apply_completed_clean",
+        "rollback_preview_created"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "script_risk_alpha_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["script_risk_class", "script_risk_token", "disclosure"],
+      "properties": {
+        "script_risk_class": { "$ref": "#/$defs/script_risk_class" },
+        "script_risk_token": { "$ref": "#/$defs/script_risk_class" },
+        "lifecycle_script_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "postinstall_hook_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "native_toolchain_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "sandbox_policy_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "consent_ticket_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "manifest_diff_alpha_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_section",
+        "dependency_section_token",
+        "manifest_delta_class",
+        "manifest_delta_token",
+        "package_coordinate_ref",
+        "current_requirement_state",
+        "current_requirement_state_token",
+        "manifest_diff_precomputed",
+        "disclosure"
+      ],
+      "properties": {
+        "dependency_section": { "$ref": "#/$defs/dependency_section" },
+        "dependency_section_token": { "$ref": "#/$defs/dependency_section" },
+        "manifest_delta_class": { "$ref": "#/$defs/manifest_delta_class" },
+        "manifest_delta_token": { "$ref": "#/$defs/manifest_delta_class" },
+        "package_coordinate_ref": { "$ref": "#/$defs/non_empty_string" },
+        "current_requirement_state": { "$ref": "#/$defs/manifest_requirement_state" },
+        "current_requirement_state_token": { "$ref": "#/$defs/manifest_requirement_state" },
+        "manifest_diff_precomputed": { "type": "boolean" },
+        "disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "rollback_checkpoint_alpha_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_posture_class",
+        "rollback_posture_token",
+        "checkpoint_created_before_apply",
+        "disclosure"
+      ],
+      "properties": {
+        "rollback_posture_class": { "$ref": "#/$defs/rollback_posture_class" },
+        "rollback_posture_token": { "$ref": "#/$defs/rollback_posture_class" },
+        "lockfile_checkpoint_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "workspace_snapshot_checkpoint_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "cache_checkpoint_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "checkpoint_created_before_apply": { "type": "boolean" },
+        "disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "no_hidden_mutation_guards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lockfile_impact_declared",
+        "package_cache_writes_declared",
+        "sidecar_downloads_declared",
+        "workspace_scripts_declared",
+        "registry_source_declared",
+        "auth_source_declared",
+        "script_risk_declared",
+        "target_context_bound_before_network",
+        "cross_surface_comparison_ready"
+      ],
+      "properties": {
+        "lockfile_impact_declared": { "type": "boolean", "const": true },
+        "package_cache_writes_declared": { "type": "boolean", "const": true },
+        "sidecar_downloads_declared": { "type": "boolean", "const": true },
+        "workspace_scripts_declared": { "type": "boolean", "const": true },
+        "registry_source_declared": { "type": "boolean", "const": true },
+        "auth_source_declared": { "type": "boolean", "const": true },
+        "script_risk_declared": { "type": "boolean", "const": true },
+        "target_context_bound_before_network": { "type": "boolean", "const": true },
+        "cross_surface_comparison_ready": { "type": "boolean", "const": true }
+      }
+    },
+    "audit_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_ref",
+        "command_id_ref",
+        "issuing_surface",
+        "execution_context_ref",
+        "target_identity_ref",
+        "workspace_scope_ref",
+        "policy_epoch_ref"
+      ],
+      "properties": {
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "issuing_surface": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approval_ticket_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "package_operation_alpha_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "reviewer_version",
+        "package_operation_id",
+        "operation_class",
+        "operation_token",
+        "package_manager_family",
+        "package_manager_family_token",
+        "reviewed_at",
+        "manifest_scope",
+        "registry_source",
+        "script_risk",
+        "manifest_diff",
+        "lockfile_impact",
+        "rollback",
+        "no_hidden_mutation_guards",
+        "review_outcome_class",
+        "review_outcome_token",
+        "audit_lineage",
+        "redaction_class",
+        "redaction_token",
+        "export_safe"
+      ],
+      "properties": {
+        "record_kind": { "const": "package_operation_alpha_packet" },
+        "schema_version": { "const": 1 },
+        "reviewer_version": { "$ref": "#/$defs/non_empty_string" },
+        "package_operation_id": { "$ref": "#/$defs/non_empty_string" },
+        "operation_class": { "$ref": "#/$defs/package_operation_class" },
+        "operation_token": { "$ref": "#/$defs/package_operation_class" },
+        "package_manager_family": { "$ref": "#/$defs/package_manager_family" },
+        "package_manager_family_token": { "$ref": "#/$defs/package_manager_family" },
+        "reviewed_at": { "type": "string", "format": "date-time" },
+        "manifest_scope": { "$ref": "https://aureline.dev/schemas/runtime/manifest_scope_alpha.schema.json" },
+        "registry_source": { "$ref": "https://aureline.dev/schemas/runtime/registry_source_alpha.schema.json" },
+        "script_risk": { "$ref": "#/$defs/script_risk_alpha_descriptor" },
+        "manifest_diff": { "$ref": "#/$defs/manifest_diff_alpha_summary" },
+        "lockfile_impact": { "$ref": "https://aureline.dev/schemas/runtime/lockfile_impact_alpha.schema.json" },
+        "rollback": { "$ref": "#/$defs/rollback_checkpoint_alpha_summary" },
+        "validation_tasks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_task_class" },
+          "uniqueItems": true
+        },
+        "validation_task_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_task_class" },
+          "uniqueItems": true
+        },
+        "no_hidden_mutation_guards": { "$ref": "#/$defs/no_hidden_mutation_guards" },
+        "review_outcome_class": { "$ref": "#/$defs/review_outcome_class" },
+        "review_outcome_token": { "$ref": "#/$defs/review_outcome_class" },
+        "blocked_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "audit_lineage": { "$ref": "#/$defs/audit_lineage" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "redaction_token": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "const": true }
+      }
+    },
+    "package_operation_audit_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_packet_id",
+        "package_operation_ref",
+        "actor_ref",
+        "command_id_ref",
+        "manifest_scope_ref",
+        "registry_source_ref",
+        "lockfile_impact_ref",
+        "result_class",
+        "result_token",
+        "review_outcome_class",
+        "review_outcome_token",
+        "recorded_at",
+        "redaction_class",
+        "redaction_token",
+        "export_safe"
+      ],
+      "properties": {
+        "record_kind": { "const": "package_operation_audit_packet" },
+        "schema_version": { "const": 1 },
+        "audit_packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "package_operation_ref": { "$ref": "#/$defs/non_empty_string" },
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "manifest_scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "registry_source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lockfile_impact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "result_class": { "$ref": "#/$defs/audit_result_class" },
+        "result_token": { "$ref": "#/$defs/audit_result_class" },
+        "review_outcome_class": { "$ref": "#/$defs/review_outcome_class" },
+        "review_outcome_token": { "$ref": "#/$defs/review_outcome_class" },
+        "rollback_checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "recorded_at": { "type": "string", "format": "date-time" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "redaction_token": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "const": true }
+      }
+    },
+    "support_export_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_operation_ref",
+        "operation_token",
+        "package_manager_family_token",
+        "actor_ref",
+        "command_id_ref",
+        "active_manifest_path",
+        "manifest_scope_token",
+        "registry_source_token",
+        "auth_mode_token",
+        "script_risk_token",
+        "lockfile_impact_token",
+        "lockfile_mutation_mode_token",
+        "rollback_posture_token",
+        "review_outcome_token",
+        "raw_payloads_exported"
+      ],
+      "properties": {
+        "package_operation_ref": { "$ref": "#/$defs/non_empty_string" },
+        "operation_token": { "$ref": "#/$defs/package_operation_class" },
+        "package_manager_family_token": { "$ref": "#/$defs/package_manager_family" },
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "active_manifest_path": { "$ref": "#/$defs/non_empty_string" },
+        "manifest_scope_token": { "$ref": "https://aureline.dev/schemas/runtime/manifest_scope_alpha.schema.json#/$defs/manifest_scope_class" },
+        "registry_source_token": { "$ref": "https://aureline.dev/schemas/runtime/registry_source_alpha.schema.json#/$defs/registry_source_class" },
+        "auth_mode_token": { "$ref": "https://aureline.dev/schemas/runtime/registry_source_alpha.schema.json#/$defs/registry_auth_mode_class" },
+        "script_risk_token": { "$ref": "#/$defs/script_risk_class" },
+        "lockfile_impact_token": { "$ref": "https://aureline.dev/schemas/runtime/lockfile_impact_alpha.schema.json#/$defs/lockfile_impact_class" },
+        "lockfile_mutation_mode_token": { "$ref": "https://aureline.dev/schemas/runtime/lockfile_impact_alpha.schema.json#/$defs/lockfile_mutation_mode" },
+        "rollback_posture_token": { "$ref": "#/$defs/rollback_posture_class" },
+        "review_outcome_token": { "$ref": "#/$defs/review_outcome_class" },
+        "raw_payloads_exported": { "type": "boolean", "const": false }
+      }
+    },
+    "package_operation_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "generated_at",
+        "rows",
+        "redaction_safe"
+      ],
+      "properties": {
+        "record_kind": { "const": "package_operation_support_export" },
+        "schema_version": { "const": 1 },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_export_row" }
+        },
+        "redaction_safe": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}
