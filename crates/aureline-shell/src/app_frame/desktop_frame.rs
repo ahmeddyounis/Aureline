@@ -427,7 +427,7 @@ impl DesktopFrame {
                 "status.slot.context.execution",
                 "status.slot.work.summary",
                 "status.slot.metadata.file",
-                "status.slot.extension.scoped",
+                "status.slot.efficiency.state",
             ],
             ShellZoneId::TransientOverlay => &[
                 "slot.overlay.command_palette",
@@ -577,7 +577,7 @@ mod tests {
                 "status.slot.context.execution",
                 "status.slot.work.summary",
                 "status.slot.metadata.file",
-                "status.slot.extension.scoped"
+                "status.slot.efficiency.state"
             ]
         );
     }

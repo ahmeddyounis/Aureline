@@ -7388,6 +7388,25 @@ fn handle_status_bar_click(
             command_runtime.note_non_command_action("status encoding opened source fidelity");
             true
         }
+        StatusBarSlotActivation::EfficiencyDetail => {
+            if snapshot.item(StatusBarItemKind::EfficiencyState).is_some() {
+                *overlay = Some(ShellOverlayState::status_bar_item_detail(
+                    frame.focused_zone(),
+                    frame.focused_editor_group(),
+                    status_bar_detail_lines(
+                        "Efficiency state",
+                        &snapshot,
+                        &[StatusBarItemKind::EfficiencyState],
+                    ),
+                ));
+                frame.focus_zone(ShellZoneId::TransientOverlay);
+                command_runtime.note_non_command_action("status efficiency opened details");
+            } else {
+                frame.focus_zone(ShellZoneId::StatusBar);
+                command_runtime.note_non_command_action("status efficiency slot focused");
+            }
+            true
+        }
         StatusBarSlotActivation::RecoveryDetail => {
             let kinds: Vec<StatusBarItemKind> = snapshot
                 .items
@@ -7721,6 +7740,7 @@ enum StatusBarSlotSource {
     ExecutionContext,
     WorkSummary,
     FileMetadata,
+    EfficiencyState,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7730,6 +7750,7 @@ enum StatusBarSlotActivation {
     WorkspaceSwitcher,
     WorkSummary,
     SourceFidelity,
+    EfficiencyDetail,
     Fallback,
 }
 
@@ -7746,6 +7767,7 @@ fn status_bar_slot_source(slot_id: &str) -> Option<StatusBarSlotSource> {
         "status.slot.context.execution" => Some(StatusBarSlotSource::ExecutionContext),
         "status.slot.work.summary" => Some(StatusBarSlotSource::WorkSummary),
         "status.slot.metadata.file" => Some(StatusBarSlotSource::FileMetadata),
+        "status.slot.efficiency.state" => Some(StatusBarSlotSource::EfficiencyState),
         _ => None,
     }
 }
@@ -7762,6 +7784,7 @@ fn status_bar_slot_activation(slot_id: &str) -> StatusBarSlotActivation {
         "status.slot.context.execution" => StatusBarSlotActivation::WorkspaceSwitcher,
         "status.slot.work.summary" => StatusBarSlotActivation::WorkSummary,
         "status.slot.metadata.file" => StatusBarSlotActivation::SourceFidelity,
+        "status.slot.efficiency.state" => StatusBarSlotActivation::EfficiencyDetail,
         _ => StatusBarSlotActivation::Fallback,
     }
 }
@@ -7831,6 +7854,7 @@ fn status_bar_snapshot_for_shell(
             aggregate_degraded: status_bar_background_degraded(&activity_snapshot),
             observed_at: observed_at.as_str(),
         },
+        efficiency: None,
     };
     StatusBarSnapshot::project(&inputs)
 }
@@ -8059,6 +8083,13 @@ fn status_bar_slot_paint(
             StatusBarSlotPaint {
                 label: status_bar_item_label(encoding),
                 attention: status_bar_items_attention([encoding]),
+            }
+        }
+        "status.slot.efficiency.state" => {
+            let efficiency = snapshot.item(StatusBarItemKind::EfficiencyState)?;
+            StatusBarSlotPaint {
+                label: status_bar_item_label(efficiency),
+                attention: status_bar_items_attention([efficiency]),
             }
         }
         _ => return None,
@@ -21296,6 +21327,14 @@ mod status_bar_shell_tests {
         assert_eq!(
             status_bar_slot_activation("status.slot.context.execution"),
             StatusBarSlotActivation::WorkspaceSwitcher
+        );
+    }
+
+    #[test]
+    fn efficiency_slot_routes_to_efficiency_detail_activation() {
+        assert_eq!(
+            status_bar_slot_activation("status.slot.efficiency.state"),
+            StatusBarSlotActivation::EfficiencyDetail
         );
     }
 }

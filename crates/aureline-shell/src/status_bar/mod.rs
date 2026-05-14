@@ -47,6 +47,7 @@ use aureline_workspace::save::{
 };
 use aureline_workspace::TrustState as WorkspaceTrustState;
 
+use crate::efficiency::EfficiencyStatusSnapshot;
 use crate::state_cards::DegradedStateToken;
 
 /// Stable record-kind tag carried in serialized status-bar snapshots.
@@ -61,9 +62,9 @@ pub const STATUS_BAR_ITEM_SCHEMA_VERSION: u32 = 1;
 
 /// Stable item kinds rendered on the protected M1 status-bar seed.
 ///
-/// The seed renders exactly one row per kind; items are not duplicated and
-/// extension contributions are out of scope for the seed. Their priority and
-/// stable slot keys mirror the contract frozen at
+/// The seed renders one row per kind when the upstream truth is active; items
+/// are not duplicated and extension contributions are out of scope for the
+/// seed. Their priority and stable slot keys mirror the contract frozen at
 /// `docs/ux/status_bar_contract.md`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -78,6 +79,8 @@ pub enum StatusBarItemKind {
     Encoding,
     /// Aggregated background-work summary.
     BackgroundState,
+    /// Active efficiency state when power or thermal pressure changed behavior.
+    EfficiencyState,
 }
 
 impl StatusBarItemKind {
@@ -89,6 +92,7 @@ impl StatusBarItemKind {
             Self::Trust => "status.item.trust.workspace",
             Self::Encoding => "status.item.encoding.file",
             Self::BackgroundState => "status.item.background.work_summary",
+            Self::EfficiencyState => "status.item.efficiency.state",
         }
     }
 
@@ -100,6 +104,7 @@ impl StatusBarItemKind {
             Self::Trust => "status.slot.context.workspace",
             Self::Encoding => "status.slot.metadata.file",
             Self::BackgroundState => "status.slot.work.summary",
+            Self::EfficiencyState => "status.slot.efficiency.state",
         }
     }
 
@@ -112,6 +117,7 @@ impl StatusBarItemKind {
             Self::Trust => StatusItemClass::ActiveContextTruth,
             Self::Encoding => StatusItemClass::AmbientMetadata,
             Self::BackgroundState => StatusItemClass::OngoingWork,
+            Self::EfficiencyState => StatusItemClass::OngoingWork,
         }
     }
 
@@ -123,6 +129,7 @@ impl StatusBarItemKind {
             Self::Trust => "Trust",
             Self::Encoding => "Encoding",
             Self::BackgroundState => "Work",
+            Self::EfficiencyState => "Power",
         }
     }
 
@@ -137,6 +144,7 @@ impl StatusBarItemKind {
             Self::Trust => "cmd:workspace.trust.review",
             Self::Encoding => "cmd:editor.source_fidelity.inspect",
             Self::BackgroundState => "cmd:activity.work_summary.open",
+            Self::EfficiencyState => "cmd:runtime.efficiency_state.inspect",
         }
     }
 
@@ -148,6 +156,7 @@ impl StatusBarItemKind {
             Self::Trust => "inspector.workspace.trust_review",
             Self::Encoding => "inspector.editor.source_fidelity",
             Self::BackgroundState => "surface.activity_center.work_summary",
+            Self::EfficiencyState => "surface.runtime.efficiency_state",
         }
     }
 }
@@ -273,6 +282,8 @@ pub struct StatusBarInputs<'a> {
     pub encoding: EncodingSnapshot<'a>,
     /// Background-state slice aggregated from durable job rows / activity center.
     pub background: BackgroundStateSnapshot<'a>,
+    /// Efficiency-state projection when power or thermal pressure changed behavior.
+    pub efficiency: Option<EfficiencyStatusSnapshot>,
 }
 
 /// One projected status-bar row.
@@ -326,6 +337,9 @@ impl StatusBarSnapshot {
             project_encoding(&inputs.encoding),
             project_background(&inputs.background),
         ];
+        if let Some(efficiency) = inputs.efficiency.as_ref() {
+            items.push(project_efficiency(efficiency));
+        }
         items.sort_by_key(|item| item.priority_rank);
         Self {
             record_kind: STATUS_BAR_SNAPSHOT_RECORD_KIND.to_owned(),
@@ -565,6 +579,45 @@ fn project_background(background: &BackgroundStateSnapshot<'_>) -> StatusBarItem
     )
 }
 
+fn project_efficiency(efficiency: &EfficiencyStatusSnapshot) -> StatusBarItemRecord {
+    let degraded = efficiency
+        .degraded_token
+        .as_deref()
+        .and_then(degraded_token_from_str);
+    let class = if efficiency.is_recovery_critical {
+        StatusItemClass::RecoveryCritical
+    } else {
+        StatusBarItemKind::EfficiencyState.default_item_class()
+    };
+    build_item(
+        StatusBarItemKind::EfficiencyState,
+        class,
+        30,
+        efficiency.current_value_label.clone(),
+        efficiency.explanation.clone(),
+        degraded,
+        "status_bar_item_efficiency".to_owned(),
+        "runtime.efficiency_state",
+    )
+}
+
+fn degraded_token_from_str(token: &str) -> Option<DegradedStateToken> {
+    match token {
+        "Warming" => Some(DegradedStateToken::Warming),
+        "Cached" => Some(DegradedStateToken::Cached),
+        "Partial" => Some(DegradedStateToken::Partial),
+        "Stale" => Some(DegradedStateToken::Stale),
+        "Offline" => Some(DegradedStateToken::Offline),
+        "PolicyBlocked" => Some(DegradedStateToken::PolicyBlocked),
+        "Limited" => Some(DegradedStateToken::Limited),
+        "Unsupported" => Some(DegradedStateToken::Unsupported),
+        "Labs" => Some(DegradedStateToken::Labs),
+        "Experimental" => Some(DegradedStateToken::Experimental),
+        "RetestPending" => Some(DegradedStateToken::RetestPending),
+        _ => None,
+    }
+}
+
 fn classify_encoding(
     record: &SourceFidelityRecord,
 ) -> (StatusItemClass, Option<DegradedStateToken>) {
@@ -668,6 +721,7 @@ mod tests {
                 aggregate_degraded: None,
                 observed_at: "2026-05-10T12:00:00Z",
             },
+            efficiency: None,
         }
     }
 
@@ -837,6 +891,39 @@ mod tests {
             .expect("background row");
         assert_eq!(background.current_value_label, "Idle · Offline");
         assert_eq!(background.degraded_token.as_deref(), Some("Offline"));
+    }
+
+    #[test]
+    fn efficiency_state_renders_when_power_or_thermal_changes_behavior() {
+        let fidelity = fidelity_utf8_lf();
+        let mut inputs = nominal_inputs(Some(&fidelity), &[]);
+        inputs.efficiency = Some(EfficiencyStatusSnapshot {
+            record_kind: crate::efficiency::EFFICIENCY_STATUS_RECORD_KIND.to_owned(),
+            schema_version: 1,
+            active_state: "ThermalConstrained".to_owned(),
+            pressure_sources: vec!["thermal_pressure".to_owned()],
+            behavior_changed: true,
+            affected_capability_count: 3,
+            current_value_label: "Thermal constrained · thermal pressure".to_owned(),
+            explanation:
+                "Thermal constrained changed background work because of thermal pressure; 3 capability rows name what paused or reduced."
+                    .to_owned(),
+            accessibility_label: "Efficiency state: Thermal constrained".to_owned(),
+            primary_command_id: "cmd:runtime.efficiency_state.inspect".to_owned(),
+            opens_surface_ref: "surface.runtime.efficiency_state".to_owned(),
+            degraded_token: Some("Limited".to_owned()),
+            is_recovery_critical: false,
+        });
+        let snapshot = StatusBarSnapshot::project(&inputs);
+        let efficiency = snapshot
+            .item(StatusBarItemKind::EfficiencyState)
+            .expect("efficiency row");
+        assert_eq!(
+            efficiency.current_value_label,
+            "Thermal constrained · thermal pressure"
+        );
+        assert_eq!(efficiency.stable_slot_key, "status.slot.efficiency.state");
+        assert_eq!(efficiency.degraded_token.as_deref(), Some("Limited"));
     }
 
     #[test]

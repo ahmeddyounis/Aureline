@@ -195,6 +195,7 @@ fn item_kind_from(token: &str) -> StatusBarItemKind {
         "trust" => StatusBarItemKind::Trust,
         "encoding" => StatusBarItemKind::Encoding,
         "background_state" => StatusBarItemKind::BackgroundState,
+        "efficiency_state" => StatusBarItemKind::EfficiencyState,
         other => panic!("unsupported item_kind token: {other}"),
     }
 }
@@ -265,6 +266,7 @@ fn run_fixture(path: &Path, fixture: &StatusBarFixture) {
             aggregate_degraded,
             observed_at: fixture.inputs.background.observed_at.as_str(),
         },
+        efficiency: None,
     };
 
     let snapshot = StatusBarSnapshot::project(&inputs);

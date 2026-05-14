@@ -119,6 +119,7 @@ activates.
 | `status.slot.context.execution` | `active_context_truth` | Current target, interpreter, SDK, debug/run posture. |
 | `status.slot.context.vcs` | `active_context_truth` | Branch, repo state, source-control health, or mixed-root summary. |
 | `status.slot.work.summary` | `ongoing_work` | Aggregate for indexing, tests, sync, AI, downloads, and long-running jobs. |
+| `status.slot.efficiency.state` | first-party `ongoing_work` | Power, battery, thermal, or policy pressure that changed runtime behavior; opens the efficiency-state detail surface. |
 | `status.slot.metadata.editor` | `ambient_metadata` | Cursor, selection, indentation, language mode. |
 | `status.slot.metadata.file` | `ambient_metadata`, source-fidelity active context | Encoding, line endings, BOM, final newline, read-only/generated cues. |
 | `status.slot.extension.scoped` | extension `ongoing_work` or `ambient_metadata` | Budgeted extension state only; never recovery-critical by direct extension request. |
@@ -254,4 +255,3 @@ The fixture corpus covers these acceptance-critical cases:
 - compact crowded status bar where ambient and extension items overflow
   while severe state stays visible;
 - denied extension branding/vanity request.
-

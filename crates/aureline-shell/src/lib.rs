@@ -45,6 +45,7 @@ pub mod debug_seed;
 pub mod deeplink;
 pub mod docs_browser;
 pub mod drift_truth;
+pub mod efficiency;
 pub mod embedded;
 pub mod explorer;
 pub mod git_changes;
