@@ -51,6 +51,7 @@ pub mod help;
 pub mod help_about;
 pub mod host_boundary_cues;
 pub mod import;
+pub mod inspectors;
 pub mod install_review_fact_grid;
 pub mod layout;
 pub mod managed_workspace_labels;

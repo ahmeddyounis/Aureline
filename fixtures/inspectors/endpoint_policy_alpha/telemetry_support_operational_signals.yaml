@@ -1,0 +1,132 @@
+case_id: telemetry_support_operational_signals
+scenario: >
+  Inspect the first telemetry payload-family row, the user-initiated support
+  bundle row, and the alpha support-export schema row while carrying
+  operational slices for logs, metrics, traces, and an incident timeline.
+
+input:
+  inspection_id: inspection.schema_endpoint_policy.telemetry_support_operational_signals
+  generated_at: "2026-05-14T01:20:00Z"
+  claimed_schema_refs:
+    - telemetry.ux_product_event
+    - support.bundle_manifest
+    - schema_alpha:support_export.bundle_manifest
+  support_export_id: support.export.schema_endpoint_policy.telemetry_support_operational_signals
+  runbook_handoff_id: runbook.handoff.schema_endpoint_policy.telemetry_support_operational_signals
+  operational_signal_slices:
+    - signal_slice_id: signal.slice.logs.live.local_process
+      signal_kind: logs
+      source_backend: local structured log stream
+      source_backend_ref: source.local_process.logs.current_session
+      time_window:
+        window_start_utc: "2026-05-14T01:00:00Z"
+        window_end_utc: "2026-05-14T01:05:00Z"
+        display_time_zone_iana: America/Los_Angeles
+        display_utc_offset: "-07:00"
+      freshness: live
+      truncation_state: clipped
+      redaction_class: redacted_payload
+      retention_export_posture: >
+        Bounded local log metadata is exportable to support only after
+        redaction; raw events stay behind opaque refs.
+      destination_class: support_bundle
+
+    - signal_slice_id: signal.slice.logs.buffering.remote_agent
+      signal_kind: logs
+      source_backend: remote agent log buffer
+      source_backend_ref: source.remote_agent.logs.buffering_session
+      time_window:
+        window_start_utc: "2026-05-14T01:05:00Z"
+        window_end_utc: "2026-05-14T01:10:00Z"
+        display_time_zone_iana: America/Los_Angeles
+        display_utc_offset: "-07:00"
+      freshness: buffering
+      truncation_state: truncated
+      redaction_class: redacted_payload
+      retention_export_posture: >
+        Remote log buffer is incomplete until drain finishes; support export
+        preserves the buffering label and omitted-tail reason.
+      destination_class: support_bundle
+
+    - signal_slice_id: signal.slice.metrics.cached.managed_provider
+      signal_kind: metrics
+      source_backend: managed metrics provider
+      source_backend_ref: source.managed_provider.metrics.api_latency
+      time_window:
+        window_start_utc: "2026-05-14T00:20:00Z"
+        window_end_utc: "2026-05-14T01:20:00Z"
+        display_time_zone_iana: America/Los_Angeles
+        display_utc_offset: "-07:00"
+      freshness: cached
+      truncation_state: downsampled
+      redaction_class: metadata_only
+      retention_export_posture: >
+        Cached rollup metadata can be included in release evidence with the
+        source backend, query window, and downsampling posture intact.
+      destination_class: release_evidence_packet
+
+    - signal_slice_id: signal.slice.metrics.stale.mirror
+      signal_kind: metrics
+      source_backend: mirrored metrics bundle
+      source_backend_ref: source.mirrored_service.metrics.stale_bundle
+      time_window:
+        window_start_utc: "2026-05-13T22:00:00Z"
+        window_end_utc: "2026-05-13T23:00:00Z"
+        display_time_zone_iana: UTC
+        display_utc_offset: "+00:00"
+      freshness: stale
+      truncation_state: not_truncated
+      redaction_class: metadata_only
+      retention_export_posture: >
+        Mirror metadata is inspectable but not claim-bearing until refreshed;
+        export keeps the stale label.
+      destination_class: local_review
+
+    - signal_slice_id: signal.slice.traces.partial.imported_archive
+      signal_kind: traces
+      source_backend: imported trace archive
+      source_backend_ref: source.imported_artifact.trace.checkout_latency
+      time_window:
+        window_start_utc: "2026-05-13T21:12:00Z"
+        window_end_utc: "2026-05-13T21:14:30Z"
+        display_time_zone_iana: UTC
+        display_utc_offset: "+00:00"
+      freshness: partial
+      truncation_state: not_truncated
+      redaction_class: by_reference_only
+      retention_export_posture: >
+        Imported trace remains by-reference only; support export preserves the
+        import receipt and partial mapping posture.
+      destination_class: local_review
+
+    - signal_slice_id: signal.slice.incident.offline.postincident
+      signal_kind: incident_timeline
+      source_backend: post-incident evidence bundle
+      source_backend_ref: source.postincident_export.checkout_timeline_bundle
+      time_window:
+        window_start_utc: "2026-05-14T00:55:00Z"
+        window_end_utc: "2026-05-14T01:18:00Z"
+        display_time_zone_iana: UTC
+        display_utc_offset: "+00:00"
+      freshness: offline
+      truncation_state: policy_redacted
+      redaction_class: withheld_by_policy
+      retention_export_posture: >
+        Offline incident timeline export is metadata and references only;
+        policy-redacted entries retain omission reasons.
+      destination_class: incident_postmortem
+
+expect:
+  min_schema_rows: 3
+  min_endpoint_policy_rows: 3
+  support_export_raw_payloads_excluded: true
+  required_destination_classes:
+    - optional_telemetry_upload
+    - manual_support_export
+  required_consent_policy_states:
+    - explicit_opt_in_required
+    - export_only_user_request
+  required_local_only_alternative_fragments:
+    - fully functional
+    - Nothing is emitted
+  cross_surface_signal_vocabulary_parity: true

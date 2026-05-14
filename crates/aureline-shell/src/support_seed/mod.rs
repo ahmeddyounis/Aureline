@@ -45,6 +45,7 @@ use aureline_support::bundle::{
 
 use crate::activity_center::alpha::ActivityCenterSupportExport;
 use crate::activity_center::git_review::GitReviewSupportExport;
+use crate::inspectors::schema_registry::EndpointPolicySupportExport;
 use crate::restore::provenance::RestoreProvenanceRecord;
 
 /// Stable record-kind tag carried in serialized support-seed surfaces.
@@ -316,6 +317,31 @@ impl SupportSeedSurface {
         ))
     }
 
+    /// Mint a local support preview that exports the schema registry,
+    /// endpoint-policy, and operational-signal inspection as structured
+    /// metadata instead of screenshots or copied prose.
+    pub fn schema_registry_endpoint_policy_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        endpoint_policy_export: &EndpointPolicySupportExport,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:schema-endpoint-policy:0001",
+            "Schema registry endpoint-policy support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(schema_registry_endpoint_policy_seed(endpoint_policy_export));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support — schema and endpoint policy preview",
+        ))
+    }
+
     /// Convenience: the manifest the export writer would emit. Held as a
     /// borrowed accessor so the chrome never needs to clone the manifest
     /// just to render a row count.
@@ -556,6 +582,48 @@ fn git_review_event_seed(git_review_export: &GitReviewSupportExport) -> PreviewI
             git_review_export.source_event_count,
             git_review_export.branch_target_action_complete_count,
             git_review_export.raw_private_material_excluded,
+        ),
+    }
+}
+
+fn schema_registry_endpoint_policy_seed(
+    endpoint_policy_export: &EndpointPolicySupportExport,
+) -> PreviewItemSeed {
+    PreviewItemSeed {
+        support_pack_item_id: "support.item.schema_registry_endpoint_policy".into(),
+        title: "Schema registry and endpoint-policy inspection".into(),
+        data_class: DiagnosticDataClass::MetadataOnly,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "governance_and_export_controls".into(),
+        artifact_kind_class: "schema_registry_endpoint_policy_support_export".into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some(format!(
+            "manifest/schema_registry_endpoint_policy/{}.json",
+            endpoint_policy_export.export_id
+        )),
+        source_refs: vec![
+            "crates/aureline-shell/src/inspectors/schema_registry/mod.rs".into(),
+            "docs/privacy/endpoint_policy_alpha.md".into(),
+            endpoint_policy_export.export_id.clone(),
+        ],
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some(12288),
+            confidence_class: "estimated".into(),
+            display_label: "12 KB".into(),
+            size_source_class: "collector_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Without this row, support cannot explain which telemetry, support export, \
+             endpoint-policy, and operational-signal rows were active or local-only."
+                .into(),
+        notes: format!(
+            "Structured schema/endpoint-policy export includes {} schema row(s), {} endpoint \
+             policy row(s), and {} operational signal slice(s); raw payload material excluded: {}.",
+            endpoint_policy_export.schema_row_count(),
+            endpoint_policy_export.endpoint_policy_row_count(),
+            endpoint_policy_export.operational_signal_slice_count(),
+            endpoint_policy_export.raw_payloads_excluded,
         ),
     }
 }
@@ -867,6 +935,63 @@ mod tests {
         assert_eq!(surface.preview_row_count(), 3);
         assert!(surface.preview.manifest.preview_items.iter().any(|item| {
             item.parity_binding.support_pack_item_id == "support.item.git_review_activity_events"
+        }));
+        assert!(!surface.has_prohibited_row());
+    }
+
+    #[test]
+    fn schema_registry_endpoint_policy_preview_exports_structured_inspection() {
+        use crate::inspectors::schema_registry::{
+            DestinationClass, EndpointPolicyInspectionInput, OperationalSignalKind,
+            OperationalSignalSlice, SchemaRegistryInspector, SignalFreshnessClass,
+            SignalRedactionClass, SignalTimeWindow, SignalTruncationState,
+        };
+
+        let inspector = SchemaRegistryInspector::from_default_artifact_registers()
+            .expect("load schema registers");
+        let snapshot = inspector
+            .inspect(EndpointPolicyInspectionInput {
+                inspection_id: "inspection.schema_endpoint_policy.support_seed".into(),
+                generated_at: "2026-05-14T01:00:00Z".into(),
+                claimed_schema_refs: vec![
+                    "telemetry.ux_product_event".into(),
+                    "support.bundle_manifest".into(),
+                    "schema_alpha:support_export.bundle_manifest".into(),
+                ],
+                operational_signal_slices: vec![OperationalSignalSlice {
+                    signal_slice_id: "signal.slice.support_seed.log".into(),
+                    signal_kind: OperationalSignalKind::Logs,
+                    source_backend: "local structured log stream".into(),
+                    source_backend_ref: "source.ref.support_seed.log".into(),
+                    time_window: SignalTimeWindow {
+                        window_start_utc: "2026-05-14T00:55:00Z".into(),
+                        window_end_utc: "2026-05-14T01:00:00Z".into(),
+                        display_time_zone_iana: "UTC".into(),
+                        display_utc_offset: "+00:00".into(),
+                    },
+                    freshness: SignalFreshnessClass::Live,
+                    truncation_state: SignalTruncationState::Clipped,
+                    redaction_class: SignalRedactionClass::RedactedPayload,
+                    retention_export_posture: "support export keeps metadata and omission notes"
+                        .into(),
+                    destination_class: DestinationClass::SupportBundle,
+                }],
+                support_export_id: "support.export.schema_endpoint_policy.support_seed".into(),
+                runbook_handoff_id: "runbook.handoff.schema_endpoint_policy.support_seed".into(),
+            })
+            .expect("inspect endpoint policy");
+
+        let surface = SupportSeedSurface::schema_registry_endpoint_policy_preview(
+            fixture_capture(),
+            "2026-05-14T01:01:00Z",
+            &snapshot.support_export,
+        )
+        .expect("build endpoint-policy preview");
+
+        assert_eq!(surface.preview_row_count(), 3);
+        assert!(surface.preview.manifest.preview_items.iter().any(|item| {
+            item.parity_binding.support_pack_item_id
+                == "support.item.schema_registry_endpoint_policy"
         }));
         assert!(!surface.has_prohibited_row());
     }
