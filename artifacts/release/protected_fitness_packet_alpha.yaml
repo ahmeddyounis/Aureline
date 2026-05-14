@@ -1,0 +1,397 @@
+# Protected fitness-function review packet for the alpha release-control lane.
+#
+# This packet is the canonical release-facing projection over the checked-in
+# protected fitness catalog, the current hot-path dashboard output, the alpha
+# supportability scorecard, and the waiver/freshness fixtures. Consumers should
+# read this packet instead of copying dashboard status into release prose.
+
+schema_version: 1
+record_kind: protected_fitness_review_packet
+packet_id: release.protected_fitness.alpha
+packet_revision: 1
+packet_state: in_review
+as_of: "2026-05-14T00:00:00Z"
+owner_dri: "@ahmeddyounis"
+evidence_owner: "@ahmeddyounis"
+overall_result: evidence_stale
+overall_summary: >
+  First-paint, input-response, and the save-pipeline timing projection pass on
+  the checked-in hot-path dashboard. Warm-start rows have missing observations,
+  restore fidelity is still a provisional scenario seed, and the supportability
+  scorecard has no measured diagnosis-latency pass yet; the packet therefore
+  remains evidence_stale for release widening.
+
+source_contract_refs:
+  fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+  fitness_dashboard_contract_ref: docs/governance/fitness_dashboard_contract.md
+  fitness_state_rows_ref: artifacts/governance/fitness_state_rows.yaml
+  nightly_hot_path_gate_ref: ci/perf/nightly_hot_path.yml
+  nightly_hot_path_dashboard_ref: dashboards/m1/hot_path_fitness.json
+  support_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+  support_scenarios_doc_ref: docs/support/alpha_support_scenarios.md
+  release_evidence_template_ref: docs/release/release_evidence_packet_template.md
+  release_evidence_ownership_map_ref: artifacts/release/evidence_ownership_map.yaml
+  promotion_gate_map_ref: artifacts/release/promotion_gate_map.yaml
+  exact_build_identity_ref: artifacts/build/build_identity.json
+  alpha_proof_index_ref: artifacts/milestones/m2/artifact_index.yaml
+
+generation:
+  validator_command: ci/release/protected_fitness_packet_check.sh
+  review_render_command: ci/release/protected_fitness_packet_check.sh --render-review
+  review_packet_ref: docs/release/protected_fitness_review_alpha.md
+  generated_from_checked_in_outputs:
+    - artifacts/bench/fitness_function_catalog.yaml
+    - ci/perf/nightly_hot_path.yml
+    - dashboards/m1/hot_path_fitness.json
+    - artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+    - artifacts/release/protected_fitness_packet_alpha.yaml
+
+review_context:
+  channel_context: preview
+  deployment_context:
+    - individual_local
+  candidate_stage: preview_candidate
+  exact_build_identity_ref: artifacts/build/build_identity.json
+  exact_build_identity_token: build-id:aureline:dev:0.0.0:unknown:dev:52917c7e2fa0
+  review_forum_refs:
+    - performance_council
+    - release_council
+    - security_trust_review
+  release_output_refs:
+    - output.nightly_benchmark_dashboard
+    - output.release_evidence_packet
+    - output.support_handoff_packet
+  promotion_gate_refs:
+    - gate.candidate_envelope
+    - gate.public_interface_provenance_and_durability
+    - gate.docs_command_route_and_reproducible_release
+
+result_state_vocabulary:
+  - passing
+  - warning
+  - blocked
+  - waived
+  - waiver_expired
+  - evidence_stale
+  - provisional
+
+waiver_state_vocabulary:
+  - no_active_waiver
+  - active_waiver
+  - expired_waiver
+  - threshold_provisional_pending_council
+
+degrade_rules:
+  - rule_id: missing_observation_blocks_passing
+    summary: >
+      A checked-in dashboard row with missing_observation cannot render as
+      passing in this packet, even when the dashboard overall status is PASS.
+  - rule_id: pending_measurement_blocks_passing
+    summary: >
+      A seeded support scorecard with no measured diagnosis-latency pass renders
+      evidence_stale until the scenario corpus produces result packets.
+  - rule_id: expired_waiver_blocks_passing
+    summary: >
+      A waiver whose expiry_at is earlier than as_of must render waiver_expired,
+      blocked, or evidence_stale; it may not render passing.
+  - rule_id: partial_projection_degrades
+    summary: >
+      A passing CI projection may still render warning when it covers only a
+      narrower slice of the protected function contract.
+
+protected_function_rows:
+  - protected_function_ref: ff.warm_start_to_first_paint
+    title: Warm start to first paint
+    protected_function_kind: fitness_catalog_row
+    protected_function_family: latency_startup
+    catalog_row_ref: ff.warm_start_to_first_paint
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-render
+    waiver_authority_ref: performance_council
+    current_result: evidence_stale
+    current_result_reason: >
+      The checked-in hot-path dashboard contains missing observations for both
+      warm-start dashboard projections, so this packet cannot carry a fresh
+      passing startup claim.
+    last_passed_at: null
+    last_pass_summary: No current pass is present in the checked-in dashboard.
+    result_source:
+      kind: hot_path_dashboard
+      gate_definition_ref: ci/perf/nightly_hot_path.yml
+      source_ref: dashboards/m1/hot_path_fitness.json
+      gate_row_refs:
+        - gate.startup.warm_first_paint
+        - gate.startup.first_useful_chrome
+      expected_ci_result: evidence_stale
+    evidence:
+      captured_at: "2026-05-11T06:09:39Z"
+      stale_after: P14D
+      expires_at: "2026-05-25T06:09:39Z"
+      evidence_freshness_class: missing
+      exact_build_identity_ref: artifacts/build/build_identity.json
+      exact_build_identity_token: build-id:aureline:dev:0.0.0:unknown:dev:52917c7e2fa0
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; missing observations degrade the row instead.
+    regression_history:
+      status_counts:
+        missing_observation: 6
+      prior_baseline_summary: >
+        Prior baseline values are present for the reference hardware rows, but
+        the checked-in dashboard has no current warm-start measurements.
+      last_regression_event_ref: null
+      history_source_ref: dashboards/m1/hot_path_fitness.json
+
+  - protected_function_ref: ff.first_paint
+    title: First paint per surface
+    protected_function_kind: fitness_catalog_row
+    protected_function_family: latency_startup
+    catalog_row_ref: ff.first_paint
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-render
+    waiver_authority_ref: performance_council
+    current_result: passing
+    current_result_reason: >
+      File-open and file-switch first-paint projections pass on all checked-in
+      reference hardware rows.
+    last_passed_at: "2026-05-11T06:09:39Z"
+    last_pass_summary: Last pass is the checked-in hot-path dashboard capture.
+    result_source:
+      kind: hot_path_dashboard
+      gate_definition_ref: ci/perf/nightly_hot_path.yml
+      source_ref: dashboards/m1/hot_path_fitness.json
+      gate_row_refs:
+        - gate.editor.file_open
+        - gate.editor.file_switch
+      expected_ci_result: passing
+    evidence:
+      captured_at: "2026-05-11T06:09:39Z"
+      stale_after: P14D
+      expires_at: "2026-05-25T06:09:39Z"
+      evidence_freshness_class: fresh
+      exact_build_identity_ref: artifacts/build/build_identity.json
+      exact_build_identity_token: build-id:aureline:dev:0.0.0:unknown:dev:52917c7e2fa0
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is passing on current dashboard evidence.
+    regression_history:
+      status_counts:
+        pass: 6
+      prior_baseline_summary: >
+        File-open baseline is 40 ms and file-switch baseline is 30 ms on the
+        checked-in dashboard; current observations remain below their floors.
+      last_regression_event_ref: null
+      history_source_ref: dashboards/m1/hot_path_fitness.json
+
+  - protected_function_ref: ff.input_to_paint
+    title: Input to paint
+    protected_function_kind: fitness_catalog_row
+    protected_function_family: latency_input_response
+    catalog_row_ref: ff.input_to_paint
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-render
+    waiver_authority_ref: performance_council
+    current_result: passing
+    current_result_reason: >
+      Quick-open p95 and keystroke-to-paint p95 projections pass on all
+      checked-in reference hardware rows.
+    last_passed_at: "2026-05-11T06:09:39Z"
+    last_pass_summary: Last pass is the checked-in hot-path dashboard capture.
+    result_source:
+      kind: hot_path_dashboard
+      gate_definition_ref: ci/perf/nightly_hot_path.yml
+      source_ref: dashboards/m1/hot_path_fitness.json
+      gate_row_refs:
+        - gate.quick_open.invoke_p95
+        - gate.input_to_paint.keystroke_p95
+      expected_ci_result: passing
+    evidence:
+      captured_at: "2026-05-11T06:09:39Z"
+      stale_after: P14D
+      expires_at: "2026-05-25T06:09:39Z"
+      evidence_freshness_class: fresh
+      exact_build_identity_ref: artifacts/build/build_identity.json
+      exact_build_identity_token: build-id:aureline:dev:0.0.0:unknown:dev:52917c7e2fa0
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; row is passing on current dashboard evidence.
+    regression_history:
+      status_counts:
+        pass: 6
+      prior_baseline_summary: >
+        Quick-open and keystroke-to-paint current observations remain below
+        their regression floors on all checked-in reference rows.
+      last_regression_event_ref: null
+      history_source_ref: dashboards/m1/hot_path_fitness.json
+
+  - protected_function_ref: ff.vfs_save_conflict_handling
+    title: VFS save pipeline and conflict handling
+    protected_function_kind: fitness_catalog_row
+    protected_function_family: reliability_and_trust
+    catalog_row_ref: ff.vfs_save_conflict_handling
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-vfs
+    waiver_authority_ref: performance_council
+    current_result: warning
+    current_result_reason: >
+      The save-pipeline p95 projection passes, but that projection covers only
+      timing. The full conflict-taxonomy and compare-before-write gate remains
+      outside the checked-in hot-path dashboard output.
+    last_passed_at: "2026-05-11T06:09:39Z"
+    last_pass_summary: The checked-in dashboard passes the save-pipeline timing projection only.
+    result_source:
+      kind: hot_path_dashboard
+      gate_definition_ref: ci/perf/nightly_hot_path.yml
+      source_ref: dashboards/m1/hot_path_fitness.json
+      gate_row_refs:
+        - gate.save.pipeline_p95
+      expected_ci_result: passing
+      scope_degrade: partial_projection_degrades
+    evidence:
+      captured_at: "2026-05-11T06:09:39Z"
+      stale_after: P14D
+      expires_at: "2026-05-25T06:09:39Z"
+      evidence_freshness_class: fresh
+      exact_build_identity_ref: artifacts/build/build_identity.json
+      exact_build_identity_token: build-id:aureline:dev:0.0.0:unknown:dev:52917c7e2fa0
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: No active waiver; packet narrows the passing projection to warning.
+    regression_history:
+      status_counts:
+        pass: 3
+      prior_baseline_summary: >
+        Save-pipeline p95 current observations remain below the regression
+        floor on all checked-in reference rows; conflict-taxonomy history is
+        not present in this dashboard.
+      last_regression_event_ref: null
+      history_source_ref: dashboards/m1/hot_path_fitness.json
+
+  - protected_function_ref: ff.restore_fidelity
+    title: Restore fidelity
+    protected_function_kind: fitness_catalog_row
+    protected_function_family: reliability_recovery
+    catalog_row_ref: ff.restore_fidelity
+    owner_dri: "@ahmeddyounis"
+    owning_lane: benchmark_lab
+    co_owning_lane: aureline-vfs
+    waiver_authority_ref: performance_council
+    current_result: provisional
+    current_result_reason: >
+      The restore-fidelity row is provisional and the hot-path gate reports the
+      workspace restore metric as pending_scenario_seed.
+    last_passed_at: null
+    last_pass_summary: No restore-fidelity pass is present in the checked-in dashboard.
+    result_source:
+      kind: hot_path_dashboard
+      gate_definition_ref: ci/perf/nightly_hot_path.yml
+      source_ref: dashboards/m1/hot_path_fitness.json
+      gate_row_refs:
+        - gate.recovery.workspace_snapshot_restore
+      expected_ci_result: provisional
+    evidence:
+      captured_at: "2026-05-11T06:09:39Z"
+      stale_after: P14D
+      expires_at: "2026-05-25T06:09:39Z"
+      evidence_freshness_class: missing
+      exact_build_identity_ref: artifacts/build/build_identity.json
+      exact_build_identity_token: build-id:aureline:dev:0.0.0:unknown:dev:52917c7e2fa0
+    waiver:
+      waiver_state: threshold_provisional_pending_council
+      waiver_record_ref: null
+      waiver_authority_ref: performance_council
+      expiry_at: null
+      summary: Provisional threshold state; no active waiver has been granted.
+    regression_history:
+      status_counts:
+        pending_scenario_seed: 1
+      prior_baseline_summary: >
+        The threshold is reserved in the gate definition, but no current
+        scenario emits workspace_snapshot_restore_ms yet.
+      last_regression_event_ref: null
+      history_source_ref: dashboards/m1/hot_path_fitness.json
+
+  - protected_function_ref: support.alpha.diagnosis_latency_scorecard
+    title: Diagnosis-latency and support-scenario scorecard
+    protected_function_kind: support_scorecard
+    protected_function_family: supportability_field_readiness
+    catalog_row_ref: null
+    owner_dri: "@ahmeddyounis"
+    owning_lane: support_export
+    co_owning_lane: release_evidence
+    waiver_authority_ref: release_council
+    current_result: evidence_stale
+    current_result_reason: >
+      The alpha support scorecard covers the required scenario families, but
+      its status is seeded_pending_measurement and no measured diagnosis pass
+      is present yet.
+    last_passed_at: null
+    last_pass_summary: No support-scenario diagnosis-latency pass has been captured yet.
+    result_source:
+      kind: support_scorecard
+      source_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+      expected_scorecard_status: seeded_pending_measurement
+      scenario_family_count: 6
+    evidence:
+      captured_at: "2026-05-14T00:00:00Z"
+      stale_after: P14D
+      expires_at: "2026-05-28T00:00:00Z"
+      evidence_freshness_class: missing
+      exact_build_identity_ref: artifacts/build/build_identity.json
+      exact_build_identity_token: build-id:aureline:dev:0.0.0:unknown:dev:52917c7e2fa0
+    waiver:
+      waiver_state: no_active_waiver
+      waiver_record_ref: null
+      waiver_authority_ref: release_council
+      expiry_at: null
+      summary: No active waiver; missing measurements keep the row out of passing.
+    regression_history:
+      status_counts:
+        seeded_pending_measurement: 6
+      prior_baseline_summary: >
+        The scorecard seeds first-run, search/index, trust, restore, provider,
+        and crash-loop scenarios, but none has a measured pass history yet.
+      last_regression_event_ref: null
+      history_source_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+
+protected_fixture_coverage:
+  - fixture_id: fixture.fitness_tile.fresh_pass_input_to_paint
+    fixture_ref: fixtures/governance/fitness_tile_cases/fresh_pass_input_to_paint.yaml
+    expected_current_result: passing
+    exercises_state: current_pass
+  - fixture_id: fixture.fitness_tile.stale_by_time_warm_start
+    fixture_ref: fixtures/governance/fitness_tile_cases/stale_by_time_warm_start_to_first_paint.yaml
+    expected_current_result: evidence_stale
+    exercises_state: stale_evidence_degrades
+  - fixture_id: fixture.fitness_tile.waived_blocker_vfs_save
+    fixture_ref: fixtures/governance/fitness_tile_cases/waived_blocker_vfs_save_conflict_handling.yaml
+    expected_current_result: waived
+    exercises_state: active_waiver_visible
+  - fixture_id: fixture.fitness_tile.waiver_expired_first_paint
+    fixture_ref: fixtures/governance/fitness_tile_cases/waiver_expired_first_paint.yaml
+    expected_current_result: waiver_expired
+    exercises_state: expired_waiver_degrades
+
+release_consumer_projection:
+  first_consumer: ci/release/protected_fitness_packet_check.sh
+  consumer_kind: ci_release_validator
+  emitted_review_packet_ref: docs/release/protected_fitness_review_alpha.md
+  support_export_projection_ref: output.support_handoff_packet
+  release_packet_projection_ref: output.release_evidence_packet
+  free_form_status_notes_allowed: false
