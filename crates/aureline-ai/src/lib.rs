@@ -1,31 +1,31 @@
-//! AI composer and context-inspector seed for the bounded launch AI wedge.
+//! AI composer, context-inspector, and provider-routing primitives.
 //!
-//! This crate is the M1 seed for the AI composer lane. It owns one
-//! inspectable [`composer::ComposerDraft`] object plus the typed
-//! mention / attachment / slash-command / route-placeholder vocabularies that
-//! every consuming surface reads. The composer is a **bounded prototype**:
-//! it explicitly carries no mutation authority, dispatches nothing, and
-//! reuses the shared canonical command identifiers (from
-//! [`aureline_commands`]) and the shared execution-context object
-//! (from [`aureline_runtime`]) instead of forking AI-only truth.
+//! This crate owns inspectable AI records consumed by shell, diagnostics,
+//! support export, and evidence surfaces. The composer lane exposes one
+//! [`composer::ComposerDraft`] object plus typed mention, attachment,
+//! slash-command, and route-placeholder vocabularies. The routing lane exposes
+//! one [`routing::AiRoutingPacket`] object for provider/model identity, quota
+//! explainability, latency/cost envelopes, and visible route-change lineage on
+//! claimed hosted-model paths.
 //!
-//! Surfaces (shell AI-context inspector, support / export flows, evidence
-//! consumers) project this draft through typed accessors and never re-derive
-//! mention or attachment authority locally.
+//! These records carry no credential bodies, raw provider payloads, raw
+//! endpoint URLs, exact token counts, or exact cost amounts. Consumers project
+//! the typed packets directly and never re-derive authority, lifecycle state,
+//! provider identity, quota state, or route explanations locally.
 //!
-//! The reviewer-facing landing page is
-//! [`/docs/ai/m1_composer_and_context_inspector_seed.md`](../../../docs/ai/m1_composer_and_context_inspector_seed.md).
 //! The frozen cross-tool contracts the seed projects against are
 //! [`/docs/ai/prompt_composer_contract.md`](../../../docs/ai/prompt_composer_contract.md)
 //! and
 //! [`/docs/ai/context_assembly_contract.md`](../../../docs/ai/context_assembly_contract.md).
-//! The seed deliberately covers a small, honest subset of those
-//! vocabularies — enough for one bounded protected row in the live shell —
-//! and grows additively without forking truth.
+//! The routing alpha entry point is
+//! [`/docs/ai/routing_cost_alpha.md`](../../../docs/ai/routing_cost_alpha.md).
+//! The records cover bounded, honest subsets of the frozen vocabularies and
+//! grow additively without forking truth.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
 pub mod composer;
+pub mod routing;
 
 pub use composer::{
     AttachmentKind, AttachmentStatusClass, BlockReason, ComposerAttachment, ComposerDraft,
@@ -33,4 +33,15 @@ pub use composer::{
     MentionKind, MentionResolutionState, PrototypeLabel, ProviderClass, RoutePathClass,
     RoutePlaceholder, SelectionReasonClass, SlashCommandResolutionState, SourceClass, TrustPosture,
     ValidationOutcome, COMPOSER_DRAFT_RECORD_KIND, COMPOSER_DRAFT_SCHEMA_VERSION,
+};
+pub use routing::{
+    AiRouteCandidate, AiRouteProviderClass, AiRoutingPacket, AiRoutingSupportPacket,
+    AiRoutingSupportRouteChangeRow, AiRoutingSurfaceRow, AiRoutingViolation, CostEnvelopeClass,
+    CostVisibilityClass, DeploymentProfileClass, ExecutionLocusClass, ExhaustionStateClass,
+    LatencyCostEnvelope, LatencyEnvelopeClass, PolicyTrustState, QuotaFamilyClass, QuotaInspector,
+    QuotaScopeClass, QuotaStateClass, RetentionStanceClass, RouteChangeCauseClass,
+    RouteChangeLineage, RouteOriginClass, RouteSelectionOverrideReasonClass,
+    RouteSelectionReasonClass, RoutingPolicyContext, RoutingRunStateClass, SelectedOutcomeClass,
+    TokenCeilingClass, ToolCallCeilingClass, WallTimeCeilingClass, AI_ROUTING_PACKET_RECORD_KIND,
+    AI_ROUTING_SCHEMA_VERSION, AI_ROUTING_SUPPORT_PACKET_RECORD_KIND,
 };
