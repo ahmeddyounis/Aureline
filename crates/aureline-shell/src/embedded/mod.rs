@@ -8,4 +8,5 @@
 
 pub mod boundary_alpha;
 pub mod boundary_card;
+pub mod boundary_fallback_alpha;
 pub mod docs_help;
