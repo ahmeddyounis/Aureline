@@ -17,8 +17,10 @@
 //!
 //! [`EmbeddedBoundaryCardRecord`]: crate::embedded::boundary_card::EmbeddedBoundaryCardRecord
 
+pub mod content;
 pub mod state;
 
+pub use content::{docs_browser_row_cards_from_pack, DocsBrowserContentContext};
 pub use state::{
     DocsBrowserBrowserHandoffRow, DocsBrowserClientScopeRow, DocsBrowserFreshnessRow,
     DocsBrowserRowCard, DocsBrowserSourceRow, DocsBrowserSurfaceState, DocsBrowserVersionRow,
