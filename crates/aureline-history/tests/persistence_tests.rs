@@ -161,3 +161,54 @@ fn writes_mutation_journal_entry() {
 
     let _ = fs::remove_dir_all(&root);
 }
+
+#[test]
+fn rejects_unregistered_mutation_journal_record_kind() {
+    let root = unique_temp_root("mutation_journal_bad_kind");
+    let storage = HistoryStorageRoot::new(&root);
+    let mut store = MutationJournalStore::new(storage);
+    let mutation_id = store.mint_mutation_id();
+
+    let mut entry = MutationJournalEntryRecord::new(
+        mutation_id,
+        "editor.type".to_owned(),
+        ActorClass::UserKeystroke,
+        SourceClass::HumanLocal,
+        ActorRef {
+            display_name: "fixture user".to_owned(),
+            stable_id: None,
+            role: Some("author".to_owned()),
+        },
+        ScopeRef {
+            class: ScopeClass::Buffer,
+            id: "buf:ld-fixture".to_owned(),
+        },
+        vec![TargetRef {
+            target_kind: TargetKind::Buffer,
+            filesystem_identity: Some(fixture_filesystem_identity()),
+            logical_ref: Some("ld-fixture".to_owned()),
+            affected_range: None,
+        }],
+        "t-1".to_owned(),
+        "t-1".to_owned(),
+        "text_edit".to_owned(),
+        ReversalClass::ExactUndo,
+        RedactionClass::CodeAdjacent,
+        DurableVsDisposable::DurableUserAuthored,
+        SideEffectSummary::new("fixture mutation"),
+        Vec::new(),
+    );
+    entry.record_kind = "unregistered_mutation_record".to_owned();
+
+    let error = store
+        .write_entry(&entry)
+        .expect_err("unregistered record kind rejected");
+    assert!(matches!(
+        error,
+        aureline_history::HistoryError::RecordRegistry(
+            aureline_records::RecordRegistryError::UnknownRecordKind { .. }
+        )
+    ));
+
+    let _ = fs::remove_dir_all(&root);
+}

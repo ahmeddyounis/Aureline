@@ -16,6 +16,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use aureline_records::{validate_typed, RecordClassId};
 use serde::{Deserialize, Serialize};
 
 use super::exact_build::ExactBuildCapture;
@@ -241,6 +242,8 @@ pub enum SupportBundlePreviewError {
     Io(io::Error),
     /// Serialization failed when persisting the preview snapshot.
     Serde(serde_json::Error),
+    /// A support-bundle record kind is not registered with the record-class registry.
+    RecordRegistry(aureline_records::RecordRegistryError),
 }
 
 impl std::fmt::Display for SupportBundlePreviewError {
@@ -270,6 +273,9 @@ impl std::fmt::Display for SupportBundlePreviewError {
             Self::EmptyPreview => write!(f, "support-bundle preview must contain at least one row"),
             Self::Io(err) => write!(f, "support-bundle preview io error: {err}"),
             Self::Serde(err) => write!(f, "support-bundle preview serialization error: {err}"),
+            Self::RecordRegistry(err) => {
+                write!(f, "support-bundle preview record registry error: {err}")
+            }
         }
     }
 }
@@ -285,6 +291,12 @@ impl From<io::Error> for SupportBundlePreviewError {
 impl From<serde_json::Error> for SupportBundlePreviewError {
     fn from(err: serde_json::Error) -> Self {
         Self::Serde(err)
+    }
+}
+
+impl From<aureline_records::RecordRegistryError> for SupportBundlePreviewError {
+    fn from(err: aureline_records::RecordRegistryError) -> Self {
+        Self::RecordRegistry(err)
     }
 }
 
@@ -403,6 +415,7 @@ impl SupportBundlePreviewBuilder {
                 });
             }
         }
+        validate_support_bundle_record_kinds()?;
 
         let mut preview_items: Vec<SupportBundlePreviewItem> = Vec::with_capacity(self.seeds.len());
         let mut review_decisions: Vec<ReviewDecision> = Vec::with_capacity(self.seeds.len());
@@ -1017,6 +1030,18 @@ impl SupportBundlePreviewBuilder {
     }
 }
 
+fn validate_support_bundle_record_kinds() -> Result<(), SupportBundlePreviewError> {
+    for record_kind in [
+        SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND,
+        SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND,
+        SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
+        SUPPORT_BUNDLE_PREVIEW_RECORD_KIND,
+    ] {
+        validate_typed(record_kind, RecordClassId::SupportBundleArchive)?;
+    }
+    Ok(())
+}
+
 fn write_preview_snapshot_to_path(
     preview: &SupportBundlePreview,
     path: &Path,
@@ -1308,6 +1333,11 @@ mod tests {
             !preview.manifest.redaction_controls[0].raw_content_export_allowed,
             "local-first controls must not expose raw-content export"
         );
+    }
+
+    #[test]
+    fn support_bundle_record_kinds_are_registered() {
+        validate_support_bundle_record_kinds().expect("support bundle record kinds are registered");
     }
 
     #[test]

@@ -5,9 +5,16 @@
 
 use std::path::PathBuf;
 
+use aureline_records::{validate_typed, RecordClassId};
 use serde::{Deserialize, Serialize};
 
 use crate::storage::{HistoryError, HistoryStorageRoot, IdSource};
+
+/// Stable record-kind tag carried on every mutation-journal entry.
+pub const MUTATION_JOURNAL_ENTRY_RECORD_KIND: &str = "mutation_journal_entry";
+
+/// Stable record-kind tag carried on every mutation-group record.
+pub const MUTATION_GROUP_RECORD_KIND: &str = "mutation_group_record";
 
 /// Writer for mutation-journal entries and group records.
 #[derive(Debug, Clone)]
@@ -42,6 +49,7 @@ impl MutationJournalStore {
 
     /// Persists a mutation-journal entry record.
     pub fn write_entry(&self, entry: &MutationJournalEntryRecord) -> Result<PathBuf, HistoryError> {
+        validate_mutation_record_kind(&entry.record_kind)?;
         let path = self
             .root
             .join("entries")
@@ -52,6 +60,7 @@ impl MutationJournalStore {
 
     /// Persists a mutation-group record.
     pub fn write_group(&self, group: &MutationGroupRecord) -> Result<PathBuf, HistoryError> {
+        validate_mutation_record_kind(&group.record_kind)?;
         let path = self
             .root
             .join("groups")
@@ -59,6 +68,11 @@ impl MutationJournalStore {
         self.storage.write_new_json(&path, group)?;
         Ok(path)
     }
+}
+
+fn validate_mutation_record_kind(record_kind: &str) -> Result<(), HistoryError> {
+    validate_typed(record_kind, RecordClassId::DurableWorkspaceState)?;
+    Ok(())
 }
 
 fn sanitize_id(value: &str) -> String {
@@ -119,8 +133,13 @@ impl MutationJournalEntryRecord {
         checkpoint_refs: Vec<CheckpointRef>,
     ) -> Self {
         let reversible = !matches!(reversal_class, ReversalClass::AuditOnly);
+        validate_typed(
+            MUTATION_JOURNAL_ENTRY_RECORD_KIND,
+            RecordClassId::DurableWorkspaceState,
+        )
+        .expect("mutation journal entry record kind must be registered");
         Self {
-            record_kind: "mutation_journal_entry".to_owned(),
+            record_kind: MUTATION_JOURNAL_ENTRY_RECORD_KIND.to_owned(),
             mutation_journal_schema_version: 1,
             mutation_id,
             group_id: None,
@@ -202,8 +221,13 @@ impl MutationGroupRecord {
         checkpoint_refs: Vec<CheckpointRef>,
     ) -> Self {
         let reversible = !matches!(reversal_class, ReversalClass::AuditOnly);
+        validate_typed(
+            MUTATION_GROUP_RECORD_KIND,
+            RecordClassId::DurableWorkspaceState,
+        )
+        .expect("mutation group record kind must be registered");
         Self {
-            record_kind: "mutation_group_record".to_owned(),
+            record_kind: MUTATION_GROUP_RECORD_KIND.to_owned(),
             mutation_journal_schema_version: 1,
             group_id,
             group_kind,

@@ -31,7 +31,7 @@ pub use mutation_journal::{
     ActorClass, ActorRef, CheckpointDurabilityClass, CheckpointKind, CheckpointRef,
     DurableVsDisposable, MutationGroupRecord, MutationJournalEntryRecord, MutationJournalStore,
     RedactionClass, ReversalClass, ScopeClass, ScopeRef, SideEffectSummary, SourceClass,
-    TargetKind, TargetRef,
+    TargetKind, TargetRef, MUTATION_GROUP_RECORD_KIND, MUTATION_JOURNAL_ENTRY_RECORD_KIND,
 };
 pub use storage::{HistoryError, HistoryStorageRoot, IdSource};
 

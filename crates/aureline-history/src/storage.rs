@@ -6,8 +6,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Error returned when history persistence fails.
 #[derive(Debug)]
 pub enum HistoryError {
+    /// Filesystem persistence failed.
     Io(std::io::Error),
+    /// JSON serialization failed.
     Json(serde_json::Error),
+    /// Record-kind validation failed against the record-class registry.
+    RecordRegistry(aureline_records::RecordRegistryError),
 }
 
 impl std::fmt::Display for HistoryError {
@@ -15,6 +19,7 @@ impl std::fmt::Display for HistoryError {
         match self {
             Self::Io(err) => write!(f, "history io error: {err}"),
             Self::Json(err) => write!(f, "history json error: {err}"),
+            Self::RecordRegistry(err) => write!(f, "history record registry error: {err}"),
         }
     }
 }
@@ -30,6 +35,12 @@ impl From<std::io::Error> for HistoryError {
 impl From<serde_json::Error> for HistoryError {
     fn from(value: serde_json::Error) -> Self {
         Self::Json(value)
+    }
+}
+
+impl From<aureline_records::RecordRegistryError> for HistoryError {
+    fn from(value: aureline_records::RecordRegistryError) -> Self {
+        Self::RecordRegistry(value)
     }
 }
 
