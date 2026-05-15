@@ -21,9 +21,9 @@ pub use discoverability::{
 };
 pub use query_session::{
     CommandPaletteCommit, CommandPaletteState, PaletteItemKey, PaletteProviderClass,
-    PaletteProviderStateClass, PaletteRankingSourceClass, QuickOpenCommandRow, QuickOpenLexicalRow,
-    QuickOpenQuerySession, QuickOpenRecentTarget, QuickOpenSnapshot, QuickOpenSnapshotRow,
-    QuickOpenSnapshotSource, QuickOpenSourceClass, QuickOpenSourceState,
+    PaletteProviderStateClass, PaletteRankingSourceClass, QuickOpenCommandRow, QuickOpenDocsRow,
+    QuickOpenLexicalRow, QuickOpenQuerySession, QuickOpenRecentTarget, QuickOpenSnapshot,
+    QuickOpenSnapshotRow, QuickOpenSnapshotSource, QuickOpenSourceClass, QuickOpenSourceState,
     WorkspaceSearchSurfaceCard, WorkspaceSearchSurfaceCardItem, WorkspaceSearchSurfaceCardRow,
     WorkspaceSearchSurfaceLineageHint, WorkspaceSearchSurfaceState,
 };

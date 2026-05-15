@@ -10,6 +10,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-docs/0.0.0")]
 
 pub mod citations;
+pub mod index;
 pub mod pack;
 
 pub use citations::{
@@ -22,6 +23,12 @@ pub use citations::{
     CITATION_ANCHOR_ALPHA_RECORD_KIND, CITATION_DRAWER_ALPHA_RECORD_KIND,
     CITATION_EVIDENCE_EXPORT_ALPHA_RECORD_KIND, DOCS_CITATION_ALPHA_SCHEMA_VERSION,
     DOCS_NODE_ALPHA_RECORD_KIND,
+};
+pub use index::{
+    DocsSearchIndex, DocsSearchIndexEntry, DocsSearchQueryResult,
+    DOCS_SEARCH_INDEX_ENTRY_RECORD_KIND, DOCS_SEARCH_INDEX_RECORD_KIND,
+    DOCS_SEARCH_INDEX_SCHEMA_VERSION, DOCS_SEARCH_QUERY_RESULT_RECORD_KIND,
+    DOCS_SEARCH_RESULT_KIND_TOKEN,
 };
 pub use pack::{
     DocsPack, DocsPackLoadError, DocsPackNode, DocsPackSourceTruth, DOCS_PACK_ALPHA_RECORD_KIND,

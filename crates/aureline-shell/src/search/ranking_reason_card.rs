@@ -88,19 +88,30 @@ impl RankingReasonCard {
 
     /// Builds a card for one row in a quick-open snapshot.
     pub fn from_quick_open_row(snapshot: &QuickOpenSnapshot, row: &QuickOpenSnapshotRow) -> Self {
-        let partial_truth_causes = if row.source_class_token.starts_with("lexical_") {
-            snapshot.lexical_partial_truth_causes.clone()
-        } else {
-            Vec::new()
-        };
-        let omitted_source_notes = if partial_truth_causes.is_empty() {
-            Vec::new()
-        } else {
-            vec!["lexical_lane_partial".to_string()]
-        };
+        let mut partial_truth_causes = row.partial_truth_causes.clone();
+        if row.source_class_token.starts_with("lexical_") {
+            for cause in &snapshot.lexical_partial_truth_causes {
+                if !partial_truth_causes.contains(cause) {
+                    partial_truth_causes.push(cause.clone());
+                }
+            }
+        }
+        let mut omitted_source_notes = Vec::new();
+        if row.source_class_token.starts_with("lexical_") && !partial_truth_causes.is_empty() {
+            omitted_source_notes.push("lexical_lane_partial".to_string());
+        }
+        if row
+            .citation_anchor_availability_token
+            .as_deref()
+            .is_some_and(|token| token != "exact_anchor_available")
+        {
+            omitted_source_notes.push("citation_anchor_unavailable".to_string());
+        }
         let target_ref = row
             .command_id
             .as_deref()
+            .or(row.open_anchor_ref.as_deref())
+            .or(row.canonical_ref.as_deref())
             .or(row.relative_path.as_deref())
             .unwrap_or(row.result_id.as_str())
             .to_string();

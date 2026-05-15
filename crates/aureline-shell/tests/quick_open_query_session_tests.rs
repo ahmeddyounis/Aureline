@@ -22,9 +22,10 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+use aureline_docs::{DocsPack, DocsSearchIndex};
 use aureline_shell::palette::{
-    QuickOpenCommandRow, QuickOpenLexicalRow, QuickOpenQuerySession, QuickOpenRecentTarget,
-    QuickOpenSourceClass, QuickOpenSourceState,
+    QuickOpenCommandRow, QuickOpenDocsRow, QuickOpenLexicalRow, QuickOpenQuerySession,
+    QuickOpenRecentTarget, QuickOpenSourceClass, QuickOpenSourceState,
 };
 use aureline_workspace::ScopeClass as WorkspaceScopeClass;
 
@@ -350,4 +351,123 @@ fn lexical_unavailable_drill() {
 #[test]
 fn empty_query_recents_only_walk() {
     run_fixture(&fixture_dir().join("empty_query_recents_only.json"));
+}
+
+#[test]
+fn docs_pack_hit_appears_in_quick_open_with_anchor_and_badges() {
+    let pack = DocsPack::load_path(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/docs/packs/tsjs_launch_bundle_docs_pack.yaml"),
+    )
+    .expect("fixture docs pack loads");
+    let index = DocsSearchIndex::from_pack("ws-test", "docs-index:quick-open:01", pack);
+    let docs_query = index.query("known limits");
+    let docs_rows = docs_query
+        .entries
+        .iter()
+        .map(QuickOpenDocsRow::from_index_entry)
+        .collect::<Vec<_>>();
+
+    let mut session =
+        QuickOpenQuerySession::new("ws-test", WorkspaceScopeClass::CurrentRepo, None::<String>);
+    session.set_docs(docs_rows, QuickOpenSourceState::Ready);
+    session.open();
+    session.set_query("known limits");
+
+    let snapshot = session.export_snapshot("mono:docs-quick-open");
+    let row = snapshot
+        .rows
+        .iter()
+        .find(|row| row.row_kind_token == "docs_anchor")
+        .expect("docs hit appears in quick-open");
+
+    assert_eq!(row.source_class_token, "docs_anchor");
+    assert_eq!(row.result_truth_class, "imported");
+    assert_eq!(row.partiality_class, "authoritative");
+    assert_eq!(
+        row.open_anchor_ref.as_deref(),
+        Some("docs-anchor:bundle:typescript-web:known-limits")
+    );
+    assert_eq!(row.freshness_class_token.as_deref(), Some("warm_cached"));
+    assert_eq!(row.freshness_badge.as_deref(), Some("Cached"));
+    assert_eq!(
+        row.version_match_state_token.as_deref(),
+        Some("exact_build_match")
+    );
+    assert_eq!(row.version_match_badge.as_deref(), Some("Exact build"));
+    assert_eq!(
+        row.citation_anchor_availability_token.as_deref(),
+        Some("exact_anchor_available")
+    );
+}
+
+#[test]
+fn docs_anchor_unavailability_degrades_quick_open_result() {
+    let raw = r#"
+schema_version: 1
+pack_id: docs_pack.alpha.quick-open.anchor.missing
+pack_revision_ref: rev:2026-05-12
+pack_label: Quick-open missing anchor docs pack
+source_locale: en-US
+source_truth:
+  source_class: project_docs
+  scope_class: docs_help
+  version_or_revision_ref: workspace-main
+  version_match_state: compatible_minor_drift
+  freshness_class: degraded_cached
+  locality_class: local_project_pack
+  citation_availability: anchor_unavailable_disclosed
+  running_build_identity_ref: id:build:aureline:running
+  hidden_or_omitted_note: Exact anchor is unavailable in this pack snapshot.
+nodes:
+  - docs_node_id: docs-node:quick-open-anchor-missing
+    doc_kind: product_help
+    title: Anchor missing
+    summary: The result remains searchable with an explicit missing-anchor disclosure.
+    body_markdown: Missing anchor body.
+"#;
+    let pack = DocsPack::from_yaml_str(raw).expect("missing-anchor pack loads");
+    let index = DocsSearchIndex::from_pack("ws-test", "docs-index:quick-open:missing", pack);
+    let docs_rows = index
+        .query("anchor")
+        .entries
+        .iter()
+        .map(QuickOpenDocsRow::from_index_entry)
+        .collect::<Vec<_>>();
+
+    let mut session =
+        QuickOpenQuerySession::new("ws-test", WorkspaceScopeClass::CurrentRepo, None::<String>);
+    session.set_docs(docs_rows, QuickOpenSourceState::Ready);
+    session.open();
+    session.set_query("anchor");
+
+    let snapshot = session.export_snapshot("mono:docs-quick-open-missing");
+    let row = snapshot
+        .rows
+        .iter()
+        .find(|row| row.row_kind_token == "docs_anchor")
+        .expect("docs hit appears in quick-open");
+
+    assert_eq!(row.partiality_class, "partial");
+    assert_eq!(
+        row.citation_anchor_availability_token.as_deref(),
+        Some("anchor_unavailable_disclosed")
+    );
+    assert!(row.open_anchor_ref.is_none());
+    assert_eq!(
+        row.freshness_class_token.as_deref(),
+        Some("degraded_cached")
+    );
+    assert_eq!(
+        row.version_match_state_token.as_deref(),
+        Some("compatible_minor_drift")
+    );
+    assert_eq!(
+        row.partial_truth_causes,
+        vec![
+            "anchor_unavailable_disclosed".to_string(),
+            "degraded_cached".to_string(),
+            "compatible_minor_drift".to_string()
+        ]
+    );
 }

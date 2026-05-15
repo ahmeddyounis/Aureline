@@ -8,6 +8,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use aureline_docs::{
+    CitationAnchorAvailability, DocsFreshnessClass as DocsIndexFreshnessClass,
+    DocsSearchIndexEntry, DocsSearchQueryResult, VersionMatchState as DocsIndexVersionMatchState,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::counts::ScopeCandidateTruthRecord;
@@ -667,6 +671,34 @@ impl PlannerPathSnapshot {
                 Some(PlannerUnavailableReason::LanguageUnavailable)
             },
             partial_truth_causes: snapshot.state.partial_truth_causes.clone(),
+            rows,
+        }
+    }
+
+    /// Builds a docs planner snapshot from a docs-pack search index query.
+    pub fn from_docs_search_query_result(
+        snapshot_id: impl Into<String>,
+        query_result: &DocsSearchQueryResult,
+    ) -> Self {
+        let rows = query_result
+            .entries
+            .iter()
+            .map(candidate_from_docs_search_entry)
+            .collect();
+
+        Self {
+            path_kind: PlannerDataPath::Docs,
+            snapshot_id: snapshot_id.into(),
+            readiness: if query_result.partial_index {
+                PlannerPathReadiness::Partial
+            } else {
+                PlannerPathReadiness::Ready
+            },
+            freshness: freshness_from_docs_search_entries(&query_result.entries),
+            index_epoch: Some(query_result.index_epoch.clone()),
+            graph_epoch: None,
+            unavailable_reason: None,
+            partial_truth_causes: query_result.partial_truth_causes.clone(),
             rows,
         }
     }
@@ -1554,6 +1586,65 @@ fn candidate_from_symbol_record(symbol: &aureline_language::SymbolRecord) -> Pla
         partial_truth_causes: symbol.partial_truth_causes.clone(),
         scope_truth: None,
     }
+}
+
+fn candidate_from_docs_search_entry(entry: &DocsSearchIndexEntry) -> PlannerCandidate {
+    let mut ranking_reasons = vec![PlannerRankingReason::DocsAnchorMatch];
+    match entry.docs_node.citation_availability {
+        CitationAnchorAvailability::ExactAnchorAvailable => {
+            ranking_reasons.push(PlannerRankingReason::CitationAvailable);
+        }
+        CitationAnchorAvailability::NotCitationBearing => {}
+        CitationAnchorAvailability::AnchorUnavailableDisclosed
+        | CitationAnchorAvailability::HiddenByPolicy
+        | CitationAnchorAvailability::OmittedByPolicy => {
+            ranking_reasons.push(PlannerRankingReason::CitationMissing);
+        }
+    }
+    let partial_truth_causes = entry.partial_truth_causes();
+    if !partial_truth_causes.is_empty() {
+        ranking_reasons.push(PlannerRankingReason::PartialIndex);
+    }
+
+    PlannerCandidate {
+        candidate_id: entry.canonical_ref.clone(),
+        canonical_id: entry.canonical_ref.clone(),
+        target_kind: PlannerTargetKind::DocsAnchor,
+        title: entry.title.clone(),
+        relative_path: None,
+        symbol_ref: Some(entry.exact_reopen_ref.clone()),
+        ranking_reasons,
+        partial_truth_causes,
+        scope_truth: None,
+    }
+}
+
+fn freshness_from_docs_search_entries(entries: &[DocsSearchIndexEntry]) -> PlannerFreshnessClass {
+    if entries.is_empty() {
+        return PlannerFreshnessClass::Unknown;
+    }
+    if entries
+        .iter()
+        .any(|entry| entry.docs_node.freshness_class == DocsIndexFreshnessClass::Unverified)
+    {
+        return PlannerFreshnessClass::Unknown;
+    }
+    if entries.iter().any(|entry| {
+        matches!(
+            entry.docs_node.freshness_class,
+            DocsIndexFreshnessClass::DegradedCached | DocsIndexFreshnessClass::Stale
+        ) || entry.docs_node.version_match_state
+            == DocsIndexVersionMatchState::IncompatibleDriftDetected
+    }) {
+        return PlannerFreshnessClass::StaleCached;
+    }
+    if entries
+        .iter()
+        .any(|entry| entry.docs_node.freshness_class == DocsIndexFreshnessClass::WarmCached)
+    {
+        return PlannerFreshnessClass::WarmCached;
+    }
+    PlannerFreshnessClass::AuthoritativeLive
 }
 
 fn readiness_from_symbol_snapshot(

@@ -11,12 +11,14 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
 
 use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
+use aureline_docs::{CitationAnchorAvailability, DocsSearchIndexEntry};
 use aureline_input::text_input::{ImeComposition, ImeEvent, TextInputAction, TextInputSession};
 use aureline_reactive_state::ReadinessLabel;
 use aureline_search::{
     build_lexical_result_id, build_surface_result_id, LexicalIndexInputs, LexicalIndexState,
-    LexicalQuery, LexicalShell, LineageHintRecord, ScopeClass as SearchScopeClass, SearchSurface,
-    SourceClass as SearchSourceClass, StableResultKind, WorkspaceSearchScope,
+    LexicalQuery, LexicalShell, LineageHintRecord, PlannerRankingReason,
+    ScopeClass as SearchScopeClass, SearchSurface, SourceClass as SearchSourceClass,
+    StableResultKind, WorkspaceSearchScope,
 };
 use aureline_vfs::{
     VfsChangeKind, WatcherEvent, WatcherHealth, WatcherService, WatcherServiceOptions,
@@ -274,6 +276,8 @@ pub const RECENTS_LANE_CAP: usize = 6;
 pub const COMMANDS_LANE_CAP: usize = 8;
 /// Maximum lexical-file rows surfaced per quick-open lexical lane.
 pub const LEXICAL_LANE_CAP: usize = 12;
+/// Maximum docs-anchor rows surfaced in the quick-open docs lane.
+pub const DOCS_LANE_CAP: usize = 8;
 
 /// Source lane that produced a quick-open row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -283,6 +287,8 @@ pub enum QuickOpenSourceClass {
     RecentTarget,
     /// Command registry entry.
     Command,
+    /// Documentation or help citation anchor.
+    DocsAnchor,
     /// Lexical filename match.
     LexicalFilename,
     /// Lexical path match.
@@ -295,6 +301,7 @@ impl QuickOpenSourceClass {
         match self {
             Self::RecentTarget => "recent_target",
             Self::Command => "command",
+            Self::DocsAnchor => "docs_anchor",
             Self::LexicalFilename => "lexical_filename",
             Self::LexicalPath => "lexical_path",
         }
@@ -381,11 +388,62 @@ fn quick_open_lexical_ranking_reasons(row: &QuickOpenLexicalRow) -> Vec<String> 
     .to_string()]
 }
 
+fn quick_open_docs_result_truth_class(
+    row: &QuickOpenDocsRow,
+    state: QuickOpenSourceState,
+) -> &'static str {
+    if matches!(state, QuickOpenSourceState::Ready) && !row.canonical_ref.trim().is_empty() {
+        "imported"
+    } else {
+        quick_open_result_truth_class(state)
+    }
+}
+
+fn quick_open_docs_partiality_class(
+    row: &QuickOpenDocsRow,
+    state: QuickOpenSourceState,
+) -> &'static str {
+    if !matches!(state, QuickOpenSourceState::Ready) {
+        return quick_open_partiality_class(state);
+    }
+    if row.freshness_class_token == "stale" {
+        "stale"
+    } else if row.degrades_result {
+        "partial"
+    } else {
+        "authoritative"
+    }
+}
+
+fn quick_open_docs_ranking_reasons(
+    row: &QuickOpenDocsRow,
+    state: QuickOpenSourceState,
+) -> Vec<String> {
+    let mut reasons = vec![PlannerRankingReason::DocsAnchorMatch.as_str().to_string()];
+    match row.citation_anchor_availability {
+        CitationAnchorAvailability::ExactAnchorAvailable => {
+            reasons.push(PlannerRankingReason::CitationAvailable.as_str().to_string());
+        }
+        CitationAnchorAvailability::NotCitationBearing => {}
+        CitationAnchorAvailability::AnchorUnavailableDisclosed
+        | CitationAnchorAvailability::HiddenByPolicy
+        | CitationAnchorAvailability::OmittedByPolicy => {
+            reasons.push(PlannerRankingReason::CitationMissing.as_str().to_string());
+        }
+    }
+    if row.degrades_result || !matches!(state, QuickOpenSourceState::Ready) {
+        reasons.push(PlannerRankingReason::PartialIndex.as_str().to_string());
+    }
+    reasons
+}
+
 fn quick_open_search_source_class(source: QuickOpenSourceClass) -> SearchSourceClass {
     match source {
         QuickOpenSourceClass::LexicalFilename => SearchSourceClass::LexicalFilename,
         QuickOpenSourceClass::LexicalPath => SearchSourceClass::LexicalPath,
-        QuickOpenSourceClass::RecentTarget | QuickOpenSourceClass::Command => {
+        QuickOpenSourceClass::RecentTarget
+        | QuickOpenSourceClass::Command
+        | QuickOpenSourceClass::DocsAnchor => {
             unreachable!("only lexical quick-open rows use lexical result IDs")
         }
     }
@@ -420,6 +478,51 @@ pub struct QuickOpenLexicalRow {
     pub match_kind_token: String,
 }
 
+/// Docs-anchor row projection consumed by the quick-open session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuickOpenDocsRow {
+    pub canonical_ref: String,
+    pub docs_node_id: String,
+    pub display_label: String,
+    pub summary: Option<String>,
+    pub source_class_token: String,
+    pub freshness_class_token: String,
+    pub freshness_badge: String,
+    pub version_match_state_token: String,
+    pub version_match_badge: String,
+    pub citation_anchor_availability: CitationAnchorAvailability,
+    pub citation_anchor_availability_token: String,
+    pub citation_anchor_refs: Vec<String>,
+    pub open_anchor_ref: Option<String>,
+    pub exact_reopen_ref: String,
+    pub partial_truth_causes: Vec<String>,
+    pub degrades_result: bool,
+}
+
+impl QuickOpenDocsRow {
+    /// Builds a quick-open docs row from a docs-pack search index entry.
+    pub fn from_index_entry(entry: &DocsSearchIndexEntry) -> Self {
+        Self {
+            canonical_ref: entry.canonical_ref.clone(),
+            docs_node_id: entry.docs_node.docs_node_id.clone(),
+            display_label: entry.title.clone(),
+            summary: entry.summary.clone(),
+            source_class_token: entry.source_class_token.clone(),
+            freshness_class_token: entry.freshness_class_token.clone(),
+            freshness_badge: entry.freshness_badge.clone(),
+            version_match_state_token: entry.version_match_state_token.clone(),
+            version_match_badge: entry.version_match_badge.clone(),
+            citation_anchor_availability: entry.docs_node.citation_availability,
+            citation_anchor_availability_token: entry.citation_anchor_availability_token.clone(),
+            citation_anchor_refs: entry.citation_anchor_refs.clone(),
+            open_anchor_ref: entry.primary_anchor_ref.clone(),
+            exact_reopen_ref: entry.exact_reopen_ref.clone(),
+            partial_truth_causes: entry.partial_truth_causes(),
+            degrades_result: entry.degrades_result(),
+        }
+    }
+}
+
 /// Per-source summary in a quick-open snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QuickOpenSnapshotSource {
@@ -446,6 +549,30 @@ pub struct QuickOpenSnapshotRow {
     pub invocation_preview_class: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relative_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_node_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_reopen_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub open_anchor_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub citation_anchor_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citation_anchor_availability_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub freshness_class_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub freshness_badge: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_match_state_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_match_badge: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub partial_truth_causes: Vec<String>,
 }
 
 /// Serializable snapshot of a quick-open query session.
@@ -473,9 +600,11 @@ pub struct QuickOpenQuerySession {
     held_modifiers: BTreeSet<String>,
     recents: Vec<QuickOpenRecentTarget>,
     commands: Vec<QuickOpenCommandRow>,
+    docs_rows: Vec<QuickOpenDocsRow>,
     lexical_rows: Vec<QuickOpenLexicalRow>,
     recents_state: QuickOpenSourceState,
     commands_state: QuickOpenSourceState,
+    docs_state: QuickOpenSourceState,
     lexical_state: QuickOpenSourceState,
     lexical_partial_truth_causes: Vec<String>,
     rows: Vec<QuickOpenSnapshotRow>,
@@ -498,9 +627,11 @@ impl QuickOpenQuerySession {
             held_modifiers: BTreeSet::new(),
             recents: Vec::new(),
             commands: Vec::new(),
+            docs_rows: Vec::new(),
             lexical_rows: Vec::new(),
             recents_state: QuickOpenSourceState::NotRequested,
             commands_state: QuickOpenSourceState::NotRequested,
+            docs_state: QuickOpenSourceState::NotRequested,
             lexical_state: QuickOpenSourceState::NotRequested,
             lexical_partial_truth_causes: Vec::new(),
             rows: Vec::new(),
@@ -551,6 +682,17 @@ impl QuickOpenQuerySession {
         self.rebuild();
     }
 
+    /// Replaces docs-anchor rows projected from the docs search index.
+    pub fn set_docs(&mut self, rows: Vec<QuickOpenDocsRow>, state: QuickOpenSourceState) {
+        self.docs_state = if rows.is_empty() {
+            QuickOpenSourceState::NotRequested
+        } else {
+            state
+        };
+        self.docs_rows = rows;
+        self.rebuild();
+    }
+
     /// Replaces lexical rows and readiness projected from lexical search.
     pub fn set_lexical(
         &mut self,
@@ -570,6 +712,7 @@ impl QuickOpenQuerySession {
         let sources = [
             (QuickOpenSourceClass::RecentTarget, self.recents_state),
             (QuickOpenSourceClass::Command, self.commands_state),
+            (QuickOpenSourceClass::DocsAnchor, self.docs_state),
             (QuickOpenSourceClass::LexicalFilename, self.lexical_state),
             (QuickOpenSourceClass::LexicalPath, self.lexical_state),
         ]
@@ -634,6 +777,18 @@ impl QuickOpenQuerySession {
                 disabled_reason_class: None,
                 invocation_preview_class: None,
                 relative_path: recent.relative_path.clone(),
+                summary: None,
+                canonical_ref: None,
+                docs_node_id: None,
+                exact_reopen_ref: None,
+                open_anchor_ref: None,
+                citation_anchor_refs: Vec::new(),
+                citation_anchor_availability_token: None,
+                freshness_class_token: None,
+                freshness_badge: None,
+                version_match_state_token: None,
+                version_match_badge: None,
+                partial_truth_causes: Vec::new(),
             });
         }
         for command in self
@@ -665,6 +820,73 @@ impl QuickOpenQuerySession {
                 disabled_reason_class: command.disabled_reason_class.clone(),
                 invocation_preview_class: Some(command.invocation_preview_class.clone()),
                 relative_path: None,
+                summary: Some(command.summary.clone()),
+                canonical_ref: None,
+                docs_node_id: None,
+                exact_reopen_ref: None,
+                open_anchor_ref: None,
+                citation_anchor_refs: Vec::new(),
+                citation_anchor_availability_token: None,
+                freshness_class_token: None,
+                freshness_badge: None,
+                version_match_state_token: None,
+                version_match_badge: None,
+                partial_truth_causes: Vec::new(),
+            });
+        }
+        for row in self
+            .docs_rows
+            .iter()
+            .filter(|row| {
+                normalized.is_empty()
+                    || contains_case_insensitive(&row.display_label, &normalized)
+                    || row
+                        .summary
+                        .as_deref()
+                        .is_some_and(|summary| contains_case_insensitive(summary, &normalized))
+                    || contains_case_insensitive(&row.canonical_ref, &normalized)
+                    || contains_case_insensitive(&row.docs_node_id, &normalized)
+                    || row
+                        .citation_anchor_refs
+                        .iter()
+                        .any(|anchor| contains_case_insensitive(anchor, &normalized))
+            })
+            .take(DOCS_LANE_CAP)
+        {
+            self.rows.push(QuickOpenSnapshotRow {
+                result_id: build_surface_result_id(
+                    SearchSurface::QuickOpen,
+                    &self.workspace_id,
+                    StableResultKind::DocsAnchor,
+                    &row.canonical_ref,
+                ),
+                row_kind_token: "docs_anchor".to_string(),
+                source_class_token: QuickOpenSourceClass::DocsAnchor.as_str().to_string(),
+                source_state_token: self.docs_state.as_str().to_string(),
+                display_label: row.display_label.clone(),
+                result_truth_class: quick_open_docs_result_truth_class(row, self.docs_state)
+                    .to_string(),
+                ranking_reason_classes: quick_open_docs_ranking_reasons(row, self.docs_state),
+                partiality_class: quick_open_docs_partiality_class(row, self.docs_state)
+                    .to_string(),
+                command_id: None,
+                disabled_reason_class: None,
+                invocation_preview_class: None,
+                relative_path: None,
+                summary: row.summary.clone(),
+                canonical_ref: Some(row.canonical_ref.clone()),
+                docs_node_id: Some(row.docs_node_id.clone()),
+                exact_reopen_ref: Some(row.exact_reopen_ref.clone()),
+                open_anchor_ref: row.open_anchor_ref.clone(),
+                citation_anchor_refs: row.citation_anchor_refs.clone(),
+                citation_anchor_availability_token: Some(
+                    row.citation_anchor_availability_token.clone(),
+                ),
+                freshness_class_token: Some(row.freshness_class_token.clone()),
+                freshness_badge: Some(row.freshness_badge.clone()),
+                version_match_state_token: Some(row.version_match_state_token.clone()),
+                version_match_badge: Some(row.version_match_badge.clone()),
+                partial_truth_causes: row.partial_truth_causes.clone(),
             });
         }
         let mut filename_count = 0usize;
@@ -705,6 +927,18 @@ impl QuickOpenQuerySession {
                 disabled_reason_class: None,
                 invocation_preview_class: None,
                 relative_path: Some(row.relative_path.clone()),
+                summary: None,
+                canonical_ref: None,
+                docs_node_id: None,
+                exact_reopen_ref: None,
+                open_anchor_ref: None,
+                citation_anchor_refs: Vec::new(),
+                citation_anchor_availability_token: None,
+                freshness_class_token: None,
+                freshness_badge: None,
+                version_match_state_token: None,
+                version_match_badge: None,
+                partial_truth_causes: Vec::new(),
             });
         }
     }
