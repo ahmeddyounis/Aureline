@@ -10,7 +10,8 @@ cite those rows instead of copying scope text.
 - Wedge matrix: `artifacts/milestones/m2/alpha_wedge_matrix.yaml`
 - Go/no-go scoreboard: `artifacts/milestones/m2/exit_gate_scoreboard.yaml`
 - Dependency graph: `artifacts/milestones/m2/dependency_graph.yaml`
-- Proof packet: `artifacts/milestones/m2/proof_packets/alpha_scope.md`
+- Scope-freeze proof packet: `artifacts/milestones/m2/proof_packets/scope_freeze.md`
+- Scope matrix and known-limits packet: `artifacts/milestones/m2/proof_packets/alpha_scope.md`
 - Design-partner guide: `docs/alpha/design_partner_guide.md`
 - Design-partner intake packet: `artifacts/milestones/m2/design_partner_intake_packet.md`
 - Design-partner task pack: `artifacts/milestones/m2/design_partner_task_pack.md`
