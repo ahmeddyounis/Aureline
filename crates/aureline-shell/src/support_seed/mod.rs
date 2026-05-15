@@ -1680,6 +1680,8 @@ mod tests {
 
     #[test]
     fn schema_registry_endpoint_policy_preview_exports_structured_inspection() {
+        use aureline_telemetry::endpoint_policy::EndpointOptInState as TelemetryEndpointOptInState;
+
         use crate::inspectors::schema_registry::{
             DestinationClass, EndpointPolicyInspectionInput, OperationalSignalKind,
             OperationalSignalSlice, SchemaRegistryInspector, SignalFreshnessClass,
@@ -1692,6 +1694,7 @@ mod tests {
             .inspect(EndpointPolicyInspectionInput {
                 inspection_id: "inspection.schema_endpoint_policy.support_seed".into(),
                 generated_at: "2026-05-14T01:00:00Z".into(),
+                telemetry_upload_opt_in_state: TelemetryEndpointOptInState::OptedOut,
                 claimed_schema_refs: vec![
                     "telemetry.ux_product_event".into(),
                     "support.bundle_manifest".into(),

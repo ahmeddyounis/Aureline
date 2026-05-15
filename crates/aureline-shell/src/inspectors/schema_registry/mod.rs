@@ -11,6 +11,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+use aureline_telemetry::endpoint_policy::{
+    default_trace_endpoint_policy_rows, EndpointIdentity as TelemetryEndpointIdentity,
+    EndpointOptInState as TelemetryEndpointOptInState,
+    EndpointPolicyRow as TelemetryEndpointPolicyRow, TraceEventClass as TelemetryTraceEventClass,
+    TraceRedactionClass as TelemetryTraceRedactionClass,
+};
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_CONSENT_LEDGER_YAML: &str = include_str!(concat!(
@@ -335,6 +341,9 @@ pub struct EndpointPolicyInspectionInput {
     pub inspection_id: String,
     /// RFC 3339 timestamp supplied by the caller or fixture.
     pub generated_at: String,
+    /// Current opt-in state for optional trace-event telemetry upload.
+    #[serde(default)]
+    pub telemetry_upload_opt_in_state: TelemetryEndpointOptInState,
     /// Registry row ids that must resolve through checked-in artifacts.
     pub claimed_schema_refs: Vec<String>,
     /// Signal slices projected through desktop, support, and runbook/help views.
@@ -420,6 +429,23 @@ pub struct EndpointPolicyRow {
     pub quoted_policy_row: bool,
 }
 
+/// Inspector row showing which trace endpoint is reachable for an event class.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TelemetryEventClassEndpointRow {
+    /// Trace-event class covered by this row.
+    pub event_class: TelemetryTraceEventClass,
+    /// Endpoint-policy row id that owns the mapping.
+    pub endpoint_policy_row_id: String,
+    /// Review-safe endpoint identity.
+    pub endpoint_identity: TelemetryEndpointIdentity,
+    /// Redaction class applied before endpoint projection serialization.
+    pub redaction_class: TelemetryTraceRedactionClass,
+    /// Current opt-in or policy state for the endpoint.
+    pub current_opt_in_state: TelemetryEndpointOptInState,
+    /// True when current policy permits event projection to this endpoint.
+    pub projection_enabled: bool,
+}
+
 /// Desktop-facing signal row that keeps the shared freshness/redaction vocabulary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DesktopSignalRow {
@@ -454,6 +480,10 @@ pub struct EndpointPolicyDesktopProjection {
     pub schema_rows: Vec<SchemaInspectionRow>,
     /// Endpoint-policy rows.
     pub endpoint_policy_rows: Vec<EndpointPolicyRow>,
+    /// Telemetry trace endpoint-policy rows.
+    pub telemetry_endpoint_policy_rows: Vec<TelemetryEndpointPolicyRow>,
+    /// Telemetry endpoint rows flattened by trace event class.
+    pub telemetry_event_class_endpoint_rows: Vec<TelemetryEventClassEndpointRow>,
     /// Operational signal rows.
     pub signal_rows: Vec<DesktopSignalRow>,
 }
@@ -498,6 +528,10 @@ pub struct EndpointPolicySupportExport {
     pub schema_rows: Vec<SchemaInspectionRow>,
     /// Endpoint-policy rows.
     pub endpoint_policy_rows: Vec<EndpointPolicyRow>,
+    /// Telemetry trace endpoint-policy rows.
+    pub telemetry_endpoint_policy_rows: Vec<TelemetryEndpointPolicyRow>,
+    /// Telemetry endpoint rows flattened by trace event class.
+    pub telemetry_event_class_endpoint_rows: Vec<TelemetryEventClassEndpointRow>,
     /// Operational signal rows.
     pub signal_rows: Vec<EndpointPolicySupportSignalRow>,
     /// Freshness tokens allowed by the export.
@@ -555,6 +589,8 @@ pub struct EndpointPolicyRunbookHandoff {
     pub handoff_id: String,
     /// Source inspection id.
     pub source_inspection_id: String,
+    /// Telemetry endpoint rows flattened by trace event class.
+    pub telemetry_event_class_endpoint_rows: Vec<TelemetryEventClassEndpointRow>,
     /// Operational signal rows.
     pub signal_rows: Vec<RunbookHelpSignalRow>,
     /// Freshness tokens allowed by the handoff.
@@ -578,6 +614,10 @@ pub struct EndpointPolicyInspectionSnapshot {
     pub schema_rows: Vec<SchemaInspectionRow>,
     /// Endpoint-policy rows derived from checked-in register artifacts.
     pub endpoint_policy_rows: Vec<EndpointPolicyRow>,
+    /// Telemetry trace endpoint-policy rows.
+    pub telemetry_endpoint_policy_rows: Vec<TelemetryEndpointPolicyRow>,
+    /// Telemetry endpoint rows flattened by trace event class.
+    pub telemetry_event_class_endpoint_rows: Vec<TelemetryEventClassEndpointRow>,
     /// Operational signal slices admitted into the inspection.
     pub operational_signal_slices: Vec<OperationalSignalSlice>,
     /// Desktop projection.
@@ -742,11 +782,18 @@ impl SchemaRegistryInspector {
             });
         }
 
+        let telemetry_endpoint_policy_rows =
+            default_trace_endpoint_policy_rows(input.telemetry_upload_opt_in_state);
+        let telemetry_event_class_endpoint_rows =
+            build_telemetry_event_class_endpoint_rows(&telemetry_endpoint_policy_rows);
+
         let desktop = EndpointPolicyDesktopProjection {
             projection_kind: "desktop_schema_endpoint_policy_inspector".to_owned(),
             inspection_id: input.inspection_id.clone(),
             schema_rows: schema_rows.clone(),
             endpoint_policy_rows: endpoint_policy_rows.clone(),
+            telemetry_endpoint_policy_rows: telemetry_endpoint_policy_rows.clone(),
+            telemetry_event_class_endpoint_rows: telemetry_event_class_endpoint_rows.clone(),
             signal_rows: input
                 .operational_signal_slices
                 .iter()
@@ -761,6 +808,8 @@ impl SchemaRegistryInspector {
             generated_at: input.generated_at.clone(),
             schema_rows: schema_rows.clone(),
             endpoint_policy_rows: endpoint_policy_rows.clone(),
+            telemetry_endpoint_policy_rows: telemetry_endpoint_policy_rows.clone(),
+            telemetry_event_class_endpoint_rows: telemetry_event_class_endpoint_rows.clone(),
             signal_rows: input
                 .operational_signal_slices
                 .iter()
@@ -775,6 +824,7 @@ impl SchemaRegistryInspector {
             record_kind: ENDPOINT_POLICY_RUNBOOK_HANDOFF_RECORD_KIND.to_owned(),
             handoff_id: input.runbook_handoff_id.clone(),
             source_inspection_id: input.inspection_id.clone(),
+            telemetry_event_class_endpoint_rows: telemetry_event_class_endpoint_rows.clone(),
             signal_rows: input
                 .operational_signal_slices
                 .iter()
@@ -791,6 +841,8 @@ impl SchemaRegistryInspector {
             generated_at: input.generated_at,
             schema_rows,
             endpoint_policy_rows,
+            telemetry_endpoint_policy_rows,
+            telemetry_event_class_endpoint_rows,
             operational_signal_slices: input.operational_signal_slices,
             desktop,
             support_export,
@@ -814,6 +866,28 @@ fn signal_vocab_pairs<'a>(
     rows: impl Iterator<Item = (&'a String, SignalFreshnessClass, SignalRedactionClass)>,
 ) -> BTreeSet<(String, SignalFreshnessClass, SignalRedactionClass)> {
     rows.map(|(id, freshness, redaction)| (id.clone(), freshness, redaction))
+        .collect()
+}
+
+fn build_telemetry_event_class_endpoint_rows(
+    policy_rows: &[TelemetryEndpointPolicyRow],
+) -> Vec<TelemetryEventClassEndpointRow> {
+    policy_rows
+        .iter()
+        .flat_map(|policy_row| {
+            policy_row
+                .scope_allowed_event_kinds
+                .iter()
+                .copied()
+                .map(|event_class| TelemetryEventClassEndpointRow {
+                    event_class,
+                    endpoint_policy_row_id: policy_row.endpoint_policy_row_id.clone(),
+                    endpoint_identity: policy_row.endpoint_identity.clone(),
+                    redaction_class: policy_row.redaction_class,
+                    current_opt_in_state: policy_row.current_opt_in_state,
+                    projection_enabled: policy_row.current_opt_in_state.permits_event_projection(),
+                })
+        })
         .collect()
 }
 
@@ -1203,6 +1277,7 @@ mod tests {
         EndpointPolicyInspectionInput {
             inspection_id: "inspection.schema_endpoint_policy.test".to_owned(),
             generated_at: "2026-05-14T00:05:00Z".to_owned(),
+            telemetry_upload_opt_in_state: TelemetryEndpointOptInState::OptedOut,
             claimed_schema_refs: vec![
                 "telemetry.ux_product_event".to_owned(),
                 "support.bundle_manifest".to_owned(),
@@ -1282,6 +1357,50 @@ mod tests {
         assert_eq!(
             snapshot.runbook_help_handoff.redaction_vocabulary,
             SignalRedactionClass::vocabulary()
+        );
+    }
+
+    #[test]
+    fn schema_registry_endpoint_policy_snapshot_maps_trace_event_classes_to_endpoint_identity() {
+        let inspector = SchemaRegistryInspector::from_default_artifact_registers()
+            .expect("load checked-in registers");
+        let snapshot = inspector
+            .inspect(inspection_input())
+            .expect("inspect claims");
+
+        let upload_endpoint_id = "endpoint.telemetry.trace_event.optional_upload";
+        let upload_event_classes = snapshot
+            .telemetry_event_class_endpoint_rows
+            .iter()
+            .filter(|row| row.endpoint_identity.endpoint_id == upload_endpoint_id)
+            .map(|row| row.event_class)
+            .collect::<BTreeSet<_>>();
+
+        assert_eq!(
+            upload_event_classes,
+            TelemetryTraceEventClass::ALL.into_iter().collect()
+        );
+        assert!(snapshot
+            .telemetry_event_class_endpoint_rows
+            .iter()
+            .filter(|row| row.endpoint_identity.endpoint_id == upload_endpoint_id)
+            .all(
+                |row| row.current_opt_in_state == TelemetryEndpointOptInState::OptedOut
+                    && !row.projection_enabled
+            ));
+        assert!(snapshot
+            .desktop
+            .telemetry_event_class_endpoint_rows
+            .iter()
+            .any(|row| {
+                row.event_class == TelemetryTraceEventClass::Startup
+                    && row.endpoint_identity.endpoint_id
+                        == "endpoint.telemetry.trace_event.local_diagnostics"
+                    && row.projection_enabled
+            }));
+        assert_eq!(
+            snapshot.telemetry_event_class_endpoint_rows,
+            snapshot.desktop.telemetry_event_class_endpoint_rows
         );
     }
 
