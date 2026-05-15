@@ -17,10 +17,12 @@
 //!   chrome renders before any export step.
 //! - [`crash_linkage`] — support preview row generation for
 //!   [`aureline_crash::CrashIncidentTrail`].
+//! - [`notices`] — metadata-only notice digest preview row generation.
 
 pub mod crash_linkage;
 pub mod exact_build;
 pub mod manifest;
+pub mod notices;
 pub mod preview;
 pub mod redaction;
 pub mod vocabulary;
@@ -46,6 +48,9 @@ pub use manifest::{
     SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND,
     SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
     SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND,
+};
+pub use notices::{
+    add_notice_digest_preview_item, notice_digest_preview_item_seed, SUPPORT_ITEM_NOTICE_DIGEST,
 };
 pub use preview::{
     ActionReconstructionSeed, DiagnosisLatencyScorecardProjectionSeed, PreviewItemSeed,

@@ -52,6 +52,9 @@
 //!   publication manifest and exposes clean-room, mirror-only, deny-all,
 //!   offline, notice, SBOM, provenance, blocker, and live-truth degradation
 //!   state for metadata-only support/export review.
+//! - The [`bundle::notice_digest_preview_item_seed`] projection — consumes the
+//!   typed `aureline-notices` bundle and inserts the dependency notice digest
+//!   into support-bundle previews as metadata-only evidence.
 //! - The [`route_origin_alpha`] projection — consumes the checked-in
 //!   route-origin matrix, transport-decision fixtures, and reconstruction
 //!   packet so support/export previews can rebuild command, target, route,
