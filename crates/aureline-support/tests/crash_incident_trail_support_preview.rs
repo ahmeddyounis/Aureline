@@ -106,4 +106,24 @@ fn support_preview_embeds_incident_trail_linkage_as_metadata() {
         .preview_classification_summary
         .included_support_pack_item_ids
         .contains(&SUPPORT_ITEM_CRASH_INCIDENT_TRAIL.to_owned()));
+    assert_eq!(manifest.crash_symbolication_frames.len(), 2);
+    let renderer_frames = manifest
+        .crash_symbolication_frames
+        .iter()
+        .find(|frames| frames.module_id == "renderer.main.bundle.js")
+        .expect("renderer frame projection present");
+    assert_eq!(renderer_frames.mapping_quality, "exact");
+    assert_eq!(
+        renderer_frames.resolved_frame_summary,
+        vec![
+            "2 renderProjectTree".to_owned(),
+            "3 reconcilePaneLayout".to_owned()
+        ]
+    );
+    assert!(!renderer_frames.raw_stack_body_exported);
+    assert!(manifest
+        .preview_export_parity
+        .reconstruction_fields
+        .iter()
+        .any(|field| field == "crash_symbolication_frames[]"));
 }

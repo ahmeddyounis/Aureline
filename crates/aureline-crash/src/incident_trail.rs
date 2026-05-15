@@ -58,6 +58,53 @@ pub struct CrashModule {
     pub artifact_family_class: String,
     /// Exact-build identity ref for this module or source-map family.
     pub exact_build_identity_ref: String,
+    /// Optional module identity details used by local symbolication.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub module_identity: Option<CrashModuleIdentity>,
+    /// Faulting frames captured for this module.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub faulting_frames: Vec<CrashFrame>,
+}
+
+/// Module-specific identity fields carried by crash envelopes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrashModuleIdentity {
+    /// Native code file name when the module is a binary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_file_name: Option<String>,
+    /// Native build id when the module is a binary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_id: Option<String>,
+    /// Native debug id when the module is a binary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub debug_id: Option<String>,
+    /// Native image base when the module is a binary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_base: Option<String>,
+    /// Renderer bundle revision ref when the module is a generated asset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle_revision_ref: Option<String>,
+    /// Source-map digest when the module is a generated asset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_map_digest: Option<String>,
+    /// Generated asset ref when the module is a generated asset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_asset_ref: Option<String>,
+}
+
+/// One faulting frame captured in a crash envelope.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrashFrame {
+    /// Stable frame index within the captured stack.
+    pub frame_index: u32,
+    /// Native instruction address for binary frames.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    /// Generated source location for source-map frames.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_location: Option<String>,
+    /// Symbol name or generated function hint captured with the frame.
+    pub symbol_hint: String,
 }
 
 /// Metadata-only manifest for a dump or core artifact.
@@ -168,6 +215,9 @@ pub struct SymbolicatedModuleResult {
     /// Optional unresolved reason emitted by partial reports.
     #[serde(default)]
     pub unresolved_reason: Option<String>,
+    /// Redaction-safe symbolicated frame summaries.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resolved_frame_summary: Vec<String>,
 }
 
 /// Inputs used to mint one [`CrashIncidentTrail`].
@@ -419,6 +469,9 @@ pub struct ModuleIncidentSummary {
     /// Optional reason when mapping is not exact.
     #[serde(default)]
     pub unresolved_reason: Option<String>,
+    /// Redaction-safe symbolicated frame summaries carried into support bundles.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resolved_frame_summary: Vec<String>,
 }
 
 /// Support-bundle linkage state for an incident trail.
@@ -570,6 +623,7 @@ fn summarize_module(
             } else {
                 "symbolication_report_missing".into()
             }),
+            resolved_frame_summary: Vec::new(),
         };
     };
 
@@ -611,6 +665,11 @@ fn summarize_module(
         ),
         ModuleMappingQuality::Missing => Some("symbolication_report_missing".into()),
     };
+    let resolved_frame_summary = if mapping_quality == ModuleMappingQuality::BuildMismatch {
+        Vec::new()
+    } else {
+        report_module.resolved_frame_summary.clone()
+    };
 
     ModuleIncidentSummary {
         module_id: module.module_id.clone(),
@@ -621,6 +680,7 @@ fn summarize_module(
         mapping_quality,
         matched_symbol_tag: report_module.matched_symbol_tag.clone(),
         unresolved_reason,
+        resolved_frame_summary,
     }
 }
 

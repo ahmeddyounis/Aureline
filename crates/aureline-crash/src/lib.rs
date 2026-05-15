@@ -9,11 +9,16 @@
 #![doc(html_root_url = "https://docs.rs/aureline-crash/0.0.0")]
 
 pub mod incident_trail;
+pub mod symbolication;
 
 pub use incident_trail::{
-    CrashDumpManifest, CrashEnvelope, CrashIncidentTrail, CrashIncidentTrailInputs, CrashModule,
-    IncidentEvidenceKind, IncidentEvidenceRef, ModuleIncidentSummary, ModuleMappingQuality,
-    NextSafeAction, NextSafeActionKind, SupportBundleLinkage, SupportBundleLinkageState,
-    SymbolicatedModuleResult, SymbolicationReport, SymbolicationState,
-    CRASH_INCIDENT_TRAIL_RECORD_KIND, CRASH_INCIDENT_TRAIL_SCHEMA_VERSION,
+    CrashDumpManifest, CrashEnvelope, CrashFrame, CrashIncidentTrail, CrashIncidentTrailInputs,
+    CrashModule, CrashModuleIdentity, IncidentEvidenceKind, IncidentEvidenceRef,
+    ModuleIncidentSummary, ModuleMappingQuality, NextSafeAction, NextSafeActionKind,
+    SupportBundleLinkage, SupportBundleLinkageState, SymbolicatedModuleResult, SymbolicationReport,
+    SymbolicationState, CRASH_INCIDENT_TRAIL_RECORD_KIND, CRASH_INCIDENT_TRAIL_SCHEMA_VERSION,
+};
+pub use symbolication::{
+    symbolicate_exact_build, ExactBuildSymbolicationError, ExactBuildSymbolicationInput,
+    InTreeSymbolFile, InTreeSymbolFrame, InTreeSymbolModule, SYMBOLICATION_REPORT_RECORD_KIND,
 };

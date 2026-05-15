@@ -28,24 +28,27 @@ pub mod redaction;
 pub mod vocabulary;
 
 pub use aureline_crash::{
-    CrashDumpManifest, CrashEnvelope, CrashIncidentTrail, CrashIncidentTrailInputs, CrashModule,
+    symbolicate_exact_build, CrashDumpManifest, CrashEnvelope, CrashFrame, CrashIncidentTrail,
+    CrashIncidentTrailInputs, CrashModule, CrashModuleIdentity, ExactBuildSymbolicationError,
+    ExactBuildSymbolicationInput, InTreeSymbolFile, InTreeSymbolFrame, InTreeSymbolModule,
     IncidentEvidenceKind, IncidentEvidenceRef, ModuleIncidentSummary, ModuleMappingQuality,
     NextSafeAction, NextSafeActionKind, SupportBundleLinkage, SupportBundleLinkageState,
     SymbolicatedModuleResult, SymbolicationReport, SymbolicationState,
 };
 pub use crash_linkage::{
-    crash_incident_trail_preview, crash_incident_trail_seed, SUPPORT_ITEM_CRASH_INCIDENT_TRAIL,
+    crash_incident_trail_preview, crash_incident_trail_seed, crash_symbolicated_frame_projections,
+    SUPPORT_ITEM_CRASH_INCIDENT_TRAIL,
 };
 pub use exact_build::ExactBuildCapture;
 pub use manifest::{
     ActionPolicySourceContext, ActionReconstructionContext, ActionabilityImpact,
-    ActionabilityWarning, BuildIdentity, CollectionContext, DiagnosisLatencyMeasurementProjection,
-    DiagnosisLatencyMeasurementState, DiagnosisLatencyScorecardProjection, ExcludedClass,
-    FileSectionIdentity, ParityBinding, PolicyContext, PolicyLock, PolicyNote,
-    PreviewClassificationSummary, PreviewExportParity, Redaction, RedactionControl,
-    RedactionReport, ReopenAfterExportPath, ReviewDecision, SecretScanSummary, SizeEstimate,
-    SupportBundleManifest, SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION,
-    SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND,
+    ActionabilityWarning, BuildIdentity, CollectionContext, CrashSymbolicatedFrameProjection,
+    DiagnosisLatencyMeasurementProjection, DiagnosisLatencyMeasurementState,
+    DiagnosisLatencyScorecardProjection, ExcludedClass, FileSectionIdentity, ParityBinding,
+    PolicyContext, PolicyLock, PolicyNote, PreviewClassificationSummary, PreviewExportParity,
+    Redaction, RedactionControl, RedactionReport, ReopenAfterExportPath, ReviewDecision,
+    SecretScanSummary, SizeEstimate, SupportBundleManifest, SupportBundlePreviewItem,
+    COLLECTION_SCHEMA_VERSION, SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND,
     SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
     SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND,
 };

@@ -6,10 +6,10 @@
 //! symbolication state, and support-bundle linkage, but never raw dump
 //! bytes or stack bodies.
 
-use aureline_crash::{CrashIncidentTrail, SymbolicationState};
+use aureline_crash::{CrashIncidentTrail, ModuleMappingQuality, SymbolicationState};
 
 use super::exact_build::ExactBuildCapture;
-use super::manifest::SizeEstimate;
+use super::manifest::{CrashSymbolicatedFrameProjection, SizeEstimate};
 use super::preview::{
     PreviewItemSeed, SupportBundlePreview, SupportBundlePreviewBuilder, SupportBundlePreviewError,
 };
@@ -82,7 +82,52 @@ pub fn crash_incident_trail_preview(
         exact_build,
     );
     builder.add_item(crash_incident_trail_seed(trail));
+    builder.add_crash_symbolication_frames(crash_symbolicated_frame_projections(trail));
     builder.build()
+}
+
+/// Project exact-build symbolicated frames from a crash trail into a
+/// support-bundle manifest.
+pub fn crash_symbolicated_frame_projections(
+    trail: &CrashIncidentTrail,
+) -> Vec<CrashSymbolicatedFrameProjection> {
+    let Some(report_ref) = &trail.symbolication_report_ref else {
+        return Vec::new();
+    };
+    if trail.primary_exact_build_identity_ref.trim().is_empty() {
+        return Vec::new();
+    }
+    if !trail.is_support_bundle_linked() {
+        return Vec::new();
+    }
+
+    trail
+        .module_summaries
+        .iter()
+        .filter(|module| {
+            matches!(
+                module.mapping_quality,
+                ModuleMappingQuality::Exact | ModuleMappingQuality::Partial
+            ) && !module.resolved_frame_summary.is_empty()
+        })
+        .map(|module| CrashSymbolicatedFrameProjection {
+            preview_item_id: "support.preview.item.crash_incident_trail".into(),
+            support_pack_item_id: SUPPORT_ITEM_CRASH_INCIDENT_TRAIL.into(),
+            crash_envelope_ref: trail.crash_envelope_ref.clone(),
+            symbolication_report_ref: report_ref.clone(),
+            module_id: module.module_id.clone(),
+            module_kind: module.module_kind.clone(),
+            mapping_quality: module.mapping_quality.as_str().into(),
+            exact_build_identity_ref: trail.primary_exact_build_identity_ref.clone(),
+            symbolication_identity_ref: module.symbolication_identity_ref.clone(),
+            resolved_frame_summary: module.resolved_frame_summary.clone(),
+            redaction_class: "operator_only_restricted".into(),
+            raw_stack_body_exported: false,
+            notes:
+                "Frame summaries came from exact-build symbolication; raw stack bodies stay out."
+                    .into(),
+        })
+        .collect()
 }
 
 fn incident_trail_notes(trail: &CrashIncidentTrail) -> String {
@@ -93,12 +138,19 @@ fn incident_trail_notes(trail: &CrashIncidentTrail) -> String {
         SymbolicationState::BuildMismatch => "exact-build mismatch retained as incomplete evidence",
     };
 
+    let frame_summary_count = trail
+        .module_summaries
+        .iter()
+        .map(|module| module.resolved_frame_summary.len())
+        .sum::<usize>();
+
     format!(
-        "{}; support linkage {}; {} trace id(s), {} module row(s), raw dump exported: {}.",
+        "{}; support linkage {}; {} trace id(s), {} module row(s), {} symbolicated frame summary row(s), raw dump exported: {}.",
         symbolication_label,
         trail.support_bundle_linkage.linkage_state.as_str(),
         trail.trace_ids.len(),
         trail.module_summaries.len(),
+        frame_summary_count,
         trail.raw_dump_exported
     )
 }

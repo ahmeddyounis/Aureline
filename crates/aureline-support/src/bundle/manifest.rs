@@ -513,6 +513,38 @@ pub struct DiagnosisLatencyScorecardProjection {
     pub notes: String,
 }
 
+/// Redaction-safe symbolicated frame summaries projected from a crash trail.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrashSymbolicatedFrameProjection {
+    /// Preview row that carries the crash incident trail.
+    pub preview_item_id: String,
+    /// Support-pack item id for the crash incident trail row.
+    pub support_pack_item_id: String,
+    /// Stable crash envelope ref.
+    pub crash_envelope_ref: String,
+    /// Stable symbolication report ref.
+    pub symbolication_report_ref: String,
+    /// Module id whose frames were symbolicated.
+    pub module_id: String,
+    /// Module class such as `native_binary` or `web_bundle`.
+    pub module_kind: String,
+    /// Mapping quality token copied from the crash trail.
+    pub mapping_quality: String,
+    /// Runtime exact-build identity ref used for symbolication.
+    pub exact_build_identity_ref: String,
+    /// Optional symbol/source-map identity used for this module.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbolication_identity_ref: Option<String>,
+    /// Redaction-safe symbolicated frame summaries.
+    pub resolved_frame_summary: Vec<String>,
+    /// Redaction class applied to the frame summaries.
+    pub redaction_class: String,
+    /// Always false for local-first support-bundle crash projections.
+    pub raw_stack_body_exported: bool,
+    /// Redaction-safe notes for reviewers.
+    pub notes: String,
+}
+
 /// Top-level support-bundle manifest record. Mirrors
 /// `support_bundle_manifest_record` in the boundary schema.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -533,6 +565,8 @@ pub struct SupportBundleManifest {
     pub action_reconstruction_contexts: Vec<ActionReconstructionContext>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnosis_latency_scorecards: Vec<DiagnosisLatencyScorecardProjection>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub crash_symbolication_frames: Vec<CrashSymbolicatedFrameProjection>,
     pub actionability_warnings: Vec<ActionabilityWarning>,
     pub reopen_after_export_path: ReopenAfterExportPath,
     pub preview_export_parity: PreviewExportParity,

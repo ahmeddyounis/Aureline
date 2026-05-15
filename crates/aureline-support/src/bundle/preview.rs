@@ -22,12 +22,12 @@ use serde::{Deserialize, Serialize};
 use super::exact_build::ExactBuildCapture;
 use super::manifest::{
     ActionPolicySourceContext, ActionReconstructionContext, ActionabilityImpact,
-    ActionabilityWarning, CollectionContext, DiagnosisLatencyMeasurementProjection,
-    DiagnosisLatencyScorecardProjection, ExcludedClass, FileSectionIdentity, HighRiskItemEntry,
-    ParityBinding, PolicyContext, PolicyLock, PolicyNote, PreviewClassificationSummary,
-    PreviewExportParity, Redaction, RedactionControl, RedactionReport, ReopenAfterExportPath,
-    ReviewDecision, SecretScanSummary, SizeEstimate, SupportBundleManifest,
-    SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION,
+    ActionabilityWarning, CollectionContext, CrashSymbolicatedFrameProjection,
+    DiagnosisLatencyMeasurementProjection, DiagnosisLatencyScorecardProjection, ExcludedClass,
+    FileSectionIdentity, HighRiskItemEntry, ParityBinding, PolicyContext, PolicyLock, PolicyNote,
+    PreviewClassificationSummary, PreviewExportParity, Redaction, RedactionControl,
+    RedactionReport, ReopenAfterExportPath, ReviewDecision, SecretScanSummary, SizeEstimate,
+    SupportBundleManifest, SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION,
     SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND,
     SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
     SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND, SUPPORT_BUNDLE_PREVIEW_ITEM_SCHEMA_VERSION,
@@ -314,6 +314,7 @@ pub struct SupportBundlePreviewBuilder {
     seeds: Vec<PreviewItemSeed>,
     action_contexts: Vec<ActionReconstructionSeed>,
     diagnosis_latency_scorecards: Vec<DiagnosisLatencyScorecardProjectionSeed>,
+    crash_symbolication_frames: Vec<CrashSymbolicatedFrameProjection>,
 }
 
 impl SupportBundlePreviewBuilder {
@@ -343,6 +344,7 @@ impl SupportBundlePreviewBuilder {
             seeds: Vec::new(),
             action_contexts: Vec::new(),
             diagnosis_latency_scorecards: Vec::new(),
+            crash_symbolication_frames: Vec::new(),
         }
     }
 
@@ -390,6 +392,17 @@ impl SupportBundlePreviewBuilder {
         seed: DiagnosisLatencyScorecardProjectionSeed,
     ) -> &mut Self {
         self.diagnosis_latency_scorecards.push(seed);
+        self
+    }
+
+    /// Queue redaction-safe crash symbolication frame summaries. The
+    /// summaries are projected into the manifest only after a crash trail
+    /// has confirmed exact-build linkage.
+    pub fn add_crash_symbolication_frames<I>(&mut self, frames: I) -> &mut Self
+    where
+        I: IntoIterator<Item = CrashSymbolicatedFrameProjection>,
+    {
+        self.crash_symbolication_frames.extend(frames);
         self
     }
 
@@ -919,6 +932,9 @@ impl SupportBundlePreviewBuilder {
         if !diagnosis_latency_scorecards.is_empty() {
             reconstruction_fields.push("diagnosis_latency_scorecards[]".into());
         }
+        if !self.crash_symbolication_frames.is_empty() {
+            reconstruction_fields.push("crash_symbolication_frames[]".into());
+        }
 
         let preview_export_parity = PreviewExportParity {
             preview_snapshot_ref: preview_snapshot_ref.clone(),
@@ -992,6 +1008,7 @@ impl SupportBundlePreviewBuilder {
             redaction_controls,
             action_reconstruction_contexts,
             diagnosis_latency_scorecards,
+            crash_symbolication_frames: self.crash_symbolication_frames,
             actionability_warnings,
             reopen_after_export_path,
             preview_export_parity,
