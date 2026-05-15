@@ -1,0 +1,713 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/effective_value.schema.json",
+  "title": "Aureline beta settings UI effective-value row",
+  "description": "Boundary schema for the beta-grade settings UI effective-value projection. The projection is the page-level surface over the schema-backed effective-setting inspection record (schemas/settings/effective_setting.schema.json). It adds the user-facing badges, lock owner labels, restart explanations, scope-explicit write composer state, and aggregate banners the beta settings UI needs, while keeping the same source_record_ref so UI, CLI/headless inspection, and support exports report the same effective-value truth. Three top-level shapes are exported: one settings UI beta row, one inspector pane (the expanded row view), one scope-explicit write composer, the page that groups rows, and the support-export wrapper. Raw secret material never appears here; redacted previews mirror the redaction class declared on the canonical setting definition. Adding a new top-level field, badge, or aggregate banner is additive-minor and bumps schema_version; repurposing an existing field or token is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/settings_ui_beta_row" },
+    { "$ref": "#/$defs/settings_ui_beta_page" },
+    { "$ref": "#/$defs/settings_ui_beta_inspector_pane" },
+    { "$ref": "#/$defs/settings_ui_beta_write_composer" },
+    { "$ref": "#/$defs/settings_ui_beta_support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this beta UI vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "settings:ui_beta:v1",
+      "description": "Shared contract ref every consumer (UI, CLI, support export) quotes when it renders this projection."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical stable dotted lower-snake setting id."
+    },
+
+    "scope_id": {
+      "type": "string",
+      "enum": [
+        "built_in_default",
+        "channel_or_experiment_default",
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override",
+        "session_override",
+        "admin_policy_narrowing"
+      ]
+    },
+
+    "lock_state": {
+      "type": "string",
+      "enum": [
+        "unlocked",
+        "policy_locked",
+        "policy_constrained",
+        "read_only_surface"
+      ]
+    },
+
+    "lock_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "inherited",
+        "policy_pins_value",
+        "policy_constrains_allowed_set",
+        "surface_cannot_write_this_scope",
+        "degraded_read_only"
+      ]
+    },
+
+    "restart_posture": {
+      "type": "string",
+      "enum": [
+        "no_restart",
+        "reload_workspace",
+        "restart_extensions",
+        "restart_shell"
+      ]
+    },
+
+    "sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "general_preference",
+        "machine_local",
+        "high_risk_control",
+        "credential_reference"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ]
+    },
+
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "safe_apply",
+        "preview_required",
+        "rollback_checkpoint_required",
+        "rollback_checkpoint_and_approval_required",
+        "managed_action_only"
+      ]
+    },
+
+    "write_verdict": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "allowed_with_restart",
+        "allowed_with_preview",
+        "allowed_with_rollback_checkpoint",
+        "allowed_with_rollback_checkpoint_and_approval",
+        "allowed_requires_approval_ticket",
+        "denied"
+      ]
+    },
+
+    "apply_state": {
+      "type": "string",
+      "enum": [
+        "ready_to_apply",
+        "awaiting_preview",
+        "awaiting_checkpoint",
+        "awaiting_approval",
+        "denied"
+      ]
+    },
+
+    "write_affordance_state": {
+      "type": "string",
+      "enum": [
+        "editable",
+        "gated_with_preview",
+        "gated_with_rollback_checkpoint",
+        "gated_with_rollback_checkpoint_and_approval",
+        "managed_action_only",
+        "constrained",
+        "locked",
+        "read_only"
+      ]
+    },
+
+    "shadow_relation": {
+      "type": "string",
+      "enum": [
+        "winner",
+        "shadowed",
+        "capped",
+        "policy_ceiling"
+      ]
+    },
+
+    "lock_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reason",
+        "label",
+        "owner_label",
+        "remediation_label",
+        "remediation_action_ref"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/lock_state" },
+        "reason": { "$ref": "#/$defs/lock_reason" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "remediation_label": { "$ref": "#/$defs/non_empty_string" },
+        "remediation_action_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_source_ref": {
+          "type": ["string", "null"]
+        },
+        "policy_source_scope": {
+          "anyOf": [
+            { "$ref": "#/$defs/scope_id" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "sensitivity_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "label", "explanation"],
+      "properties": {
+        "class": { "$ref": "#/$defs/sensitivity_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "restart_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture", "required", "label", "explanation"],
+      "properties": {
+        "posture": { "$ref": "#/$defs/restart_posture" },
+        "required": { "type": "boolean" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "lifecycle_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_token", "label"],
+      "properties": {
+        "label_token": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "redaction_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "label"],
+      "properties": {
+        "class": { "$ref": "#/$defs/redaction_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "write_affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "label", "explanation"],
+      "properties": {
+        "state": { "$ref": "#/$defs/write_affordance_state" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "shadow_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "source_label", "value_preview", "relation", "winner"],
+      "properties": {
+        "scope": { "$ref": "#/$defs/scope_id" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "value_preview": { "type": "string" },
+        "relation": { "$ref": "#/$defs/shadow_relation" },
+        "winner": { "type": "boolean" }
+      }
+    },
+
+    "capability_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "availability"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "required_ref": { "type": ["string", "null"] },
+        "availability": {
+          "type": "string",
+          "enum": ["available", "unavailable", "unknown", "not_required"]
+        },
+        "satisfied": { "type": ["boolean", "null"] },
+        "observed_state": { "type": ["string", "null"] }
+      }
+    },
+
+    "settings_ui_beta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "source_record_ref",
+        "setting_id",
+        "group_id",
+        "summary",
+        "value_preview",
+        "winning_scope",
+        "winning_source_label",
+        "allowed_scopes",
+        "shadow_chain",
+        "lock_badge",
+        "sensitivity_badge",
+        "restart_badge",
+        "lifecycle_badge",
+        "redaction_badge",
+        "capability_availability",
+        "capability_dependencies",
+        "help_deep_link_ref",
+        "validation_status",
+        "write_affordance"
+      ],
+      "properties": {
+        "record_kind": { "const": "settings_ui_beta_row" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "source_record_ref": { "$ref": "#/$defs/non_empty_string" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "group_id": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "value_preview": { "type": "string" },
+        "winning_scope": { "$ref": "#/$defs/scope_id" },
+        "winning_source_label": { "$ref": "#/$defs/non_empty_string" },
+        "allowed_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope_id" }
+        },
+        "shadow_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/shadow_row" }
+        },
+        "lock_badge": { "$ref": "#/$defs/lock_badge" },
+        "sensitivity_badge": { "$ref": "#/$defs/sensitivity_badge" },
+        "restart_badge": { "$ref": "#/$defs/restart_badge" },
+        "lifecycle_badge": { "$ref": "#/$defs/lifecycle_badge" },
+        "redaction_badge": { "$ref": "#/$defs/redaction_badge" },
+        "capability_availability": {
+          "type": "string",
+          "enum": ["available", "unavailable", "unknown", "not_required"]
+        },
+        "capability_dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_state" }
+        },
+        "help_deep_link_ref": { "$ref": "#/$defs/non_empty_string" },
+        "help_doc_ref": { "type": ["string", "null"] },
+        "validation_status": { "$ref": "#/$defs/non_empty_string" },
+        "write_affordance": { "$ref": "#/$defs/write_affordance" },
+        "last_applied_revision": { "type": ["string", "null"] }
+      }
+    },
+
+    "restart_posture_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restart_required_count",
+        "postures_present",
+        "any_process_restart",
+        "label"
+      ],
+      "properties": {
+        "restart_required_count": { "type": "integer", "minimum": 0 },
+        "postures_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restart_posture" }
+        },
+        "any_process_restart": { "type": "boolean" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "policy_lock_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_locked_count",
+        "policy_constrained_count",
+        "policy_sources_present",
+        "label"
+      ],
+      "properties": {
+        "policy_locked_count": { "type": "integer", "minimum": 0 },
+        "policy_constrained_count": { "type": "integer", "minimum": 0 },
+        "policy_sources_present": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "redaction_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["redacted_value_count", "classes_present"],
+      "properties": {
+        "redacted_value_count": { "type": "integer", "minimum": 0 },
+        "classes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_class" }
+        }
+      }
+    },
+
+    "settings_ui_beta_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_id", "group_label", "rows"],
+      "properties": {
+        "group_id": { "$ref": "#/$defs/non_empty_string" },
+        "group_label": { "$ref": "#/$defs/non_empty_string" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/settings_ui_beta_row" }
+        }
+      }
+    },
+
+    "settings_ui_beta_page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "page_label",
+        "groups",
+        "restart_summary",
+        "policy_summary",
+        "redaction_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "settings_ui_beta_page" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/non_empty_string" },
+        "page_label": { "$ref": "#/$defs/non_empty_string" },
+        "groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/settings_ui_beta_group" }
+        },
+        "restart_summary": { "$ref": "#/$defs/restart_posture_summary" },
+        "policy_summary": { "$ref": "#/$defs/policy_lock_summary" },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" }
+      }
+    },
+
+    "definition_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_type",
+        "default_value_preview",
+        "allowed_scopes",
+        "migration_aliases",
+        "preview_class",
+        "restart_posture",
+        "sensitivity_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "declared_type": { "$ref": "#/$defs/non_empty_string" },
+        "default_value_preview": { "type": "string" },
+        "allowed_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_id" }
+        },
+        "migration_aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "restart_posture": { "$ref": "#/$defs/restart_posture" },
+        "sensitivity_class": { "$ref": "#/$defs/sensitivity_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "source_chain_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "source_label",
+        "value_preview",
+        "relation",
+        "winner",
+        "relation_label"
+      ],
+      "properties": {
+        "scope": { "$ref": "#/$defs/scope_id" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "value_preview": { "type": "string" },
+        "relation": { "$ref": "#/$defs/shadow_relation" },
+        "winner": { "type": "boolean" },
+        "relation_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "lock_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reason",
+        "label",
+        "owner_label",
+        "remediation_label",
+        "remediation_action_ref"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/lock_state" },
+        "reason": { "$ref": "#/$defs/lock_reason" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "remediation_label": { "$ref": "#/$defs/non_empty_string" },
+        "remediation_action_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "inspector_restart_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["restart_posture", "restart_required", "state", "explanation"],
+      "properties": {
+        "restart_posture": { "$ref": "#/$defs/restart_posture" },
+        "restart_required": { "type": "boolean" },
+        "state": { "$ref": "#/$defs/non_empty_string" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "policy_lock_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason",
+        "policy_source_scope",
+        "policy_source_label",
+        "policy_source_ref",
+        "explanation"
+      ],
+      "properties": {
+        "reason": { "$ref": "#/$defs/lock_reason" },
+        "policy_source_scope": { "$ref": "#/$defs/scope_id" },
+        "policy_source_label": { "$ref": "#/$defs/non_empty_string" },
+        "policy_source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "explanation": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "settings_ui_beta_inspector_pane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "source_record_ref",
+        "setting_id",
+        "row",
+        "definition_summary",
+        "source_chain",
+        "lock_explanation",
+        "restart_explanation",
+        "evidence_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "settings_ui_beta_inspector_pane" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "source_record_ref": { "$ref": "#/$defs/non_empty_string" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "row": { "$ref": "#/$defs/settings_ui_beta_row" },
+        "definition_summary": { "$ref": "#/$defs/definition_summary" },
+        "source_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_chain_row" }
+        },
+        "lock_explanation": { "$ref": "#/$defs/lock_explanation" },
+        "restart_explanation": { "$ref": "#/$defs/inspector_restart_state" },
+        "policy_lock_explanation": {
+          "anyOf": [
+            { "$ref": "#/$defs/policy_lock_explanation" },
+            { "type": "null" }
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+
+    "destination_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_scope",
+        "effective_write_scope",
+        "target_artifact_ref",
+        "scope_explicit",
+        "scope_broadening_verdict"
+      ],
+      "properties": {
+        "requested_scope": { "$ref": "#/$defs/scope_id" },
+        "effective_write_scope": { "$ref": "#/$defs/scope_id" },
+        "target_artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_explicit": { "type": "boolean" },
+        "scope_broadening_verdict": {
+          "type": "string",
+          "enum": ["none", "narrowed", "broadened"]
+        }
+      }
+    },
+
+    "denial_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason",
+        "owner_label",
+        "remediation_label",
+        "remediation_action_ref"
+      ],
+      "properties": {
+        "reason": { "$ref": "#/$defs/non_empty_string" },
+        "owner_label": { "$ref": "#/$defs/non_empty_string" },
+        "remediation_label": { "$ref": "#/$defs/non_empty_string" },
+        "remediation_action_ref": { "$ref": "#/$defs/non_empty_string" },
+        "policy_source_ref": { "type": ["string", "null"] }
+      }
+    },
+
+    "settings_ui_beta_write_composer": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "source_record_ref",
+        "setting_id",
+        "target_scope",
+        "destination_preview",
+        "verdict",
+        "apply_state",
+        "preview_required",
+        "checkpoint_required",
+        "approval_required"
+      ],
+      "properties": {
+        "record_kind": { "const": "settings_ui_beta_write_composer" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "source_record_ref": { "$ref": "#/$defs/non_empty_string" },
+        "setting_id": { "$ref": "#/$defs/setting_id" },
+        "target_scope": { "$ref": "#/$defs/scope_id" },
+        "destination_preview": { "$ref": "#/$defs/destination_preview" },
+        "verdict": { "$ref": "#/$defs/write_verdict" },
+        "apply_state": { "$ref": "#/$defs/apply_state" },
+        "restart_posture": {
+          "anyOf": [
+            { "$ref": "#/$defs/restart_posture" },
+            { "type": "null" }
+          ]
+        },
+        "preview_class": {
+          "anyOf": [
+            { "$ref": "#/$defs/preview_class" },
+            { "type": "null" }
+          ]
+        },
+        "preview_required": { "type": "boolean" },
+        "checkpoint_required": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "denial_explanation": {
+          "anyOf": [
+            { "$ref": "#/$defs/denial_explanation" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Scope-explicit write composer. Denied composers MUST carry a denial_explanation that names the owner and remediation; a silent denial is a contract bug."
+    },
+
+    "settings_ui_beta_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "page",
+        "effective_settings"
+      ],
+      "properties": {
+        "record_kind": { "const": "settings_ui_beta_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "page": { "$ref": "#/$defs/settings_ui_beta_page" },
+        "effective_settings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "description": "Schema-backed effective-setting inspection record. See schemas/settings/effective_setting.schema.json for the canonical alpha row."
+          }
+        }
+      }
+    }
+  }
+}

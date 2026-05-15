@@ -9,6 +9,10 @@ use aureline_settings::inspector::{
     project_support_export, SettingWritePreviewRequest, SettingsInspectionContext, WriteActorClass,
     WriteReasonClass,
 };
+use aureline_settings::ui::{
+    inspect_setting_pane, project_page_from_records, project_settings_ui_beta_page,
+    project_support_export as project_ui_beta_support_export, project_write_composer,
+};
 use aureline_settings::{
     EffectiveSettingsResolver, PolicyConstraint, SchemaRegistry, ScopeOverlay, SettingScope,
     SettingValue,
@@ -64,6 +68,49 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("support-export") => {
             let records = inspect_all_settings(&resolver, &context)?;
             let export = project_support_export("support-export:settings:alpha", records);
+            print_json(&export)?;
+        }
+        Some("ui-beta-page") => {
+            let page = project_settings_ui_beta_page(
+                &resolver,
+                &context,
+                "all",
+                "All settings",
+            )?;
+            print_json(&page)?;
+        }
+        Some("ui-beta-inspector") => {
+            let setting_id = args
+                .get(1)
+                .map(String::as_str)
+                .unwrap_or("security.ai.egress_policy");
+            let pane = inspect_setting_pane(&resolver, setting_id, &context)?;
+            print_json(&pane)?;
+        }
+        Some("ui-beta-write-composer") => {
+            let composer = project_write_composer(
+                &resolver,
+                SettingWritePreviewRequest {
+                    setting_id: "security.ai.egress_policy".to_owned(),
+                    target_scope: SettingScope::UserGlobal,
+                    proposed_value: SettingValue::String("any_hosted_provider".to_owned()),
+                    actor_class: WriteActorClass::UserCommand,
+                    reason_class: WriteReasonClass::UserEdit,
+                    checkpoint_ref: None,
+                    approval_ticket_ref: None,
+                },
+                &context,
+            );
+            print_json(&composer)?;
+        }
+        Some("ui-beta-support-export") => {
+            let records = inspect_all_settings(&resolver, &context)?;
+            let page = project_page_from_records(records.clone(), "all", "All settings");
+            let export = project_ui_beta_support_export(
+                "support-export:settings-ui-beta:001",
+                page,
+                records,
+            );
             print_json(&export)?;
         }
         Some("preview-write") => {
