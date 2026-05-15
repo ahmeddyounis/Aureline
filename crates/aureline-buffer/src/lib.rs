@@ -12,9 +12,15 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-buffer/0.0.0")]
 
+pub mod content_integrity;
 pub mod piece_tree;
 pub mod prototype;
 
+pub use content_integrity::{
+    project_editor_content_integrity, EditorContentIntegrityEvent,
+    EditorContentIntegrityProjection, EDITOR_CONTENT_INTEGRITY_PROJECTION_RECORD_KIND,
+    EDITOR_CONTENT_INTEGRITY_PROJECTION_SCHEMA_VERSION,
+};
 pub use piece_tree::buffer::{
     Buffer, BufferConfig, BufferError, CheckpointHandle, CommittedInfo, JournalEntry, JournalView,
     RevisionId, Snapshot, SnapshotId, Transaction, TransactionId, TransactionSpec, UndoGroupId,

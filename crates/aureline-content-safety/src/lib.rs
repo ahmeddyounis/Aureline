@@ -34,12 +34,19 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-content-safety/0.0.0")]
 
+pub mod content_integrity;
 pub mod detector;
 pub mod records;
 pub mod representation_copy_export;
 pub mod suspicious_text;
 pub mod transfer;
 
+pub use content_integrity::{
+    project_content_integrity_warnings, project_content_integrity_warnings_from_detection,
+    warnings_cover_required_surfaces, ContentIntegritySurfaceKind, ContentIntegrityWarningRecord,
+    CONTENT_INTEGRITY_REQUIRED_SURFACES, CONTENT_INTEGRITY_WARNING_RECORD_KIND,
+    CONTENT_INTEGRITY_WARNING_SCHEMA_VERSION,
+};
 pub use detector::{
     detect_suspicious_content, escape_for_safe_inspection, has_suspicious_content,
     DetectorOutcomeClass, SuspiciousContentDetection, SuspiciousFinding,

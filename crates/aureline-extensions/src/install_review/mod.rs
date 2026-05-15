@@ -12,6 +12,9 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_auth::CurrentDeploymentBoundaryClass;
+use aureline_content_safety::{
+    project_content_integrity_warnings, ContentIntegritySurfaceKind, ContentIntegrityWarningRecord,
+};
 use aureline_install::{
     InstallModeClass, InstallTopologyRow, InstallTopologyTruthFingerprint, TopologySurfaceClass,
 };
@@ -418,6 +421,9 @@ pub struct InstallReviewAlphaPacketRecord {
     pub decided_at: String,
     /// Redaction class for emitted records.
     pub redaction_class: RedactionClass,
+    /// Shared content-integrity warnings emitted for package review text.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_integrity_warnings: Vec<ContentIntegrityWarningRecord>,
 }
 
 /// First consumer projection for native, marketplace, CLI, webview, and support surfaces.
@@ -479,6 +485,9 @@ pub struct InstallReviewAlphaProjectionRecord {
     pub export_safe_summary: String,
     /// Redaction class for emitted records.
     pub redaction_class: RedactionClass,
+    /// Shared content-integrity warnings carried into this projection.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_integrity_warnings: Vec<ContentIntegrityWarningRecord>,
 }
 
 /// Typed validation finding emitted by install-review alpha validators.
@@ -541,6 +550,14 @@ pub fn evaluate_install_review_alpha(
     let required_disclosures = required_disclosures_for(input.action_class);
     let missing_disclosure =
         first_missing_disclosure(&required_disclosures, &input.rendered_disclosures);
+    let content_integrity_warnings = project_install_review_alpha_content_integrity(
+        &input.review_id,
+        &input.subject_ref,
+        &install_review_alpha_content_for_warnings(
+            &input.subject_ref,
+            &boundary_truth.owner_origin_summary,
+        ),
+    );
 
     let (decision_class, decision_reason_class, decision_summary) = if missing_disclosure.is_some()
     {
@@ -709,6 +726,7 @@ pub fn evaluate_install_review_alpha(
         review_event_refs: input.review_event_refs,
         decided_at: decided_at.to_string(),
         redaction_class: RedactionClass::MetadataSafeDefault,
+        content_integrity_warnings,
     }
 }
 
@@ -791,7 +809,29 @@ pub fn project_install_review_alpha_surface(
             packet.install_topology_row_ref
         ),
         redaction_class: RedactionClass::MetadataSafeDefault,
+        content_integrity_warnings: packet.content_integrity_warnings.clone(),
     }
+}
+
+/// Projects shared content-integrity warnings for install-review alpha text.
+pub fn project_install_review_alpha_content_integrity(
+    case_id: &str,
+    subject_ref: &str,
+    review_text: &str,
+) -> Vec<ContentIntegrityWarningRecord> {
+    project_content_integrity_warnings(
+        case_id,
+        ContentIntegritySurfaceKind::Package,
+        subject_ref,
+        review_text,
+    )
+}
+
+fn install_review_alpha_content_for_warnings(
+    subject_ref: &str,
+    owner_origin_summary: &str,
+) -> String {
+    format!("{subject_ref}\n{owner_origin_summary}")
 }
 
 /// Validate structural invariants for an install-review alpha packet.

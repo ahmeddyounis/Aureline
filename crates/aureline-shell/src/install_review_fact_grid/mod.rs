@@ -7,10 +7,10 @@
 //! extension-bearing or package-bearing action collapses publisher
 //! identity, declared permissions, lifecycle posture, install origin,
 //! and rollback truth onto a single "Install" button with one bag of
-//! marketing copy. The bounded prototype in this module is the first M1
-//! surface that lists those facts side-by-side **before** commit, using
-//! the same closed vocabulary the M01-099 boundary manifest and the
-//! M01-104 extension manifest-baseline freeze. Chrome reads the
+//! marketing copy. The bounded prototype in this module lists those
+//! facts side-by-side **before** commit, using the same closed
+//! vocabulary as the boundary manifest and the extension
+//! manifest-baseline freeze. Chrome reads the
 //! resulting [`InstallReviewFactGridRecord`] verbatim; it does not
 //! invent local synonyms for any axis.
 //!
@@ -66,6 +66,9 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_content_safety::{
+    project_content_integrity_warnings, ContentIntegritySurfaceKind, ContentIntegrityWarningRecord,
+};
 use aureline_extensions::manifest_baseline::{
     validate_manifest_baseline_record, DeclaredVsEffectiveDiffEntry,
     EffectivePermissionBaselineRecord, EffectivePermissionDiffClass, ExtensionLifecycleStateClass,
@@ -571,6 +574,8 @@ pub struct InstallReviewFactGridRecord {
     pub claim_limits: Vec<InstallReviewFactGridClaimLimitRow>,
     pub invariants: Vec<InstallReviewFactGridInvariantRow>,
     pub has_invariant_violations: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_integrity_warnings: Vec<ContentIntegrityWarningRecord>,
     pub summary_line: String,
 }
 
@@ -676,6 +681,15 @@ impl InstallReviewFactGridRecord {
                 out.push_str(&format!(
                     "  - {}: {}\n",
                     row.violation_token, row.violation_label
+                ));
+            }
+        }
+        if !self.content_integrity_warnings.is_empty() {
+            out.push_str("content_integrity_warnings:\n");
+            for warning in &self.content_integrity_warnings {
+                out.push_str(&format!(
+                    "  - {} {} at char {}\n",
+                    warning.record_kind, warning.warning_label, warning.char_offset
                 ));
             }
         }
@@ -834,6 +848,11 @@ impl InstallReviewFactGridWedge {
             .map(InstallReviewFactGridInvariantRow::from_violation)
             .collect();
         let has_invariant_violations = !invariants.is_empty();
+        let content_integrity_warnings = project_install_review_content_integrity(
+            &self.manifest.manifest_baseline_id,
+            &wedge_id,
+            &install_review_content_for_warnings(&self.manifest, &self.decision),
+        );
         let summary_line = self.summary_line(has_invariant_violations);
 
         InstallReviewFactGridRecord {
@@ -860,6 +879,7 @@ impl InstallReviewFactGridWedge {
             claim_limits,
             invariants,
             has_invariant_violations,
+            content_integrity_warnings,
             summary_line,
         }
     }
@@ -1017,6 +1037,39 @@ impl InstallReviewFactGridWedge {
 
         out
     }
+}
+
+/// Projects shared content-integrity warnings for install-review text fields.
+pub fn project_install_review_content_integrity(
+    case_id: &str,
+    subject_ref: &str,
+    review_text: &str,
+) -> Vec<ContentIntegrityWarningRecord> {
+    project_content_integrity_warnings(
+        case_id,
+        ContentIntegritySurfaceKind::Package,
+        subject_ref,
+        review_text,
+    )
+}
+
+fn install_review_content_for_warnings(
+    manifest: &ExtensionManifestBaselineRecord,
+    decision: &ManifestInstallDecisionRecord,
+) -> String {
+    let mut parts = vec![
+        manifest.extension_identity.clone(),
+        manifest.extension_version.clone(),
+        manifest.publisher_identity_ref.clone(),
+        manifest.publisher_display_label.clone(),
+        manifest.origin_source_label.clone(),
+        decision.decision_summary.clone(),
+    ];
+    for permission in &manifest.declared_permissions {
+        parts.push(permission.scope_target.clone());
+        parts.push(permission.rationale_label.clone());
+    }
+    parts.join("\n")
 }
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,9 @@
 //! snapshot and the current on-disk bytes and keeps destructive choices
 //! explicit.
 
+use aureline_content_safety::{
+    project_content_integrity_warnings, ContentIntegritySurfaceKind, ContentIntegrityWarningRecord,
+};
 use aureline_vfs::{SaveOutcome, SaveTargetToken, VfsRoot};
 use aureline_workspace::save::SourceFidelityRecord;
 use serde::{Deserialize, Serialize};
@@ -45,6 +48,8 @@ pub struct SaveReviewDiffRecord {
     pub content_kind: String,
     pub summary: Option<SaveReviewDiffSummary>,
     pub preview_lines: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_integrity_warnings: Vec<ContentIntegrityWarningRecord>,
 }
 
 /// Summary of the diff between the local buffer and the external bytes.
@@ -159,6 +164,17 @@ pub fn save_review_sheet_lines(record: &SaveReviewSheetRecord, selection: usize)
         lines.extend(record.diff.preview_lines.iter().cloned());
     }
 
+    if !record.diff.content_integrity_warnings.is_empty() {
+        lines.push("".to_string());
+        lines.push("Content integrity:".to_string());
+        for warning in &record.diff.content_integrity_warnings {
+            lines.push(format!(
+                "{} — {} at char {}",
+                warning.record_kind, warning.warning_label, warning.char_offset
+            ));
+        }
+    }
+
     lines.push("".to_string());
     lines.push("Choices:".to_string());
     for (idx, choice) in record.offered_choices.iter().enumerate() {
@@ -257,7 +273,14 @@ pub fn materialize_save_review_sheet_record(
     let pinned_generation_token = token.compare_before_write_generation_token.value.clone();
 
     let external_bytes = root.read_bytes(canonical_uri).ok();
-    let diff = materialize_diff_record(source_fidelity, local_content, external_bytes.as_deref());
+    let diff_subject_ref = format!("save-review:{packet_id}:diff");
+    let diff = materialize_diff_record(
+        source_fidelity,
+        local_content,
+        external_bytes.as_deref(),
+        &packet_id,
+        &diff_subject_ref,
+    );
     let offered_choices = offered_choices_for_state(outcome, &diff, reviewed_external_state, token);
 
     SaveReviewSheetRecord {
@@ -281,13 +304,19 @@ fn materialize_diff_record(
     source_fidelity: &SourceFidelityRecord,
     local_content: &[u8],
     external_bytes: Option<&[u8]>,
+    case_id: &str,
+    subject_ref: &str,
 ) -> SaveReviewDiffRecord {
+    let content_integrity_warnings =
+        project_save_review_diff_content_integrity(case_id, subject_ref, local_content);
+
     let Some(external_bytes) = external_bytes else {
         return SaveReviewDiffRecord {
             diff_availability: "summary_only".to_string(),
             content_kind: "unknown".to_string(),
             summary: None,
             preview_lines: Vec::new(),
+            content_integrity_warnings,
         };
     };
 
@@ -306,6 +335,7 @@ fn materialize_diff_record(
                 content_kind: "text".to_string(),
                 summary: Some(summary),
                 preview_lines,
+                content_integrity_warnings,
             }
         }
         _ => SaveReviewDiffRecord {
@@ -319,8 +349,27 @@ fn materialize_diff_record(
                 summary_text: "Binary or non-UTF8 content; diff preview unavailable.".to_string(),
             }),
             preview_lines: Vec::new(),
+            content_integrity_warnings,
         },
     }
+}
+
+/// Projects shared content-integrity warnings for a save-review diff body.
+pub fn project_save_review_diff_content_integrity(
+    case_id: &str,
+    subject_ref: &str,
+    local_content: &[u8],
+) -> Vec<ContentIntegrityWarningRecord> {
+    std::str::from_utf8(local_content)
+        .map(|text| {
+            project_content_integrity_warnings(
+                case_id,
+                ContentIntegritySurfaceKind::Diff,
+                subject_ref,
+                text,
+            )
+        })
+        .unwrap_or_default()
 }
 
 fn offered_choices_for_state(

@@ -21,6 +21,9 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_content_safety::{
+    ContentIntegrityWarningRecord, CONTENT_INTEGRITY_WARNING_RECORD_KIND,
+};
 use aureline_preview::{CopyExportOption, SafePreviewInvariantViolation, SafePreviewRecord};
 
 /// Stable record-kind tag carried in serialized snapshots.
@@ -195,6 +198,9 @@ pub struct SafePreviewCardSnapshot {
     pub has_invariant_violations: bool,
     /// Number of distinct copy/export options surfaced.
     pub copy_export_option_count: u32,
+    /// Shared content-integrity warnings carried by the preview record.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_integrity_warnings: Vec<ContentIntegrityWarningRecord>,
 }
 
 impl SafePreviewCardSnapshot {
@@ -227,6 +233,7 @@ impl SafePreviewCardSnapshot {
             sections,
             has_invariant_violations: !violations.is_empty(),
             copy_export_option_count: record.copy_export_options.len() as u32,
+            content_integrity_warnings: record.content_integrity_warnings.clone(),
         }
     }
 
@@ -352,6 +359,13 @@ fn project_body_extent_section(record: &SafePreviewRecord) -> SafePreviewSection
         "Suspicious findings",
         record.suspicious_finding_count.to_string(),
     ));
+    if !record.content_integrity_warnings.is_empty() {
+        rows.push(SafePreviewRow::live(
+            "content_integrity_warning_record_kind",
+            "Warning record kind",
+            CONTENT_INTEGRITY_WARNING_RECORD_KIND,
+        ));
+    }
     if rows.is_empty() {
         rows.push(SafePreviewRow::descriptive(
             "no_body_extent",

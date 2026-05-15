@@ -11,8 +11,9 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_content_safety::{
-    BodyPosture, RepresentationActionId, RepresentationClass, SuspiciousContentDetection,
-    TrustClass,
+    project_content_integrity_warnings_from_detection, BodyPosture, ContentIntegritySurfaceKind,
+    ContentIntegrityWarningRecord, RepresentationActionId, RepresentationClass,
+    SuspiciousContentDetection, TrustClass,
 };
 
 /// Stable record-kind tag carried in serialized safe-preview payloads.
@@ -430,6 +431,9 @@ pub struct SafePreviewRecord {
     /// Suspicious-content finding count for risky text previews (0 for the
     /// other content classes).
     pub suspicious_finding_count: u32,
+    /// Shared content-integrity warnings for risky text previews.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_integrity_warnings: Vec<ContentIntegrityWarningRecord>,
     /// Stable summary line the chrome renders below the preview header. The
     /// support export quotes this verbatim.
     pub summary_line: String,
@@ -473,6 +477,12 @@ impl SafePreviewRecord {
             out.push_str(&format!(
                 "suspicious_findings={}\n",
                 self.suspicious_finding_count
+            ));
+        }
+        if !self.content_integrity_warnings.is_empty() {
+            out.push_str(&format!(
+                "content_integrity_warnings={}\n",
+                self.content_integrity_warnings.len()
             ));
         }
         out.push_str(&format!("summary: {}\n", self.summary_line));
@@ -822,6 +832,13 @@ pub fn build_risky_text_preview(input: RiskyTextInput) -> SafePreviewRecord {
     let prototype = PrototypeLabel::M1PrototypeSafePreviewAndCopyExport;
     let finding_count = input.detection.findings.len() as u32;
     let has_findings = finding_count > 0;
+    let content_integrity_warnings = project_content_integrity_warnings_from_detection(
+        &input.preview_id,
+        ContentIntegritySurfaceKind::Preview,
+        &input.source_subject_ref,
+        &input.detection,
+        None,
+    );
     let currently_visible = if has_findings {
         CurrentlyVisibleRepresentation::Escaped
     } else {
@@ -861,6 +878,7 @@ pub fn build_risky_text_preview(input: RiskyTextInput) -> SafePreviewRecord {
         visible_byte_count: None,
         visible_line_count: None,
         suspicious_finding_count: finding_count,
+        content_integrity_warnings,
         summary_line: summary,
         copy_export_options: options,
         claim_limits: SafePreviewClaimLimit::canonical_limits(),
@@ -908,6 +926,7 @@ pub fn build_oversized_artifact_preview(input: OversizedArtifactInput) -> SafePr
         visible_byte_count: Some(input.visible_byte_count),
         visible_line_count: Some(input.visible_line_count),
         suspicious_finding_count: 0,
+        content_integrity_warnings: Vec::new(),
         summary_line: summary,
         copy_export_options: options,
         claim_limits: SafePreviewClaimLimit::canonical_limits(),
@@ -951,6 +970,7 @@ pub fn build_generated_content_preview(input: GeneratedContentInput) -> SafePrev
         visible_byte_count: None,
         visible_line_count: None,
         suspicious_finding_count: 0,
+        content_integrity_warnings: Vec::new(),
         summary_line: summary,
         copy_export_options: options,
         claim_limits: SafePreviewClaimLimit::canonical_limits(),

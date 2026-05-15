@@ -34,6 +34,9 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use aureline_content_safety::{
+    project_content_integrity_warnings, ContentIntegritySurfaceKind, ContentIntegrityWarningRecord,
+};
 use aureline_history::checkpoints::{
     AliasSetRecord, CanonicalFilesystemObjectRecord, CaptureDescriptor, CaptureMode,
     CaptureOmissionReasonClass, FilesystemIdentityRecord, IdentityTokenRecord,
@@ -231,6 +234,8 @@ pub struct DiffPreviewRow {
     pub match_count: u32,
     pub proposed_post_apply_digest: String,
     pub proposed_bytes_preview_snippet: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_integrity_warnings: Vec<ContentIntegrityWarningRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blocked_reason: Option<DiffRowBlockReason>,
 }
@@ -454,10 +459,11 @@ impl MutationPacket {
                     .map(|r| format!(" [blocked: {}]", r.as_str()))
                     .unwrap_or_default();
                 out.push_str(&format!(
-                    "    {logical}: matches={matches}, drift={drift}{blocked}\n",
+                    "    {logical}: matches={matches}, drift={drift}, integrity_warnings={warnings}{blocked}\n",
                     logical = row.logical_ref,
                     matches = row.match_count,
                     drift = drift_token(&row.basis_drift),
+                    warnings = row.content_integrity_warnings.len(),
                 ));
             }
         } else {
@@ -1332,6 +1338,7 @@ impl DestructiveCoreEngine {
                     match_count: 0,
                     proposed_post_apply_digest: "obj:missing".to_owned(),
                     proposed_bytes_preview_snippet: String::new(),
+                    content_integrity_warnings: Vec::new(),
                     blocked_reason: Some(DiffRowBlockReason::TargetMissing),
                 };
             }
@@ -1350,6 +1357,7 @@ impl DestructiveCoreEngine {
                 match_count: 0,
                 proposed_post_apply_digest: "obj:invalidated_by_drift".to_owned(),
                 proposed_bytes_preview_snippet: String::new(),
+                content_integrity_warnings: Vec::new(),
                 blocked_reason: Some(DiffRowBlockReason::BasisDrifted),
             };
         }
@@ -1369,6 +1377,7 @@ impl DestructiveCoreEngine {
                 match_count: 0,
                 proposed_post_apply_digest: observed_basis,
                 proposed_bytes_preview_snippet: String::new(),
+                content_integrity_warnings: Vec::new(),
                 blocked_reason: Some(DiffRowBlockReason::NoMatchesFound),
             };
         }
@@ -1376,6 +1385,11 @@ impl DestructiveCoreEngine {
         let post_bytes = apply_replacement(&bytes, search, replacement);
         let post_digest = body_object_id(&post_bytes);
         let snippet = preview_snippet(&post_bytes, 80);
+        let content_integrity_warnings = project_review_preview_diff_content_integrity(
+            &format!("review-preview:{}", spec.logical_ref),
+            &spec.logical_ref,
+            &snippet,
+        );
 
         DiffPreviewRow {
             logical_ref: spec.logical_ref.clone(),
@@ -1385,6 +1399,7 @@ impl DestructiveCoreEngine {
             match_count,
             proposed_post_apply_digest: post_digest,
             proposed_bytes_preview_snippet: snippet,
+            content_integrity_warnings,
             blocked_reason: None,
         }
     }
@@ -1412,6 +1427,20 @@ fn preview_snippet(bytes: &[u8], max_len: usize) -> String {
     let text = String::from_utf8_lossy(bytes);
     let trimmed: String = text.chars().take(max_len).collect();
     trimmed
+}
+
+/// Projects shared content-integrity warnings for a review-preview diff row.
+pub fn project_review_preview_diff_content_integrity(
+    case_id: &str,
+    subject_ref: &str,
+    snippet: &str,
+) -> Vec<ContentIntegrityWarningRecord> {
+    project_content_integrity_warnings(
+        case_id,
+        ContentIntegritySurfaceKind::Diff,
+        subject_ref,
+        snippet,
+    )
 }
 
 fn synthetic_filesystem_identity(
