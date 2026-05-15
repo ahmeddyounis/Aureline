@@ -92,5 +92,6 @@ pub mod terminal_pane;
 pub mod transfer;
 pub mod wedge_inspector;
 pub mod windowing;
+pub mod windows;
 pub mod workset_switcher;
 pub mod workspace_switcher;
