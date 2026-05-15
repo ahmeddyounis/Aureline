@@ -1041,7 +1041,7 @@ struct PytestWorkspaceRead {
 fn read_pytest_workspace(workspace_root: &Path) -> PytestWorkspaceRead {
     let mut paths = Vec::new();
     let mut issues = Vec::new();
-    match collect_test_files(workspace_root, workspace_root, &mut paths) {
+    match collect_test_files(workspace_root, &mut paths) {
         Ok(()) => {}
         Err(err) => {
             return PytestWorkspaceRead {
@@ -1100,11 +1100,7 @@ fn read_pytest_workspace(workspace_root: &Path) -> PytestWorkspaceRead {
     }
 }
 
-fn collect_test_files(
-    workspace_root: &Path,
-    current: &Path,
-    out: &mut Vec<PathBuf>,
-) -> io::Result<()> {
+fn collect_test_files(current: &Path, out: &mut Vec<PathBuf>) -> io::Result<()> {
     for entry in fs::read_dir(current)? {
         let entry = entry?;
         let path = entry.path();
@@ -1113,7 +1109,7 @@ fn collect_test_files(
             if should_skip_dir(&path) {
                 continue;
             }
-            collect_test_files(workspace_root, &path, out)?;
+            collect_test_files(&path, out)?;
         } else if file_type.is_file() && is_pytest_file(&path) {
             out.push(path);
         }

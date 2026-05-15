@@ -1306,7 +1306,7 @@ mod tests {
         })
     }
 
-    fn command_request<'a>(display_title: &'a str) -> OpenSessionRequest<'a> {
+    fn command_request(display_title: &str) -> OpenSessionRequest<'_> {
         OpenSessionRequest {
             workspace_id: "ws-test",
             host_class: HostClass::HostDesktop,

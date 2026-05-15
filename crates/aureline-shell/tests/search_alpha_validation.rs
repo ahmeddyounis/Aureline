@@ -194,7 +194,7 @@ fn discoverability_snapshot() -> aureline_shell::palette::AlphaPaletteDiscoverab
     }];
 
     materialize_alpha_palette_query(AlphaPaletteQueryInputs {
-        registry: &registry,
+        registry,
         query: "open",
         shortcuts_by_command_id: &shortcuts,
         runtime,
@@ -210,7 +210,7 @@ fn search_alpha_validation_combines_ranking_discoverability_and_keyboard_routes(
     let mut cards = quick_open_cards();
     cards.extend(symbol_cards());
     let keyboard_audit = materialize_alpha_keyboard_gap_audit(
-        &seeded_registry(),
+        seeded_registry(),
         KeymapPresetId::VsCode,
         PlatformClass::Macos,
     );

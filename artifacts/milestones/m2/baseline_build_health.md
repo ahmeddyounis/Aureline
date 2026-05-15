@@ -125,3 +125,61 @@ The desktop windowed startup path was not exercised in this headless
 environment. The available bootstrap affordance for this run was the
 headless edit/save route, which starts through the binary entry point and
 exits cleanly without creating a native window.
+
+## Workspace Strict Clippy Baseline Refresh
+
+Captured on 2026-05-15T07:45:26Z after remediating the workspace warning
+baseline.
+
+### Commands
+
+```sh
+cargo fmt --all --check
+```
+
+Result: exit 0.
+
+```sh
+cargo check --workspace
+```
+
+Result: exit 0, finished in 10.18s.
+
+```sh
+cargo clippy --workspace --all-targets -- -D warnings
+```
+
+Result: exit 0, finished in 22.31s.
+
+```sh
+git diff --check
+```
+
+Result: exit 0.
+
+### Findings
+
+The previous warning table is now superseded for the current workspace
+state: strict Clippy exits cleanly with `-D warnings` across all members,
+all targets, integration tests, and binary targets. No dependency changes
+were required.
+
+Mechanical remediations fixed needless borrows, elidable lifetimes,
+redundant branch bodies, recursive-only parameters, module inception in a
+test module, and local `Option` early-return style.
+
+### Scoped Allowlist
+
+No global lint allowlist was added. The remaining `clippy::too_many_arguments`
+exceptions are item-scoped and carry adjacent rationale comments because the
+affected APIs intentionally mirror serialized evidence records or fixture
+record dimensions:
+
+| Location | Scope |
+|---|---|
+| `crates/aureline-search/src/query_session.rs:117` | local-text query session constructor |
+| `crates/aureline-search/src/query_session.rs:154` | hash-only query session constructor |
+| `crates/aureline-runtime/src/packages/mod.rs:937` | manifest-scope descriptor constructor |
+| `crates/aureline-runtime/src/packages/mod.rs:1047` | registry-source descriptor constructor |
+| `crates/aureline-runtime/src/tasks/mod.rs:1418` | task-event test fixture helper |
+| `crates/aureline-ai/src/routing/mod.rs:1239` | AI routing packet constructor |

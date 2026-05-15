@@ -1165,7 +1165,7 @@ pub struct TestAttemptAlphaOptions<'a> {
     pub watch_policy_token: &'a str,
 }
 
-impl<'a> TestAttemptAlphaOptions<'a> {
+impl TestAttemptAlphaOptions<'_> {
     /// Returns default options for a local one-shot pytest run.
     pub const fn local_run() -> Self {
         Self {
@@ -1617,8 +1617,6 @@ fn identity_stability_for(contract: &PytestRunContract) -> TestIdentityStability
         && contract.readiness != PytestLaunchReadiness::Blocked
     {
         TestIdentityStability::Stable
-    } else if contract.selection.test_item_id.is_some() {
-        TestIdentityStability::DynamicPartialDiscovery
     } else {
         TestIdentityStability::DynamicPartialDiscovery
     }
@@ -1672,7 +1670,7 @@ fn dedupe_tokens(tokens: Vec<String>) -> Vec<String> {
 }
 
 #[cfg(test)]
-mod tests {
+mod unit_tests {
     use std::path::{Path, PathBuf};
 
     use super::*;
@@ -1839,10 +1837,9 @@ mod tests {
         );
         assert!(packet.imported_ci_projection.read_only_imported_evidence);
         assert!(
-            packet
+            !packet
                 .imported_ci_projection
                 .does_not_claim_live_local_truth
-                == false
         );
         assert!(
             packet

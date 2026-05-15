@@ -1751,9 +1751,7 @@ fn destination_collision(destination: &str) -> Option<DestinationCollisionReview
     } else if path.is_dir() {
         match std::fs::read_dir(path) {
             Ok(mut entries) => {
-                if entries.next().is_none() {
-                    return None;
-                }
+                let _ = entries.next()?;
                 DestinationCollisionClass::ExistingPathNonEmpty
             }
             Err(_) => DestinationCollisionClass::DestinationBlocked,

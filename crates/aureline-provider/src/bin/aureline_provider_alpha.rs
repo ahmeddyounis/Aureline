@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 
 use aureline_provider::{ApprovalTicketAlphaPacket, ConnectedProviderAlphaPacket};
@@ -39,8 +39,8 @@ fn main() {
     }
 }
 
-fn run_connected_provider_alpha(payload: &str, fixture_path: &PathBuf, validate_only: bool) {
-    let packet: ConnectedProviderAlphaPacket = match serde_json::from_str(&payload) {
+fn run_connected_provider_alpha(payload: &str, fixture_path: &Path, validate_only: bool) {
+    let packet: ConnectedProviderAlphaPacket = match serde_json::from_str(payload) {
         Ok(packet) => packet,
         Err(error) => {
             eprintln!("failed to parse {}: {error}", fixture_path.display());
@@ -69,7 +69,7 @@ fn run_connected_provider_alpha(payload: &str, fixture_path: &PathBuf, validate_
     }
 }
 
-fn run_approval_ticket_alpha(payload: &str, fixture_path: &PathBuf, validate_only: bool) {
+fn run_approval_ticket_alpha(payload: &str, fixture_path: &Path, validate_only: bool) {
     let packet: ApprovalTicketAlphaPacket = match serde_json::from_str(payload) {
         Ok(packet) => packet,
         Err(error) => {

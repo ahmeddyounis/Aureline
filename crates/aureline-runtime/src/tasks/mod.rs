@@ -1413,6 +1413,9 @@ mod tests {
         }
     }
 
+    // Keep the fixture helper field-shaped so tests vary task identity, state,
+    // source, payload, and redaction dimensions independently.
+    #[allow(clippy::too_many_arguments)]
     fn event(
         seq: u64,
         task_id: &str,

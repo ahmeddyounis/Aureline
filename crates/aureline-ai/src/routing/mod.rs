@@ -1234,6 +1234,9 @@ pub struct AiRoutingPacket {
 
 impl AiRoutingPacket {
     /// Builds a routing packet with the stable record kind and schema version.
+    // Keep this constructor field-shaped so policy, lifecycle, candidate,
+    // lineage, source-contract, and timestamp evidence stays explicit.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         routing_packet_id: impl Into<String>,
         workflow_or_surface_id: impl Into<String>,

@@ -112,6 +112,9 @@ impl SearchQuerySession {
     pub const RECORD_KIND: &'static str = "search_query_session";
 
     /// Builds a local-text query session with a deterministic query hash.
+    // Keep this constructor field-shaped so serialized scope and planner evidence
+    // stays explicit at call sites that mint query-session records.
+    #[allow(clippy::too_many_arguments)]
     pub fn for_local_text(
         query_session_id: impl Into<String>,
         surface: SearchSurface,
@@ -146,6 +149,9 @@ impl SearchQuerySession {
     }
 
     /// Builds a hash-only query session for higher-trust export boundaries.
+    // Keep this constructor field-shaped so callers cannot hide the retained
+    // hash, scope, planner, readiness, and timestamp evidence behind defaults.
+    #[allow(clippy::too_many_arguments)]
     pub fn for_hash_only(
         query_session_id: impl Into<String>,
         surface: SearchSurface,

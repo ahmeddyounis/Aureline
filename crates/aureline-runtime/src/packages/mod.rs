@@ -932,6 +932,9 @@ pub struct ManifestScopeAlphaDescriptor {
 
 impl ManifestScopeAlphaDescriptor {
     /// Creates a manifest-scope descriptor with stable display and ref fields.
+    // Keep this constructor field-shaped to make every manifest-scope evidence
+    // dimension explicit before package actions are reviewed.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         package_manager_family: PackageManagerFamily,
         manifest_scope_class: ManifestScopeClass,
@@ -1039,6 +1042,9 @@ impl RegistrySourceAlphaDescriptor {
     }
 
     /// Creates a registry-source descriptor from explicit reviewed fields.
+    // Keep this constructor field-shaped so auth, freshness, revocation, mirror,
+    // and disclosure evidence stay visible at registry-source call sites.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         registry_source_id: impl Into<String>,
         package_manager_family: PackageManagerFamily,
