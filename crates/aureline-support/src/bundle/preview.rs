@@ -21,11 +21,14 @@ use serde::{Deserialize, Serialize};
 use super::exact_build::ExactBuildCapture;
 use super::manifest::{
     ActionPolicySourceContext, ActionReconstructionContext, ActionabilityImpact,
-    ActionabilityWarning, CollectionContext, ExcludedClass, FileSectionIdentity, HighRiskItemEntry,
+    ActionabilityWarning, CollectionContext, DiagnosisLatencyMeasurementProjection,
+    DiagnosisLatencyScorecardProjection, ExcludedClass, FileSectionIdentity, HighRiskItemEntry,
     ParityBinding, PolicyContext, PolicyLock, PolicyNote, PreviewClassificationSummary,
     PreviewExportParity, Redaction, RedactionControl, RedactionReport, ReopenAfterExportPath,
     ReviewDecision, SecretScanSummary, SizeEstimate, SupportBundleManifest,
-    SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
+    SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION,
+    SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND,
+    SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
     SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND, SUPPORT_BUNDLE_PREVIEW_ITEM_SCHEMA_VERSION,
 };
 use super::redaction::LocalFirstDefaults;
@@ -159,6 +162,35 @@ pub struct ActionReconstructionSeed {
     pub redaction_class: String,
 }
 
+/// Caller-supplied diagnosis-latency scorecard projection for one preview row.
+#[derive(Debug, Clone)]
+pub struct DiagnosisLatencyScorecardProjectionSeed {
+    /// Support-pack item id for the preview row that carries this scorecard.
+    pub support_pack_item_id: String,
+    /// Incident-owned scorecard id.
+    pub scorecard_id: String,
+    /// Incident workspace id the scorecard summarizes.
+    pub incident_workspace_id: String,
+    /// RFC 3339 UTC timestamp copied from the incident scorecard.
+    pub generated_at: String,
+    /// Time from incident start to first usable signal.
+    pub time_to_first_signal: DiagnosisLatencyMeasurementProjection,
+    /// Time from incident start to first diagnostic hypothesis.
+    pub time_to_first_hypothesis: DiagnosisLatencyMeasurementProjection,
+    /// Time from incident start to the first redacted export preview.
+    pub time_to_redacted_export: DiagnosisLatencyMeasurementProjection,
+    /// Time from incident start to first runbook invocation.
+    pub time_to_runbook_invocation: DiagnosisLatencyMeasurementProjection,
+    /// Number of missing checkpoints in this projection.
+    pub missing_measurement_count: u32,
+    /// Redaction class applied to the projected scorecard metadata.
+    pub redaction_class: String,
+    /// Whether raw content is exported by this scorecard projection.
+    pub raw_content_exported: bool,
+    /// Redaction-safe notes.
+    pub notes: String,
+}
+
 /// Read-only projection of a built support-bundle preview. The shell
 /// renders rows and the export writer emits the manifest verbatim, so
 /// both surfaces agree on what would leave the machine.
@@ -198,6 +230,9 @@ pub enum SupportBundlePreviewError {
     /// An action reconstruction seed cited a support-pack item id that
     /// was not queued as a preview row.
     ActionContextMissingPreviewItem { support_pack_item_id: String },
+    /// A diagnosis-latency scorecard cited a support-pack item id that
+    /// was not queued as a preview row.
+    DiagnosisLatencyScorecardMissingPreviewItem { support_pack_item_id: String },
     /// The caller queued zero rows. The schema requires at least one
     /// preview item per manifest so the seed refuses to mint an empty
     /// bundle.
@@ -223,6 +258,13 @@ impl std::fmt::Display for SupportBundlePreviewError {
             } => write!(
                 f,
                 "action reconstruction context references {support_pack_item_id}, but no preview \
+                 row with that support-pack item id was queued"
+            ),
+            Self::DiagnosisLatencyScorecardMissingPreviewItem {
+                support_pack_item_id,
+            } => write!(
+                f,
+                "diagnosis-latency scorecard references {support_pack_item_id}, but no preview \
                  row with that support-pack item id was queued"
             ),
             Self::EmptyPreview => write!(f, "support-bundle preview must contain at least one row"),
@@ -259,6 +301,7 @@ pub struct SupportBundlePreviewBuilder {
     exact_build: ExactBuildCapture,
     seeds: Vec<PreviewItemSeed>,
     action_contexts: Vec<ActionReconstructionSeed>,
+    diagnosis_latency_scorecards: Vec<DiagnosisLatencyScorecardProjectionSeed>,
 }
 
 impl SupportBundlePreviewBuilder {
@@ -287,6 +330,7 @@ impl SupportBundlePreviewBuilder {
             exact_build,
             seeds: Vec::new(),
             action_contexts: Vec::new(),
+            diagnosis_latency_scorecards: Vec::new(),
         }
     }
 
@@ -323,6 +367,17 @@ impl SupportBundlePreviewBuilder {
         seed: ActionReconstructionSeed,
     ) -> &mut Self {
         self.action_contexts.push(seed);
+        self
+    }
+
+    /// Queue one diagnosis-latency scorecard projection. The projection
+    /// must cite a support-pack item id already queued through
+    /// [`Self::add_item`].
+    pub fn add_diagnosis_latency_scorecard(
+        &mut self,
+        seed: DiagnosisLatencyScorecardProjectionSeed,
+    ) -> &mut Self {
+        self.diagnosis_latency_scorecards.push(seed);
         self
     }
 
@@ -784,6 +839,38 @@ impl SupportBundlePreviewBuilder {
             });
         }
 
+        let mut diagnosis_latency_scorecards =
+            Vec::with_capacity(self.diagnosis_latency_scorecards.len());
+        for scorecard_seed in &self.diagnosis_latency_scorecards {
+            let Some(preview_item) = preview_items.iter().find(|item| {
+                item.parity_binding.support_pack_item_id == scorecard_seed.support_pack_item_id
+            }) else {
+                return Err(
+                    SupportBundlePreviewError::DiagnosisLatencyScorecardMissingPreviewItem {
+                        support_pack_item_id: scorecard_seed.support_pack_item_id.clone(),
+                    },
+                );
+            };
+
+            diagnosis_latency_scorecards.push(DiagnosisLatencyScorecardProjection {
+                schema_version: SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION,
+                record_kind: SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND.to_owned(),
+                scorecard_id: scorecard_seed.scorecard_id.clone(),
+                incident_workspace_id: scorecard_seed.incident_workspace_id.clone(),
+                generated_at: scorecard_seed.generated_at.clone(),
+                preview_item_id: preview_item.preview_item_id.clone(),
+                support_pack_item_id: scorecard_seed.support_pack_item_id.clone(),
+                time_to_first_signal: scorecard_seed.time_to_first_signal.clone(),
+                time_to_first_hypothesis: scorecard_seed.time_to_first_hypothesis.clone(),
+                time_to_redacted_export: scorecard_seed.time_to_redacted_export.clone(),
+                time_to_runbook_invocation: scorecard_seed.time_to_runbook_invocation.clone(),
+                missing_measurement_count: scorecard_seed.missing_measurement_count,
+                redaction_class: scorecard_seed.redaction_class.clone(),
+                raw_content_exported: scorecard_seed.raw_content_exported,
+                notes: scorecard_seed.notes.clone(),
+            });
+        }
+
         let preview_snapshot_ref = format!("preview-snapshot:{}", self.bundle_id);
 
         let reopen_after_export_path = ReopenAfterExportPath {
@@ -805,22 +892,27 @@ impl SupportBundlePreviewBuilder {
                 .replace([':', '/'], ".")
         );
 
+        let mut reconstruction_fields = vec![
+            "collection_schema_version".into(),
+            "build_identity.exact_build_refs".into(),
+            "preview_items[].preview_item_id".into(),
+            "preview_items[].redaction".into(),
+            "review_decisions[]".into(),
+            "redaction_report".into(),
+            "preview_classification_summary".into(),
+            "redaction_controls[]".into(),
+            "action_reconstruction_contexts[]".into(),
+        ];
+        if !diagnosis_latency_scorecards.is_empty() {
+            reconstruction_fields.push("diagnosis_latency_scorecards[]".into());
+        }
+
         let preview_export_parity = PreviewExportParity {
             preview_snapshot_ref: preview_snapshot_ref.clone(),
             preview_item_order_digest: format!("digest:preview-order:{}", self.bundle_id),
             export_manifest_digest: format!("digest:export-manifest:{}", self.bundle_id),
             manifest_reconstructs_shared_payload: true,
-            reconstruction_fields: vec![
-                "collection_schema_version".into(),
-                "build_identity.exact_build_refs".into(),
-                "preview_items[].preview_item_id".into(),
-                "preview_items[].redaction".into(),
-                "review_decisions[]".into(),
-                "redaction_report".into(),
-                "preview_classification_summary".into(),
-                "redaction_controls[]".into(),
-                "action_reconstruction_contexts[]".into(),
-            ],
+            reconstruction_fields,
             item_decision_refs,
             unknown_field_policy: "preserve_unknown_unless_redacted".into(),
             parity_assertions: vec![
@@ -886,6 +978,7 @@ impl SupportBundlePreviewBuilder {
             preview_classification_summary,
             redaction_controls,
             action_reconstruction_contexts,
+            diagnosis_latency_scorecards,
             actionability_warnings,
             reopen_after_export_path,
             preview_export_parity,
@@ -977,6 +1070,7 @@ fn control_note_for_state(redaction_state: RedactionState) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use super::super::manifest::DiagnosisLatencyMeasurementState;
     use super::*;
     use crate::bundle::vocabulary::ReleaseChannelClass;
 
@@ -1064,6 +1158,30 @@ mod tests {
         }
     }
 
+    fn diagnosis_latency_seed() -> PreviewItemSeed {
+        PreviewItemSeed {
+            support_pack_item_id: "support.item.incident.diagnosis_latency_scorecard".into(),
+            title: "Diagnosis latency scorecard".into(),
+            data_class: DiagnosticDataClass::MetadataOnly,
+            high_risk_content_class: HighRiskContentClass::NotApplicable,
+            bundle_section_class: "incident_workspace_truth".into(),
+            artifact_kind_class: "incident_diagnosis_latency_scorecard".into(),
+            manifest_path_ref: "incident_workspace.diagnosis_latency_scorecard".into(),
+            bundle_member_path_ref: Some("incident/diagnosis_latency_scorecard.json".into()),
+            source_refs: vec!["incident.diagnosis_latency_scorecard.fixture".into()],
+            size_estimate: SizeEstimate {
+                estimated_bytes: None,
+                confidence_class: "unknown_missing_span".into(),
+                display_label: "unknown".into(),
+                size_source_class: "missing_span_disclosure".into(),
+            },
+            impact_class: ActionabilityImpactClass::BlocksFirstActionableDiagnosis,
+            impact_summary:
+                "Scorecard distinguishes observed diagnosis latency from missing spans.".into(),
+            notes: "Metadata-only scorecard projection.".into(),
+        }
+    }
+
     fn action_context_seed() -> ActionReconstructionSeed {
         ActionReconstructionSeed {
             support_pack_item_id: "support.item.execution_context_summary".into(),
@@ -1102,6 +1220,51 @@ mod tests {
                 "alpha-review-enforcement:cmd:workspace.import_profile".into(),
             ),
             redaction_class: "metadata_safe_default".into(),
+        }
+    }
+
+    fn diagnosis_latency_scorecard_seed() -> DiagnosisLatencyScorecardProjectionSeed {
+        let observed = DiagnosisLatencyMeasurementProjection {
+            state: DiagnosisLatencyMeasurementState::Observed,
+            elapsed_millis: Some(125),
+            start_ref: Some("incident:start".into()),
+            stop_ref: Some("signal:first".into()),
+            evidence_refs: vec!["log:first".into()],
+            missing_span_id: None,
+            missing_span_kind: None,
+            missing_reason_class: None,
+            missing_impact_class: None,
+            expected_source_refs: Vec::new(),
+            reviewer_summary: "Observed latency from incident:start to signal:first: 125 ms."
+                .into(),
+        };
+        let missing = DiagnosisLatencyMeasurementProjection {
+            state: DiagnosisLatencyMeasurementState::Missing,
+            elapsed_millis: None,
+            start_ref: None,
+            stop_ref: None,
+            evidence_refs: Vec::new(),
+            missing_span_id: Some("missing-span:runbook:invocation".into()),
+            missing_span_kind: Some("task_history".into()),
+            missing_reason_class: Some("not_collected".into()),
+            missing_impact_class: Some("weakens_first_diagnosis".into()),
+            expected_source_refs: vec!["task-history:runbook".into()],
+            reviewer_summary: "Runbook invocation event was not collected.".into(),
+        };
+
+        DiagnosisLatencyScorecardProjectionSeed {
+            support_pack_item_id: "support.item.incident.diagnosis_latency_scorecard".into(),
+            scorecard_id: "incident.diagnosis_latency_scorecard.fixture".into(),
+            incident_workspace_id: "incident-workspace:fixture".into(),
+            generated_at: "2026-05-10T05:20:00Z".into(),
+            time_to_first_signal: observed.clone(),
+            time_to_first_hypothesis: observed.clone(),
+            time_to_redacted_export: observed,
+            time_to_runbook_invocation: missing,
+            missing_measurement_count: 1,
+            redaction_class: "metadata_safe_default".into(),
+            raw_content_exported: false,
+            notes: "One diagnosis-latency checkpoint is missing.".into(),
         }
     }
 
@@ -1180,6 +1343,40 @@ mod tests {
             .reconstruction_fields
             .iter()
             .any(|field| field == "action_reconstruction_contexts[]"));
+    }
+
+    #[test]
+    fn diagnosis_latency_scorecard_projects_into_manifest_without_raw_content() {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:diagnosis-latency:0001",
+            "Diagnosis latency preview",
+            "2026-05-10T05:20:00Z",
+            fixture_capture(),
+        );
+        builder.add_item(metadata_seed());
+        builder.add_item(diagnosis_latency_seed());
+        builder.add_diagnosis_latency_scorecard(diagnosis_latency_scorecard_seed());
+
+        let preview = builder.build().expect("build diagnosis latency preview");
+
+        assert_eq!(preview.manifest.diagnosis_latency_scorecards.len(), 1);
+        let scorecard = &preview.manifest.diagnosis_latency_scorecards[0];
+        assert_eq!(scorecard.missing_measurement_count, 1);
+        assert!(scorecard.time_to_runbook_invocation.is_missing());
+        assert_eq!(
+            scorecard
+                .time_to_runbook_invocation
+                .missing_span_id
+                .as_deref(),
+            Some("missing-span:runbook:invocation")
+        );
+        assert!(!scorecard.raw_content_exported);
+        assert!(preview
+            .manifest
+            .preview_export_parity
+            .reconstruction_fields
+            .iter()
+            .any(|field| field == "diagnosis_latency_scorecards[]"));
     }
 
     #[test]

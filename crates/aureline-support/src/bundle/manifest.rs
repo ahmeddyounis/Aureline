@@ -23,12 +23,20 @@ pub const SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND: &str = "support_bundle_previe
 /// Stable record-kind tag carried on every manifest record.
 pub const SUPPORT_BUNDLE_MANIFEST_RECORD_KIND: &str = "support_bundle_manifest_record";
 
+/// Stable record-kind tag carried on diagnosis-latency scorecard projections
+/// embedded in a support-bundle manifest.
+pub const SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND: &str =
+    "support_bundle_diagnosis_latency_scorecard_projection";
+
 /// Frozen collection-schema version for every preview / post-export
 /// manifest minted by this seed.
 pub const COLLECTION_SCHEMA_VERSION: u32 = 1;
 
 /// Frozen preview-item schema version.
 pub const SUPPORT_BUNDLE_PREVIEW_ITEM_SCHEMA_VERSION: u32 = 1;
+
+/// Frozen diagnosis-latency scorecard projection schema version.
+pub const SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION: u32 = 1;
 
 /// Build identity block embedded in every manifest. Mirrors the schema's
 /// `build_identity` object.
@@ -405,6 +413,106 @@ pub struct ActionReconstructionContext {
     pub raw_content_exported: bool,
 }
 
+/// Measurement state for one diagnosis-latency checkpoint projected into a
+/// support-bundle manifest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosisLatencyMeasurementState {
+    /// The checkpoint has a measured latency value.
+    Observed,
+    /// The checkpoint is unavailable and is represented by a typed
+    /// missing-span marker.
+    Missing,
+}
+
+impl DiagnosisLatencyMeasurementState {
+    /// Returns the stable snake-case token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Observed => "observed",
+            Self::Missing => "missing",
+        }
+    }
+}
+
+/// Support-manifest projection of one diagnosis-latency checkpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiagnosisLatencyMeasurementProjection {
+    /// Whether this checkpoint is observed or missing.
+    pub state: DiagnosisLatencyMeasurementState,
+    /// Elapsed latency in milliseconds when the checkpoint is observed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub elapsed_millis: Option<u64>,
+    /// Event or evidence ref that starts the measured window.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_ref: Option<String>,
+    /// Event or evidence ref that stops the measured window.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_ref: Option<String>,
+    /// Evidence refs backing an observed value.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    /// Missing-span id when the checkpoint is unavailable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_span_id: Option<String>,
+    /// Missing-span kind token from the incident vocabulary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_span_kind: Option<String>,
+    /// Missing-span reason token from the incident vocabulary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_reason_class: Option<String>,
+    /// Missing-span impact token from the incident vocabulary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_impact_class: Option<String>,
+    /// Source refs expected to provide the missing checkpoint.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub expected_source_refs: Vec<String>,
+    /// Redaction-safe reviewer summary for the checkpoint state.
+    pub reviewer_summary: String,
+}
+
+impl DiagnosisLatencyMeasurementProjection {
+    /// Returns true when the projected checkpoint is missing.
+    pub fn is_missing(&self) -> bool {
+        self.state == DiagnosisLatencyMeasurementState::Missing
+    }
+}
+
+/// Diagnosis-latency scorecard projected into a support-bundle manifest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiagnosisLatencyScorecardProjection {
+    /// Projection schema version.
+    pub schema_version: u32,
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Incident-owned scorecard id.
+    pub scorecard_id: String,
+    /// Incident workspace id the scorecard summarizes.
+    pub incident_workspace_id: String,
+    /// RFC 3339 UTC timestamp copied from the scorecard record.
+    pub generated_at: String,
+    /// Preview row that carries the scorecard metadata.
+    pub preview_item_id: String,
+    /// Support-pack item id for the scorecard preview row.
+    pub support_pack_item_id: String,
+    /// Time from incident start to first usable signal.
+    pub time_to_first_signal: DiagnosisLatencyMeasurementProjection,
+    /// Time from incident start to first diagnostic hypothesis.
+    pub time_to_first_hypothesis: DiagnosisLatencyMeasurementProjection,
+    /// Time from incident start to the first redacted export preview.
+    pub time_to_redacted_export: DiagnosisLatencyMeasurementProjection,
+    /// Time from incident start to first runbook invocation.
+    pub time_to_runbook_invocation: DiagnosisLatencyMeasurementProjection,
+    /// Number of missing checkpoints in this projection.
+    pub missing_measurement_count: u32,
+    /// Redaction class applied to the projected scorecard metadata.
+    pub redaction_class: String,
+    /// Always false for local-first support-bundle scorecard projections.
+    pub raw_content_exported: bool,
+    /// Redaction-safe notes.
+    pub notes: String,
+}
+
 /// Top-level support-bundle manifest record. Mirrors
 /// `support_bundle_manifest_record` in the boundary schema.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -423,6 +531,8 @@ pub struct SupportBundleManifest {
     pub preview_classification_summary: PreviewClassificationSummary,
     pub redaction_controls: Vec<RedactionControl>,
     pub action_reconstruction_contexts: Vec<ActionReconstructionContext>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnosis_latency_scorecards: Vec<DiagnosisLatencyScorecardProjection>,
     pub actionability_warnings: Vec<ActionabilityWarning>,
     pub reopen_after_export_path: ReopenAfterExportPath,
     pub preview_export_parity: PreviewExportParity,

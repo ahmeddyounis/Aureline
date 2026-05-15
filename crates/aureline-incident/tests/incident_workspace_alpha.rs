@@ -7,11 +7,12 @@ use aureline_crash::{
     CrashDumpManifest, CrashEnvelope, CrashIncidentTrail, CrashIncidentTrailInputs,
 };
 use aureline_incident::{
-    evidence_kinds, fixture_exact_build_capture, EvidenceAvailability, IncidentActionContext,
-    IncidentEvidenceAttachment, IncidentEvidenceKind, IncidentRunbookPacket,
+    evidence_kinds, fixture_exact_build_capture, DiagnosisLatencyMeasurement, EvidenceAvailability,
+    IncidentActionContext, IncidentEvidenceAttachment, IncidentEvidenceKind, IncidentRunbookPacket,
     IncidentWorkspaceBuilder, LocalContinuityState, MissingSpan, MissingSpanImpactClass,
     MissingSpanKind, MissingSpanReasonClass, ProviderLaneState,
-    SUPPORT_ITEM_INCIDENT_MISSING_SPANS, SUPPORT_RUNBOOK_PACKET_SCHEMA_REF,
+    SUPPORT_ITEM_INCIDENT_DIAGNOSIS_LATENCY_SCORECARD, SUPPORT_ITEM_INCIDENT_MISSING_SPANS,
+    SUPPORT_RUNBOOK_PACKET_SCHEMA_REF,
 };
 use aureline_support::bundle::{
     ActionPolicySourceContext, ActionabilityImpactClass, DiagnosticDataClass, HighRiskContentClass,
@@ -212,6 +213,66 @@ fn incident_workspace_attaches_evidence_without_claiming_missing_spans_are_prese
 }
 
 #[test]
+fn diagnosis_latency_scorecard_uses_missing_span_markers_without_fabricating_values() {
+    let missing_runbook_span = MissingSpan::new(
+        "missing-span:runbook:invocation",
+        MissingSpanKind::TaskHistory,
+        MissingSpanReasonClass::NotCollected,
+        true,
+        MissingSpanImpactClass::WeakensFirstDiagnosis,
+        "Runbook invocation event was not collected for this incident.",
+    )
+    .with_expected_source_ref("task-history:runbook:invocation".to_owned());
+
+    let mut builder = IncidentWorkspaceBuilder::new(
+        "incident-workspace:synthetic:latency",
+        "Synthetic diagnosis latency incident",
+        "Synthetic incident with one missing diagnosis-latency checkpoint.",
+        GENERATED_AT,
+        fixture_exact_build_capture(),
+    );
+    builder.add_missing_span(missing_runbook_span.clone());
+    builder.record_time_to_first_signal(DiagnosisLatencyMeasurement::observed(
+        125,
+        "incident:start",
+        "signal:first-log",
+        vec!["log-slice:synthetic:first-signal".into()],
+    ));
+    builder.record_time_to_first_hypothesis(DiagnosisLatencyMeasurement::observed(
+        340,
+        "incident:start",
+        "hypothesis:first",
+        vec!["doctor:finding:synthetic".into()],
+    ));
+    builder.record_time_to_redacted_export(DiagnosisLatencyMeasurement::observed(
+        920,
+        "incident:start",
+        "support:preview:redacted",
+        vec!["support.bundle.manifest.synthetic".into()],
+    ));
+    builder.record_time_to_runbook_invocation(DiagnosisLatencyMeasurement::missing(
+        missing_runbook_span,
+    ));
+
+    let packet = builder.build();
+    let scorecard = &packet.diagnosis_latency_scorecard;
+
+    assert_eq!(scorecard.missing_measurement_count, 1);
+    assert_eq!(scorecard.time_to_first_signal.elapsed_millis(), Some(125));
+    assert_eq!(
+        scorecard.time_to_first_hypothesis.elapsed_millis(),
+        Some(340)
+    );
+    assert_eq!(
+        scorecard.time_to_redacted_export.elapsed_millis(),
+        Some(920)
+    );
+    assert!(scorecard.time_to_runbook_invocation.is_missing());
+    assert!(scorecard.contains_missing_span("missing-span:runbook:invocation"));
+    assert!(!scorecard.raw_content_exported);
+}
+
+#[test]
 fn runbook_packet_summary_consumes_support_runbook_fixture_and_exact_build_refs() {
     let fixture = load_fixture();
     let runbook = runbook_packet(&fixture);
@@ -240,6 +301,30 @@ fn redacted_export_preview_preserves_exact_build_redaction_controls_and_missing_
         .preview_classification_summary
         .included_support_pack_item_ids
         .contains(&SUPPORT_ITEM_INCIDENT_MISSING_SPANS.to_owned()));
+    assert!(preview
+        .manifest
+        .preview_classification_summary
+        .included_support_pack_item_ids
+        .contains(&SUPPORT_ITEM_INCIDENT_DIAGNOSIS_LATENCY_SCORECARD.to_owned()));
+    assert_eq!(preview.manifest.diagnosis_latency_scorecards.len(), 1);
+    let latency_scorecard = &preview.manifest.diagnosis_latency_scorecards[0];
+    assert_eq!(
+        latency_scorecard.support_pack_item_id,
+        SUPPORT_ITEM_INCIDENT_DIAGNOSIS_LATENCY_SCORECARD
+    );
+    assert!(latency_scorecard.time_to_first_signal.is_missing());
+    assert!(latency_scorecard
+        .time_to_first_signal
+        .missing_span_id
+        .as_deref()
+        .is_some_and(|id| id.contains("trace")));
+    assert!(!latency_scorecard.raw_content_exported);
+    assert!(preview
+        .manifest
+        .preview_export_parity
+        .reconstruction_fields
+        .iter()
+        .any(|field| field == "diagnosis_latency_scorecards[]"));
     assert_eq!(preview.manifest.action_reconstruction_contexts.len(), 1);
     assert!(preview.manifest.redaction_controls.iter().all(|control| {
         !control.raw_content_export_allowed && control.broadening_requires_review

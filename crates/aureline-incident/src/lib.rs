@@ -16,9 +16,10 @@ use std::fmt;
 use aureline_crash::{CrashIncidentTrail, SymbolicationState};
 use aureline_support::bundle::{
     ActionPolicySourceContext, ActionReconstructionSeed, ActionabilityImpactClass, ActorClass,
-    BuildIdentity, DiagnosticDataClass, ExactBuildCapture, HighRiskContentClass, PolicyContext,
-    PreviewItemSeed, ReleaseChannelClass, SizeEstimate, SupportBundlePreview,
-    SupportBundlePreviewBuilder, SupportBundlePreviewError,
+    BuildIdentity, DiagnosisLatencyMeasurementProjection, DiagnosisLatencyMeasurementState,
+    DiagnosisLatencyScorecardProjectionSeed, DiagnosticDataClass, ExactBuildCapture,
+    HighRiskContentClass, PolicyContext, PreviewItemSeed, ReleaseChannelClass, SizeEstimate,
+    SupportBundlePreview, SupportBundlePreviewBuilder, SupportBundlePreviewError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -28,17 +29,28 @@ pub const INCIDENT_WORKSPACE_PACKET_RECORD_KIND: &str = "incident_workspace_alph
 /// Stable record-kind tag carried on every incident runbook packet summary.
 pub const INCIDENT_RUNBOOK_PACKET_RECORD_KIND: &str = "incident_runbook_packet_alpha_record";
 
+/// Stable record-kind tag carried on every incident diagnosis-latency scorecard.
+pub const INCIDENT_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND: &str =
+    "incident_diagnosis_latency_scorecard_record";
+
 /// Schema version for the incident workspace alpha packet.
 pub const INCIDENT_WORKSPACE_PACKET_SCHEMA_VERSION: u32 = 1;
 
 /// Schema version for the incident runbook packet summary.
 pub const INCIDENT_RUNBOOK_PACKET_SCHEMA_VERSION: u32 = 1;
 
+/// Schema version for the incident diagnosis-latency scorecard.
+pub const INCIDENT_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION: u32 = 1;
+
 /// Support-pack item id for the incident workspace summary row.
 pub const SUPPORT_ITEM_INCIDENT_WORKSPACE_SUMMARY: &str = "support.item.incident.workspace_summary";
 
 /// Support-pack item id for explicit missing-span disclosure.
 pub const SUPPORT_ITEM_INCIDENT_MISSING_SPANS: &str = "support.item.incident.missing_spans";
+
+/// Support-pack item id for the incident diagnosis-latency scorecard.
+pub const SUPPORT_ITEM_INCIDENT_DIAGNOSIS_LATENCY_SCORECARD: &str =
+    "support.item.incident.diagnosis_latency_scorecard";
 
 /// Default support runbook packet schema path consumed by this crate.
 pub const SUPPORT_RUNBOOK_PACKET_SCHEMA_REF: &str = "schemas/support/runbook_packet.schema.json";
@@ -539,6 +551,266 @@ impl MissingSpan {
     }
 }
 
+/// One diagnosis-latency checkpoint, either measured or represented by a
+/// typed missing-span marker.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum DiagnosisLatencyMeasurement {
+    /// A latency value was collected for the checkpoint.
+    Observed {
+        /// Elapsed latency in milliseconds.
+        elapsed_millis: u64,
+        /// Event or evidence ref that starts the measured window.
+        start_ref: String,
+        /// Event or evidence ref that stops the measured window.
+        stop_ref: String,
+        /// Evidence refs backing the observed value.
+        evidence_refs: Vec<String>,
+    },
+    /// The checkpoint was unavailable and is disclosed as a missing span.
+    Missing {
+        /// Typed missing-span marker for the unavailable checkpoint.
+        missing_span: MissingSpan,
+    },
+}
+
+impl DiagnosisLatencyMeasurement {
+    /// Creates an observed diagnosis-latency checkpoint.
+    pub fn observed(
+        elapsed_millis: u64,
+        start_ref: impl Into<String>,
+        stop_ref: impl Into<String>,
+        evidence_refs: Vec<String>,
+    ) -> Self {
+        Self::Observed {
+            elapsed_millis,
+            start_ref: start_ref.into(),
+            stop_ref: stop_ref.into(),
+            evidence_refs,
+        }
+    }
+
+    /// Creates a missing diagnosis-latency checkpoint.
+    pub fn missing(missing_span: MissingSpan) -> Self {
+        Self::Missing { missing_span }
+    }
+
+    /// Returns true when this checkpoint is missing.
+    pub fn is_missing(&self) -> bool {
+        matches!(self, Self::Missing { .. })
+    }
+
+    /// Returns the missing-span marker when this checkpoint is missing.
+    pub fn missing_span(&self) -> Option<&MissingSpan> {
+        match self {
+            Self::Missing { missing_span } => Some(missing_span),
+            Self::Observed { .. } => None,
+        }
+    }
+
+    /// Returns the observed elapsed milliseconds when this checkpoint was collected.
+    pub fn elapsed_millis(&self) -> Option<u64> {
+        match self {
+            Self::Observed { elapsed_millis, .. } => Some(*elapsed_millis),
+            Self::Missing { .. } => None,
+        }
+    }
+
+    fn to_support_projection(&self) -> DiagnosisLatencyMeasurementProjection {
+        match self {
+            Self::Observed {
+                elapsed_millis,
+                start_ref,
+                stop_ref,
+                evidence_refs,
+            } => DiagnosisLatencyMeasurementProjection {
+                state: DiagnosisLatencyMeasurementState::Observed,
+                elapsed_millis: Some(*elapsed_millis),
+                start_ref: Some(start_ref.clone()),
+                stop_ref: Some(stop_ref.clone()),
+                evidence_refs: evidence_refs.clone(),
+                missing_span_id: None,
+                missing_span_kind: None,
+                missing_reason_class: None,
+                missing_impact_class: None,
+                expected_source_refs: Vec::new(),
+                reviewer_summary: format!(
+                    "Observed latency from {start_ref} to {stop_ref}: {elapsed_millis} ms."
+                ),
+            },
+            Self::Missing { missing_span } => DiagnosisLatencyMeasurementProjection {
+                state: DiagnosisLatencyMeasurementState::Missing,
+                elapsed_millis: None,
+                start_ref: None,
+                stop_ref: None,
+                evidence_refs: Vec::new(),
+                missing_span_id: Some(missing_span.missing_span_id.clone()),
+                missing_span_kind: Some(missing_span.span_kind.as_str().into()),
+                missing_reason_class: Some(missing_span.reason_class.as_str().into()),
+                missing_impact_class: Some(missing_span.impact_class.as_str().into()),
+                expected_source_refs: missing_span.expected_source_refs.clone(),
+                reviewer_summary: missing_span.reviewer_summary.clone(),
+            },
+        }
+    }
+}
+
+/// Incident-owned scorecard for diagnosis-latency checkpoints.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiagnosisLatencyScorecard {
+    /// Scorecard schema version.
+    pub schema_version: u32,
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Stable scorecard id.
+    pub scorecard_id: String,
+    /// Incident workspace id the scorecard summarizes.
+    pub incident_workspace_id: String,
+    /// RFC 3339 UTC timestamp for scorecard generation.
+    pub generated_at: String,
+    /// Time from incident start to first usable signal.
+    pub time_to_first_signal: DiagnosisLatencyMeasurement,
+    /// Time from incident start to first diagnostic hypothesis.
+    pub time_to_first_hypothesis: DiagnosisLatencyMeasurement,
+    /// Time from incident start to the first redacted export preview.
+    pub time_to_redacted_export: DiagnosisLatencyMeasurement,
+    /// Time from incident start to first runbook invocation.
+    pub time_to_runbook_invocation: DiagnosisLatencyMeasurement,
+    /// Number of missing checkpoints in the scorecard.
+    pub missing_measurement_count: u32,
+    /// Redaction class used when projecting the scorecard into support bundles.
+    pub redaction_class: String,
+    /// Always false; the scorecard exports metadata and missing-span markers only.
+    pub raw_content_exported: bool,
+    /// Redaction-safe notes.
+    pub notes: String,
+}
+
+impl DiagnosisLatencyScorecard {
+    fn from_parts(
+        workspace_id: &str,
+        generated_at: &str,
+        explicit: DiagnosisLatencyMeasurements,
+        missing_spans: &[MissingSpan],
+    ) -> Self {
+        let time_to_first_signal = explicit.time_to_first_signal.unwrap_or_else(|| {
+            missing_latency_measurement(
+                workspace_id,
+                missing_spans,
+                &[MissingSpanKind::TraceWindow, MissingSpanKind::LogWindow],
+                MissingSpanKind::TraceWindow,
+                "first-signal",
+                "No latency span was collected for the first incident signal.",
+            )
+        });
+        let time_to_first_hypothesis = explicit.time_to_first_hypothesis.unwrap_or_else(|| {
+            missing_latency_measurement(
+                workspace_id,
+                missing_spans,
+                &[
+                    MissingSpanKind::ProviderCallback,
+                    MissingSpanKind::SymbolicationReport,
+                ],
+                MissingSpanKind::ProviderCallback,
+                "first-hypothesis",
+                "No latency span was collected for the first diagnostic hypothesis.",
+            )
+        });
+        let time_to_redacted_export = explicit.time_to_redacted_export.unwrap_or_else(|| {
+            missing_latency_measurement(
+                workspace_id,
+                missing_spans,
+                &[MissingSpanKind::SupportBundleManifest],
+                MissingSpanKind::SupportBundleManifest,
+                "redacted-export",
+                "No latency span was collected for the first redacted export preview.",
+            )
+        });
+        let time_to_runbook_invocation = explicit.time_to_runbook_invocation.unwrap_or_else(|| {
+            missing_latency_measurement(
+                workspace_id,
+                missing_spans,
+                &[MissingSpanKind::TaskHistory],
+                MissingSpanKind::TaskHistory,
+                "runbook-invocation",
+                "No latency span was collected for the first runbook invocation.",
+            )
+        });
+
+        let missing_measurement_count = [
+            &time_to_first_signal,
+            &time_to_first_hypothesis,
+            &time_to_redacted_export,
+            &time_to_runbook_invocation,
+        ]
+        .iter()
+        .filter(|measurement| measurement.is_missing())
+        .count() as u32;
+
+        let notes = if missing_measurement_count == 0 {
+            "All diagnosis-latency checkpoints are observed metadata values.".into()
+        } else {
+            format!(
+                "{missing_measurement_count} diagnosis-latency checkpoint(s) are missing and disclosed with typed missing-span markers."
+            )
+        };
+
+        Self {
+            schema_version: INCIDENT_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION,
+            record_kind: INCIDENT_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND.into(),
+            scorecard_id: format!(
+                "incident.diagnosis_latency_scorecard.{}",
+                id_suffix(workspace_id)
+            ),
+            incident_workspace_id: workspace_id.into(),
+            generated_at: generated_at.into(),
+            time_to_first_signal,
+            time_to_first_hypothesis,
+            time_to_redacted_export,
+            time_to_runbook_invocation,
+            missing_measurement_count,
+            redaction_class: "metadata_safe_default".into(),
+            raw_content_exported: false,
+            notes,
+        }
+    }
+
+    /// Returns true when at least one diagnosis-latency checkpoint is missing.
+    pub fn has_missing_measurements(&self) -> bool {
+        self.missing_measurement_count > 0
+    }
+
+    /// Returns true when any missing checkpoint cites the given missing-span id.
+    pub fn contains_missing_span(&self, missing_span_id: &str) -> bool {
+        [
+            &self.time_to_first_signal,
+            &self.time_to_first_hypothesis,
+            &self.time_to_redacted_export,
+            &self.time_to_runbook_invocation,
+        ]
+        .iter()
+        .filter_map(|measurement| measurement.missing_span())
+        .any(|span| span.missing_span_id == missing_span_id)
+    }
+
+    fn to_support_projection_seed(&self) -> DiagnosisLatencyScorecardProjectionSeed {
+        DiagnosisLatencyScorecardProjectionSeed {
+            support_pack_item_id: SUPPORT_ITEM_INCIDENT_DIAGNOSIS_LATENCY_SCORECARD.into(),
+            scorecard_id: self.scorecard_id.clone(),
+            incident_workspace_id: self.incident_workspace_id.clone(),
+            generated_at: self.generated_at.clone(),
+            time_to_first_signal: self.time_to_first_signal.to_support_projection(),
+            time_to_first_hypothesis: self.time_to_first_hypothesis.to_support_projection(),
+            time_to_redacted_export: self.time_to_redacted_export.to_support_projection(),
+            time_to_runbook_invocation: self.time_to_runbook_invocation.to_support_projection(),
+            missing_measurement_count: self.missing_measurement_count,
+            redaction_class: self.redaction_class.clone(),
+            raw_content_exported: self.raw_content_exported,
+            notes: self.notes.clone(),
+        }
+    }
+}
+
 /// Summary of captured versus missing spans.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpanCoverageSummary {
@@ -767,6 +1039,8 @@ pub struct IncidentWorkspacePacket {
     pub missing_spans: Vec<MissingSpan>,
     /// Span coverage rollup.
     pub span_coverage: SpanCoverageSummary,
+    /// Diagnosis-latency scorecard for the incident workspace.
+    pub diagnosis_latency_scorecard: DiagnosisLatencyScorecard,
     /// Runbook packet summaries.
     pub runbook_packets: Vec<IncidentRunbookPacket>,
     /// Linked support-bundle manifests and previews.
@@ -835,6 +1109,11 @@ impl IncidentWorkspacePacket {
         );
 
         builder.add_item(self.workspace_summary_seed());
+        builder.add_item(self.diagnosis_latency_scorecard_seed());
+        builder.add_diagnosis_latency_scorecard(
+            self.diagnosis_latency_scorecard
+                .to_support_projection_seed(),
+        );
         if !self.missing_spans.is_empty() {
             builder.add_item(self.missing_spans_seed());
         }
@@ -926,6 +1205,50 @@ impl IncidentWorkspacePacket {
                     .into(),
             notes: "Missing spans are exported as typed gap markers instead of empty evidence."
                 .into(),
+        }
+    }
+
+    fn diagnosis_latency_scorecard_seed(&self) -> PreviewItemSeed {
+        PreviewItemSeed {
+            support_pack_item_id: SUPPORT_ITEM_INCIDENT_DIAGNOSIS_LATENCY_SCORECARD.into(),
+            title: "Diagnosis latency scorecard".into(),
+            data_class: DiagnosticDataClass::MetadataOnly,
+            high_risk_content_class: HighRiskContentClass::NotApplicable,
+            bundle_section_class: "incident_workspace_truth".into(),
+            artifact_kind_class: "incident_diagnosis_latency_scorecard".into(),
+            manifest_path_ref: "incident_workspace.diagnosis_latency_scorecard".into(),
+            bundle_member_path_ref: Some("incident/diagnosis_latency_scorecard.json".into()),
+            source_refs: vec![
+                self.diagnosis_latency_scorecard.scorecard_id.clone(),
+                self.workspace_id.clone(),
+            ],
+            size_estimate: SizeEstimate {
+                estimated_bytes: if self.diagnosis_latency_scorecard.has_missing_measurements() {
+                    None
+                } else {
+                    Some(2048)
+                },
+                confidence_class: if self.diagnosis_latency_scorecard.has_missing_measurements() {
+                    "unknown_missing_span".into()
+                } else {
+                    "estimated".into()
+                },
+                display_label: if self.diagnosis_latency_scorecard.has_missing_measurements() {
+                    "unknown".into()
+                } else {
+                    "2 KB".into()
+                },
+                size_source_class: if self.diagnosis_latency_scorecard.has_missing_measurements() {
+                    "missing_span_disclosure".into()
+                } else {
+                    "scorecard_metadata_estimate".into()
+                },
+            },
+            impact_class: ActionabilityImpactClass::BlocksFirstActionableDiagnosis,
+            impact_summary:
+                "The scorecard shows which diagnosis-latency checkpoints are measured or missing."
+                    .into(),
+            notes: self.diagnosis_latency_scorecard.notes.clone(),
         }
     }
 
@@ -1040,6 +1363,7 @@ pub struct IncidentWorkspaceBuilder {
     policy_context: IncidentPolicyContext,
     evidence_attachments: Vec<IncidentEvidenceAttachment>,
     missing_spans: Vec<MissingSpan>,
+    diagnosis_latency_measurements: DiagnosisLatencyMeasurements,
     runbook_packets: Vec<IncidentRunbookPacket>,
     support_bundle_links: Vec<IncidentSupportBundleLink>,
     notes: String,
@@ -1066,6 +1390,7 @@ impl IncidentWorkspaceBuilder {
             policy_context: IncidentPolicyContext::local_fixture(),
             evidence_attachments: Vec::new(),
             missing_spans: Vec::new(),
+            diagnosis_latency_measurements: DiagnosisLatencyMeasurements::default(),
             runbook_packets: Vec::new(),
             support_bundle_links: Vec::new(),
             notes: "Incident workspace packet is read-mostly; mutating actions stay in runbook and action-ledger refs.".into(),
@@ -1111,6 +1436,77 @@ impl IncidentWorkspaceBuilder {
     /// Adds one missing-span marker.
     pub fn add_missing_span(&mut self, missing_span: MissingSpan) -> &mut Self {
         self.missing_spans.push(missing_span);
+        self
+    }
+
+    /// Sets the first-signal diagnosis-latency checkpoint.
+    pub fn with_time_to_first_signal(mut self, measurement: DiagnosisLatencyMeasurement) -> Self {
+        self.diagnosis_latency_measurements.time_to_first_signal = Some(measurement);
+        self
+    }
+
+    /// Sets the first-hypothesis diagnosis-latency checkpoint.
+    pub fn with_time_to_first_hypothesis(
+        mut self,
+        measurement: DiagnosisLatencyMeasurement,
+    ) -> Self {
+        self.diagnosis_latency_measurements.time_to_first_hypothesis = Some(measurement);
+        self
+    }
+
+    /// Sets the redacted-export diagnosis-latency checkpoint.
+    pub fn with_time_to_redacted_export(
+        mut self,
+        measurement: DiagnosisLatencyMeasurement,
+    ) -> Self {
+        self.diagnosis_latency_measurements.time_to_redacted_export = Some(measurement);
+        self
+    }
+
+    /// Sets the runbook-invocation diagnosis-latency checkpoint.
+    pub fn with_time_to_runbook_invocation(
+        mut self,
+        measurement: DiagnosisLatencyMeasurement,
+    ) -> Self {
+        self.diagnosis_latency_measurements
+            .time_to_runbook_invocation = Some(measurement);
+        self
+    }
+
+    /// Records the first-signal diagnosis-latency checkpoint.
+    pub fn record_time_to_first_signal(
+        &mut self,
+        measurement: DiagnosisLatencyMeasurement,
+    ) -> &mut Self {
+        self.diagnosis_latency_measurements.time_to_first_signal = Some(measurement);
+        self
+    }
+
+    /// Records the first-hypothesis diagnosis-latency checkpoint.
+    pub fn record_time_to_first_hypothesis(
+        &mut self,
+        measurement: DiagnosisLatencyMeasurement,
+    ) -> &mut Self {
+        self.diagnosis_latency_measurements.time_to_first_hypothesis = Some(measurement);
+        self
+    }
+
+    /// Records the redacted-export diagnosis-latency checkpoint.
+    pub fn record_time_to_redacted_export(
+        &mut self,
+        measurement: DiagnosisLatencyMeasurement,
+    ) -> &mut Self {
+        self.diagnosis_latency_measurements.time_to_redacted_export = Some(measurement);
+        self
+    }
+
+    /// Records the runbook-invocation diagnosis-latency checkpoint.
+    pub fn record_time_to_runbook_invocation(
+        &mut self,
+        measurement: DiagnosisLatencyMeasurement,
+    ) -> &mut Self {
+        self.diagnosis_latency_measurements
+            .time_to_runbook_invocation = Some(measurement);
         self
     }
 
@@ -1191,6 +1587,12 @@ impl IncidentWorkspaceBuilder {
     pub fn build(self) -> IncidentWorkspacePacket {
         let span_coverage =
             SpanCoverageSummary::from_parts(&self.evidence_attachments, &self.missing_spans);
+        let diagnosis_latency_scorecard = DiagnosisLatencyScorecard::from_parts(
+            &self.workspace_id,
+            &self.generated_at,
+            self.diagnosis_latency_measurements,
+            &self.missing_spans,
+        );
 
         IncidentWorkspacePacket {
             schema_version: INCIDENT_WORKSPACE_PACKET_SCHEMA_VERSION,
@@ -1207,6 +1609,7 @@ impl IncidentWorkspaceBuilder {
             evidence_attachments: self.evidence_attachments,
             missing_spans: self.missing_spans,
             span_coverage,
+            diagnosis_latency_scorecard,
             runbook_packets: self.runbook_packets,
             support_bundle_links: self.support_bundle_links,
             notes: self.notes,
@@ -1242,6 +1645,43 @@ struct SupportRunbookStepWire {
 struct SupportRunbookPolicyContextWire {
     policy_epoch: String,
     execution_context_id: String,
+}
+
+#[derive(Debug, Default)]
+struct DiagnosisLatencyMeasurements {
+    time_to_first_signal: Option<DiagnosisLatencyMeasurement>,
+    time_to_first_hypothesis: Option<DiagnosisLatencyMeasurement>,
+    time_to_redacted_export: Option<DiagnosisLatencyMeasurement>,
+    time_to_runbook_invocation: Option<DiagnosisLatencyMeasurement>,
+}
+
+fn missing_latency_measurement(
+    workspace_id: &str,
+    missing_spans: &[MissingSpan],
+    matching_kinds: &[MissingSpanKind],
+    default_kind: MissingSpanKind,
+    checkpoint_id: &str,
+    reviewer_summary: &str,
+) -> DiagnosisLatencyMeasurement {
+    if let Some(span) = missing_spans
+        .iter()
+        .find(|span| matching_kinds.contains(&span.span_kind))
+    {
+        return DiagnosisLatencyMeasurement::missing(span.clone());
+    }
+
+    DiagnosisLatencyMeasurement::missing(MissingSpan::new(
+        format!(
+            "missing-span:{}:diagnosis-latency:{}",
+            id_suffix(workspace_id),
+            checkpoint_id
+        ),
+        default_kind,
+        MissingSpanReasonClass::NotCollected,
+        true,
+        MissingSpanImpactClass::WeakensFirstDiagnosis,
+        reviewer_summary,
+    ))
 }
 
 fn trust_state_for_support(token: &str) -> aureline_support::bundle::TrustState {

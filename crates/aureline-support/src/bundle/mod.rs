@@ -37,17 +37,20 @@ pub use crash_linkage::{
 pub use exact_build::ExactBuildCapture;
 pub use manifest::{
     ActionPolicySourceContext, ActionReconstructionContext, ActionabilityImpact,
-    ActionabilityWarning, BuildIdentity, CollectionContext, ExcludedClass, FileSectionIdentity,
-    ParityBinding, PolicyContext, PolicyLock, PolicyNote, PreviewClassificationSummary,
-    PreviewExportParity, Redaction, RedactionControl, RedactionReport, ReopenAfterExportPath,
-    ReviewDecision, SecretScanSummary, SizeEstimate, SupportBundleManifest,
-    SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
+    ActionabilityWarning, BuildIdentity, CollectionContext, DiagnosisLatencyMeasurementProjection,
+    DiagnosisLatencyMeasurementState, DiagnosisLatencyScorecardProjection, ExcludedClass,
+    FileSectionIdentity, ParityBinding, PolicyContext, PolicyLock, PolicyNote,
+    PreviewClassificationSummary, PreviewExportParity, Redaction, RedactionControl,
+    RedactionReport, ReopenAfterExportPath, ReviewDecision, SecretScanSummary, SizeEstimate,
+    SupportBundleManifest, SupportBundlePreviewItem, COLLECTION_SCHEMA_VERSION,
+    SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_RECORD_KIND,
+    SUPPORT_BUNDLE_DIAGNOSIS_LATENCY_SCORECARD_SCHEMA_VERSION, SUPPORT_BUNDLE_MANIFEST_RECORD_KIND,
     SUPPORT_BUNDLE_PREVIEW_ITEM_RECORD_KIND,
 };
 pub use preview::{
-    ActionReconstructionSeed, PreviewItemSeed, SupportBundlePreview, SupportBundlePreviewBuilder,
-    SupportBundlePreviewError, SUPPORT_BUNDLE_PREVIEW_RECORD_KIND,
-    SUPPORT_BUNDLE_PREVIEW_SEED_SCOPE_NOTICE,
+    ActionReconstructionSeed, DiagnosisLatencyScorecardProjectionSeed, PreviewItemSeed,
+    SupportBundlePreview, SupportBundlePreviewBuilder, SupportBundlePreviewError,
+    SUPPORT_BUNDLE_PREVIEW_RECORD_KIND, SUPPORT_BUNDLE_PREVIEW_SEED_SCOPE_NOTICE,
 };
 pub use redaction::LocalFirstDefaults;
 pub use vocabulary::{
