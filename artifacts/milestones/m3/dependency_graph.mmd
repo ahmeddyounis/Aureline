@@ -50,6 +50,15 @@ graph TD
         validation_capture["beta_admission_validation_capture<br/>artifacts/milestones/m3/captures/beta_admission_validation_capture.json"]
     end
 
+    %% Cutline lane (consumes the beta scope; gates M4 stable planning)
+    subgraph m3_cutline_lane["M3 cutline lane"]
+        cutline_packet["cutline_packet<br/>docs/milestones/m3/cutline_packet.md"]
+        unlock_map["unlock_map<br/>artifacts/milestones/m3/unlock_map.yaml"]
+        stable_handoff["stable_planning_handoff_checklist<br/>artifacts/milestones/m3/stable_planning_handoff_checklist.md"]
+        cutline_validator["m3_cutline_validator<br/>ci/check_m3_cutline_packet.py"]
+        cutline_capture["cutline_packet_validation_capture<br/>artifacts/milestones/m3/captures/cutline_packet_validation_capture.json"]
+    end
+
     %% M2 -> M3 inheritance edges
     m2_matrix -- "alpha wedge scope is the seed for the beta claimed surfaces" --> surface_register
     m2_scoreboard -- "downstream proof rows still resolve through the alpha scoreboard until beta-class scoreboard rows exist" --> surface_register
@@ -81,10 +90,24 @@ graph TD
     admission_doc -- "validator checks entrypoint cross-refs" --> beta_admission_validator
     beta_admission_validator -- "writes the checked-in capture" --> validation_capture
 
+    %% Cutline lane edges (beta scope feeds the cutline; cutline gates M4 unlocks)
+    surface_register -- "claimed surfaces are the binding for cutline rows" --> unlock_map
+    cohort_guardrails -- "cohort_id and downgrade vocabulary back the cutline" --> unlock_map
+    admission_doc -- "beta entrypoint links to the cutline packet" --> cutline_packet
+    cutline_packet -- "human entrypoint for the cutline lane" --> unlock_map
+    cutline_packet -- "human entrypoint for the cutline lane" --> stable_handoff
+    unlock_map -- "downstream M4 unlocks consume the handoff" --> stable_handoff
+    unlock_map -- "cutline validator parses the unlock map" --> cutline_validator
+    stable_handoff -- "cutline validator checks the handoff cross-refs" --> cutline_validator
+    cutline_packet -- "cutline validator checks the doc cross-refs" --> cutline_validator
+    cutline_validator -- "writes the checked-in cutline capture" --> cutline_capture
+
     %% Styling
     classDef m3 fill:#e7f3ff,stroke:#2a6fdb,stroke-width:1.5px;
     classDef m2 fill:#f1f1f1,stroke:#7a7a7a,stroke-width:1px;
     classDef consumer fill:#e8f7ec,stroke:#2f8a3f,stroke-width:1.5px;
+    classDef cutline fill:#fff4e0,stroke:#b96b00,stroke-width:1.5px;
     class admission_doc,surface_register,cohort_guardrails m3;
     class m2_matrix,m2_scoreboard,m2_graph,m2_archetype_seed,reference_workspace_rows,archetype_rubric,deployment_locality,known_limits_contract,public_interface_versioning,certified_archetype_template m2;
     class beta_admission_validator,validation_capture consumer;
+    class cutline_packet,unlock_map,stable_handoff,cutline_validator,cutline_capture cutline;

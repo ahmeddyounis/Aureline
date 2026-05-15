@@ -14,6 +14,18 @@ rules.
 - Beta admission validator: `ci/check_beta_admission.py`
 - Latest validation capture: `artifacts/milestones/m3/captures/beta_admission_validation_capture.json`
 
+## Downstream cutline lane
+
+The beta scope feeds the M3 exit cutline; stable planning consumes the
+cutline packet rather than this page. When the beta scope widens, refresh
+both lanes in the same change set.
+
+- Cutline packet: `docs/milestones/m3/cutline_packet.md`
+- Unlock map: `artifacts/milestones/m3/unlock_map.yaml`
+- Stable-planning handoff checklist: `artifacts/milestones/m3/stable_planning_handoff_checklist.md`
+- Cutline validator: `ci/check_m3_cutline_packet.py`
+- Latest cutline capture: `artifacts/milestones/m3/captures/cutline_packet_validation_capture.json`
+
 ## Upstream contracts inherited from M2
 
 - Alpha wedge matrix: `artifacts/milestones/m2/alpha_wedge_matrix.yaml`

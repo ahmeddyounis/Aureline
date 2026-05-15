@@ -1,0 +1,318 @@
+# M3 unlock map.
+#
+# Canonical map of which M3 lanes must be green before downstream M4 stable
+# planning lanes are allowed to start. The unlock map is consumed by the
+# stable-planning handoff checklist and by M4 proof packets so dependencies
+# stop living in side documents.
+#
+# This file is paired with:
+#   - docs/milestones/m3/cutline_packet.md         (cutline truths)
+#   - artifacts/milestones/m3/stable_planning_handoff_checklist.md (handoff)
+#   - artifacts/milestones/m3/claimed_surface_register.json (beta scope)
+#   - artifacts/milestones/m3/cohort_guardrails.yaml        (cohort scope)
+
+schema_version: 1
+as_of: "2026-05-15"
+owner: "@ahmeddyounis"
+
+unlock_map_id: m3_unlock_map
+scope_state: frozen
+human_entrypoint_ref: docs/milestones/m3/cutline_packet.md
+cutline_packet_ref: docs/milestones/m3/cutline_packet.md
+handoff_checklist_ref: artifacts/milestones/m3/stable_planning_handoff_checklist.md
+claimed_surface_register_ref: artifacts/milestones/m3/claimed_surface_register.json
+cohort_guardrails_ref: artifacts/milestones/m3/cohort_guardrails.yaml
+dependency_graph_ref: artifacts/milestones/m3/dependency_graph.mmd
+
+validator:
+  script_ref: ci/check_m3_cutline_packet.py
+  command: python3 ci/check_m3_cutline_packet.py --repo-root .
+
+source_contract_refs:
+  - docs/governance/public_interface_versioning_policy.md
+  - docs/governance/interface_freeze_guide.md
+  - docs/governance/interface_freeze_matrix.md
+  - docs/governance/frozen_surface_ci_policy.md
+  - docs/release/release_center_object_model_contract.md
+  - docs/release/release_center_provenance_linkage.md
+  - docs/release/shiproom_runbook.md
+  - docs/release/shiproom_dashboard_contract.md
+  - docs/release/certified_archetype_report_template.md
+  - docs/release/compatibility_report_template.md
+  - docs/release/update_and_rollback_contract.md
+  - docs/release/update_verification_and_rollback_sequence.md
+  - docs/migration/migration_equivalence_and_parity_scorecard.md
+  - docs/migration/compatibility_scorecard_contract.md
+  - docs/extensions/sdk_publication_contract.md
+  - docs/extensions/extension_lifecycle_and_quarantine_sequence.md
+  - docs/governance/usage_export_and_offboarding_contract.md
+  - docs/product/known_limits_contract.md
+  - artifacts/compat/reference_workspace_rows.yaml
+  - artifacts/compat/archetype_rubric.yaml
+
+unlock_state_vocabulary:
+  - blocked
+  - pending_evidence
+  - ready_to_consume
+  - waived_with_expiry
+
+required_downstream_unlocks:
+  - unlock_id: m4_unlock:stable_api_freeze
+    title: Stable public-interface freeze
+    description: >
+      M4 stable planning is only allowed to start the public-interface
+      freeze when the cutline rows that bind to extension SDK, packaging,
+      and certified-archetype publication are green and downgrade rules
+      are wired into the versioning policy.
+    downstream_consumer_refs:
+      - docs/governance/public_interface_versioning_policy.md
+      - docs/governance/interface_freeze_guide.md
+      - docs/governance/interface_freeze_matrix.md
+      - docs/governance/frozen_surface_ci_policy.md
+    required_cutline_refs:
+      - m3_cutline:extension_isolation_envelope
+      - m3_cutline:certified_archetype_publication
+      - m3_cutline:rollback_proven_in_partner_orgs
+    blocking_surfaces:
+      - beta_surface:extension_runtime
+      - beta_surface:packaging_update_rollback
+      - beta_surface:compatibility_publication
+    current_state: pending_evidence
+
+  - unlock_id: m4_unlock:release_center_rehearsal
+    title: Release-center rehearsal entry
+    description: >
+      Release-center rehearsal is only allowed to consume the cutline
+      packet when rollback, policy explainability, and supportability are
+      green and the rehearsal can reference one canonical handoff packet
+      instead of milestone notes.
+    downstream_consumer_refs:
+      - docs/release/release_center_object_model_contract.md
+      - docs/release/release_center_provenance_linkage.md
+      - docs/release/shiproom_runbook.md
+      - docs/release/shiproom_dashboard_contract.md
+      - docs/release/update_and_rollback_contract.md
+      - docs/release/update_verification_and_rollback_sequence.md
+    required_cutline_refs:
+      - m3_cutline:rollback_proven_in_partner_orgs
+      - m3_cutline:policy_explainability_baseline
+      - m3_cutline:supportability_baseline
+    blocking_surfaces:
+      - beta_surface:packaging_update_rollback
+      - beta_surface:policy_proxy_transport
+      - beta_surface:support_export_diagnostics
+    current_state: pending_evidence
+
+  - unlock_id: m4_unlock:certified_archetype_publication
+    title: Certified-archetype publication
+    description: >
+      Certified-archetype publication for M4 is only allowed to start when
+      the compatibility publication path and the debug / test / task model
+      are green against current reference-workspace rows.
+    downstream_consumer_refs:
+      - docs/release/certified_archetype_report_template.md
+      - docs/release/compatibility_report_template.md
+      - docs/migration/compatibility_scorecard_contract.md
+      - artifacts/compat/reference_workspace_rows.yaml
+      - artifacts/compat/archetype_rubric.yaml
+    required_cutline_refs:
+      - m3_cutline:certified_archetype_publication
+      - m3_cutline:debug_test_task_truth
+      - m3_cutline:migration_honesty_register
+    blocking_surfaces:
+      - beta_surface:compatibility_publication
+      - beta_surface:debug_test_task_model
+      - beta_surface:importer_and_migration
+    current_state: pending_evidence
+
+cutline_rows:
+  - cutline_id: m3_cutline:rollback_proven_in_partner_orgs
+    title: Rollback proven in design-partner organizations
+    primary_surface_refs:
+      - beta_surface:packaging_update_rollback
+    primary_cohort_refs:
+      - cohort:design_partner_managed_pilot
+    evidence_classes:
+      - rollback_drill
+      - partner_scorecard
+      - update_verification_capture
+    propagation_refs:
+      - docs/release/update_and_rollback_contract.md
+      - docs/release/update_verification_and_rollback_sequence.md
+      - docs/product/known_limits_contract.md
+    unlocks:
+      - m4_unlock:stable_api_freeze
+      - m4_unlock:release_center_rehearsal
+    descopable: false
+
+  - cutline_id: m3_cutline:policy_explainability_baseline
+    title: Policy, proxy, and identity envelope are inspectable
+    primary_surface_refs:
+      - beta_surface:policy_proxy_transport
+    primary_cohort_refs:
+      - cohort:design_partner_managed_pilot
+    evidence_classes:
+      - policy_bundle_packet
+      - enterprise_proxy_lab
+      - identity_envelope_capture
+    propagation_refs:
+      - docs/governance/policy_flag_schema_stack.md
+      - docs/product/known_limits_contract.md
+    unlocks:
+      - m4_unlock:release_center_rehearsal
+    descopable: false
+
+  - cutline_id: m3_cutline:extension_isolation_envelope
+    title: Extension runtime, SDK, and isolation envelope are inspectable
+    primary_surface_refs:
+      - beta_surface:extension_runtime
+    primary_cohort_refs:
+      - cohort:extension_author
+    evidence_classes:
+      - sdk_diff_report
+      - extension_compatibility_report
+      - extension_rollback_drill
+    propagation_refs:
+      - docs/extensions/sdk_publication_contract.md
+      - docs/extensions/extension_lifecycle_and_quarantine_sequence.md
+      - docs/governance/public_interface_versioning_policy.md
+    unlocks:
+      - m4_unlock:stable_api_freeze
+    descopable: false
+
+  - cutline_id: m3_cutline:migration_honesty_register
+    title: Migration parity and known-gap honesty
+    primary_surface_refs:
+      - beta_surface:importer_and_migration
+    primary_cohort_refs:
+      - cohort:design_partner_managed_pilot
+    evidence_classes:
+      - import_bridge_report
+      - migration_diff_packet
+      - known_gap_register
+    propagation_refs:
+      - docs/migration/migration_equivalence_and_parity_scorecard.md
+      - docs/migration/compatibility_scorecard_contract.md
+      - docs/product/known_limits_contract.md
+    unlocks:
+      - m4_unlock:certified_archetype_publication
+    descopable: false
+
+  - cutline_id: m3_cutline:supportability_baseline
+    title: Support export, diagnostics, and recovery baseline
+    primary_surface_refs:
+      - beta_surface:support_export_diagnostics
+    primary_cohort_refs:
+      - cohort:design_partner_managed_pilot
+    evidence_classes:
+      - support_bundle_capture
+      - safe_mode_drill
+      - remote_attach_degradation_audit
+    propagation_refs:
+      - docs/governance/usage_export_and_offboarding_contract.md
+      - docs/product/known_limits_contract.md
+    unlocks:
+      - m4_unlock:release_center_rehearsal
+    descopable: false
+
+  - cutline_id: m3_cutline:debug_test_task_truth
+    title: Debug, test, and task model are reproducible on certified archetypes
+    primary_surface_refs:
+      - beta_surface:debug_test_task_model
+    primary_cohort_refs:
+      - cohort:certified_archetype
+    evidence_classes:
+      - reference_workspace_report
+      - task_event_run_trace
+      - debug_session_trace
+      - test_runner_capture
+    propagation_refs:
+      - docs/release/certified_archetype_report_template.md
+      - docs/product/known_limits_contract.md
+    unlocks:
+      - m4_unlock:certified_archetype_publication
+    descopable: false
+
+  - cutline_id: m3_cutline:certified_archetype_publication
+    title: Certified-archetype compatibility publication is reproducible
+    primary_surface_refs:
+      - beta_surface:compatibility_publication
+    primary_cohort_refs:
+      - cohort:certified_archetype
+    evidence_classes:
+      - certified_archetype_report
+      - compatibility_scorecard
+      - bundle_archetype_matrix
+    propagation_refs:
+      - docs/release/certified_archetype_report_template.md
+      - docs/release/compatibility_report_template.md
+      - artifacts/compat/reference_workspace_rows.yaml
+    unlocks:
+      - m4_unlock:stable_api_freeze
+      - m4_unlock:certified_archetype_publication
+    descopable: false
+
+beta_only_surfaces:
+  - row_id: beta_only:managed_cloud_daily_driver
+    title: Managed-cloud daily-driver parity
+    rationale: Browser companion remains a scoped handoff surface; not a stable-claim path at M4 entry.
+    mirrors_register_row: beta_scope.out.managed_cloud_daily_driver
+    widening_requires:
+      - release_council_review
+      - claimed_surface_register_row
+      - cohort_guardrails_row
+      - known_limit_note
+
+  - row_id: beta_only:dotnet_service_or_app
+    title: .NET service or app archetype
+    rationale: Held for M4 or later; widening requires the change-control workflow.
+    mirrors_register_row: beta_scope.hold.dotnet_service_or_app
+    widening_requires:
+      - release_council_review
+      - claimed_surface_register_row
+      - cohort_guardrails_row
+      - known_limit_note
+
+  - row_id: beta_only:notebook_first_data_workflow
+    title: Notebook-first data workflow parity
+    rationale: Held for M4 or later; widening requires the change-control workflow.
+    mirrors_register_row: beta_scope.hold.notebook_first_data_workflow
+    widening_requires:
+      - release_council_review
+      - claimed_surface_register_row
+      - cohort_guardrails_row
+      - known_limit_note
+
+  - row_id: beta_only:long_tail_framework_breadth
+    title: Long-tail framework breadth beyond certified archetypes
+    rationale: Stable claims derive from certified-archetype evidence, not opportunistic coverage.
+    mirrors_register_row: beta_scope.out.long_tail_framework_breadth
+    widening_requires:
+      - release_council_review
+      - claimed_surface_register_row
+      - cohort_guardrails_row
+      - known_limit_note
+
+change_control:
+  late_addition_policy: release_council_or_waiver
+  default_decision_for_unlisted_unlock: blocked
+  addition_requires_refs:
+    - docs/milestones/m3/cutline_packet.md
+    - artifacts/milestones/m3/unlock_map.yaml
+    - artifacts/milestones/m3/stable_planning_handoff_checklist.md
+    - artifacts/milestones/m3/claimed_surface_register.json
+    - artifacts/milestones/m3/cohort_guardrails.yaml
+
+acceptance_state_coverage:
+  - case_id: every_unlock_names_at_least_one_cutline_row
+    exercises_state: unlock_to_cutline_binding
+    expected_validator_result: pass
+  - case_id: every_cutline_row_binds_to_a_claimed_surface
+    exercises_state: cutline_to_surface_binding
+    expected_validator_result: pass
+  - case_id: beta_only_rows_mirror_register_holds
+    exercises_state: beta_only_mirror
+    expected_validator_result: pass
+  - case_id: required_m4_unlocks_present
+    exercises_state: required_unlock_coverage
+    expected_validator_result: pass
