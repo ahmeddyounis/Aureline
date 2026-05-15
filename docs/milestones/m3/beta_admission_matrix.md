@@ -67,6 +67,25 @@ scorecard index):
   display lifecycle label is `preview`.
 - A row with no triggers fired inherits its declared support class.
 
+## Protected fitness-function dashboard
+
+The beta train governs itself through one shared protected-fitness-function
+catalog. Each protected lane (startup, typing, search, rollback,
+supportability, extension isolation, policy/trust) names a threshold owner,
+a waiver authority, the canonical fitness-function-catalog rows it resolves
+through, and the beta surfaces it gates. The generator emits a dashboard
+snapshot quoted by release packets, support exports, and the governance
+review.
+
+- Catalog matrix: `artifacts/benchmarks/m3/protected_fitness_catalog.yaml`
+- Waiver register: `artifacts/milestones/m3/waiver_register.yaml`
+- Generated dashboard snapshot:
+  `artifacts/benchmarks/m3/dashboard_snapshot.json`
+- Reviewer-facing entrypoint: `docs/milestones/m3/protected_fitness_catalog.md`
+- Generator and validator: `ci/check_m3_protected_fitness_catalog.py`
+- Latest validation capture:
+  `artifacts/benchmarks/m3/captures/protected_fitness_catalog_validation_capture.json`
+
 ## Downstream cutline lane
 
 The beta scope feeds the M3 exit cutline; stable planning consumes the
