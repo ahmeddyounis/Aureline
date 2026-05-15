@@ -49,15 +49,15 @@ pub use collections::{
 };
 pub use install_review::{
     evaluate_install_review_alpha, project_install_review_alpha_surface,
-    validate_install_review_alpha_packet, ActivationBudgetDisclosure, BridgeStateClass,
-    CompatibilityClaimClass, CompatibilityLabelBlock, InstallReviewActionClass,
-    InstallReviewActionOfferClass, InstallReviewAlphaEvaluation, InstallReviewAlphaFinding,
-    InstallReviewAlphaInput, InstallReviewAlphaPacketRecord, InstallReviewAlphaProjectionRecord,
-    InstallReviewBoundaryTruth, InstallReviewContentSourceClass, InstallReviewDecisionClass,
-    InstallReviewDecisionReasonClass, InstallReviewDisclosureClass, InstallReviewSurfaceClass,
-    NativeReviewAuthorityClass, RuntimeCostClass, RuntimeCostEvidenceClass,
-    INSTALL_REVIEW_ALPHA_PACKET_RECORD_KIND, INSTALL_REVIEW_ALPHA_PROJECTION_RECORD_KIND,
-    INSTALL_REVIEW_ALPHA_SCHEMA_VERSION,
+    validate_install_review_alpha_packet, ActivationBudget, ActivationBudgetDisclosure,
+    BridgeStateClass, CompatibilityClaimClass, CompatibilityLabel, CompatibilityLabelBlock,
+    InstallReviewActionClass, InstallReviewActionOfferClass, InstallReviewAlphaEvaluation,
+    InstallReviewAlphaFinding, InstallReviewAlphaInput, InstallReviewAlphaPacketRecord,
+    InstallReviewAlphaProjectionRecord, InstallReviewBoundaryTruth,
+    InstallReviewContentSourceClass, InstallReviewDecisionClass, InstallReviewDecisionReasonClass,
+    InstallReviewDisclosureClass, InstallReviewSurfaceClass, NativeReviewAuthorityClass,
+    RuntimeCostClass, RuntimeCostEvidenceClass, INSTALL_REVIEW_ALPHA_PACKET_RECORD_KIND,
+    INSTALL_REVIEW_ALPHA_PROJECTION_RECORD_KIND, INSTALL_REVIEW_ALPHA_SCHEMA_VERSION,
 };
 pub use manifest_baseline::{
     compute_effective_permission_baseline, decide_manifest_install,

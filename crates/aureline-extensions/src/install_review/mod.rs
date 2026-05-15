@@ -20,6 +20,9 @@ use aureline_install::{
 };
 use aureline_provider::{ActorScope, ProviderSourceClass};
 use aureline_runtime::{HostBoundaryCueClass, ReachabilityState, ScopeClass};
+use aureline_support::capabilities::{
+    current_capability_lifecycle_registry, DependencyMarker, EffectOnParent, MarkerKind,
+};
 
 use crate::manifest_baseline::{
     DeclaredVsEffectiveDiffEntry, EffectivePermissionBaselineRecord, EffectivePermissionDiffClass,
@@ -113,6 +116,8 @@ pub enum InstallReviewDecisionReasonClass {
     CompatibilityMismatch,
     /// Compatibility is limited or bridge-backed and needs native acknowledgement.
     CompatibilityLimitedRequiresReview,
+    /// The rendered compatibility label overclaims a dependency-marker-narrowed capability.
+    CompatibilityLabelClaimRefused,
     /// Activation-budget evidence is missing or not strong enough for the claim.
     ActivationBudgetEvidenceMissing,
     /// Runtime budget evidence says the package is quarantined or over budget.
@@ -243,6 +248,130 @@ pub enum BridgeStateClass {
     BridgeUnsupportedBlockedOnPolicy,
 }
 
+/// User-facing compatibility label rendered before an install or enable commit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CompatibilityLabel {
+    /// The compatibility basis has not been resolved and must render as unknown.
+    Unknown,
+    /// Native capability exactly matches the current target and capability basis.
+    Exact,
+    /// The capability is translated through a governed bridge or adapter.
+    Translated,
+    /// Only part of the declared capability set is supported on this target.
+    Partial,
+    /// A shim emulates part of the expected behavior with known caveats.
+    Shimmed,
+    /// No supported path exists for the current target.
+    Unsupported,
+}
+
+impl Default for CompatibilityLabel {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
+impl CompatibilityLabel {
+    /// Returns the serialized token for the label.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown",
+            Self::Exact => "exact",
+            Self::Translated => "translated",
+            Self::Partial => "partial",
+            Self::Shimmed => "shimmed",
+            Self::Unsupported => "unsupported",
+        }
+    }
+
+    /// Returns the short display label.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Unknown => "Unknown",
+            Self::Exact => "Exact",
+            Self::Translated => "Translated",
+            Self::Partial => "Partial",
+            Self::Shimmed => "Shimmed",
+            Self::Unsupported => "Unsupported",
+        }
+    }
+
+    const fn needs_native_ack(self) -> bool {
+        matches!(self, Self::Translated | Self::Partial | Self::Shimmed)
+    }
+}
+
+/// Structured activation budget rendered before an install or enable commit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActivationBudget {
+    /// CPU ceiling or budget class for activation and background work.
+    #[serde(default = "unknown_value")]
+    pub cpu: String,
+    /// Memory ceiling or budget class for resident extension work.
+    #[serde(default = "unknown_value")]
+    pub memory: String,
+    /// Startup-cost ceiling for cold activation or shell startup participation.
+    #[serde(default = "unknown_value")]
+    pub startup_cost_ceiling: String,
+    /// Feature gates that must be explicitly opted into before activation widens.
+    #[serde(default = "unknown_feature_gates")]
+    pub opt_in_feature_gates: Vec<String>,
+}
+
+impl Default for ActivationBudget {
+    fn default() -> Self {
+        Self::unknown()
+    }
+}
+
+impl ActivationBudget {
+    /// Returns an explicit unknown budget record.
+    pub fn unknown() -> Self {
+        Self {
+            cpu: unknown_value(),
+            memory: unknown_value(),
+            startup_cost_ceiling: unknown_value(),
+            opt_in_feature_gates: unknown_feature_gates(),
+        }
+    }
+
+    /// Returns the feature gates, using `unknown` when the list is empty.
+    pub fn opt_in_feature_gates_or_unknown(&self) -> Vec<&str> {
+        if self.opt_in_feature_gates.is_empty() {
+            return vec!["unknown"];
+        }
+        self.opt_in_feature_gates
+            .iter()
+            .map(String::as_str)
+            .collect()
+    }
+
+    fn has_unknown_axis(&self) -> bool {
+        value_unknown(&self.cpu)
+            || value_unknown(&self.memory)
+            || value_unknown(&self.startup_cost_ceiling)
+            || self.opt_in_feature_gates.is_empty()
+            || self
+                .opt_in_feature_gates
+                .iter()
+                .any(|gate| value_unknown(gate))
+    }
+}
+
+fn unknown_value() -> String {
+    "unknown".to_string()
+}
+
+fn unknown_feature_gates() -> Vec<String> {
+    vec![unknown_value()]
+}
+
+fn value_unknown(value: &str) -> bool {
+    let value = value.trim();
+    value.is_empty() || value.eq_ignore_ascii_case("unknown")
+}
+
 /// Action offered by an install-review projection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -308,6 +437,9 @@ pub struct InstallReviewBoundaryTruth {
 /// Compatibility label block rendered by marketplace/package review lanes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompatibilityLabelBlock {
+    /// Compatibility label rendered directly on the install-review surface.
+    #[serde(default)]
+    pub compatibility_label: CompatibilityLabel,
     /// Compatibility class from the marketplace discovery vocabulary.
     pub compatibility_claim_class: CompatibilityClaimClass,
     /// Bridge state from the marketplace discovery vocabulary.
@@ -327,6 +459,9 @@ pub struct CompatibilityLabelBlock {
 /// Activation-budget disclosure rendered by marketplace/package review lanes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActivationBudgetDisclosure {
+    /// Structured CPU, memory, startup-cost, and feature-gate budget.
+    #[serde(default)]
+    pub activation_budget: ActivationBudget,
     /// Runtime-cost class from the marketplace discovery vocabulary.
     pub runtime_cost_class: RuntimeCostClass,
     /// Evidence class backing the runtime-cost claim.
@@ -391,6 +526,8 @@ pub struct InstallReviewAlphaPacketRecord {
     pub install_topology_row_ref: String,
     /// Install-topology truth fingerprint consumed from `aureline-install`.
     pub install_topology_truth_fingerprint: InstallTopologyTruthFingerprint,
+    /// Capability lifecycle rows consumed from the governance registry.
+    pub capability_lifecycle_row_refs: Vec<String>,
     /// Boundary truth rendered by the review lane.
     pub boundary_truth: InstallReviewBoundaryTruth,
     /// Compatibility labels rendered by the review lane.
@@ -465,10 +602,16 @@ pub struct InstallReviewAlphaProjectionRecord {
     pub compatibility_claim_class: CompatibilityClaimClass,
     /// Bridge state rendered on the lane.
     pub bridge_state_class: BridgeStateClass,
+    /// Compatibility label rendered on the lane.
+    pub compatibility_label: CompatibilityLabel,
+    /// Compatibility label token rendered on the lane.
+    pub compatibility_label_token: String,
     /// Runtime-cost class rendered on the lane.
     pub runtime_cost_class: RuntimeCostClass,
     /// Runtime-cost evidence class rendered on the lane.
     pub runtime_cost_evidence_class: RuntimeCostEvidenceClass,
+    /// Structured activation-budget fields rendered on the lane.
+    pub activation_budget: ActivationBudget,
     /// Number of rendered permission-delta entries.
     pub permission_delta_count: usize,
     /// Number of widening attempts blocked by effective-permission truth.
@@ -653,11 +796,23 @@ pub fn evaluate_install_review_alpha(
     ) || matches!(
         compatibility.bridge_state_class,
         BridgeStateClass::BridgeUnsupportedBlockedOnPolicy
+    ) || matches!(
+        compatibility.compatibility_label,
+        CompatibilityLabel::Unsupported
     ) {
         (
             InstallReviewDecisionClass::Denied,
             InstallReviewDecisionReasonClass::CompatibilityMismatch,
             "Denied: compatibility evidence blocks this package on the current target.".to_string(),
+        )
+    } else if let Some(summary) = exact_label_conflicts_with_partial_marker(
+        compatibility.compatibility_label,
+        &extension_review.capability_lifecycle_row_refs,
+    ) {
+        (
+            InstallReviewDecisionClass::Denied,
+            InstallReviewDecisionReasonClass::CompatibilityLabelClaimRefused,
+            summary,
         )
     } else if activation_budget_blocks(&activation_budget) {
         (
@@ -711,6 +866,7 @@ pub fn evaluate_install_review_alpha(
         effective_permission_summary_ref: effective_permission.manifest_baseline_ref.clone(),
         install_topology_row_ref: install_topology_row.topology_row_id.clone(),
         install_topology_truth_fingerprint: install_topology_row.truth_fingerprint(),
+        capability_lifecycle_row_refs: extension_review.capability_lifecycle_row_refs.clone(),
         boundary_truth,
         compatibility,
         activation_budget,
@@ -786,8 +942,11 @@ pub fn project_install_review_alpha_surface(
         canonical_native_review_ref: packet.canonical_native_review_ref.clone(),
         compatibility_claim_class: packet.compatibility.compatibility_claim_class,
         bridge_state_class: packet.compatibility.bridge_state_class,
+        compatibility_label: packet.compatibility.compatibility_label,
+        compatibility_label_token: packet.compatibility.compatibility_label.as_str().to_string(),
         runtime_cost_class: packet.activation_budget.runtime_cost_class,
         runtime_cost_evidence_class: packet.activation_budget.runtime_cost_evidence_class,
+        activation_budget: packet.activation_budget.activation_budget.clone(),
         permission_delta_count: packet.permission_delta_entries.len(),
         widening_attempted_blocked_count: packet.widening_attempted_blocked_count,
         install_topology_row_ref: packet.install_topology_row_ref.clone(),
@@ -797,7 +956,7 @@ pub fn project_install_review_alpha_surface(
         blocked_mutation: !packet.mutation_allowed,
         offered_actions,
         export_safe_summary: format!(
-            "{} Content source: {:?}. Scope: {} / {:?}. Network: {:?}. Boundary: {:?}. Compatibility: {:?}. Runtime cost: {:?}. Install row: {}.",
+            "{} Content source: {:?}. Scope: {} / {:?}. Network: {:?}. Boundary: {:?}. Compatibility: {:?} ({:?}). Runtime cost: {:?}. Activation budget: cpu={} memory={} startup_cost_ceiling={} opt_in_feature_gates={}. Install row: {}.",
             packet.decision_summary,
             packet.boundary_truth.content_source_class,
             packet.boundary_truth.profile_scope_ref,
@@ -805,7 +964,20 @@ pub fn project_install_review_alpha_surface(
             packet.boundary_truth.network_reachability_state,
             packet.boundary_truth.service_boundary_class,
             packet.compatibility.compatibility_claim_class,
+            packet.compatibility.compatibility_label,
             packet.activation_budget.runtime_cost_class,
+            packet.activation_budget.activation_budget.cpu.as_str(),
+            packet.activation_budget.activation_budget.memory.as_str(),
+            packet
+                .activation_budget
+                .activation_budget
+                .startup_cost_ceiling
+                .as_str(),
+            packet
+                .activation_budget
+                .activation_budget
+                .opt_in_feature_gates_or_unknown()
+                .join(","),
             packet.install_topology_row_ref
         ),
         redaction_class: RedactionClass::MetadataSafeDefault,
@@ -885,6 +1057,15 @@ pub fn validate_install_review_alpha_packet(
         findings.push(InstallReviewAlphaFinding::new(
             "install_review_alpha.packet.compatibility_missing_not_blocked",
             "missing compatibility evidence must block install or enable mutation",
+        ));
+    }
+    if let Some(message) = exact_label_conflicts_with_partial_marker(
+        packet.compatibility.compatibility_label,
+        &packet.capability_lifecycle_row_refs,
+    ) {
+        findings.push(InstallReviewAlphaFinding::new(
+            "install_review_alpha.packet.exact_compatibility_label_refused",
+            message,
         ));
     }
     if packet.widening_attempted_blocked_count > 0
@@ -990,6 +1171,10 @@ fn compatibility_evidence_missing(compatibility: &CompatibilityLabelBlock) -> bo
     compatibility.evidence_refs.is_empty()
         || compatibility.platform_scope_refs.is_empty()
         || matches!(
+            compatibility.compatibility_label,
+            CompatibilityLabel::Unknown
+        )
+        || matches!(
             compatibility.evidence_freshness_class,
             SummaryFreshnessClass::Stale | SummaryFreshnessClass::Unverified
         )
@@ -1004,16 +1189,18 @@ fn compatibility_evidence_missing(compatibility: &CompatibilityLabelBlock) -> bo
 }
 
 fn compatibility_requires_native_ack(compatibility: &CompatibilityLabelBlock) -> bool {
-    matches!(
-        compatibility.compatibility_claim_class,
-        CompatibilityClaimClass::CompatibleOnSubsetOfDeclaredTargets
-            | CompatibilityClaimClass::CompatibilityBridgeRequired
-    ) || matches!(
-        compatibility.bridge_state_class,
-        BridgeStateClass::BridgeRequiredCompatibilityBridgeProfile
-            | BridgeStateClass::BridgeRequiredCapabilityWorldSubsetOnly
-            | BridgeStateClass::BridgeRequiredHostContractFamilySubsetOnly
-    )
+    compatibility.compatibility_label.needs_native_ack()
+        || matches!(
+            compatibility.compatibility_claim_class,
+            CompatibilityClaimClass::CompatibleOnSubsetOfDeclaredTargets
+                | CompatibilityClaimClass::CompatibilityBridgeRequired
+        )
+        || matches!(
+            compatibility.bridge_state_class,
+            BridgeStateClass::BridgeRequiredCompatibilityBridgeProfile
+                | BridgeStateClass::BridgeRequiredCapabilityWorldSubsetOnly
+                | BridgeStateClass::BridgeRequiredHostContractFamilySubsetOnly
+        )
 }
 
 fn activation_budget_blocks(activation_budget: &ActivationBudgetDisclosure) -> bool {
@@ -1027,6 +1214,7 @@ fn activation_budget_evidence_missing(activation_budget: &ActivationBudgetDisclo
     activation_budget.evidence_refs.is_empty()
         || activation_budget.budget_axis_refs.is_empty()
         || activation_budget.activation_trigger_refs.is_empty()
+        || activation_budget.activation_budget.has_unknown_axis()
         || matches!(
             activation_budget.runtime_cost_class,
             RuntimeCostClass::RuntimeCostUnknownPendingEvidence
@@ -1037,4 +1225,53 @@ fn activation_budget_evidence_missing(activation_budget: &ActivationBudgetDisclo
                 | RuntimeCostEvidenceClass::BenchmarkArchiveAbsent
                 | RuntimeCostEvidenceClass::SelfReportedOnlyUnverified
         )
+}
+
+fn exact_label_conflicts_with_partial_marker(
+    compatibility_label: CompatibilityLabel,
+    capability_lifecycle_row_refs: &[String],
+) -> Option<String> {
+    if compatibility_label != CompatibilityLabel::Exact || capability_lifecycle_row_refs.is_empty()
+    {
+        return None;
+    }
+    let registry = current_capability_lifecycle_registry().ok()?;
+    for row_ref in capability_lifecycle_row_refs {
+        let Some(row) = registry.row_by_id(row_ref) else {
+            continue;
+        };
+        if let Some(marker) = registry
+            .markers_for_row(row)
+            .into_iter()
+            .find(|marker| marker_narrows_exact_compatibility(marker))
+        {
+            return Some(format!(
+                "Denied: exact compatibility label conflicts with dependency marker {} on {}.",
+                marker.marker_id(),
+                row_ref
+            ));
+        }
+    }
+    None
+}
+
+fn marker_narrows_exact_compatibility(marker: &DependencyMarker) -> bool {
+    matches!(
+        marker.effect_on_parent(),
+        EffectOnParent::NarrowsEffectiveLifecycleState
+            | EffectOnParent::NarrowsEffectiveSupportClass
+            | EffectOnParent::NarrowsEffectiveReleaseChannel
+            | EffectOnParent::NarrowsEffectiveFreshnessClass
+            | EffectOnParent::NarrowsEffectiveClientScope
+            | EffectOnParent::GatesEntireCapability
+    ) || matches!(
+        marker.marker_kind(),
+        MarkerKind::NonStableCapabilityDependency
+            | MarkerKind::DisabledByPolicyDependency
+            | MarkerKind::ProviderLinkedDependency
+            | MarkerKind::ClientScopeRestrictedDependency
+            | MarkerKind::FreshnessFloorDependency
+            | MarkerKind::KillSwitchDependency
+            | MarkerKind::ManagedOnlyDependency
+    )
 }

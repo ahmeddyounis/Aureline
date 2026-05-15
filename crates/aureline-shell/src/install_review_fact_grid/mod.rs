@@ -69,13 +69,16 @@ use serde::{Deserialize, Serialize};
 use aureline_content_safety::{
     project_content_integrity_warnings, ContentIntegritySurfaceKind, ContentIntegrityWarningRecord,
 };
-use aureline_extensions::manifest_baseline::{
-    validate_manifest_baseline_record, DeclaredVsEffectiveDiffEntry,
-    EffectivePermissionBaselineRecord, EffectivePermissionDiffClass, ExtensionLifecycleStateClass,
-    ExtensionManifestBaselineRecord, HostContractFamilyClass, InstallDecisionClass,
-    InstallDecisionReasonClass, ManifestInstallDecisionRecord, ManifestOriginSourceClass,
-    ManifestScopeCompletenessClass, PermissionScopeClass, PermissionScopeEntry,
-    PublisherLifecycleStateClass, PublisherTrustTierClass,
+use aureline_extensions::{
+    install_review::{ActivationBudget as StructuredActivationBudget, CompatibilityLabel},
+    manifest_baseline::{
+        validate_manifest_baseline_record, DeclaredVsEffectiveDiffEntry,
+        EffectivePermissionBaselineRecord, EffectivePermissionDiffClass,
+        ExtensionLifecycleStateClass, ExtensionManifestBaselineRecord, HostContractFamilyClass,
+        InstallDecisionClass, InstallDecisionReasonClass, ManifestInstallDecisionRecord,
+        ManifestOriginSourceClass, ManifestScopeCompletenessClass, PermissionScopeClass,
+        PermissionScopeEntry, PublisherLifecycleStateClass, PublisherTrustTierClass,
+    },
 };
 
 use crate::state_cards::DegradedStateToken;
@@ -558,11 +561,19 @@ pub struct InstallReviewFactGridRecord {
     pub publisher: InstallReviewPublisherFacts,
     pub origin: InstallReviewOriginFacts,
     pub lifecycle: InstallReviewLifecycleFacts,
+    /// Compatibility label rendered before commit.
+    pub compatibility_label: CompatibilityLabel,
+    /// Stable compatibility label token.
+    pub compatibility_label_token: String,
+    /// Short compatibility label shown in review chrome.
+    pub compatibility_label_display: String,
     pub declared_permissions: Vec<InstallReviewDeclaredPermissionRow>,
     pub effective_permission_diff: Vec<InstallReviewEffectiveDiffRow>,
     pub widening_attempted_blocked_count: u32,
     pub activation_budget_class: ActivationBudgetClass,
     pub activation_budget_token: String,
+    /// Structured CPU, memory, startup, and feature-gate activation budget.
+    pub activation_budget: StructuredActivationBudget,
     pub rollback_posture_class: RollbackPostureClass,
     pub rollback_posture_token: String,
     pub decision: InstallReviewDecisionFacts,
@@ -617,6 +628,10 @@ impl InstallReviewFactGridRecord {
             self.lifecycle.host_contract_family_token,
             self.lifecycle.manifest_scope_completeness_token,
         ));
+        out.push_str(&format!(
+            "compatibility_label={} display={}\n",
+            self.compatibility_label_token, self.compatibility_label_display,
+        ));
         out.push_str("declared_permissions:\n");
         if self.declared_permissions.is_empty() {
             out.push_str("  - (none)\n");
@@ -654,6 +669,16 @@ impl InstallReviewFactGridRecord {
         out.push_str(&format!(
             "activation_budget={}\n",
             self.activation_budget_token
+        ));
+        out.push_str("activation_budget_details:\n");
+        out.push_str(&format!(
+            "  cpu={} memory={} startup_cost_ceiling={} opt_in_feature_gates={}\n",
+            self.activation_budget.cpu.as_str(),
+            self.activation_budget.memory.as_str(),
+            self.activation_budget.startup_cost_ceiling.as_str(),
+            self.activation_budget
+                .opt_in_feature_gates_or_unknown()
+                .join(","),
         ));
         out.push_str(&format!(
             "rollback_posture={}\n",
@@ -721,6 +746,8 @@ pub struct InstallReviewFactGridWedge {
     effective: EffectivePermissionBaselineRecord,
     decision: ManifestInstallDecisionRecord,
     activation_budget: ActivationBudgetClass,
+    activation_budget_record: StructuredActivationBudget,
+    compatibility_label: CompatibilityLabel,
     rollback_posture: RollbackPostureClass,
     wedge_id: Option<String>,
     degraded_token: Option<DegradedStateToken>,
@@ -739,6 +766,8 @@ impl InstallReviewFactGridWedge {
             effective,
             decision,
             activation_budget,
+            activation_budget_record: StructuredActivationBudget::unknown(),
+            compatibility_label: CompatibilityLabel::Unknown,
             rollback_posture,
             wedge_id: None,
             degraded_token: None,
@@ -752,6 +781,18 @@ impl InstallReviewFactGridWedge {
 
     pub fn with_degraded(mut self, token: DegradedStateToken) -> Self {
         self.degraded_token = Some(token);
+        self
+    }
+
+    /// Replaces the default explicit-unknown structured activation budget.
+    pub fn with_activation_budget(mut self, budget: StructuredActivationBudget) -> Self {
+        self.activation_budget_record = budget;
+        self
+    }
+
+    /// Replaces the default explicit-unknown compatibility label.
+    pub fn with_compatibility_label(mut self, label: CompatibilityLabel) -> Self {
+        self.compatibility_label = label;
         self
     }
 
@@ -867,11 +908,15 @@ impl InstallReviewFactGridWedge {
             publisher,
             origin,
             lifecycle,
+            compatibility_label: self.compatibility_label,
+            compatibility_label_token: self.compatibility_label.as_str().to_owned(),
+            compatibility_label_display: self.compatibility_label.label().to_owned(),
             declared_permissions,
             effective_permission_diff,
             widening_attempted_blocked_count: self.effective.widening_attempted_blocked_count,
             activation_budget_class: self.activation_budget,
             activation_budget_token: self.activation_budget.as_str().to_owned(),
+            activation_budget: self.activation_budget_record.clone(),
             rollback_posture_class: self.rollback_posture,
             rollback_posture_token: self.rollback_posture.as_str().to_owned(),
             decision: decision_facts,
@@ -896,11 +941,12 @@ impl InstallReviewFactGridWedge {
             }
         };
         format!(
-            "{ext}@{ver} publisher={pub_tier} origin={origin} decision={dec} — {suffix}",
+            "{ext}@{ver} publisher={pub_tier} origin={origin} compatibility={compatibility} decision={dec} — {suffix}",
             ext = self.manifest.extension_identity,
             ver = self.manifest.extension_version,
             pub_tier = publisher_trust_tier_token(self.manifest.publisher_trust_tier_class),
             origin = origin_source_token(self.manifest.manifest_origin_source_class),
+            compatibility = self.compatibility_label.as_str(),
             dec = install_decision_class_token(self.decision.install_decision_class),
             suffix = suffix,
         )

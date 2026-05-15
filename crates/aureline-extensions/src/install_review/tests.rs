@@ -76,8 +76,16 @@ fn native_marketplace_lane_projects_permission_compatibility_budget_and_topology
         CompatibilityClaimClass::CompatibleOnAllDeclaredTargets
     );
     assert_eq!(
+        packet.compatibility.compatibility_label,
+        CompatibilityLabel::Exact
+    );
+    assert_eq!(
         packet.activation_budget.runtime_cost_class,
         RuntimeCostClass::RuntimeCostLowNominal
+    );
+    assert_eq!(
+        packet.activation_budget.activation_budget.memory,
+        "rss<=64MiB"
     );
     assert_eq!(
         packet.install_topology_truth_fingerprint.install_mode_class,
@@ -91,6 +99,16 @@ fn native_marketplace_lane_projects_permission_compatibility_budget_and_topology
     assert_eq!(
         marketplace_projection.content_source_class,
         InstallReviewContentSourceClass::FirstParty
+    );
+    assert_eq!(
+        marketplace_projection.compatibility_label,
+        CompatibilityLabel::Exact
+    );
+    assert_eq!(
+        marketplace_projection
+            .activation_budget
+            .startup_cost_ceiling,
+        "cold_activation<=150ms; no shell startup participation"
     );
     assert_eq!(marketplace_projection.permission_delta_count, 2);
     assert!(marketplace_projection
@@ -120,6 +138,25 @@ fn missing_compatibility_evidence_denies_enable_flow() {
     let packet = evaluate_fixture(fixture);
     assert!(!packet.mutation_allowed);
     assert!(validate_install_review_alpha_packet(&packet).is_empty());
+}
+
+#[test]
+fn exact_label_on_dependency_marker_narrowed_capability_fails_validation() {
+    let mut fixture = load_fixture("native_marketplace_package_lane");
+    fixture.extension_review.capability_lifecycle_row_refs =
+        vec!["capability_lifecycle:alpha.ts_js.bundle_and_archetype".to_string()];
+    fixture.compatibility.compatibility_label = CompatibilityLabel::Exact;
+    fixture.expected_decision_class = InstallReviewDecisionClass::Denied;
+    fixture.expected_reason_class =
+        InstallReviewDecisionReasonClass::CompatibilityLabelClaimRefused;
+
+    let packet = evaluate_fixture(fixture);
+
+    assert!(!packet.mutation_allowed);
+    assert!(validate_install_review_alpha_packet(&packet)
+        .iter()
+        .any(|finding| finding.check_id
+            == "install_review_alpha.packet.exact_compatibility_label_refused"));
 }
 
 #[test]

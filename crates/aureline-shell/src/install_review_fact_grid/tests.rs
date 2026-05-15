@@ -119,6 +119,8 @@ fn verified_admit_wedge() -> InstallReviewFactGridWedge {
         ActivationBudgetClass::LazyOnDemandOnly,
         RollbackPostureClass::CleanUninstallAndStatePurge,
     )
+    .with_compatibility_label(CompatibilityLabel::Exact)
+    .with_activation_budget(known_activation_budget())
 }
 
 fn unverified_review_only_wedge() -> InstallReviewFactGridWedge {
@@ -178,7 +180,18 @@ fn unverified_review_only_wedge() -> InstallReviewFactGridWedge {
         ActivationBudgetClass::LazyOnDemandOnly,
         RollbackPostureClass::UninstallWithUserStateRetained,
     )
+    .with_compatibility_label(CompatibilityLabel::Partial)
+    .with_activation_budget(known_activation_budget())
     .with_degraded(DegradedStateToken::Limited)
+}
+
+fn known_activation_budget() -> StructuredActivationBudget {
+    StructuredActivationBudget {
+        cpu: "cpu<=25ms per activation; idle<=1%".to_owned(),
+        memory: "rss<=64MiB".to_owned(),
+        startup_cost_ceiling: "cold_activation<=150ms; no shell startup participation".to_owned(),
+        opt_in_feature_gates: vec!["feature_gate:prose-helper.ai_refine".to_owned()],
+    }
 }
 
 #[test]
@@ -200,10 +213,13 @@ fn protected_walk_verified_publisher_renders_clean_admit_card() {
         card.lifecycle.host_contract_family_token,
         "wasm_component_model"
     );
+    assert_eq!(card.compatibility_label_token, "exact");
+    assert_eq!(card.compatibility_label_display, "Exact");
     assert_eq!(card.declared_permissions.len(), 2);
     assert_eq!(card.effective_permission_diff.len(), 2);
     assert_eq!(card.widening_attempted_blocked_count, 0);
     assert_eq!(card.activation_budget_token, "lazy_on_demand_only");
+    assert_eq!(card.activation_budget.memory, "rss<=64MiB");
     assert_eq!(
         card.rollback_posture_token,
         "clean_uninstall_and_state_purge"
@@ -250,6 +266,7 @@ fn protected_walk_unverified_publisher_renders_review_only_with_limited_chip() {
         "review_only_unverified_publisher"
     );
     assert_eq!(card.degraded_token.as_deref(), Some("Limited"));
+    assert_eq!(card.compatibility_label_token, "partial");
     assert_eq!(
         card.rollback_posture_token,
         "uninstall_with_user_state_retained"
@@ -322,6 +339,27 @@ fn failure_drill_incomplete_facts_refuses_to_render_clean_card() {
         "summary line should call out the block: {:?}",
         card.summary_line,
     );
+}
+
+#[test]
+fn default_budget_and_label_render_unknown_explicitly() {
+    let card = InstallReviewFactGridWedge::new(
+        verified_admit_manifest(),
+        verified_admit_effective(),
+        verified_admit_decision(),
+        ActivationBudgetClass::LazyOnDemandOnly,
+        RollbackPostureClass::CleanUninstallAndStatePurge,
+    )
+    .card();
+
+    assert_eq!(card.compatibility_label_token, "unknown");
+    assert_eq!(card.activation_budget.cpu, "unknown");
+
+    let text = card.render_plaintext();
+    assert!(text.contains("compatibility_label=unknown"));
+    assert!(text.contains("activation_budget_details:"));
+    assert!(text.contains("cpu=unknown"));
+    assert!(text.contains("opt_in_feature_gates=unknown"));
 }
 
 #[test]
@@ -488,11 +526,14 @@ fn render_plaintext_quotes_every_section_in_stable_order() {
     assert!(text.contains("source=public_registry"));
     assert!(text.contains("lifecycle:"));
     assert!(text.contains("manifest_scope_completeness=complete"));
+    assert!(text.contains("compatibility_label=exact"));
     assert!(text.contains("declared_permissions:"));
     assert!(text.contains("filesystem_read=workspace:/docs/**"));
     assert!(text.contains("effective_permission_diff:"));
     assert!(text.contains("widening_attempted_blocked_count=0"));
     assert!(text.contains("activation_budget=lazy_on_demand_only"));
+    assert!(text.contains("activation_budget_details:"));
+    assert!(text.contains("memory=rss<=64MiB"));
     assert!(text.contains("rollback_posture=clean_uninstall_and_state_purge"));
     assert!(text.contains("decision:"));
     assert!(text.contains("class=admit"));
@@ -561,7 +602,11 @@ struct FactGridFixture {
     wedge_id: Option<String>,
     #[serde(default)]
     degraded_token: Option<String>,
+    #[serde(default)]
+    compatibility_label: CompatibilityLabel,
     activation_budget_class: String,
+    #[serde(default)]
+    activation_budget: StructuredActivationBudget,
     rollback_posture_class: String,
     manifest_baseline: FixtureManifest,
     effective_permission_baseline: FixtureEffective,
@@ -728,7 +773,9 @@ fn build_card_from_fixture(fixture: &FactGridFixture) -> InstallReviewFactGridRe
         decision,
         parse_activation_budget(&fixture.activation_budget_class),
         parse_rollback_posture(&fixture.rollback_posture_class),
-    );
+    )
+    .with_compatibility_label(fixture.compatibility_label)
+    .with_activation_budget(fixture.activation_budget.clone());
     if let Some(id) = &fixture.wedge_id {
         wedge = wedge.with_wedge_id(id);
     }
