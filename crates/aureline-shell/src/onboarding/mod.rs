@@ -7,11 +7,23 @@
 
 use std::path::Path;
 
+use aureline_auth::{IdentityModeAlias, IdentityModeBaselinePacket, IdentityModeSurfaceRow};
 use aureline_commands::alpha::{alpha_command_registry, AlphaCommandRegistryRecord};
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{CommandRegistry, PreflightDecisionClass};
 use aureline_input::keybindings::PlatformClass;
 use aureline_input::presets::{preset_binding_rows, KeymapPresetId};
+use aureline_telemetry::onboarding::OnboardingEventName;
+use aureline_workspace::{
+    build_admission_checkpoint_route, review_non_widening_import, AdmissionCheckpointBuildRequest,
+    AdmissionCheckpointRouteRecord, AdmissionClass, AdmissionSourceSurface, ArchetypeTruth,
+    BlockedReasonClass, ContinueWithoutClass, DetectionConfidenceClass, DetectionOutcome,
+    DetectionSignal, DetectionSignalSourceClass, DetectorState, EntryVerb, ExecutionBoundary,
+    FirstUsefulEntrySource, ImportApplyRequest, ImportApplyReview, ReadinessBucket,
+    ReadinessBuckets, ReadinessTask, ReadinessTaskClass, ReadinessTaskState, ResultingMode,
+    SideEffectClass, SignalMaterialEffect, StateSourcePosture, SupportClaimClass, TargetKind,
+    TrustReviewClass, TrustState, WideningVector,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::help::docs_pack::{
@@ -24,6 +36,16 @@ use crate::help::onboarding_help_pack::{
     OnboardingHelpPackFallbackClass, OnboardingHelpPackInstallState, OnboardingHelpPackItemKind,
     OnboardingHelpPackLocaleAvailability, OnboardingHelpPackOfflinePosture,
 };
+use crate::import::{
+    materialize_import_diff_review_packet, CompetitorConfigClassifier, ImportDiffReviewPacket,
+};
+use crate::learning_tour_alpha::current_learning_tour_alpha_manifest;
+use crate::start_center::admission_review::{
+    admission_packet_for_resolved_entry, import_form_admission_packet,
+};
+use crate::start_center::first_useful_work::{
+    start_center_first_useful_work_surface, StartCenterFirstUsefulWorkSurface,
+};
 use crate::start_center::{
     build_action_rows, StartCenterPrimaryActionId, StartCenterRuntimeInputs,
 };
@@ -33,6 +55,510 @@ pub const ONBOARDING_ALPHA_SCHEMA_VERSION: u32 = 1;
 
 /// Default generated-at value used by deterministic fixtures and tests.
 pub const ONBOARDING_ALPHA_FIXTURE_GENERATED_AT: &str = "fixture:onboarding-alpha";
+
+/// Schema version for [`OnboardingFlow`].
+pub const ONBOARDING_FLOW_SCHEMA_VERSION: u32 = 1;
+
+/// Record-kind tag for [`OnboardingFlow`].
+pub const ONBOARDING_FLOW_RECORD_KIND: &str = "onboarding_flow_record";
+
+/// Request used to compose one first-run onboarding flow.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OnboardingFlowRequest {
+    /// Stable flow id used by support and tests.
+    pub flow_id: String,
+    /// Identity-mode baseline packet rendered by the first step.
+    pub identity_modes: IdentityModeBaselinePacket,
+    /// Identity choice or no-account fast path selected by the user.
+    pub identity_mode_choice: OnboardingIdentityModeChoice,
+    /// Entry path that determines the optional import branch and landing route.
+    pub entry: OnboardingFlowEntry,
+}
+
+impl OnboardingFlowRequest {
+    /// Builds a request with the provided identity packet, choice, and entry.
+    pub fn new(
+        flow_id: impl Into<String>,
+        identity_modes: IdentityModeBaselinePacket,
+        identity_mode_choice: OnboardingIdentityModeChoice,
+        entry: OnboardingFlowEntry,
+    ) -> Self {
+        Self {
+            flow_id: flow_id.into(),
+            identity_modes,
+            identity_mode_choice,
+            entry,
+        }
+    }
+}
+
+/// User selection at the identity-mode step.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnboardingIdentityModeChoice {
+    /// Continue directly to local work without persisting an identity choice.
+    NoAccountFastPath,
+    /// Persist an explicit identity-mode choice in portable profile state.
+    ChosenMode {
+        /// Selected identity mode.
+        identity_mode: IdentityModeAlias,
+    },
+}
+
+/// Entry branch for first-run onboarding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OnboardingFlowEntry {
+    /// Open local work after identity-mode review.
+    OpenLocalWorkspace {
+        /// Redaction-aware target selected by the user.
+        target_specifier: String,
+        /// Reviewed target kind.
+        target_kind: TargetKind,
+        /// Resulting mode admitted before the landing route.
+        resulting_mode: ResultingMode,
+    },
+    /// Review imported profile or handoff state before landing.
+    ImportProfile(OnboardingImportFlowRequest),
+}
+
+impl OnboardingFlowEntry {
+    /// Returns a local folder entry with no account or import requirement.
+    pub fn local_folder(target_specifier: impl Into<String>) -> Self {
+        Self::OpenLocalWorkspace {
+            target_specifier: target_specifier.into(),
+            target_kind: TargetKind::LocalFolder,
+            resulting_mode: ResultingMode::Folder,
+        }
+    }
+}
+
+/// Request for the optional import branch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OnboardingImportFlowRequest {
+    /// Source path or source ref selected for import.
+    pub source_path: String,
+    /// Destination profile or workspace target for imported state.
+    pub destination_workspace_target: String,
+    /// Current owner posture used by the non-widening profile review.
+    pub current_owner: StateSourcePosture,
+    /// Incoming owner posture used by the non-widening profile review.
+    pub incoming_owner: StateSourcePosture,
+    /// Widening vectors detected before import apply.
+    pub widening_vectors: Vec<WideningVector>,
+    /// Whether the proposed import only narrows behavior.
+    pub narrowing_only: bool,
+}
+
+impl OnboardingImportFlowRequest {
+    /// Builds a non-widening local import request.
+    pub fn new(
+        source_path: impl Into<String>,
+        destination_workspace_target: impl Into<String>,
+    ) -> Self {
+        Self {
+            source_path: source_path.into(),
+            destination_workspace_target: destination_workspace_target.into(),
+            current_owner: StateSourcePosture::LocalOnly,
+            incoming_owner: StateSourcePosture::Imported,
+            widening_vectors: vec![WideningVector::None],
+            narrowing_only: false,
+        }
+    }
+
+    /// Replaces the widening vectors used by the non-widening review.
+    pub fn with_widening_vectors(mut self, vectors: Vec<WideningVector>) -> Self {
+        self.widening_vectors = vectors;
+        self
+    }
+
+    /// Marks the import as a narrowing-only apply candidate.
+    pub const fn with_narrowing_only(mut self, narrowing_only: bool) -> Self {
+        self.narrowing_only = narrowing_only;
+        self
+    }
+}
+
+/// Composed first-run onboarding flow record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OnboardingFlow {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version for this flow.
+    pub schema_version: u32,
+    /// Stable flow id.
+    pub flow_id: String,
+    /// Ordered stages for identity, import, checkpoint confirmation, and landing.
+    pub sequence: Vec<OnboardingFlowStage>,
+    /// Identity-mode step projection.
+    pub identity_mode_step: OnboardingIdentityModeStep,
+    /// Optional import diff review packet.
+    pub import_diff_review: Option<ImportDiffReviewPacket>,
+    /// Optional non-widening import review result.
+    pub import_apply_review: Option<ImportApplyReview>,
+    /// Rollback-checkpoint confirmation for the import branch.
+    pub rollback_checkpoint_confirmation: RollbackCheckpointConfirmation,
+    /// Workspace admission checkpoint route that gates the landing.
+    pub admission_checkpoint_route: AdmissionCheckpointRouteRecord,
+    /// First-useful-work landing projected for Start Center.
+    pub first_useful_work_landing: StartCenterFirstUsefulWorkSurface,
+    /// Learning-tour step refs consumed by the flow.
+    pub learning_tour_step_refs: Vec<String>,
+    /// Privacy-safe onboarding telemetry event names represented by this flow.
+    pub telemetry_event_names: Vec<OnboardingEventName>,
+    /// Portable records the flow would persist after user confirmation.
+    pub persisted_records: Vec<OnboardingFlowPersistedRecord>,
+}
+
+impl OnboardingFlow {
+    /// Builds the full onboarding flow from existing shell, auth, workspace, and telemetry records.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OnboardingFlowError`] when the identity packet is invalid, the
+    /// requested identity mode is missing, or the open entry is not local.
+    pub fn build(request: OnboardingFlowRequest) -> Result<Self, OnboardingFlowError> {
+        let identity_violations = request
+            .identity_modes
+            .validate()
+            .into_iter()
+            .map(|violation| format!("{violation:?}"))
+            .collect::<Vec<_>>();
+        if !identity_violations.is_empty() {
+            return Err(OnboardingFlowError::InvalidIdentityModePacket {
+                violations: identity_violations,
+            });
+        }
+        if !request.identity_modes.local_core_remains_account_free() {
+            return Err(OnboardingFlowError::LocalCoreNotAccountFree);
+        }
+
+        let identity_mode_step =
+            identity_mode_step(&request.identity_modes, request.identity_mode_choice)?;
+        let mut persisted_records = identity_persisted_records(&identity_mode_step);
+
+        let built_entry = match request.entry {
+            OnboardingFlowEntry::OpenLocalWorkspace {
+                target_specifier,
+                target_kind,
+                resulting_mode,
+            } => build_open_entry_route(target_specifier, target_kind, resulting_mode)?,
+            OnboardingFlowEntry::ImportProfile(import_request) => {
+                build_import_entry_route(import_request, &mut persisted_records)
+            }
+        };
+
+        let rollback_checkpoint_confirmation = rollback_checkpoint_confirmation(
+            built_entry.import_diff_review.as_ref(),
+            built_entry.import_apply_review.as_ref(),
+            &built_entry.admission_checkpoint_route,
+        );
+        if rollback_checkpoint_confirmation.confirmed_before_apply {
+            persisted_records.push(OnboardingFlowPersistedRecord {
+                record_kind: OnboardingFlowPersistedRecordKind::RollbackCheckpointConfirmation,
+                record_ref: rollback_checkpoint_confirmation
+                    .checkpoint_ref
+                    .clone()
+                    .unwrap_or_else(|| "rollback-checkpoint:missing".to_string()),
+                storage_lane: OnboardingStorageLane::PortableUserProfileState,
+                reason: "rollback checkpoint confirmed before import apply".to_string(),
+            });
+        }
+
+        let first_useful_work_landing =
+            start_center_first_useful_work_surface(&built_entry.admission_checkpoint_route);
+        let sequence = flow_sequence(
+            built_entry.import_diff_review.as_ref(),
+            &rollback_checkpoint_confirmation,
+            &built_entry.admission_checkpoint_route,
+        );
+        let learning_tour_step_refs =
+            learning_tour_step_refs(built_entry.import_diff_review.is_some());
+        let telemetry_event_names = telemetry_event_names(
+            built_entry.import_diff_review.is_some(),
+            rollback_checkpoint_confirmation.confirmed_before_apply,
+        );
+
+        Ok(Self {
+            record_kind: ONBOARDING_FLOW_RECORD_KIND.to_string(),
+            schema_version: ONBOARDING_FLOW_SCHEMA_VERSION,
+            flow_id: request.flow_id,
+            sequence,
+            identity_mode_step,
+            import_diff_review: built_entry.import_diff_review,
+            import_apply_review: built_entry.import_apply_review,
+            rollback_checkpoint_confirmation,
+            admission_checkpoint_route: built_entry.admission_checkpoint_route,
+            first_useful_work_landing,
+            learning_tour_step_refs,
+            telemetry_event_names,
+            persisted_records,
+        })
+    }
+
+    /// Returns true when the route reaches a named first-useful-work landing.
+    pub fn reaches_first_useful_work_landing(&self) -> bool {
+        !self
+            .first_useful_work_landing
+            .landing_surface
+            .trim()
+            .is_empty()
+            && self.admission_checkpoint_route.is_contract_valid()
+    }
+
+    /// Returns true when a persisted identity-choice record is present.
+    pub fn has_persisted_identity_choice(&self) -> bool {
+        self.persisted_records.iter().any(|record| {
+            record.record_kind == OnboardingFlowPersistedRecordKind::IdentityModeChoice
+        })
+    }
+
+    /// Returns compact support rows for the composed flow.
+    pub fn compact_lines(&self) -> Vec<String> {
+        let mut lines = vec![
+            format!("onboarding_flow: {}", self.flow_id),
+            format!(
+                "identity: {} persistence={}",
+                self.identity_mode_step
+                    .selected_identity_mode_token
+                    .as_deref()
+                    .unwrap_or("no_account_fast_path"),
+                self.identity_mode_step.persistence.as_str()
+            ),
+            format!(
+                "import: {}",
+                self.import_diff_review
+                    .as_ref()
+                    .map(|packet| packet.import_diff_preview_ref.as_str())
+                    .unwrap_or("not_requested")
+            ),
+            format!(
+                "rollback: {}",
+                self.rollback_checkpoint_confirmation
+                    .confirmation_state
+                    .as_str()
+            ),
+            format!(
+                "landing: {}",
+                self.first_useful_work_landing.landing_surface
+            ),
+        ];
+        lines.extend(self.admission_checkpoint_route.compact_lines());
+        lines
+    }
+}
+
+/// One ordered stage in the composed onboarding flow.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OnboardingFlowStage {
+    /// Stage kind.
+    pub stage_kind: OnboardingFlowStageKind,
+    /// Whether the stage is required for this branch.
+    pub required: bool,
+    /// Stable status token for this branch.
+    pub status: String,
+    /// Record ref consumed or produced by this stage.
+    pub record_ref: Option<String>,
+}
+
+/// Stage kind in the onboarding flow sequence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnboardingFlowStageKind {
+    /// Identity-mode choice stage.
+    IdentityModeChoice,
+    /// Optional import diff review stage.
+    ImportDiffReview,
+    /// Rollback-checkpoint confirmation stage.
+    RollbackCheckpointConfirmation,
+    /// First-useful-work landing stage.
+    FirstUsefulWorkLanding,
+}
+
+impl OnboardingFlowStageKind {
+    /// Returns the stable token for this stage kind.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::IdentityModeChoice => "identity_mode_choice",
+            Self::ImportDiffReview => "import_diff_review",
+            Self::RollbackCheckpointConfirmation => "rollback_checkpoint_confirmation",
+            Self::FirstUsefulWorkLanding => "first_useful_work_landing",
+        }
+    }
+}
+
+/// Identity-mode step projected into the flow.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OnboardingIdentityModeStep {
+    /// Surface rows offered by the identity-mode baseline packet.
+    pub available_modes: Vec<IdentityModeSurfaceRow>,
+    /// Selected identity mode when the user explicitly chose one.
+    pub selected_identity_mode: Option<IdentityModeAlias>,
+    /// Stable selected identity-mode token.
+    pub selected_identity_mode_token: Option<String>,
+    /// Persistence behavior for the identity choice.
+    pub persistence: IdentityChoicePersistence,
+    /// Whether all offered modes preserve local core without an account.
+    pub local_core_available_without_account: bool,
+    /// Whether the no-account path bypassed account setup.
+    pub account_prompt_bypassed: bool,
+}
+
+/// Persistence behavior for the identity-mode step.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IdentityChoicePersistence {
+    /// No identity choice is persisted for the no-account fast path.
+    NotRecordedNoAccountFastPath,
+    /// The explicit choice is stored in portable user/profile state.
+    RecordedInPortableProfileState,
+}
+
+impl IdentityChoicePersistence {
+    /// Returns the stable token for this persistence behavior.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotRecordedNoAccountFastPath => "not_recorded_no_account_fast_path",
+            Self::RecordedInPortableProfileState => "recorded_in_portable_profile_state",
+        }
+    }
+}
+
+/// Rollback-checkpoint confirmation stage for import review.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RollbackCheckpointConfirmation {
+    /// Confirmation state for this branch.
+    pub confirmation_state: RollbackCheckpointConfirmationState,
+    /// Import rollback checkpoint ref, when an import branch exists.
+    pub checkpoint_ref: Option<String>,
+    /// Admission checkpoint id that gated the branch.
+    pub admission_checkpoint_ref: String,
+    /// Import diff preview protected by the rollback checkpoint.
+    pub import_diff_preview_ref: Option<String>,
+    /// Whether the import checkpoint was created before apply.
+    pub created_before_apply: bool,
+    /// Whether the flow confirmed the checkpoint before apply.
+    pub confirmed_before_apply: bool,
+}
+
+/// Confirmation state for the rollback checkpoint stage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RollbackCheckpointConfirmationState {
+    /// No import branch exists, so no import rollback checkpoint is required.
+    NotRequiredNoImport,
+    /// The checkpoint exists and was confirmed before apply.
+    Confirmed,
+    /// Non-widening review blocked apply before checkpoint confirmation.
+    BlockedByNonWideningReview,
+    /// Import diff review exists but did not expose a usable checkpoint.
+    MissingCheckpoint,
+}
+
+impl RollbackCheckpointConfirmationState {
+    /// Returns the stable token for this confirmation state.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NotRequiredNoImport => "not_required_no_import",
+            Self::Confirmed => "confirmed",
+            Self::BlockedByNonWideningReview => "blocked_by_non_widening_review",
+            Self::MissingCheckpoint => "missing_checkpoint",
+        }
+    }
+}
+
+/// Portable record written by the flow after review.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OnboardingFlowPersistedRecord {
+    /// Kind of record persisted.
+    pub record_kind: OnboardingFlowPersistedRecordKind,
+    /// Stable record ref.
+    pub record_ref: String,
+    /// Storage lane used for the record.
+    pub storage_lane: OnboardingStorageLane,
+    /// Redaction-aware reason for persisting the record.
+    pub reason: String,
+}
+
+/// Persisted record kind for onboarding flow state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnboardingFlowPersistedRecordKind {
+    /// Explicit identity-mode choice.
+    IdentityModeChoice,
+    /// Imported profile history or retained migration report.
+    ImportedProfileHistory,
+    /// Rollback checkpoint confirmation.
+    RollbackCheckpointConfirmation,
+}
+
+impl OnboardingFlowPersistedRecordKind {
+    /// Returns the stable token for this persisted record kind.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::IdentityModeChoice => "identity_mode_choice",
+            Self::ImportedProfileHistory => "imported_profile_history",
+            Self::RollbackCheckpointConfirmation => "rollback_checkpoint_confirmation",
+        }
+    }
+}
+
+/// Error returned while composing an onboarding flow.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OnboardingFlowError {
+    /// The identity-mode baseline packet failed validation.
+    InvalidIdentityModePacket {
+        /// Debug-formatted validation violations.
+        violations: Vec<String>,
+    },
+    /// Local core was not available without account creation.
+    LocalCoreNotAccountFree,
+    /// Requested identity mode was not present in the packet.
+    MissingIdentityMode {
+        /// Requested identity mode.
+        identity_mode: IdentityModeAlias,
+    },
+    /// The no-account fast path could not find the local identity row.
+    MissingAccountFreeLocalMode,
+    /// The open branch used a non-local target or incompatible resulting mode.
+    InvalidLocalEntry {
+        /// Target kind supplied by the caller.
+        target_kind: TargetKind,
+        /// Resulting mode supplied by the caller.
+        resulting_mode: ResultingMode,
+    },
+}
+
+impl std::fmt::Display for OnboardingFlowError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidIdentityModePacket { violations } => {
+                write!(
+                    formatter,
+                    "identity-mode packet failed validation: {}",
+                    violations.join(", ")
+                )
+            }
+            Self::LocalCoreNotAccountFree => formatter
+                .write_str("identity-mode packet does not preserve account-free local core"),
+            Self::MissingIdentityMode { identity_mode } => {
+                write!(
+                    formatter,
+                    "identity mode {} is not present",
+                    identity_mode.as_str()
+                )
+            }
+            Self::MissingAccountFreeLocalMode => {
+                formatter.write_str("account-free local identity mode is not present")
+            }
+            Self::InvalidLocalEntry {
+                target_kind,
+                resulting_mode,
+            } => write!(
+                formatter,
+                "local onboarding entry cannot use target {} with resulting mode {}",
+                target_kind.as_str(),
+                resulting_mode.as_str()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for OnboardingFlowError {}
 
 /// Complete first-run onboarding alpha projection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -767,6 +1293,367 @@ impl LearningDigestAvailability {
             Self::NotInstalledPlaceholder => "not_installed_placeholder",
         }
     }
+}
+
+struct BuiltOnboardingEntry {
+    admission_checkpoint_route: AdmissionCheckpointRouteRecord,
+    import_diff_review: Option<ImportDiffReviewPacket>,
+    import_apply_review: Option<ImportApplyReview>,
+}
+
+fn identity_mode_step(
+    packet: &IdentityModeBaselinePacket,
+    choice: OnboardingIdentityModeChoice,
+) -> Result<OnboardingIdentityModeStep, OnboardingFlowError> {
+    let available_modes = packet.surface_rows();
+    match choice {
+        OnboardingIdentityModeChoice::NoAccountFastPath => {
+            if !packet
+                .identity_mode_rows
+                .iter()
+                .any(|row| row.identity_mode == IdentityModeAlias::AccountFreeLocal)
+            {
+                return Err(OnboardingFlowError::MissingAccountFreeLocalMode);
+            }
+            Ok(OnboardingIdentityModeStep {
+                available_modes,
+                selected_identity_mode: None,
+                selected_identity_mode_token: None,
+                persistence: IdentityChoicePersistence::NotRecordedNoAccountFastPath,
+                local_core_available_without_account: packet.local_core_remains_account_free(),
+                account_prompt_bypassed: true,
+            })
+        }
+        OnboardingIdentityModeChoice::ChosenMode { identity_mode } => {
+            if !packet
+                .identity_mode_rows
+                .iter()
+                .any(|row| row.identity_mode == identity_mode)
+            {
+                return Err(OnboardingFlowError::MissingIdentityMode { identity_mode });
+            }
+            Ok(OnboardingIdentityModeStep {
+                available_modes,
+                selected_identity_mode: Some(identity_mode),
+                selected_identity_mode_token: Some(identity_mode.as_str().to_string()),
+                persistence: IdentityChoicePersistence::RecordedInPortableProfileState,
+                local_core_available_without_account: packet.local_core_remains_account_free(),
+                account_prompt_bypassed: identity_mode == IdentityModeAlias::AccountFreeLocal,
+            })
+        }
+    }
+}
+
+fn identity_persisted_records(
+    step: &OnboardingIdentityModeStep,
+) -> Vec<OnboardingFlowPersistedRecord> {
+    if step.persistence != IdentityChoicePersistence::RecordedInPortableProfileState {
+        return Vec::new();
+    }
+    let Some(token) = step.selected_identity_mode_token.as_ref() else {
+        return Vec::new();
+    };
+    vec![OnboardingFlowPersistedRecord {
+        record_kind: OnboardingFlowPersistedRecordKind::IdentityModeChoice,
+        record_ref: format!("profile:onboarding.identity_mode_choice:{token}"),
+        storage_lane: OnboardingStorageLane::PortableUserProfileState,
+        reason: "explicit identity mode selected by the user".to_string(),
+    }]
+}
+
+fn build_open_entry_route(
+    target_specifier: String,
+    target_kind: TargetKind,
+    resulting_mode: ResultingMode,
+) -> Result<BuiltOnboardingEntry, OnboardingFlowError> {
+    if !matches!(
+        (target_kind, resulting_mode),
+        (TargetKind::LocalFolder, ResultingMode::Folder)
+            | (TargetKind::LocalRepoRoot, ResultingMode::RepoRoot)
+            | (
+                TargetKind::WorkspaceManifest,
+                ResultingMode::WorkspaceWithRoots
+            )
+    ) {
+        return Err(OnboardingFlowError::InvalidLocalEntry {
+            target_kind,
+            resulting_mode,
+        });
+    }
+    let admission = admission_packet_for_resolved_entry(
+        AdmissionSourceSurface::StartCenter,
+        EntryVerb::Open,
+        target_kind,
+        resulting_mode,
+        target_specifier,
+        None,
+    );
+    let archetype = ArchetypeTruth::new(
+        DetectionOutcome::ProbableArchetype,
+        DetectionConfidenceClass::HighProbable,
+        SupportClaimClass::SupportedScoped,
+        DetectorState::ReadyEnough,
+        vec![DetectionSignal::new(
+            "signal:onboarding.local_entry.selected",
+            DetectionSignalSourceClass::FilesystemLayout,
+            vec![SignalMaterialEffect::RouteSelection],
+            "Local entry target was selected from first-run onboarding.",
+        )],
+    )
+    .with_detected_fact_refs(vec!["fact:onboarding.local_entry.selected".to_string()]);
+    let admission_checkpoint_route = build_admission_checkpoint_route(
+        AdmissionCheckpointBuildRequest::new(
+            admission,
+            "entry.action.onboarding.open_local_work",
+            FirstUsefulEntrySource::FolderOrRepoOpen,
+            archetype,
+        )
+        .with_trust(
+            TrustState::PendingEvaluation,
+            TrustReviewClass::TrustReviewPending,
+        ),
+    );
+
+    Ok(BuiltOnboardingEntry {
+        admission_checkpoint_route,
+        import_diff_review: None,
+        import_apply_review: None,
+    })
+}
+
+fn build_import_entry_route(
+    request: OnboardingImportFlowRequest,
+    persisted_records: &mut Vec<OnboardingFlowPersistedRecord>,
+) -> BuiltOnboardingEntry {
+    let import_review = CompetitorConfigClassifier::new().build_review(
+        Path::new(&request.source_path),
+        request.destination_workspace_target.clone(),
+    );
+    let import_diff_review = materialize_import_diff_review_packet(&import_review);
+    let import_apply_review = review_non_widening_import(&ImportApplyRequest {
+        source_artifact_ref: import_diff_review.import_plan_ref.clone(),
+        target_scope: request.destination_workspace_target.clone(),
+        current_owner: request.current_owner,
+        incoming_owner: request.incoming_owner,
+        widening_vectors: request.widening_vectors,
+        narrowing_only: request.narrowing_only,
+    });
+    persisted_records.push(OnboardingFlowPersistedRecord {
+        record_kind: OnboardingFlowPersistedRecordKind::ImportedProfileHistory,
+        record_ref: import_diff_review
+            .retained_migration_report
+            .migration_report_id
+            .clone(),
+        storage_lane: OnboardingStorageLane::PortableUserProfileState,
+        reason: "retained import diff review and migration report".to_string(),
+    });
+
+    let admission = import_form_admission_packet(
+        import_diff_review.source_path.clone(),
+        import_diff_review.destination_workspace_target.clone(),
+    );
+    let (archetype, readiness, admission_class, ordinary_editing_available) =
+        import_route_truth(&import_diff_review, &import_apply_review);
+    let admission_checkpoint_route = build_admission_checkpoint_route(
+        AdmissionCheckpointBuildRequest::new(
+            admission,
+            "entry.action.onboarding.import_profile",
+            FirstUsefulEntrySource::ImportedStateOrHandoffPacket,
+            archetype,
+        )
+        .with_readiness(readiness)
+        .with_continue_without(ContinueWithoutClass::CompareBeforeRestore)
+        .with_admission_class(admission_class)
+        .with_availability(true, ordinary_editing_available),
+    );
+
+    BuiltOnboardingEntry {
+        admission_checkpoint_route,
+        import_diff_review: Some(import_diff_review),
+        import_apply_review: Some(import_apply_review),
+    }
+}
+
+fn import_route_truth(
+    packet: &ImportDiffReviewPacket,
+    import_apply_review: &ImportApplyReview,
+) -> (ArchetypeTruth, ReadinessBuckets, AdmissionClass, bool) {
+    if import_apply_review.allowed {
+        let archetype = ArchetypeTruth::new(
+            DetectionOutcome::ProbableArchetype,
+            DetectionConfidenceClass::HighProbable,
+            SupportClaimClass::SupportedScoped,
+            DetectorState::ReadyEnough,
+            vec![DetectionSignal::new(
+                packet.import_diff_preview_ref.clone(),
+                DetectionSignalSourceClass::ImportPacket,
+                vec![
+                    SignalMaterialEffect::RouteSelection,
+                    SignalMaterialEffect::Readiness,
+                ],
+                "Import diff review and retained migration report are ready before apply.",
+            )],
+        )
+        .with_recommendation_refs(vec![packet
+            .retained_migration_report
+            .migration_report_id
+            .clone()]);
+        let readiness = ReadinessBuckets::new().with_task(ReadinessTask::new(
+            "task:onboarding.import.compare_before_apply",
+            ReadinessTaskClass::ImportedStateCompare,
+            ReadinessBucket::RecommendedSoon,
+            ReadinessTaskState::Pending,
+            ExecutionBoundary::NoExecution,
+            vec![SideEffectClass::NoSideEffect],
+            "Import diff review is available and protected by a rollback checkpoint.",
+        ));
+        (archetype, readiness, AdmissionClass::Admitted, true)
+    } else {
+        let archetype = ArchetypeTruth::new(
+            DetectionOutcome::RestrictedOrPolicyBlocked,
+            DetectionConfidenceClass::RestrictedByPolicy,
+            SupportClaimClass::ClaimBlockedByPolicy,
+            DetectorState::Blocked,
+            vec![DetectionSignal::new(
+                packet.import_diff_preview_ref.clone(),
+                DetectionSignalSourceClass::ImportPacket,
+                vec![
+                    SignalMaterialEffect::Policy,
+                    SignalMaterialEffect::Readiness,
+                    SignalMaterialEffect::RouteSelection,
+                ],
+                "Import apply is blocked by non-widening profile review.",
+            )],
+        )
+        .with_policy_block_refs(import_apply_review.reasons.clone());
+        let readiness = ReadinessBuckets::new().with_task(
+            ReadinessTask::new(
+                "task:onboarding.import.non_widening_review",
+                ReadinessTaskClass::ImportedStateCompare,
+                ReadinessBucket::BlockingNow,
+                ReadinessTaskState::BlockedByPolicy,
+                ExecutionBoundary::NoExecution,
+                vec![SideEffectClass::NoSideEffect],
+                "Import apply waits for non-widening review repair.",
+            )
+            .with_blocked_reason(BlockedReasonClass::BlockedByPolicy),
+        );
+        (archetype, readiness, AdmissionClass::PolicyBlocked, false)
+    }
+}
+
+fn rollback_checkpoint_confirmation(
+    packet: Option<&ImportDiffReviewPacket>,
+    review: Option<&ImportApplyReview>,
+    route: &AdmissionCheckpointRouteRecord,
+) -> RollbackCheckpointConfirmation {
+    let admission_checkpoint_ref = route.checkpoint.admission_checkpoint_id.clone();
+    let Some(packet) = packet else {
+        return RollbackCheckpointConfirmation {
+            confirmation_state: RollbackCheckpointConfirmationState::NotRequiredNoImport,
+            checkpoint_ref: None,
+            admission_checkpoint_ref,
+            import_diff_preview_ref: None,
+            created_before_apply: false,
+            confirmed_before_apply: false,
+        };
+    };
+    if review.is_some_and(|review| !review.allowed) {
+        return RollbackCheckpointConfirmation {
+            confirmation_state: RollbackCheckpointConfirmationState::BlockedByNonWideningReview,
+            checkpoint_ref: Some(packet.rollback_checkpoint.checkpoint_ref.clone()),
+            admission_checkpoint_ref,
+            import_diff_preview_ref: Some(packet.import_diff_preview_ref.clone()),
+            created_before_apply: packet.rollback_checkpoint.created_before_apply,
+            confirmed_before_apply: false,
+        };
+    }
+    let checkpoint_ready = packet.rollback_checkpoint.clear_pre_apply_checkpoint()
+        && packet.every_row_uses_one_checkpoint();
+    RollbackCheckpointConfirmation {
+        confirmation_state: if checkpoint_ready {
+            RollbackCheckpointConfirmationState::Confirmed
+        } else {
+            RollbackCheckpointConfirmationState::MissingCheckpoint
+        },
+        checkpoint_ref: Some(packet.rollback_checkpoint.checkpoint_ref.clone()),
+        admission_checkpoint_ref,
+        import_diff_preview_ref: Some(packet.import_diff_preview_ref.clone()),
+        created_before_apply: packet.rollback_checkpoint.created_before_apply,
+        confirmed_before_apply: checkpoint_ready,
+    }
+}
+
+fn flow_sequence(
+    import_diff_review: Option<&ImportDiffReviewPacket>,
+    rollback: &RollbackCheckpointConfirmation,
+    route: &AdmissionCheckpointRouteRecord,
+) -> Vec<OnboardingFlowStage> {
+    vec![
+        OnboardingFlowStage {
+            stage_kind: OnboardingFlowStageKind::IdentityModeChoice,
+            required: true,
+            status: "completed".to_string(),
+            record_ref: Some("identity-mode-baseline:packet".to_string()),
+        },
+        OnboardingFlowStage {
+            stage_kind: OnboardingFlowStageKind::ImportDiffReview,
+            required: import_diff_review.is_some(),
+            status: import_diff_review
+                .map(|packet| packet.apply_gate_class.clone())
+                .unwrap_or_else(|| "skipped_no_import".to_string()),
+            record_ref: import_diff_review.map(|packet| packet.import_diff_preview_ref.clone()),
+        },
+        OnboardingFlowStage {
+            stage_kind: OnboardingFlowStageKind::RollbackCheckpointConfirmation,
+            required: import_diff_review.is_some(),
+            status: rollback.confirmation_state.as_str().to_string(),
+            record_ref: rollback.checkpoint_ref.clone(),
+        },
+        OnboardingFlowStage {
+            stage_kind: OnboardingFlowStageKind::FirstUsefulWorkLanding,
+            required: true,
+            status: route
+                .first_useful_route
+                .route_reason_class
+                .as_str()
+                .to_string(),
+            record_ref: Some(route.route_record_id.clone()),
+        },
+    ]
+}
+
+fn learning_tour_step_refs(import_requested: bool) -> Vec<String> {
+    let mut refs = vec!["step:aureline.entry.open-folder"];
+    if import_requested {
+        refs.push("step:aureline.import.preview-before-apply");
+    }
+    let Ok(manifest) = current_learning_tour_alpha_manifest() else {
+        return Vec::new();
+    };
+    refs.into_iter()
+        .filter(|step_ref| manifest.step(step_ref).is_some())
+        .map(str::to_string)
+        .collect()
+}
+
+fn telemetry_event_names(
+    import_requested: bool,
+    rollback_confirmed: bool,
+) -> Vec<OnboardingEventName> {
+    let mut events = vec![
+        OnboardingEventName::FirstRunReached,
+        OnboardingEventName::FirstRunAdmitted,
+    ];
+    if import_requested {
+        events.push(OnboardingEventName::MigrationDryRunProduced);
+        if rollback_confirmed {
+            events.push(OnboardingEventName::MigrationRollbackCheckpointWritten);
+        }
+        events.push(OnboardingEventName::MigrationOutcomeRecorded);
+    }
+    events.push(OnboardingEventName::FirstUsefulNavigationReached);
+    events
 }
 
 /// Builds the first-run onboarding alpha projection for shell and support export.
