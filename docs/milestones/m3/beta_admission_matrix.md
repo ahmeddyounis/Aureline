@@ -122,6 +122,23 @@ pipeline is reproducible without hand-curated stale fixtures:
   asserts the stale-example checker fails with
   `stale_examples.vocabulary_pin_not_in_manifest`.
 
+## Public-proof artifact index, review packet, and shelf-life policy
+
+The M3 public-proof index binds every beta-bearing claim family in the
+generated claim_manifest to one canonical packet, its current outputs,
+its freshness window, and its named rerun triggers. The review-packet
+template anchors evidence links, pass/fail state, waivers, and owner
+signoff in one standard form. The publication shelf-life policy fixes
+the maximum claim-bearing age per family so stale packets downgrade
+automatically.
+
+- Public-proof index (canonical): `artifacts/milestones/m3/public_proof_index.md`
+- Review-packet template: `artifacts/milestones/m3/review_packet_template.md`
+- Publication shelf-life policy: `docs/governance/m3/publication_shelf_life_policy.md`
+- Validator: `ci/check_m3_public_proof_index.py`
+- Latest validation capture (carries the derived downgrade matrix):
+  `artifacts/milestones/m3/captures/public_proof_index_validation_capture.json`
+
 ## Downstream cutline lane
 
 The beta scope feeds the M3 exit cutline; stable planning consumes the
@@ -233,6 +250,17 @@ matrices):
 
 Use `--check` in CI to fail when the on-disk report or capture would
 drift from the matrices.
+
+Run the M3 public-proof index validator (parses the canonical block in
+`artifacts/milestones/m3/public_proof_index.md`, cross-checks it against
+the M3 claim manifest, the cross-milestone evidence-freshness SLO
+catalog, and the rerun-trigger catalog, and refreshes the capture plus
+the derived downgrade matrix):
+
+`python3 ci/check_m3_public_proof_index.py --repo-root .`
+
+Use `--check` in CI to fail when the on-disk capture would drift from
+the index, template, or policy.
 
 ## Update rules
 
