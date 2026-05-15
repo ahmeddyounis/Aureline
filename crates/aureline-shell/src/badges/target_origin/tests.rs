@@ -8,8 +8,8 @@ use aureline_auth::{
 };
 use aureline_runtime::{
     ActorClass, CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContextRequest,
-    ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode, ScopeClass,
-    SurfaceClass, TargetClass, ToolchainClass, TrustState,
+    ExecutionContextResolver, ExecutionContextResolverConfig, ExecutionRouteOrigin, IdentityMode,
+    ScopeClass, SurfaceClass, TargetClass, ToolchainClass, TrustState,
 };
 
 use serde::Deserialize;
@@ -241,6 +241,43 @@ fn failure_drill_remote_target_lights_local_to_remote_consistently() {
         assert!(!badge.honesty_marker_present);
     }
     assert!(set.execution_entries_consistent());
+}
+
+#[test]
+fn tunneled_remote_target_renders_tunnel_route_label_without_new_target_class() {
+    let mut resolver = baseline_resolver();
+    let mut request = ExecutionContextRequest::local_terminal_seed(
+        "terminal.open.tunnel",
+        TrustState::Trusted,
+        "mono:0",
+    );
+    request.override_target_class = Some(TargetClass::SshRemote);
+    request.override_working_directory = Some("/srv/code");
+    let context =
+        resolver
+            .resolve(request)
+            .with_route_origin(ExecutionRouteOrigin::tunnel_exposed(
+                "SSH tunnel",
+                "tunnel.session.target_origin.0001",
+                "target.ssh_remote.prod_host",
+            ));
+
+    let set = TargetOriginBadgeSet::project(&context);
+    for badge in [
+        &set.terminal_badge,
+        &set.task_seed_badge,
+        &set.debug_prep_badge,
+    ] {
+        assert_eq!(badge.target_class, TargetBadgeClass::RemoteHost);
+        assert_eq!(badge.target_label, "Tunnel");
+        assert_eq!(badge.boundary_cue, HostBoundaryCue::LocalToRemote);
+        assert_eq!(badge.route_origin_class_token, "tunnel_exposed_route");
+        assert_eq!(badge.route_transport_label, "SSH tunnel");
+        assert_eq!(
+            badge.tunnel_session_ref.as_deref(),
+            Some("tunnel.session.target_origin.0001")
+        );
+    }
 }
 
 #[test]

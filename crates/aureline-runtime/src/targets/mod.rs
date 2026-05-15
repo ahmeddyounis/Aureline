@@ -10,9 +10,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::execution_context::{
-    ConfidenceLevel, ExecutionContext, ExecutionContextExplanation, MixedVersionDriftState,
-    PrebuildReuseState, ReachabilityState, ResolverInputDecision, ResolverInputField, SurfaceClass,
-    TargetClass, TargetConfidenceReason,
+    ConfidenceLevel, ExecutionContext, ExecutionContextExplanation, ExecutionRouteOrigin,
+    MixedVersionDriftState, PrebuildReuseState, ReachabilityState, ResolverInputDecision,
+    ResolverInputField, SurfaceClass, TargetClass, TargetConfidenceReason,
 };
 use crate::provenance::{
     dedupe_context_provenance, ExecutionEventProvenance, ExecutionProvenanceEvent,
@@ -225,6 +225,20 @@ pub struct TargetConfidenceCard {
     pub host_boundary_cue_stack_tokens: Vec<String>,
     /// True when surfaces must display a boundary cue before dispatch.
     pub host_boundary_visible: bool,
+    /// Route-origin label for the selected action route.
+    pub route_origin: ExecutionRouteOrigin,
+    /// Stable route-origin token.
+    pub route_origin_token: String,
+    /// Short route-origin label.
+    pub route_origin_label: String,
+    /// Transport label for the selected route.
+    pub route_transport_label: String,
+    /// Tunnel session ref when the action traverses a tunnel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tunnel_session_ref: Option<String>,
+    /// Target identity ref preserved for route reconstruction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route_target_identity_ref: Option<String>,
     /// Source token that won target selection precedence.
     pub selected_by_source_token: String,
     /// Resolver explanation rows that justify the selected target.
@@ -242,6 +256,7 @@ impl TargetConfidenceCard {
     pub fn from_context(context: &ExecutionContext) -> Self {
         let lane = lane_for_target(context.target_identity.target_class);
         let host_boundary_cue = host_boundary_cue_for_target(context.target_identity.target_class);
+        let route_origin = route_origin_for_context(context);
         let discovery_confidence_class = discovery_confidence_class(context);
         let target_decision = context
             .provenance
@@ -296,6 +311,12 @@ impl TargetConfidenceCard {
             host_boundary_cue_stack_tokens,
             host_boundary_visible: context.target_identity.local_vs_managed_boundary_visible
                 || host_boundary_cue == HostBoundaryCueClass::LocalHostBoundary,
+            route_origin_token: route_origin.route_class_token.clone(),
+            route_origin_label: route_origin.route_label.clone(),
+            route_transport_label: route_origin.transport_label.clone(),
+            tunnel_session_ref: route_origin.tunnel_session_ref.clone(),
+            route_target_identity_ref: route_origin.target_identity_ref.clone(),
+            route_origin,
             selected_by_source_token,
             chosen_because: card_explanation_rows(context, target_decision),
             inspect_action_ref: format!(
@@ -314,7 +335,7 @@ impl TargetConfidenceCard {
     /// Returns one deterministic support/export line for this card.
     pub fn summary_line(&self) -> String {
         format!(
-            "lane={}; context={}; target={}({}); discovery={}; confidence={}; boundary={}; inspect={}; change={}",
+            "lane={}; context={}; target={}({}); discovery={}; confidence={}; boundary={}; route={}; inspect={}; change={}",
             self.lane_token,
             self.execution_context_ref,
             self.target_id,
@@ -322,6 +343,7 @@ impl TargetConfidenceCard {
             self.discovery_confidence_token,
             self.target_confidence_level_token,
             self.host_boundary_cue_token,
+            self.route_origin_token,
             self.inspect_action_ref,
             self.change_target_action_ref,
         )
@@ -347,6 +369,12 @@ pub struct TargetHostBoundaryRow {
     pub host_boundary_label: String,
     /// Ordered cue stack, outermost-to-innermost.
     pub host_boundary_cue_stack_tokens: Vec<String>,
+    /// Stable route-origin token.
+    pub route_origin_token: String,
+    /// Short route-origin label.
+    pub route_origin_label: String,
+    /// Transport label for the selected route.
+    pub route_transport_label: String,
 }
 
 impl TargetHostBoundaryRow {
@@ -361,6 +389,9 @@ impl TargetHostBoundaryRow {
             host_boundary_cue_token: card.host_boundary_cue_token.clone(),
             host_boundary_label: card.host_boundary_label.clone(),
             host_boundary_cue_stack_tokens: card.host_boundary_cue_stack_tokens.clone(),
+            route_origin_token: card.route_origin_token.clone(),
+            route_origin_label: card.route_origin_label.clone(),
+            route_transport_label: card.route_transport_label.clone(),
         }
     }
 }
@@ -646,7 +677,23 @@ fn host_boundary_cue_for_target(target_class: TargetClass) -> HostBoundaryCueCla
 }
 
 fn host_boundary_stack_tokens(cue: HostBoundaryCueClass) -> Vec<String> {
-    vec![cue.as_str().to_owned()]
+    if cue == HostBoundaryCueClass::LocalHostBoundary {
+        vec![cue.as_str().to_owned()]
+    } else {
+        vec![
+            HostBoundaryCueClass::LocalHostBoundary.as_str().to_owned(),
+            cue.as_str().to_owned(),
+        ]
+    }
+}
+
+fn route_origin_for_context(context: &ExecutionContext) -> ExecutionRouteOrigin {
+    context.route_origin.clone().unwrap_or_else(|| {
+        ExecutionRouteOrigin::for_target(
+            context.target_identity.target_class,
+            context.target_identity.canonical_target_id.clone(),
+        )
+    })
 }
 
 fn discovery_confidence_class(context: &ExecutionContext) -> TargetDiscoveryConfidenceClass {
@@ -866,8 +913,8 @@ mod tests {
     use super::*;
     use crate::execution_context::{
         CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContextRequest,
-        ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode, ScopeClass,
-        ToolchainClass,
+        ExecutionContextResolver, ExecutionContextResolverConfig, ExecutionRouteOrigin,
+        IdentityMode, ScopeClass, ToolchainClass,
     };
 
     fn resolver() -> ExecutionContextResolver {
@@ -1007,6 +1054,45 @@ mod tests {
                 && row.host_boundary_cue_token == "managed_workspace_boundary"
                 && row.review_before_dispatch));
         assert!(review.render_plaintext().contains("change=action:"));
+    }
+
+    #[test]
+    fn tunneled_target_card_keeps_remote_boundary_and_tunnel_route() {
+        let mut resolver = resolver();
+        let mut request = ExecutionContextRequest::local_terminal_seed(
+            "terminal.open.tunnel",
+            TrustState::Trusted,
+            "2026-05-13T19:44:00Z",
+        );
+        request.override_target_class = Some(TargetClass::SshRemote);
+        request.override_working_directory = Some("/srv/code");
+        let context =
+            resolver
+                .resolve(request)
+                .with_route_origin(ExecutionRouteOrigin::tunnel_exposed(
+                    "SSH tunnel",
+                    "tunnel.session.target_confidence.0001",
+                    "target.ssh_remote.target_confidence",
+                ));
+
+        let card = TargetConfidenceCard::from_context(&context);
+
+        assert_eq!(card.target_class, TargetClass::SshRemote);
+        assert_eq!(
+            card.host_boundary_cue,
+            HostBoundaryCueClass::RemoteSshBoundary
+        );
+        assert_eq!(card.route_origin_token, "tunnel_exposed_route");
+        assert_eq!(card.route_origin_label, "Tunnel route");
+        assert_eq!(card.route_transport_label, "SSH tunnel");
+        assert_eq!(
+            card.tunnel_session_ref.as_deref(),
+            Some("tunnel.session.target_confidence.0001")
+        );
+        assert_eq!(
+            card.host_boundary_cue_stack_tokens,
+            vec!["local_host_boundary", "remote_ssh_boundary"]
+        );
     }
 
     #[test]

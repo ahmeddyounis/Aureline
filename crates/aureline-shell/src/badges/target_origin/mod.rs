@@ -49,7 +49,8 @@ use serde::{Deserialize, Serialize};
 
 use aureline_auth::{AccountBoundaryClass, BrowserCallbackPacket, IdentityModeAlias};
 use aureline_runtime::{
-    DegradedFieldReason, ExecutionContext, ReachabilityState, TargetClass, TrustState,
+    DegradedFieldReason, ExecutionContext, ExecutionRouteClass, ExecutionRouteOrigin,
+    ReachabilityState, TargetClass, TrustState,
 };
 
 /// Stable record-kind tag carried in serialized [`TargetOriginBadge`] payloads.
@@ -319,6 +320,14 @@ pub struct TargetOriginBadge {
     pub boundary_cue_token: String,
     pub boundary_cue_label: String,
     pub boundary_cue_visible: bool,
+    pub route_origin_class: ExecutionRouteClass,
+    pub route_origin_class_token: String,
+    pub route_origin_label: String,
+    pub route_transport_label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tunnel_session_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route_target_identity_ref: Option<String>,
     pub trust_state: TrustState,
     pub trust_state_token: String,
     pub execution_context_ref: String,
@@ -345,6 +354,8 @@ impl TargetOriginBadge {
             TargetBadgeClass::from_target_class(context.target_identity.target_class);
         let origin_class =
             OriginBadgeClass::from_identity_mode(context.policy_and_trust.identity_mode);
+        let route_origin = route_origin_for_context(context);
+        let target_label = target_label_for_route(target_class, &route_origin);
         let (boundary_cue, honesty_from_cue) =
             derive_boundary_cue(context, origin_class, entry_point, None);
         let honesty_marker_present = context.has_degraded_field()
@@ -360,7 +371,7 @@ impl TargetOriginBadge {
             entry_point,
             target_class,
             target_class_token: target_class.as_str().to_owned(),
-            target_label: target_class.label().to_owned(),
+            target_label,
             canonical_target_id: context.target_identity.canonical_target_id.clone(),
             origin_class,
             origin_class_token: origin_class.as_str().to_owned(),
@@ -369,6 +380,12 @@ impl TargetOriginBadge {
             boundary_cue_token: boundary_cue.as_str().to_owned(),
             boundary_cue_label: boundary_cue.label().to_owned(),
             boundary_cue_visible: boundary_cue.is_visible(),
+            route_origin_class: route_origin.route_class,
+            route_origin_class_token: route_origin.route_class_token.clone(),
+            route_origin_label: route_origin.route_label.clone(),
+            route_transport_label: route_origin.transport_label.clone(),
+            tunnel_session_ref: route_origin.tunnel_session_ref.clone(),
+            route_target_identity_ref: route_origin.target_identity_ref.clone(),
             trust_state: context.policy_and_trust.trust_state,
             trust_state_token: trust_token(context.policy_and_trust.trust_state).to_owned(),
             execution_context_ref: context.execution_context_id.clone(),
@@ -391,6 +408,17 @@ impl TargetOriginBadge {
     ) -> Self {
         let target_class = TargetBadgeClass::ProviderEntryPoint;
         let origin_class = OriginBadgeClass::from_account_boundary(packet.account_boundary_class);
+        let route_origin = context
+            .route_origin
+            .clone()
+            .unwrap_or_else(|| ExecutionRouteOrigin {
+                route_class: ExecutionRouteClass::ProviderRoute,
+                route_class_token: ExecutionRouteClass::ProviderRoute.as_str().to_owned(),
+                route_label: ExecutionRouteClass::ProviderRoute.label().to_owned(),
+                transport_label: "provider API".to_owned(),
+                tunnel_session_ref: None,
+                target_identity_ref: Some(format!("provider:{}", packet.packet_id)),
+            });
         let (boundary_cue, honesty_from_cue) = derive_boundary_cue(
             context,
             origin_class,
@@ -425,6 +453,12 @@ impl TargetOriginBadge {
             boundary_cue_token: boundary_cue.as_str().to_owned(),
             boundary_cue_label: boundary_cue.label().to_owned(),
             boundary_cue_visible: boundary_cue.is_visible(),
+            route_origin_class: route_origin.route_class,
+            route_origin_class_token: route_origin.route_class_token.clone(),
+            route_origin_label: route_origin.route_label.clone(),
+            route_transport_label: route_origin.transport_label.clone(),
+            tunnel_session_ref: route_origin.tunnel_session_ref.clone(),
+            route_target_identity_ref: route_origin.target_identity_ref.clone(),
             trust_state: context.policy_and_trust.trust_state,
             trust_state_token: trust_token(context.policy_and_trust.trust_state).to_owned(),
             execution_context_ref: context.execution_context_id.clone(),
@@ -524,6 +558,26 @@ const fn trust_token(state: TrustState) -> &'static str {
         TrustState::Trusted => "trusted",
         TrustState::Restricted => "restricted",
         TrustState::PendingEvaluation => "pending_evaluation",
+    }
+}
+
+fn route_origin_for_context(context: &ExecutionContext) -> ExecutionRouteOrigin {
+    context.route_origin.clone().unwrap_or_else(|| {
+        ExecutionRouteOrigin::for_target(
+            context.target_identity.target_class,
+            context.target_identity.canonical_target_id.clone(),
+        )
+    })
+}
+
+fn target_label_for_route(
+    target_class: TargetBadgeClass,
+    route_origin: &ExecutionRouteOrigin,
+) -> String {
+    if route_origin.route_class == ExecutionRouteClass::TunnelExposedRoute {
+        "Tunnel".to_owned()
+    } else {
+        target_class.label().to_owned()
     }
 }
 

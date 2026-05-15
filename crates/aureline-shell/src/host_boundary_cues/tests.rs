@@ -12,7 +12,8 @@ use std::path::Path;
 
 use aureline_runtime::{
     CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
-    ExecutionContextResolverConfig, IdentityMode, ScopeClass, TargetClass, TrustState,
+    ExecutionContextResolverConfig, ExecutionRouteOrigin, IdentityMode, ScopeClass, TargetClass,
+    TrustState,
 };
 use aureline_terminal::{
     HostClass, OpenSessionRequest, PtyHost, PtySession, PtySessionId, TerminalTrustState,
@@ -103,6 +104,16 @@ fn resolve_remote(resolver: &mut ExecutionContextResolver) -> aureline_runtime::
     request.override_target_class = Some(TargetClass::SshRemote);
     request.override_working_directory = Some("/srv/code");
     resolver.resolve(request)
+}
+
+fn resolve_tunneled_remote(
+    resolver: &mut ExecutionContextResolver,
+) -> aureline_runtime::ExecutionContext {
+    resolve_remote(resolver).with_route_origin(ExecutionRouteOrigin::tunnel_exposed(
+        "SSH tunnel",
+        "tunnel.session.prod.0001",
+        "target.ssh_remote.prod_host",
+    ))
 }
 
 fn resolve_container(
@@ -221,6 +232,47 @@ fn failure_drill_handoff_preserves_source_and_lights_local_to_remote() {
     assert!(card.current_boundary_cue_visible);
     assert!(card.invariants.is_empty());
     assert!(!card.has_invariant_violations);
+}
+
+#[test]
+fn tunneled_remote_handoff_preserves_tunnel_route_label() {
+    let mut resolver = baseline_resolver();
+    let local_context = resolve_local(&mut resolver);
+    let tunnel_context = resolve_tunneled_remote(&mut resolver);
+    let mut host = PtyHost::new();
+    let local_id = open_local_session(&mut host);
+    mark_active(&mut host, &local_id, "mono:1");
+    let local_session = snapshot_session(&host, &local_id);
+    let remote_id = open_remote_session(&mut host);
+    mark_active(&mut host, &remote_id, "mono:2");
+    let remote_session = snapshot_session(&host, &remote_id);
+
+    let mut wedge = HostBoundaryCueWedge::new("ws-host-boundary");
+    wedge
+        .open_initial(&local_context, &local_session, "mono:1")
+        .unwrap();
+    wedge
+        .record_target_handoff(&tunnel_context, &remote_session, "mono:2")
+        .unwrap();
+
+    let card = wedge.card();
+    let handoff = &card.steps[1];
+    assert_eq!(handoff.boundary_cue, HostBoundaryCue::LocalToRemote);
+    assert_eq!(handoff.current.target_class, TargetBadgeClass::RemoteHost);
+    assert_eq!(handoff.current.target_label, "Tunnel");
+    assert_eq!(
+        handoff.current.route_origin_class_token,
+        "tunnel_exposed_route"
+    );
+    assert_eq!(handoff.current.route_transport_label, "SSH tunnel");
+    assert_eq!(
+        handoff.current.tunnel_session_ref.as_deref(),
+        Some("tunnel.session.prod.0001")
+    );
+    assert_eq!(
+        handoff.current.route_target_identity_ref.as_deref(),
+        Some("target.ssh_remote.prod_host")
+    );
 }
 
 #[test]
@@ -598,6 +650,24 @@ fn fixture_transport_loss_drill_keeps_cue_visible_through_degraded_state() {
     assert!(lost.honesty_marker_present);
 }
 
+#[test]
+fn fixture_tunnel_route_origin_renders_tunnel_label_end_to_end() {
+    let fixture: WedgeFixture = load_fixture("tunnel_route_origin_handoff.json");
+    let card = build_card_from_fixture(&fixture);
+    assert_fixture_matches(&card, &fixture);
+    let handoff = card
+        .steps
+        .iter()
+        .find(|step| step.kind == HandoffKind::TargetHandoff)
+        .expect("target handoff step");
+    assert_eq!(handoff.current.target_label, "Tunnel");
+    assert_eq!(
+        handoff.current.route_origin_class_token,
+        "tunnel_exposed_route"
+    );
+    assert_eq!(handoff.boundary_cue, HostBoundaryCue::LocalToRemote);
+}
+
 // ---------------------------------------------------------------------------
 // Fixture helpers
 // ---------------------------------------------------------------------------
@@ -642,9 +712,19 @@ struct WedgeFixtureSession {
     target_class: WedgeFixtureTargetClass,
     working_directory: String,
     execution_context_ref: String,
+    #[serde(default)]
+    route_origin: Option<WedgeFixtureRouteOrigin>,
     display_title: String,
     cwd_hint: Option<String>,
     observed_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct WedgeFixtureRouteOrigin {
+    route_class: String,
+    transport_label: String,
+    tunnel_session_ref: String,
+    target_identity_ref: String,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -703,6 +783,8 @@ struct WedgeFixtureStepExpect {
     current_target_class: String,
     #[serde(default)]
     source_target_class: Option<String>,
+    #[serde(default)]
+    current_route_origin_class: Option<String>,
 }
 
 fn load_fixture(name: &str) -> WedgeFixture {
@@ -798,7 +880,16 @@ fn open_fixture_session(
     );
     request.override_target_class = Some(session.target_class.to_target_class());
     request.override_working_directory = Some(session.working_directory.as_str());
-    let context = resolver.resolve(request);
+    let mut context = resolver.resolve(request);
+    if let Some(route_origin) = &session.route_origin {
+        if route_origin.route_class == "tunnel_exposed_route" {
+            context = context.with_route_origin(ExecutionRouteOrigin::tunnel_exposed(
+                route_origin.transport_label.clone(),
+                route_origin.tunnel_session_ref.clone(),
+                route_origin.target_identity_ref.clone(),
+            ));
+        }
+    }
     let id = host.open_session(OpenSessionRequest {
         workspace_id,
         host_class: session.host_class.to_host_class(),
@@ -875,6 +966,13 @@ fn assert_fixture_matches(card: &HostBoundaryCueCardRecord, fixture: &WedgeFixtu
                 "source presence mismatch on step {}: {:?}",
                 step.step_id, other
             ),
+        }
+        if let Some(expected) = &expect.current_route_origin_class {
+            assert_eq!(
+                &step.current.route_origin_class_token, expected,
+                "current route-origin class mismatch for step {}",
+                step.step_id,
+            );
         }
     }
     assert_eq!(

@@ -124,6 +124,35 @@ fn support_projection_does_not_inline_provider_payloads() {
 }
 
 #[test]
+fn tunnel_route_origin_labels_survive_provider_support_projection() {
+    let packet = load_packet();
+    let projection = packet.support_export_projection();
+    let tunneled = projection
+        .queue_summaries
+        .iter()
+        .find(|summary| {
+            summary
+                .target_ref
+                .route_origin
+                .as_ref()
+                .is_some_and(|route| route.route_choice == "tunnel_exposed_route")
+        })
+        .expect("fixture carries a tunneled provider queue target");
+    let route = tunneled
+        .target_ref
+        .route_origin
+        .as_ref()
+        .expect("route origin present");
+
+    assert_eq!(route.target_class, "tunnel_exposed_target");
+    assert_eq!(route.transport_label, "SSH tunnel");
+    assert_eq!(
+        route.tunnel_session_ref.as_deref(),
+        Some("tunnel.session.ci.run.9912")
+    );
+}
+
+#[test]
 fn missing_browser_handoff_ref_is_rejected() {
     let mut packet = load_packet();
     let action = packet.registry.surface_claims[0]

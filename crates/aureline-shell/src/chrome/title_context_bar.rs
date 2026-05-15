@@ -1294,6 +1294,8 @@ pub enum HostStateClass {
     SyncWarming,
     /// Host is reconnecting after a disconnect.
     Reconnecting,
+    /// Host is reached through a declared tunnel route.
+    Tunnel,
     /// Host is degraded into read-only mode.
     ReadOnlyDegraded,
     /// Host is offline.
@@ -1648,6 +1650,7 @@ mod tests {
             "multi_root_mixed_state.json",
             "missing_host_details.json",
             "mixed_local_plus_remote_session.json",
+            "tunnel_route_origin_session.json",
         ];
 
         for fixture_name in fixtures {
@@ -1675,6 +1678,13 @@ mod tests {
                         .any(|proj| proj.surface == required_surface),
                     "fixture missing required projection ({fixture_name}) — {required_surface:?}",
                 );
+            }
+
+            if fixture_name == "tunnel_route_origin_session.json" {
+                assert_eq!(record.host_identity.host_class, HostClass::RemoteHost);
+                assert_eq!(record.host_identity.host_state, HostStateClass::Tunnel);
+                assert_eq!(record.host_identity.target_label.as_deref(), Some("Tunnel"));
+                assert!(record.route_state.route_label.contains("SSH tunnel"));
             }
         }
     }

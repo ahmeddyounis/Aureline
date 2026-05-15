@@ -263,6 +263,13 @@ pub struct TargetIdentitySnapshot {
     pub origin_class: OriginBadgeClass,
     pub origin_class_token: String,
     pub origin_label: String,
+    pub route_origin_class_token: String,
+    pub route_origin_label: String,
+    pub route_transport_label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tunnel_session_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route_target_identity_ref: Option<String>,
     pub execution_context_ref: String,
     pub lifecycle_state: SessionLifecycleState,
     pub lifecycle_state_token: String,
@@ -285,6 +292,11 @@ impl TargetIdentitySnapshot {
             origin_class: badge.origin_class,
             origin_class_token: badge.origin_class_token,
             origin_label: badge.origin_label,
+            route_origin_class_token: badge.route_origin_class_token,
+            route_origin_label: badge.route_origin_label,
+            route_transport_label: badge.route_transport_label,
+            tunnel_session_ref: badge.tunnel_session_ref,
+            route_target_identity_ref: badge.route_target_identity_ref,
             execution_context_ref: context.execution_context_id.clone(),
             lifecycle_state: header.lifecycle_state,
             lifecycle_state_token: header.lifecycle_state_token.clone(),
@@ -523,17 +535,19 @@ impl HostBoundaryCueCardRecord {
             out.push('\n');
             if let Some(source) = &step.source {
                 out.push_str(&format!(
-                    "      source: session={} target={} canonical={} lifecycle={}\n",
+                    "      source: session={} target={} route={} canonical={} lifecycle={}\n",
                     source.session_id,
                     source.target_class_token,
+                    source.route_origin_class_token,
                     source.canonical_target_id,
                     source.lifecycle_state_token,
                 ));
             }
             out.push_str(&format!(
-                "      current: session={} target={} canonical={} lifecycle={} ctx={}\n",
+                "      current: session={} target={} route={} canonical={} lifecycle={} ctx={}\n",
                 step.current.session_id,
                 step.current.target_class_token,
+                step.current.route_origin_class_token,
                 step.current.canonical_target_id,
                 step.current.lifecycle_state_token,
                 step.current.execution_context_ref,

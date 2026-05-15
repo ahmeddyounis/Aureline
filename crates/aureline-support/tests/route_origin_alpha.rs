@@ -69,8 +69,8 @@ fn route_origin_support_preview_reconstructs_all_required_states() {
         .expect("preview builds");
 
     assert!(preview.manifest.has_exact_build_identity());
-    assert_eq!(preview.manifest.preview_items.len(), 8);
-    assert_eq!(preview.manifest.action_reconstruction_contexts.len(), 8);
+    assert_eq!(preview.manifest.preview_items.len(), 9);
+    assert_eq!(preview.manifest.action_reconstruction_contexts.len(), 9);
     assert!(preview
         .manifest
         .redaction_controls
@@ -90,6 +90,7 @@ fn route_origin_support_preview_reconstructs_all_required_states() {
         .collect::<BTreeSet<_>>();
     for expected in [
         "route_authoritative",
+        "route_changed_declared",
         "degraded_browser_handoff",
         "denied_wrong_target",
         "denied_wrong_origin",
@@ -124,4 +125,13 @@ fn route_origin_support_preview_reconstructs_all_required_states() {
         browser_handoff.fallback_posture.as_deref(),
         Some("browser_handoff_required")
     );
+
+    let tunnel = preview
+        .manifest
+        .action_reconstruction_contexts
+        .iter()
+        .find(|context| context.route_choice.as_deref() == Some("tunnel_exposed_route"))
+        .expect("tunnel route context");
+    assert_eq!(tunnel.action_target_class, "tunnel_exposed_target");
+    assert_eq!(tunnel.action_exposure_class, "tunnel_exposed_public");
 }

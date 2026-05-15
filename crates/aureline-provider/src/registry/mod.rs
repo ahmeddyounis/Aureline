@@ -92,6 +92,7 @@ impl ConnectedProviderAlphaPacket {
             .map(|item| ProviderQueueSummary {
                 queue_item_id: item.queue_item_id.clone(),
                 provider_descriptor_ref: item.provider_descriptor_ref.clone(),
+                target_ref: item.target_ref.clone(),
                 action_kind: item.action_kind,
                 queue_state: item.queue_state,
                 stale_target_risk_class: item.stale_target_risk_class,
@@ -112,6 +113,7 @@ impl ConnectedProviderAlphaPacket {
                 mutation_mode: control.mutation_mode,
                 upstream_mutation_scope: control.upstream_mutation_scope,
                 auth_source_class: control.auth_source_class,
+                target_ref: control.target_ref.clone(),
                 stale_target_risk_class: control.stale_target_risk_class,
                 disclosure_summary: control.disclosure_summary.clone(),
             })
@@ -402,6 +404,31 @@ pub struct TargetRef {
     pub target_ref: String,
     /// Redaction-safe display label.
     pub target_label: String,
+    /// Route-origin label when a provider target is reached through a
+    /// route-sensitive handoff such as a tunnel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route_origin: Option<ProviderRouteOriginLabel>,
+}
+
+/// Route-origin label attached to a provider target ref.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProviderRouteOriginLabel {
+    /// Route-choice token from the shared route-origin vocabulary.
+    pub route_choice: String,
+    /// Target class token associated with the route.
+    pub target_class: String,
+    /// Redaction-safe route label.
+    pub route_label: String,
+    /// Transport label such as `SSH tunnel`.
+    pub transport_label: String,
+    /// Opaque target identity ref preserved for support reconstruction.
+    pub target_identity_ref: String,
+    /// Tunnel session ref when `route_choice` is `tunnel_exposed_route`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tunnel_session_ref: Option<String>,
+    /// Exposure posture associated with the route.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exposure_posture: Option<String>,
 }
 
 /// Provider family covered by one descriptor.
@@ -770,6 +797,8 @@ pub struct ProviderQueueSummary {
     pub queue_item_id: String,
     /// Provider descriptor ref.
     pub provider_descriptor_ref: String,
+    /// Provider target ref including route-origin labels when present.
+    pub target_ref: TargetRef,
     /// Queue action kind.
     pub action_kind: crate::publish_later::QueueActionKind,
     /// Queue state.
@@ -799,6 +828,8 @@ pub struct ProviderRunControlSummary {
     pub upstream_mutation_scope: UpstreamMutationScopeClass,
     /// Auth source class.
     pub auth_source_class: ProviderAuthSourceClass,
+    /// Provider target ref including route-origin labels when present.
+    pub target_ref: TargetRef,
     /// Stale-target risk class.
     pub stale_target_risk_class: StaleTargetRiskClass,
     /// Redaction-safe disclosure summary.
@@ -1070,6 +1101,7 @@ impl<'a> ProviderAlphaValidator<'a> {
                 "provider_alpha.pipeline_overlay_target_missing",
                 "pipeline overlays must disclose the target ref",
             );
+            self.validate_target_ref(&overlay.target_ref, "pipeline overlay");
             if overlay.overlay_kind == PipelineOverlayKind::Artifact {
                 self.expect(
                     overlay.artifact_trust_class.is_some(),
@@ -1139,6 +1171,7 @@ impl<'a> ProviderAlphaValidator<'a> {
                 "provider_alpha.run_control_target_missing",
                 "run controls must disclose target ref",
             );
+            self.validate_target_ref(&control.target_ref, "run control");
             self.expect(
                 !control.audit_event_refs.is_empty(),
                 "provider_alpha.run_control_audit_missing",
@@ -1229,6 +1262,7 @@ impl<'a> ProviderAlphaValidator<'a> {
                 "provider_alpha.queue_export_not_safe",
                 "publish-later queue items must remain export-safe",
             );
+            self.validate_target_ref(&item.target_ref, "queue item");
             if item.queue_state == QueueState::PendingReauth {
                 self.expect(
                     item.reauth_requirement
@@ -1351,6 +1385,45 @@ impl<'a> ProviderAlphaValidator<'a> {
                 freshness.degraded_reason.as_deref().is_some_and(non_empty),
                 "provider_alpha.freshness_degraded_reason_missing",
                 &format!("{owner} degraded freshness must name the reason"),
+            );
+        }
+    }
+
+    fn validate_target_ref(&mut self, target_ref: &TargetRef, owner: &str) {
+        self.expect(
+            !target_ref.target_ref_class.trim().is_empty()
+                && !target_ref.target_ref.trim().is_empty()
+                && !target_ref.target_label.trim().is_empty(),
+            "provider_alpha.target_ref_missing",
+            &format!("{owner} target ref must carry class, id, and label"),
+        );
+        let Some(route_origin) = &target_ref.route_origin else {
+            return;
+        };
+        self.expect(
+            !route_origin.route_choice.trim().is_empty()
+                && !route_origin.target_class.trim().is_empty()
+                && !route_origin.route_label.trim().is_empty()
+                && !route_origin.transport_label.trim().is_empty()
+                && !route_origin.target_identity_ref.trim().is_empty(),
+            "provider_alpha.route_origin_label_missing",
+            &format!(
+                "{owner} route-origin label must carry route, target, transport, and identity refs"
+            ),
+        );
+        if route_origin.route_choice == "tunnel_exposed_route" {
+            self.expect(
+                route_origin.target_class == "tunnel_exposed_target",
+                "provider_alpha.tunnel_route_target_class",
+                "tunnel route-origin labels must use tunnel_exposed_target",
+            );
+            self.expect(
+                route_origin
+                    .tunnel_session_ref
+                    .as_deref()
+                    .is_some_and(non_empty),
+                "provider_alpha.tunnel_session_ref_missing",
+                "tunnel route-origin labels must cite a tunnel session ref",
             );
         }
     }

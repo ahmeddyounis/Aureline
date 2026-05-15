@@ -1,0 +1,113 @@
+$schema: "../../../schemas/transport/transport_decision_alpha.schema.json"
+__fixture__:
+  name: tunnel_exposed_route
+  scenario: User declares an SSH tunnel exposure for a local preview; support export records tunnel route, tunnel session, exposure posture, and target identity by typed refs only.
+  expected_truth_state: route_changed_declared
+  expected_support_projection:
+    - origin_scope
+    - target_class
+    - route_choice
+    - traffic_origin
+    - tunnel_session_ref
+    - route_change_reason_code
+    - decision_outcome
+    - fallback_posture
+
+schema_version: 1
+record_kind: transport_decision_alpha_record
+decision_id: transport:decision:tunnel_exposed_route:0001
+matrix_row_ref: artifacts/routes/alpha_route_origin_matrix.yaml#route_origin.tunnel_exposed_route
+transport_policy_snapshot_ref: transport:policy:tunnel_exposure:0001
+
+command:
+  command_id: cmd:preview.share_over_tunnel
+  command_descriptor_ref: command:descriptor:preview.share_over_tunnel:alpha
+  invocation_session_id: inv:preview.share_over_tunnel:alpha:0001
+  command_family: boundary_handoff
+
+actor:
+  actor_class: human_user
+  actor_ref: actor:human:local:0001
+  issuing_surface: port_forward_review_sheet
+
+origin:
+  origin_scope: desktop_client
+  traffic_origin: desktop_client
+  expected_origin_scope: desktop_client
+  origin_match_state: origin_matches_expected
+  origin_ref: origin:desktop_client:preview_share:0001
+
+target:
+  target_class: tunnel_exposed_target
+  endpoint_class: route_share
+  target_identity_ref: target:tunnel:preview_share:0001
+  intended_target_ref: target:local_preview:0001
+  observed_target_ref: target:tunnel:preview_share:0001
+  target_match_state: target_matches_intent
+
+route:
+  route_choice: tunnel_exposed_route
+  route_label: ssh_tunnel_preview_share
+  traffic_origin: desktop_client
+  egress_class: public_internet
+  auth_posture: ssh_identity
+  route_changed: true
+  route_change_reason_code: route_escalated_to_tunnel_exposure
+  prior_route_choice: local_only
+  prior_target_ref: target:local_preview:0001
+  tunnel_session_ref: tunnel:session:preview_share:0001
+  exposure_posture: tunnel_exposed_public
+  route_summary: Local preview was exposed through a declared SSH tunnel with target identity preserved.
+
+policy:
+  policy_source_class: transport_policy_snapshot
+  policy_source_ref: policy:tunnel_exposure:declared:0001
+  policy_epoch: epoch:42
+  policy_bundle_ref: policy:bundle:org:alpha
+  policy_summary: Transport policy allowed the declared tunnel exposure after review.
+
+decision_result:
+  decision_outcome: degraded_route_changed
+  route_truth_state: route_changed_declared
+  denial_reason_code: null
+  outcome_summary: The route changed from local-only to declared tunnel exposure and is recorded for support reconstruction.
+  repair_hook_ref: null
+
+fallback:
+  fallback_posture: no_fallback
+  declared_to_user: true
+  direct_fallback_allowed: false
+  hidden_fallback_detected: false
+  fallback_summary: No fallback route was used; the tunnel exposure was declared before activation.
+
+timestamps:
+  planned_at: "2026-05-14T16:04:00Z"
+  decided_at: "2026-05-14T16:04:03Z"
+  completed_at: null
+
+export_projection:
+  consumer_surfaces:
+    - product_ui
+    - cli_explain
+    - support_bundle
+    - incident_packet
+  support_packet_field_refs:
+    - command.command_id
+    - route.route_change_reason_code
+    - route.prior_route_choice
+    - route.route_choice
+    - route.tunnel_session_ref
+    - target.target_class
+    - target.target_identity_ref
+    - fallback.fallback_posture
+  support_bundle_preview_field_refs:
+    - action_reconstruction_contexts[].route_choice
+    - action_reconstruction_contexts[].action_target_class
+    - action_reconstruction_contexts[].action_exposure_class
+    - action_reconstruction_contexts[].route_truth_state
+  raw_material_excluded: true
+
+redaction_class: metadata_safe_default
+trace_refs:
+  - trace:route_origin:tunnel_exposed_route:0001
+notes: The packet carries tunnel session and target identity refs only; raw tunnel URLs and hostnames are excluded.

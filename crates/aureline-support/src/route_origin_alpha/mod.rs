@@ -53,7 +53,7 @@ const ROUTE_ORIGIN_ALPHA_FIXTURE_MANIFEST_YAML: &str = include_str!(concat!(
     "/../../fixtures/runtime/route_origin_alpha/manifest.yaml"
 ));
 
-const ROUTE_ORIGIN_FIXTURES: [(&str, &str); 8] = [
+const ROUTE_ORIGIN_FIXTURES: [(&str, &str); 9] = [
     (
         "fixtures/runtime/route_origin_alpha/local_task_debug.yaml",
         include_str!(concat!(
@@ -80,6 +80,13 @@ const ROUTE_ORIGIN_FIXTURES: [(&str, &str); 8] = [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../fixtures/runtime/route_origin_alpha/publish_pipeline.yaml"
+        )),
+    ),
+    (
+        "fixtures/runtime/route_origin_alpha/tunnel_exposed_route.yaml",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/runtime/route_origin_alpha/tunnel_exposed_route.yaml"
         )),
     ),
     (
@@ -444,6 +451,22 @@ impl AlphaRouteOriginMatrix {
                     "matrix.required_route_truth_states",
                     required,
                     "required route truth state is not covered by route rows",
+                );
+            }
+        }
+
+        let route_choices = self
+            .route_rows
+            .iter()
+            .map(|row| row.route_choice.as_str())
+            .collect::<BTreeSet<_>>();
+        for required in &self.validation_contract.required_route_choices {
+            if !route_choices.contains(required.as_str()) {
+                push_violation(
+                    &mut violations,
+                    "matrix.required_route_choices",
+                    required,
+                    "required route choice is not covered by route rows",
                 );
             }
         }
@@ -866,6 +889,22 @@ impl TransportDecisionAlphaRecord {
                         "browser handoff must use browser_handoff_required fallback posture",
                     );
                 }
+                if self.route.route_choice == "tunnel_exposed_route"
+                    && (self.target.target_class != "tunnel_exposed_target"
+                        || self.target.endpoint_class != "route_share"
+                        || !self
+                            .route
+                            .tunnel_session_ref
+                            .as_deref()
+                            .is_some_and(|value| !value.is_empty()))
+                {
+                    push_violation(
+                        violations,
+                        "fixture.tunnel_exposed_route",
+                        &self.decision_id,
+                        "tunnel route must preserve tunnel target, route-share endpoint, and tunnel session ref",
+                    );
+                }
             }
             _ => {}
         }
@@ -949,6 +988,9 @@ pub struct TransportRoute {
     pub prior_route_choice: Option<String>,
     /// Prior target ref when the route changed.
     pub prior_target_ref: Option<String>,
+    /// Tunnel session ref when the route uses a tunnel.
+    #[serde(default)]
+    pub tunnel_session_ref: Option<String>,
     /// Exposure posture.
     pub exposure_posture: String,
     /// Redaction-safe route summary.
@@ -1101,8 +1143,8 @@ mod tests {
             current_route_origin_support_preview(fixture_capture(), "2026-05-14T16:10:00Z")
                 .expect("preview builds");
 
-        assert_eq!(preview.manifest.preview_items.len(), 8);
-        assert_eq!(preview.manifest.action_reconstruction_contexts.len(), 8);
+        assert_eq!(preview.manifest.preview_items.len(), 9);
+        assert_eq!(preview.manifest.action_reconstruction_contexts.len(), 9);
         assert!(preview.manifest.has_exact_build_identity());
         assert!(preview
             .manifest

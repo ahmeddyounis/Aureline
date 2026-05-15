@@ -218,6 +218,164 @@ impl ReachabilityState {
     }
 }
 
+/// Route class selected for a launchable action.
+///
+/// This is route truth, not execution-target truth: a tunneled route can still
+/// execute on [`TargetClass::SshRemote`] while the route label says the action
+/// exposes or traverses a tunnel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionRouteClass {
+    /// Work stays inside the local process or local host.
+    LocalOnly,
+    /// Work stays local to the selected target boundary.
+    TargetLocal,
+    /// Work is attached through an SSH or remote-agent route.
+    RemoteAgentAttachRoute,
+    /// Work reaches a managed control-plane route.
+    ManagedControlPlaneRoute,
+    /// Work is handed to the system browser.
+    BrowserHandoffRoute,
+    /// Work reaches a connected provider route.
+    ProviderRoute,
+    /// Work enters a publish pipeline.
+    PublishPipelineRoute,
+    /// Work traverses a declared tunnel exposure route.
+    TunnelExposedRoute,
+    /// Route truth is unavailable and must be reviewed before mutation.
+    UnknownRequiresReview,
+}
+
+impl ExecutionRouteClass {
+    /// Stable token recorded in execution contexts and downstream cards.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalOnly => "local_only",
+            Self::TargetLocal => "target_local",
+            Self::RemoteAgentAttachRoute => "remote_agent_attach_route",
+            Self::ManagedControlPlaneRoute => "managed_control_plane_route",
+            Self::BrowserHandoffRoute => "browser_handoff_route",
+            Self::ProviderRoute => "provider_route",
+            Self::PublishPipelineRoute => "publish_pipeline_route",
+            Self::TunnelExposedRoute => "tunnel_exposed_route",
+            Self::UnknownRequiresReview => "unknown_requires_review",
+        }
+    }
+
+    /// Short label safe for cards, chrome, and support export summaries.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::LocalOnly => "Local route",
+            Self::TargetLocal => "Target-local route",
+            Self::RemoteAgentAttachRoute => "Remote attach route",
+            Self::ManagedControlPlaneRoute => "Managed route",
+            Self::BrowserHandoffRoute => "Browser handoff",
+            Self::ProviderRoute => "Provider route",
+            Self::PublishPipelineRoute => "Publish pipeline",
+            Self::TunnelExposedRoute => "Tunnel route",
+            Self::UnknownRequiresReview => "Unknown route",
+        }
+    }
+}
+
+/// Route-origin label attached to an [`ExecutionContext`].
+///
+/// The record keeps route truth next to target truth without widening
+/// [`TargetClass`]. For tunnel routes, `target_identity_ref` and
+/// `tunnel_session_ref` preserve the SSH/tunnel transport and target identity
+/// needed by chrome, support exports, and review packets.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecutionRouteOrigin {
+    /// Route class selected for the action.
+    pub route_class: ExecutionRouteClass,
+    /// Stable route-class token.
+    pub route_class_token: String,
+    /// Human-readable route label.
+    pub route_label: String,
+    /// Human-readable transport label such as `SSH remote` or `SSH tunnel`.
+    pub transport_label: String,
+    /// Tunnel session reference when the route traverses a tunnel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tunnel_session_ref: Option<String>,
+    /// Target identity reference preserved for route reconstruction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_identity_ref: Option<String>,
+}
+
+impl ExecutionRouteOrigin {
+    /// Builds a default route-origin label from the resolved target class.
+    pub fn for_target(target_class: TargetClass, target_identity_ref: impl Into<String>) -> Self {
+        let target_identity_ref = target_identity_ref.into();
+        let (route_class, route_label, transport_label) = match target_class {
+            TargetClass::LocalHost | TargetClass::NotebookKernelLocal => {
+                (ExecutionRouteClass::LocalOnly, "Local route", "local host")
+            }
+            TargetClass::ContainerLocal | TargetClass::Devcontainer => (
+                ExecutionRouteClass::TargetLocal,
+                "Target-local route",
+                "local container",
+            ),
+            TargetClass::SshRemote => (
+                ExecutionRouteClass::RemoteAgentAttachRoute,
+                "Remote attach route",
+                "SSH remote",
+            ),
+            TargetClass::RemoteWorkspaceVm | TargetClass::NotebookKernelRemote => (
+                ExecutionRouteClass::RemoteAgentAttachRoute,
+                "Remote attach route",
+                "remote agent",
+            ),
+            TargetClass::PrebuildRuntime
+            | TargetClass::ManagedWorkspace
+            | TargetClass::AiSandbox => (
+                ExecutionRouteClass::ManagedControlPlaneRoute,
+                "Managed route",
+                "managed workspace",
+            ),
+        };
+        Self::new(
+            route_class,
+            route_label,
+            transport_label,
+            None,
+            Some(target_identity_ref),
+        )
+    }
+
+    /// Builds a tunnel-exposed route label without changing the execution
+    /// target class.
+    pub fn tunnel_exposed(
+        transport_label: impl Into<String>,
+        tunnel_session_ref: impl Into<String>,
+        target_identity_ref: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            ExecutionRouteClass::TunnelExposedRoute,
+            "Tunnel route",
+            transport_label,
+            Some(tunnel_session_ref.into()),
+            Some(target_identity_ref.into()),
+        )
+    }
+
+    fn new(
+        route_class: ExecutionRouteClass,
+        route_label: impl Into<String>,
+        transport_label: impl Into<String>,
+        tunnel_session_ref: Option<String>,
+        target_identity_ref: Option<String>,
+    ) -> Self {
+        Self {
+            route_class,
+            route_class_token: route_class.as_str().to_owned(),
+            route_label: route_label.into(),
+            transport_label: transport_label.into(),
+            tunnel_session_ref,
+            target_identity_ref,
+        }
+    }
+}
+
 /// Toolchain class. Seed vocabulary covering terminal/task/debug-prep lanes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -937,6 +1095,10 @@ pub struct ExecutionContext {
     pub provenance: Provenance,
     pub reusable_surfaces: Vec<SurfaceClass>,
     pub explanations: Vec<ExecutionContextExplanation>,
+    /// Route-origin label for surfaces that must distinguish remote target
+    /// identity from tunnel exposure or browser/provider handoff.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route_origin: Option<ExecutionRouteOrigin>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub node_toolchain_detection: Option<NodeToolchainDetection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -993,6 +1155,15 @@ impl ExecutionContext {
     ) -> Self {
         self.record_python_detection_degraded_fields(&detection);
         self.python_environment_detection = Some(detection);
+        self
+    }
+
+    /// Attaches explicit route-origin truth to this context.
+    ///
+    /// Callers use this when the execution target remains unchanged but the
+    /// route itself is materially different, such as a tunneled route.
+    pub fn with_route_origin(mut self, route_origin: ExecutionRouteOrigin) -> Self {
+        self.route_origin = Some(route_origin);
         self
     }
 
@@ -1372,6 +1543,7 @@ impl ExecutionContextResolver {
             provenance,
             reusable_surfaces,
             explanations,
+            route_origin: None,
             node_toolchain_detection: None,
             python_environment_detection: None,
             degraded_fields,

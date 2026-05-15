@@ -42,6 +42,8 @@ The protected fixture corpus covers:
 - provider preflight with `org_approved_direct`;
 - browser handoff with `browser_handoff_required` and a route-change reason;
 - publish-capable pipeline with `publish_pipeline`;
+- declared tunnel exposure with `tunnel_exposed_route`, `tunnel_session_ref`,
+  and `tunnel_exposed_public`;
 - wrong-target denial with intended and observed target refs;
 - wrong-origin denial with expected and observed origin scopes;
 - hidden managed relay denial; and
