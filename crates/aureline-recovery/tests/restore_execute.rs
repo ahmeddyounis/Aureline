@@ -1,6 +1,7 @@
 use aureline_recovery::crash_journal::{CrashJournalCaptureInput, CrashJournalStore, ObjectClass};
 use aureline_recovery::session_restore::records::{
-    DowngradeTriggerClass, ProducerBuildStamp, RestoreClass, SurfaceClass, SurfaceRole, WindowRole,
+    DowngradeTriggerClass, ProducerBuildStamp, RestoreClass, SurfaceClass, SurfaceRole,
+    TerminalPaneRestoreMetadata, WindowRole,
 };
 use aureline_recovery::session_restore::{
     RestorePaneExecutionKind, RestoreProposal, RestoreRuntime, SessionRestoreCaptureInput,
@@ -25,6 +26,7 @@ fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
         dirty_badge_visible: true,
         surface_role: SurfaceRole::Editor,
         surface_class: SurfaceClass::TextEditor,
+        restore_metadata: None,
     }];
     if with_terminal {
         tabs.push(TabItemCaptureInput {
@@ -34,6 +36,17 @@ fn capture_layout(store: &mut SessionRestoreStore, with_terminal: bool) {
             dirty_badge_visible: false,
             surface_role: SurfaceRole::Terminal,
             surface_class: SurfaceClass::TerminalView,
+            restore_metadata: Some(TerminalPaneRestoreMetadata {
+                restore_metadata_ref: "terminal-restore-metadata:tab-terminal".to_string(),
+                working_directory: Some("/workspace/service".to_string()),
+                environment_scope_token: "workspace".to_string(),
+                shell_identity: "zsh".to_string(),
+                shell_family_token: "zsh".to_string(),
+                last_command_class_token: "build".to_string(),
+                auto_rerun_forbidden: true,
+                raw_command_body_present: false,
+                raw_environment_body_present: false,
+            }),
         });
     }
 
@@ -170,4 +183,19 @@ fn side_effectful_terminal_surface_stays_blocked_and_inactive() {
         terminal.execution_kind,
         RestorePaneExecutionKind::BlockedSideEffectful
     );
+    let metadata = terminal
+        .restore_metadata
+        .as_ref()
+        .expect("terminal restore metadata survives restore outcome");
+    assert_eq!(
+        metadata.working_directory.as_deref(),
+        Some("/workspace/service")
+    );
+    assert_eq!(metadata.shell_identity, "zsh");
+    assert_eq!(metadata.shell_family_token, "zsh");
+    assert_eq!(metadata.environment_scope_token, "workspace");
+    assert_eq!(metadata.last_command_class_token, "build");
+    assert!(metadata.auto_rerun_forbidden);
+    assert!(!metadata.raw_command_body_present);
+    assert!(!metadata.raw_environment_body_present);
 }

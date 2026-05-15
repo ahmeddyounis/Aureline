@@ -222,6 +222,37 @@ pub enum AvailabilityState {
     EvidenceOnly,
 }
 
+/// Metadata retained for a terminal pane during session restore.
+///
+/// The fields mirror the terminal-owned restore metadata shape using string
+/// tokens so recovery can persist pane topology without depending on the live
+/// PTY host crate. Raw command lines, shell history, environment bodies, and
+/// PTY bytes are intentionally absent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TerminalPaneRestoreMetadata {
+    /// Stable ref to the terminal restore metadata record.
+    pub restore_metadata_ref: String,
+    /// Last known working directory hint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+    /// Environment-scope class token.
+    pub environment_scope_token: String,
+    /// Redaction-safe shell identity label.
+    pub shell_identity: String,
+    /// Shell-family token.
+    pub shell_family_token: String,
+    /// Last command class token.
+    pub last_command_class_token: String,
+    /// True for all restored terminal metadata.
+    pub auto_rerun_forbidden: bool,
+    /// True only if raw command text was admitted. Conforming records keep
+    /// this false.
+    pub raw_command_body_present: bool,
+    /// True only if raw environment bodies were admitted. Conforming records
+    /// keep this false.
+    pub raw_environment_body_present: bool,
+}
+
 /// Stable pane inventory entry included with topology packets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StablePaneInventoryEntry {
@@ -236,6 +267,8 @@ pub struct StablePaneInventoryEntry {
     pub follow_anchor_candidate: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_hint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
 }
 
 /// Tab-group topology summary entry included with topology packets.
@@ -535,6 +568,8 @@ pub struct PaneSurfaceDescriptor {
     pub title_hint: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub surface_binding_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub follow_anchor_candidate: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1505,6 +1505,7 @@ mod tests {
             surface_class: SurfaceClass::TerminalView,
             plan_kind: RestoreProposalPlanKind::BlockedSideEffectful,
             title_hint: Some("deploy".to_string()),
+            restore_metadata: None,
             note: "side-effectful surface; never auto-rerun".to_string(),
         };
 

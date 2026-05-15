@@ -483,6 +483,7 @@ mod tests {
                     dirty_badge_visible: true,
                     surface_role: SurfaceRole::Editor,
                     surface_class: SurfaceClass::TextEditor,
+                    restore_metadata: None,
                 }],
                 active_tab_id: Some("tab-edit-router".to_string()),
             }],

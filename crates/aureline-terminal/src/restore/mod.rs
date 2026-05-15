@@ -27,7 +27,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::pty_host::{HostClass, PtySession, PtySessionId, SessionLifecycleState};
+use crate::pty_host::{
+    HostClass, PtySession, PtySessionId, SessionLifecycleState, TerminalSessionRestoreMetadata,
+};
 use crate::scrollback::{TerminalScrollback, TerminalScrollbackSnapshot};
 
 /// Stable record-kind tag carried in serialized restored-terminal records.
@@ -189,6 +191,11 @@ pub struct RestoredTerminalRecord {
     pub display_title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd_hint: Option<String>,
+    /// Restore metadata copied from the prior session header. The record keeps
+    /// working-directory, shell, environment-scope, and command-class hints
+    /// without storing command history or environment bodies.
+    #[serde(default)]
+    pub restore_metadata: TerminalSessionRestoreMetadata,
     pub execution_context_ref: String,
     pub kind: RestoredTerminalKind,
     pub kind_token: String,
@@ -312,6 +319,7 @@ fn build_record(
         boundary_cue_token: header.boundary_cue_token.clone(),
         display_title: header.display_title.clone(),
         cwd_hint: header.cwd_hint.clone(),
+        restore_metadata: header.restore_metadata.clone(),
         execution_context_ref: header.execution_context_ref.clone(),
         kind,
         kind_token: kind.as_str().to_owned(),
@@ -347,7 +355,10 @@ const fn degraded_lifecycle_token(state: SessionLifecycleState) -> &'static str 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pty_host::{OpenSessionRequest, PtyHost};
+    use crate::pty_host::{
+        OpenSessionRequest, PtyHost, TerminalEnvironmentScope, TerminalLastCommandClass,
+        TerminalShellFamily,
+    };
     use crate::scrollback::{ScrollbackBound, ScrollbackRedactionClass, TerminalScrollback};
 
     use aureline_workspace::TrustState;
@@ -374,6 +385,8 @@ mod tests {
         let id = open_local(&mut host);
         host.mark_starting(&id, "mono:1").unwrap();
         host.mark_active(&id, "mono:2").unwrap();
+        host.update_last_command_class(&id, TerminalLastCommandClass::Build, "mono:2.5")
+            .unwrap();
         host.close(&id, "mono:3", Some("user_closed")).unwrap();
 
         let mut scrollback = TerminalScrollback::new(id.clone());
@@ -412,6 +425,25 @@ mod tests {
         let transcript = restored.transcript.as_ref().expect("transcript present");
         assert_eq!(transcript.retained_line_count(), 2);
         assert_eq!(restored.prior_lifecycle_state_token, "session_closed");
+        assert_eq!(
+            restored.restore_metadata.working_directory.as_deref(),
+            Some("~/code/aureline")
+        );
+        assert_eq!(
+            restored.restore_metadata.environment_scope,
+            TerminalEnvironmentScope::Workspace
+        );
+        assert_eq!(
+            restored.restore_metadata.shell_family,
+            TerminalShellFamily::Zsh
+        );
+        assert_eq!(restored.restore_metadata.shell_identity, "zsh");
+        assert_eq!(
+            restored.restore_metadata.last_command_class,
+            TerminalLastCommandClass::Build
+        );
+        assert!(!restored.restore_metadata.raw_command_body_present);
+        assert!(!restored.restore_metadata.raw_environment_body_present);
     }
 
     #[test]

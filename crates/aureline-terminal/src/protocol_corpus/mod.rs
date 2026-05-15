@@ -33,6 +33,435 @@ pub const TERMINAL_ALPHA_REQUIRED_ESCAPE_SEQUENCE_TOKENS: &[&str] = &[
     "osc133_command_boundary",
 ];
 
+/// Stable record-kind tag for raw protocol sequence fixtures.
+pub const TERMINAL_PROTOCOL_SEQUENCE_FIXTURE_RECORD_KIND: &str =
+    "terminal_protocol_sequence_fixture";
+
+/// Raw protocol fixture family represented by one canonical byte sequence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalProtocolSequenceFixtureKind {
+    /// DECSET/DECRST bracketed-paste mode sequences.
+    BracketedPaste,
+    /// OSC foreground/background color query sequences.
+    OscColorQuery,
+    /// SGR mouse reporting sequences.
+    MouseEvent,
+    /// Alternate-screen buffer enter/leave sequences.
+    AlternateScreenToggle,
+}
+
+impl TerminalProtocolSequenceFixtureKind {
+    /// Stable string token used in fixtures and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::BracketedPaste => "bracketed_paste",
+            Self::OscColorQuery => "osc_color_query",
+            Self::MouseEvent => "mouse_event",
+            Self::AlternateScreenToggle => "alternate_screen_toggle",
+        }
+    }
+}
+
+/// OSC color register targeted by a color query.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalOscColorRegister {
+    /// OSC 10 foreground-text color.
+    Foreground,
+    /// OSC 11 background color.
+    Background,
+}
+
+impl TerminalOscColorRegister {
+    /// Stable string token used in normalized protocol events.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Foreground => "foreground",
+            Self::Background => "background",
+        }
+    }
+}
+
+/// Mouse protocol used by a normalized mouse event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalMouseProtocol {
+    /// SGR extended mouse reporting (`CSI < ... M/m`).
+    Sgr,
+}
+
+impl TerminalMouseProtocol {
+    /// Stable string token used in normalized protocol events.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Sgr => "sgr",
+        }
+    }
+}
+
+/// Button component of a normalized mouse event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalMouseButton {
+    /// Primary pointer button.
+    Left,
+    /// Middle pointer button.
+    Middle,
+    /// Secondary pointer button.
+    Right,
+    /// Wheel-up report.
+    WheelUp,
+    /// Wheel-down report.
+    WheelDown,
+}
+
+impl TerminalMouseButton {
+    /// Stable string token used in normalized protocol events.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Left => "left",
+            Self::Middle => "middle",
+            Self::Right => "right",
+            Self::WheelUp => "wheel_up",
+            Self::WheelDown => "wheel_down",
+        }
+    }
+}
+
+/// Action component of a normalized mouse event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalMouseEventKind {
+    /// Pointer button press or wheel event.
+    Press,
+    /// Pointer button release.
+    Release,
+}
+
+impl TerminalMouseEventKind {
+    /// Stable string token used in normalized protocol events.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Press => "press",
+            Self::Release => "release",
+        }
+    }
+}
+
+/// Modifier state carried by a normalized mouse event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct TerminalMouseModifiers {
+    /// True when Shift was held.
+    pub shift: bool,
+    /// True when Alt/Meta was held.
+    pub alt: bool,
+    /// True when Control was held.
+    pub control: bool,
+}
+
+/// Normalized event produced from one raw protocol sequence fixture.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "normalized_event_kind", rename_all = "snake_case")]
+pub enum TerminalNormalizedProtocolEvent {
+    /// Bracketed-paste mode changed.
+    BracketedPasteMode {
+        /// True when bracketed paste is enabled.
+        enabled: bool,
+    },
+    /// Terminal issued an OSC color query.
+    OscColorQuery {
+        /// Color register queried.
+        register: TerminalOscColorRegister,
+    },
+    /// Terminal reported a pointer event.
+    MouseEvent {
+        /// Mouse protocol family.
+        protocol: TerminalMouseProtocol,
+        /// Button or wheel component.
+        button: TerminalMouseButton,
+        /// Press or release.
+        event_kind: TerminalMouseEventKind,
+        /// One-based terminal column from the protocol sequence.
+        column: u16,
+        /// One-based terminal row from the protocol sequence.
+        row: u16,
+        /// Modifier state reported by the sequence.
+        modifiers: TerminalMouseModifiers,
+    },
+    /// Alternate-screen mode changed.
+    AlternateScreenMode {
+        /// True when the alternate screen is entered.
+        enabled: bool,
+    },
+}
+
+/// One canonical raw protocol sequence and its normalized event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TerminalProtocolSequenceFixture {
+    /// Stable fixture id.
+    pub fixture_id: String,
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Fixture family.
+    pub fixture_kind: TerminalProtocolSequenceFixtureKind,
+    /// Stable token for [`Self::fixture_kind`].
+    pub fixture_kind_token: String,
+    /// Canonical raw protocol bytes. These are protocol bytes only, never
+    /// captured user terminal content.
+    pub canonical_raw_sequence: Vec<u8>,
+    /// Expected event after normalization.
+    pub expected_event: TerminalNormalizedProtocolEvent,
+    /// True when the fixture contains protocol bytes only.
+    pub protocol_bytes_only: bool,
+}
+
+impl TerminalProtocolSequenceFixture {
+    fn new(
+        fixture_id: &str,
+        fixture_kind: TerminalProtocolSequenceFixtureKind,
+        canonical_raw_sequence: &[u8],
+        expected_event: TerminalNormalizedProtocolEvent,
+    ) -> Self {
+        Self {
+            fixture_id: fixture_id.to_owned(),
+            record_kind: TERMINAL_PROTOCOL_SEQUENCE_FIXTURE_RECORD_KIND.to_owned(),
+            fixture_kind,
+            fixture_kind_token: fixture_kind.as_str().to_owned(),
+            canonical_raw_sequence: canonical_raw_sequence.to_vec(),
+            expected_event,
+            protocol_bytes_only: true,
+        }
+    }
+}
+
+/// Returns the canonical raw protocol fixture set for alpha terminal claims.
+pub fn terminal_protocol_sequence_fixtures() -> Vec<TerminalProtocolSequenceFixture> {
+    vec![
+        TerminalProtocolSequenceFixture::new(
+            "bracketed_paste_enable",
+            TerminalProtocolSequenceFixtureKind::BracketedPaste,
+            b"\x1b[?2004h",
+            TerminalNormalizedProtocolEvent::BracketedPasteMode { enabled: true },
+        ),
+        TerminalProtocolSequenceFixture::new(
+            "bracketed_paste_disable",
+            TerminalProtocolSequenceFixtureKind::BracketedPaste,
+            b"\x1b[?2004l",
+            TerminalNormalizedProtocolEvent::BracketedPasteMode { enabled: false },
+        ),
+        TerminalProtocolSequenceFixture::new(
+            "osc_color_query_foreground",
+            TerminalProtocolSequenceFixtureKind::OscColorQuery,
+            b"\x1b]10;?\x07",
+            TerminalNormalizedProtocolEvent::OscColorQuery {
+                register: TerminalOscColorRegister::Foreground,
+            },
+        ),
+        TerminalProtocolSequenceFixture::new(
+            "osc_color_query_background",
+            TerminalProtocolSequenceFixtureKind::OscColorQuery,
+            b"\x1b]11;?\x07",
+            TerminalNormalizedProtocolEvent::OscColorQuery {
+                register: TerminalOscColorRegister::Background,
+            },
+        ),
+        TerminalProtocolSequenceFixture::new(
+            "mouse_sgr_left_press",
+            TerminalProtocolSequenceFixtureKind::MouseEvent,
+            b"\x1b[<0;12;8M",
+            TerminalNormalizedProtocolEvent::MouseEvent {
+                protocol: TerminalMouseProtocol::Sgr,
+                button: TerminalMouseButton::Left,
+                event_kind: TerminalMouseEventKind::Press,
+                column: 12,
+                row: 8,
+                modifiers: TerminalMouseModifiers::default(),
+            },
+        ),
+        TerminalProtocolSequenceFixture::new(
+            "mouse_sgr_left_release",
+            TerminalProtocolSequenceFixtureKind::MouseEvent,
+            b"\x1b[<0;12;8m",
+            TerminalNormalizedProtocolEvent::MouseEvent {
+                protocol: TerminalMouseProtocol::Sgr,
+                button: TerminalMouseButton::Left,
+                event_kind: TerminalMouseEventKind::Release,
+                column: 12,
+                row: 8,
+                modifiers: TerminalMouseModifiers::default(),
+            },
+        ),
+        TerminalProtocolSequenceFixture::new(
+            "alternate_screen_enter",
+            TerminalProtocolSequenceFixtureKind::AlternateScreenToggle,
+            b"\x1b[?1049h",
+            TerminalNormalizedProtocolEvent::AlternateScreenMode { enabled: true },
+        ),
+        TerminalProtocolSequenceFixture::new(
+            "alternate_screen_leave",
+            TerminalProtocolSequenceFixtureKind::AlternateScreenToggle,
+            b"\x1b[?1049l",
+            TerminalNormalizedProtocolEvent::AlternateScreenMode { enabled: false },
+        ),
+    ]
+}
+
+/// Normalizes one raw protocol sequence into its typed event.
+pub fn normalize_terminal_protocol_sequence(
+    raw_sequence: &[u8],
+) -> Option<TerminalNormalizedProtocolEvent> {
+    match raw_sequence {
+        b"\x1b[?2004h" => {
+            Some(TerminalNormalizedProtocolEvent::BracketedPasteMode { enabled: true })
+        }
+        b"\x1b[?2004l" => {
+            Some(TerminalNormalizedProtocolEvent::BracketedPasteMode { enabled: false })
+        }
+        b"\x1b[?1049h" => {
+            Some(TerminalNormalizedProtocolEvent::AlternateScreenMode { enabled: true })
+        }
+        b"\x1b[?1049l" => {
+            Some(TerminalNormalizedProtocolEvent::AlternateScreenMode { enabled: false })
+        }
+        _ => normalize_osc_color_query(raw_sequence).or_else(|| normalize_sgr_mouse(raw_sequence)),
+    }
+}
+
+/// Emits the canonical raw sequence for one normalized fixture event.
+pub fn canonical_sequence_for_normalized_event(
+    event: &TerminalNormalizedProtocolEvent,
+) -> Option<Vec<u8>> {
+    match event {
+        TerminalNormalizedProtocolEvent::BracketedPasteMode { enabled } => Some(
+            if *enabled {
+                b"\x1b[?2004h"
+            } else {
+                b"\x1b[?2004l"
+            }
+            .to_vec(),
+        ),
+        TerminalNormalizedProtocolEvent::OscColorQuery { register } => Some(match register {
+            TerminalOscColorRegister::Foreground => b"\x1b]10;?\x07".to_vec(),
+            TerminalOscColorRegister::Background => b"\x1b]11;?\x07".to_vec(),
+        }),
+        TerminalNormalizedProtocolEvent::MouseEvent {
+            protocol: TerminalMouseProtocol::Sgr,
+            button,
+            event_kind,
+            column,
+            row,
+            modifiers,
+        } => encode_sgr_mouse(*button, *event_kind, *column, *row, *modifiers),
+        TerminalNormalizedProtocolEvent::AlternateScreenMode { enabled } => Some(
+            if *enabled {
+                b"\x1b[?1049h"
+            } else {
+                b"\x1b[?1049l"
+            }
+            .to_vec(),
+        ),
+    }
+}
+
+fn normalize_osc_color_query(raw_sequence: &[u8]) -> Option<TerminalNormalizedProtocolEvent> {
+    let body = raw_sequence
+        .strip_prefix(b"\x1b]")?
+        .strip_suffix(b"\x07")
+        .or_else(|| raw_sequence.strip_prefix(b"\x1b]")?.strip_suffix(b"\x1b\\"))?;
+    match body {
+        b"10;?" => Some(TerminalNormalizedProtocolEvent::OscColorQuery {
+            register: TerminalOscColorRegister::Foreground,
+        }),
+        b"11;?" => Some(TerminalNormalizedProtocolEvent::OscColorQuery {
+            register: TerminalOscColorRegister::Background,
+        }),
+        _ => None,
+    }
+}
+
+fn normalize_sgr_mouse(raw_sequence: &[u8]) -> Option<TerminalNormalizedProtocolEvent> {
+    let final_byte = *raw_sequence.last()?;
+    let event_kind = match final_byte {
+        b'M' => TerminalMouseEventKind::Press,
+        b'm' => TerminalMouseEventKind::Release,
+        _ => return None,
+    };
+    let body = raw_sequence
+        .strip_prefix(b"\x1b[<")?
+        .strip_suffix(&[final_byte])?;
+    let body = std::str::from_utf8(body).ok()?;
+    let mut parts = body.split(';');
+    let button_code = parts.next()?.parse::<u16>().ok()?;
+    let column = parts.next()?.parse::<u16>().ok()?;
+    let row = parts.next()?.parse::<u16>().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    let (button, modifiers) = decode_sgr_button_code(button_code)?;
+    Some(TerminalNormalizedProtocolEvent::MouseEvent {
+        protocol: TerminalMouseProtocol::Sgr,
+        button,
+        event_kind,
+        column,
+        row,
+        modifiers,
+    })
+}
+
+fn decode_sgr_button_code(
+    button_code: u16,
+) -> Option<(TerminalMouseButton, TerminalMouseModifiers)> {
+    let modifiers = TerminalMouseModifiers {
+        shift: button_code & 4 != 0,
+        alt: button_code & 8 != 0,
+        control: button_code & 16 != 0,
+    };
+    let base = button_code & !(4 | 8 | 16);
+    let button = match base {
+        0 => TerminalMouseButton::Left,
+        1 => TerminalMouseButton::Middle,
+        2 => TerminalMouseButton::Right,
+        64 => TerminalMouseButton::WheelUp,
+        65 => TerminalMouseButton::WheelDown,
+        _ => return None,
+    };
+    Some((button, modifiers))
+}
+
+fn encode_sgr_mouse(
+    button: TerminalMouseButton,
+    event_kind: TerminalMouseEventKind,
+    column: u16,
+    row: u16,
+    modifiers: TerminalMouseModifiers,
+) -> Option<Vec<u8>> {
+    if column == 0 || row == 0 {
+        return None;
+    }
+    let mut button_code = match button {
+        TerminalMouseButton::Left => 0,
+        TerminalMouseButton::Middle => 1,
+        TerminalMouseButton::Right => 2,
+        TerminalMouseButton::WheelUp => 64,
+        TerminalMouseButton::WheelDown => 65,
+    };
+    if modifiers.shift {
+        button_code += 4;
+    }
+    if modifiers.alt {
+        button_code += 8;
+    }
+    if modifiers.control {
+        button_code += 16;
+    }
+    let final_byte = match event_kind {
+        TerminalMouseEventKind::Press => 'M',
+        TerminalMouseEventKind::Release => 'm',
+    };
+    Some(format!("\x1b[<{button_code};{column};{row}{final_byte}").into_bytes())
+}
+
 /// Corpus lane represented by one fixture case.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -494,6 +923,42 @@ pub fn restore_conformance_from_header(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn protocol_sequence_fixtures_round_trip_to_normalized_events() {
+        let fixtures = terminal_protocol_sequence_fixtures();
+        assert_eq!(fixtures.len(), 8);
+
+        let mut kinds = Vec::new();
+        for fixture in &fixtures {
+            assert_eq!(
+                fixture.record_kind,
+                TERMINAL_PROTOCOL_SEQUENCE_FIXTURE_RECORD_KIND
+            );
+            assert!(fixture.protocol_bytes_only);
+            assert_eq!(fixture.fixture_kind_token, fixture.fixture_kind.as_str());
+
+            let normalized = normalize_terminal_protocol_sequence(&fixture.canonical_raw_sequence)
+                .unwrap_or_else(|| panic!("fixture {} must normalize", fixture.fixture_id));
+            assert_eq!(normalized, fixture.expected_event);
+
+            let emitted = canonical_sequence_for_normalized_event(&normalized)
+                .unwrap_or_else(|| panic!("fixture {} must emit", fixture.fixture_id));
+            assert_eq!(emitted, fixture.canonical_raw_sequence);
+
+            let json = serde_json::to_string(fixture).expect("serialize fixture");
+            let round_trip: TerminalProtocolSequenceFixture =
+                serde_json::from_str(&json).expect("deserialize fixture");
+            assert_eq!(round_trip, *fixture);
+
+            kinds.push(fixture.fixture_kind);
+        }
+
+        assert!(kinds.contains(&TerminalProtocolSequenceFixtureKind::BracketedPaste));
+        assert!(kinds.contains(&TerminalProtocolSequenceFixtureKind::OscColorQuery));
+        assert!(kinds.contains(&TerminalProtocolSequenceFixtureKind::MouseEvent));
+        assert!(kinds.contains(&TerminalProtocolSequenceFixtureKind::AlternateScreenToggle));
+    }
 
     #[test]
     fn high_risk_paste_exposes_boundary_policy_line_count_and_no_submit() {

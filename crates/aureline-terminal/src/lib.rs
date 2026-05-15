@@ -33,21 +33,27 @@ pub use headers::{
 };
 pub use portable_pty::PtySize;
 pub use protocol_corpus::{
-    evaluate_clipboard_write, evaluate_escape_control, evaluate_paste_review,
-    restore_conformance_from_header, TerminalClipboardSuppressionClass,
+    canonical_sequence_for_normalized_event, evaluate_clipboard_write, evaluate_escape_control,
+    evaluate_paste_review, normalize_terminal_protocol_sequence, restore_conformance_from_header,
+    terminal_protocol_sequence_fixtures, TerminalClipboardSuppressionClass,
     TerminalClipboardWriteInput, TerminalClipboardWriteKind, TerminalClipboardWriteReport,
     TerminalEscapeControlInput, TerminalEscapeControlReport, TerminalGateDisposition,
-    TerminalPastePolicyResult, TerminalPasteReviewInput, TerminalPasteReviewReport,
-    TerminalPasteSubmitBehavior, TerminalProtocolCorpusCaseKind, TerminalRestoreConformanceReport,
+    TerminalMouseButton, TerminalMouseEventKind, TerminalMouseModifiers, TerminalMouseProtocol,
+    TerminalNormalizedProtocolEvent, TerminalOscColorRegister, TerminalPastePolicyResult,
+    TerminalPasteReviewInput, TerminalPasteReviewReport, TerminalPasteSubmitBehavior,
+    TerminalProtocolCorpusCaseKind, TerminalProtocolSequenceFixture,
+    TerminalProtocolSequenceFixtureKind, TerminalRestoreConformanceReport,
     TerminalRestoreConformanceState, TERMINAL_ALPHA_REQUIRED_ESCAPE_SEQUENCE_TOKENS,
     TERMINAL_PROTOCOL_CORPUS_CASE_KIND, TERMINAL_PROTOCOL_CORPUS_FIXTURE_SET_ID,
     TERMINAL_PROTOCOL_CORPUS_MANIFEST_KIND, TERMINAL_PROTOCOL_CORPUS_SCHEMA_VERSION,
+    TERMINAL_PROTOCOL_SEQUENCE_FIXTURE_RECORD_KIND,
 };
 pub use pty_host::{
     HostClass, OpenSessionRequest, PtyCommand, PtyHost, PtyHostError, PtyLaunchFailureReason,
     PtyOutputDrain, PtySession, PtySessionId, SessionHeader, SessionLifecycleState,
-    SessionLifecycleTransition, TerminalTrustState, DEFAULT_PTY_OUTPUT_RING_CAPACITY,
-    DEFAULT_PTY_SIZE,
+    SessionLifecycleTransition, TerminalEnvironmentScope, TerminalLastCommandClass,
+    TerminalSessionRestoreMetadata, TerminalShellFamily, TerminalTrustState,
+    DEFAULT_PTY_OUTPUT_RING_CAPACITY, DEFAULT_PTY_SIZE,
 };
 pub use restore::{
     decline_session_restore, restore_session_as_transcript, RestoreDeclinedReason,

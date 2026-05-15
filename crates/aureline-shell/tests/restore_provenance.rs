@@ -58,6 +58,7 @@ fn proposal_with_terminal() -> RestoreProposal {
                 surface_class: SurfaceClass::TextEditor,
                 plan_kind: RestoreProposalPlanKind::LiveSkeleton,
                 title_hint: Some("lib.rs".to_string()),
+                restore_metadata: None,
                 note: "skeleton restored".to_string(),
             },
             RestoreProposalPanePlan {
@@ -66,6 +67,7 @@ fn proposal_with_terminal() -> RestoreProposal {
                 surface_class: SurfaceClass::TerminalView,
                 plan_kind: RestoreProposalPlanKind::BlockedSideEffectful,
                 title_hint: Some("cargo test".to_string()),
+                restore_metadata: None,
                 note: "side-effectful surface; never auto-rerun".to_string(),
             },
         ],

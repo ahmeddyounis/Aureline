@@ -32,7 +32,7 @@ use crate::crash_journal::{
 
 use super::records::{
     DowngradeTriggerClass, RestoreClass, StablePaneInventoryEntry, SurfaceClass, SurfaceRole,
-    WindowTopologySnapshotRecord, WorkspaceAuthorityCheckpointRecord,
+    TerminalPaneRestoreMetadata, WindowTopologySnapshotRecord, WorkspaceAuthorityCheckpointRecord,
 };
 use super::store::{SessionRestoreError, SessionRestoreStore};
 
@@ -88,6 +88,8 @@ pub struct RestoreProposalPanePlan {
     pub plan_kind: RestoreProposalPlanKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_hint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
     pub note: String,
 }
 
@@ -165,6 +167,8 @@ pub struct RestorePaneOutcome {
     pub execution_kind: RestorePaneExecutionKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title_hint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
     pub note: String,
 }
 
@@ -589,6 +593,7 @@ fn execute_pane_plan(
         surface_class: plan.surface_class,
         execution_kind,
         title_hint: plan.title_hint,
+        restore_metadata: plan.restore_metadata,
         note,
     }
 }
@@ -660,6 +665,7 @@ fn materialize_pane_plan(pane: &StablePaneInventoryEntry) -> RestoreProposalPane
         surface_class: pane.surface_class,
         plan_kind,
         title_hint: pane.title_hint.clone(),
+        restore_metadata: pane.restore_metadata.clone(),
         note,
     }
 }
@@ -794,6 +800,7 @@ mod tests {
             dirty_badge_visible: true,
             surface_role: SurfaceRole::Editor,
             surface_class: SurfaceClass::TextEditor,
+            restore_metadata: None,
         }];
         if with_terminal {
             tabs.push(TabItemCaptureInput {
@@ -803,6 +810,7 @@ mod tests {
                 dirty_badge_visible: false,
                 surface_role: SurfaceRole::Terminal,
                 surface_class: SurfaceClass::TerminalView,
+                restore_metadata: None,
             });
         }
         let input = SessionRestoreCaptureInput {

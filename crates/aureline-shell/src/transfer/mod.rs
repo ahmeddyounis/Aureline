@@ -664,6 +664,18 @@ pub struct ReopenRecoveryDisclosure {
     /// Scroll anchor ref when available.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub restored_scroll_anchor_ref: Option<String>,
+    /// Last working-directory hint restored with a terminal row, when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restored_working_directory: Option<String>,
+    /// Shell identity restored with a terminal row, when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restored_shell_identity: Option<String>,
+    /// Environment-scope token restored with a terminal row, when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restored_environment_scope_token: Option<String>,
+    /// Last command class token restored with a terminal row, when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restored_last_command_class_token: Option<String>,
     /// True only when live authority truly survived.
     pub restored_live_authority: bool,
     /// True when rerun/replay is forbidden.
@@ -697,6 +709,10 @@ impl ReopenRecoveryDisclosure {
             restored_target_identity_ref: restored_target_identity_ref.into(),
             restored_selection_ref,
             restored_scroll_anchor_ref,
+            restored_working_directory: None,
+            restored_shell_identity: None,
+            restored_environment_scope_token: None,
+            restored_last_command_class_token: None,
             restored_live_authority,
             auto_rerun_forbidden,
             continuity_label: continuity_label.into(),
@@ -1074,7 +1090,7 @@ impl TransferActionRecord {
                 snapshot.retained_line_count()
             )
         });
-        let reopen = ReopenRecoveryDisclosure::new(
+        let mut reopen = ReopenRecoveryDisclosure::new(
             ReopenRecoverySurface::Terminal,
             source_class,
             restored.session_id.to_string(),
@@ -1086,6 +1102,12 @@ impl TransferActionRecord {
             restored.auto_rerun_forbidden,
             "terminal transcript restored; command not rerun",
         );
+        reopen.restored_working_directory = restored.restore_metadata.working_directory.clone();
+        reopen.restored_shell_identity = Some(restored.restore_metadata.shell_identity.clone());
+        reopen.restored_environment_scope_token =
+            Some(restored.restore_metadata.environment_scope_token.clone());
+        reopen.restored_last_command_class_token =
+            Some(restored.restore_metadata.last_command_class_token.clone());
         let boundary_class = boundary_for_host(restored.host_class);
 
         Self::base(

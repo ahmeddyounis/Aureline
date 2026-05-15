@@ -13,8 +13,8 @@ use aureline_shell::transfer::{
 };
 use aureline_terminal::{
     restore_session_as_transcript, HostClass, OpenSessionRequest, PtyHost,
-    ScrollbackRedactionClass, TerminalPastePolicyResult, TerminalPasteReviewInput,
-    TerminalPasteSubmitBehavior, TerminalScrollback, TerminalTrustState,
+    ScrollbackRedactionClass, TerminalLastCommandClass, TerminalPastePolicyResult,
+    TerminalPasteReviewInput, TerminalPasteSubmitBehavior, TerminalScrollback, TerminalTrustState,
 };
 
 const MINTED_AT: &str = "2026-05-14T20:10:00Z";
@@ -137,6 +137,32 @@ fn first_consumers_build_minimum_slice_packet() {
     assert_eq!(counts.get("drop"), Some(&1));
     assert_eq!(counts.get("reopen"), Some(&1));
     assert_eq!(counts.get("recover"), Some(&1));
+
+    let recover = packet
+        .actions
+        .iter()
+        .find(|action| action.action_id == "transfer:recover:terminal")
+        .expect("terminal recover action");
+    let reopen = recover
+        .reopen_recovery
+        .as_ref()
+        .expect("terminal recover carries reopen/recovery details");
+    assert_eq!(
+        reopen.restored_working_directory.as_deref(),
+        Some("/srv/app")
+    );
+    assert_eq!(
+        reopen.restored_shell_identity.as_deref(),
+        Some("prod-shell")
+    );
+    assert_eq!(
+        reopen.restored_environment_scope_token.as_deref(),
+        Some("remote_session")
+    );
+    assert_eq!(
+        reopen.restored_last_command_class_token.as_deref(),
+        Some("build")
+    );
 }
 
 #[test]
@@ -271,6 +297,8 @@ fn restored_terminal_record() -> aureline_terminal::RestoredTerminalRecord {
         trust_state: TerminalTrustState::Trusted,
         observed_at: "mono:1",
     });
+    host.update_last_command_class(&id, TerminalLastCommandClass::Build, "mono:1.5")
+        .expect("last command class updates");
     host.mark_lost_transport(&id, "mono:2", Some("network_drop"))
         .expect("transport drop");
     let mut scrollback = TerminalScrollback::new(id.clone());

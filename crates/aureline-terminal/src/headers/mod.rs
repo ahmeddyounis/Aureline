@@ -8,7 +8,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::pty_host::{HostClass, PtySession, PtySessionId, SessionLifecycleState};
+use crate::pty_host::{
+    HostClass, PtySession, PtySessionId, SessionLifecycleState, TerminalSessionRestoreMetadata,
+};
 use crate::restore::{
     RestoredTerminalKind, RestoredTerminalRecord, TERMINAL_OPEN_FRESH_SESSION_COMMAND_ID,
 };
@@ -226,6 +228,11 @@ pub struct TerminalHeaderRecord {
     pub host_class: HostClass,
     pub display_title: String,
     pub execution_context_ref: String,
+    /// Restore metadata projected from the terminal session or restored row.
+    /// This is evidence-only and never carries raw command or environment
+    /// bodies.
+    #[serde(default)]
+    pub restore_metadata: TerminalSessionRestoreMetadata,
     pub target_chip: TerminalHeaderChip,
     pub cwd_chip: TerminalHeaderChip,
     pub runtime_chip: TerminalHeaderChip,
@@ -282,6 +289,7 @@ impl TerminalHeaderRecord {
             host_class: header.host_class,
             display_title: header.display_title.clone(),
             execution_context_ref: source_ref.clone(),
+            restore_metadata: header.restore_metadata.clone(),
             target_chip,
             cwd_chip: cwd,
             runtime_chip: runtime_missing_chip(&source_ref),
@@ -347,6 +355,7 @@ impl TerminalHeaderRecord {
             host_class: record.host_class,
             display_title: record.display_title.clone(),
             execution_context_ref: source_ref.clone(),
+            restore_metadata: record.restore_metadata.clone(),
             target_chip,
             cwd_chip: cwd_chip(record.cwd_hint.as_deref(), &source_ref, true),
             runtime_chip: runtime_missing_chip(&source_ref),
@@ -516,7 +525,9 @@ const fn restore_display_value(state: TerminalHeaderRestoreState) -> &'static st
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pty_host::{OpenSessionRequest, PtyHost};
+    use crate::pty_host::{
+        OpenSessionRequest, PtyHost, TerminalEnvironmentScope, TerminalLastCommandClass,
+    };
     use crate::restore::{decline_session_restore, restore_session_as_transcript};
     use crate::scrollback::{ScrollbackRedactionClass, TerminalScrollback};
 
@@ -565,6 +576,14 @@ mod tests {
         );
         assert_eq!(header.restore_state, TerminalHeaderRestoreState::Live);
         assert_eq!(header.restore_chip.state, TerminalHeaderChipState::Current);
+        assert_eq!(
+            header.restore_metadata.working_directory.as_deref(),
+            Some("~/code/aureline")
+        );
+        assert_eq!(
+            header.restore_metadata.environment_scope,
+            TerminalEnvironmentScope::Workspace
+        );
         assert!(!header.fresh_session_required);
         assert!(header.open_fresh_session_command_id.is_none());
     }
@@ -595,6 +614,8 @@ mod tests {
     fn restored_transcript_header_is_inspect_only_not_rerun_or_reconnect() {
         let mut host = PtyHost::new();
         let id = open_local(&mut host);
+        host.update_last_command_class(&id, TerminalLastCommandClass::VersionControl, "mono:0.5")
+            .unwrap();
         host.close(&id, "mono:1", Some("user_closed")).unwrap();
 
         let mut scrollback = TerminalScrollback::new(id.clone());
@@ -618,6 +639,10 @@ mod tests {
         );
         assert!(header.auto_rerun_forbidden);
         assert!(header.fresh_session_required);
+        assert_eq!(
+            header.restore_metadata.last_command_class,
+            TerminalLastCommandClass::VersionControl
+        );
         assert_eq!(
             header.open_fresh_session_command_id.as_deref(),
             Some(TERMINAL_OPEN_FRESH_SESSION_COMMAND_ID)

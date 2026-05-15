@@ -12,8 +12,8 @@ use super::records::{
     MonitorAffinityStrength, PaneLeafNode, PaneNode, PaneSurfaceDescriptor, PaneTree,
     PaneTreeSchemaVersion, ProducerBuildStamp, RestoreClass, ScopeRefs, SnapshotReason,
     SplitOrientation, SurfaceClass, SurfaceRole, TabGroupInventoryEntry, TabRecord,
-    TopologyPacketSchemaVersion, TrustedRootRecord, WindowChromeState, WindowRole, WindowState,
-    WindowTopologySnapshotBodyRecord, WindowTopologySnapshotRecord,
+    TerminalPaneRestoreMetadata, TopologyPacketSchemaVersion, TrustedRootRecord, WindowChromeState,
+    WindowRole, WindowState, WindowTopologySnapshotBodyRecord, WindowTopologySnapshotRecord,
     WorkspaceAuthorityCheckpointRecord,
 };
 
@@ -88,6 +88,7 @@ pub struct TabItemCaptureInput {
     pub dirty_badge_visible: bool,
     pub surface_role: SurfaceRole,
     pub surface_class: SurfaceClass,
+    pub restore_metadata: Option<TerminalPaneRestoreMetadata>,
 }
 
 /// Capture input describing one tab group in a restored topology.
@@ -532,6 +533,7 @@ fn materialize_topology_from_capture(
                 presentation_spotlighted: None,
                 follow_anchor_candidate: None,
                 title_hint: tab.tab_label.clone(),
+                restore_metadata: tab.restore_metadata.clone(),
             });
 
             let surface = PaneSurfaceDescriptor {
@@ -542,6 +544,7 @@ fn materialize_topology_from_capture(
                 availability_state: AvailabilityState::Ready,
                 title_hint: tab.tab_label.clone(),
                 surface_binding_ref: None,
+                restore_metadata: tab.restore_metadata.clone(),
                 follow_anchor_candidate: None,
                 presentation_spotlighted: None,
                 placeholder_card: None,
@@ -630,6 +633,7 @@ fn materialize_topology_from_capture(
                             availability_state: AvailabilityState::Ready,
                             title_hint: tab.tab_label.clone(),
                             surface_binding_ref: None,
+                            restore_metadata: tab.restore_metadata.clone(),
                             follow_anchor_candidate: None,
                             presentation_spotlighted: None,
                             placeholder_card: None,

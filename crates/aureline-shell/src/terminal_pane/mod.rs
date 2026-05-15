@@ -33,7 +33,8 @@ use aureline_auth::{
 use aureline_runtime::ExecutionContext;
 use aureline_terminal::{
     HostClass, PtyHost, PtySession, PtySessionId, RestoredTerminalRecord, SessionLifecycleState,
-    TerminalHeaderRecord, TerminalRuntimeChipSource, TerminalTrustState,
+    TerminalHeaderRecord, TerminalRuntimeChipSource, TerminalSessionRestoreMetadata,
+    TerminalTrustState,
 };
 
 use crate::run_context::RunContextSummary;
@@ -65,6 +66,8 @@ pub struct TerminalPaneTabRecord {
     pub display_title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd_hint: Option<String>,
+    /// Restore metadata retained by the terminal-owned header.
+    pub restore_metadata: TerminalSessionRestoreMetadata,
     pub execution_context_ref: String,
     /// Shared execution-context summary joined by `execution_context_ref`
     /// when the caller has the canonical runtime record available.
@@ -99,6 +102,7 @@ impl TerminalPaneTabRecord {
             boundary_cue_visible: header.host_class.needs_boundary_cue(),
             display_title: header.display_title.clone(),
             cwd_hint: header.cwd_hint.clone(),
+            restore_metadata: header.restore_metadata.clone(),
             execution_context_ref: header.execution_context_ref.clone(),
             context_summary: None,
             trust_state: header.trust_state,

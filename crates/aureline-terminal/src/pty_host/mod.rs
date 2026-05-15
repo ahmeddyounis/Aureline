@@ -239,6 +239,258 @@ impl HostClass {
 /// callers can consume the typed enum without forking the trust vocabulary.
 pub type TerminalTrustState = TrustState;
 
+/// Declared shell family carried as restore metadata.
+///
+/// The value is evidence for restore and mismatch review only; it never grants
+/// shell authority and never causes a command to rerun.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalShellFamily {
+    /// Bash-compatible shell.
+    Bash,
+    /// Zsh-compatible shell.
+    Zsh,
+    /// Fish shell.
+    Fish,
+    /// PowerShell.
+    Powershell,
+    /// Windows command processor.
+    Cmd,
+    /// Shell family is unavailable or outside the frozen vocabulary.
+    Other,
+}
+
+impl TerminalShellFamily {
+    /// Stable string token used in restore metadata records.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Bash => "bash",
+            Self::Zsh => "zsh",
+            Self::Fish => "fish",
+            Self::Powershell => "powershell",
+            Self::Cmd => "cmd",
+            Self::Other => "other",
+        }
+    }
+
+    /// Infers a shell family from a display title or executable label.
+    pub fn from_shell_identity(shell_identity: &str) -> Self {
+        let normalized = shell_identity.to_ascii_lowercase();
+        if normalized.contains("bash") {
+            Self::Bash
+        } else if normalized.contains("zsh") {
+            Self::Zsh
+        } else if normalized.contains("fish") {
+            Self::Fish
+        } else if normalized.contains("powershell") || normalized.contains("pwsh") {
+            Self::Powershell
+        } else if normalized.contains("cmd") {
+            Self::Cmd
+        } else {
+            Self::Other
+        }
+    }
+}
+
+impl Default for TerminalShellFamily {
+    fn default() -> Self {
+        Self::Other
+    }
+}
+
+/// Environment scope retained for terminal restore.
+///
+/// This is a class label, not an environment dump. Raw environment variable
+/// bodies remain outside session headers and restore records.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalEnvironmentScope {
+    /// Session is scoped to the active workspace.
+    Workspace,
+    /// Session is scoped to a project or package inside the workspace.
+    Project,
+    /// Session is scoped to a virtual or managed toolchain environment.
+    VirtualEnvironment,
+    /// Session is scoped to a remote or managed runtime.
+    RemoteSession,
+    /// Session uses the user's system shell environment.
+    System,
+    /// Scope is unavailable and must be reviewed if it matters.
+    Unknown,
+}
+
+impl TerminalEnvironmentScope {
+    /// Stable string token used in restore metadata records.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Workspace => "workspace",
+            Self::Project => "project",
+            Self::VirtualEnvironment => "virtual_environment",
+            Self::RemoteSession => "remote_session",
+            Self::System => "system",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+impl Default for TerminalEnvironmentScope {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
+/// Class of the last observed command boundary.
+///
+/// The class is safe to restore because it does not contain the command line,
+/// arguments, or shell history.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalLastCommandClass {
+    /// No command boundary has been observed.
+    NoneObserved,
+    /// The last command was a shell builtin or simple shell navigation.
+    ShellBuiltin,
+    /// The last command interacted with version control.
+    VersionControl,
+    /// The last command was a build or compile step.
+    Build,
+    /// The last command was a test run.
+    Test,
+    /// The last command was a package-manager operation.
+    PackageManager,
+    /// The last command was long-running or watch-like.
+    LongRunning,
+    /// The command class is known only as "other".
+    Other,
+}
+
+impl TerminalLastCommandClass {
+    /// Stable string token used in restore metadata records.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NoneObserved => "none_observed",
+            Self::ShellBuiltin => "shell_builtin",
+            Self::VersionControl => "version_control",
+            Self::Build => "build",
+            Self::Test => "test",
+            Self::PackageManager => "package_manager",
+            Self::LongRunning => "long_running",
+            Self::Other => "other",
+        }
+    }
+}
+
+impl Default for TerminalLastCommandClass {
+    fn default() -> Self {
+        Self::NoneObserved
+    }
+}
+
+/// Metadata retained with a terminal session header for restore.
+///
+/// The record intentionally stores class labels and hints only: working
+/// directory, environment scope, shell identity, shell family, and last command
+/// class. It never stores raw command lines, shell history, environment
+/// variable bodies, PTY bytes, clipboard payloads, or secrets.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TerminalSessionRestoreMetadata {
+    /// Last known working directory hint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+    /// Environment-scope class.
+    pub environment_scope: TerminalEnvironmentScope,
+    /// Stable token for [`Self::environment_scope`].
+    pub environment_scope_token: String,
+    /// Declared or inferred shell family.
+    pub shell_family: TerminalShellFamily,
+    /// Stable token for [`Self::shell_family`].
+    pub shell_family_token: String,
+    /// Redaction-safe shell identity label, usually the profile or executable.
+    pub shell_identity: String,
+    /// Class of the last observed command.
+    pub last_command_class: TerminalLastCommandClass,
+    /// Stable token for [`Self::last_command_class`].
+    pub last_command_class_token: String,
+    /// True only if a raw command body was admitted. Conforming restore
+    /// metadata keeps this false.
+    pub raw_command_body_present: bool,
+    /// True only if raw environment bodies were admitted. Conforming restore
+    /// metadata keeps this false.
+    pub raw_environment_body_present: bool,
+}
+
+impl TerminalSessionRestoreMetadata {
+    /// Builds restore metadata from class labels and redaction-safe hints.
+    pub fn new(
+        working_directory: Option<String>,
+        environment_scope: TerminalEnvironmentScope,
+        shell_identity: impl Into<String>,
+        shell_family: TerminalShellFamily,
+        last_command_class: TerminalLastCommandClass,
+    ) -> Self {
+        let shell_identity = shell_identity.into();
+        Self {
+            working_directory,
+            environment_scope,
+            environment_scope_token: environment_scope.as_str().to_owned(),
+            shell_family,
+            shell_family_token: shell_family.as_str().to_owned(),
+            shell_identity: if shell_identity.is_empty() {
+                "shell".to_owned()
+            } else {
+                shell_identity
+            },
+            last_command_class,
+            last_command_class_token: last_command_class.as_str().to_owned(),
+            raw_command_body_present: false,
+            raw_environment_body_present: false,
+        }
+    }
+
+    /// Builds the initial metadata carried by a newly opened session.
+    pub fn from_open_request(request: &OpenSessionRequest<'_>) -> Self {
+        let environment_scope = if request.host_class.needs_boundary_cue() {
+            TerminalEnvironmentScope::RemoteSession
+        } else if request.cwd_hint.is_some() {
+            TerminalEnvironmentScope::Workspace
+        } else {
+            TerminalEnvironmentScope::System
+        };
+        let shell_family = TerminalShellFamily::from_shell_identity(request.display_title);
+        Self::new(
+            request.cwd_hint.map(str::to_owned),
+            environment_scope,
+            request.display_title,
+            shell_family,
+            TerminalLastCommandClass::NoneObserved,
+        )
+    }
+
+    /// Returns a copy with the last command class updated.
+    pub fn with_last_command_class(mut self, last_command_class: TerminalLastCommandClass) -> Self {
+        self.last_command_class = last_command_class;
+        self.last_command_class_token = last_command_class.as_str().to_owned();
+        self
+    }
+
+    /// Stable metadata ref suitable for recovery pane bindings.
+    pub fn recovery_metadata_ref(&self, session_id: &PtySessionId) -> String {
+        format!("terminal-restore-metadata:{session_id}")
+    }
+}
+
+impl Default for TerminalSessionRestoreMetadata {
+    fn default() -> Self {
+        Self::new(
+            None,
+            TerminalEnvironmentScope::Unknown,
+            "shell",
+            TerminalShellFamily::Other,
+            TerminalLastCommandClass::NoneObserved,
+        )
+    }
+}
+
 /// Canonical lifecycle state for a terminal session.
 ///
 /// The state machine is intentionally small. It models the contract that
@@ -326,6 +578,10 @@ pub struct SessionHeader {
     /// (e.g. baseline shell with no shell-integration signal).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd_hint: Option<String>,
+    /// Restore metadata retained with the header. This carries only class
+    /// labels and redaction-safe hints, never raw command or environment data.
+    #[serde(default)]
+    pub restore_metadata: TerminalSessionRestoreMetadata,
     /// Stable reference to the execution-context object the session runs
     /// under. Surfaces consume this verbatim to wire context inspectors.
     pub execution_context_ref: String,
@@ -814,6 +1070,7 @@ impl PtyHost {
             boundary_cue_token: request.host_class.boundary_cue_token().to_owned(),
             display_title: request.display_title.to_owned(),
             cwd_hint: request.cwd_hint.map(str::to_owned),
+            restore_metadata: TerminalSessionRestoreMetadata::from_open_request(&request),
             execution_context_ref: request.execution_context_ref.to_owned(),
             trust_state: request.trust_state,
             trust_state_token: request.trust_state.as_str().to_owned(),
@@ -944,6 +1201,45 @@ impl PtyHost {
             .get_mut(session_id)
             .ok_or_else(|| PtyHostError::UnknownSession(session_id.clone()))?;
         session.header.cwd_hint = cwd_hint.map(str::to_owned);
+        session.header.restore_metadata.working_directory = session.header.cwd_hint.clone();
+        session.header.last_observed_at = observed_at.to_owned();
+        Ok(())
+    }
+
+    /// Replace the restore metadata retained with the session header.
+    ///
+    /// Callers use this when shell integration observes a safer class label,
+    /// such as environment scope or last command class. Raw command lines and
+    /// raw environment bodies must remain outside the metadata record.
+    pub fn update_restore_metadata(
+        &mut self,
+        session_id: &PtySessionId,
+        restore_metadata: TerminalSessionRestoreMetadata,
+        observed_at: &str,
+    ) -> Result<(), PtyHostError> {
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| PtyHostError::UnknownSession(session_id.clone()))?;
+        session.header.restore_metadata = restore_metadata;
+        session.header.last_observed_at = observed_at.to_owned();
+        Ok(())
+    }
+
+    /// Update only the last observed command class retained for restore.
+    pub fn update_last_command_class(
+        &mut self,
+        session_id: &PtySessionId,
+        last_command_class: TerminalLastCommandClass,
+        observed_at: &str,
+    ) -> Result<(), PtyHostError> {
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| PtyHostError::UnknownSession(session_id.clone()))?;
+        session.header.restore_metadata.last_command_class = last_command_class;
+        session.header.restore_metadata.last_command_class_token =
+            last_command_class.as_str().to_owned();
         session.header.last_observed_at = observed_at.to_owned();
         Ok(())
     }
@@ -960,6 +1256,15 @@ impl PtyHost {
             .get_mut(session_id)
             .ok_or_else(|| PtyHostError::UnknownSession(session_id.clone()))?;
         session.header.display_title = display_title.to_owned();
+        session.header.restore_metadata.shell_identity = display_title.to_owned();
+        session.header.restore_metadata.shell_family =
+            TerminalShellFamily::from_shell_identity(display_title);
+        session.header.restore_metadata.shell_family_token = session
+            .header
+            .restore_metadata
+            .shell_family
+            .as_str()
+            .to_owned();
         session.header.last_observed_at = observed_at.to_owned();
         Ok(())
     }
@@ -1376,6 +1681,25 @@ mod tests {
         assert_eq!(header.display_title, "zsh");
         assert_eq!(header.cwd_hint.as_deref(), Some("~/code/aureline"));
         assert_eq!(
+            header.restore_metadata.working_directory.as_deref(),
+            Some("~/code/aureline")
+        );
+        assert_eq!(
+            header.restore_metadata.environment_scope,
+            TerminalEnvironmentScope::Workspace
+        );
+        assert_eq!(
+            header.restore_metadata.shell_family,
+            TerminalShellFamily::Zsh
+        );
+        assert_eq!(header.restore_metadata.shell_identity, "zsh");
+        assert_eq!(
+            header.restore_metadata.last_command_class,
+            TerminalLastCommandClass::NoneObserved
+        );
+        assert!(!header.restore_metadata.raw_command_body_present);
+        assert!(!header.restore_metadata.raw_environment_body_present);
+        assert_eq!(
             header.execution_context_ref,
             "execution_context.local_desktop.workspace_root"
         );
@@ -1480,6 +1804,8 @@ mod tests {
         host.mark_active(&id, "mono:2").unwrap();
         host.update_cwd_hint(&id, Some("~/code/aureline/crates"), "mono:3")
             .unwrap();
+        host.update_last_command_class(&id, TerminalLastCommandClass::Build, "mono:3.5")
+            .unwrap();
         let before_loss = host.session(&id).unwrap().header().clone();
         host.mark_lost_transport(&id, "mono:4", Some("network_drop"))
             .unwrap();
@@ -1499,6 +1825,18 @@ mod tests {
         assert_eq!(
             session.header().boundary_cue_token,
             before_loss.boundary_cue_token
+        );
+        assert_eq!(
+            session
+                .header()
+                .restore_metadata
+                .working_directory
+                .as_deref(),
+            Some("~/code/aureline/crates")
+        );
+        assert_eq!(
+            session.header().restore_metadata.last_command_class,
+            TerminalLastCommandClass::Build
         );
         assert_eq!(
             session.header().cwd_hint.as_deref(),
