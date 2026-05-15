@@ -1,11 +1,11 @@
 use aureline_history::{
     emit_ai_apply_record, emit_build_output_record, emit_formatter_record, emit_lockfile_record,
     emit_preview_record, emit_refactor_record, producer_binding, validate_producer_registry,
-    ActorClass, ActorRef, ApprovalRef, CheckpointDurabilityClass, CheckpointKind, CheckpointRef,
-    DurableVsDisposable, MutationJournalEntryRecord, MutationProducerClass, MutationProducerInput,
-    PreviewKind, PreviewRef, RedactionClass, ReversalClass, ScopeClass, ScopeRef, SourceClass,
-    TargetKind, TargetRef, MUTATION_JOURNAL_ENTRY_RECORD_KIND, MUTATION_PRODUCER_REGISTRY,
-    REQUIRED_MUTATION_PRODUCER_CLASSES,
+    ActorClass, ActorRef, AiApplyLineage, ApprovalRef, CheckpointDurabilityClass, CheckpointKind,
+    CheckpointRef, DurableVsDisposable, MutationJournalEntryRecord, MutationProducerClass,
+    MutationProducerInput, PreviewKind, PreviewRef, RedactionClass, ReversalClass, ScopeClass,
+    ScopeRef, SourceClass, TargetKind, TargetRef, MUTATION_JOURNAL_ENTRY_RECORD_KIND,
+    MUTATION_PRODUCER_REGISTRY, REQUIRED_MUTATION_PRODUCER_CLASSES,
 };
 use aureline_records::RecordClassId;
 
@@ -92,6 +92,12 @@ fn input_for(class: MutationProducerClass) -> MutationProducerInput {
                 approval_id: "approval-ticket:ai-apply-0001".to_owned(),
                 approval_policy: Some("ai.evidence.required".to_owned()),
             });
+            input.ai_apply_lineage = Some(AiApplyLineage::new(
+                "evidence-packet:ai-apply-0001",
+                "vendor_hosted_managed",
+                "spend-receipt:ai-apply-0001",
+                Some("tainted-fence:ai-apply-0001".to_owned()),
+            ));
         }
         MutationProducerClass::BuildOutput => {
             input.generated_artifact_lineage_ref =
@@ -271,11 +277,34 @@ fn ai_apply_references_evidence_preview_and_approval_lineage() {
             Some("ai.evidence.required")
         ))
     );
+    assert_eq!(
+        record.ai_apply_lineage.as_ref().map(|lineage| (
+            lineage.ai_evidence_packet_ref.as_str(),
+            lineage.route_class.as_str(),
+            lineage.spend_record_ref.as_str(),
+            lineage.tainted_context_fence_ref.as_deref()
+        )),
+        Some((
+            "evidence-packet:ai-apply-0001",
+            "vendor_hosted_managed",
+            "spend-receipt:ai-apply-0001",
+            Some("tainted-fence:ai-apply-0001")
+        ))
+    );
 
     let mut missing_approval = input_for(MutationProducerClass::AiApply);
     missing_approval.approval_ref = None;
     let error = emit_ai_apply_record(missing_approval).expect_err("approval lineage is required");
     assert_eq!(error.to_string(), "ai_apply producer has no approval ref");
+
+    let mut missing_evidence = input_for(MutationProducerClass::AiApply);
+    missing_evidence.ai_apply_lineage = None;
+    let error =
+        emit_ai_apply_record(missing_evidence).expect_err("evidence packet lineage is required");
+    assert_eq!(
+        error.to_string(),
+        "ai_apply producer has no AI evidence packet ref"
+    );
 }
 
 #[test]

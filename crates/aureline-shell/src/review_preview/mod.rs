@@ -1005,6 +1005,7 @@ impl DestructiveCoreEngine {
                     source_class: Some(SourceClass::HumanLocal),
                     reversal_class: Some(MutationJournalLinkReversalClass::RestoreFromCheckpoint),
                     redaction_class: Some(RedactionClass::CodeAdjacent),
+                    ai_apply_lineage: None,
                 },
                 RetentionScopeClass::RetainedByEvidenceReference,
                 Some(format!(
@@ -1075,6 +1076,7 @@ impl DestructiveCoreEngine {
                 source_class: Some(SourceClass::HumanLocal),
                 reversal_class: Some(MutationJournalLinkReversalClass::RestoreFromCheckpoint),
                 redaction_class: Some(RedactionClass::CodeAdjacent),
+                ai_apply_lineage: None,
             },
             RetentionScopeClass::RetainedByEvidenceReference,
             Some(local_history_checkpoint_label.clone()),

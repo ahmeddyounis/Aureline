@@ -3913,6 +3913,7 @@ impl EditorWorkspaceRuntimeState {
                 ),
             ),
             redaction_class: Some(aureline_history::RedactionClass::CodeAdjacent),
+            ai_apply_lineage: None,
         };
 
         let logical_document_identity = aureline_history::checkpoints::LogicalDocumentIdentity {

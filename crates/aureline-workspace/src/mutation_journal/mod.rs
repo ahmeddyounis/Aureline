@@ -15,6 +15,7 @@ use crate::generated_artifacts::{detect_lineage, GeneratedArtifactClass, Lineage
 pub use aureline_history::mutation_journal::{MutationGroupKind, MutationGroupResolution};
 pub use aureline_history::{
     ActorClass as MutationActorClass, ActorRef as MutationActorRef,
+    AiApplyLineage as MutationAiApplyLineage,
     CheckpointDurabilityClass as MutationCheckpointDurabilityClass,
     CheckpointKind as MutationCheckpointKind, CheckpointRef as MutationCheckpointRef,
     DurableVsDisposable as MutationDurabilityClass, MutationGroupRecord,
@@ -208,6 +209,14 @@ impl MutationJournalRecord {
         }
     }
 
+    /// Returns AI evidence and route/spend lineage carried by AI apply records.
+    pub fn ai_apply_lineage(&self) -> Option<&MutationAiApplyLineage> {
+        match self {
+            Self::Entry(entry) => entry.ai_apply_lineage.as_ref(),
+            Self::Group(group) => group.ai_apply_lineage.as_ref(),
+        }
+    }
+
     /// Returns the checkpoint ids cited by the journal record.
     pub fn checkpoint_ids(&self) -> Vec<String> {
         match self {
@@ -341,6 +350,9 @@ pub struct MutationLineageEnvelope {
     /// Approval record that admitted the mutation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_ref: Option<MutationApprovalRef>,
+    /// AI evidence, route, spend, and taint-fence refs for AI apply rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_apply_lineage: Option<MutationAiApplyLineage>,
 }
 
 impl MutationLineageEnvelope {
@@ -359,6 +371,7 @@ impl MutationLineageEnvelope {
             generated_artifact_lineage_ref: None,
             preview_ref: None,
             approval_ref: None,
+            ai_apply_lineage: None,
         }
     }
 
@@ -377,6 +390,7 @@ impl MutationLineageEnvelope {
             generated_artifact_lineage_ref: None,
             preview_ref: None,
             approval_ref: None,
+            ai_apply_lineage: None,
         }
     }
 
@@ -429,6 +443,12 @@ impl MutationLineageEnvelope {
             approval_id: approval_id.into(),
             approval_policy: approval_policy.into(),
         });
+        self
+    }
+
+    /// Adds AI evidence, route, spend, and taint-fence refs to the envelope.
+    pub fn with_ai_apply_lineage(mut self, ai_apply_lineage: MutationAiApplyLineage) -> Self {
+        self.ai_apply_lineage = Some(ai_apply_lineage);
         self
     }
 }
@@ -590,6 +610,9 @@ pub struct MutationLineageAlphaRow {
     /// Approval record that admitted the mutation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_ref: Option<MutationApprovalRef>,
+    /// AI evidence, route, spend, and taint-fence refs for AI apply rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_apply_lineage: Option<MutationAiApplyLineage>,
     /// Checkpoint refs visible to restore and support surfaces.
     pub checkpoint_refs: Vec<String>,
     /// Redaction-aware summary copied from the journal record.
@@ -631,6 +654,10 @@ impl MutationLineageAlphaRow {
             generated_artifact_lineage_ref: envelope.generated_artifact_lineage_ref.clone(),
             preview_ref: envelope.preview_ref.clone(),
             approval_ref: envelope.approval_ref.clone(),
+            ai_apply_lineage: envelope
+                .ai_apply_lineage
+                .clone()
+                .or_else(|| envelope.journal_record.ai_apply_lineage().cloned()),
             checkpoint_refs: envelope.journal_record.checkpoint_ids(),
             side_effect_summary: envelope.journal_record.side_effect_summary().to_owned(),
             support_export_safe: true,
@@ -656,11 +683,41 @@ impl MutationLineageAlphaRow {
                 mutation_path_class: self.mutation_path_class,
             });
         }
+        match (&self.mutation_path_class, &self.ai_apply_lineage) {
+            (MutationPathClass::AiApply, Some(lineage)) => {
+                if lineage.ai_evidence_packet_ref.trim().is_empty()
+                    || lineage.route_class.trim().is_empty()
+                    || lineage.spend_record_ref.trim().is_empty()
+                    || lineage
+                        .tainted_context_fence_ref
+                        .as_deref()
+                        .is_some_and(|value| value.trim().is_empty())
+                {
+                    return Err(MutationLineageAlphaValidationError::MissingAiApplyLineage {
+                        row_id: self.row_id.clone(),
+                    });
+                }
+            }
+            (MutationPathClass::AiApply, None) => {
+                return Err(MutationLineageAlphaValidationError::MissingAiApplyLineage {
+                    row_id: self.row_id.clone(),
+                });
+            }
+            (_, Some(_)) => {
+                return Err(
+                    MutationLineageAlphaValidationError::UnexpectedAiApplyLineage {
+                        row_id: self.row_id.clone(),
+                    },
+                );
+            }
+            (_, None) => {}
+        }
         for reference in self
             .checkpoint_refs
             .iter()
             .chain(std::iter::once(&self.journal_ref))
             .chain(self.generated_artifact_lineage_ref.iter())
+            .chain(self.ai_apply_lineage.iter().flat_map(ai_apply_lineage_refs))
         {
             if is_forbidden_export_ref(reference) {
                 return Err(MutationLineageAlphaValidationError::RawPayloadRefLeaked {
@@ -762,6 +819,16 @@ pub enum MutationLineageAlphaValidationError {
         /// Path class that requires the cue.
         mutation_path_class: MutationPathClass,
     },
+    /// AI apply row is missing evidence/route/spend lineage.
+    MissingAiApplyLineage {
+        /// Row id that failed validation.
+        row_id: String,
+    },
+    /// Non-AI row carried AI apply lineage.
+    UnexpectedAiApplyLineage {
+        /// Row id that failed validation.
+        row_id: String,
+    },
 }
 
 impl fmt::Display for MutationLineageAlphaValidationError {
@@ -796,6 +863,14 @@ impl fmt::Display for MutationLineageAlphaValidationError {
                 f,
                 "mutation-lineage row {row_id} for {} is missing a generated-artifact cue",
                 mutation_path_class.as_str()
+            ),
+            Self::MissingAiApplyLineage { row_id } => write!(
+                f,
+                "mutation-lineage AI apply row {row_id} is missing AI apply lineage"
+            ),
+            Self::UnexpectedAiApplyLineage { row_id } => write!(
+                f,
+                "mutation-lineage non-AI row {row_id} carries AI apply lineage"
             ),
         }
     }
@@ -845,4 +920,10 @@ fn is_forbidden_export_ref(value: &str) -> bool {
         || value.starts_with("raw:")
         || value.starts_with("secret:")
         || value.starts_with("token:")
+}
+
+fn ai_apply_lineage_refs(lineage: &MutationAiApplyLineage) -> impl Iterator<Item = &String> {
+    [&lineage.ai_evidence_packet_ref, &lineage.spend_record_ref]
+        .into_iter()
+        .chain(lineage.tainted_context_fence_ref.iter())
 }

@@ -95,6 +95,7 @@ fn writes_local_history_entry_and_content_addressed_body() {
             source_class: None,
             reversal_class: None,
             redaction_class: None,
+            ai_apply_lineage: None,
         },
         RetentionScopeClass::RetainedByPolicyWindow,
         Some("fixture entry".to_owned()),

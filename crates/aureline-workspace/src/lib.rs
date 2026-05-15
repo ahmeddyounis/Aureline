@@ -130,16 +130,16 @@ pub use generated_projects::{
 };
 
 pub use mutation_journal::{
-    MutationActorClass, MutationActorRef, MutationApprovalRef, MutationCheckpointDurabilityClass,
-    MutationCheckpointKind, MutationCheckpointRef, MutationDurabilityClass,
-    MutationGeneratedArtifactCue, MutationGroupKind, MutationGroupRecord, MutationGroupResolution,
-    MutationJournalEntryRecord, MutationJournalRecord, MutationJournalRecordKind,
-    MutationLineageAlphaPacket, MutationLineageAlphaRow, MutationLineageAlphaValidationError,
-    MutationLineageConsumerSurface, MutationLineageEnvelope, MutationLineageExportSafety,
-    MutationPathClass, MutationPreviewRef, MutationRedactionClass, MutationReversalClass,
-    MutationScopeClass, MutationScopeRef, MutationSideEffectSummary, MutationSourceClass,
-    MutationTargetKind, MutationTargetRef, MUTATION_JOURNAL_ALPHA_SCHEMA_VERSION,
-    REQUIRED_MUTATION_LINEAGE_ALPHA_PATHS,
+    MutationActorClass, MutationActorRef, MutationAiApplyLineage, MutationApprovalRef,
+    MutationCheckpointDurabilityClass, MutationCheckpointKind, MutationCheckpointRef,
+    MutationDurabilityClass, MutationGeneratedArtifactCue, MutationGroupKind, MutationGroupRecord,
+    MutationGroupResolution, MutationJournalEntryRecord, MutationJournalRecord,
+    MutationJournalRecordKind, MutationLineageAlphaPacket, MutationLineageAlphaRow,
+    MutationLineageAlphaValidationError, MutationLineageConsumerSurface, MutationLineageEnvelope,
+    MutationLineageExportSafety, MutationPathClass, MutationPreviewRef, MutationRedactionClass,
+    MutationReversalClass, MutationScopeClass, MutationScopeRef, MutationSideEffectSummary,
+    MutationSourceClass, MutationTargetKind, MutationTargetRef,
+    MUTATION_JOURNAL_ALPHA_SCHEMA_VERSION, REQUIRED_MUTATION_LINEAGE_ALPHA_PATHS,
 };
 
 pub use history::{

@@ -12,6 +12,7 @@ use crate::checkpoints::{
     LocalHistoryEntryRecord, LocalHistoryGroupRecord, MutationJournalLinkActorClass,
     MutationJournalLinkKind, SnapshotClass,
 };
+use crate::mutation_journal::AiApplyLineage;
 
 /// Schema version for [`LocalHistoryAlphaPacket`] records.
 pub const LOCAL_HISTORY_ALPHA_SCHEMA_VERSION: u32 = 1;
@@ -281,6 +282,9 @@ pub struct ActorLineageRow {
     /// Opaque mutation-journal entry or group ref cited by this row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mutation_journal_ref: Option<String>,
+    /// AI evidence, route, spend, and taint-fence refs for AI apply rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_apply_lineage: Option<AiApplyLineage>,
     /// Canonical command id when the source surface provides one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub command_id: Option<String>,
@@ -344,6 +348,7 @@ impl ActorLineageRow {
                 entry.mutation_journal_link.linked_kind,
                 &entry.mutation_journal_link.linked_id,
             ),
+            ai_apply_lineage: entry.mutation_journal_link.ai_apply_lineage.clone(),
             command_id,
             checkpoint_refs: vec![entry.entry_id.clone()],
             side_effect_summary: entry.side_effect_summary.clone(),
@@ -400,6 +405,7 @@ impl ActorLineageRow {
                 group.mutation_journal_link.linked_kind,
                 &group.mutation_journal_link.linked_id,
             ),
+            ai_apply_lineage: group.mutation_journal_link.ai_apply_lineage.clone(),
             command_id,
             checkpoint_refs: vec![group.group_id.clone()],
             side_effect_summary: group.side_effect_summary.clone(),
@@ -425,6 +431,7 @@ impl ActorLineageRow {
             local_history_entry_refs: Vec::new(),
             local_history_group_ref: None,
             mutation_journal_ref: Some(input.mutation_journal_ref),
+            ai_apply_lineage: None,
             command_id: Some(input.command_id),
             checkpoint_refs,
             side_effect_summary: Some(input.side_effect_summary),
@@ -451,6 +458,7 @@ impl ActorLineageRow {
             local_history_entry_refs: input.local_history_entry_refs,
             local_history_group_ref: Some(input.local_history_group_ref.clone()),
             mutation_journal_ref: Some(input.mutation_group_ref),
+            ai_apply_lineage: None,
             command_id: Some(input.command_id),
             checkpoint_refs: vec![input.local_history_group_ref],
             side_effect_summary: Some(input.side_effect_summary),
@@ -460,6 +468,26 @@ impl ActorLineageRow {
     }
 
     fn validate_export_safe(&self) -> Result<(), LocalHistoryAlphaValidationError> {
+        match (&self.actor_lineage_class, &self.ai_apply_lineage) {
+            (ActorLineageClass::AiApply, Some(lineage)) => validate_ai_apply_lineage(lineage)
+                .map_err(|field_name| {
+                    LocalHistoryAlphaValidationError::MissingAiApplyLineageField {
+                        row_id: self.row_id.clone(),
+                        field_name,
+                    }
+                })?,
+            (ActorLineageClass::AiApply, None) => {
+                return Err(LocalHistoryAlphaValidationError::MissingAiApplyLineage {
+                    row_id: self.row_id.clone(),
+                });
+            }
+            (_, Some(_)) => {
+                return Err(LocalHistoryAlphaValidationError::UnexpectedAiApplyLineage {
+                    row_id: self.row_id.clone(),
+                });
+            }
+            (_, None) => {}
+        }
         if self.raw_body_refs_exported {
             return Err(LocalHistoryAlphaValidationError::RawBodyRefLeaked {
                 row_id: self.row_id.clone(),
@@ -471,8 +499,9 @@ impl ActorLineageRow {
             .iter()
             .chain(self.checkpoint_refs.iter())
             .chain(self.mutation_journal_ref.iter())
+            .chain(self.ai_apply_lineage.iter().flat_map(ai_apply_lineage_refs))
         {
-            if reference.starts_with("obj:") {
+            if is_forbidden_export_ref(reference) {
                 return Err(LocalHistoryAlphaValidationError::RawBodyRefLeaked {
                     row_id: self.row_id.clone(),
                     leaked_ref: reference.clone(),
@@ -651,6 +680,23 @@ pub enum LocalHistoryAlphaValidationError {
         /// Ref or flag that leaked raw body posture.
         leaked_ref: String,
     },
+    /// An AI apply row did not include AI apply lineage.
+    MissingAiApplyLineage {
+        /// Row id that failed validation.
+        row_id: String,
+    },
+    /// AI apply lineage was missing a required ref or class token.
+    MissingAiApplyLineageField {
+        /// Row id that failed validation.
+        row_id: String,
+        /// Missing field name.
+        field_name: &'static str,
+    },
+    /// A non-AI row carried AI apply lineage.
+    UnexpectedAiApplyLineage {
+        /// Row id that failed validation.
+        row_id: String,
+    },
     /// A restore projection was requested from a non-restore entry.
     NotRestoreCheckpoint {
         /// Entry ref that failed validation.
@@ -681,6 +727,20 @@ impl std::fmt::Display for LocalHistoryAlphaValidationError {
             Self::RawBodyRefLeaked { row_id, leaked_ref } => {
                 write!(f, "local-history row {row_id} leaked {leaked_ref}")
             }
+            Self::MissingAiApplyLineage { row_id } => {
+                write!(
+                    f,
+                    "local-history AI apply row {row_id} is missing AI apply lineage"
+                )
+            }
+            Self::MissingAiApplyLineageField { row_id, field_name } => write!(
+                f,
+                "local-history AI apply row {row_id} is missing {field_name}"
+            ),
+            Self::UnexpectedAiApplyLineage { row_id } => write!(
+                f,
+                "local-history non-AI row {row_id} carries AI apply lineage"
+            ),
             Self::NotRestoreCheckpoint { record_ref } => {
                 write!(
                     f,
@@ -708,4 +768,37 @@ fn non_empty_vec(value: Option<String>) -> Vec<String> {
         .into_iter()
         .filter(|value| !value.is_empty())
         .collect()
+}
+
+fn validate_ai_apply_lineage(lineage: &AiApplyLineage) -> Result<(), &'static str> {
+    if lineage.ai_evidence_packet_ref.trim().is_empty() {
+        return Err("ai_apply_lineage.ai_evidence_packet_ref");
+    }
+    if lineage.route_class.trim().is_empty() {
+        return Err("ai_apply_lineage.route_class");
+    }
+    if lineage.spend_record_ref.trim().is_empty() {
+        return Err("ai_apply_lineage.spend_record_ref");
+    }
+    if lineage
+        .tainted_context_fence_ref
+        .as_deref()
+        .is_some_and(|value| value.trim().is_empty())
+    {
+        return Err("ai_apply_lineage.tainted_context_fence_ref");
+    }
+    Ok(())
+}
+
+fn ai_apply_lineage_refs(lineage: &AiApplyLineage) -> impl Iterator<Item = &String> {
+    [&lineage.ai_evidence_packet_ref, &lineage.spend_record_ref]
+        .into_iter()
+        .chain(lineage.tainted_context_fence_ref.iter())
+}
+
+fn is_forbidden_export_ref(value: &str) -> bool {
+    value.starts_with("obj:")
+        || value.starts_with("raw:")
+        || value.starts_with("secret:")
+        || value.starts_with("token:")
 }

@@ -13,9 +13,10 @@ use aureline_buffer::UndoClass;
 use aureline_records::{validate_typed, RecordClassId, RecordRegistryError};
 
 use super::{
-    ActorClass, ActorRef, ApprovalRef, CheckpointRef, DurableVsDisposable, MutationGroupKind,
-    MutationJournalEntryRecord, PreviewKind, PreviewRef, RedactionClass, ReversalClass, ScopeRef,
-    SideEffectSummary, SourceClass, TargetKind, TargetRef, MUTATION_JOURNAL_ENTRY_RECORD_KIND,
+    ActorClass, ActorRef, AiApplyLineage, ApprovalRef, CheckpointRef, DurableVsDisposable,
+    MutationGroupKind, MutationJournalEntryRecord, PreviewKind, PreviewRef, RedactionClass,
+    ReversalClass, ScopeRef, SideEffectSummary, SourceClass, TargetKind, TargetRef,
+    MUTATION_JOURNAL_ENTRY_RECORD_KIND,
 };
 
 /// Producer surfaces that must write mutation-journal entries in the alpha.
@@ -225,6 +226,8 @@ pub struct MutationProducerInput {
     pub preview_ref: Option<PreviewRef>,
     /// Approval lineage required for AI apply and policy-gated paths.
     pub approval_ref: Option<ApprovalRef>,
+    /// AI evidence, route, spend, and taint-fence refs for AI apply.
+    pub ai_apply_lineage: Option<AiApplyLineage>,
     /// Save-manifest ref emitted by the save pipeline, when present.
     pub save_manifest_ref: Option<String>,
     /// Generated-artifact lineage ref for derived targets, when present.
@@ -261,6 +264,7 @@ impl MutationProducerInput {
             checkpoint_refs: Vec::new(),
             preview_ref: None,
             approval_ref: None,
+            ai_apply_lineage: None,
             save_manifest_ref: None,
             generated_artifact_lineage_ref: None,
         }
@@ -308,6 +312,26 @@ pub enum MutationProducerEmissionError {
     },
     /// The producer requires an approval ref.
     MissingApprovalRef {
+        /// Producer class being emitted.
+        producer_class: MutationProducerClass,
+    },
+    /// AI apply requires an evidence-packet ref.
+    MissingAiEvidencePacketRef {
+        /// Producer class being emitted.
+        producer_class: MutationProducerClass,
+    },
+    /// AI apply requires a route-class token.
+    MissingAiRouteClass {
+        /// Producer class being emitted.
+        producer_class: MutationProducerClass,
+    },
+    /// AI apply requires a spend-record ref.
+    MissingAiSpendRecordRef {
+        /// Producer class being emitted.
+        producer_class: MutationProducerClass,
+    },
+    /// A non-AI producer supplied AI apply lineage.
+    UnexpectedAiApplyLineage {
         /// Producer class being emitted.
         producer_class: MutationProducerClass,
     },
@@ -369,6 +393,26 @@ impl fmt::Display for MutationProducerEmissionError {
                     producer_class.as_str()
                 )
             }
+            Self::MissingAiEvidencePacketRef { producer_class } => write!(
+                f,
+                "{} producer has no AI evidence packet ref",
+                producer_class.as_str()
+            ),
+            Self::MissingAiRouteClass { producer_class } => write!(
+                f,
+                "{} producer has no AI route class",
+                producer_class.as_str()
+            ),
+            Self::MissingAiSpendRecordRef { producer_class } => write!(
+                f,
+                "{} producer has no AI spend record ref",
+                producer_class.as_str()
+            ),
+            Self::UnexpectedAiApplyLineage { producer_class } => write!(
+                f,
+                "{} producer cannot carry AI apply lineage",
+                producer_class.as_str()
+            ),
             Self::MissingGeneratedArtifactLineageRef { producer_class } => write!(
                 f,
                 "{} producer has no generated-artifact lineage ref",
@@ -506,6 +550,9 @@ pub fn emit_producer_record(
     if let Some(approval_ref) = input.approval_ref {
         entry = entry.with_approval_ref(approval_ref);
     }
+    if let Some(ai_apply_lineage) = input.ai_apply_lineage {
+        entry = entry.with_ai_apply_lineage(ai_apply_lineage);
+    }
     if let Some(save_manifest_ref) = input.save_manifest_ref {
         entry = entry.with_save_manifest_ref(save_manifest_ref);
     }
@@ -543,6 +590,32 @@ fn validate_input(
     }
     if binding.requires_approval_ref && input.approval_ref.is_none() {
         return Err(MutationProducerEmissionError::MissingApprovalRef { producer_class });
+    }
+    match (producer_class, &input.ai_apply_lineage) {
+        (MutationProducerClass::AiApply, Some(lineage)) => {
+            if lineage.ai_evidence_packet_ref.trim().is_empty() {
+                return Err(MutationProducerEmissionError::MissingAiEvidencePacketRef {
+                    producer_class,
+                });
+            }
+            if lineage.route_class.trim().is_empty() {
+                return Err(MutationProducerEmissionError::MissingAiRouteClass { producer_class });
+            }
+            if lineage.spend_record_ref.trim().is_empty() {
+                return Err(MutationProducerEmissionError::MissingAiSpendRecordRef {
+                    producer_class,
+                });
+            }
+        }
+        (MutationProducerClass::AiApply, None) => {
+            return Err(MutationProducerEmissionError::MissingAiEvidencePacketRef {
+                producer_class,
+            });
+        }
+        (_, Some(_)) => {
+            return Err(MutationProducerEmissionError::UnexpectedAiApplyLineage { producer_class });
+        }
+        (_, None) => {}
     }
     if binding.requires_generated_artifact_lineage_ref
         && input

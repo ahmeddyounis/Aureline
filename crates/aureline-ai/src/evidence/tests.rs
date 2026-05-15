@@ -7,6 +7,10 @@ use aureline_docs::{
     DocsFreshnessClass as CanonicalDocsFreshnessClass, DocsNodeIdentity, DocsNodeIdentityInput,
     DocsNodeKind, DocsScopeClass, LocaleOverlayState, VersionMatchState as DocsVersionMatchState,
 };
+use aureline_history::{
+    ActorClass, ActorRef, CheckpointDurabilityClass, CheckpointKind, CheckpointRef,
+    MutationProducerInput, PreviewKind, ScopeClass, ScopeRef, TargetKind, TargetRef,
+};
 
 use crate::context_inspector::{
     AiContextEvidenceHandoff, AiContextEvidenceHandoffRow, AI_CONTEXT_EVIDENCE_HANDOFF_RECORD_KIND,
@@ -288,6 +292,40 @@ fn review_lineage(apply_outcome_class: ApplyOutcomeClass) -> MutationReviewLinea
     }
 }
 
+fn mutation_journal_input() -> MutationProducerInput {
+    let mut input = MutationProducerInput::new(
+        "mutation-journal:ai-mutation:alpha:0001",
+        "ai.apply.patch",
+        ActorRef {
+            display_name: "Hosted general patch preview".to_owned(),
+            stable_id: Some("model-entry:hosted-general:mutation-alpha".to_owned()),
+            role: Some("ai_apply".to_owned()),
+        },
+        ScopeRef {
+            class: ScopeClass::Workspace,
+            id: "workspace:ai-mutation-alpha".to_owned(),
+        },
+        vec![TargetRef {
+            target_kind: TargetKind::Buffer,
+            filesystem_identity: None,
+            logical_ref: Some("buffer:payments-handler".to_owned()),
+            affected_range: None,
+        }],
+        "2026-05-14T10:04:00Z",
+        "diff-identity:ai-mutation:alpha:0001",
+        "AI apply wrote the approved patch set.",
+    );
+    input.group_id = Some("mutation-group:ai-mutation:alpha:0001".to_owned());
+    input.files_touched = Some(2);
+    input.bytes_written = Some(112);
+    input.checkpoint_refs = vec![CheckpointRef {
+        checkpoint_kind: CheckpointKind::ReviewCheckpoint,
+        checkpoint_id: "checkpoint:ai-mutation:alpha:0001".to_owned(),
+        durability_class: Some(CheckpointDurabilityClass::Durable),
+    }];
+    input
+}
+
 fn packet(
     packet_state: MutationEvidenceState,
     decision_class: ApprovalDecisionClass,
@@ -551,6 +589,62 @@ fn applied_packet_requires_approval_checkpoint_and_mutation_journal() {
     assert!(missing_approval
         .validate()
         .contains(&AiMutationEvidenceViolation::AppliedPacketMissingApproval));
+}
+
+#[test]
+fn applied_evidence_packet_emits_ai_apply_journal_lineage_end_to_end() {
+    let packet = packet(
+        MutationEvidenceState::Applied,
+        ApprovalDecisionClass::Approved,
+        ApplyOutcomeClass::AppliedSuccess,
+    );
+
+    let record = packet
+        .emit_ai_apply_mutation_journal_record(mutation_journal_input())
+        .expect("AI apply journal record emits");
+
+    assert_eq!(record.actor_class, ActorClass::AiApply);
+    assert_eq!(
+        record
+            .preview_ref
+            .as_ref()
+            .map(|preview| (preview.preview_id.as_str(), preview.preview_kind)),
+        Some((
+            "review-surface:ai-mutation:alpha:0001",
+            Some(PreviewKind::AiPatchPreview)
+        ))
+    );
+    assert_eq!(
+        record
+            .approval_ref
+            .as_ref()
+            .map(|approval| approval.approval_id.as_str()),
+        Some("approval-ticket:ai-apply:mutation-alpha:0001")
+    );
+    assert_eq!(
+        record.ai_apply_lineage.as_ref().map(|lineage| (
+            lineage.ai_evidence_packet_ref.as_str(),
+            lineage.route_class.as_str(),
+            lineage.spend_record_ref.as_str(),
+            lineage.tainted_context_fence_ref.as_deref()
+        )),
+        Some((
+            "evidence-packet:ai-mutation:alpha:0001",
+            "vendor_hosted_managed",
+            "spend-receipt:ai-mutation:alpha:0001",
+            None
+        ))
+    );
+
+    let mut missing_ref = packet;
+    missing_ref.evidence_packet_id.clear();
+    let error = missing_ref
+        .emit_ai_apply_mutation_journal_record(mutation_journal_input())
+        .expect_err("empty evidence-packet ref is a typed producer error");
+    assert_eq!(
+        error.to_string(),
+        "ai_apply producer has no AI evidence packet ref"
+    );
 }
 
 #[test]

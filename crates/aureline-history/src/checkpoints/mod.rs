@@ -9,8 +9,8 @@ use aureline_vfs::{AliasKind, IdentityRecord, NormalizationForm, TrustState};
 use serde::{Deserialize, Serialize};
 
 use crate::mutation_journal::{
-    ActorClass as JournalActorClass, RedactionClass, ReversalClass as JournalReversalClass,
-    SourceClass,
+    ActorClass as JournalActorClass, AiApplyLineage, RedactionClass,
+    ReversalClass as JournalReversalClass, SourceClass,
 };
 use crate::storage::{HistoryError, HistoryStorageRoot, IdSource};
 
@@ -489,6 +489,8 @@ pub struct MutationJournalLink {
     pub reversal_class: Option<MutationJournalLinkReversalClass>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redaction_class: Option<RedactionClass>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_apply_lineage: Option<AiApplyLineage>,
 }
 
 /// Actor-class vocabulary for local-history records.

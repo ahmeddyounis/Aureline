@@ -112,6 +112,8 @@ pub struct MutationJournalEntryRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub approval_ref: Option<ApprovalRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_apply_lineage: Option<AiApplyLineage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub save_manifest_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub generated_artifact_lineage_ref: Option<String>,
@@ -173,6 +175,7 @@ impl MutationJournalEntryRecord {
             checkpoint_refs,
             preview_ref: None,
             approval_ref: None,
+            ai_apply_lineage: None,
             save_manifest_ref: None,
             generated_artifact_lineage_ref: None,
             diff_identity_ref: None,
@@ -198,6 +201,12 @@ impl MutationJournalEntryRecord {
     /// Adds the approval lineage that admitted this mutation.
     pub fn with_approval_ref(mut self, approval_ref: ApprovalRef) -> Self {
         self.approval_ref = Some(approval_ref);
+        self
+    }
+
+    /// Adds AI evidence, route, spend, and taint-fence lineage for AI apply.
+    pub fn with_ai_apply_lineage(mut self, ai_apply_lineage: AiApplyLineage) -> Self {
+        self.ai_apply_lineage = Some(ai_apply_lineage);
         self
     }
 
@@ -249,6 +258,8 @@ pub struct MutationGroupRecord {
     pub preview_ref: Option<PreviewRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub approval_ref: Option<ApprovalRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ai_apply_lineage: Option<AiApplyLineage>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub save_manifest_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -312,6 +323,7 @@ impl MutationGroupRecord {
             checkpoint_refs,
             preview_ref: None,
             approval_ref: None,
+            ai_apply_lineage: None,
             save_manifest_ref: None,
             generated_artifact_lineage_ref: None,
             diff_identity_ref: None,
@@ -328,6 +340,12 @@ impl MutationGroupRecord {
     /// Adds the approval lineage that admitted this group.
     pub fn with_approval_ref(mut self, approval_ref: ApprovalRef) -> Self {
         self.approval_ref = Some(approval_ref);
+        self
+    }
+
+    /// Adds AI evidence, route, spend, and taint-fence lineage for an AI group.
+    pub fn with_ai_apply_lineage(mut self, ai_apply_lineage: AiApplyLineage) -> Self {
+        self.ai_apply_lineage = Some(ai_apply_lineage);
         self
     }
 
@@ -647,6 +665,37 @@ pub struct ApprovalRef {
     /// Policy or review gate that required the approval.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub approval_policy: Option<String>,
+}
+
+/// AI evidence and route/spend lineage attached to an AI apply mutation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiApplyLineage {
+    /// Opaque ref to the evidence packet that made the apply reviewable.
+    pub ai_evidence_packet_ref: String,
+    /// Route-origin class token selected for the model path.
+    pub route_class: String,
+    /// Opaque ref to the spend receipt or spend record for the AI run.
+    pub spend_record_ref: String,
+    /// Opaque ref to the tainted-context fence that constrained the apply.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tainted_context_fence_ref: Option<String>,
+}
+
+impl AiApplyLineage {
+    /// Creates metadata-only AI apply lineage from opaque refs.
+    pub fn new(
+        ai_evidence_packet_ref: impl Into<String>,
+        route_class: impl Into<String>,
+        spend_record_ref: impl Into<String>,
+        tainted_context_fence_ref: Option<String>,
+    ) -> Self {
+        Self {
+            ai_evidence_packet_ref: ai_evidence_packet_ref.into(),
+            route_class: route_class.into(),
+            spend_record_ref: spend_record_ref.into(),
+            tainted_context_fence_ref,
+        }
+    }
 }
 
 /// Checkpoint-kind vocabulary for journal entries.

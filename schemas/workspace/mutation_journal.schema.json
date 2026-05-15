@@ -294,6 +294,39 @@
       }
     },
 
+    "ai_apply_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ai_evidence_packet_ref",
+        "route_class",
+        "spend_record_ref"
+      ],
+      "properties": {
+        "ai_evidence_packet_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque ref to the AI evidence packet that made the apply reviewable. Raw prompt text, raw responses, and raw diffs never appear here."
+        },
+        "route_class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Route-origin class token preserved from the selected route/spend lineage."
+        },
+        "spend_record_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque ref to the spend receipt or spend record for the AI run."
+        },
+        "tainted_context_fence_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional opaque ref to the tainted-context fence that constrained the apply."
+        }
+      },
+      "description": "Metadata-only AI apply lineage attached to AI apply entries or groups. The journal stores refs and class tokens only."
+    },
+
     "save_manifest_ref": {
       "type": "string",
       "description": "Opaque reference to an ADR-0006 save_manifest record. Set on mutations that reached the save pipeline."
@@ -425,6 +458,7 @@
         },
         "preview_ref": { "$ref": "#/$defs/preview_ref" },
         "approval_ref": { "$ref": "#/$defs/approval_ref" },
+        "ai_apply_lineage": { "$ref": "#/$defs/ai_apply_lineage" },
         "save_manifest_ref": { "$ref": "#/$defs/save_manifest_ref" },
         "generated_artifact_lineage_ref": { "$ref": "#/$defs/generated_artifact_lineage_ref" },
         "diff_identity_ref": { "$ref": "#/$defs/diff_identity_ref" },
@@ -434,6 +468,16 @@
         "side_effect_summary": { "$ref": "#/$defs/side_effect_summary" },
         "semantic_readiness": { "$ref": "#/$defs/semantic_readiness_ref" }
       },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "actor_class": { "const": "ai_apply" } },
+            "required": ["actor_class"]
+          },
+          "then": { "required": ["ai_apply_lineage"] },
+          "else": { "not": { "required": ["ai_apply_lineage"] } }
+        }
+      ],
       "description": "One mutation-journal entry. Every mutating command writes exactly one entry to the journal; grouped operations also write a mutation_group_record."
     },
 
@@ -504,6 +548,7 @@
         },
         "preview_ref": { "$ref": "#/$defs/preview_ref" },
         "approval_ref": { "$ref": "#/$defs/approval_ref" },
+        "ai_apply_lineage": { "$ref": "#/$defs/ai_apply_lineage" },
         "checkpoint_refs": {
           "type": "array",
           "items": { "$ref": "#/$defs/checkpoint_ref" }
@@ -519,6 +564,16 @@
         "side_effect_summary": { "$ref": "#/$defs/side_effect_summary" },
         "semantic_readiness": { "$ref": "#/$defs/semantic_readiness_ref" }
       },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "actor_class": { "const": "ai_apply" } },
+            "required": ["actor_class"]
+          },
+          "then": { "required": ["ai_apply_lineage"] },
+          "else": { "not": { "required": ["ai_apply_lineage"] } }
+        }
+      ],
       "description": "One mutation-group record. A named operation opens one group, emits member mutation_journal_entry records, and closes with a resolution. The group's reversal_class is the most restrictive of its members (any audit_only member forces the group to audit_only)."
     }
   }

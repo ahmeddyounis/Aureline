@@ -8,7 +8,7 @@ use aureline_history::checkpoints::{
     RestorePreviewRequiredFields, SnapshotClass,
 };
 use aureline_history::{
-    ActorLineageClass, ActorLineageRow, HistoryExportMode, LocalHistoryAlphaPacket,
+    ActorLineageClass, ActorLineageRow, AiApplyLineage, HistoryExportMode, LocalHistoryAlphaPacket,
     LocalHistoryConsumerSurface, RedactionClass, RestoreCheckpointAlpha, RetentionScopeClass,
     SourceClass,
 };
@@ -76,6 +76,7 @@ fn entry_with_actor(
             source_class: Some(source_class),
             reversal_class: Some(MutationJournalLinkReversalClass::ExactUndo),
             redaction_class: Some(RedactionClass::CodeAdjacent),
+            ai_apply_lineage: None,
         },
         RetentionScopeClass::RetainedByPolicyWindow,
         Some(format!("checkpoint for {entry_id}")),
@@ -179,6 +180,12 @@ fn group_and_restore_projection_surface_names_and_support_refs() {
             source_class: Some(SourceClass::AiHostedProvider),
             reversal_class: Some(MutationJournalLinkReversalClass::CompensatingUndo),
             redaction_class: Some(RedactionClass::CodeAdjacent),
+            ai_apply_lineage: Some(AiApplyLineage::new(
+                "evidence-packet:ai-mutation:alpha:0001",
+                "vendor_hosted_managed",
+                "spend-receipt:ai-mutation:alpha:0001",
+                None,
+            )),
         },
         RetentionScopeClass::RetainedByEvidenceReference,
         Some("AI apply group".to_owned()),
@@ -191,6 +198,13 @@ fn group_and_restore_projection_surface_names_and_support_refs() {
     )
     .expect("group row");
     assert_eq!(group_row.actor_lineage_class, ActorLineageClass::AiApply);
+    assert_eq!(
+        group_row
+            .ai_apply_lineage
+            .as_ref()
+            .map(|lineage| lineage.ai_evidence_packet_ref.as_str()),
+        Some("evidence-packet:ai-mutation:alpha:0001")
+    );
 
     let restore = entry_with_actor(
         "lh-restore-fixture",

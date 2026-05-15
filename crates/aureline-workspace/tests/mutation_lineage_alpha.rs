@@ -1,11 +1,12 @@
 use aureline_workspace::{
-    MutationActorClass, MutationActorRef, MutationCheckpointDurabilityClass,
-    MutationCheckpointKind, MutationCheckpointRef, MutationDurabilityClass,
-    MutationGeneratedArtifactCue, MutationGroupKind, MutationGroupRecord, MutationGroupResolution,
-    MutationJournalEntryRecord, MutationLineageAlphaPacket, MutationLineageAlphaValidationError,
-    MutationLineageConsumerSurface, MutationLineageEnvelope, MutationPathClass,
-    MutationRedactionClass, MutationReversalClass, MutationScopeClass, MutationScopeRef,
-    MutationSideEffectSummary, MutationSourceClass, MutationTargetKind, MutationTargetRef,
+    MutationActorClass, MutationActorRef, MutationAiApplyLineage,
+    MutationCheckpointDurabilityClass, MutationCheckpointKind, MutationCheckpointRef,
+    MutationDurabilityClass, MutationGeneratedArtifactCue, MutationGroupKind, MutationGroupRecord,
+    MutationGroupResolution, MutationJournalEntryRecord, MutationLineageAlphaPacket,
+    MutationLineageAlphaValidationError, MutationLineageConsumerSurface, MutationLineageEnvelope,
+    MutationPathClass, MutationRedactionClass, MutationReversalClass, MutationScopeClass,
+    MutationScopeRef, MutationSideEffectSummary, MutationSourceClass, MutationTargetKind,
+    MutationTargetRef,
 };
 
 fn actor(display_name: &str, stable_id: &str) -> MutationActorRef {
@@ -241,7 +242,13 @@ fn protected_envelopes(
             "ckpt-ai-preview-0001",
             MutationCheckpointDurabilityClass::Durable,
         ),
-    );
+    )
+    .with_ai_apply_lineage(MutationAiApplyLineage::new(
+        "evidence-packet:ai-mutation:alpha:0001",
+        "vendor_hosted_managed",
+        "spend-receipt:ai-mutation:alpha:0001",
+        None,
+    ));
 
     let mut build_envelope =
         MutationLineageEnvelope::from_entry("env-build", MutationPathClass::BuildOutput, build)
@@ -365,6 +372,12 @@ fn envelopes_emit_required_path_coverage_and_generated_cues() {
             .as_ref()
             .map(|approval| approval.approval_id.as_str()),
         Some("approval-ai-evidence-0001")
+    );
+    assert_eq!(
+        ai.ai_apply_lineage
+            .as_ref()
+            .map(|lineage| lineage.ai_evidence_packet_ref.as_str()),
+        Some("evidence-packet:ai-mutation:alpha:0001")
     );
 
     let json = serde_json::to_string(&packet).expect("serialize packet");

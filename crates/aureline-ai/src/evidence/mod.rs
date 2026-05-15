@@ -16,6 +16,10 @@ use aureline_docs::{
     CitationAnchorAlpha, CitationAnchorAvailability as DocsCitationAnchorAvailability,
     CitationSourceClass, DocsFreshnessClass, DocsNodeIdentity,
 };
+use aureline_history::{
+    emit_ai_apply_record, AiApplyLineage, ApprovalRef, MutationJournalEntryRecord,
+    MutationProducerEmissionError, MutationProducerInput, PreviewKind, PreviewRef,
+};
 use serde::{Deserialize, Serialize};
 
 use aureline_graph::GraphFactCuePacket;
@@ -1112,6 +1116,50 @@ impl AiMutationEvidencePacket {
             }
         }
         out
+    }
+
+    /// Projects the evidence packet into metadata-only AI apply journal lineage.
+    pub fn ai_apply_lineage(&self) -> AiApplyLineage {
+        AiApplyLineage::new(
+            self.evidence_packet_id.clone(),
+            self.route_spend_lineage.route_origin_token.clone(),
+            self.route_spend_lineage.spend_receipt_ref.clone(),
+            self.tainted_context_fences
+                .first()
+                .map(|fence| fence.fence_id.clone()),
+        )
+    }
+
+    /// Emits an AI apply mutation-journal entry with this packet's lineage attached.
+    ///
+    /// The caller supplies the mutation target, checkpoint, timestamp, and diff
+    /// identity metadata. This method fills the evidence, route, spend, preview,
+    /// and approval refs that are owned by the AI evidence packet.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MutationProducerEmissionError`] when required journal metadata
+    /// is missing, including an empty evidence-packet ref.
+    pub fn emit_ai_apply_mutation_journal_record(
+        &self,
+        mut input: MutationProducerInput,
+    ) -> Result<MutationJournalEntryRecord, MutationProducerEmissionError> {
+        if input.preview_ref.is_none() {
+            input.preview_ref = Some(PreviewRef {
+                preview_id: self.review_lineage.review_surface_ref.clone(),
+                preview_kind: Some(PreviewKind::AiPatchPreview),
+            });
+        }
+        if input.approval_ref.is_none() {
+            if let Some(approval) = self.approval_lineage.last() {
+                input.approval_ref = Some(ApprovalRef {
+                    approval_id: approval.approval_ticket_ref.clone(),
+                    approval_policy: Some("ai.evidence.required".to_owned()),
+                });
+            }
+        }
+        input.ai_apply_lineage = Some(self.ai_apply_lineage());
+        emit_ai_apply_record(input)
     }
 
     /// Validate the packet against the bounded mutation-evidence invariants.

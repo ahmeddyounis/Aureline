@@ -35,10 +35,10 @@ pub use mutation_journal::{
         MutationProducerClass, MutationProducerEmissionError, MutationProducerInput,
         MUTATION_PRODUCER_REGISTRY, REQUIRED_MUTATION_PRODUCER_CLASSES,
     },
-    ActorClass, ActorRef, ApprovalRef, CheckpointDurabilityClass, CheckpointKind, CheckpointRef,
-    DurableVsDisposable, MutationGroupRecord, MutationJournalEntryRecord, MutationJournalStore,
-    PreviewKind, PreviewRef, RedactionClass, ReversalClass, ScopeClass, ScopeRef,
-    SideEffectSummary, SourceClass, TargetKind, TargetRef, MUTATION_GROUP_RECORD_KIND,
+    ActorClass, ActorRef, AiApplyLineage, ApprovalRef, CheckpointDurabilityClass, CheckpointKind,
+    CheckpointRef, DurableVsDisposable, MutationGroupRecord, MutationJournalEntryRecord,
+    MutationJournalStore, PreviewKind, PreviewRef, RedactionClass, ReversalClass, ScopeClass,
+    ScopeRef, SideEffectSummary, SourceClass, TargetKind, TargetRef, MUTATION_GROUP_RECORD_KIND,
     MUTATION_JOURNAL_ENTRY_RECORD_KIND,
 };
 pub use storage::{HistoryError, HistoryStorageRoot, IdSource};
