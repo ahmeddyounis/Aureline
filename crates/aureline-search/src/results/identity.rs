@@ -6,6 +6,8 @@
 
 use serde::{Deserialize, Serialize};
 
+pub use aureline_graph::ResultPartialityClass;
+
 use crate::lexical::index::ReadinessClass;
 use crate::lexical::query::MatchKind;
 use crate::lexical::source::SourceClass;
@@ -62,65 +64,6 @@ impl RankingReasonClass {
             MatchKind::SubstringBasename => Self::SubstringBasenameMatch,
             MatchKind::SubstringPath => Self::SubstringPathMatch,
         }
-    }
-}
-
-/// Row-level partiality vocabulary.
-///
-/// The class travels on every row so a warming / partial / stale row keeps
-/// its caveat after the result set is sorted, paginated, or projected through
-/// the quick-open or search-shell surfaces. The vocabulary projects
-/// [`ReadinessClass`] into row-level caveats — `HotSetReady` maps to
-/// `Partial` because the row is useful but not full-workspace proof, and
-/// `Unavailable` is included so support exports can describe a row that was
-/// visible at capture time but came from a now-unavailable provider.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ResultPartialityClass {
-    /// Row came from a `ready` provider; no caveat is required.
-    Authoritative,
-    /// Row came from a provider that is still warming up. Surfaces MUST
-    /// surface the warming caveat on the row, not just on the chrome chip.
-    Warming,
-    /// Row came from a provider with rows but incomplete coverage.
-    Partial,
-    /// Row came from a cached snapshot that has not been re-validated.
-    Stale,
-    /// Row came from a provider that is no longer answering. Used for
-    /// captured snapshots and support exports; visible rows in a live
-    /// session never carry this class.
-    Unavailable,
-}
-
-impl ResultPartialityClass {
-    /// Stable token used in records, fixtures, and snapshots.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Authoritative => "authoritative",
-            Self::Warming => "warming",
-            Self::Partial => "partial",
-            Self::Stale => "stale",
-            Self::Unavailable => "unavailable",
-        }
-    }
-
-    /// Short label suitable for a row chip / badge ("Warming", "Partial",
-    /// etc.). The chrome MUST NOT collapse `warming` and `partial` into one
-    /// label; the contract requires both tokens to be visible to the user.
-    pub const fn row_badge(self) -> &'static str {
-        match self {
-            Self::Authoritative => "Authoritative",
-            Self::Warming => "Warming",
-            Self::Partial => "Partial",
-            Self::Stale => "Stale",
-            Self::Unavailable => "Unavailable",
-        }
-    }
-
-    /// True when the row carries a partial / warming / stale caveat that the
-    /// chrome MUST surface alongside the row.
-    pub const fn is_partial(self) -> bool {
-        !matches!(self, Self::Authoritative)
     }
 }
 

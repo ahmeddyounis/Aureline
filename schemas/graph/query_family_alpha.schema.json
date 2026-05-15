@@ -58,6 +58,125 @@
       ],
       "description": "Partial-truth cause that must remain visible when a consumer renders or exports this row."
     },
+    "result_partiality_class": {
+      "type": "string",
+      "enum": ["authoritative", "warming", "partial", "stale", "unavailable"],
+      "description": "Shared row/result partiality class reused by graph, search, navigation, and support exports."
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": ["journey_budget_overrun"],
+      "description": "Typed reason a graph query envelope was downgraded after execution began."
+    },
+    "budget_unit": {
+      "type": "string",
+      "enum": ["query_family_entry", "result_row"],
+      "description": "Synthetic metadata-only unit counted by the graph journey-budget ledger."
+    },
+    "budget_limit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "limit"],
+      "properties": {
+        "unit": { "$ref": "#/$defs/budget_unit" },
+        "limit": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "budget_total": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit", "amount"],
+      "properties": {
+        "unit": { "$ref": "#/$defs/budget_unit" },
+        "amount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "consumed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "unit", "amount", "source_ref"],
+      "properties": {
+        "journey_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id" },
+        "unit": { "$ref": "#/$defs/budget_unit" },
+        "amount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_ref": {
+          "type": "string",
+          "maxLength": 400,
+          "description": "Metadata-only query class, row id, or checkpoint token."
+        }
+      }
+    },
+    "budget_overrun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "limit",
+        "consumed_before_attempt",
+        "attempted_amount",
+        "source_ref"
+      ],
+      "properties": {
+        "unit": { "$ref": "#/$defs/budget_unit" },
+        "limit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "consumed_before_attempt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attempted_amount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_ref": {
+          "type": "string",
+          "maxLength": 400
+        }
+      }
+    },
+    "ledger_rollup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "journey_id",
+        "budget_limits",
+        "totals",
+        "consumed_records",
+        "overrun"
+      ],
+      "properties": {
+        "journey_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id" },
+        "budget_limits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/budget_limit" }
+        },
+        "totals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/budget_total" }
+        },
+        "consumed_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumed_record" }
+        },
+        "overrun": {
+          "oneOf": [
+            { "$ref": "#/$defs/budget_overrun" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
     "row_class": {
       "type": "string",
       "enum": ["node", "edge", "missing_anchor", "policy_hidden"],
@@ -127,6 +246,11 @@
         "scope_ids": {
           "type": "array",
           "items": { "$ref": "workspace_graph_seed.schema.json#/$defs/opaque_id" }
+        },
+        "journey_budget_limits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/budget_limit" },
+          "description": "Optional metadata-only budget limits applied while answering this query."
         }
       }
     },
@@ -222,6 +346,9 @@
         "workspace_id",
         "emitted_at",
         "readiness",
+        "result_partiality_class",
+        "downgrade_reasons",
+        "journey_budget_rollup",
         "partial_truth_causes",
         "rows"
       ],
@@ -236,6 +363,12 @@
         "workspace_id": { "$ref": "workspace_graph_seed.schema.json#/$defs/workspace_id" },
         "emitted_at": { "$ref": "workspace_graph_seed.schema.json#/$defs/monotonic_timestamp" },
         "readiness": { "$ref": "#/$defs/graph_query_readiness" },
+        "result_partiality_class": { "$ref": "#/$defs/result_partiality_class" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "journey_budget_rollup": { "$ref": "#/$defs/ledger_rollup" },
         "partial_truth_causes": {
           "type": "array",
           "items": { "$ref": "#/$defs/partial_truth_cause" }

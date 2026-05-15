@@ -7,6 +7,7 @@ use aureline_graph_proto::{
     ValidationError, WorkspaceGraph,
 };
 
+use crate::journey_budget::{BudgetUnit, JourneyBudgetLedger, LedgerRollup};
 use crate::query::{
     GraphAlphaQueryClass, GraphQueryEnvelope, GraphQueryFamilyDescriptor, GraphQueryRequest,
     GraphQueryRow,
@@ -105,25 +106,40 @@ impl GraphStore {
 
     /// Executes one alpha graph query request against the stored snapshot.
     pub fn query(&self, request: GraphQueryRequest) -> GraphQueryEnvelope {
+        let mut ledger =
+            JourneyBudgetLedger::new(request.journey_id(), request.journey_budget_limits.clone());
+        ledger.consume(
+            BudgetUnit::QueryFamilyEntry,
+            1,
+            request.query_class.as_str(),
+        );
+
         if request.workspace_id != self.workspace_id {
-            return self.unavailable_envelope(&request);
+            return self.unavailable_envelope(&request, ledger.into_rollup());
         }
 
-        let rows = match request.query_class {
-            GraphAlphaQueryClass::SymbolLookup => self.symbol_lookup_rows(&request),
-            GraphAlphaQueryClass::ImportNeighborhood => self.edge_neighborhood_rows(
-                &request,
-                EdgeClass::ImportsModule,
-                QueryFamilyTag::SemanticCodeSearch,
-            ),
-            GraphAlphaQueryClass::OwnershipLookup => self.ownership_lookup_rows(&request),
-            GraphAlphaQueryClass::ImpactSeed => self.edge_neighborhood_rows(
-                &request,
-                EdgeClass::Impacts,
-                QueryFamilyTag::ImpactExplorer,
-            ),
-            GraphAlphaQueryClass::ExplainerCitationSeed => self.explainer_citation_rows(&request),
+        let rows = if ledger.exceeded_budget() {
+            Vec::new()
+        } else {
+            match request.query_class {
+                GraphAlphaQueryClass::SymbolLookup => self.symbol_lookup_rows(&request),
+                GraphAlphaQueryClass::ImportNeighborhood => self.edge_neighborhood_rows(
+                    &request,
+                    EdgeClass::ImportsModule,
+                    QueryFamilyTag::SemanticCodeSearch,
+                ),
+                GraphAlphaQueryClass::OwnershipLookup => self.ownership_lookup_rows(&request),
+                GraphAlphaQueryClass::ImpactSeed => self.edge_neighborhood_rows(
+                    &request,
+                    EdgeClass::Impacts,
+                    QueryFamilyTag::ImpactExplorer,
+                ),
+                GraphAlphaQueryClass::ExplainerCitationSeed => {
+                    self.explainer_citation_rows(&request)
+                }
+            }
         };
+        let rows = apply_result_row_budget(rows, &mut ledger);
 
         GraphQueryEnvelope::from_rows(
             self.envelope_id(&request),
@@ -131,15 +147,21 @@ impl GraphStore {
             self.workspace_graph_id.clone(),
             self.recorded_at.clone(),
             rows,
+            ledger.into_rollup(),
         )
     }
 
-    fn unavailable_envelope(&self, request: &GraphQueryRequest) -> GraphQueryEnvelope {
+    fn unavailable_envelope(
+        &self,
+        request: &GraphQueryRequest,
+        journey_budget_rollup: LedgerRollup,
+    ) -> GraphQueryEnvelope {
         GraphQueryEnvelope::unavailable(
             self.envelope_id(request),
             request,
             self.workspace_graph_id.clone(),
             self.recorded_at.clone(),
+            journey_budget_rollup,
         )
     }
 
@@ -294,6 +316,21 @@ impl GraphStore {
             request.query_request_id
         )
     }
+}
+
+fn apply_result_row_budget(
+    rows: Vec<GraphQueryRow>,
+    ledger: &mut JourneyBudgetLedger,
+) -> Vec<GraphQueryRow> {
+    let mut admitted_rows = Vec::new();
+    for row in rows {
+        let source_ref = row.canonical_id().unwrap_or("graph_query_row").to_owned();
+        if !ledger.consume(BudgetUnit::ResultRow, 1, source_ref) {
+            break;
+        }
+        admitted_rows.push(row);
+    }
+    admitted_rows
 }
 
 #[derive(Debug)]

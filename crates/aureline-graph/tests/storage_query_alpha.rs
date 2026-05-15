@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use aureline_graph::{
-    EdgeClass, GraphAlphaQueryClass, GraphQueryRequest, GraphQueryRowClass, GraphStore, NodeClass,
+    BudgetUnit, EdgeClass, GraphAlphaQueryClass, GraphQueryDowngradeReason, GraphQueryReadiness,
+    GraphQueryRequest, GraphQueryRowClass, GraphStore, NodeClass, ResultPartialityClass,
 };
 use aureline_graph_proto::{
     all_scenarios, AnchorKind, ConfidenceLevel, EdgeBody, EdgeEvidence, Freshness, FreshnessFrame,
@@ -99,6 +100,69 @@ fn graph_rows_preserve_truth_for_search_and_navigation_consumers() {
     assert_eq!(row.relative_path.as_deref(), Some("src/lib.rs"));
     assert_eq!(row.confidence_level, ConfidenceLevel::High);
     assert_eq!(row.freshness_frame.freshness, Freshness::Authoritative);
+}
+
+#[test]
+fn identical_queries_share_journey_budget_id() {
+    let store = GraphStore::persist_snapshot(graph_with_import_edge())
+        .expect("graph fixture must validate before persistence");
+
+    let first = store.query(GraphQueryRequest::symbol_lookup(
+        "q:journey:first",
+        "ws:aureline",
+        "greet",
+    ));
+    let second = store.query(GraphQueryRequest::symbol_lookup(
+        "q:journey:second",
+        "ws:aureline",
+        "greet",
+    ));
+
+    assert_ne!(first.query_request_id, second.query_request_id);
+    assert_eq!(
+        first.journey_budget_rollup.journey_id,
+        second.journey_budget_rollup.journey_id
+    );
+    assert_eq!(
+        first
+            .journey_budget_rollup
+            .consumed_total(BudgetUnit::QueryFamilyEntry),
+        1
+    );
+}
+
+#[test]
+fn budget_overrun_downgrades_to_partial_result() {
+    let store = GraphStore::persist_snapshot(graph_with_import_edge())
+        .expect("graph fixture must validate before persistence");
+    let envelope = store.query(
+        GraphQueryRequest::import_neighborhood(
+            "q:journey:budgeted-imports",
+            "ws:aureline",
+            "node:file:lib_rs",
+        )
+        .with_journey_budget_limit(BudgetUnit::ResultRow, 1),
+    );
+
+    assert_eq!(envelope.readiness, GraphQueryReadiness::Partial);
+    assert_eq!(
+        envelope.result_partiality_class,
+        ResultPartialityClass::Partial
+    );
+    assert_eq!(
+        envelope.downgrade_reasons,
+        vec![GraphQueryDowngradeReason::JourneyBudgetOverrun]
+    );
+    assert_eq!(envelope.rows.len(), 1);
+    assert!(envelope.journey_budget_rollup.exceeded_budget());
+    let overrun = envelope
+        .journey_budget_rollup
+        .overrun
+        .expect("overrun detail is preserved");
+    assert_eq!(overrun.unit, BudgetUnit::ResultRow);
+    assert_eq!(overrun.limit, 1);
+    assert_eq!(overrun.consumed_before_attempt, 1);
+    assert_eq!(overrun.source_ref, "node:file:dep_rs");
 }
 
 fn load_fixture(name: &str) -> Fixture {

@@ -6,6 +6,7 @@
 //! ownership edges, and the future impact/explainer packet lanes.
 
 pub mod explainers;
+pub mod journey_budget;
 mod query;
 pub mod readiness;
 mod store;
@@ -18,9 +19,11 @@ pub use explainers::{
     WorksetScopeMode, WorksetScopeSource, GRAPH_IMPACT_EXPLAINER_PACKET_RECORD_KIND,
     GRAPH_IMPACT_EXPLAINER_PACKET_SCHEMA_VERSION,
 };
+pub use journey_budget::{BudgetOverrun, BudgetUnit, ConsumedRecord, JourneyId, LedgerRollup};
 pub use query::{
-    GraphAlphaQueryClass, GraphPartialTruthCause, GraphQueryEnvelope, GraphQueryFamilyDescriptor,
-    GraphQueryReadiness, GraphQueryRequest, GraphQueryRow, GraphQueryRowClass,
+    result_partiality_for_readiness, GraphAlphaQueryClass, GraphPartialTruthCause,
+    GraphQueryDowngradeReason, GraphQueryEnvelope, GraphQueryFamilyDescriptor, GraphQueryReadiness,
+    GraphQueryRequest, GraphQueryRow, GraphQueryRowClass, ResultPartialityClass,
     GRAPH_QUERY_FAMILY_ALPHA_VERSION,
 };
 pub use readiness::{

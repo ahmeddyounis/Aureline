@@ -4,13 +4,67 @@
 //! directly. Search, navigation, support, and future public graph surfaces can
 //! consume the same envelope without minting private graph row models.
 
+use std::collections::BTreeMap;
+
 use aureline_graph_proto::{
     ConfidenceLevel, EdgeClass, EdgeEvidenceState, Freshness, FreshnessFrame, GraphEdge, GraphNode,
     NodeBody, NodeClass, QueryFamilyTag, WorksetScopeRef,
 };
+use serde::{Deserialize, Serialize};
+
+use crate::journey_budget::{BudgetUnit, JourneyId, LedgerRollup};
 
 /// Schema version for the alpha graph query-family runtime records.
 pub const GRAPH_QUERY_FAMILY_ALPHA_VERSION: u32 = 1;
+
+/// Row-level result partiality vocabulary shared by graph and search results.
+///
+/// The class travels with query outputs so a warming, partial, stale, or
+/// unavailable result keeps its caveat after sorting, pagination, deduping, or
+/// projection through search and navigation surfaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResultPartialityClass {
+    /// Result came from a ready provider; no caveat is required.
+    Authoritative,
+    /// Result came from a provider that is still warming up.
+    Warming,
+    /// Result came from a provider with rows but incomplete coverage.
+    Partial,
+    /// Result came from a cached or stale snapshot.
+    Stale,
+    /// Result came from a provider that cannot currently answer.
+    Unavailable,
+}
+
+impl ResultPartialityClass {
+    /// Stable token used in records, fixtures, and snapshots.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Authoritative => "authoritative",
+            Self::Warming => "warming",
+            Self::Partial => "partial",
+            Self::Stale => "stale",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    /// Short label suitable for a row chip or badge.
+    pub const fn row_badge(self) -> &'static str {
+        match self {
+            Self::Authoritative => "Authoritative",
+            Self::Warming => "Warming",
+            Self::Partial => "Partial",
+            Self::Stale => "Stale",
+            Self::Unavailable => "Unavailable",
+        }
+    }
+
+    /// Returns true when the result carries a visible caveat.
+    pub const fn is_partial(self) -> bool {
+        !matches!(self, Self::Authoritative)
+    }
+}
 
 /// Stable alpha query classes supported by the runtime graph store.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -106,6 +160,22 @@ pub enum GraphPartialTruthCause {
     PolicyHidden,
     /// A derived or inferred row contributed to the result.
     Derived,
+}
+
+/// Typed downgrade reason attached to a graph query envelope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum GraphQueryDowngradeReason {
+    /// The metadata-only journey budget rejected additional query rows.
+    JourneyBudgetOverrun,
+}
+
+impl GraphQueryDowngradeReason {
+    /// Returns the stable schema token for this downgrade reason.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::JourneyBudgetOverrun => "journey_budget_overrun",
+        }
+    }
 }
 
 impl GraphPartialTruthCause {
@@ -266,6 +336,8 @@ pub struct GraphQueryRequest {
     pub subject_node_id: Option<String>,
     /// Optional scope ids constraining the query.
     pub scope_ids: Vec<String>,
+    /// Optional metadata-only budget limits for this query journey.
+    pub journey_budget_limits: BTreeMap<BudgetUnit, u64>,
 }
 
 impl GraphQueryRequest {
@@ -282,6 +354,7 @@ impl GraphQueryRequest {
             label_token: Some(label_token.into()),
             subject_node_id: None,
             scope_ids: Vec::new(),
+            journey_budget_limits: BTreeMap::new(),
         }
     }
 
@@ -350,6 +423,17 @@ impl GraphQueryRequest {
         self
     }
 
+    /// Adds or replaces one metadata-only journey-budget limit.
+    pub fn with_journey_budget_limit(mut self, unit: BudgetUnit, limit: u64) -> Self {
+        self.journey_budget_limits.insert(unit, limit);
+        self
+    }
+
+    /// Returns the deterministic journey id for this query's semantic inputs.
+    pub fn journey_id(&self) -> JourneyId {
+        query_journey_id(self)
+    }
+
     fn for_subject(
         query_request_id: impl Into<String>,
         workspace_id: impl Into<String>,
@@ -363,6 +447,7 @@ impl GraphQueryRequest {
             label_token: None,
             subject_node_id: Some(subject_node_id.into()),
             scope_ids: Vec::new(),
+            journey_budget_limits: BTreeMap::new(),
         }
     }
 }
@@ -479,6 +564,12 @@ pub struct GraphQueryEnvelope {
     pub emitted_at: String,
     /// Readiness state of this envelope.
     pub readiness: GraphQueryReadiness,
+    /// Row-level partiality token consumers reuse for result chrome and exports.
+    pub result_partiality_class: ResultPartialityClass,
+    /// Typed reasons this envelope was downgraded after query execution began.
+    pub downgrade_reasons: Vec<GraphQueryDowngradeReason>,
+    /// Metadata-only budget rollup for this query journey.
+    pub journey_budget_rollup: LedgerRollup,
     /// Highest-risk partial-truth causes for this envelope.
     pub partial_truth_causes: Vec<GraphPartialTruthCause>,
     /// Ordered query rows.
@@ -493,9 +584,21 @@ impl GraphQueryEnvelope {
         workspace_graph_id: impl Into<String>,
         emitted_at: impl Into<String>,
         rows: Vec<GraphQueryRow>,
+        journey_budget_rollup: LedgerRollup,
     ) -> Self {
         let partial_truth_causes = envelope_partial_truth_causes(&rows);
-        let readiness = readiness_for_rows(&rows, &partial_truth_causes);
+        let downgraded_for_budget = journey_budget_rollup.exceeded_budget();
+        let readiness = if downgraded_for_budget {
+            GraphQueryReadiness::Partial
+        } else {
+            readiness_for_rows(&rows, &partial_truth_causes)
+        };
+        let result_partiality_class = result_partiality_for_readiness(readiness);
+        let downgrade_reasons = if downgraded_for_budget {
+            vec![GraphQueryDowngradeReason::JourneyBudgetOverrun]
+        } else {
+            Vec::new()
+        };
         Self {
             schema_version: GRAPH_QUERY_FAMILY_ALPHA_VERSION,
             envelope_id: envelope_id.into(),
@@ -506,6 +609,9 @@ impl GraphQueryEnvelope {
             workspace_id: request.workspace_id.clone(),
             emitted_at: emitted_at.into(),
             readiness,
+            result_partiality_class,
+            downgrade_reasons,
+            journey_budget_rollup,
             partial_truth_causes,
             rows,
         }
@@ -517,6 +623,7 @@ impl GraphQueryEnvelope {
         request: &GraphQueryRequest,
         workspace_graph_id: impl Into<String>,
         emitted_at: impl Into<String>,
+        journey_budget_rollup: LedgerRollup,
     ) -> Self {
         Self {
             schema_version: GRAPH_QUERY_FAMILY_ALPHA_VERSION,
@@ -528,6 +635,9 @@ impl GraphQueryEnvelope {
             workspace_id: request.workspace_id.clone(),
             emitted_at: emitted_at.into(),
             readiness: GraphQueryReadiness::Unavailable,
+            result_partiality_class: ResultPartialityClass::Unavailable,
+            downgrade_reasons: Vec::new(),
+            journey_budget_rollup,
             partial_truth_causes: Vec::new(),
             rows: Vec::new(),
         }
@@ -536,6 +646,23 @@ impl GraphQueryEnvelope {
     /// Returns true when consumers must render a partial-truth disclosure.
     pub fn requires_partial_truth_disclosure(&self) -> bool {
         self.readiness != GraphQueryReadiness::Ready || !self.partial_truth_causes.is_empty()
+    }
+}
+
+/// Projects graph query readiness onto the shared result-partiality vocabulary.
+pub const fn result_partiality_for_readiness(
+    readiness: GraphQueryReadiness,
+) -> ResultPartialityClass {
+    match readiness {
+        GraphQueryReadiness::Ready => ResultPartialityClass::Authoritative,
+        GraphQueryReadiness::HotSetReady | GraphQueryReadiness::Partial => {
+            ResultPartialityClass::Partial
+        }
+        GraphQueryReadiness::Warming => ResultPartialityClass::Warming,
+        GraphQueryReadiness::Stale => ResultPartialityClass::Stale,
+        GraphQueryReadiness::Unavailable | GraphQueryReadiness::OutOfScope => {
+            ResultPartialityClass::Unavailable
+        }
     }
 }
 
@@ -641,6 +768,40 @@ fn append_cause(causes: &mut Vec<GraphPartialTruthCause>, cause: GraphPartialTru
     if !causes.contains(&cause) {
         causes.push(cause);
     }
+}
+
+fn query_journey_id(request: &GraphQueryRequest) -> JourneyId {
+    let label_token = request
+        .label_token
+        .as_deref()
+        .map(normalize_journey_component)
+        .unwrap_or_else(|| "-".to_owned());
+    let subject_node_id = request.subject_node_id.as_deref().unwrap_or("-").to_owned();
+    let mut scope_ids = request.scope_ids.clone();
+    scope_ids.sort();
+    scope_ids.dedup();
+    let scope_key = if scope_ids.is_empty() {
+        "-".to_owned()
+    } else {
+        scope_ids.join(",")
+    };
+
+    JourneyId::new(format!(
+        "journey:graph_query:{}:{}:{}:{}:{}",
+        stable_component("class", request.query_class.as_str()),
+        stable_component("workspace", &request.workspace_id),
+        stable_component("label", &label_token),
+        stable_component("subject", &subject_node_id),
+        stable_component("scopes", &scope_key)
+    ))
+}
+
+fn normalize_journey_component(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
+}
+
+fn stable_component(name: &str, value: &str) -> String {
+    format!("{name}#{}:{value}", value.len())
 }
 
 fn display_label_for_node(node: &GraphNode) -> String {

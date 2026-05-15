@@ -45,12 +45,28 @@ Each query emits a `graph_query_envelope` with:
 - `workspace_id`
 - `emitted_at`
 - `readiness`
+- `result_partiality_class`
+- `downgrade_reasons`
+- `journey_budget_rollup`
 - `partial_truth_causes`
 - ordered `rows`
 
 Rows reference canonical `node_id` or `edge_id` values. They may include
 `display_label`, `relative_path`, and `symbol_ref` as navigation projections,
 but consumers must still treat the graph id as the identity anchor.
+
+The journey-budget rollup is metadata-only. Runtime code increments synthetic
+units at graph query checkpoints (`query_family_entry`, `result_row`) and never
+samples allocator state, process counters, wall-clock time, or host syscalls.
+Semantically identical query inputs share one `journey_id` even when request ids
+differ, so support and benchmark packets can roll repeated query families up
+without exposing raw workspace content.
+
+If a configured budget is exceeded, the query returns the rows admitted before
+the rejected increment, sets `readiness = partial`, sets
+`result_partiality_class = partial`, and records
+`downgrade_reasons = ["journey_budget_overrun"]`. Budget exhaustion is therefore
+a typed partial result, not a panic or hard query failure.
 
 ## Query classes
 
