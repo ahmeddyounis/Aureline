@@ -9,6 +9,11 @@ use aureline_settings::inspector::{
     project_support_export, SettingWritePreviewRequest, SettingsInspectionContext, WriteActorClass,
     WriteReasonClass,
 };
+use aureline_settings::sync::{
+    build_review_row, project_review_page,
+    project_support_export as project_sync_beta_support_export, DeviceParticipationState,
+    IdentityModeClass, LastWriterBreadcrumb, SyncBetaDeviceRecord, SyncConflictReviewBetaRequest,
+};
 use aureline_settings::ui::{
     inspect_setting_pane, project_page_from_records, project_settings_ui_beta_page,
     project_support_export as project_ui_beta_support_export, project_write_composer,
@@ -103,6 +108,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             );
             print_json(&composer)?;
         }
+        Some("sync-beta-review") => {
+            let (page, _packets) = sync_beta_review_artifacts(&resolver, &context)?;
+            print_json(&page)?;
+        }
+        Some("sync-beta-support-export") => {
+            let (page, packets) = sync_beta_review_artifacts(&resolver, &context)?;
+            let export = project_sync_beta_support_export(
+                "support-export:settings-sync-beta:001",
+                page,
+                packets,
+            );
+            print_json(&export)?;
+        }
         Some("ui-beta-support-export") => {
             let records = inspect_all_settings(&resolver, &context)?;
             let page = project_page_from_records(records.clone(), "all", "All settings");
@@ -168,6 +186,190 @@ fn print_inspect(
 fn print_json(value: &impl Serialize) -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", serde_json::to_string_pretty(value)?);
     Ok(())
+}
+
+fn sync_beta_review_artifacts(
+    resolver: &EffectiveSettingsResolver,
+    context: &SettingsInspectionContext,
+) -> Result<
+    (
+        aureline_settings::sync::SyncConflictReviewBetaPage,
+        Vec<aureline_settings::inspector::conflict::SyncConflictPacket>,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let local = SyncBetaDeviceRecord {
+        device_id: "dev-laptop-primary-0001".to_owned(),
+        device_label: Some("Dev laptop".to_owned()),
+        device_class: "personal_laptop".to_owned(),
+        os_family_class: "macos".to_owned(),
+        identity_mode: IdentityModeClass::AccountFreeLocal,
+        participation_state: DeviceParticipationState::Active,
+        revocation_reason: None,
+        lineage_cursor: Some("lc-0001-000000000517".to_owned()),
+        last_seen_at: Some("2026-04-20T09:00:00Z".to_owned()),
+        last_seen_source: Some("local_heartbeat".to_owned()),
+        trust_state: Some("trusted".to_owned()),
+    };
+    let active_remote = SyncBetaDeviceRecord {
+        device_id: "dev-desktop-home-0002".to_owned(),
+        device_label: Some("Home desktop".to_owned()),
+        device_class: "personal_workstation".to_owned(),
+        os_family_class: "macos".to_owned(),
+        identity_mode: IdentityModeClass::AccountFreeLocal,
+        participation_state: DeviceParticipationState::Active,
+        revocation_reason: None,
+        lineage_cursor: Some("lc-0002-000000000142".to_owned()),
+        last_seen_at: Some("2026-04-19T22:11:00Z".to_owned()),
+        last_seen_source: Some("push".to_owned()),
+        trust_state: Some("trusted".to_owned()),
+    };
+    let paused_remote = SyncBetaDeviceRecord {
+        device_id: "dev-corp-vm-0003".to_owned(),
+        device_label: Some("Corp dev VM".to_owned()),
+        device_class: "remote_dev_vm".to_owned(),
+        os_family_class: "linux".to_owned(),
+        identity_mode: IdentityModeClass::ManagedConvenience,
+        participation_state: DeviceParticipationState::Paused,
+        revocation_reason: Some("user_paused".to_owned()),
+        lineage_cursor: Some("lc-0003-000000000084".to_owned()),
+        last_seen_at: Some("2026-04-12T19:42:00Z".to_owned()),
+        last_seen_source: Some("push".to_owned()),
+        trust_state: Some("restricted".to_owned()),
+    };
+
+    let stale_row = build_review_row(
+        resolver,
+        context,
+        SyncConflictReviewBetaRequest {
+            setting_id: "editor.tab_size".to_owned(),
+            local_device: local.clone(),
+            remote_device: active_remote.clone(),
+            conflicting_scope: SettingScope::UserGlobal,
+            conflicting_value: SettingValue::Integer(8),
+            import_continuity: false,
+            remote_bundle_epoch: Some(100),
+            local_bundle_epoch_floor: Some(200),
+            last_writer: Some(LastWriterBreadcrumb {
+                device_id: "dev-laptop-primary-0001".to_owned(),
+                device_label: Some("Dev laptop".to_owned()),
+                actor_class: "user_keystroke".to_owned(),
+                revision_ref: "settings-rev:00517".to_owned(),
+                winning_scope: "workspace".to_owned(),
+                at: Some("2026-04-18T14:05:31Z".to_owned()),
+                mutation_journal_ref: Some(
+                    "mjr-laptop-primary-0001-000000000517".to_owned(),
+                ),
+            }),
+            rollback_checkpoint_ref: None,
+            approval_ticket_ref: None,
+        },
+    )?;
+    let policy_row = build_review_row(
+        resolver,
+        context,
+        SyncConflictReviewBetaRequest {
+            setting_id: "security.ai.egress_policy".to_owned(),
+            local_device: local.clone(),
+            remote_device: active_remote.clone(),
+            conflicting_scope: SettingScope::UserGlobal,
+            conflicting_value: SettingValue::String("any_hosted_provider".to_owned()),
+            import_continuity: false,
+            remote_bundle_epoch: Some(142),
+            local_bundle_epoch_floor: Some(140),
+            last_writer: Some(LastWriterBreadcrumb {
+                device_id: "dev-laptop-primary-0001".to_owned(),
+                device_label: Some("Dev laptop".to_owned()),
+                actor_class: "admin_policy_injector".to_owned(),
+                revision_ref: "settings-rev:00042".to_owned(),
+                winning_scope: "admin_policy_narrowing".to_owned(),
+                at: Some("2026-04-19T10:14:22Z".to_owned()),
+                mutation_journal_ref: Some(
+                    "mjr-admin-policy-bundle-v3-000000000042".to_owned(),
+                ),
+            }),
+            rollback_checkpoint_ref: None,
+            approval_ticket_ref: None,
+        },
+    )?;
+    let disabled_row = build_review_row(
+        resolver,
+        context,
+        SyncConflictReviewBetaRequest {
+            setting_id: "editor.format_on_save".to_owned(),
+            local_device: local.clone(),
+            remote_device: paused_remote.clone(),
+            conflicting_scope: SettingScope::UserGlobal,
+            conflicting_value: SettingValue::Boolean(false),
+            import_continuity: false,
+            remote_bundle_epoch: Some(84),
+            local_bundle_epoch_floor: Some(80),
+            last_writer: None,
+            rollback_checkpoint_ref: None,
+            approval_ticket_ref: None,
+        },
+    )?;
+
+    let rows = vec![stale_row, policy_row, disabled_row];
+    let packets = rows
+        .iter()
+        .filter_map(|row| {
+            row.source_packet_ref.as_ref().and_then(|_| {
+                aureline_settings::inspector::conflict::inspect_sync_conflict(
+                    resolver,
+                    aureline_settings::inspector::conflict::SyncConflictReviewRequest {
+                        setting_id: row.setting_id.clone(),
+                        current_device:
+                            aureline_settings::inspector::conflict::SyncConflictDevice::new(
+                                row.local_device.device_id.clone(),
+                            ),
+                        conflicting_device:
+                            aureline_settings::inspector::conflict::SyncConflictDevice::new(
+                                row.remote_device.device_id.clone(),
+                            ),
+                        conflicting_scope: scope_from_token(&row.conflicting_scope),
+                        conflicting_value: rebuild_value_for_setting(&row.setting_id),
+                    },
+                )
+                .ok()
+                .flatten()
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let page = project_review_page(
+        "sync-review-001",
+        "Sync conflict review",
+        local,
+        rows,
+        vec![paused_remote],
+    );
+    Ok((page, packets))
+}
+
+fn scope_from_token(token: &str) -> SettingScope {
+    match token {
+        "user_global" => SettingScope::UserGlobal,
+        "workspace" => SettingScope::Workspace,
+        "language_override" => SettingScope::LanguageOverride,
+        "machine_specific" => SettingScope::MachineSpecific,
+        "session_override" => SettingScope::SessionOverride,
+        "folder_or_module_override" => SettingScope::FolderOrModuleOverride,
+        "imported_profile_default" => SettingScope::ImportedProfileDefault,
+        "channel_or_experiment_default" => SettingScope::ChannelOrExperimentDefault,
+        "built_in_default" => SettingScope::BuiltInDefault,
+        "admin_policy_narrowing" => SettingScope::AdminPolicyNarrowing,
+        _ => SettingScope::UserGlobal,
+    }
+}
+
+fn rebuild_value_for_setting(setting_id: &str) -> SettingValue {
+    match setting_id {
+        "editor.tab_size" => SettingValue::Integer(8),
+        "security.ai.egress_policy" => SettingValue::String("any_hosted_provider".to_owned()),
+        "editor.format_on_save" => SettingValue::Boolean(false),
+        _ => SettingValue::String(String::new()),
+    }
 }
 
 fn seeded_resolver() -> Result<EffectiveSettingsResolver, Box<dyn std::error::Error>> {

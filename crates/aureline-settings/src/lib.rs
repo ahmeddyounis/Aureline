@@ -36,6 +36,7 @@ pub mod inspector;
 pub mod keybindings;
 pub mod resolver;
 pub mod schema;
+pub mod sync;
 pub mod ui;
 
 pub use experiments::{
@@ -66,6 +67,14 @@ pub use schema::{
     MigrationTransformClass, PreviewClass, RedactionClass, RestartPosture, SchemaRegistry,
     SchemaRegistryError, SensitivityClass, SettingAlias, SettingDefinition, SettingScope,
     SettingValue, SettingValueType, ValueValidationError,
+};
+pub use sync::{
+    build_review_row as build_sync_review_row, project_review_page as project_sync_review_page,
+    project_support_export as project_sync_support_export, DeviceParticipationState,
+    IdentityModeClass, LastWriterBreadcrumb, RollbackDecision, SyncBetaDeviceRecord,
+    SyncConflictReviewBetaPage, SyncConflictReviewBetaRequest, SyncConflictReviewBetaRow,
+    SyncConflictReviewBetaSupportExport, SyncStateClass, SyncStateSummary,
+    SETTINGS_SYNC_BETA_SCHEMA_VERSION, SETTINGS_SYNC_BETA_SHARED_CONTRACT_REF,
 };
 pub use ui::{
     inspect_setting_pane, project_inspector_pane, project_page_from_records,
