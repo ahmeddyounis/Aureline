@@ -14,7 +14,17 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-install/0.0.0")]
 
+pub mod rollback;
 pub mod topology;
+
+pub use rollback::{
+    RollbackDrillDeltaClass, RollbackDrillDiff, RollbackDrillDiffKind, RollbackDrillDriver,
+    RollbackDrillEntry, RollbackDrillEntryKind, RollbackDrillError, RollbackDrillExpectedDelta,
+    RollbackDrillLayout, RollbackDrillPlan, RollbackDrillPreStateSnapshot, RollbackDrillReport,
+    RollbackDrillRoot, RollbackDrillRootPath, RollbackDrillRootRole,
+    ROLLBACK_DRILL_PRE_STATE_RECORD_KIND, ROLLBACK_DRILL_REPORT_RECORD_KIND,
+    ROLLBACK_DRILL_SCHEMA_VERSION,
+};
 
 pub use topology::{
     ArchitectureClass, BinaryRootClass, ChannelClass, ChannelPinningPosture, ContractRefs,
