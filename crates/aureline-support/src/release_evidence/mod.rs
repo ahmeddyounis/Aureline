@@ -10,6 +10,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+pub use aureline_build_farm::{ProvenanceChainRecord, SignatureProjection, TrustDomain};
 use serde::{Deserialize, Serialize};
 
 use crate::fitness::{current_fitness_packet_alpha, FitnessPacketProjection};
@@ -243,11 +244,20 @@ impl AlphaArtifactGraph {
                 .map(|node| node.trust_domain.clone()),
         );
 
+        let packet_id = packet_id.into();
+        let generated_at = generated_at.into();
+        let signature_projection = signature_projection_for(
+            &packet_id,
+            &self.exact_build_identity_ref,
+            bundle,
+            &self.source_contract_refs,
+        );
+
         AlphaReleaseEvidencePacket {
             schema_version: ALPHA_RELEASE_EVIDENCE_PACKET_SCHEMA_VERSION,
             record_kind: ALPHA_RELEASE_EVIDENCE_PACKET_RECORD_KIND.to_owned(),
-            packet_id: packet_id.into(),
-            generated_at: generated_at.into(),
+            packet_id,
+            generated_at,
             graph_ref: CURRENT_ALPHA_ARTIFACT_GRAPH_PATH.to_owned(),
             graph_id: self.graph_id.clone(),
             exact_build_identity_ref: self.exact_build_identity_ref.clone(),
@@ -286,10 +296,91 @@ impl AlphaArtifactGraph {
             protected_fitness_packet: current_fitness_packet_alpha()
                 .ok()
                 .map(|packet| packet.release_evidence_projection()),
+            signature_projection,
             trust_domain_refs: trust_domain_refs.into_iter().collect(),
             raw_private_material_excluded: true,
         }
     }
+}
+
+fn signature_projection_for(
+    packet_id: &str,
+    exact_build_identity_ref: &str,
+    bundle: Option<&ArtifactBundleDescriptor>,
+    source_contract_refs: &BTreeMap<String, String>,
+) -> SignatureProjection {
+    let artifact_bundle_ref = bundle
+        .map(|bundle| bundle.bundle_id.clone())
+        .unwrap_or_else(|| "artifact_bundle:unknown".to_owned());
+    let digest_set_ref = bundle
+        .map(|bundle| bundle.digest_set_ref.clone())
+        .unwrap_or_else(|| "digest_set:unknown".to_owned());
+    let signature_state = bundle
+        .map(|bundle| bundle.signature_state.clone())
+        .unwrap_or_else(|| "signature_state_unknown".to_owned());
+    let attestation_state = bundle
+        .map(|bundle| bundle.attestation_state.clone())
+        .unwrap_or_else(|| "attestation_state_unknown".to_owned());
+
+    let build_agent_evidence_ref = source_contract_refs
+        .get("clean_room_rebuild_alpha_ref")
+        .or_else(|| source_contract_refs.get("collector_ref"))
+        .cloned()
+        .unwrap_or_else(|| CURRENT_ALPHA_ARTIFACT_GRAPH_PATH.to_owned());
+    let publisher_key_evidence_ref = source_contract_refs
+        .get("alpha_notice_sbom_provenance_dry_run_ref")
+        .or_else(|| source_contract_refs.get("trust_domain_baseline_ref"))
+        .cloned()
+        .unwrap_or_else(|| CURRENT_ALPHA_ARTIFACT_GRAPH_PATH.to_owned());
+    let mirror_evidence_ref = source_contract_refs
+        .get("mirror_offline_publication_dry_run_ref")
+        .or_else(|| source_contract_refs.get("alpha_publication_manifest_ref"))
+        .cloned()
+        .unwrap_or_else(|| CURRENT_ALPHA_ARTIFACT_GRAPH_PATH.to_owned());
+
+    SignatureProjection::new(
+        format!("signature_projection:{packet_id}"),
+        exact_build_identity_ref.to_owned(),
+        artifact_bundle_ref.clone(),
+        digest_set_ref.clone(),
+        signature_state,
+        attestation_state,
+        vec![
+            ProvenanceChainRecord::new(
+                format!("provenance_chain:{packet_id}:build_agent_to_publisher_key"),
+                0,
+                TrustDomain::BuildAgent,
+                TrustDomain::PublisherKey,
+                exact_build_identity_ref.to_owned(),
+                artifact_bundle_ref.clone(),
+                digest_set_ref.clone(),
+                build_agent_evidence_ref,
+                "request_signature_by_digest",
+            ),
+            ProvenanceChainRecord::new(
+                format!("provenance_chain:{packet_id}:publisher_key_to_release_registry"),
+                1,
+                TrustDomain::PublisherKey,
+                TrustDomain::ReleaseRegistry,
+                exact_build_identity_ref.to_owned(),
+                artifact_bundle_ref.clone(),
+                digest_set_ref.clone(),
+                publisher_key_evidence_ref,
+                "project_signature_to_registry",
+            ),
+            ProvenanceChainRecord::new(
+                format!("provenance_chain:{packet_id}:release_registry_to_mirror_origin"),
+                2,
+                TrustDomain::ReleaseRegistry,
+                TrustDomain::MirrorOrigin,
+                exact_build_identity_ref.to_owned(),
+                artifact_bundle_ref,
+                digest_set_ref,
+                mirror_evidence_ref,
+                "preserve_origin_signature_for_mirror",
+            ),
+        ],
+    )
 }
 
 /// Build identity metadata for a candidate graph.
@@ -1003,6 +1094,8 @@ pub struct AlphaReleaseEvidencePacket {
     /// Typed protected fitness packet projection linked to release evidence.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub protected_fitness_packet: Option<FitnessPacketProjection>,
+    /// Metadata-only signature and trust-domain chain projection.
+    pub signature_projection: SignatureProjection,
     /// Trust domains visible in the packet.
     pub trust_domain_refs: Vec<String>,
     /// Whether raw private material is excluded from the projection.
@@ -1018,6 +1111,11 @@ impl AlphaReleaseEvidencePacket {
             && !self.rollout_ring.trim().is_empty()
             && !self.auth_source_class.trim().is_empty()
             && !self.rollback_target_ref.trim().is_empty()
+    }
+
+    /// Returns true when the packet carries a valid build-farm signature chain.
+    pub fn carries_valid_signature_projection(&self) -> bool {
+        self.signature_projection.carries_valid_chain()
     }
 }
 

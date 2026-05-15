@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+use aureline_support::release_evidence::TrustDomain;
 use aureline_support::release_evidence::{
     current_alpha_artifact_graph, AlphaReleaseEvidencePacket, ALPHA_ARTIFACT_GRAPH_RECORD_KIND,
     ALPHA_RELEASE_EVIDENCE_PACKET_RECORD_KIND, CURRENT_ALPHA_ARTIFACT_GRAPH_PATH,
@@ -101,6 +102,28 @@ fn support_projection_reconstructs_release_center_fields_without_log_scraping() 
         "rollback.target.preview.previous_verified_build"
     );
     assert!(packet.raw_private_material_excluded);
+    assert!(packet.carries_valid_signature_projection());
+    assert_eq!(
+        packet.signature_projection.signature_state,
+        "seed_not_signed"
+    );
+    assert_eq!(
+        packet.signature_projection.attestation_state,
+        "provenance_seed_only"
+    );
+    assert_eq!(
+        packet
+            .signature_projection
+            .provenance_chain
+            .iter()
+            .map(|record| (record.source_domain, record.destination_domain))
+            .collect::<Vec<_>>(),
+        vec![
+            (TrustDomain::BuildAgent, TrustDomain::PublisherKey),
+            (TrustDomain::PublisherKey, TrustDomain::ReleaseRegistry),
+            (TrustDomain::ReleaseRegistry, TrustDomain::MirrorOrigin),
+        ]
+    );
     assert!(packet.digest_set.len() >= 6);
     assert!(packet
         .trust_domain_refs

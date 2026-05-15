@@ -269,6 +269,81 @@ def build_packet(repo_root: Path, graph_path: Path, graph: dict[str, Any], gener
         "auth_source_class": target["auth_source_class"],
         "rollback_target_ref": target["rollback_target_ref"],
     }
+    source_refs = graph.get("source_contract_refs", {})
+    if not isinstance(source_refs, dict):
+        source_refs = {}
+
+    def source_ref(*keys: str) -> str:
+        for key in keys:
+            value = source_refs.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return DEFAULT_GRAPH
+
+    artifact_bundle_ref = bundle["bundle_id"]
+    digest_set_ref = bundle["digest_set_ref"]
+    exact_build_identity_ref = graph["exact_build_identity_ref"]
+    signature_projection = {
+        "schema_version": 1,
+        "record_kind": "build_farm_signature_projection",
+        "projection_id": "signature_projection:release.evidence.alpha.seed.preview",
+        "exact_build_identity_ref": exact_build_identity_ref,
+        "artifact_bundle_ref": artifact_bundle_ref,
+        "digest_set_ref": digest_set_ref,
+        "signature_state": bundle["signature_state"],
+        "attestation_state": bundle["attestation_state"],
+        "provenance_chain": [
+            {
+                "schema_version": 1,
+                "record_kind": "build_farm_provenance_chain_record",
+                "record_id": "provenance_chain:release.evidence.alpha.seed.preview:build_agent_to_publisher_key",
+                "sequence": 0,
+                "source_domain": "build_agent",
+                "destination_domain": "publisher_key",
+                "exact_build_identity_ref": exact_build_identity_ref,
+                "subject_ref": artifact_bundle_ref,
+                "digest_set_ref": digest_set_ref,
+                "evidence_ref": source_ref("clean_room_rebuild_alpha_ref", "collector_ref"),
+                "transition_class": "request_signature_by_digest",
+                "raw_signing_material_excluded": True,
+            },
+            {
+                "schema_version": 1,
+                "record_kind": "build_farm_provenance_chain_record",
+                "record_id": "provenance_chain:release.evidence.alpha.seed.preview:publisher_key_to_release_registry",
+                "sequence": 1,
+                "source_domain": "publisher_key",
+                "destination_domain": "release_registry",
+                "exact_build_identity_ref": exact_build_identity_ref,
+                "subject_ref": artifact_bundle_ref,
+                "digest_set_ref": digest_set_ref,
+                "evidence_ref": source_ref(
+                    "alpha_notice_sbom_provenance_dry_run_ref",
+                    "trust_domain_baseline_ref",
+                ),
+                "transition_class": "project_signature_to_registry",
+                "raw_signing_material_excluded": True,
+            },
+            {
+                "schema_version": 1,
+                "record_kind": "build_farm_provenance_chain_record",
+                "record_id": "provenance_chain:release.evidence.alpha.seed.preview:release_registry_to_mirror_origin",
+                "sequence": 2,
+                "source_domain": "release_registry",
+                "destination_domain": "mirror_origin",
+                "exact_build_identity_ref": exact_build_identity_ref,
+                "subject_ref": artifact_bundle_ref,
+                "digest_set_ref": digest_set_ref,
+                "evidence_ref": source_ref(
+                    "mirror_offline_publication_dry_run_ref",
+                    "alpha_publication_manifest_ref",
+                ),
+                "transition_class": "preserve_origin_signature_for_mirror",
+                "raw_signing_material_excluded": True,
+            },
+        ],
+        "raw_signing_material_excluded": True,
+    }
 
     return {
         "schema_version": 1,
@@ -305,6 +380,7 @@ def build_packet(repo_root: Path, graph_path: Path, graph: dict[str, Any], gener
             "artifact_node_refs": bundle.get("artifact_node_refs", []),
         },
         "digest_set": digest_set,
+        "signature_projection": signature_projection,
         "trust_domain_refs": trust_domain_refs,
         "release_center_reconstruction": reconstruction,
         "raw_private_material_excluded": True,
