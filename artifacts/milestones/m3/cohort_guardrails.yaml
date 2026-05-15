@@ -1,0 +1,266 @@
+# M3 beta cohort guardrails.
+#
+# Canonical cohort, support-class, and downgrade vocabulary for the M3 beta
+# admission lane. Later M3 tasks should cite cohort_id and downgrade rules from
+# here rather than restating intake or graduation rules locally.
+
+schema_version: 1
+as_of: "2026-05-15"
+owner: "@ahmeddyounis"
+
+guardrails_id: beta_cohort_guardrails
+scope_state: frozen
+human_entrypoint_ref: docs/milestones/m3/beta_admission_matrix.md
+claimed_surface_register_ref: artifacts/milestones/m3/claimed_surface_register.json
+dependency_graph_ref: artifacts/milestones/m3/dependency_graph.mmd
+
+validator:
+  script_ref: ci/check_beta_admission.py
+  command: python3 ci/check_beta_admission.py --repo-root .
+
+source_contract_refs:
+  - artifacts/milestones/m2/alpha_wedge_matrix.yaml
+  - artifacts/milestones/m2/exit_gate_scoreboard.yaml
+  - artifacts/milestones/m2/dependency_graph.yaml
+  - artifacts/certification/m2_archetype_seed_rows.yaml
+  - artifacts/compat/reference_workspace_rows.yaml
+  - artifacts/compat/archetype_rubric.yaml
+  - artifacts/deployment/locality_matrix.yaml
+  - docs/product/known_limits_contract.md
+  - docs/governance/public_interface_versioning_policy.md
+  - docs/release/certified_archetype_report_template.md
+
+release_channel_vocabulary:
+  - nightly
+  - preview
+  - beta
+  - stable
+
+support_class_vocabulary:
+  - certified
+  - supported
+  - limited
+  - experimental
+  - community
+  - retest_pending
+  - evidence_stale
+  - unsupported
+
+downgrade_state_vocabulary:
+  - retest_pending
+  - limited
+  - policy_blocked
+  - unsupported
+  - evidence_stale
+
+graduation_state_vocabulary:
+  - admission_pending
+  - active
+  - paused_pending_evidence
+  - graduated
+  - exited
+
+evidence_freshness_vocabulary:
+  - current
+  - retest_pending
+  - evidence_stale
+
+change_control:
+  late_addition_policy: release_council_or_waiver
+  default_decision_for_unlisted_cohort: no_beta_admission
+  addition_requires_refs:
+    - artifacts/milestones/m3/claimed_surface_register.json
+    - artifacts/milestones/m3/cohort_guardrails.yaml
+    - artifacts/milestones/m3/dependency_graph.mmd
+    - docs/milestones/m3/beta_admission_matrix.md
+
+cohorts:
+  - cohort_id: cohort:extension_author
+    title: Extension-author cohort
+    earliest_milestone: m3
+    purpose: >
+      Stabilize the extension SDK, runtime, and publication path on real add-ons
+      before beta widens to external authors.
+    primary_surface_refs:
+      - beta_surface:extension_runtime
+      - beta_surface:packaging_update_rollback
+    inherited_alpha_cohort_refs:
+      - cohort:internal_dogfood
+    intake_requirements:
+      - signed_extension_author_agreement
+      - reproducible_sample_extension
+      - publication_mirror_or_offline_path_named
+    minimum_evidence_classes:
+      - sdk_diff_report
+      - sample_extension_pack
+      - extension_compatibility_report
+      - extension_rollback_drill
+    graduation_criteria:
+      - extension_runtime_beta_marker_set
+      - sample_extensions_run_on_three_consecutive_beta_builds
+      - publication_review_signed_off_by_extension_owner
+    downgrade_rules:
+      - trigger: sdk_breaking_change_without_migration
+        downgrade_to: retest_pending
+        propagation_refs:
+          - docs/product/known_limits_contract.md
+          - docs/governance/public_interface_versioning_policy.md
+      - trigger: extension_rollback_drill_failure
+        downgrade_to: paused_pending_evidence
+        propagation_refs:
+          - docs/release/update_and_rollback_contract.md
+    exit_paths:
+      - graduated_to_stable_when_compatibility_report_is_current
+      - exited_with_documented_known_limits
+
+  - cohort_id: cohort:design_partner_managed_pilot
+    title: Design-partner / managed pilot cohort
+    earliest_milestone: m3
+    purpose: >
+      Validate packaging, policy, proxy, support export, and rollback in real
+      organizations before stable claims widen.
+    primary_surface_refs:
+      - beta_surface:packaging_update_rollback
+      - beta_surface:policy_proxy_transport
+      - beta_surface:support_export_diagnostics
+      - beta_surface:importer_and_migration
+    inherited_alpha_cohort_refs:
+      - cohort:external_alpha_migration
+    intake_requirements:
+      - signed_design_partner_agreement
+      - declared_deployment_profile
+      - support_export_redaction_review
+      - policy_bundle_or_proxy_envelope_named
+    minimum_evidence_classes:
+      - partner_scorecard
+      - enterprise_lab_packet
+      - support_export_drill
+      - rollback_drill
+    graduation_criteria:
+      - partner_scorecard_green_on_two_consecutive_beta_builds
+      - support_export_drill_passes_redaction_review
+      - rollback_drill_completes_without_user_data_loss
+    downgrade_rules:
+      - trigger: support_bundle_redaction_break
+        downgrade_to: retest_pending
+        propagation_refs:
+          - docs/governance/usage_export_and_offboarding_contract.md
+      - trigger: enterprise_proxy_lab_unavailable
+        downgrade_to: limited
+        propagation_refs:
+          - docs/product/known_limits_contract.md
+      - trigger: rollback_drill_failure
+        downgrade_to: paused_pending_evidence
+        propagation_refs:
+          - docs/release/update_and_rollback_contract.md
+    exit_paths:
+      - graduated_to_stable_when_partner_evidence_is_current
+      - exited_with_documented_blocker
+
+  - cohort_id: cohort:certified_archetype
+    title: Certified-archetype cohort
+    earliest_milestone: m3
+    purpose: >
+      Back stable claims with current named reference workspaces and bundle
+      rows; cover the four M3 archetypes added to the alpha TS/JS and Python
+      baselines.
+    primary_surface_refs:
+      - beta_surface:debug_test_task_model
+      - beta_surface:compatibility_publication
+    inherited_alpha_cohort_refs:
+      - cohort:external_alpha_migration
+    intake_requirements:
+      - archetype_row_named_in_claimed_surface_register
+      - reference_workspace_seed_or_fixture_resolved
+      - benchmark_corpus_ref_present
+    minimum_evidence_classes:
+      - certified_archetype_report
+      - bundle_archetype_matrix
+      - reference_workspace_capture
+    graduation_criteria:
+      - reference_workspace_report_current
+      - compatibility_scorecard_current
+      - downgrade_policy_propagation_proven
+    downgrade_rules:
+      - trigger: reference_workspace_report_stale
+        downgrade_to: retest_pending
+        propagation_refs:
+          - docs/release/certified_archetype_report_template.md
+      - trigger: archetype_seed_evidence_stale
+        downgrade_to: evidence_stale
+        propagation_refs:
+          - docs/release/certified_archetype_report_template.md
+      - trigger: regression_on_certified_archetype
+        downgrade_to: limited
+        propagation_refs:
+          - docs/product/known_limits_contract.md
+    exit_paths:
+      - graduated_to_stable_when_certified_state_is_reached
+      - exited_with_archetype_downgrade
+
+  - cohort_id: cohort:internal_dogfood
+    title: Internal dogfood cohort (inherited)
+    earliest_milestone: m1
+    purpose: >
+      Continue daily-driver dogfood honesty on small and medium real repos so
+      stable claims do not skip from cohort to cohort silently.
+    primary_surface_refs:
+      - beta_surface:debug_test_task_model
+      - beta_surface:support_export_diagnostics
+    inherited_alpha_cohort_refs: []
+    intake_requirements:
+      - internal_owner_named
+      - protected_path_trace_baseline
+    minimum_evidence_classes:
+      - dogfood_report
+      - blocker_taxonomy_capture
+      - protected_path_trace
+    graduation_criteria:
+      - dogfood_health_green_on_two_consecutive_beta_builds
+      - blocker_taxonomy_routing_current
+    downgrade_rules:
+      - trigger: protected_path_trace_regression
+        downgrade_to: retest_pending
+        propagation_refs:
+          - docs/product/known_limits_contract.md
+    exit_paths:
+      - persists_through_stable
+
+  - cohort_id: cohort:external_alpha_migration
+    title: External alpha / migration cohort (inherited)
+    earliest_milestone: m2
+    purpose: >
+      Continue validating switching friction, missing-capability honesty, and
+      wedge viability as beta surfaces widen.
+    primary_surface_refs:
+      - beta_surface:importer_and_migration
+      - beta_surface:debug_test_task_model
+    inherited_alpha_cohort_refs: []
+    intake_requirements:
+      - alpha_wedge_matrix_row_named
+      - reference_workspace_dry_run_case_resolved
+    minimum_evidence_classes:
+      - task_completion_evidence
+      - migration_issue_ledger
+      - known_limits_packet
+    graduation_criteria:
+      - alpha_wedge_evidence_remains_current_during_beta
+      - migration_known_gaps_register_current
+    downgrade_rules:
+      - trigger: alpha_wedge_evidence_stale
+        downgrade_to: evidence_stale
+        propagation_refs:
+          - artifacts/feedback/external_alpha_known_limits.md
+    exit_paths:
+      - graduated_when_partner_or_certified_evidence_supersedes
+
+acceptance_state_coverage:
+  - case_id: every_cohort_names_one_primary_surface
+    exercises_state: cohort_surface_binding
+    expected_validator_result: pass
+  - case_id: every_cohort_lists_at_least_one_downgrade_rule
+    exercises_state: cohort_downgrade_definition
+    expected_validator_result: pass
+  - case_id: m3_cohorts_inherit_alpha_cohorts_explicitly
+    exercises_state: cohort_inheritance
+    expected_validator_result: pass

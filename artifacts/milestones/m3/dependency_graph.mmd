@@ -1,0 +1,90 @@
+%% M3 beta admission dependency graph.
+%%
+%% Mermaid source for the M3 beta scope, claimed-surface, and cohort dependency
+%% map. Renderers and reviewers should treat this file as authoritative for
+%% upstream blockers, downstream consumers, and the validator entry point.
+%%
+%% Canonical artifacts cited as graph nodes:
+%%   - artifacts/milestones/m3/claimed_surface_register.json
+%%   - artifacts/milestones/m3/cohort_guardrails.yaml
+%%   - docs/milestones/m3/beta_admission_matrix.md
+%%   - ci/check_beta_admission.py
+%%
+%% Upstream M2 artifacts the graph inherits:
+%%   - artifacts/milestones/m2/alpha_wedge_matrix.yaml
+%%   - artifacts/milestones/m2/exit_gate_scoreboard.yaml
+%%   - artifacts/milestones/m2/dependency_graph.yaml
+%%   - artifacts/certification/m2_archetype_seed_rows.yaml
+%%   - artifacts/compat/reference_workspace_rows.yaml
+%%   - artifacts/compat/archetype_rubric.yaml
+%%   - artifacts/deployment/locality_matrix.yaml
+%%   - docs/product/known_limits_contract.md
+%%   - docs/governance/public_interface_versioning_policy.md
+%%   - docs/release/certified_archetype_report_template.md
+
+graph TD
+    %% Upstream M2 contracts (inherited canonical truth)
+    subgraph upstream_m2["Upstream M2 contracts (inherited)"]
+        m2_matrix["alpha_wedge_matrix<br/>artifacts/milestones/m2/alpha_wedge_matrix.yaml"]
+        m2_scoreboard["alpha_exit_gate_scoreboard<br/>artifacts/milestones/m2/exit_gate_scoreboard.yaml"]
+        m2_graph["alpha_dependency_graph<br/>artifacts/milestones/m2/dependency_graph.yaml"]
+        m2_archetype_seed["archetype_certification_seed_rows<br/>artifacts/certification/m2_archetype_seed_rows.yaml"]
+        reference_workspace_rows["reference_workspace_rows<br/>artifacts/compat/reference_workspace_rows.yaml"]
+        archetype_rubric["archetype_rubric<br/>artifacts/compat/archetype_rubric.yaml"]
+        deployment_locality["deployment_locality_matrix<br/>artifacts/deployment/locality_matrix.yaml"]
+        known_limits_contract["known_limits_contract<br/>docs/product/known_limits_contract.md"]
+        public_interface_versioning["public_interface_versioning_policy<br/>docs/governance/public_interface_versioning_policy.md"]
+        certified_archetype_template["certified_archetype_report_template<br/>docs/release/certified_archetype_report_template.md"]
+    end
+
+    %% M3 canonical artifacts (this task)
+    subgraph m3_canonical["M3 beta canonical artifacts"]
+        admission_doc["beta_admission_matrix<br/>docs/milestones/m3/beta_admission_matrix.md"]
+        surface_register["claimed_surface_register<br/>artifacts/milestones/m3/claimed_surface_register.json"]
+        cohort_guardrails["cohort_guardrails<br/>artifacts/milestones/m3/cohort_guardrails.yaml"]
+    end
+
+    %% First-consumer validator surface
+    subgraph m3_consumers["M3 first consumers"]
+        beta_admission_validator["beta_admission_validator<br/>ci/check_beta_admission.py"]
+        validation_capture["beta_admission_validation_capture<br/>artifacts/milestones/m3/captures/beta_admission_validation_capture.json"]
+    end
+
+    %% M2 -> M3 inheritance edges
+    m2_matrix -- "alpha wedge scope is the seed for the beta claimed surfaces" --> surface_register
+    m2_scoreboard -- "downstream proof rows still resolve through the alpha scoreboard until beta-class scoreboard rows exist" --> surface_register
+    m2_graph -- "beta admission inherits the alpha dependency model" --> surface_register
+    m2_archetype_seed -- "TS/JS and Python archetype seeds carry into beta claimed archetype rows" --> surface_register
+    reference_workspace_rows -- "Java/Kotlin, Rust, Go, and C/C++ archetype rows become first-time beta claims" --> surface_register
+    archetype_rubric -- "support-class graduation rules are the canonical vocabulary" --> surface_register
+    deployment_locality -- "deployment claims must resolve through the locality matrix" --> surface_register
+    known_limits_contract -- "downgrade copy lands through the known-limits contract" --> surface_register
+    public_interface_versioning -- "SDK and public interface downgrades route through the versioning policy" --> surface_register
+    certified_archetype_template -- "certified-archetype publication template gates beta exit evidence" --> surface_register
+
+    %% M2 cohort inheritance edges
+    m2_matrix -- "external alpha / migration cohort persists into beta" --> cohort_guardrails
+    archetype_rubric -- "support-class graduation drives cohort downgrade rules" --> cohort_guardrails
+    deployment_locality -- "managed pilot cohort cites locality matrix profiles" --> cohort_guardrails
+    known_limits_contract -- "cohort downgrade rules propagate through known-limits copy" --> cohort_guardrails
+    certified_archetype_template -- "certified-archetype cohort cites the report template" --> cohort_guardrails
+
+    %% Intra-M3 edges (one canonical truth, multiple lenses)
+    surface_register -- "every claimed surface names one primary cohort" --> cohort_guardrails
+    cohort_guardrails -- "cohort_id and downgrade vocabulary feed back into the surface register" --> surface_register
+    surface_register -- "human entrypoint links the canonical truth set" --> admission_doc
+    cohort_guardrails -- "human entrypoint links the canonical truth set" --> admission_doc
+
+    %% Validator and capture edges
+    surface_register -- "validator parses claimed surfaces" --> beta_admission_validator
+    cohort_guardrails -- "validator parses cohort guardrails" --> beta_admission_validator
+    admission_doc -- "validator checks entrypoint cross-refs" --> beta_admission_validator
+    beta_admission_validator -- "writes the checked-in capture" --> validation_capture
+
+    %% Styling
+    classDef m3 fill:#e7f3ff,stroke:#2a6fdb,stroke-width:1.5px;
+    classDef m2 fill:#f1f1f1,stroke:#7a7a7a,stroke-width:1px;
+    classDef consumer fill:#e8f7ec,stroke:#2f8a3f,stroke-width:1.5px;
+    class admission_doc,surface_register,cohort_guardrails m3;
+    class m2_matrix,m2_scoreboard,m2_graph,m2_archetype_seed,reference_workspace_rows,archetype_rubric,deployment_locality,known_limits_contract,public_interface_versioning,certified_archetype_template m2;
+    class beta_admission_validator,validation_capture consumer;
