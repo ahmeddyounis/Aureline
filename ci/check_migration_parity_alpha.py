@@ -73,6 +73,34 @@ REQUIRED_ACCEPTANCE_STATES = REQUIRED_PARITY_STATES | {
     "known_gap_issue_template_binding",
 }
 
+IMPORT_MAPPING_CLASS_ORDER = ("Exact", "Translated", "Partial", "Shimmed", "Unsupported")
+
+EQUIVALENCE_OUTCOME_TO_IMPORT_MAPPING_CLASS = {
+    "exact": "Exact",
+    "translated": "Translated",
+    "approximated": "Partial",
+    "needs_manual_review": "Partial",
+    "shimmed": "Shimmed",
+    "unsupported": "Unsupported",
+}
+
+GAP_CLASS_TO_IMPORT_MAPPING_CLASS = {
+    "bridge_not_native": "Shimmed",
+    "lossy_mapping": "Partial",
+    "unsupported_runtime": "Unsupported",
+    "unsupported_source_state": "Unsupported",
+    "manual_follow_up": "Partial",
+    "community_or_asset_only": "Translated",
+}
+
+PARITY_STATE_TO_IMPORT_MAPPING_CLASS = {
+    "native_parity": "Exact",
+    "bridged_parity": "Shimmed",
+    "lossy_mapping": "Partial",
+    "unsupported_items": "Unsupported",
+    "manual_follow_up": "Partial",
+}
+
 PATH_LIKE_SUFFIXES = (".yaml", ".yml", ".json", ".md", ".toml", ".rs", ".py")
 ID_PREFIXES = (
     "alpha_wedge:",
@@ -704,19 +732,299 @@ def validate_docs_packet(text: str, scoreboard_rel: str, taxonomy_rel: str, find
         )
 
 
-def write_report(path: Path, scoreboard_rel: str, rows_by_id: dict[str, dict[str, Any]], findings: list[Finding]) -> None:
+def list_strings_if_present(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item.strip()]
+
+
+def fixture_case_refs_by_row(fixture_manifest: dict[str, Any]) -> dict[str, list[str]]:
+    case_refs: dict[str, list[str]] = {}
+    for raw_case in fixture_manifest.get("cases", []):
+        if not isinstance(raw_case, dict):
+            continue
+        row_ref = raw_case.get("scoreboard_row_ref")
+        case_id = raw_case.get("case_id")
+        if not isinstance(row_ref, str) or not isinstance(case_id, str):
+            continue
+        case_refs.setdefault(row_ref, []).append(
+            f"{DEFAULT_FIXTURE_MANIFEST_REL}#case:{case_id}"
+        )
+    return {row_ref: sorted(refs) for row_ref, refs in case_refs.items()}
+
+
+def import_mapping_classes_for_scoreboard_row(row: dict[str, Any]) -> set[str]:
+    classes = {
+        EQUIVALENCE_OUTCOME_TO_IMPORT_MAPPING_CLASS[outcome]
+        for outcome in list_strings_if_present(row.get("equivalence_outcomes"))
+        if outcome in EQUIVALENCE_OUTCOME_TO_IMPORT_MAPPING_CLASS
+    }
+    parity_state = row.get("parity_state")
+    if isinstance(parity_state, str) and parity_state in PARITY_STATE_TO_IMPORT_MAPPING_CLASS:
+        classes.add(PARITY_STATE_TO_IMPORT_MAPPING_CLASS[parity_state])
+    return classes
+
+
+def build_import_mapping_class_coverage(
+    rows_by_id: dict[str, dict[str, Any]],
+    fixture_manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+    case_refs_by_row = fixture_case_refs_by_row(fixture_manifest)
+    coverage: dict[str, dict[str, Any]] = {
+        class_name: {
+            "mapping_class": class_name,
+            "class_case_id": f"import_mapping_class:{class_name.lower()}",
+            "coverage_state": "missing",
+            "scoreboard_row_refs": [],
+            "fixture_case_refs": [],
+            "taxonomy_gap_refs": [],
+            "equivalence_outcomes": [],
+            "importer_outcome_states": [],
+        }
+        for class_name in IMPORT_MAPPING_CLASS_ORDER
+    }
+
+    for row_id, row in sorted(rows_by_id.items()):
+        for class_name in import_mapping_classes_for_scoreboard_row(row):
+            if class_name not in coverage:
+                continue
+            entry = coverage[class_name]
+            entry["coverage_state"] = "covered_current"
+            entry["scoreboard_row_refs"].append(row_id)
+            entry["fixture_case_refs"].extend(case_refs_by_row.get(row_id, []))
+            entry["taxonomy_gap_refs"].extend(
+                list_strings_if_present(row.get("taxonomy_gap_refs"))
+            )
+            entry["equivalence_outcomes"].extend(
+                list_strings_if_present(row.get("equivalence_outcomes"))
+            )
+            entry["importer_outcome_states"].extend(
+                list_strings_if_present(row.get("importer_outcome_states"))
+            )
+
+    for entry in coverage.values():
+        for key in (
+            "scoreboard_row_refs",
+            "fixture_case_refs",
+            "taxonomy_gap_refs",
+            "equivalence_outcomes",
+            "importer_outcome_states",
+        ):
+            entry[key] = sorted(set(entry[key]))
+    return [coverage[class_name] for class_name in IMPORT_MAPPING_CLASS_ORDER]
+
+
+def build_taxonomy_gap_coverage(
+    taxonomy: dict[str, Any],
+    rows_by_id: dict[str, dict[str, Any]],
+    fixture_manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+    case_refs_by_row = fixture_case_refs_by_row(fixture_manifest)
+    coverage: list[dict[str, Any]] = []
+    for raw_row in taxonomy.get("taxonomy_rows", []):
+        if not isinstance(raw_row, dict):
+            continue
+        gap_id = raw_row.get("gap_id")
+        if not isinstance(gap_id, str):
+            continue
+
+        row_refs = list_strings_if_present(raw_row.get("scoreboard_row_refs"))
+        mapped_scoreboard_rows = [
+            row_ref
+            for row_ref in row_refs
+            if row_ref in rows_by_id
+        ]
+        classes = set()
+        gap_class = raw_row.get("gap_class")
+        if isinstance(gap_class, str) and gap_class in GAP_CLASS_TO_IMPORT_MAPPING_CLASS:
+            classes.add(GAP_CLASS_TO_IMPORT_MAPPING_CLASS[gap_class])
+        for parity_state in list_strings_if_present(raw_row.get("parity_states")):
+            class_name = PARITY_STATE_TO_IMPORT_MAPPING_CLASS.get(parity_state)
+            if class_name:
+                classes.add(class_name)
+        for row_ref in mapped_scoreboard_rows:
+            classes.update(import_mapping_classes_for_scoreboard_row(rows_by_id[row_ref]))
+
+        fixture_case_refs: list[str] = []
+        for row_ref in mapped_scoreboard_rows:
+            fixture_case_refs.extend(case_refs_by_row.get(row_ref, []))
+
+        coverage.append(
+            {
+                "gap_id": gap_id,
+                "gap_class": gap_class,
+                "severity": raw_row.get("severity"),
+                "coverage_state": "covered_current" if classes else "missing_class_mapping",
+                "import_mapping_classes": [
+                    class_name
+                    for class_name in IMPORT_MAPPING_CLASS_ORDER
+                    if class_name in classes
+                ],
+                "parity_states": sorted(
+                    set(list_strings_if_present(raw_row.get("parity_states")))
+                ),
+                "importer_outcome_states": sorted(
+                    set(list_strings_if_present(raw_row.get("importer_outcome_states")))
+                ),
+                "scoreboard_row_refs": sorted(set(row_refs)),
+                "fixture_case_refs": sorted(set(fixture_case_refs)),
+                "known_limit_refs": sorted(
+                    set(list_strings_if_present(raw_row.get("known_limit_refs")))
+                ),
+                "docs_help_refs": sorted(
+                    set(list_strings_if_present(raw_row.get("docs_help_refs")))
+                ),
+                "support_export_refs": sorted(
+                    set(list_strings_if_present(raw_row.get("support_export_refs")))
+                ),
+                "issue_template_refs": sorted(
+                    set(
+                        list_strings_if_present(
+                            ensure_dict(
+                                raw_row.get("issue_template_binding"),
+                                f"{gap_id}.issue_template_binding",
+                            ).get("template_refs")
+                        )
+                    )
+                ),
+            }
+        )
+    return coverage
+
+
+def validate_import_mapping_coverage(
+    rows_by_id: dict[str, dict[str, Any]],
+    taxonomy: dict[str, Any],
+    fixture_manifest: dict[str, Any],
+    findings: list[Finding],
+) -> None:
+    mapping_class_coverage = build_import_mapping_class_coverage(rows_by_id, fixture_manifest)
+    missing_classes = [
+        entry["mapping_class"]
+        for entry in mapping_class_coverage
+        if entry["coverage_state"] != "covered_current"
+    ]
+    if missing_classes:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="coverage.import_mapping_classes.missing",
+                message="capture coverage omits required import mapping classes",
+                remediation="Add scoreboard rows or protected fixtures for Exact, Translated, Partial, Shimmed, and Unsupported.",
+                details={"missing": missing_classes},
+            )
+        )
+
+    taxonomy_gap_coverage = build_taxonomy_gap_coverage(taxonomy, rows_by_id, fixture_manifest)
+    gaps_without_class = [
+        entry["gap_id"]
+        for entry in taxonomy_gap_coverage
+        if entry["coverage_state"] != "covered_current"
+    ]
+    if gaps_without_class:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="coverage.taxonomy_gaps.missing_class_mapping",
+                message="import-gap taxonomy coverage omits class mapping for one or more gaps",
+                remediation="Bind each taxonomy gap to a known parity state, gap class, or parity scoreboard row.",
+                details={"gap_ids": gaps_without_class},
+            )
+        )
+
+
+def collect_alpha_scoreboard_row_state(
+    alpha_scoreboard: dict[str, Any],
+    row_id: str,
+) -> dict[str, Any]:
+    for raw_row in alpha_scoreboard.get("scoreboard_rows", []):
+        if not isinstance(raw_row, dict) or raw_row.get("row_id") != row_id:
+            continue
+        return {
+            "current_state": raw_row.get("current_state"),
+            "go_no_go_state": raw_row.get("go_no_go_state"),
+            "waiver_required_for_green": raw_row.get("waiver_required_for_green"),
+            "waiver_posture": "accepted_current_no_claim_widening"
+            if raw_row.get("current_state") == "green"
+            else "pending_green_promotion",
+        }
+    return {}
+
+
+def write_report(
+    path: Path,
+    scoreboard_rel: str,
+    taxonomy_rel: str,
+    rows_by_id: dict[str, dict[str, Any]],
+    taxonomy: dict[str, Any],
+    fixture_manifest: dict[str, Any],
+    alpha_scoreboard: dict[str, Any],
+    findings: list[Finding],
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    status = "pass" if not any(item.severity == "error" for item in findings) else "fail"
+    mapping_class_coverage = build_import_mapping_class_coverage(rows_by_id, fixture_manifest)
+    taxonomy_gap_coverage = build_taxonomy_gap_coverage(taxonomy, rows_by_id, fixture_manifest)
     payload = {
         "schema_version": 1,
-        "status": "pass" if not any(item.severity == "error" for item in findings) else "fail",
-        "generated_at": dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "record_kind": "migration_parity_validation_capture",
+        "status": status,
+        "generated_at": dt.datetime.now(dt.UTC)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z"),
         "scoreboard_ref": scoreboard_rel,
+        "taxonomy_ref": taxonomy_rel,
+        "alpha_scoreboard_ref": (
+            f"{DEFAULT_ALPHA_SCOREBOARD_REL}#scoreboard_row:alpha_scope.migration_parity"
+        ),
+        "scoreboard_state": collect_alpha_scoreboard_row_state(
+            alpha_scoreboard,
+            "scoreboard_row:alpha_scope.migration_parity",
+        ),
+        "evidence_refs": {
+            "parity_scoreboard": scoreboard_rel,
+            "import_gap_taxonomy": taxonomy_rel,
+            "diagnostics_packet": DEFAULT_DIAGNOSTICS_DOC_REL,
+            "fixture_manifest": DEFAULT_FIXTURE_MANIFEST_REL,
+            "known_limits": DEFAULT_KNOWN_LIMITS_REL,
+            "proof_packet": "artifacts/milestones/m2/proof_packets/migration_parity.md",
+            "capture": "artifacts/milestones/m2/captures/migration_parity_validation_capture.json",
+        },
+        "import_mapping_class_coverage": mapping_class_coverage,
+        "taxonomy_gap_coverage": taxonomy_gap_coverage,
         "summary": {
             "errors": sum(1 for item in findings if item.severity == "error"),
             "warnings": sum(1 for item in findings if item.severity == "warning"),
             "checked_rows": sorted(rows_by_id),
             "required_parity_states": sorted(REQUIRED_PARITY_STATES),
+            "covered_import_mapping_classes": [
+                entry["mapping_class"]
+                for entry in mapping_class_coverage
+                if entry["coverage_state"] == "covered_current"
+            ],
+            "checked_taxonomy_gaps": [
+                entry["gap_id"]
+                for entry in taxonomy_gap_coverage
+            ],
         },
+        "validator_commands": [
+            {
+                "command": "python3 ci/check_migration_parity_alpha.py --repo-root .",
+                "status": status,
+            },
+            {
+                "command": "python3 ci/check_migration_parity_alpha.py --repo-root . --render-retained-diagnostics",
+                "status": status,
+            },
+            {
+                "command": (
+                    "python3 ci/check_migration_parity_alpha.py --repo-root . "
+                    "--report artifacts/milestones/m2/captures/migration_parity_validation_capture.json"
+                ),
+                "status": status,
+            },
+        ],
         "findings": [item.as_report() for item in findings],
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -774,9 +1082,19 @@ def main() -> int:
     )
     validate_fixture_manifest(repo_root, fixture_manifest, rows_by_id, findings)
     validate_docs_packet(diagnostics_text, scoreboard_rel, taxonomy_rel, findings)
+    validate_import_mapping_coverage(rows_by_id, taxonomy, fixture_manifest, findings)
 
     if report_rel:
-        write_report(repo_root / report_rel, scoreboard_rel, rows_by_id, findings)
+        write_report(
+            repo_root / report_rel,
+            scoreboard_rel,
+            taxonomy_rel,
+            rows_by_id,
+            taxonomy,
+            fixture_manifest,
+            alpha_scoreboard,
+            findings,
+        )
 
     errors = [finding for finding in findings if finding.severity == "error"]
     warnings = [finding for finding in findings if finding.severity == "warning"]
