@@ -190,6 +190,8 @@ rows:
     supporting_evidence_refs:
       - docs/build/exact_build_identity_model.md
       - docs/release/build_identity_baseline.md
+      - artifacts/release/m3/clean_room_rebuild_rehearsal/packet.md
+      - artifacts/milestones/m3/proof_consumption_walkthrough.md
     exact_build_identity_ref: artifacts/build/build_identity.json
     rerun_trigger_refs:
       - exact_build_identity_chain_changed
@@ -218,6 +220,8 @@ rows:
       - artifacts/milestones/m3/waiver_register.yaml
     supporting_evidence_refs:
       - docs/milestones/m3/protected_fitness_catalog.md
+      - artifacts/benchmarks/m3/publication_dry_run/packet.md
+      - artifacts/milestones/m3/proof_consumption_walkthrough.md
     exact_build_identity_ref: artifacts/build/build_identity.json
     rerun_trigger_refs:
       - reference_hardware_image_changed
