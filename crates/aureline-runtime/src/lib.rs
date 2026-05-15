@@ -75,6 +75,12 @@ pub use discovery::pytest::{
     PytestTestKind, PytestWarningClass, PYTEST_DISCOVERER_VERSION, PYTEST_DISCOVERY_RECORD_KIND,
     PYTEST_DISCOVERY_SCHEMA_VERSION, PYTEST_RUN_CONTRACT_RECORD_KIND,
 };
+pub use discovery::toolchains::{
+    ToolchainDetectionEntry, ToolchainDetectionEvidence, ToolchainDetectionSourceKind,
+    ToolchainPresenceState, WorkspaceToolchainDetector, WorkspaceToolchainDetectorConfig,
+    WorkspaceToolchainDiscovery, WorkspaceToolchainKind, WORKSPACE_TOOLCHAIN_DETECTOR_VERSION,
+    WORKSPACE_TOOLCHAIN_DISCOVERY_RECORD_KIND, WORKSPACE_TOOLCHAIN_DISCOVERY_SCHEMA_VERSION,
+};
 pub use execution_context::{
     ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
     DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextEffectClass,

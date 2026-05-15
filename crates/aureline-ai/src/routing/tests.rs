@@ -1,4 +1,12 @@
 use super::*;
+use std::path::Path;
+
+use aureline_runtime::{
+    CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextRequest,
+    ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode,
+    NodeToolchainDetectorConfig, PythonEnvironmentDetectorConfig, ScopeClass, TargetClass,
+    TrustState, WorkspaceToolchainDetector, WorkspaceToolchainDetectorConfig,
+};
 
 fn policy_context() -> RoutingPolicyContext {
     RoutingPolicyContext {
@@ -138,6 +146,57 @@ fn valid_hosted_packet() -> AiRoutingPacket {
     )
 }
 
+fn workspace_toolchain_context() -> ExecutionContext {
+    let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/runtime/toolchain_detection_entry_points/sample_workspace");
+    let discovery = WorkspaceToolchainDetector::new(WorkspaceToolchainDetectorConfig {
+        node_detector: NodeToolchainDetectorConfig {
+            ambient_node_version: Some("22.11.0".to_owned()),
+            ambient_npm_version: Some("10.9.0".to_owned()),
+            ambient_yarn_version: Some("1.22.22".to_owned()),
+            ambient_pnpm_version: Some("9.15.4".to_owned()),
+            ..NodeToolchainDetectorConfig::default()
+        },
+        python_detector: PythonEnvironmentDetectorConfig {
+            ambient_python_version: Some("3.12.7".to_owned()),
+            ambient_interpreter_ref: Some("/usr/bin/python3".to_owned()),
+            ambient_uv_version: Some("0.5.7".to_owned()),
+            ambient_poetry_version: Some("1.8.4".to_owned()),
+            ..PythonEnvironmentDetectorConfig::default()
+        },
+        ambient_tsc_version: Some("5.7.2".to_owned()),
+        ambient_pytest_version: Some("8.3.4".to_owned()),
+        ambient_ruff_version: Some("0.8.4".to_owned()),
+        ambient_eslint_version: Some("9.16.0".to_owned()),
+    })
+    .detect_workspace(&fixture_root, "2026-05-15T12:00:00Z");
+    let mut resolver = ExecutionContextResolver::new(ExecutionContextResolverConfig {
+        workspace_id: "workspace:toolchains".to_owned(),
+        profile_id: Some("profile:default".to_owned()),
+        identity_mode: IdentityMode::AccountFreeLocal,
+        policy_epoch: 1,
+        workspace_default_target_class: TargetClass::LocalHost,
+        workspace_default_working_directory: Some("/workspace/toolchains".to_owned()),
+        workspace_default_scope_class: ScopeClass::CurrentRoot,
+        local_host_canonical_id: "localhost:darwin-arm64".to_owned(),
+        environment_capsule_ref: EnvironmentCapsuleRef {
+            capsule_id: "caps:workspace:toolchains".to_owned(),
+            capsule_hash: "sha256:toolchains".to_owned(),
+            resolved_schema_version: "1".to_owned(),
+            drift_state: CapsuleDriftState::InSync,
+        },
+        resolver_version: "test-resolver".to_owned(),
+    });
+
+    resolver
+        .resolve(ExecutionContextRequest::ai_tool_call_seed(
+            "ai.route.preview",
+            TrustState::Trusted,
+            "2026-05-15T12:00:01Z",
+        ))
+        .with_workspace_toolchain_discovery(discovery)
+}
+
 #[test]
 fn hosted_preview_surfaces_provider_model_quota_and_envelope() {
     let packet = valid_hosted_packet();
@@ -166,6 +225,32 @@ fn hosted_preview_surfaces_provider_model_quota_and_envelope() {
     assert_eq!(support.cost_visibility_token, "bundled_no_incremental_cost");
     assert!(support.validation_violation_tokens.is_empty());
     assert!(!support.export_safe_json().contains("://"));
+}
+
+#[test]
+fn hosted_preview_carries_execution_context_toolchains() {
+    let context = workspace_toolchain_context();
+    let packet = valid_hosted_packet().with_execution_context(&context);
+
+    let rows = packet.surface_rows();
+    let toolchain_row = rows
+        .iter()
+        .find(|row| row.row_id == "toolchain_detection")
+        .expect("toolchain row is present");
+    assert!(toolchain_row.value_token.contains("node@22.11.0"));
+    assert!(toolchain_row.value_token.contains("pytest@8.3.4"));
+
+    let support = packet.support_packet();
+    assert_eq!(
+        support.execution_context_ref.as_deref(),
+        Some(context.execution_context_id())
+    );
+    assert!(support
+        .detected_toolchain_tokens
+        .contains(&"eslint@9.16.0".to_owned()));
+    assert!(support
+        .detected_toolchain_tokens
+        .contains(&"ruff@0.8.4".to_owned()));
 }
 
 #[test]

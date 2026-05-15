@@ -151,6 +151,10 @@ pub struct RunContextSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub helper_protocol: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub detected_toolchain_tokens: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub absent_toolchain_tokens: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub degraded_field_tokens: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub explanation_reason_code_tokens: Vec<String>,
@@ -214,6 +218,16 @@ impl RunContextSummary {
             mixed_version_reason_token: context.mixed_version_drift.reason.as_str().to_owned(),
             client_protocol: context.mixed_version_drift.client_protocol.clone(),
             helper_protocol: context.mixed_version_drift.helper_protocol.clone(),
+            detected_toolchain_tokens: context
+                .workspace_toolchain_discovery
+                .as_ref()
+                .map(|report| report.present_toolchain_tokens())
+                .unwrap_or_default(),
+            absent_toolchain_tokens: context
+                .workspace_toolchain_discovery
+                .as_ref()
+                .map(|report| report.absent_toolchain_tokens())
+                .unwrap_or_default(),
             degraded_field_tokens: context
                 .degraded_fields
                 .iter()
@@ -252,7 +266,7 @@ impl RunContextSummary {
     /// Render a stable one-line summary suitable for copy and support export.
     pub fn summary_line(&self) -> String {
         format!(
-            "surface={}; target={}; toolchain={}; trust={}; prebuild={}; helper={}; confidence={}",
+            "surface={}; target={}; toolchain={}; trust={}; prebuild={}; helper={}; confidence={}; detected_toolchains={}",
             self.surface_token,
             self.target_class_token,
             self.toolchain_class_token,
@@ -260,6 +274,7 @@ impl RunContextSummary {
             self.prebuild_reuse_state_token,
             self.mixed_version_state_token,
             self.target_confidence_level_token,
+            join_tokens(&self.detected_toolchain_tokens),
         )
     }
 }
@@ -444,6 +459,13 @@ impl RunContextComparison {
             "Degraded field reasons",
             Some(join_tokens(&exact_summary.degraded_field_tokens)),
             Some(join_tokens(&current_summary.degraded_field_tokens)),
+        );
+        push_diff(
+            &mut diff_rows,
+            "workspace_toolchain_discovery.detected_toolchains",
+            "Detected toolchains",
+            Some(join_tokens(&exact_summary.detected_toolchain_tokens)),
+            Some(join_tokens(&current_summary.detected_toolchain_tokens)),
         );
 
         let requires_review_before_dispatch = diff_rows

@@ -39,6 +39,9 @@ use aureline_ai::{
     ComposerDraftState, ComposerMention, ComposerSlashCommandInvocation, PrototypeLabel,
     ValidationOutcome,
 };
+use aureline_runtime::ExecutionContext;
+
+use crate::run_context::RunContextSummary;
 
 /// Stable record-kind tag carried in serialized inspector snapshots.
 pub const AI_CONTEXT_INSPECTOR_RECORD_KIND: &str = "ai_context_inspector_snapshot_record";
@@ -267,6 +270,9 @@ pub struct AiContextInspectorSnapshot {
     pub request_workspace_id: String,
     pub prototype_label_token: String,
     pub prototype_label_text: String,
+    /// Shared execution-context summary when the AI entry point has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_context_summary: Option<RunContextSummary>,
     pub sections: Vec<InspectorSection>,
     pub actions: Vec<InspectorActionRow>,
     /// True when at least one block reason other than the always-on
@@ -282,6 +288,19 @@ pub struct AiContextInspectorSnapshot {
 impl AiContextInspectorSnapshot {
     /// Project a snapshot from a [`ComposerDraft`].
     pub fn project(draft: &ComposerDraft) -> Self {
+        Self::project_with_execution_context(draft, None)
+    }
+
+    /// Project a snapshot and attach the shared execution context used by
+    /// the AI routing surface.
+    pub fn project_with_context(draft: &ComposerDraft, context: &ExecutionContext) -> Self {
+        Self::project_with_execution_context(draft, Some(context))
+    }
+
+    fn project_with_execution_context(
+        draft: &ComposerDraft,
+        context: Option<&ExecutionContext>,
+    ) -> Self {
         let outcome = draft.validate();
         let sections = vec![
             project_prototype_section(draft.prototype_label),
@@ -314,6 +333,7 @@ impl AiContextInspectorSnapshot {
             request_workspace_id: draft.request_workspace_id.clone(),
             prototype_label_token: draft.prototype_label.as_str().to_owned(),
             prototype_label_text: draft.prototype_label.label().to_owned(),
+            execution_context_summary: context.map(RunContextSummary::project),
             sections,
             actions: default_actions(),
             has_actionable_blocks,
@@ -346,6 +366,17 @@ impl AiContextInspectorSnapshot {
             session = self.composer_session_id,
             ws = self.request_workspace_id,
         ));
+        if let Some(summary) = &self.execution_context_summary {
+            out.push_str(&format!(
+                "Execution context: {}\nToolchains: {}\n\n",
+                summary.execution_context_ref,
+                if summary.detected_toolchain_tokens.is_empty() {
+                    "none".to_owned()
+                } else {
+                    summary.detected_toolchain_tokens.join("|")
+                },
+            ));
+        }
         for section in &self.sections {
             out.push_str(&format!("[{}]\n", section.heading));
             if section.rows.is_empty() {

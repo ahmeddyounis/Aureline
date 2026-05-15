@@ -52,6 +52,8 @@ pub enum PythonEnvironmentSourceKind {
     /// Workspace `.venv` directory without a readable `pyvenv.cfg`.
     VenvDirectory,
     /// `.python-version`.
+    PyenvVersionFile,
+    /// `.python-version` legacy token retained for older serialized fixtures.
     PythonVersionFile,
     /// `.tool-versions`.
     ToolVersions,
@@ -88,6 +90,7 @@ impl PythonEnvironmentSourceKind {
             Self::ExplicitOverride => "explicit_override",
             Self::VenvPyvenvCfg => "venv_pyvenv_cfg",
             Self::VenvDirectory => "venv_directory",
+            Self::PyenvVersionFile => "pyenv_version_file",
             Self::PythonVersionFile => "python_version_file",
             Self::ToolVersions => "tool_versions",
             Self::MiseToml => "mise_toml",
@@ -710,7 +713,7 @@ fn collect_interpreter_candidates(
         read_first_line(workspace_root, ".python-version").and_then(normalize_python_version)
     {
         candidates.push(interpreter_candidate(
-            PythonEnvironmentSourceKind::PythonVersionFile,
+            PythonEnvironmentSourceKind::PyenvVersionFile,
             Some(".python-version"),
             Some(value),
             None,
@@ -1461,6 +1464,7 @@ fn source_label(source: PythonEnvironmentSourceKind) -> &'static str {
         PythonEnvironmentSourceKind::ExplicitOverride => "Explicit override",
         PythonEnvironmentSourceKind::VenvPyvenvCfg => ".venv pyvenv.cfg",
         PythonEnvironmentSourceKind::VenvDirectory => ".venv directory",
+        PythonEnvironmentSourceKind::PyenvVersionFile => ".python-version",
         PythonEnvironmentSourceKind::PythonVersionFile => ".python-version",
         PythonEnvironmentSourceKind::ToolVersions => ".tool-versions",
         PythonEnvironmentSourceKind::MiseToml => "mise.toml",
@@ -1705,7 +1709,7 @@ mod tests {
             Some(PythonEnvironmentManagerKind::Uv)
         );
         assert!(report.provenance_cards.iter().any(|card| card.source_kind
-            == PythonEnvironmentSourceKind::PythonVersionFile
+            == PythonEnvironmentSourceKind::PyenvVersionFile
             && card.disposition == PythonEnvironmentProvenanceDisposition::Corroborating));
         assert!(!report.has_unresolved_ambiguity());
         assert!(report.has_fallback());

@@ -62,6 +62,7 @@ use crate::drift_truth::{
 use crate::inspectors::schema_registry::EndpointPolicySupportExport;
 use crate::managed_truth::{ManagedTruthSnapshot, MANAGED_TRUTH_EXPORT_PACKET_RECORD_KIND};
 use crate::restore::provenance::RestoreProvenanceRecord;
+use crate::run_context::ExecutionEntryTruthSnapshot;
 
 /// Stable record-kind tag carried in serialized support-seed surfaces.
 pub const SUPPORT_SEED_SURFACE_RECORD_KIND: &str = "support_seed_surface_record";
@@ -502,6 +503,29 @@ impl SupportSeedSurface {
         ))
     }
 
+    /// Mint a local support preview for execution-entry toolchain detection.
+    pub fn execution_entry_toolchains_preview(
+        exact_build: ExactBuildCapture,
+        generated_at: impl Into<String>,
+        snapshot: &ExecutionEntryTruthSnapshot,
+    ) -> Result<Self, SupportBundlePreviewError> {
+        let mut builder = SupportBundlePreviewBuilder::new(
+            "support-bundle:execution-entry-toolchains:0001",
+            "Execution-entry toolchain support preview",
+            generated_at,
+            exact_build,
+        );
+        builder
+            .add_item(default_build_identity_seed())
+            .add_item(default_policy_trust_seed())
+            .add_item(execution_entry_toolchains_seed(snapshot));
+        let preview = builder.build()?;
+        Ok(Self::from_preview(
+            preview,
+            "Support - execution entry toolchains preview",
+        ))
+    }
+
     /// Convenience: the manifest the export writer would emit. Held as a
     /// borrowed accessor so the chrome never needs to clone the manifest
     /// just to render a row count.
@@ -680,6 +704,57 @@ fn runtime_evidence_seed(runtime_evidence: &RuntimeEvidenceSupportExport) -> Pre
             runtime_evidence.retention_class.as_str(),
             runtime_evidence.raw_payload_exported,
             runtime_evidence.import_view_only
+        ),
+    }
+}
+
+fn execution_entry_toolchains_seed(snapshot: &ExecutionEntryTruthSnapshot) -> PreviewItemSeed {
+    let per_entry = snapshot
+        .entries
+        .iter()
+        .map(|entry| {
+            format!(
+                "{}={}",
+                entry.entry_point_token,
+                if entry.context_summary.detected_toolchain_tokens.is_empty() {
+                    "none".to_owned()
+                } else {
+                    entry.context_summary.detected_toolchain_tokens.join("|")
+                }
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    PreviewItemSeed {
+        support_pack_item_id: "support.item.execution_entry_toolchains".into(),
+        title: "Execution-entry toolchain detection".into(),
+        data_class: DiagnosticDataClass::EnvironmentAdjacent,
+        high_risk_content_class: HighRiskContentClass::NotApplicable,
+        bundle_section_class: "runtime_and_toolchain_truth".into(),
+        artifact_kind_class: "execution_entry_toolchain_summary".into(),
+        manifest_path_ref: "preview_items[2]".into(),
+        bundle_member_path_ref: Some("manifest/runtime/execution_entry_toolchains.json".into()),
+        source_refs: vec![
+            "schemas/runtime/execution_context.schema.json".into(),
+            "docs/runtime/execution_context_seed.md".into(),
+        ],
+        size_estimate: SizeEstimate {
+            estimated_bytes: Some(4096),
+            confidence_class: "estimated".into(),
+            display_label: "4 KB manifest".into(),
+            size_source_class: "manifest_estimate".into(),
+        },
+        impact_class: ActionabilityImpactClass::High,
+        impact_summary:
+            "Removing this row would prevent support from comparing toolchain detection across \
+             terminal, task, test, debug, and AI entry points."
+                .into(),
+        notes: format!(
+            "Execution-entry snapshot {}; entries {}; shared shape {}; toolchains: {}.",
+            snapshot.workspace_id,
+            snapshot.entries.len(),
+            snapshot.all_entries_share_summary_shape,
+            per_entry
         ),
     }
 }
@@ -1138,7 +1213,17 @@ pub const ACTIVE_REDACTION_PROFILE_REF: &str = LocalFirstDefaults::PROFILE_REF;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
+
+    use aureline_runtime::{
+        CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContextRequest,
+        ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode,
+        NodeToolchainDetectorConfig, PythonEnvironmentDetectorConfig, ScopeClass, TargetClass,
+        TrustState, WorkspaceToolchainDetector, WorkspaceToolchainDetectorConfig,
+    };
     use aureline_support::bundle::ReleaseChannelClass;
+
+    use crate::run_context::{ExecutionEntryPoint, ExecutionEntrySurface};
 
     fn fixture_capture() -> ExactBuildCapture {
         ExactBuildCapture::for_fixture(
@@ -1146,6 +1231,54 @@ mod tests {
             "0.0.0",
             ReleaseChannelClass::DevLocal,
         )
+    }
+
+    fn baseline_resolver() -> ExecutionContextResolver {
+        ExecutionContextResolver::new(ExecutionContextResolverConfig {
+            workspace_id: "workspace:toolchains".to_owned(),
+            profile_id: Some("profile:default".to_owned()),
+            identity_mode: IdentityMode::AccountFreeLocal,
+            policy_epoch: 1,
+            workspace_default_target_class: TargetClass::LocalHost,
+            workspace_default_working_directory: Some("/workspace/toolchains".to_owned()),
+            workspace_default_scope_class: ScopeClass::CurrentRoot,
+            local_host_canonical_id: "localhost:darwin-arm64".to_owned(),
+            environment_capsule_ref: EnvironmentCapsuleRef {
+                capsule_id: "caps:workspace:toolchains".to_owned(),
+                capsule_hash: "sha256:toolchains".to_owned(),
+                resolved_schema_version: "1".to_owned(),
+                drift_state: CapsuleDriftState::InSync,
+            },
+            resolver_version: "test-resolver".to_owned(),
+        })
+    }
+
+    fn toolchain_fixture_root() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/runtime/toolchain_detection_entry_points/sample_workspace")
+    }
+
+    fn workspace_toolchain_detector() -> WorkspaceToolchainDetector {
+        WorkspaceToolchainDetector::new(WorkspaceToolchainDetectorConfig {
+            node_detector: NodeToolchainDetectorConfig {
+                ambient_node_version: Some("22.11.0".to_owned()),
+                ambient_npm_version: Some("10.9.0".to_owned()),
+                ambient_yarn_version: Some("1.22.22".to_owned()),
+                ambient_pnpm_version: Some("9.15.4".to_owned()),
+                ..NodeToolchainDetectorConfig::default()
+            },
+            python_detector: PythonEnvironmentDetectorConfig {
+                ambient_python_version: Some("3.12.7".to_owned()),
+                ambient_interpreter_ref: Some("/usr/bin/python3".to_owned()),
+                ambient_uv_version: Some("0.5.7".to_owned()),
+                ambient_poetry_version: Some("1.8.4".to_owned()),
+                ..PythonEnvironmentDetectorConfig::default()
+            },
+            ambient_tsc_version: Some("5.7.2".to_owned()),
+            ambient_pytest_version: Some("8.3.4".to_owned()),
+            ambient_ruff_version: Some("0.8.4".to_owned()),
+            ambient_eslint_version: Some("9.16.0".to_owned()),
+        })
     }
 
     #[test]
@@ -1258,6 +1391,109 @@ mod tests {
         let json = serde_json::to_string(&surface).expect("ser");
         let parsed: SupportSeedSurface = serde_json::from_str(&json).expect("de");
         assert_eq!(parsed, surface);
+    }
+
+    #[test]
+    fn support_preview_lists_same_toolchain_detection_for_all_execution_entries() {
+        let discovery = workspace_toolchain_detector()
+            .detect_workspace(&toolchain_fixture_root(), "2026-05-15T12:00:00Z");
+        let mut resolver = baseline_resolver();
+        let inputs = [
+            (
+                ExecutionEntryPoint::Terminal,
+                ExecutionContextRequest::local_terminal_seed(
+                    "terminal.open",
+                    TrustState::Trusted,
+                    "mono:0",
+                ),
+            ),
+            (
+                ExecutionEntryPoint::Task,
+                ExecutionContextRequest::package_script_task_seed(
+                    "task.run.package_script",
+                    TrustState::Trusted,
+                    "mono:1",
+                ),
+            ),
+            (
+                ExecutionEntryPoint::Test,
+                ExecutionContextRequest::test_seed(
+                    "test.run.pytest",
+                    TrustState::Trusted,
+                    "mono:2",
+                ),
+            ),
+            (
+                ExecutionEntryPoint::DebugPrep,
+                ExecutionContextRequest::debug_prep_seed(
+                    "debug.prep.attach",
+                    TrustState::Trusted,
+                    "mono:3",
+                ),
+            ),
+            (
+                ExecutionEntryPoint::AiTool,
+                ExecutionContextRequest::ai_tool_call_seed(
+                    "ai.route.preview",
+                    TrustState::Trusted,
+                    "mono:4",
+                ),
+            ),
+        ];
+
+        let entries = inputs
+            .into_iter()
+            .map(|(entry_point, request)| {
+                let context = resolver
+                    .resolve(request)
+                    .with_workspace_toolchain_discovery(discovery.clone());
+                ExecutionEntrySurface::project(entry_point, &context)
+            })
+            .collect::<Vec<_>>();
+        let expected_tokens = entries[0].context_summary.detected_toolchain_tokens.clone();
+        assert_eq!(entries.len(), 5);
+        for entry in &entries {
+            assert_eq!(
+                entry.context_summary.detected_toolchain_tokens,
+                expected_tokens
+            );
+        }
+        for required in [
+            "node@22.11.0",
+            "npm@10.9.0",
+            "yarn@1.22.22",
+            "pnpm@9.15.4",
+            "python@3.12.7",
+            "tsc@5.7.2",
+            "pytest@8.3.4",
+            "ruff@0.8.4",
+            "eslint@9.16.0",
+        ] {
+            assert!(expected_tokens.contains(&required.to_owned()));
+        }
+
+        let snapshot = ExecutionEntryTruthSnapshot::from_entries("workspace:toolchains", entries);
+        let surface = SupportSeedSurface::execution_entry_toolchains_preview(
+            fixture_capture(),
+            "2026-05-15T12:00:01Z",
+            &snapshot,
+        )
+        .expect("support preview builds");
+        let row = surface
+            .manifest()
+            .preview_items
+            .iter()
+            .find(|item| {
+                item.parity_binding.support_pack_item_id
+                    == "support.item.execution_entry_toolchains"
+            })
+            .expect("toolchain support row exists");
+
+        for entry_token in ["terminal", "task", "test", "debug_prep", "ai_tool"] {
+            assert!(row.notes.contains(entry_token), "missing {entry_token}");
+        }
+        assert!(row.notes.contains("node@22.11.0"));
+        assert!(row.notes.contains("eslint@9.16.0"));
     }
 
     #[test]

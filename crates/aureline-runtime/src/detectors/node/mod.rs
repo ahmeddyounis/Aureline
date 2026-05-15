@@ -64,6 +64,8 @@ pub enum NodeToolchainSourceKind {
     MiseToml,
     /// `pnpm-lock.yaml`.
     PnpmLockfile,
+    /// `yarn.lock`.
+    YarnLockfile,
     /// `package-lock.json` or `npm-shrinkwrap.json`.
     NpmLockfile,
     /// User or profile default supplied by the caller.
@@ -89,6 +91,7 @@ impl NodeToolchainSourceKind {
             Self::ToolVersions => "tool_versions",
             Self::MiseToml => "mise_toml",
             Self::PnpmLockfile => "pnpm_lockfile",
+            Self::YarnLockfile => "yarn_lockfile",
             Self::NpmLockfile => "npm_lockfile",
             Self::UserProfileDefault => "user_profile_default",
             Self::AmbientPath => "ambient_path",
@@ -106,7 +109,7 @@ pub enum NodePackageManagerKind {
     Npm,
     /// `pnpm`.
     Pnpm,
-    /// `yarn`, detected but not part of the launch-wedge runner contract.
+    /// `yarn`.
     Yarn,
     /// `bun`, detected but not part of the launch-wedge runner contract.
     Bun,
@@ -128,7 +131,7 @@ impl NodePackageManagerKind {
 
     /// True when this package manager is in the launch wedge.
     pub const fn is_launch_wedge_supported(self) -> bool {
-        matches!(self, Self::Npm | Self::Pnpm)
+        matches!(self, Self::Npm | Self::Pnpm | Self::Yarn)
     }
 }
 
@@ -371,6 +374,8 @@ pub struct NodeToolchainDetectorConfig {
     pub ambient_npm_version: Option<String>,
     /// Captured ambient `pnpm --version` fact, if a host probe already has it.
     pub ambient_pnpm_version: Option<String>,
+    /// Captured ambient `yarn --version` fact, if a host probe already has it.
+    pub ambient_yarn_version: Option<String>,
 }
 
 /// Read-only Node.js detector.
@@ -715,13 +720,22 @@ fn collect_package_manager_candidates(
             0,
         ));
     }
+    if workspace_root.join("yarn.lock").is_file() {
+        candidates.push(package_candidate(
+            NodeToolchainSourceKind::YarnLockfile,
+            Some("yarn.lock"),
+            NodePackageManagerRequirement::new(NodePackageManagerKind::Yarn, None),
+            3,
+            1,
+        ));
+    }
     if workspace_root.join("package-lock.json").is_file() {
         candidates.push(package_candidate(
             NodeToolchainSourceKind::NpmLockfile,
             Some("package-lock.json"),
             NodePackageManagerRequirement::new(NodePackageManagerKind::Npm, None),
             3,
-            1,
+            2,
         ));
     }
     if workspace_root.join("npm-shrinkwrap.json").is_file() {
@@ -730,7 +744,7 @@ fn collect_package_manager_candidates(
             Some("npm-shrinkwrap.json"),
             NodePackageManagerRequirement::new(NodePackageManagerKind::Npm, None),
             3,
-            2,
+            3,
         ));
     }
     if let Some(requirement) = &config.profile_package_manager {
@@ -1012,6 +1026,20 @@ fn package_manager_fallback(
                 };
             }
         }
+        Some(NodePackageManagerKind::Yarn) => {
+            if let Some(version) = config
+                .ambient_yarn_version
+                .as_deref()
+                .and_then(normalize_version)
+            {
+                return NodeToolchainFallbackPath {
+                    subject: NodeToolchainSubject::PackageManager,
+                    source_kind: NodeToolchainSourceKind::AmbientPath,
+                    value_token: format!("yarn@{version}"),
+                    summary: "Captured ambient Yarn version from host baseline.".to_owned(),
+                };
+            }
+        }
         Some(NodePackageManagerKind::Npm) | None => {
             if let Some(version) = config
                 .ambient_npm_version
@@ -1026,11 +1054,7 @@ fn package_manager_fallback(
                 };
             }
         }
-        Some(
-            NodePackageManagerKind::Yarn
-            | NodePackageManagerKind::Bun
-            | NodePackageManagerKind::Unknown,
-        ) => {}
+        Some(NodePackageManagerKind::Bun | NodePackageManagerKind::Unknown) => {}
     }
     NodeToolchainFallbackPath {
         subject: NodeToolchainSubject::PackageManager,
@@ -1255,6 +1279,7 @@ fn source_label(source: NodeToolchainSourceKind) -> &'static str {
         NodeToolchainSourceKind::ToolVersions => ".tool-versions",
         NodeToolchainSourceKind::MiseToml => "mise.toml",
         NodeToolchainSourceKind::PnpmLockfile => "pnpm lockfile",
+        NodeToolchainSourceKind::YarnLockfile => "Yarn lockfile",
         NodeToolchainSourceKind::NpmLockfile => "npm lockfile",
         NodeToolchainSourceKind::UserProfileDefault => "User/profile default",
         NodeToolchainSourceKind::AmbientPath => "Ambient PATH",
@@ -1365,6 +1390,7 @@ mod tests {
             ambient_node_version: Some("22.11.0".to_owned()),
             ambient_npm_version: Some("10.9.0".to_owned()),
             ambient_pnpm_version: Some("9.15.4".to_owned()),
+            ambient_yarn_version: Some("1.22.22".to_owned()),
             ..NodeToolchainDetectorConfig::default()
         })
     }
@@ -1471,6 +1497,10 @@ mod tests {
         let pnpm = parse_package_manager_requirement("pnpm@9.15.4").expect("pnpm parses");
         assert_eq!(pnpm.kind, NodePackageManagerKind::Pnpm);
         assert_eq!(pnpm.version.as_deref(), Some("9.15.4"));
+
+        let yarn = parse_package_manager_requirement("yarn@1.22.22").expect("yarn parses");
+        assert_eq!(yarn.kind, NodePackageManagerKind::Yarn);
+        assert_eq!(yarn.version.as_deref(), Some("1.22.22"));
 
         let npm = parse_package_manager_requirement("npm@10.9.0").expect("npm parses");
         assert_eq!(npm.kind, NodePackageManagerKind::Npm);

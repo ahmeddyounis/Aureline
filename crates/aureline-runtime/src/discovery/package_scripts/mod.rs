@@ -15,9 +15,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::detectors::node::{
-    NodePackageManagerKind, NodeToolchainDetection, NodeToolchainDetector,
-    NodeToolchainDetectorConfig, NodeToolchainResolutionState, NodeToolchainSourceKind,
+    NodePackageManagerKind, NodeToolchainDetection, NodeToolchainDetectorConfig,
+    NodeToolchainResolutionState, NodeToolchainSourceKind,
 };
+use crate::discovery::toolchains::{WorkspaceToolchainDetector, WorkspaceToolchainDetectorConfig};
 use crate::execution_context::{DegradedFieldReason, ExecutionContext, ReachabilityState};
 use crate::provenance::ExecutionEventProvenance;
 use crate::tasks::{
@@ -82,9 +83,16 @@ impl PackageScriptDiscoverer {
         context: ExecutionContext,
         discovered_at: &str,
     ) -> PackageScriptDiscovery {
-        let node_detection = NodeToolchainDetector::new(self.config.node_detector.clone())
+        let toolchain_discovery =
+            WorkspaceToolchainDetector::new(WorkspaceToolchainDetectorConfig {
+                node_detector: self.config.node_detector.clone(),
+                ..WorkspaceToolchainDetectorConfig::default()
+            })
             .detect_workspace(workspace_root, discovered_at);
-        let mut context = context.with_node_toolchain_detection(node_detection.clone());
+        let node_detection = toolchain_discovery.node_toolchain_detection.clone();
+        let mut context = context
+            .with_workspace_toolchain_discovery(toolchain_discovery)
+            .with_node_toolchain_detection(node_detection.clone());
         let runtime_status = PackageScriptRuntimeStatus::from_detection(&node_detection);
         let read = read_package_scripts(workspace_root);
 
@@ -1367,6 +1375,7 @@ mod tests {
                 ambient_node_version: Some("22.11.0".to_owned()),
                 ambient_npm_version: Some("10.9.0".to_owned()),
                 ambient_pnpm_version: Some("9.15.4".to_owned()),
+                ambient_yarn_version: Some("1.22.22".to_owned()),
                 ..NodeToolchainDetectorConfig::default()
             },
             workspace_revision: Some("rev:web".to_owned()),
@@ -1541,7 +1550,7 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_package_manager_keeps_script_source_but_blocks_dispatch() {
+    fn yarn_package_manager_keeps_script_source_and_dispatches_directly() {
         let mut resolver = baseline_resolver();
         let context = package_script_context(&mut resolver, "2026-05-13T16:23:00Z");
         let discovery = discoverer_with_ambient().discover_workspace(
@@ -1557,11 +1566,14 @@ mod tests {
             discovery.runtime_status.package_manager_kind,
             Some(NodePackageManagerKind::Yarn)
         );
-        assert!(test
-            .blockers
-            .contains(&PackageScriptBlockReason::UnsupportedPackageManager));
+        assert_eq!(test.readiness, PackageScriptLaunchReadiness::Ready);
         assert_eq!(test.script.source.source_ref, "package.json#/scripts/test");
-        assert!(test.dispatch.is_none());
+        assert_eq!(
+            test.dispatch
+                .as_ref()
+                .map(|dispatch| dispatch.program.as_str()),
+            Some("yarn")
+        );
     }
 
     #[test]

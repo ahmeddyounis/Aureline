@@ -50,6 +50,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::detectors::node::{NodeToolchainDetection, NodeToolchainResolutionState};
 use crate::detectors::python::{PythonEnvironmentDetection, PythonEnvironmentResolutionState};
+use crate::discovery::toolchains::WorkspaceToolchainDiscovery;
 
 pub use aureline_workspace::TrustState;
 
@@ -1103,6 +1104,8 @@ pub struct ExecutionContext {
     pub node_toolchain_detection: Option<NodeToolchainDetection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub python_environment_detection: Option<PythonEnvironmentDetection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_toolchain_discovery: Option<WorkspaceToolchainDiscovery>,
     #[serde(default)]
     pub degraded_fields: Vec<DegradedFieldRecord>,
 }
@@ -1155,6 +1158,20 @@ impl ExecutionContext {
     ) -> Self {
         self.record_python_detection_degraded_fields(&detection);
         self.python_environment_detection = Some(detection);
+        self
+    }
+
+    /// Attaches an opinion-free workspace toolchain discovery report.
+    ///
+    /// The report records presence/version evidence only and does not add
+    /// degraded-field markers. Launch-specific consumers can still attach the
+    /// stricter Node or Python reports separately when readiness decisions are
+    /// needed.
+    pub fn with_workspace_toolchain_discovery(
+        mut self,
+        discovery: WorkspaceToolchainDiscovery,
+    ) -> Self {
+        self.workspace_toolchain_discovery = Some(discovery);
         self
     }
 
@@ -1546,6 +1563,7 @@ impl ExecutionContextResolver {
             route_origin: None,
             node_toolchain_detection: None,
             python_environment_detection: None,
+            workspace_toolchain_discovery: None,
             degraded_fields,
         }
     }

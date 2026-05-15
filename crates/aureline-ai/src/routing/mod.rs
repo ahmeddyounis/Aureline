@@ -15,6 +15,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_runtime::ExecutionContext;
+
 /// Stable record-kind tag carried on serialized [`AiRoutingPacket`] payloads.
 pub const AI_ROUTING_PACKET_RECORD_KIND: &str = "ai_routing_cost_alpha_packet_record";
 
@@ -1011,6 +1013,44 @@ pub struct RoutingPolicyContext {
     pub execution_context_ref: Option<String>,
 }
 
+/// Export-safe execution-context summary attached to AI routing packets.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiRoutingExecutionContextSummary {
+    /// Execution-context id that bounded the AI tool route.
+    pub execution_context_ref: String,
+    /// Workspace id copied from the execution context.
+    pub workspace_id: String,
+    /// Surface token that minted the execution context.
+    pub surface_token: String,
+    /// Present toolchain tokens from the shared workspace detector.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub detected_toolchain_tokens: Vec<String>,
+    /// Absent toolchain tokens from the shared workspace detector.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub absent_toolchain_tokens: Vec<String>,
+}
+
+impl AiRoutingExecutionContextSummary {
+    /// Projects an export-safe routing summary from the canonical context.
+    pub fn from_context(context: &ExecutionContext) -> Self {
+        Self {
+            execution_context_ref: context.execution_context_id.clone(),
+            workspace_id: context.invocation_subject.workspace_id.clone(),
+            surface_token: context.invocation_subject.surface.as_str().to_owned(),
+            detected_toolchain_tokens: context
+                .workspace_toolchain_discovery
+                .as_ref()
+                .map(|report| report.present_toolchain_tokens())
+                .unwrap_or_default(),
+            absent_toolchain_tokens: context
+                .workspace_toolchain_discovery
+                .as_ref()
+                .map(|report| report.absent_toolchain_tokens())
+                .unwrap_or_default(),
+        }
+    }
+}
+
 /// Quota inspector attached to one route candidate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QuotaInspector {
@@ -1228,6 +1268,9 @@ pub struct AiRoutingPacket {
     /// Source contracts this packet consumes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_contract_refs: Vec<String>,
+    /// Execution-context summary when the route was planned from a resolved context.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_context_summary: Option<AiRoutingExecutionContextSummary>,
     /// Timestamp the packet was minted.
     pub minted_at: String,
 }
@@ -1265,8 +1308,17 @@ impl AiRoutingPacket {
             selected_candidate_ref: selected_candidate_ref.into(),
             route_change_lineage,
             source_contract_refs,
+            execution_context_summary: None,
             minted_at: minted_at.into(),
         }
+    }
+
+    /// Attaches the canonical execution context that bounded this route.
+    pub fn with_execution_context(mut self, context: &ExecutionContext) -> Self {
+        self.policy_context.execution_context_ref = Some(context.execution_context_id.clone());
+        self.execution_context_summary =
+            Some(AiRoutingExecutionContextSummary::from_context(context));
+        self
     }
 
     /// Returns the selected route candidate, when the selected id resolves.
@@ -1337,6 +1389,20 @@ impl AiRoutingPacket {
                 self.run_state_class.as_str(),
             ),
         ];
+        if let Some(summary) = &self.execution_context_summary {
+            rows.push(AiRoutingSurfaceRow::new(
+                "execution_context",
+                "Execution context",
+                &summary.execution_context_ref,
+                &summary.surface_token,
+            ));
+            rows.push(AiRoutingSurfaceRow::new(
+                "toolchain_detection",
+                "Toolchain detection",
+                &join_tokens(&summary.detected_toolchain_tokens),
+                &join_tokens(&summary.detected_toolchain_tokens),
+            ));
+        }
         if let Some(lineage) = self
             .route_change_lineage
             .iter()
@@ -1387,6 +1453,21 @@ impl AiRoutingPacket {
                 .deployment_profile_class
                 .as_str()
                 .to_owned(),
+            execution_context_ref: self
+                .execution_context_summary
+                .as_ref()
+                .map(|summary| summary.execution_context_ref.clone())
+                .or_else(|| self.policy_context.execution_context_ref.clone()),
+            detected_toolchain_tokens: self
+                .execution_context_summary
+                .as_ref()
+                .map(|summary| summary.detected_toolchain_tokens.clone())
+                .unwrap_or_default(),
+            absent_toolchain_tokens: self
+                .execution_context_summary
+                .as_ref()
+                .map(|summary| summary.absent_toolchain_tokens.clone())
+                .unwrap_or_default(),
             selected_provider_entry_ref: selected
                 .map(|candidate| candidate.provider_entry_ref.clone())
                 .unwrap_or_default(),
@@ -1622,6 +1703,15 @@ pub struct AiRoutingSupportPacket {
     pub trust_state_token: String,
     /// Deployment-profile token.
     pub deployment_profile_token: String,
+    /// Execution-context id that bounded the route, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_context_ref: Option<String>,
+    /// Present toolchain tokens copied from the execution context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub detected_toolchain_tokens: Vec<String>,
+    /// Absent toolchain tokens copied from the execution context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub absent_toolchain_tokens: Vec<String>,
     /// Selected provider registry ref.
     pub selected_provider_entry_ref: String,
     /// Selected model registry ref.
@@ -1832,6 +1922,14 @@ fn packet_contains_forbidden_boundary_material(packet: &AiRoutingPacket) -> bool
                     .as_deref()
                     .is_some_and(contains_forbidden_boundary_material)
         })
+}
+
+fn join_tokens(tokens: &[String]) -> String {
+    if tokens.is_empty() {
+        "none".to_owned()
+    } else {
+        tokens.join("|")
+    }
 }
 
 fn candidate_contains_forbidden_boundary_material(candidate: &AiRouteCandidate) -> bool {

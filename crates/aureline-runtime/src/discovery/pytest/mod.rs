@@ -14,9 +14,10 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::detectors::python::{
-    PythonEnvironmentDetection, PythonEnvironmentDetector, PythonEnvironmentDetectorConfig,
-    PythonEnvironmentManagerKind, PythonEnvironmentResolutionState, PythonEnvironmentSourceKind,
+    PythonEnvironmentDetection, PythonEnvironmentDetectorConfig, PythonEnvironmentManagerKind,
+    PythonEnvironmentResolutionState, PythonEnvironmentSourceKind,
 };
+use crate::discovery::toolchains::{WorkspaceToolchainDetector, WorkspaceToolchainDetectorConfig};
 use crate::execution_context::{
     DegradedFieldReason, DegradedFieldRecord, ExecutionContext, ReachabilityState,
 };
@@ -83,9 +84,16 @@ impl PytestDiscoverer {
         context: ExecutionContext,
         discovered_at: &str,
     ) -> PytestDiscovery {
-        let python_detection = PythonEnvironmentDetector::new(self.config.python_detector.clone())
+        let toolchain_discovery =
+            WorkspaceToolchainDetector::new(WorkspaceToolchainDetectorConfig {
+                python_detector: self.config.python_detector.clone(),
+                ..WorkspaceToolchainDetectorConfig::default()
+            })
             .detect_workspace(workspace_root, discovered_at);
-        let mut context = context.with_python_environment_detection(python_detection.clone());
+        let python_detection = toolchain_discovery.python_environment_detection.clone();
+        let mut context = context
+            .with_workspace_toolchain_discovery(toolchain_discovery)
+            .with_python_environment_detection(python_detection.clone());
         let runtime_status = PytestRuntimeStatus::from_detection(&python_detection);
         let read = read_pytest_workspace(workspace_root);
 

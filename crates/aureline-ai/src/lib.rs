@@ -65,13 +65,14 @@ pub use evidence::{
     AI_MUTATION_EVIDENCE_SCHEMA_VERSION, AI_MUTATION_EVIDENCE_SUPPORT_PACKET_RECORD_KIND,
 };
 pub use routing::{
-    AiRouteCandidate, AiRouteProviderClass, AiRoutingPacket, AiRoutingSupportPacket,
-    AiRoutingSupportRouteChangeRow, AiRoutingSurfaceRow, AiRoutingViolation, CostEnvelopeClass,
-    CostVisibilityClass, DeploymentProfileClass, ExecutionLocusClass, ExhaustionStateClass,
-    LatencyCostEnvelope, LatencyEnvelopeClass, PolicyTrustState, QuotaFamilyClass, QuotaInspector,
-    QuotaScopeClass, QuotaStateClass, RetentionStanceClass, RouteChangeCauseClass,
-    RouteChangeLineage, RouteOriginClass, RouteSelectionOverrideReasonClass,
-    RouteSelectionReasonClass, RoutingPolicyContext, RoutingRunStateClass, SelectedOutcomeClass,
-    TokenCeilingClass, ToolCallCeilingClass, WallTimeCeilingClass, AI_ROUTING_PACKET_RECORD_KIND,
-    AI_ROUTING_SCHEMA_VERSION, AI_ROUTING_SUPPORT_PACKET_RECORD_KIND,
+    AiRouteCandidate, AiRouteProviderClass, AiRoutingExecutionContextSummary, AiRoutingPacket,
+    AiRoutingSupportPacket, AiRoutingSupportRouteChangeRow, AiRoutingSurfaceRow,
+    AiRoutingViolation, CostEnvelopeClass, CostVisibilityClass, DeploymentProfileClass,
+    ExecutionLocusClass, ExhaustionStateClass, LatencyCostEnvelope, LatencyEnvelopeClass,
+    PolicyTrustState, QuotaFamilyClass, QuotaInspector, QuotaScopeClass, QuotaStateClass,
+    RetentionStanceClass, RouteChangeCauseClass, RouteChangeLineage, RouteOriginClass,
+    RouteSelectionOverrideReasonClass, RouteSelectionReasonClass, RoutingPolicyContext,
+    RoutingRunStateClass, SelectedOutcomeClass, TokenCeilingClass, ToolCallCeilingClass,
+    WallTimeCeilingClass, AI_ROUTING_PACKET_RECORD_KIND, AI_ROUTING_SCHEMA_VERSION,
+    AI_ROUTING_SUPPORT_PACKET_RECORD_KIND,
 };

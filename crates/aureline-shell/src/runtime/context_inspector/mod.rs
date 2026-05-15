@@ -44,8 +44,8 @@ use aureline_runtime::{
     PythonEnvironmentProvenanceDisposition, PythonEnvironmentResolutionState,
     PythonEnvironmentSourceKind, PythonEnvironmentSubject, ReachabilityState,
     ResolverInputDecision, ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass,
-    TargetClass, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
-    TrustState,
+    TargetClass, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainDetectionEntry,
+    ToolchainIdentity, ToolchainPresenceState, TrustState, WorkspaceToolchainDiscovery,
 };
 
 /// Stable record-kind tag carried in serialized inspector snapshots.
@@ -104,6 +104,7 @@ pub enum InspectorSectionId {
     InvocationSubject,
     TargetIdentity,
     ToolchainIdentity,
+    WorkspaceToolchainDiscovery,
     PythonEnvironmentDetection,
     NodeToolchainDetection,
     EnvironmentCapsule,
@@ -122,6 +123,7 @@ impl InspectorSectionId {
             Self::InvocationSubject => "invocation_subject",
             Self::TargetIdentity => "target_identity",
             Self::ToolchainIdentity => "toolchain_identity",
+            Self::WorkspaceToolchainDiscovery => "workspace_toolchain_discovery",
             Self::PythonEnvironmentDetection => "python_environment_detection",
             Self::NodeToolchainDetection => "node_toolchain_detection",
             Self::EnvironmentCapsule => "environment_capsule",
@@ -140,6 +142,7 @@ impl InspectorSectionId {
             Self::InvocationSubject => "Invocation",
             Self::TargetIdentity => "Target",
             Self::ToolchainIdentity => "Toolchain",
+            Self::WorkspaceToolchainDiscovery => "Workspace toolchains",
             Self::PythonEnvironmentDetection => "Python environment",
             Self::NodeToolchainDetection => "Node detector",
             Self::EnvironmentCapsule => "Environment capsule",
@@ -352,6 +355,9 @@ impl ExecutionContextInspectorSnapshot {
             project_target_section(&context.target_identity, &context.provenance),
             project_toolchain_section(&context.toolchain_identity, &context.provenance),
         ];
+        if let Some(discovery) = &context.workspace_toolchain_discovery {
+            sections.push(project_workspace_toolchain_section(discovery));
+        }
         if let Some(detection) = &context.python_environment_detection {
             sections.push(project_python_environment_section(detection));
         }
@@ -576,6 +582,28 @@ fn project_toolchain_section(
         });
     }
     InspectorSection::new(InspectorSectionId::ToolchainIdentity, rows)
+}
+
+fn project_workspace_toolchain_section(
+    discovery: &WorkspaceToolchainDiscovery,
+) -> InspectorSection {
+    let mut rows = vec![
+        value_row(
+            "detector_version",
+            "Detector version",
+            discovery.detector_version.clone(),
+        ),
+        value_row(
+            "workspace_root_ref",
+            "Workspace root",
+            discovery.workspace_root_ref.clone(),
+        ),
+        value_row("detected_at", "Detected at", discovery.detected_at.clone()),
+    ];
+    for entry in &discovery.detected_toolchains {
+        rows.push(toolchain_detection_row(entry));
+    }
+    InspectorSection::new(InspectorSectionId::WorkspaceToolchainDiscovery, rows)
 }
 
 fn project_python_environment_section(detection: &PythonEnvironmentDetection) -> InspectorSection {
@@ -805,6 +833,28 @@ fn project_node_detection_section(detection: &NodeToolchainDetection) -> Inspect
     }
 
     InspectorSection::new(InspectorSectionId::NodeToolchainDetection, rows)
+}
+
+fn toolchain_detection_row(entry: &ToolchainDetectionEntry) -> InspectorRow {
+    let value = match entry.presence_state {
+        ToolchainPresenceState::Present => match &entry.version {
+            Some(version) if !version.is_empty() => {
+                format!("{} {}", entry.display_name, version)
+            }
+            _ => entry.display_name.clone(),
+        },
+        ToolchainPresenceState::Absent => format!("{} absent", entry.display_name),
+    };
+    InspectorRow {
+        row_id: format!("toolchain_{}", entry.kind_token),
+        label: entry.display_name.clone(),
+        value,
+        value_token: Some(entry.value_token()),
+        winning_source: None,
+        conflicting_sources: Vec::new(),
+        missing_field_reason: None,
+        degraded_reason: None,
+    }
 }
 
 fn project_capsule_section(capsule: &EnvironmentCapsuleRef) -> InspectorSection {
@@ -1240,6 +1290,7 @@ const fn python_source_kind_label(source: PythonEnvironmentSourceKind) -> &'stat
         PythonEnvironmentSourceKind::ExplicitOverride => "Explicit override",
         PythonEnvironmentSourceKind::VenvPyvenvCfg => ".venv pyvenv.cfg",
         PythonEnvironmentSourceKind::VenvDirectory => ".venv directory",
+        PythonEnvironmentSourceKind::PyenvVersionFile => ".python-version",
         PythonEnvironmentSourceKind::PythonVersionFile => ".python-version",
         PythonEnvironmentSourceKind::ToolVersions => ".tool-versions",
         PythonEnvironmentSourceKind::MiseToml => "mise.toml",
@@ -1312,6 +1363,7 @@ const fn node_source_kind_label(source: NodeToolchainSourceKind) -> &'static str
         NodeToolchainSourceKind::ToolVersions => ".tool-versions",
         NodeToolchainSourceKind::MiseToml => "mise.toml",
         NodeToolchainSourceKind::PnpmLockfile => "pnpm lockfile",
+        NodeToolchainSourceKind::YarnLockfile => "Yarn lockfile",
         NodeToolchainSourceKind::NpmLockfile => "npm lockfile",
         NodeToolchainSourceKind::UserProfileDefault => "User/profile default",
         NodeToolchainSourceKind::AmbientPath => "Ambient PATH",
