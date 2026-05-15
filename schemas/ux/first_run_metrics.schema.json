@@ -1,0 +1,447 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/first_run_metrics.schema.json",
+  "title": "Aureline first-run task-success packet (beta)",
+  "description": "Boundary schema for the bounded first-run task-success packet that pins one classified row per claimed beta switching flow and task-success state. Two switching flows are in scope: the no-account first-run path that opens a local folder through the Start Center, and the imported-profile path that reviews a VS Code settings packet, mints a rollback checkpoint, and commits per-item outcomes. Each flow MUST be covered by at least one row in each of the four required task-success states (completion, fallback, abandonment, repair_required). Rows for the imported-profile flow MUST declare no_raw_sensitive_user_content = true and the embedded onboarding telemetry capture MUST carry the metadata-safe-default privacy envelope. The schema is shared by the live shell, the headless inspector (`aureline_shell_onboarding_metrics`), the support-export wrapper, and the markdown packet checked in under artifacts/ux/m3/first_run_task_success_packet.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "packet_id",
+    "headline",
+    "rows",
+    "state_summary",
+    "telemetry_capture",
+    "no_raw_sensitive_user_content",
+    "partner_scorecard_refs",
+    "readiness_review_refs",
+    "published_packet_ref",
+    "docs_help_refs",
+    "support_export_refs",
+    "generated_at"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "shell_first_run_task_success_packet_beta_record"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:first_run_task_success_packet_beta:v1"
+    },
+    "packet_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "headline": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 8,
+      "items": { "$ref": "#/$defs/FirstRunTaskSuccessRow" }
+    },
+    "state_summary": { "$ref": "#/$defs/PacketStateSummary" },
+    "telemetry_capture": { "$ref": "#/$defs/OnboardingTaskSuccessCapture" },
+    "no_raw_sensitive_user_content": {
+      "type": "boolean",
+      "const": true
+    },
+    "partner_scorecard_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "readiness_review_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "published_packet_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "docs_help_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "support_export_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "generated_at": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "SwitchingFlowKind": {
+      "type": "string",
+      "enum": ["first_run", "imported_profile"]
+    },
+    "TaskSuccessState": {
+      "type": "string",
+      "enum": ["completion", "fallback", "abandonment", "repair_required"]
+    },
+    "MeasurementSurface": {
+      "type": "string",
+      "enum": [
+        "surface_first_run",
+        "surface_first_open",
+        "surface_first_useful_edit",
+        "surface_migration_review",
+        "surface_restore_success",
+        "surface_opt_in_boundary",
+        "surface_reconnect"
+      ]
+    },
+    "EntryRouteId": {
+      "type": "string",
+      "enum": [
+        "er.start_center",
+        "er.recent_work_reopen",
+        "er.restore_prompt",
+        "er.protocol_handler_reentry",
+        "er.clone_or_import",
+        "er.plain_open",
+        "er.workspace_switch",
+        "er.warm_start"
+      ]
+    },
+    "EntryVerb": {
+      "type": "string",
+      "enum": [
+        "open_folder",
+        "open_workspace",
+        "clone_repository",
+        "import_from_external",
+        "restore_last_session",
+        "reconnect_target"
+      ]
+    },
+    "TargetKind": {
+      "type": "string",
+      "enum": [
+        "local_folder",
+        "workspace_file",
+        "local_file",
+        "remote_workspace",
+        "managed_workspace",
+        "import_packet",
+        "unknown"
+      ]
+    },
+    "CompletionCheckpointClass": {
+      "type": "string",
+      "enum": [
+        "first_useful_navigation",
+        "first_useful_edit",
+        "migration_committed_with_per_item_outcomes",
+        "restore_level_delivered",
+        "decline_continued_without_degradation",
+        "reconnect_delivered"
+      ]
+    },
+    "CompletionClass": {
+      "type": "string",
+      "enum": [
+        "completed_first_useful_edit",
+        "completed_first_useful_navigation_only",
+        "completed_with_advertised_narrowing",
+        "completed_migration_committed_per_item",
+        "completed_restore_level_delivered",
+        "completed_decline_without_degradation",
+        "completed_reconnect_delivered",
+        "aborted_before_admission",
+        "abandoned_after_admission",
+        "failed_with_typed_blocker"
+      ]
+    },
+    "FailureCategory": {
+      "type": "string",
+      "enum": [
+        "forced_sign_in_before_useful_local_work",
+        "network_required_for_local_entry",
+        "admission_denied_policy",
+        "admission_denied_trust",
+        "resulting_mode_silently_downgraded",
+        "editor_blocked_on_index_warmup",
+        "save_blocked_on_service",
+        "dry_run_skipped",
+        "outcome_aggregated_not_per_item",
+        "rollback_checkpoint_missing",
+        "restore_level_promised_higher_than_delivered",
+        "missing_target_state_silently_dropped",
+        "silent_mutating_command_replay",
+        "reconnect_target_unavailable",
+        "reconnect_requires_reauth",
+        "reconnect_policy_blocked"
+      ]
+    },
+    "OutcomeClass": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed",
+        "partial",
+        "blocked",
+        "abandoned",
+        "failed",
+        "denied",
+        "restored",
+        "rolled_back"
+      ]
+    },
+    "RepairActionToken": {
+      "type": "string",
+      "enum": [
+        "retry_entry",
+        "reissue_admission_review",
+        "mint_rollback_checkpoint",
+        "rerun_migration_dry_run",
+        "restore_from_checkpoint",
+        "open_mapping_report",
+        "export_for_support"
+      ]
+    },
+    "OnboardingEventName": {
+      "type": "string",
+      "enum": [
+        "first_run_reached",
+        "first_run_entry_route_selected",
+        "first_run_admitted",
+        "entry_verb_resolved",
+        "admission_decided",
+        "first_open_completed",
+        "first_useful_navigation_reached",
+        "first_useful_edit_durable",
+        "migration_dry_run_produced",
+        "migration_outcome_recorded",
+        "migration_applied",
+        "migration_rolled_back",
+        "migration_rollback_checkpoint_written",
+        "migration_rollback_checkpoint_restored",
+        "restore_prompt_presented",
+        "restore_level_delivered",
+        "restore_completed",
+        "reconnect_prompt_presented",
+        "reconnect_completed",
+        "reconnect_failed"
+      ]
+    },
+    "FirstRunTaskSuccessRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "flow_kind",
+        "state",
+        "measurement_surface",
+        "entry_route_id",
+        "entry_verb",
+        "target_kind",
+        "outcome_class",
+        "no_raw_sensitive_user_content",
+        "telemetry_event_names",
+        "docs_help_refs",
+        "support_export_refs",
+        "partner_scorecard_refs",
+        "narrative"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_first_run_task_success_packet_beta_row_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "shell:first_run_task_success_packet_beta:v1"
+        },
+        "row_id": { "type": "string", "minLength": 1 },
+        "flow_kind": { "$ref": "#/$defs/SwitchingFlowKind" },
+        "state": { "$ref": "#/$defs/TaskSuccessState" },
+        "measurement_surface": { "$ref": "#/$defs/MeasurementSurface" },
+        "entry_route_id": { "$ref": "#/$defs/EntryRouteId" },
+        "entry_verb": { "$ref": "#/$defs/EntryVerb" },
+        "target_kind": { "$ref": "#/$defs/TargetKind" },
+        "completion_checkpoint_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/CompletionCheckpointClass" }
+          ]
+        },
+        "completion_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/CompletionClass" }
+          ]
+        },
+        "failure_category": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/FailureCategory" }
+          ]
+        },
+        "outcome_class": { "$ref": "#/$defs/OutcomeClass" },
+        "repair_action_token": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/RepairActionToken" }
+          ]
+        },
+        "no_raw_sensitive_user_content": { "type": "boolean", "const": true },
+        "telemetry_event_names": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/OnboardingEventName" }
+        },
+        "docs_help_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "partner_scorecard_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "narrative": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "Completion rows MUST declare a completion checkpoint class.",
+          "if": { "properties": { "state": { "const": "completion" } } },
+          "then": {
+            "properties": {
+              "completion_checkpoint_class": {
+                "$ref": "#/$defs/CompletionCheckpointClass"
+              }
+            },
+            "required": ["completion_checkpoint_class"]
+          }
+        },
+        {
+          "description": "Repair-required rows MUST declare a repair-action token and a failure category.",
+          "if": {
+            "properties": { "state": { "const": "repair_required" } }
+          },
+          "then": {
+            "properties": {
+              "repair_action_token": { "$ref": "#/$defs/RepairActionToken" },
+              "failure_category": { "$ref": "#/$defs/FailureCategory" }
+            },
+            "required": ["repair_action_token", "failure_category"]
+          }
+        },
+        {
+          "description": "Abandonment rows MUST declare a typed failure category.",
+          "if": { "properties": { "state": { "const": "abandonment" } } },
+          "then": {
+            "properties": {
+              "failure_category": { "$ref": "#/$defs/FailureCategory" }
+            },
+            "required": ["failure_category"]
+          }
+        }
+      ]
+    },
+    "PerFlowStateCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["completion", "fallback", "abandonment", "repair_required"],
+      "properties": {
+        "completion": { "type": "integer", "minimum": 1 },
+        "fallback": { "type": "integer", "minimum": 1 },
+        "abandonment": { "type": "integer", "minimum": 1 },
+        "repair_required": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "PacketStateSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["first_run", "imported_profile"],
+      "properties": {
+        "first_run": { "$ref": "#/$defs/PerFlowStateCounts" },
+        "imported_profile": { "$ref": "#/$defs/PerFlowStateCounts" }
+      }
+    },
+    "OnboardingTaskSuccessCapture": {
+      "description": "Onboarding task-success capture composed from aureline-telemetry. The capture's privacy envelope MUST prohibit raw_project_content and MUST NOT report contains_raw_project_content = true.",
+      "type": "object",
+      "required": [
+        "schema",
+        "schema_version",
+        "record_kind",
+        "capture_id",
+        "events",
+        "summary",
+        "privacy",
+        "build",
+        "evidence_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "aureline.onboarding_task_success.v1"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "record_kind": {
+          "type": "string",
+          "const": "onboarding_task_success_capture_record"
+        },
+        "capture_id": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "minLength": 1 },
+        "events": {
+          "type": "array",
+          "minItems": 1
+        },
+        "summary": { "type": "object" },
+        "privacy": {
+          "type": "object",
+          "required": [
+            "privacy_class",
+            "prohibited_content_classes",
+            "contains_raw_project_content"
+          ],
+          "properties": {
+            "privacy_class": {
+              "type": "string",
+              "enum": [
+                "privacy_local_only_no_emission",
+                "privacy_opt_in_aggregate_only"
+              ]
+            },
+            "contains_raw_project_content": {
+              "type": "boolean",
+              "const": false
+            },
+            "prohibited_content_classes": {
+              "type": "array",
+              "contains": { "const": "raw_project_content" }
+            }
+          }
+        },
+        "build": { "type": "object" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
