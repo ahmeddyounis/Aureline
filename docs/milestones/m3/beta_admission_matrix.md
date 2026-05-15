@@ -86,6 +86,42 @@ review.
 - Latest validation capture:
   `artifacts/benchmarks/m3/captures/protected_fitness_catalog_validation_capture.json`
 
+## Docs / public-truth gate
+
+The docs / public-truth gate enforces that every claimed beta row in the
+generated claim_manifest stays inspectable through fresh, vocabulary-
+consistent docs, Help/About, release, and release-notes surfaces. The
+gate fails closed when a claimed row has stale docs, stale examples, or
+mismatched truth vocabulary across docs, Help/About, and release assets.
+Release notes must link back to the current claim_manifest and the
+M3 compatibility_report rows before beta publication; the gate names
+the exact row, packet, and freshness delta causing each block.
+
+- Source map: `artifacts/ci/m3_docs_truth_source_map.yaml`
+- Freshness gate: `tools/ci/m3/docs_freshness_gate.py`
+- Stale-example checker: `tools/ci/m3/stale_example_checker.py`
+- CI gate manifest: `ci/docs/m3_docs_truth_gate.yml`
+- CI shell entry: `ci/check_m3_docs_truth.sh`
+- Release-notes draft (gate input):
+  `artifacts/release/m3/release_notes_draft.md`
+- Generated truth report:
+  `artifacts/docs/m3/docs_truth_report.md`
+- Latest validation captures:
+  - `artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json`
+  - `artifacts/docs/m3/captures/m3_stale_example_validation_capture.json`
+
+The gate replays named failure drills under `--force-drill` so the
+pipeline is reproducible without hand-curated stale fixtures:
+
+- `m3_docs_truth.release_notes_manifest_backlink_missing` — strips
+  the manifest id from the release-notes draft and asserts the
+  freshness gate fails with
+  `release_notes.manifest_backlink_missing`.
+- `m3_docs_truth.protected_example_vocabulary_pin_drifted` — rewrites
+  a payload field to a token outside the manifest vocabulary and
+  asserts the stale-example checker fails with
+  `stale_examples.vocabulary_pin_not_in_manifest`.
+
 ## Downstream cutline lane
 
 The beta scope feeds the M3 exit cutline; stable planning consumes the

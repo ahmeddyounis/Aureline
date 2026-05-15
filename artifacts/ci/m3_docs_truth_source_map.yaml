@@ -1,0 +1,197 @@
+# M3 docs-and-public-truth source map.
+#
+# This artifact is the canonical, machine-readable source map for the M3
+# beta docs / public-truth gate. It pins:
+#
+# - the M3 governed claim manifest and the M3 compatibility report this
+#   gate reads as upstream truth;
+# - the docs / Help-About / release consuming surfaces a claimed beta
+#   row publishes through (every surface listed below MUST exist on
+#   disk and carry the named freshness / version / source tokens so
+#   the row stays inspectable in narrowed form when evidence drifts);
+# - the beta-claim manifest rows the gate fails on when their
+#   freshness window expires or their consuming surfaces stop quoting
+#   the manifest vocabulary;
+# - the protected fixture-backed examples the stale-example checker
+#   re-validates against the manifest vocabularies on every CI run;
+# - the release-notes draft the gate fails closed on unless it
+#   back-links every named claim-manifest row and every named
+#   compatibility row before beta publication;
+# - the named failure drills the gates replay under `--force-drill`
+#   so the pipeline is reproducible without hand-curated stale
+#   fixtures.
+#
+# The freshness-gate entry point is
+# `tools/ci/m3/docs_freshness_gate.py`. The stale-example entry point
+# is `tools/ci/m3/stale_example_checker.py`. The reviewer-facing
+# landing page is `docs/milestones/m3/beta_admission_matrix.md`. The
+# CI gate manifest that runs the gates is
+# `ci/docs/m3_docs_truth_gate.yml`.
+#
+# Planning identifiers MUST NOT appear in any user-facing string
+# produced from this artifact.
+
+schema_version: 1
+source_map_id: m3_docs_truth_source_map
+status: seeded
+as_of: "2026-05-15"
+
+owner_dri: "@ahmeddyounis"
+
+overview_page: docs/milestones/m3/beta_admission_matrix.md
+freshness_gate_entrypoint: tools/ci/m3/docs_freshness_gate.py
+stale_example_entrypoint: tools/ci/m3/stale_example_checker.py
+ci_gate_manifest: ci/docs/m3_docs_truth_gate.yml
+build_identity_ref: artifacts/build/build_identity.json
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# Upstream truth surfaces this gate reads. All three MUST resolve and
+# all three MUST share the same as_of value as this source map; any
+# drift is a same-change-set finding so the gate cannot project a
+# manifest row through stale docs.
+claim_manifest_ref: artifacts/release/m3/claim_manifest.json
+compatibility_report_ref: artifacts/compat/m3/compatibility_report.json
+release_notes_draft_ref: artifacts/release/m3/release_notes_draft.md
+
+# Generated outputs. The freshness gate refreshes both files in place
+# on every run; under `--check` it fails if either would drift from
+# the upstream truth.
+docs_truth_report_ref: artifacts/docs/m3/docs_truth_report.md
+freshness_capture_ref: artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json
+stale_example_capture_ref: artifacts/docs/m3/captures/m3_stale_example_validation_capture.json
+
+# The freshness gate fails when the manifest as_of is older than this
+# many days from today. The floor is intentionally generous; it stops
+# the gate from going green on an indefinitely stale manifest while
+# the seeded review_window_days on per-row scorecards continues to
+# enforce the tighter per-row windows.
+review_window_days_floor: 60
+
+# Manifest vocabularies the gate cross-validates. Every name below
+# MUST be a key on the manifest `vocabularies` block; if the manifest
+# retires a vocabulary, this list MUST be updated in the same change
+# set so the gate fails before docs publish stale tokens.
+required_manifest_vocabularies:
+  - freshness_badge_class
+  - provenance_label
+  - support_class
+  - lifecycle_label
+  - claim_posture
+
+# Consuming surfaces the gate enforces. Each surface MUST exist on
+# disk and MUST contain every named token verbatim. Tokens are short
+# anchors that prove the surface still quotes the same vocabulary the
+# manifest publishes (e.g. claim_manifest, warm_cached, beta).
+consuming_surfaces:
+  - surface_ref: docs/milestones/m3/beta_admission_matrix.md
+    purpose: reviewer_landing
+    must_contain_tokens:
+      - "Beta Admission Matrix"
+      - "claim_manifest"
+      - "compatibility_report"
+      - "cohort"
+  - surface_ref: docs/governance/claim_manifest_contract.md
+    purpose: claim_manifest_contract
+    must_contain_tokens:
+      - "claim-manifest"
+      - "claim_row"
+      - "freshness"
+  - surface_ref: docs/release/compatibility_report_template.md
+    purpose: compatibility_template
+    must_contain_tokens:
+      - "compatibility"
+      - "skew"
+  - surface_ref: docs/release/release_evidence_packet_template.md
+    purpose: release_evidence_template
+    must_contain_tokens:
+      - "release"
+      - "evidence"
+  - surface_ref: docs/help/help_about_truth_source.md
+    purpose: help_about
+    must_contain_tokens:
+      - "build identity"
+      - "freshness"
+  - surface_ref: docs/about/about_provenance_and_boundary_contract.md
+    purpose: about_provenance
+    must_contain_tokens:
+      - "provenance"
+      - "boundary"
+
+# Beta-claim manifest rows the gate enforces. Every manifest_row_id
+# below MUST be present in the manifest rows[] list. The gate fails
+# when the row's freshness badge is `stale` or `unverified`, or when
+# its evidence_date falls outside review_window_days_floor relative to
+# today. `must_appear_in_release_notes` rows MUST be cited verbatim
+# by row_id in the release-notes draft before beta publication.
+enforced_rows:
+  - manifest_row_id: m3_claim_row:canonical.docs.freshness_truth
+    must_appear_in_release_notes: true
+  - manifest_row_id: m3_claim_row:canonical.compat.version_skew_truth
+    must_appear_in_release_notes: true
+  - manifest_row_id: m3_claim_row:beta_surface.compatibility_publication
+    must_appear_in_release_notes: true
+  - manifest_row_id: m3_claim_row:beta_archetype.ts_web_app_or_service
+    must_appear_in_release_notes: true
+
+# Compatibility rows the release notes MUST reference verbatim by
+# row_id. Rows below MUST exist in the M3 compatibility report.
+enforced_compat_rows:
+  - compat_row_id: compat_row:desktop.platform_conformance_profiles
+  - compat_row_id: compat_row:release_identity.exact_build_propagation
+  - compat_row_id: compat_row:deployment_profiles.boundary_manifest_truth
+
+# Release-notes citation requirements. The gate fails closed when any
+# of these are missing.
+release_notes_requirements:
+  must_contain_manifest_id: true
+  must_contain_compat_report_id: true
+  must_contain_manifest_as_of: true
+
+# Protected fixture-backed examples — used by the stale-example
+# checker. Each payload MUST validate against its schema and the
+# declared payload tokens MUST appear in the manifest vocabulary.
+protected_examples:
+  - example_id: m3_docs_truth.project_docs_fresh_pack
+    payload_ref: fixtures/docs/docs_pack_examples/project_docs_fresh.json
+    schema_ref: schemas/docs/docs_pack_manifest.schema.json
+    vocabulary_pins:
+      - vocabulary_id: provenance_label
+        payload_path: source_class
+  - example_id: m3_docs_truth.docs_browser_project_docs_live_verified
+    payload_ref: fixtures/help/docs_browser_cases/project_docs_live_verified.json
+    schema_ref: schemas/ux/embedded_boundary_card.schema.json
+    vocabulary_pins:
+      - vocabulary_id: provenance_label
+        payload_path: source_truth.source_class
+
+# Named failure drill the gate replays under --force-drill.
+failure_drills:
+  - drill_id: m3_docs_truth.release_notes_manifest_backlink_missing
+    description: >
+      Strip the manifest_id reference from the release-notes draft.
+      The docs_freshness_gate MUST fail with
+      `release_notes.manifest_backlink_missing` so the reviewer sees
+      the exact row, packet, and freshness delta causing the block.
+    target: release_notes_draft
+    forced_input:
+      strip_manifest_id: true
+    expected_check_id: release_notes.manifest_backlink_missing
+    actionable_next_action: >
+      Restore the manifest_id reference in the release-notes draft
+      and re-run docs_freshness_gate.py.
+  - drill_id: m3_docs_truth.protected_example_vocabulary_pin_drifted
+    description: >
+      Rewrite the publisher_class field on the project_docs_fresh_pack
+      payload to a token outside the manifest provenance_label
+      vocabulary. The stale-example checker MUST fail with
+      `stale_examples.vocabulary_pin_not_in_manifest`.
+    target: protected_example
+    forced_input:
+      example_id: m3_docs_truth.project_docs_fresh_pack
+      rewrite_path: source_class
+      replacement_value: stale_legacy_provenance_label_v0
+    expected_check_id: stale_examples.vocabulary_pin_not_in_manifest
+    actionable_next_action: >
+      Restore the payload's publisher_class to a token still listed in
+      manifest.vocabularies.provenance_label, or land a superseding
+      manifest vocabulary in the same change set.

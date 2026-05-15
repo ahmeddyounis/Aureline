@@ -1,0 +1,126 @@
+# M3 docs / public-truth CI gate manifest.
+#
+# This file is the canonical machine-readable description of the M3
+# beta docs-and-public-truth CI gate. The gate composes two
+# validators:
+#
+#   - tools/ci/m3/docs_freshness_gate.py — verifies that every
+#     claimed beta row in the governed claim manifest has fresh,
+#     vocabulary-consistent docs / Help-About / release surfaces,
+#     and that the release-notes draft back-links the current claim
+#     manifest and compatibility report ids before beta publication.
+#   - tools/ci/m3/stale_example_checker.py — re-validates the
+#     protected fixture-backed examples against their pinned schemas
+#     and the manifest vocabularies.
+#
+# The gate is fail-close: any error from either validator stops a
+# beta publication. Advisory downgrade is allowed only via the
+# rollback lever below, and only while the underlying drift is being
+# investigated.
+#
+# Planning identifiers MUST NOT appear in any user-facing string
+# produced from this manifest.
+
+schema_version: 1
+gate_id: aureline.ci.m3_docs_truth
+status: seeded
+as_of: "2026-05-15"
+
+owner_dri: "@ahmeddyounis"
+overview_page: docs/milestones/m3/beta_admission_matrix.md
+source_map_ref: artifacts/ci/m3_docs_truth_source_map.yaml
+freshness_gate_entrypoint: tools/ci/m3/docs_freshness_gate.py
+stale_example_entrypoint: tools/ci/m3/stale_example_checker.py
+shell_entrypoint: ci/check_m3_docs_truth.sh
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+severity_class: fail_close
+gate_default_posture_class: required_on_claimed_beta_rows
+
+protected_paths:
+  - artifacts/release/m3/claim_manifest.json
+  - artifacts/release/m3/claim_manifest.md
+  - artifacts/release/m3/claim_manifest_matrix.yaml
+  - artifacts/release/m3/release_notes_draft.md
+  - artifacts/compat/m3/compatibility_report.json
+  - artifacts/compat/m3/compatibility_report.md
+  - artifacts/ci/m3_docs_truth_source_map.yaml
+  - docs/milestones/m3/beta_admission_matrix.md
+  - docs/governance/claim_manifest_contract.md
+  - docs/release/compatibility_report_template.md
+  - docs/release/release_evidence_packet_template.md
+  - docs/help/help_about_truth_source.md
+  - docs/about/about_provenance_and_boundary_contract.md
+  - tools/ci/m3/docs_freshness_gate.py
+  - tools/ci/m3/stale_example_checker.py
+  - tools/ci/m3/_common.py
+
+commands:
+  local_run:
+    description: >
+      Reproduce the gate locally on a clean checkout. Writes both
+      durable JSON captures and refreshes the generated truth report.
+    command: >-
+      bash ci/check_m3_docs_truth.sh
+  freshness_gate_only:
+    description: >
+      Run the freshness gate independently; refreshes the truth
+      report and the freshness capture.
+    command: >-
+      python3 tools/ci/m3/docs_freshness_gate.py --repo-root .
+  stale_examples_only:
+    description: >
+      Run the stale-example checker independently; refreshes the
+      stale-example capture.
+    command: >-
+      python3 tools/ci/m3/stale_example_checker.py --repo-root .
+
+artifact_outputs:
+  docs_truth_report_ref: artifacts/docs/m3/docs_truth_report.md
+  freshness_capture_ref: artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json
+  stale_example_capture_ref: artifacts/docs/m3/captures/m3_stale_example_validation_capture.json
+
+failure_outputs:
+  pinpointed_failure_class:
+    description: >
+      Every gate failure names the drifting row_id, example_id,
+      vocabulary_id, schema_ref, payload_ref, and stale token so the
+      reviewer can route the fix without re-running the gate.
+    finding_check_id_examples:
+      - consuming_surface.missing
+      - consuming_surface.required_tokens_missing
+      - manifest_vocabulary.missing
+      - enforced_row.evidence_outside_review_window_floor
+      - enforced_row.evidence_outside_per_row_review_window
+      - enforced_row.freshness_badge_below_floor
+      - release_notes.draft_missing
+      - release_notes.manifest_backlink_missing
+      - release_notes.compat_report_backlink_missing
+      - release_notes.row_citation_missing
+      - release_notes.compat_row_citation_missing
+      - stale_examples.payload_missing
+      - stale_examples.example_payload_schema_invalid
+      - stale_examples.vocabulary_pin_not_in_manifest
+
+rollback_lever:
+  description: >
+    Downgrade the gate to advisory (warning instead of error) while
+    a stale-docs incident is investigated. Use the manifest only —
+    never delete the lane or hide the regression. The downgrade
+    lasts until the next published source-map update, then the
+    gate returns to fail-close automatically.
+  advisory_downgrade_allowed: true
+  destructive_disable_allowed: false
+  history_retention_required: true
+
+refresh_policy:
+  refresh_required_when_any_of_the_following_change:
+    - artifacts/ci/m3_docs_truth_source_map.yaml
+    - tools/ci/m3/docs_freshness_gate.py
+    - tools/ci/m3/stale_example_checker.py
+    - tools/ci/m3/_common.py
+    - artifacts/release/m3/claim_manifest.json
+    - artifacts/release/m3/claim_manifest_matrix.yaml
+    - artifacts/compat/m3/compatibility_report.json
+    - artifacts/release/m3/release_notes_draft.md
+    - docs/milestones/m3/beta_admission_matrix.md
