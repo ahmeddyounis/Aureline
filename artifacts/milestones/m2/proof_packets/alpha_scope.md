@@ -1,5 +1,17 @@
 # Proof packet: external alpha scope matrix
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:24:31Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_scope_contract_set@2026-05-15
+validator: ci/check_alpha_scope.py
+validation_capture: artifacts/milestones/m2/captures/alpha_scope_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 Entry page: `docs/milestones/m2_alpha_scope.md`
 Canonical matrix: `artifacts/milestones/m2/alpha_wedge_matrix.yaml`
 Go/no-go scoreboard: `artifacts/milestones/m2/exit_gate_scoreboard.yaml`
@@ -30,4 +42,3 @@ The validator checks that:
 - every scoreboard row names proof-packet refs and a go/no-go state;
 - protected fixture refs exist; and
 - held or excluded rows cannot become alpha claims without scope review.
-

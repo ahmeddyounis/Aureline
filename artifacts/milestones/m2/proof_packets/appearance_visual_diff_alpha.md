@@ -1,5 +1,17 @@
 # Proof Packet: Alpha Appearance Visual-Diff
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:24:31Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_appearance_theme_density_motion_contract_set@2026-05-15
+validator: ci/check_m2_theme_density_motion.py
+validation_capture: artifacts/milestones/m2/captures/appearance_visual_diff_alpha_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 ## Scope
 
 This packet closes the M2 appearance lane for launch-wedge theme, density,

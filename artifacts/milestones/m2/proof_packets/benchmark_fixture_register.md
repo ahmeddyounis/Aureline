@@ -1,5 +1,17 @@
 # Proof packet: external alpha benchmark fixture register
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:24:31Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_fixture_register_contract_set@2026-05-15
+validator: ci/check_benchmark_fixture_register.py
+validation_capture: artifacts/milestones/m2/captures/benchmark_fixture_register_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 Entry page: `docs/benchmarks/privacy_cleared_corpus_workflow.md`
 Fixture register: `artifacts/benchmarks/m2_fixture_register.yaml`
 Reference workspace workflow packets: `fixtures/reference_workspaces/m2/`
@@ -29,4 +41,3 @@ The validator checks that:
   workflows from the alpha matrix;
 - corpus refs resolve through the protected corpus manifest; and
 - the benchmark publication template exposes fixture-register citation fields.
-

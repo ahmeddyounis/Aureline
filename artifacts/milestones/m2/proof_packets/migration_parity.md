@@ -10,10 +10,12 @@ reviewer_refs:
   - "@alpha-review"
 freshness_date: 2026-05-15
 as_of: 2026-05-15
-captured_at: 2026-05-15T08:44:25Z
+captured_at: 2026-05-15T17:24:31Z
 stale_after: P14D
-source_revision: git:0a66b910be0eaa57e0569335dd19faec0684e368
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
 trigger_revision: alpha_migration_parity_contract_set@2026-05-15
+validator: ci/check_migration_parity_alpha.py
+validation_capture: artifacts/milestones/m2/captures/migration_parity_validation_capture.json
 channel_context: preview
 deployment_context:
   - individual_local

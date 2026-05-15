@@ -1,5 +1,17 @@
 # Proof packet: external alpha design-partner intake
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:24:31Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_design_partner_truth_set@2026-05-15
+validator: ci/check_design_partner_alpha.py
+validation_capture: artifacts/milestones/m2/captures/design_partner_intake_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 Entry page: `docs/alpha/design_partner_guide.md`
 Intake packet: `artifacts/milestones/m2/design_partner_intake_packet.md`
 Task pack: `artifacts/milestones/m2/design_partner_task_pack.md`
@@ -30,4 +42,3 @@ The validator checks that:
 - known-limit categories cite the external alpha known-limits packet; and
 - protected feedback fixtures cover task completion, redaction-blocked sharing,
   and known-limit routing for the claimed wedges.
-

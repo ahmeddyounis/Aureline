@@ -1,5 +1,17 @@
 # External Alpha Reference-Workspace Dry Run
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:31:04Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_reference_workspace_dry_run_contract_set@2026-05-15
+validator: ci/check_reference_workspace_dry_run.py
+validation_capture: artifacts/milestones/m2/captures/reference_workspace_dry_run_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 This packet records the first dry run across the two claimed alpha reference
 workspaces. It consumes the fixture register, launch bundle manifests,
 scoreboard rows, and known-limits packet directly; it does not redefine their
@@ -11,7 +23,7 @@ scope.
 |---|---|
 | Packet id | `reference_workspace_dry_run.external_alpha.first` |
 | Packet state | `completed_with_known_limits` |
-| Captured at | `2026-05-12T23:10:19Z` |
+| Captured at | `2026-05-15T17:31:04Z` |
 | Exact build identity | `artifacts/build/build_identity.json` |
 | Fixture register | `artifacts/benchmarks/m2_fixture_register.yaml` |
 | Dry-run cases | `fixtures/reference_workspaces/m2/dry_run_rehearsal_cases.yaml` |

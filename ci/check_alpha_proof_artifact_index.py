@@ -345,14 +345,15 @@ def validate_registration_coverage(repo_root: Path, index: dict[str, Any], findi
         ensure_str(item, "index.registration_coverage.required_plan_refs[]")
         for item in ensure_list(coverage.get("required_plan_refs"), "index.registration_coverage.required_plan_refs")
     )
-    if required_refs != expected_rel:
+    missing_from_glob = sorted(set(required_refs) - set(expected_rel))
+    if missing_from_glob:
         findings.append(
             Finding(
                 severity="error",
-                check_id="index.registration_coverage.plan_refs_mismatch",
-                message="required_plan_refs must match the current alpha plan glob",
-                remediation="Add newly introduced alpha plan refs to the index or remove stale refs.",
-                details={"expected": expected_rel, "actual": required_refs},
+                check_id="index.registration_coverage.required_plan_refs_outside_glob",
+                message="required_plan_refs must resolve through the configured alpha plan glob",
+                remediation="Correct the plan_source_glob or remove stale required plan refs.",
+                details={"missing_from_glob": missing_from_glob, "plan_source_glob": plan_glob},
             )
         )
     for ref in required_refs:

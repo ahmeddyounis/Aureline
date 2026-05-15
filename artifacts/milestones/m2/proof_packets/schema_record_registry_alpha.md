@@ -1,5 +1,17 @@
 # External alpha schema and record registry proof packet
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:24:31Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_schema_record_registry_contract_set@2026-05-15
+validator: ci/check_schema_record_registry_alpha.py
+validation_capture: artifacts/milestones/m2/captures/schema_record_registry_alpha_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 This packet registers the alpha schema registry, record-class registry,
 managed-copy/local-truth reviewer page, validator, fixture manifest, and
 support/export projection as the current proof root for state,

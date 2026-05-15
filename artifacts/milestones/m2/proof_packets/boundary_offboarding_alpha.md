@@ -1,5 +1,17 @@
 # Proof packet: boundary and offboarding baseline
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:24:31Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_boundary_offboarding_contract_set@2026-05-15
+validator: ci/check_boundary_offboarding_alpha.py
+validation_capture: artifacts/milestones/m2/captures/boundary_offboarding_alpha_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 ## Scope
 
 This packet covers the alpha boundary manifest, entitlement snapshot,

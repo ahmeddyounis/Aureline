@@ -1,5 +1,17 @@
 # External Alpha Launch Bundles and Archetype Seeds
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:24:31Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_launch_bundle_contract_set@2026-05-15
+validator: ci/check_alpha_launch_bundles.py
+validation_capture: artifacts/milestones/m2/captures/launch_bundle_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 This packet binds the two external-alpha launch bundles to their archetype seed
 rows, benchmark fixture rows, visible Start Center projection, and validator.
 It is evidence for the setup contract only; it does not promote either row to a

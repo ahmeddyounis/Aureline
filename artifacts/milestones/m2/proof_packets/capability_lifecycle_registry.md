@@ -1,5 +1,17 @@
 # Proof Packet: External Alpha Capability Lifecycle Registry
 
+```yaml
+as_of: 2026-05-15
+freshness_date: 2026-05-15
+captured_at: 2026-05-15T17:24:31Z
+stale_after: P14D
+source_revision: git:7ef49d38b543d94113d56e1b3aa289eea9e62c2e
+trigger_revision: alpha_capability_lifecycle_contract_set@2026-05-15
+validator: ci/check_capability_lifecycle_registry.py
+validation_capture: artifacts/milestones/m2/captures/capability_lifecycle_registry_validation_capture.json
+claim_change_state: no_claim_widening
+```
+
 ## Scope
 
 This packet proves that launch-wedge lifecycle state and dependency
