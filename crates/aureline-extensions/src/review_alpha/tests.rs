@@ -152,6 +152,7 @@ fn input(action_class: ReviewActionClass) -> ExtensionReviewAlphaInput {
         capability_lifecycle_row_refs: vec![
             "capability_lifecycle:alpha.extension_review".to_string()
         ],
+        claimed_capability_lifecycle_state: None,
         boundary_manifest_row_refs: vec!["extension_registry_mirror".to_string()],
         review_event_refs: vec!["extension_install_review_opened".to_string()],
     }
@@ -207,6 +208,34 @@ fn widening_attempt_blocks_install_even_when_manifest_decision_is_admit() {
     assert_eq!(
         packet.decision_reason_class,
         ReviewDecisionReasonClass::EffectivePermissionWideningAttempted
+    );
+    assert_eq!(packet.mutation_class, ReviewMutationClass::NoMutation);
+}
+
+#[test]
+fn stable_claim_on_preview_lifecycle_is_denied() {
+    let mut input = input(ReviewActionClass::Install);
+    input.capability_lifecycle_row_refs =
+        vec!["capability_lifecycle:alpha.ai.routing_cost".to_string()];
+    input.claimed_capability_lifecycle_state = Some(LifecycleState::Stable);
+
+    let packet = evaluate_extension_review_alpha(
+        input,
+        &manifest_decision(
+            InstallDecisionClass::Admit,
+            InstallDecisionReasonClass::AdmittedNoViolation,
+        ),
+        &effective_permission(0),
+        &continuity(PublisherContinuityStateClass::Active),
+        &revocation(RevocationStateClass::NoKnownRevocation),
+        &[],
+        "2026-05-14T08:00:01Z",
+    );
+
+    assert_eq!(packet.decision_class, ReviewDecisionClass::Denied);
+    assert_eq!(
+        packet.decision_reason_class,
+        ReviewDecisionReasonClass::CapabilityLifecycleClaimRefused
     );
     assert_eq!(packet.mutation_class, ReviewMutationClass::NoMutation);
 }

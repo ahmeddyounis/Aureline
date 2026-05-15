@@ -10,6 +10,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+use aureline_support::capabilities::{
+    current_capability_lifecycle_registry, CapabilityClaimValidation, CapabilityLifecycleRegistry,
+    DenialReason, LifecycleState,
+};
+
 use crate::publish_later::{PublishLaterQueueAlphaItem, QueueState};
 
 /// Schema version for the connected-provider registry alpha packet.
@@ -240,6 +245,12 @@ pub struct ClaimedProviderSurface {
     pub actions: Vec<SurfaceActionDescriptor>,
     /// Export-safe summary of what the surface claims.
     pub surface_summary: String,
+    /// Capability-lifecycle rows consumed from the governance registry.
+    #[serde(default)]
+    pub capability_lifecycle_row_refs: Vec<String>,
+    /// Lifecycle state claimed by this provider surface, when any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claimed_lifecycle_state: Option<LifecycleState>,
 }
 
 /// One action state exposed by a claimed provider surface.
@@ -836,6 +847,15 @@ pub struct ProviderRunControlSummary {
     pub disclosure_summary: String,
 }
 
+/// Validates provider capability lifecycle refs against a claimed state.
+pub fn validate_provider_capability_lifecycle_claim(
+    row_refs: &[String],
+    claimed_lifecycle_state: LifecycleState,
+    registry: &CapabilityLifecycleRegistry,
+) -> CapabilityClaimValidation {
+    registry.validate_claim(row_refs, claimed_lifecycle_state)
+}
+
 struct ProviderAlphaValidator<'a> {
     packet: &'a ConnectedProviderAlphaPacket,
     descriptor_ids: BTreeSet<&'a str>,
@@ -1014,7 +1034,51 @@ impl<'a> ProviderAlphaValidator<'a> {
                 );
                 self.validate_surface_action(action);
             }
+            self.validate_surface_capability_lifecycle_claim(claim);
         }
+    }
+
+    fn validate_surface_capability_lifecycle_claim(&mut self, claim: &ClaimedProviderSurface) {
+        let Some(claimed_lifecycle_state) = claim.claimed_lifecycle_state else {
+            return;
+        };
+        let registry = match current_capability_lifecycle_registry() {
+            Ok(registry) => registry,
+            Err(_) => {
+                self.expect(
+                    false,
+                    "provider_alpha.capability_lifecycle_registry_unresolved",
+                    "capability lifecycle registry must parse before provider claims can validate",
+                );
+                return;
+            }
+        };
+        let validation = validate_provider_capability_lifecycle_claim(
+            &claim.capability_lifecycle_row_refs,
+            claimed_lifecycle_state,
+            &registry,
+        );
+        if validation.is_valid() {
+            return;
+        }
+
+        let check_id = match validation
+            .failures()
+            .first()
+            .map(|failure| failure.denial_reason())
+        {
+            Some(DenialReason::LifecycleStateUnresolved) | None => {
+                "provider_alpha.surface_capability_lifecycle_unresolved"
+            }
+            Some(_) => "provider_alpha.surface_capability_claim_below_declared",
+        };
+        self.expect(
+            false,
+            check_id,
+            validation
+                .first_failure_summary()
+                .unwrap_or("provider surface lifecycle claim is not admissible"),
+        );
     }
 
     fn validate_surface_action(&mut self, action: &SurfaceActionDescriptor) {

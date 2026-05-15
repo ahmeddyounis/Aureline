@@ -73,8 +73,9 @@ pub use manifest_baseline::{
 };
 pub use review_alpha::{
     evaluate_extension_review_alpha, project_review_alpha_surface,
-    validate_extension_review_alpha_packet, validate_publisher_continuity_alpha_record,
-    validate_revocation_alpha_record, ExtensionReviewAlphaInput, ExtensionReviewAlphaPacketRecord,
+    validate_extension_capability_lifecycle_claim, validate_extension_review_alpha_packet,
+    validate_publisher_continuity_alpha_record, validate_revocation_alpha_record,
+    ExtensionReviewAlphaInput, ExtensionReviewAlphaPacketRecord,
     ExtensionReviewAlphaProjectionRecord, PolicyPackAlphaApplication, PolicyPackEffectClass,
     PublisherContinuityAlphaRecord, PublisherContinuityStateClass, ReviewActionClass,
     ReviewActionOfferClass, ReviewAlphaFinding, ReviewDecisionClass, ReviewDecisionReasonClass,

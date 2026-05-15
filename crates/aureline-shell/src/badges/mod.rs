@@ -6,4 +6,5 @@
 //! shared vocabulary for "what target am I about to act on, and which origin
 //! is asking?" without any surface forking a private label set.
 
+pub mod capability_lifecycle;
 pub mod target_origin;

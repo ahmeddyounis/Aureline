@@ -12,6 +12,11 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_support::capabilities::{
+    current_capability_lifecycle_registry, CapabilityClaimValidation, CapabilityLifecycleRegistry,
+    DenialReason, LifecycleState,
+};
+
 use crate::manifest_baseline::{
     EffectivePermissionBaselineRecord, EffectivePermissionDiffClass, InstallDecisionClass,
     InstallDecisionReasonClass, ManifestInstallDecisionRecord, PublisherTrustTierClass,
@@ -111,6 +116,10 @@ pub enum ReviewDecisionReasonClass {
     RevokeReviewRequired,
     /// The review depends on stale or unavailable verification evidence.
     FreshnessFloorUnmet,
+    /// The claimed lifecycle state exceeds the registry effective state.
+    CapabilityLifecycleClaimRefused,
+    /// The lifecycle row or registry could not be resolved.
+    CapabilityLifecycleUnresolved,
 }
 
 /// Publisher continuity state visible on review and support surfaces.
@@ -397,6 +406,9 @@ pub struct ExtensionReviewAlphaInput {
     pub rendered_disclosures: Vec<ReviewDisclosureClass>,
     /// Capability-lifecycle rows consumed from the governance registry.
     pub capability_lifecycle_row_refs: Vec<String>,
+    /// Lifecycle state claimed by the extension-facing surface, when any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claimed_capability_lifecycle_state: Option<LifecycleState>,
     /// Boundary-manifest rows consumed for managed or mirror truth.
     pub boundary_manifest_row_refs: Vec<String>,
     /// Review event refs emitted while building the packet.
@@ -436,6 +448,9 @@ pub struct ExtensionReviewAlphaPacketRecord {
     pub policy_pack_application_refs: Vec<String>,
     /// Capability-lifecycle rows consumed from the governance registry.
     pub capability_lifecycle_row_refs: Vec<String>,
+    /// Lifecycle state claimed by the extension-facing surface, when any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claimed_capability_lifecycle_state: Option<LifecycleState>,
     /// Boundary-manifest rows consumed for managed or mirror truth.
     pub boundary_manifest_row_refs: Vec<String>,
     /// Disclosure classes required before mutation.
@@ -540,6 +555,8 @@ pub fn evaluate_extension_review_alpha(
             ReviewDecisionReasonClass::ReviewDisclosureIncomplete,
             format!("Denied: review surface did not render required disclosure '{missing:?}'."),
         )
+    } else if let Some((reason, summary)) = capability_lifecycle_claim_denial(&input) {
+        (ReviewDecisionClass::Denied, reason, summary)
     } else if matches!(
         input.action_class,
         ReviewActionClass::Disable | ReviewActionClass::Revoke
@@ -640,6 +657,7 @@ pub fn evaluate_extension_review_alpha(
         revocation_ref: revocation.revocation_id.clone(),
         policy_pack_application_refs: policy_pack_refs,
         capability_lifecycle_row_refs: input.capability_lifecycle_row_refs,
+        claimed_capability_lifecycle_state: input.claimed_capability_lifecycle_state,
         boundary_manifest_row_refs: input.boundary_manifest_row_refs,
         required_disclosures,
         rendered_disclosures: input.rendered_disclosures,
@@ -717,6 +735,15 @@ pub fn project_review_alpha_surface(
         ),
         redaction_class: RedactionClass::MetadataSafeDefault,
     }
+}
+
+/// Validates extension capability lifecycle refs against a claimed state.
+pub fn validate_extension_capability_lifecycle_claim(
+    row_refs: &[String],
+    claimed_lifecycle_state: LifecycleState,
+    registry: &CapabilityLifecycleRegistry,
+) -> CapabilityClaimValidation {
+    registry.validate_claim(row_refs, claimed_lifecycle_state)
 }
 
 /// Validate structural invariants for a publisher-continuity alpha record.
@@ -937,6 +964,49 @@ fn first_missing_disclosure(
         .iter()
         .find(|required| !rendered.contains(required))
         .copied()
+}
+
+fn capability_lifecycle_claim_denial(
+    input: &ExtensionReviewAlphaInput,
+) -> Option<(ReviewDecisionReasonClass, String)> {
+    let claimed_lifecycle_state = input.claimed_capability_lifecycle_state?;
+    let registry = match current_capability_lifecycle_registry() {
+        Ok(registry) => registry,
+        Err(_) => {
+            return Some((
+                ReviewDecisionReasonClass::CapabilityLifecycleUnresolved,
+                "Denied: capability lifecycle registry could not be resolved.".to_string(),
+            ));
+        }
+    };
+    let validation = validate_extension_capability_lifecycle_claim(
+        &input.capability_lifecycle_row_refs,
+        claimed_lifecycle_state,
+        &registry,
+    );
+    if validation.is_valid() {
+        return None;
+    }
+
+    let reason = match validation
+        .failures()
+        .first()
+        .map(|failure| failure.denial_reason())
+    {
+        Some(DenialReason::LifecycleStateUnresolved) | None => {
+            ReviewDecisionReasonClass::CapabilityLifecycleUnresolved
+        }
+        Some(_) => ReviewDecisionReasonClass::CapabilityLifecycleClaimRefused,
+    };
+    Some((
+        reason,
+        format!(
+            "Denied: {}",
+            validation
+                .first_failure_summary()
+                .unwrap_or("capability lifecycle claim is not admissible")
+        ),
+    ))
 }
 
 fn mutation_class_for(action_class: ReviewActionClass) -> ReviewMutationClass {

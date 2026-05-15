@@ -7,6 +7,7 @@ use aureline_provider::{
     ConnectedProviderAlphaPacket, MutationSurfaceState, PipelineOverlayKind, ProviderFamily,
     RunControlClass, StaleTargetRiskClass,
 };
+use aureline_support::capabilities::LifecycleState;
 
 fn fixture_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -168,6 +169,21 @@ fn missing_browser_handoff_ref_is_rejected() {
         .findings
         .iter()
         .any(|finding| { finding.check_id == "provider_alpha.open_in_provider_packet_missing" }));
+}
+
+#[test]
+fn stable_provider_claim_on_preview_lifecycle_is_rejected() {
+    let mut packet = load_packet();
+    let claim = &mut packet.registry.surface_claims[0];
+    claim.capability_lifecycle_row_refs =
+        vec!["capability_lifecycle:alpha.ai.routing_cost".to_string()];
+    claim.claimed_lifecycle_state = Some(LifecycleState::Stable);
+
+    let report = packet.validate();
+    assert!(!report.passed);
+    assert!(report.findings.iter().any(|finding| {
+        finding.check_id == "provider_alpha.surface_capability_claim_below_declared"
+    }));
 }
 
 #[test]

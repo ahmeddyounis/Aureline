@@ -70,6 +70,7 @@
 
 pub mod advisory_baseline;
 pub mod bundle;
+pub mod capabilities;
 pub mod fitness;
 pub mod project_doctor;
 pub mod publication_dry_run;
