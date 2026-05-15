@@ -424,6 +424,7 @@ fn context_handoff() -> AiContextEvidenceHandoff {
                 source_language_fallback_token: None,
             },
         ],
+        graph_cue_packets: Vec::new(),
     }
 }
 

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use aureline_graph::{GraphCueSurface, GraphFactCuePacket};
 use serde::Deserialize;
 
 use crate::composer::{
@@ -225,6 +226,7 @@ fn pinned_docs_context_surfaces_citation_and_source_language_fallback() {
                 },
                 pinned_docs_context_item(),
             ],
+            graph_cue_packets: Vec::new(),
             review_lock: review_lock(),
         },
     );
@@ -349,6 +351,7 @@ fn ambiguity_blocked_context_taint_and_budget_overflow_are_visible() {
                     docs_identity: None,
                 },
             ],
+            graph_cue_packets: Vec::new(),
             review_lock: review_lock(),
         },
     );
@@ -401,12 +404,49 @@ fn invalid_docs_anchor_and_missing_source_language_fallback_are_rejected() {
             mention_previews: Vec::new(),
             attachment_pills: Vec::new(),
             context_items: vec![item],
+            graph_cue_packets: Vec::new(),
             review_lock: review_lock(),
         },
     );
     let violations = snapshot.validate();
     assert!(violations.contains(&ComposerContextAlphaViolation::DocsCitationAnchorMissing));
     assert!(violations.contains(&ComposerContextAlphaViolation::SourceLanguageFallbackMissing));
+}
+
+#[test]
+fn graph_cue_workspace_mismatch_is_rejected_without_widening() {
+    let graph_cue_packet = GraphFactCuePacket::from_fallback_search(
+        "graph-cue-packet:composer-context:wrong-workspace",
+        GraphCueSurface::AiContext,
+        "query:composer-context:wrong-workspace",
+        "request-workspace:outside-request",
+        "fallback-result:outside-request",
+        "partial",
+        "2026-05-14T12:01:00Z",
+    );
+    let snapshot = ComposerContextAlphaSnapshot::project(
+        &draft(),
+        &routing_packet(),
+        ComposerContextAlphaInput {
+            intent_mode: IntentModeClass::Ask,
+            scope_label: "Current root".to_owned(),
+            execution_boundary_class: ExecutionBoundaryClass::ManagedHosted,
+            action_identity_ref: None,
+            mention_previews: Vec::new(),
+            attachment_pills: Vec::new(),
+            context_items: Vec::new(),
+            graph_cue_packets: vec![graph_cue_packet],
+            review_lock: review_lock(),
+        },
+    );
+
+    let violations = snapshot.validate();
+    assert!(violations.contains(&ComposerContextAlphaViolation::GraphCueWorkspaceMismatch));
+
+    let handoff = snapshot.evidence_handoff("context-handoff:wrong-graph-cue-workspace");
+    assert!(handoff
+        .validate()
+        .contains(&ComposerContextAlphaViolation::GraphCueWorkspaceMismatch));
 }
 
 #[test]

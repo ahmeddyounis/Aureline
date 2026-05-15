@@ -25,6 +25,10 @@ pub const GRAPH_FACT_CUE_PACKET_RECORD_KIND: &str = "graph_fact_cue_packet";
 pub enum GraphCueSurface {
     /// Graph-backed navigation such as symbol jump, breadcrumbs, or quick open.
     Navigation,
+    /// AI context assembly, prompt inspection, and evidence handoff surfaces.
+    AiContext,
+    /// Review surfaces such as diff review, impact review, and review seeds.
+    Review,
     /// AI context selection and context-inspector candidates.
     AiContextSelection,
     /// Review seed, impact seed, or change-review setup packets.
@@ -38,6 +42,8 @@ impl GraphCueSurface {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Navigation => "navigation",
+            Self::AiContext => "ai_context",
+            Self::Review => "review",
             Self::AiContextSelection => "ai_context_selection",
             Self::ReviewSeed => "review_seed",
             Self::SupportExport => "support_export",
@@ -48,10 +54,22 @@ impl GraphCueSurface {
     pub const fn label(self) -> &'static str {
         match self {
             Self::Navigation => "Navigation",
+            Self::AiContext => "AI context",
+            Self::Review => "Review",
             Self::AiContextSelection => "AI context",
             Self::ReviewSeed => "Review seed",
             Self::SupportExport => "Support export",
         }
+    }
+
+    /// Returns true when the surface consumes cues for AI context assembly.
+    pub const fn is_ai_context(self) -> bool {
+        matches!(self, Self::AiContext | Self::AiContextSelection)
+    }
+
+    /// Returns true when the surface consumes cues for review flows.
+    pub const fn is_review(self) -> bool {
+        matches!(self, Self::Review | Self::ReviewSeed)
     }
 }
 

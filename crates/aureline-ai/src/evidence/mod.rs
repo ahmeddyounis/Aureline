@@ -18,6 +18,8 @@ use aureline_docs::{
 };
 use serde::{Deserialize, Serialize};
 
+use aureline_graph::GraphFactCuePacket;
+
 use crate::context_inspector::{AiContextEvidenceHandoff, AiContextEvidenceHandoffRow};
 use crate::routing::{AiRoutingPacket, RoutingPolicyContext};
 
@@ -1031,6 +1033,11 @@ impl AiMutationEvidencePacket {
                 .as_ref()
                 .map(|handoff| handoff.context_rows.clone())
                 .unwrap_or_default(),
+            graph_cue_packets: self
+                .context_handoff
+                .as_ref()
+                .map(|handoff| handoff.graph_cue_packets.clone())
+                .unwrap_or_default(),
             review_surface_ref: self.review_lineage.review_surface_ref.clone(),
             patch_review_summary_ref: self.review_lineage.patch_review_summary_ref.clone(),
             validation_summary_refs: self.review_lineage.validation_summary_refs.clone(),
@@ -1089,6 +1096,10 @@ impl AiMutationEvidencePacket {
         out.push_str(&format!(
             "- Tainted fences: {} row(s)\n",
             support.tainted_fence_rows.len()
+        ));
+        out.push_str(&format!(
+            "- Graph cues: {} packet(s)\n",
+            support.graph_cue_packets.len()
         ));
         out.push_str(&format!(
             "- Apply outcome: `{}`\n",
@@ -1469,6 +1480,9 @@ pub struct AiMutationEvidenceSupportPacket {
     /// Context handoff rows consumed from the composer/context inspector.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub context_handoff_rows: Vec<AiContextEvidenceHandoffRow>,
+    /// Graph cue packets inherited from the context handoff.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub graph_cue_packets: Vec<GraphFactCuePacket>,
     /// Review surface ref.
     pub review_surface_ref: String,
     /// Patch review summary ref.
@@ -2064,6 +2078,78 @@ fn context_handoff_contains_forbidden_boundary_material(
                     .source_language_fallback_token
                     .as_deref()
                     .is_some_and(contains_forbidden_boundary_material)
+        })
+        || handoff
+            .graph_cue_packets
+            .iter()
+            .any(graph_cue_packet_contains_forbidden_boundary_material)
+}
+
+fn graph_cue_packet_contains_forbidden_boundary_material(packet: &GraphFactCuePacket) -> bool {
+    [
+        packet.record_kind.as_str(),
+        packet.packet_id.as_str(),
+        packet.source_packet_ref.as_str(),
+        packet.query_request_id.as_str(),
+        packet.workspace_id.as_str(),
+        packet.readiness.as_str(),
+        packet.emitted_at.as_str(),
+    ]
+    .iter()
+    .any(|value| contains_forbidden_boundary_material(value))
+        || packet
+            .workspace_graph_id
+            .as_deref()
+            .is_some_and(contains_forbidden_boundary_material)
+        || packet
+            .query_class
+            .as_deref()
+            .is_some_and(contains_forbidden_boundary_material)
+        || packet
+            .query_family_tag
+            .as_deref()
+            .is_some_and(contains_forbidden_boundary_material)
+        || packet.cues.iter().any(|cue| {
+            [
+                cue.cue_id.as_str(),
+                cue.display_label.as_str(),
+                cue.row_class.as_str(),
+                cue.readiness.as_str(),
+            ]
+            .iter()
+            .any(|value| contains_forbidden_boundary_material(value))
+                || cue
+                    .graph_ref
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || cue
+                    .confidence_level
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || cue
+                    .freshness
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || cue
+                    .evidence_state
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || cue
+                    .relative_path
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || cue
+                    .symbol_ref
+                    .as_deref()
+                    .is_some_and(contains_forbidden_boundary_material)
+                || cue
+                    .partial_truth_causes
+                    .iter()
+                    .any(|cause| contains_forbidden_boundary_material(cause))
+                || cue
+                    .export_labels
+                    .iter()
+                    .any(|label| contains_forbidden_boundary_material(label))
         })
 }
 

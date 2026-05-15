@@ -3,7 +3,9 @@ use std::path::Path;
 use aureline_graph::{
     GraphCueSurface, GraphFactCuePacket, GraphFactTruthLane, GraphQueryRequest, GraphStore,
 };
-use aureline_graph_proto::{all_scenarios, Freshness, FreshnessFrame, StaleReason, WorkspaceGraph};
+use aureline_graph_proto::{
+    all_scenarios, Freshness, FreshnessFrame, StaleReason, Visibility, WorkspaceGraph,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -30,11 +32,12 @@ fn fact_cue_fixture_covers_acceptance_lanes() {
 
     let packets = vec![
         exact_local_packet(GraphCueSurface::Navigation),
-        imported_packet(GraphCueSurface::ReviewSeed),
-        inferred_packet(GraphCueSurface::AiContextSelection),
+        partial_packet(GraphCueSurface::AiContext),
+        imported_packet(GraphCueSurface::Review),
+        inferred_packet(GraphCueSurface::AiContext),
         stale_packet(GraphCueSurface::SupportExport),
         waiting_packet(GraphCueSurface::Navigation),
-        fallback_packet(GraphCueSurface::AiContextSelection),
+        fallback_packet(GraphCueSurface::AiContext),
     ];
     let mut lane_tokens = packets
         .iter()
@@ -104,10 +107,10 @@ fn graph_surfaces_receive_cues_without_raw_debug_data() {
 }
 
 #[test]
-fn ai_context_and_review_seed_distinguish_graph_from_fallback_search() {
-    let ai_graph = exact_local_packet(GraphCueSurface::AiContextSelection);
-    let ai_fallback = fallback_packet(GraphCueSurface::AiContextSelection);
-    let review_seed = imported_packet(GraphCueSurface::ReviewSeed);
+fn ai_context_and_review_distinguish_graph_from_fallback_search() {
+    let ai_graph = exact_local_packet(GraphCueSurface::AiContext);
+    let ai_fallback = fallback_packet(GraphCueSurface::AiContext);
+    let review_seed = imported_packet(GraphCueSurface::Review);
 
     assert!(ai_graph.has_graph_backed_cues());
     assert_eq!(
@@ -119,7 +122,7 @@ fn ai_context_and_review_seed_distinguish_graph_from_fallback_search() {
         ai_fallback.truth_lanes,
         vec![GraphFactTruthLane::FallbackSearchFact]
     );
-    assert_eq!(review_seed.consumer_surface.as_str(), "review_seed");
+    assert_eq!(review_seed.consumer_surface.as_str(), "review");
     assert!(review_seed
         .truth_lanes
         .contains(&GraphFactTruthLane::ImportedGraphFact));
@@ -168,6 +171,25 @@ fn imported_packet(surface: GraphCueSurface) -> GraphFactCuePacket {
         "node:file:vendor_acme_lib_rs",
     ));
     GraphFactCuePacket::from_graph_query_envelope("packet:cue:imported:owner", surface, &envelope)
+}
+
+fn partial_packet(surface: GraphCueSurface) -> GraphFactCuePacket {
+    let mut graph = scenario_graph("local_root_workspace");
+    let node = graph
+        .nodes
+        .iter_mut()
+        .find(|node| node.node_id == "node:symbol:greet_fn")
+        .expect("symbol node exists");
+    for scope in &mut node.scope_refs {
+        scope.visibility = Visibility::PartialVisible;
+    }
+    let store = GraphStore::persist_snapshot(graph).expect("partial graph validates");
+    let envelope = store.query(GraphQueryRequest::symbol_lookup(
+        "q:cue:partial:greet",
+        "ws:aureline",
+        "greet",
+    ));
+    GraphFactCuePacket::from_graph_query_envelope("packet:cue:partial:greet", surface, &envelope)
 }
 
 fn inferred_packet(surface: GraphCueSurface) -> GraphFactCuePacket {

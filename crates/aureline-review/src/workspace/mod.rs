@@ -8,6 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_graph::GraphFactCuePacket;
+
 use crate::diff::{DiffLineKind, DiffLineView, DiffViewSurfacePacket};
 
 /// Stable record-kind tag for [`ReviewWorkspaceSeedPacket`].
@@ -63,6 +65,9 @@ pub struct ReviewWorkspaceSeedInput {
     /// Work-item relations projected into the review workspace.
     #[serde(default)]
     pub work_item_links: Vec<ReviewWorkItemLinkInput>,
+    /// Graph readiness cues inherited by the review surface.
+    #[serde(default)]
+    pub graph_cue_packets: Vec<GraphFactCuePacket>,
 }
 
 impl ReviewWorkspaceSeedInput {
@@ -88,12 +93,19 @@ impl ReviewWorkspaceSeedInput {
             created_at: created_at.into(),
             provider_overlay: None,
             work_item_links: Vec::new(),
+            graph_cue_packets: Vec::new(),
         }
     }
 
     /// Returns a copy with a provider overlay attached.
     pub fn with_provider_overlay(mut self, provider_overlay: ReviewProviderOverlayInput) -> Self {
         self.provider_overlay = Some(provider_overlay);
+        self
+    }
+
+    /// Returns a copy with an inherited graph cue packet attached.
+    pub fn with_graph_cue_packet(mut self, graph_cue_packet: GraphFactCuePacket) -> Self {
+        self.graph_cue_packets.push(graph_cue_packet);
         self
     }
 }
@@ -347,6 +359,15 @@ pub struct ReviewWorkspaceInspectionRecord {
     pub provider_ready_anchor_semantics: bool,
     /// True when at least one linkage row is actor and command attributed.
     pub attributable_work_item_linkage_present: bool,
+    /// Graph cue packet ids inherited by the review surface.
+    #[serde(default)]
+    pub graph_cue_packet_refs: Vec<String>,
+    /// Readiness tokens copied from inherited graph cue packets.
+    #[serde(default)]
+    pub graph_cue_readiness_tokens: Vec<String>,
+    /// Cue packet epochs copied from inherited graph cue packets.
+    #[serde(default)]
+    pub graph_cue_epoch_refs: Vec<String>,
     /// Summary safe for support/export surfaces.
     pub summary_label: String,
 }
@@ -368,6 +389,9 @@ pub struct ReviewWorkspaceSeedPacket {
     pub anchors: Vec<ReviewAnchorIdAlphaRecord>,
     /// Work-item relation rows attached to the workspace.
     pub work_item_linkages: Vec<ReviewWorkItemLinkageRecord>,
+    /// Graph readiness cues inherited by the review surface.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub graph_cue_packets: Vec<GraphFactCuePacket>,
     /// Inspection record used by support/export and tests.
     pub inspection: ReviewWorkspaceInspectionRecord,
 }
@@ -380,6 +404,7 @@ impl ReviewWorkspaceSeedPacket {
     ) -> Self {
         let review_workspace = workspace_record(&input, diff_packet);
         let anchors = anchors_for_diff(&input, diff_packet);
+        let graph_cue_packets = input.graph_cue_packets.clone();
         let diff_entries = vec![ReviewWorkspaceDiffEntry {
             diff_surface_ref: diff_packet.diff_surface_ref.clone(),
             launch_source_ref: diff_packet.launch_source_ref.clone(),
@@ -398,6 +423,7 @@ impl ReviewWorkspaceSeedPacket {
             &diff_entries,
             &anchors,
             &work_item_linkages,
+            &graph_cue_packets,
         );
 
         Self {
@@ -408,6 +434,7 @@ impl ReviewWorkspaceSeedPacket {
             diff_entries,
             anchors,
             work_item_linkages,
+            graph_cue_packets,
             inspection,
         }
     }
@@ -439,6 +466,22 @@ impl ReviewWorkspaceSeedPacket {
                 && !linkage.actor_ref.trim().is_empty()
                 && !linkage.command_id_ref.trim().is_empty()
         })
+    }
+
+    /// Returns true when inherited graph cue freshness is preserved on inspection rows.
+    pub fn preserves_graph_cue_epoch_parity(&self) -> bool {
+        let packet_epochs = self
+            .graph_cue_packets
+            .iter()
+            .map(|packet| packet.emitted_at.as_str())
+            .collect::<Vec<_>>();
+        let inspection_epochs = self
+            .inspection
+            .graph_cue_epoch_refs
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        packet_epochs == inspection_epochs
     }
 }
 
@@ -638,6 +681,7 @@ fn inspection_for(
     diff_entries: &[ReviewWorkspaceDiffEntry],
     anchors: &[ReviewAnchorIdAlphaRecord],
     work_item_linkages: &[ReviewWorkItemLinkageRecord],
+    graph_cue_packets: &[GraphFactCuePacket],
 ) -> ReviewWorkspaceInspectionRecord {
     let provider_ready_anchor_semantics = anchors
         .iter()
@@ -654,6 +698,18 @@ fn inspection_for(
         work_item_linkage_count: work_item_linkages.len(),
         provider_ready_anchor_semantics,
         attributable_work_item_linkage_present,
+        graph_cue_packet_refs: graph_cue_packets
+            .iter()
+            .map(|packet| packet.packet_id.clone())
+            .collect(),
+        graph_cue_readiness_tokens: graph_cue_packets
+            .iter()
+            .map(|packet| packet.readiness.clone())
+            .collect(),
+        graph_cue_epoch_refs: graph_cue_packets
+            .iter()
+            .map(|packet| packet.emitted_at.clone())
+            .collect(),
         summary_label: format!(
             "{} diff(s), {} anchor(s), {} work-item link(s)",
             diff_entries.len(),
@@ -825,6 +881,7 @@ mod tests {
                 linked_at: "2026-05-13T00:00:00Z".to_string(),
                 summary_label: "Work item linked to local review workspace".to_string(),
             }],
+            graph_cue_packets: Vec::new(),
         }
     }
 

@@ -844,6 +844,10 @@ pub struct AiContextInspectorAlphaProjection {
     pub has_docs_citation_truth: bool,
     /// True when omitted, blocked, stale, or tainted context is visible.
     pub has_non_included_context_truth: bool,
+    /// True when graph readiness cues are visible in shell rows.
+    pub has_graph_readiness_cues: bool,
+    /// Number of graph cue packets inherited from the AI context snapshot.
+    pub graph_cue_packet_count: usize,
     /// Evidence handoff row count produced from the same source snapshot.
     pub evidence_handoff_row_count: usize,
 }
@@ -956,6 +960,28 @@ impl AiContextInspectorAlphaProjection {
             });
         }
 
+        for packet in &snapshot.graph_cue_packets {
+            for cue in &packet.cues {
+                rows.push(AlphaInspectorRow {
+                    row_id: format!("graph_cue_{}_{}", packet.packet_id, cue.cue_id),
+                    label: "Graph readiness".to_owned(),
+                    value: format!(
+                        "{} / {} / {} / {}",
+                        cue.display_label,
+                        cue.truth_lane.as_str(),
+                        cue.readiness,
+                        cue.action_posture.as_str()
+                    ),
+                    value_token: cue.truth_lane.as_str().to_owned(),
+                    status: alpha_graph_cue_status(cue.truth_lane.as_str(), &cue.readiness),
+                    source_ref: cue
+                        .graph_ref
+                        .clone()
+                        .unwrap_or_else(|| packet.source_packet_ref.clone()),
+                });
+            }
+        }
+
         let handoff = snapshot.evidence_handoff(format!(
             "context-handoff:{}",
             snapshot.review_lock.context_snapshot_ref
@@ -971,6 +997,10 @@ impl AiContextInspectorAlphaProjection {
                 "omitted" | "blocked" | "stale" | "tainted" | "summarized"
             )
         });
+        let has_graph_readiness_cues = snapshot
+            .graph_cue_packets
+            .iter()
+            .any(|packet| packet.requires_visible_cues());
 
         Self {
             record_kind: AI_CONTEXT_INSPECTOR_ALPHA_PROJECTION_RECORD_KIND.to_owned(),
@@ -982,6 +1012,8 @@ impl AiContextInspectorAlphaProjection {
             rows,
             has_docs_citation_truth,
             has_non_included_context_truth,
+            has_graph_readiness_cues,
+            graph_cue_packet_count: snapshot.graph_cue_packets.len(),
             evidence_handoff_row_count: handoff.context_rows.len(),
         }
     }
@@ -1014,6 +1046,14 @@ fn alpha_state_status(token: &str) -> InspectorRowStatusClass {
         | "overflow" => InspectorRowStatusClass::Blocked,
         "omitted" | "tainted" | "summarized" => InspectorRowStatusClass::Informational,
         _ => InspectorRowStatusClass::Live,
+    }
+}
+
+fn alpha_graph_cue_status(truth_lane: &str, readiness: &str) -> InspectorRowStatusClass {
+    if truth_lane == "exact_local_graph_fact" && matches!(readiness, "ready" | "hot_set_ready") {
+        InspectorRowStatusClass::Live
+    } else {
+        InspectorRowStatusClass::Informational
     }
 }
 

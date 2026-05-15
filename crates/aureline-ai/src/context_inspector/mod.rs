@@ -14,6 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_graph::GraphFactCuePacket;
+
 use crate::composer::{
     AttachmentKind, AttachmentStatusClass, ComposerDraft, MentionKind, MentionResolutionState,
     SelectionReasonClass, SourceClass, TrustPosture,
@@ -793,6 +795,8 @@ pub struct ComposerContextAlphaInput {
     pub attachment_pills: Vec<ComposerAttachmentPill>,
     /// Grouped context rows.
     pub context_items: Vec<ComposerContextItem>,
+    /// Graph readiness cues consumed by the context assembler for this scope.
+    pub graph_cue_packets: Vec<GraphFactCuePacket>,
     /// Review lock fields.
     pub review_lock: ComposerContextReviewLock,
 }
@@ -827,6 +831,9 @@ pub struct ComposerContextAlphaSnapshot {
     pub attachment_pills: Vec<ComposerAttachmentPill>,
     /// Grouped context rows.
     pub context_items: Vec<ComposerContextItem>,
+    /// Graph readiness cues that bound graph-backed context for this snapshot.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub graph_cue_packets: Vec<GraphFactCuePacket>,
     /// Budget and route strip.
     pub budget_strip: ComposerBudgetStrip,
     /// Review lock.
@@ -873,6 +880,7 @@ impl ComposerContextAlphaSnapshot {
             mention_previews,
             attachment_pills,
             context_items: input.context_items,
+            graph_cue_packets: input.graph_cue_packets,
             budget_strip,
             review_lock: input.review_lock,
             review_state,
@@ -900,6 +908,7 @@ impl ComposerContextAlphaSnapshot {
                 })
                 .map(AiContextEvidenceHandoffRow::from_context_item)
                 .collect(),
+            graph_cue_packets: self.graph_cue_packets.clone(),
         }
     }
 
@@ -974,6 +983,9 @@ impl ComposerContextAlphaSnapshot {
                 violations.extend(docs_identity.validate());
             }
         }
+        for packet in &self.graph_cue_packets {
+            validate_ai_graph_cue_packet(packet, &self.request_workspace_id, &mut violations);
+        }
         violations
     }
 
@@ -1028,6 +1040,28 @@ impl ComposerContextAlphaSnapshot {
             }
             out.push('\n');
         }
+        if !self.graph_cue_packets.is_empty() {
+            out.push_str("## Graph Cues\n\n");
+            for packet in &self.graph_cue_packets {
+                out.push_str(&format!(
+                    "- Packet `{}`: surface `{}` / readiness `{}` / epoch `{}`\n",
+                    packet.packet_id,
+                    packet.consumer_surface.as_str(),
+                    packet.readiness,
+                    packet.emitted_at
+                ));
+                for cue in &packet.cues {
+                    out.push_str(&format!(
+                        "  - `{}`: `{}` / `{}` / `{}`\n",
+                        cue.cue_id,
+                        cue.truth_lane.as_str(),
+                        cue.readiness,
+                        cue.action_posture.as_str()
+                    ));
+                }
+            }
+            out.push('\n');
+        }
         out
     }
 }
@@ -1051,6 +1085,9 @@ pub struct AiContextEvidenceHandoff {
     pub request_workspace_ref: String,
     /// Context rows that must survive into downstream evidence.
     pub context_rows: Vec<AiContextEvidenceHandoffRow>,
+    /// Graph readiness cues consumed by the same context snapshot.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub graph_cue_packets: Vec<GraphFactCuePacket>,
 }
 
 impl AiContextEvidenceHandoff {
@@ -1096,6 +1133,9 @@ impl AiContextEvidenceHandoff {
             {
                 violations.push(ComposerContextAlphaViolation::SourceLanguageFallbackMissing);
             }
+        }
+        for packet in &self.graph_cue_packets {
+            validate_ai_graph_cue_packet(packet, &self.request_workspace_ref, &mut violations);
         }
         violations
     }
@@ -1207,6 +1247,14 @@ pub enum ComposerContextAlphaViolation {
     ReviewLockMissingSnapshotRef,
     /// Context, route, or scope changed after review began.
     ReviewStartedButScopeChanged,
+    /// Graph cue packet was not minted for an AI context surface.
+    GraphCueSurfaceMismatch,
+    /// Graph cue packet does not name the workspace it bounds.
+    GraphCueWorkspaceMissing,
+    /// Graph cue packet workspace differs from the AI request workspace.
+    GraphCueWorkspaceMismatch,
+    /// Graph cue packet carries no renderable cue rows.
+    GraphCueRowsMissing,
 }
 
 impl ComposerContextAlphaViolation {
@@ -1226,7 +1274,29 @@ impl ComposerContextAlphaViolation {
             Self::BudgetOverflowNotSurfaced => "budget_overflow_not_surfaced",
             Self::ReviewLockMissingSnapshotRef => "review_lock_missing_snapshot_ref",
             Self::ReviewStartedButScopeChanged => "review_started_but_scope_changed",
+            Self::GraphCueSurfaceMismatch => "graph_cue_surface_mismatch",
+            Self::GraphCueWorkspaceMissing => "graph_cue_workspace_missing",
+            Self::GraphCueWorkspaceMismatch => "graph_cue_workspace_mismatch",
+            Self::GraphCueRowsMissing => "graph_cue_rows_missing",
         }
+    }
+}
+
+fn validate_ai_graph_cue_packet(
+    packet: &GraphFactCuePacket,
+    request_workspace_ref: &str,
+    violations: &mut Vec<ComposerContextAlphaViolation>,
+) {
+    if !packet.consumer_surface.is_ai_context() {
+        violations.push(ComposerContextAlphaViolation::GraphCueSurfaceMismatch);
+    }
+    if packet.workspace_id.trim().is_empty() {
+        violations.push(ComposerContextAlphaViolation::GraphCueWorkspaceMissing);
+    } else if packet.workspace_id != request_workspace_ref {
+        violations.push(ComposerContextAlphaViolation::GraphCueWorkspaceMismatch);
+    }
+    if packet.cues.is_empty() {
+        violations.push(ComposerContextAlphaViolation::GraphCueRowsMissing);
     }
 }
 

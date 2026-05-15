@@ -437,6 +437,7 @@ fn alpha_snapshot() -> ComposerContextAlphaSnapshot {
                 docs_identity: None,
             },
         ],
+        graph_cue_packets: Vec::new(),
         budget_strip: ComposerBudgetStrip {
             aggregate_byte_estimate: 6144,
             budget_byte_ceiling: 32768,
