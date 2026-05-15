@@ -122,6 +122,36 @@ pipeline is reproducible without hand-curated stale fixtures:
   asserts the stale-example checker fails with
   `stale_examples.vocabulary_pin_not_in_manifest`.
 
+## Beta enablement starter pack
+
+The M3 beta train ships with one starter pack for extension authors,
+design partners / managed pilots, and the community / issue-routing
+lane. The pack reads from the canonical YAML and resolves every cohort,
+surface, and issue-class reference through the same artifacts as the
+rest of the M3 beta program; downstream onboarding, support, and docs
+surfaces consume it by lane id rather than restating links.
+
+- Canonical machine source:
+  `artifacts/milestones/m3/beta_enablement_starter_pack.yaml`
+- Extension-author entrypoint: `docs/extensions/m3/beta_starter_pack.md`
+- Design-partner / managed-pilot entrypoint:
+  `docs/partners/m3/design_partner_beta_pack.md`
+- Community / public-private routing entrypoint:
+  `docs/community/m3/public_private_issue_routing.md`
+- Validator: `ci/check_m3_beta_enablement_starter_pack.py`
+- Latest validation capture:
+  `artifacts/milestones/m3/captures/beta_enablement_starter_pack_validation_capture.json`
+
+The validator confirms every cohort_id, beta_surface_id, and
+issue_class id named in the pack resolves to a row in
+`artifacts/milestones/m3/cohort_guardrails.yaml`,
+`artifacts/milestones/m3/claimed_surface_register.json`, and
+`artifacts/governance/issue_routing.yaml`. It also confirms each of
+the three entrypoint docs cites the canonical cohort, surface, and
+issue-class refs and the canonical SDK / compatibility / scorecard /
+routing / CONTRIBUTING / SECURITY paths the lane is supposed to
+carry.
+
 ## Public-proof artifact index, review packet, and shelf-life policy
 
 The M3 public-proof index binds every beta-bearing claim family in the
