@@ -11,6 +11,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-workspace/0.0.0")]
 
 pub mod admission;
+pub mod archetype_detection;
 pub mod entry_flows;
 pub mod generated_artifacts;
 pub mod generated_projects;
@@ -94,6 +95,14 @@ pub use admission::checkpoint::{
     SetupLocationClass, SideEffectClass, SignalMaterialEffect, SupportClaimClass, TrustReviewClass,
     WorkspaceAdmissionCheckpoint, ADMISSION_CHECKPOINT_ROUTE_SCHEMA_VERSION,
     WORKSPACE_ADMISSION_CHECKPOINT_SCHEMA_VERSION,
+};
+
+pub use archetype_detection::{
+    default_archetype_seed_catalog, detect_workspace_archetype,
+    detect_workspace_archetype_with_catalog, load_archetype_seed_catalog,
+    propose_workspace_archetype, ArchetypeDetectionError, ArchetypeDetectionOutcome,
+    ArchetypeDetectionReport, ArchetypeDetectionSignal, ArchetypeProposal, ArchetypeSeedCatalog,
+    ArchetypeSeedRow, LaunchArchetypeFamily,
 };
 
 pub use save::{
