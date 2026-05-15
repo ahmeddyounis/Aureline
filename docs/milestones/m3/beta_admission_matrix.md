@@ -14,6 +14,36 @@ rules.
 - Beta admission validator: `ci/check_beta_admission.py`
 - Latest validation capture: `artifacts/milestones/m3/captures/beta_admission_validation_capture.json`
 
+## Cohort and archetype scorecards
+
+Each named cohort and certified-archetype row owns a scorecard with owner,
+evidence date, open waivers, downgrade policy, and owner handoff path. The
+validator parses every scorecard, applies the downgrade automation rules
+from the index files, and writes a derived register. Docs, release, support,
+and migration packets consume the derived register rather than restating
+freshness or downgrade rules.
+
+- Cohort scorecard index: `artifacts/milestones/m3/cohorts/scorecard_index.yaml`
+- Cohort scorecards:
+  - `artifacts/milestones/m3/cohorts/design_partner_scorecard.md`
+  - `artifacts/milestones/m3/cohorts/extension_author_scorecard.md`
+  - `artifacts/milestones/m3/cohorts/managed_pilot_scorecard.md`
+- Archetype scorecard index: `artifacts/compat/m3/archetype_scorecards/scorecard_index.yaml`
+- Archetype scorecards: `artifacts/compat/m3/archetype_scorecards/*.md`
+- Scorecard validator: `ci/check_cohort_archetype_scorecards.py`
+- Derived register: `artifacts/milestones/m3/captures/cohort_archetype_scorecard_register.json`
+- Validation capture: `artifacts/milestones/m3/captures/cohort_archetype_scorecard_validation_capture.json`
+
+Downgrade automation rules (see `downgrade_automation` in the cohort
+scorecard index):
+
+- Evidence older than `review_window_days` moves the row to `retest_pending`.
+- Evidence older than `review_window_days * evidence_stale_multiplier` moves
+  the row to `evidence_stale`.
+- An active open waiver moves the row to `limited`, or `preview` when the
+  display lifecycle label is `preview`.
+- A row with no triggers fired inherits its declared support class.
+
 ## Downstream cutline lane
 
 The beta scope feeds the M3 exit cutline; stable planning consumes the
@@ -104,13 +134,18 @@ the feature lanes turn those rows green.
 
 ## How to validate
 
-Run:
+Run the beta-admission validator:
 
 `python3 ci/check_beta_admission.py --repo-root .`
 
 Optional machine-readable report:
 
 `python3 ci/check_beta_admission.py --repo-root . --report artifacts/milestones/m3/captures/beta_admission_validation_capture.json`
+
+Run the cohort and archetype scorecard validator (writes the derived
+register and the validation capture by default):
+
+`python3 ci/check_cohort_archetype_scorecards.py --repo-root .`
 
 ## Update rules
 
@@ -120,4 +155,6 @@ Optional machine-readable report:
 3. Update `artifacts/milestones/m3/dependency_graph.mmd` when an upstream
    contract, fixture, consumer, or validator changes.
 4. Refresh this page when the user-visible beta claim surface changes.
-5. Run the validator and refresh the capture in the same change set.
+5. Refresh the cohort and archetype scorecards plus their indices when
+   evidence dates, waivers, or downgrade triggers change.
+6. Run both validators and refresh the captures in the same change set.

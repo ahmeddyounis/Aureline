@@ -141,6 +141,15 @@ If the row owner cannot refresh before `next_refresh_due`, the row must be
 published as stale, partial, community-only, blocked, deprecated, or
 replaced rather than left as a current supported claim.
 
+For beta-class certified-archetype rows, the cohort and archetype scorecard
+register at
+`artifacts/milestones/m3/captures/cohort_archetype_scorecard_register.json`
+is the canonical source for the effective support class on each archetype
+row. Migration compatibility scorecards SHOULD cite that register's
+`effective_support_class` rather than restating freshness or waiver state
+locally. The register is produced by
+`ci/check_cohort_archetype_scorecards.py`.
+
 ## Seed Cases
 
 The seed packet covers:
