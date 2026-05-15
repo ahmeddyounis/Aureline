@@ -78,6 +78,7 @@ pub mod restore;
 pub mod review_preview;
 pub mod run_context;
 pub mod runtime;
+pub mod runtime_adaptation;
 pub mod safe_preview_card;
 pub mod save_review;
 pub mod scope_truth;
