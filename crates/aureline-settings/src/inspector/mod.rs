@@ -9,6 +9,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+pub mod conflict;
+
 use crate::resolver::{
     EffectiveSettingsResolver, EffectiveValue, LockReason, LockState, ResolveError,
     ShadowChainEntry, WriteAttemptOutcome, WriteDenialReason, WriteIntent,
