@@ -23,6 +23,12 @@ creation, omits required local-core capability ids, hides policy-source or
 entitlement detail on self-hosted and managed rows, or claims a broader
 managed boundary than the active deployment provides.
 
+The crate also exposes the shared `RegionMode`, `ResidencyMode`, and
+`KeyMode` vocabulary consumed by provider-linked and managed truth rows.
+Those modes include explicit `unknown` values so downstream registries
+can flag missing locality or key truth rather than silently treating it
+as allowed provider-default behavior.
+
 The packet cites existing governance and identity artifacts instead of copying
 their full schemas:
 

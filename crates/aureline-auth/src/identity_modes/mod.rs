@@ -328,6 +328,163 @@ impl CurrentDeploymentBoundaryClass {
     }
 }
 
+/// Region posture consumed by managed and provider-linked truth rows.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum RegionMode {
+    /// Customer-selected region is pinned by the upstream contract.
+    CustomerRegionPinned,
+    /// User-owned remote target region applies.
+    RemoteTargetRegion,
+    /// Connected provider's documented default region applies.
+    ProviderDefaultDisclosed,
+    /// Boundary must be rechecked before writes resume.
+    BoundaryRecheckRequired,
+    /// Region mode is not known and must remain visibly unresolved.
+    #[default]
+    Unknown,
+}
+
+impl RegionMode {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CustomerRegionPinned => "customer_region_pinned",
+            Self::RemoteTargetRegion => "remote_target_region",
+            Self::ProviderDefaultDisclosed => "provider_default_disclosed",
+            Self::BoundaryRecheckRequired => "boundary_recheck_required",
+            Self::Unknown => "unknown",
+        }
+    }
+
+    /// Human-readable label for shell and support projections.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::CustomerRegionPinned => "Customer region pinned",
+            Self::RemoteTargetRegion => "Remote target region",
+            Self::ProviderDefaultDisclosed => "Provider default disclosed",
+            Self::BoundaryRecheckRequired => "Region recheck required",
+            Self::Unknown => "Unknown",
+        }
+    }
+
+    /// True when the upstream row did not disclose region truth.
+    pub const fn is_unknown(self) -> bool {
+        matches!(self, Self::Unknown)
+    }
+}
+
+/// Data-residency posture consumed by managed and provider-linked truth rows.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ResidencyMode {
+    /// Data remains on the local device.
+    #[serde(rename = "residency_local_device_only")]
+    LocalDeviceOnly,
+    /// Data may rest on a user-owned remote target.
+    #[serde(rename = "residency_user_owned_remote_target")]
+    UserOwnedRemoteTarget,
+    /// Connected provider default applies and is disclosed.
+    #[serde(rename = "residency_provider_default")]
+    ProviderDefault,
+    /// Managed tenant documents a region without this row certifying enforcement.
+    #[serde(rename = "residency_managed_tenant_documented_region")]
+    ManagedTenantDocumentedRegion,
+    /// Residency mode is not known and must remain visibly unresolved.
+    #[serde(rename = "residency_unknown")]
+    #[default]
+    Unknown,
+}
+
+impl ResidencyMode {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalDeviceOnly => "residency_local_device_only",
+            Self::UserOwnedRemoteTarget => "residency_user_owned_remote_target",
+            Self::ProviderDefault => "residency_provider_default",
+            Self::ManagedTenantDocumentedRegion => "residency_managed_tenant_documented_region",
+            Self::Unknown => "residency_unknown",
+        }
+    }
+
+    /// Human-readable label for shell and support projections.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::LocalDeviceOnly => "Local device only",
+            Self::UserOwnedRemoteTarget => "User-owned remote target",
+            Self::ProviderDefault => "Provider default",
+            Self::ManagedTenantDocumentedRegion => "Managed tenant documented region",
+            Self::Unknown => "Unknown",
+        }
+    }
+
+    /// True when the upstream row did not disclose residency truth.
+    pub const fn is_unknown(self) -> bool {
+        matches!(self, Self::Unknown)
+    }
+}
+
+/// Key ownership or storage posture consumed by managed and provider-linked truth rows.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyMode {
+    /// OS credential store or keychain.
+    OsStore,
+    /// Vendor-managed key material.
+    VendorManaged,
+    /// Customer-managed key material.
+    CustomerManaged,
+    /// Offline trust-root posture.
+    OfflineTrustRoot,
+    /// Connected provider manages the key material.
+    ProviderManaged,
+    /// User supplies BYOK material treated as opaque by Aureline.
+    ByokUserManaged,
+    /// Key mode is not known and must remain visibly unresolved.
+    #[default]
+    Unknown,
+}
+
+impl KeyMode {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::OsStore => "os_store",
+            Self::VendorManaged => "vendor_managed",
+            Self::CustomerManaged => "customer_managed",
+            Self::OfflineTrustRoot => "offline_trust_root",
+            Self::ProviderManaged => "provider_managed",
+            Self::ByokUserManaged => "byok_user_managed",
+            Self::Unknown => "unknown",
+        }
+    }
+
+    /// Human-readable label for shell and support projections.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::OsStore => "OS credential store",
+            Self::VendorManaged => "Vendor-managed keys",
+            Self::CustomerManaged => "Customer-managed keys",
+            Self::OfflineTrustRoot => "Offline trust root",
+            Self::ProviderManaged => "Provider-managed keys",
+            Self::ByokUserManaged => "BYOK user-managed",
+            Self::Unknown => "Unknown",
+        }
+    }
+
+    /// True when the upstream row did not disclose key-mode truth.
+    pub const fn is_unknown(self) -> bool {
+        matches!(self, Self::Unknown)
+    }
+}
+
 /// Local-core continuity block attached to every row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalCoreContinuity {

@@ -9,6 +9,8 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use aureline_auth::{KeyMode, RegionMode, ResidencyMode};
+use aureline_provider::ConnectedProviderDescriptor;
 use serde::{Deserialize, Serialize};
 
 /// Stable record-kind tag carried by [`ManagedTruthSnapshot`].
@@ -306,6 +308,8 @@ pub enum RegionScopeClass {
     ProviderDefaultDisclosed,
     /// Region boundary must be rechecked before managed writes resume.
     BoundaryRecheckRequired,
+    /// Region is unknown and must remain visibly unresolved.
+    Unknown,
     /// Region does not apply.
     NotApplicable,
 }
@@ -318,6 +322,7 @@ impl RegionScopeClass {
             Self::RemoteTargetRegion => "remote_target_region",
             Self::ProviderDefaultDisclosed => "provider_default_disclosed",
             Self::BoundaryRecheckRequired => "boundary_recheck_required",
+            Self::Unknown => "unknown",
             Self::NotApplicable => "not_applicable",
         }
     }
@@ -329,8 +334,13 @@ impl RegionScopeClass {
             Self::RemoteTargetRegion => "Remote target region",
             Self::ProviderDefaultDisclosed => "Provider default disclosed",
             Self::BoundaryRecheckRequired => "Region recheck required",
+            Self::Unknown => "Unknown",
             Self::NotApplicable => "Not applicable",
         }
+    }
+
+    fn is_disclosed(self) -> bool {
+        !matches!(self, Self::NotApplicable | Self::Unknown)
     }
 }
 
@@ -379,6 +389,8 @@ pub enum ResidencyScopeClass {
     ProviderDefaultDisclosed,
     /// Residency boundary must be rechecked before managed writes resume.
     BoundaryRecheckRequired,
+    /// Residency is unknown and must remain visibly unresolved.
+    Unknown,
     /// Residency does not apply.
     NotApplicable,
 }
@@ -392,6 +404,7 @@ impl ResidencyScopeClass {
             Self::CrossRegionAuditedEgress => "cross_region_audited_egress",
             Self::ProviderDefaultDisclosed => "provider_default_disclosed",
             Self::BoundaryRecheckRequired => "boundary_recheck_required",
+            Self::Unknown => "unknown",
             Self::NotApplicable => "not_applicable",
         }
     }
@@ -413,6 +426,8 @@ pub enum KeyModeClass {
     ProviderManaged,
     /// User supplies BYOK material treated as opaque by Aureline.
     ByokUserManaged,
+    /// Key mode is unknown and must remain visibly unresolved.
+    Unknown,
     /// Key mode does not apply.
     NotApplicable,
 }
@@ -427,6 +442,7 @@ impl KeyModeClass {
             Self::OfflineTrustRoot => "offline_trust_root",
             Self::ProviderManaged => "provider_managed",
             Self::ByokUserManaged => "byok_user_managed",
+            Self::Unknown => "unknown",
             Self::NotApplicable => "not_applicable",
         }
     }
@@ -440,8 +456,13 @@ impl KeyModeClass {
             Self::OfflineTrustRoot => "Offline trust root",
             Self::ProviderManaged => "Provider-managed keys",
             Self::ByokUserManaged => "BYOK user-managed",
+            Self::Unknown => "Unknown",
             Self::NotApplicable => "Not applicable",
         }
+    }
+
+    fn is_disclosed(self) -> bool {
+        !matches!(self, Self::NotApplicable | Self::Unknown)
     }
 }
 
@@ -872,6 +893,25 @@ impl ManagedTruthDisplayCopy {
     }
 }
 
+/// Request used to project a connected-provider descriptor into a shell truth row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProviderLinkedManagedTruthRowRequest<'a> {
+    /// Provider descriptor carrying region, residency, and key-mode truth.
+    pub descriptor: &'a ConnectedProviderDescriptor,
+    /// Connected-provider registry packet ref the descriptor came from.
+    pub provider_registry_packet_ref: &'a str,
+    /// Stable row id for the shell row.
+    pub row_id: &'a str,
+    /// Opaque shell surface ref that will render the row.
+    pub surface_ref: &'a str,
+    /// Short row title.
+    pub title: &'a str,
+    /// Reviewable row summary.
+    pub summary: &'a str,
+    /// Additional docs, schema, fixture, or artifact refs that reconstruct the row.
+    pub source_refs: Vec<String>,
+}
+
 /// One claimed managed/provider-linked truth row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManagedTruthRow {
@@ -931,6 +971,138 @@ impl ManagedTruthRow {
             local_continuity_summary: self.local_continuity.continuity_summary.clone(),
             boundary_summary: self.sovereignty.sovereignty_summary.clone(),
             primary_action: self.primary_action(),
+        }
+    }
+
+    /// Projects a connected-provider descriptor into a provider-linked shell row.
+    pub fn from_provider_descriptor(request: ProviderLinkedManagedTruthRowRequest<'_>) -> Self {
+        let descriptor = request.descriptor;
+        let plane_state = provider_freshness_to_plane_state(descriptor.freshness.freshness_class);
+        let plane_is_impaired = plane_state.is_impaired();
+        let mut source_refs = vec![
+            "docs/managed/region_residency_alpha.md".to_owned(),
+            "docs/providers/connected_provider_alpha.md".to_owned(),
+            descriptor.connected_provider_record_ref.clone(),
+        ];
+        source_refs.extend(request.source_refs);
+
+        Self {
+            record_kind: MANAGED_TRUTH_ROW_RECORD_KIND.to_owned(),
+            schema_version: MANAGED_TRUTH_SCHEMA_VERSION,
+            row_id: request.row_id.to_owned(),
+            surface_class: ManagedTruthSurfaceClass::ProviderLinked,
+            claim_class: ManagedTruthClaimClass::ProviderLinked,
+            operating_mode_class: OperatingModeClass::ProviderLinked,
+            surface_ref: request.surface_ref.to_owned(),
+            title: request.title.to_owned(),
+            summary: request.summary.to_owned(),
+            refs: ManagedTruthRefs {
+                boundary_manifest_capability_ref: None,
+                identity_mode_row_ref: None,
+                region_key_state_ref: None,
+                operating_mode_card_ref: None,
+                provider_descriptor_ref: Some(descriptor.descriptor_id.clone()),
+                provider_registry_packet_ref: Some(request.provider_registry_packet_ref.to_owned()),
+                source_refs,
+            },
+            region_residency: RegionResidencyTruth {
+                region_scope: region_mode_to_scope(descriptor.region_mode),
+                region_ref: None,
+                residency_scope_class: residency_mode_to_scope(
+                    descriptor.region_mode,
+                    descriptor.residency_mode,
+                ),
+                data_residency_disclosure_class: residency_mode_to_disclosure(
+                    descriptor.residency_mode,
+                ),
+                residency_summary: format!(
+                    "{}; {}.",
+                    descriptor.region_mode.label(),
+                    descriptor.residency_mode.label()
+                ),
+            },
+            tenant: TenantTruth {
+                tenant_org_scope: TenantOrgScopeClass::ProviderAccountOrProject,
+                tenant_ref: Some(descriptor.source.tenant_or_org_scope_ref.clone()),
+                tenant_summary:
+                    "Provider account/project boundary; raw provider account names are excluded."
+                        .to_owned(),
+            },
+            storage_copy: StorageCopyTruth {
+                processing_location: ProcessingLocationClass::ProviderControlPlane,
+                storage_location: StorageLocationClass::ProviderControlledStorage,
+                copy_posture: CopyPostureClass::ProviderCopyWithLocalDraft,
+                retention_class: "provider_retention_policy_applies".to_owned(),
+                copy_summary:
+                    "Provider copies remain in the connected-provider boundary; local drafts stay available."
+                        .to_owned(),
+            },
+            key: KeyModeTruth {
+                key_mode: key_mode_to_class(descriptor.key_mode),
+                key_state_class: KeyStateClass::BoundAndCurrent,
+                key_ref: None,
+                key_state_summary: format!("{} posture applies.", descriptor.key_mode.label()),
+                affected_action_families: vec![],
+                fail_posture: FailPostureClass::NotApplicable,
+            },
+            planes: PlaneImpairmentTruth {
+                control_plane_state: plane_state,
+                data_plane_state: PlaneStateClass::Healthy,
+                control_plane_summary: provider_freshness_summary(
+                    descriptor.freshness.freshness_class,
+                    descriptor.freshness.degraded_reason.as_deref(),
+                ),
+                data_plane_summary: "Local task truth and local drafts remain available."
+                    .to_owned(),
+                affected_action_families: if plane_is_impaired {
+                    vec![AffectedActionFamilyClass::ProviderMutationActionFamily]
+                } else {
+                    vec![]
+                },
+                fail_posture: if plane_is_impaired {
+                    FailPostureClass::InspectOnlyProviderSnapshot
+                } else {
+                    FailPostureClass::NotApplicable
+                },
+                last_control_plane_sync_at: descriptor.freshness.observed_at.clone(),
+                last_data_plane_probe_at: descriptor.freshness.observed_at.clone(),
+            },
+            local_continuity: LocalContinuityTruth {
+                local_core_available: true,
+                retained_local_safe_capabilities: vec![
+                    "Continue local work and local provider drafts.".to_owned(),
+                ],
+                blocked_managed_or_provider_capabilities: if plane_is_impaired {
+                    vec![
+                        "Provider mutation remains inspect-only until provider truth is refreshed."
+                            .to_owned(),
+                    ]
+                } else {
+                    vec![]
+                },
+                continuity_summary:
+                    "Local work remains available while provider boundary truth is displayed."
+                        .to_owned(),
+            },
+            sovereignty: SovereigntyTruth {
+                sovereignty_boundary: if descriptor.region_mode.is_unknown()
+                    || descriptor.residency_mode.is_unknown()
+                {
+                    SovereigntyBoundaryClass::UnknownRequiresReview
+                } else {
+                    SovereigntyBoundaryClass::ProviderDefaultDisclosed
+                },
+                residual_dependency_refs: vec![descriptor.connected_provider_record_ref.clone()],
+                sovereignty_summary:
+                    "Provider-linked row; the provider boundary is disclosed without a sovereign claim."
+                        .to_owned(),
+            },
+            display_copy: ManagedTruthDisplayCopy {
+                whole_product_failure_implied: false,
+                stronger_sovereignty_boundary_implied: false,
+                silent_fail_open_under_unknown_state: false,
+                plaintext_secret_fallback_implied: false,
+            },
         }
     }
 
@@ -1009,13 +1181,25 @@ impl ManagedTruthRow {
             });
         }
         if self.claim_class.is_managed_claim()
-            && (self.region_residency.region_scope == RegionScopeClass::NotApplicable
+            && (!self.region_residency.region_scope.is_disclosed()
                 || self.tenant.tenant_org_scope == TenantOrgScopeClass::NotApplicable
-                || self.key.key_mode == KeyModeClass::NotApplicable
+                || !self.key.key_mode.is_disclosed()
                 || self.storage_copy.storage_location == StorageLocationClass::NotApplicable)
         {
             return Err(
                 ManagedTruthValidationError::ManagedClaimMissingBoundaryTruth {
+                    row_id: self.row_id.clone(),
+                },
+            );
+        }
+        if self.claim_class == ManagedTruthClaimClass::ProviderLinked
+            && (!self.region_residency.region_scope.is_disclosed()
+                || self.region_residency.data_residency_disclosure_class
+                    == DataResidencyDisclosureClass::ResidencyUnknown
+                || !self.key.key_mode.is_disclosed())
+        {
+            return Err(
+                ManagedTruthValidationError::ProviderLinkedUnknownBoundaryTruth {
                     row_id: self.row_id.clone(),
                 },
             );
@@ -1126,6 +1310,86 @@ impl ManagedTruthRow {
         }
         refs.into_iter().collect()
     }
+}
+
+fn region_mode_to_scope(mode: RegionMode) -> RegionScopeClass {
+    match mode {
+        RegionMode::CustomerRegionPinned => RegionScopeClass::CustomerRegionPinned,
+        RegionMode::RemoteTargetRegion => RegionScopeClass::RemoteTargetRegion,
+        RegionMode::ProviderDefaultDisclosed => RegionScopeClass::ProviderDefaultDisclosed,
+        RegionMode::BoundaryRecheckRequired => RegionScopeClass::BoundaryRecheckRequired,
+        RegionMode::Unknown => RegionScopeClass::Unknown,
+    }
+}
+
+fn residency_mode_to_scope(
+    region_mode: RegionMode,
+    residency_mode: ResidencyMode,
+) -> ResidencyScopeClass {
+    match residency_mode {
+        ResidencyMode::LocalDeviceOnly | ResidencyMode::UserOwnedRemoteTarget => {
+            ResidencyScopeClass::NotApplicable
+        }
+        ResidencyMode::ProviderDefault => ResidencyScopeClass::ProviderDefaultDisclosed,
+        ResidencyMode::ManagedTenantDocumentedRegion => {
+            if region_mode == RegionMode::CustomerRegionPinned {
+                ResidencyScopeClass::CustomerRegionPinned
+            } else {
+                ResidencyScopeClass::BoundaryRecheckRequired
+            }
+        }
+        ResidencyMode::Unknown => ResidencyScopeClass::Unknown,
+    }
+}
+
+fn residency_mode_to_disclosure(mode: ResidencyMode) -> DataResidencyDisclosureClass {
+    match mode {
+        ResidencyMode::LocalDeviceOnly => DataResidencyDisclosureClass::ResidencyLocalDeviceOnly,
+        ResidencyMode::UserOwnedRemoteTarget => {
+            DataResidencyDisclosureClass::ResidencyUserOwnedRemoteTarget
+        }
+        ResidencyMode::ProviderDefault => DataResidencyDisclosureClass::ResidencyProviderDefault,
+        ResidencyMode::ManagedTenantDocumentedRegion => {
+            DataResidencyDisclosureClass::ResidencyManagedTenantDocumentedRegion
+        }
+        ResidencyMode::Unknown => DataResidencyDisclosureClass::ResidencyUnknown,
+    }
+}
+
+fn key_mode_to_class(mode: KeyMode) -> KeyModeClass {
+    match mode {
+        KeyMode::OsStore => KeyModeClass::OsStore,
+        KeyMode::VendorManaged => KeyModeClass::VendorManaged,
+        KeyMode::CustomerManaged => KeyModeClass::CustomerManaged,
+        KeyMode::OfflineTrustRoot => KeyModeClass::OfflineTrustRoot,
+        KeyMode::ProviderManaged => KeyModeClass::ProviderManaged,
+        KeyMode::ByokUserManaged => KeyModeClass::ByokUserManaged,
+        KeyMode::Unknown => KeyModeClass::Unknown,
+    }
+}
+
+fn provider_freshness_to_plane_state(
+    freshness: aureline_provider::FreshnessLabel,
+) -> PlaneStateClass {
+    match freshness {
+        aureline_provider::FreshnessLabel::Fresh => PlaneStateClass::Healthy,
+        aureline_provider::FreshnessLabel::StaleWithinWindow => PlaneStateClass::StaleCache,
+        aureline_provider::FreshnessLabel::ExpiredBeyondWindow
+        | aureline_provider::FreshnessLabel::RevokedOrDisconnected => PlaneStateClass::Unavailable,
+        aureline_provider::FreshnessLabel::NeverObserved => {
+            PlaneStateClass::BoundaryRecheckRequired
+        }
+    }
+}
+
+fn provider_freshness_summary(
+    freshness: aureline_provider::FreshnessLabel,
+    degraded_reason: Option<&str>,
+) -> String {
+    degraded_reason.map_or_else(
+        || format!("Provider freshness is {}.", freshness.as_str()),
+        str::to_owned,
+    )
 }
 
 /// Dense display row projected from [`ManagedTruthRow`].
@@ -1241,10 +1505,12 @@ impl ManagedTruthSnapshot {
     /// True when all claimed rows disclose region, tenant, storage/copy, and key mode.
     pub fn all_claimed_rows_disclose_boundary_truth(&self) -> bool {
         self.rows.iter().all(|row| {
-            row.region_residency.region_scope != RegionScopeClass::NotApplicable
+            row.region_residency.region_scope.is_disclosed()
                 && row.tenant.tenant_org_scope != TenantOrgScopeClass::NotApplicable
                 && row.storage_copy.storage_location != StorageLocationClass::NotApplicable
-                && row.key.key_mode != KeyModeClass::NotApplicable
+                && row.key.key_mode.is_disclosed()
+                && row.region_residency.data_residency_disclosure_class
+                    != DataResidencyDisclosureClass::ResidencyUnknown
         })
     }
 
@@ -1459,6 +1725,8 @@ pub enum ManagedTruthValidationError {
     SurfaceClaimMismatch { row_id: String },
     /// Managed row is missing region, tenant, storage, or key disclosure.
     ManagedClaimMissingBoundaryTruth { row_id: String },
+    /// Provider-linked row contains unknown region, residency, or key truth.
+    ProviderLinkedUnknownBoundaryTruth { row_id: String },
     /// Provider-linked row implies customer-managed or sovereign boundary.
     ProviderLinkedOverclaimsSovereignty {
         row_id: String,
@@ -1516,6 +1784,9 @@ impl fmt::Display for ManagedTruthValidationError {
             }
             Self::ManagedClaimMissingBoundaryTruth { row_id } => {
                 write!(f, "row {row_id} is missing managed boundary truth")
+            }
+            Self::ProviderLinkedUnknownBoundaryTruth { row_id } => {
+                write!(f, "row {row_id} has unknown provider boundary truth")
             }
             Self::ProviderLinkedOverclaimsSovereignty {
                 row_id,

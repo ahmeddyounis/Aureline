@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+use aureline_auth::{KeyMode, RegionMode, ResidencyMode};
 use aureline_support::capabilities::{
     current_capability_lifecycle_registry, CapabilityClaimValidation, CapabilityLifecycleRegistry,
     DenialReason, LifecycleState,
@@ -84,6 +85,9 @@ impl ConnectedProviderAlphaPacket {
                 descriptor_id: descriptor.descriptor_id.clone(),
                 provider_family: descriptor.provider_family,
                 surface_class: descriptor.surface_class,
+                region_mode: descriptor.region_mode,
+                residency_mode: descriptor.residency_mode,
+                key_mode: descriptor.key_mode,
                 source_class: descriptor.source.source_class,
                 actor_class: descriptor.actor_scope.primary_actor_class,
                 freshness_class: descriptor.freshness.freshness_class,
@@ -212,6 +216,15 @@ pub struct ConnectedProviderDescriptor {
     pub provider_family: ProviderFamily,
     /// Provider-linked surface class for this descriptor.
     pub surface_class: ProviderSurfaceClass,
+    /// Region posture consumed from the identity-mode vocabulary.
+    #[serde(default)]
+    pub region_mode: RegionMode,
+    /// Data-residency posture consumed from the identity-mode vocabulary.
+    #[serde(default)]
+    pub residency_mode: ResidencyMode,
+    /// Key posture consumed from the identity-mode vocabulary.
+    #[serde(default)]
+    pub key_mode: KeyMode,
     /// Redaction-safe source metadata.
     pub source: ProviderSource,
     /// Actor and authority scope used by actions on this descriptor.
@@ -556,6 +569,19 @@ pub enum FreshnessLabel {
     RevokedOrDisconnected,
 }
 
+impl FreshnessLabel {
+    /// Stable token used in support exports and shell projections.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Fresh => "fresh",
+            Self::StaleWithinWindow => "stale_within_window",
+            Self::ExpiredBeyondWindow => "expired_beyond_window",
+            Self::NeverObserved => "never_observed",
+            Self::RevokedOrDisconnected => "revoked_or_disconnected",
+        }
+    }
+}
+
 /// Mutation state shown by claimed provider surfaces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -721,7 +747,7 @@ pub struct ProviderAlphaValidationReport {
     pub schema_version: u32,
     /// Packet id under validation.
     pub packet_id: String,
-    /// Whether all checks passed.
+    /// Whether no error-severity checks failed.
     pub passed: bool,
     /// Coverage observed while validating the packet.
     pub coverage: ProviderAlphaCoverage,
@@ -734,6 +760,12 @@ pub struct ProviderAlphaValidationReport {
 pub struct ProviderAlphaCoverage {
     /// Provider families covered by descriptors.
     pub provider_families: BTreeSet<ProviderFamily>,
+    /// Region postures covered by descriptors.
+    pub region_modes: BTreeSet<RegionMode>,
+    /// Residency postures covered by descriptors.
+    pub residency_modes: BTreeSet<ResidencyMode>,
+    /// Key postures covered by descriptors.
+    pub key_modes: BTreeSet<KeyMode>,
     /// Mutation surface states rendered by surface claims.
     pub mutation_surface_states: BTreeSet<MutationSurfaceState>,
     /// Pipeline overlay kinds covered by CI descriptors.
@@ -761,6 +793,8 @@ pub struct ProviderAlphaValidationFinding {
 pub enum FindingSeverity {
     /// Error that blocks the packet.
     Error,
+    /// Warning that keeps the packet reviewable but visibly degraded.
+    Warning,
 }
 
 /// Export-safe provider alpha support projection.
@@ -791,6 +825,12 @@ pub struct ProviderDescriptorSummary {
     pub provider_family: ProviderFamily,
     /// Surface class.
     pub surface_class: ProviderSurfaceClass,
+    /// Region posture.
+    pub region_mode: RegionMode,
+    /// Data-residency posture.
+    pub residency_mode: ResidencyMode,
+    /// Key posture.
+    pub key_mode: KeyMode,
     /// Provider source class.
     pub source_class: ProviderSourceClass,
     /// Actor class.
@@ -890,11 +930,15 @@ impl<'a> ProviderAlphaValidator<'a> {
     }
 
     fn finish(self) -> ProviderAlphaValidationReport {
+        let passed = self
+            .findings
+            .iter()
+            .all(|finding| finding.severity != FindingSeverity::Error);
         ProviderAlphaValidationReport {
             record_kind: PROVIDER_ALPHA_VALIDATION_REPORT_RECORD_KIND.to_string(),
             schema_version: CONNECTED_PROVIDER_REGISTRY_SCHEMA_VERSION,
             packet_id: self.packet.registry.packet_id.clone(),
-            passed: self.findings.is_empty(),
+            passed,
             coverage: self.coverage,
             findings: self.findings,
         }
@@ -951,6 +995,11 @@ impl<'a> ProviderAlphaValidator<'a> {
             self.coverage
                 .provider_families
                 .insert(descriptor.provider_family);
+            self.coverage.region_modes.insert(descriptor.region_mode);
+            self.coverage
+                .residency_modes
+                .insert(descriptor.residency_mode);
+            self.coverage.key_modes.insert(descriptor.key_mode);
             self.expect(
                 !descriptor.connected_provider_record_ref.trim().is_empty(),
                 "provider_alpha.connected_provider_ref_missing",
@@ -982,6 +1031,45 @@ impl<'a> ProviderAlphaValidator<'a> {
                 "descriptor must name fallback modes",
             );
             self.validate_freshness(&descriptor.freshness, "descriptor");
+            self.validate_descriptor_boundary_modes(descriptor);
+        }
+    }
+
+    fn validate_descriptor_boundary_modes(&mut self, descriptor: &ConnectedProviderDescriptor) {
+        if descriptor.region_mode.is_unknown() {
+            self.warn(
+                "provider_alpha.region_mode_unknown",
+                "descriptor region mode is unknown and must render as unknown",
+            );
+        }
+        if descriptor.residency_mode.is_unknown() {
+            self.warn(
+                "provider_alpha.residency_mode_unknown",
+                "descriptor residency mode is unknown and must render as unknown",
+            );
+        }
+        if descriptor.key_mode.is_unknown() {
+            self.warn(
+                "provider_alpha.key_mode_unknown",
+                "descriptor key mode is unknown and must render as unknown",
+            );
+        }
+
+        if descriptor.region_mode == RegionMode::CustomerRegionPinned
+            && descriptor.residency_mode == ResidencyMode::ProviderDefault
+        {
+            self.warn(
+                "provider_alpha.residency_mode_mismatch",
+                "customer-region-pinned provider descriptor still uses provider-default residency",
+            );
+        }
+        if descriptor.region_mode == RegionMode::ProviderDefaultDisclosed
+            && descriptor.residency_mode == ResidencyMode::ManagedTenantDocumentedRegion
+        {
+            self.warn(
+                "provider_alpha.residency_mode_mismatch",
+                "provider-default region descriptor cannot imply managed-tenant residency without review",
+            );
         }
     }
 
@@ -1500,6 +1588,14 @@ impl<'a> ProviderAlphaValidator<'a> {
                 message: message.to_string(),
             });
         }
+    }
+
+    fn warn(&mut self, check_id: &str, message: &str) {
+        self.findings.push(ProviderAlphaValidationFinding {
+            severity: FindingSeverity::Warning,
+            check_id: check_id.to_string(),
+            message: message.to_string(),
+        });
     }
 }
 

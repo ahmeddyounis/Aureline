@@ -3,9 +3,11 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use aureline_provider::{ConnectedProviderAlphaPacket, KeyMode, RegionMode, ResidencyMode};
 use aureline_shell::managed_truth::{
-    ManagedTruthClaimClass, ManagedTruthSnapshot, ManagedTruthValidationError,
-    SovereigntyBoundaryClass, MANAGED_TRUTH_EXPORT_PACKET_RECORD_KIND,
+    ManagedTruthClaimClass, ManagedTruthRow, ManagedTruthSnapshot, ManagedTruthValidationError,
+    ProviderLinkedManagedTruthRowRequest, SovereigntyBoundaryClass,
+    MANAGED_TRUTH_EXPORT_PACKET_RECORD_KIND,
 };
 use aureline_shell::support_seed::SupportSeedSurface;
 use aureline_support::bundle::{DiagnosticDataClass, ExactBuildCapture, ReleaseChannelClass};
@@ -13,6 +15,11 @@ use serde::Deserialize;
 
 fn fixture_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/managed/region_residency_alpha")
+}
+
+fn provider_fixture_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/providers/connected_provider_alpha/registry_packet.json")
 }
 
 fn fixture_capture() -> ExactBuildCapture {
@@ -167,6 +174,52 @@ fn provider_linked_sovereignty_overclaim_is_rejected() {
 }
 
 #[test]
+fn region_pinned_provider_descriptor_projects_to_shell_row() {
+    let mut packet = load_provider_packet();
+    let packet_id = packet.registry.packet_id.clone();
+    let descriptor = packet
+        .registry
+        .descriptors
+        .iter_mut()
+        .find(|descriptor| descriptor.descriptor_id == "provider_descriptor.ci.primary")
+        .expect("fixture has CI provider descriptor");
+    descriptor.region_mode = RegionMode::CustomerRegionPinned;
+    descriptor.residency_mode = ResidencyMode::ProviderDefault;
+    descriptor.key_mode = KeyMode::ProviderManaged;
+
+    let row = ManagedTruthRow::from_provider_descriptor(ProviderLinkedManagedTruthRowRequest {
+        descriptor,
+        provider_registry_packet_ref: &packet_id,
+        row_id: "managed_truth.provider_linked.ci_region_pinned",
+        surface_ref: "surface.ci.run.panel",
+        title: "Provider-linked CI row uses a pinned provider region",
+        summary:
+            "Provider-linked CI overlay carries provider registry region truth into the shell row.",
+        source_refs: vec![
+            "fixtures/providers/connected_provider_alpha/registry_packet.json".to_owned(),
+        ],
+    });
+
+    row.validate().expect("projected provider row validates");
+    let display = row.display_state();
+    assert_eq!(display.region_label, "Customer region pinned");
+    assert_eq!(display.key_mode_label, "Provider-managed keys");
+
+    let snapshot = ManagedTruthSnapshot {
+        record_kind: aureline_shell::managed_truth::MANAGED_TRUTH_SNAPSHOT_RECORD_KIND.to_owned(),
+        schema_version: aureline_shell::managed_truth::MANAGED_TRUTH_SCHEMA_VERSION,
+        snapshot_id: "managed_truth.snapshot.provider_pinned".to_owned(),
+        emitted_at: "2026-05-14T01:45:00Z".to_owned(),
+        rows: vec![row],
+        notes: None,
+    };
+    snapshot.validate().expect("projected snapshot validates");
+    let rendered = snapshot.render_plaintext();
+    assert!(rendered.contains("region=customer_region_pinned"));
+    assert!(rendered.contains("residency=residency_provider_default"));
+}
+
+#[test]
 fn plane_impairment_without_action_scope_is_rejected() {
     let mut fixture = load_case("claimed_managed_provider_boundary.yaml");
     let split = fixture
@@ -197,6 +250,14 @@ fn load_case(file: &str) -> ManagedTruthFixture {
     let payload = std::fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
     serde_yaml::from_str(&payload)
+        .unwrap_or_else(|err| panic!("failed to parse {}: {err}", path.display()))
+}
+
+fn load_provider_packet() -> ConnectedProviderAlphaPacket {
+    let path = provider_fixture_path();
+    let payload = std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
+    serde_json::from_str(&payload)
         .unwrap_or_else(|err| panic!("failed to parse {}: {err}", path.display()))
 }
 

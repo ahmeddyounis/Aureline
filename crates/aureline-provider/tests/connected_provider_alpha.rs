@@ -4,8 +4,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use aureline_provider::{
-    ConnectedProviderAlphaPacket, MutationSurfaceState, PipelineOverlayKind, ProviderFamily,
-    RunControlClass, StaleTargetRiskClass,
+    ConnectedProviderAlphaPacket, FindingSeverity, KeyMode, MutationSurfaceState,
+    PipelineOverlayKind, ProviderFamily, RegionMode, ResidencyMode, RunControlClass,
+    StaleTargetRiskClass,
 };
 use aureline_support::capabilities::LifecycleState;
 
@@ -43,6 +44,18 @@ fn registry_packet_covers_required_provider_states() {
         .contains(&ProviderFamily::CiChecks));
     assert!(report
         .coverage
+        .region_modes
+        .contains(&RegionMode::ProviderDefaultDisclosed));
+    assert!(report
+        .coverage
+        .residency_modes
+        .contains(&ResidencyMode::ProviderDefault));
+    assert!(report
+        .coverage
+        .key_modes
+        .contains(&KeyMode::ProviderManaged));
+    assert!(report
+        .coverage
         .mutation_surface_states
         .contains(&MutationSurfaceState::LocalDraft));
     assert!(report
@@ -57,6 +70,40 @@ fn registry_packet_covers_required_provider_states() {
         .coverage
         .mutation_surface_states
         .contains(&MutationSurfaceState::PublishLaterQueue));
+}
+
+#[test]
+fn unknown_region_residency_and_key_modes_are_warned() {
+    let mut packet = load_packet();
+    let descriptor = &mut packet.registry.descriptors[0];
+    descriptor.region_mode = RegionMode::Unknown;
+    descriptor.residency_mode = ResidencyMode::Unknown;
+    descriptor.key_mode = KeyMode::Unknown;
+
+    let report = packet.validate();
+    assert!(
+        report.passed,
+        "unknown mode warnings should not hide errors"
+    );
+    assert_warning(&report, "provider_alpha.region_mode_unknown");
+    assert_warning(&report, "provider_alpha.residency_mode_unknown");
+    assert_warning(&report, "provider_alpha.key_mode_unknown");
+}
+
+#[test]
+fn residency_mismatch_trips_warning_without_hiding_region_pin() {
+    let mut packet = load_packet();
+    let descriptor = &mut packet.registry.descriptors[2];
+    descriptor.region_mode = RegionMode::CustomerRegionPinned;
+    descriptor.residency_mode = ResidencyMode::ProviderDefault;
+
+    let report = packet.validate();
+    assert!(report.passed);
+    assert!(report
+        .coverage
+        .region_modes
+        .contains(&RegionMode::CustomerRegionPinned));
+    assert_warning(&report, "provider_alpha.residency_mode_mismatch");
 }
 
 #[test]
@@ -122,6 +169,14 @@ fn support_projection_does_not_inline_provider_payloads() {
         projection.queue_summaries.len(),
         packet.publish_later_queue.len()
     );
+    assert!(projection
+        .descriptor_summaries
+        .iter()
+        .all(|summary| summary.region_mode == RegionMode::ProviderDefaultDisclosed));
+    assert!(projection
+        .descriptor_summaries
+        .iter()
+        .all(|summary| summary.residency_mode == ResidencyMode::ProviderDefault));
 }
 
 #[test]
@@ -197,4 +252,14 @@ fn non_contiguous_dependency_order_is_rejected() {
         .findings
         .iter()
         .any(|finding| { finding.check_id == "provider_alpha.queue_dependency_order_invalid" }));
+}
+
+fn assert_warning(report: &aureline_provider::ProviderAlphaValidationReport, check_id: &str) {
+    assert!(
+        report.findings.iter().any(|finding| {
+            finding.severity == FindingSeverity::Warning && finding.check_id == check_id
+        }),
+        "missing warning {check_id}: {:#?}",
+        report.findings
+    );
 }

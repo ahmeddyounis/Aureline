@@ -8,6 +8,8 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-provider/0.0.0")]
 
+pub use aureline_auth::{KeyMode, RegionMode, ResidencyMode};
+
 pub mod approval_tickets;
 pub mod publish_later;
 pub mod registry;

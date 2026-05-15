@@ -85,11 +85,12 @@ pub use identity_modes::{
     IdentityAuthModeClass, IdentityModeArtifactRefs, IdentityModeBaselinePacket,
     IdentityModeBaselineRow, IdentityModeBaselineRowError, IdentityModeBaselineViolation,
     IdentityModeDeploymentProfileClass, IdentityModeSurfaceRow, IdentityPolicySourceInspector,
-    IdentityPolicySourceInspectorRequest, LocalCoreContinuity, OfflineBehaviorClass,
+    IdentityPolicySourceInspectorRequest, KeyMode, LocalCoreContinuity, OfflineBehaviorClass,
     OfflineEntitlementInspector, OfflineEntitlementInspectorRequest, PolicyFreshnessClass,
-    PolicySourceClass, ProvisioningClass, StageIdentityModeBaselineRowRequest,
-    IDENTITY_MODE_BASELINE_PACKET_RECORD_KIND, IDENTITY_MODE_BASELINE_ROW_RECORD_KIND,
-    IDENTITY_MODE_BASELINE_SCHEMA_VERSION, REQUIRED_LOCAL_CORE_CAPABILITY_IDS,
+    PolicySourceClass, ProvisioningClass, RegionMode, ResidencyMode,
+    StageIdentityModeBaselineRowRequest, IDENTITY_MODE_BASELINE_PACKET_RECORD_KIND,
+    IDENTITY_MODE_BASELINE_ROW_RECORD_KIND, IDENTITY_MODE_BASELINE_SCHEMA_VERSION,
+    REQUIRED_LOCAL_CORE_CAPABILITY_IDS,
 };
 
 pub use secrets::{

@@ -48,6 +48,12 @@ stronger boundary. A provider-linked row must not imply customer-pinned,
 self-hosted, sovereign, or regulated operation merely because the
 desktop runs in such a profile.
 
+Connected-provider descriptors carry `region_mode`, `residency_mode`,
+and `key_mode` from the identity-mode vocabulary. Shell provider rows
+project those fields directly; omitted provider region, residency, or
+key truth remains `unknown` and triggers review instead of silently
+rendering as allowed provider-default truth.
+
 ## Row Shape
 
 `ManagedTruthRow` carries:

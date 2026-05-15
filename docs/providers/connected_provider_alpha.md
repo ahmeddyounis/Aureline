@@ -43,6 +43,10 @@ change.
 - Code-host, issue, and CI/check providers are represented through one
   descriptor family with source, actor-scope, freshness, supported
   object, supported state, and fallback labels.
+- Provider descriptors carry `region_mode`, `residency_mode`, and
+  `key_mode` from the identity-mode vocabulary. Missing values project
+  as explicit `unknown` warnings; they are never treated as allowed
+  provider-default truth by omission.
 - Claimed surfaces keep `local_draft`, `publish_now`,
   `open_in_provider`, `publish_later_queue`, and `inspect_only`
   distinct. A publish-later action must cite a queue row; an
