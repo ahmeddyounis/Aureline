@@ -40,6 +40,7 @@ pub mod bootstrap;
 pub mod breadcrumbs;
 pub mod chrome;
 pub mod clone;
+pub mod command_parity;
 pub mod commands;
 pub mod debug_seed;
 pub mod deeplink;

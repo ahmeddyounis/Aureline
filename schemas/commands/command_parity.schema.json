@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/command_parity.schema.json",
+  "title": "Aureline beta command-parity diff report",
+  "description": "Boundary schema for the M3 beta command-parity diff projection emitted by the aureline-shell command_parity module. The report compares the canonical command descriptor for every claimed beta command against the projection that the command palette, menus/buttons, keybinding help, CLI/headless help, and AI tool surfaces report. Acceptance: the report MUST cover the five required surface families for every claimed beta command, MUST flag any unknown projection on a high-risk command as a blocker, MUST reject divergent disabled-reason, lifecycle-label, preview-class, alias, and docs/help-anchor projections, and MUST be usable by docs and release truth checks without further transformation. This schema is the only boundary contract for the JSON fixtures checked in under fixtures/commands/m3/command_parity/ and the support-export wrapper consumed by the CI gate at tools/ci/m3/command_parity_check.py.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/command_parity_diff_report_record" },
+    { "$ref": "#/$defs/command_parity_support_export_record" }
+  ],
+  "$defs": {
+    "command_parity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the beta command-parity contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:command_parity_beta:v1",
+      "description": "Stable shared contract ref every record carries. Surfaces use it to discover the descriptor schema and the validator binary."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "menu_or_button",
+        "keybinding_help",
+        "cli_headless",
+        "ai_tool_surface"
+      ],
+      "description": "One of the five surface families the beta parity report covers."
+    },
+    "lifecycle_label": {
+      "type": "string",
+      "enum": ["stable", "beta", "deprecated"]
+    },
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "no_preview_required",
+        "structured_diff_preview",
+        "destructive_bulk_mutation_preview",
+        "policy_authoring_or_waiver_preview",
+        "irreversible_publish_preview"
+      ]
+    },
+    "capability_scope_class": {
+      "type": "string",
+      "enum": [
+        "inert_metadata_only",
+        "reversible_local_read",
+        "reversible_local_mutation",
+        "recoverable_durable_mutation",
+        "destructive_bulk_mutation",
+        "irreversible_publish"
+      ]
+    },
+    "disabled_reason_mode": {
+      "type": "string",
+      "enum": [
+        "always_invokable",
+        "typed_reason_required_when_unavailable"
+      ]
+    },
+    "coverage_status": {
+      "type": "string",
+      "enum": [
+        "claimed",
+        "explicitly_narrowed",
+        "discoverable_only",
+        "browser_handoff_only",
+        "voice_addressable",
+        "not_surfaced_on_this_client",
+        "unknown_high_risk_gap"
+      ]
+    },
+    "command_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "descriptor_revision_ref",
+        "primary_label_ref",
+        "docs_help_anchor_ref",
+        "lifecycle_label",
+        "preview_class",
+        "capability_scope_class",
+        "disabled_reason_mode",
+        "canonical_aliases"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "descriptor_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "disabled_reason_mode": { "$ref": "#/$defs/disabled_reason_mode" },
+        "canonical_aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_family",
+        "coverage_status",
+        "projected_command_id",
+        "projected_label_ref",
+        "projected_lifecycle_label",
+        "projected_preview_class",
+        "projected_disabled_reason_mode",
+        "projected_docs_help_anchor_ref",
+        "projected_aliases",
+        "narrowing_reason",
+        "note"
+      ],
+      "properties": {
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "coverage_status": { "$ref": "#/$defs/coverage_status" },
+        "projected_command_id": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "projected_label_ref": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "projected_lifecycle_label": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/lifecycle_label" }]
+        },
+        "projected_preview_class": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/preview_class" }]
+        },
+        "projected_disabled_reason_mode": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/disabled_reason_mode" }]
+        },
+        "projected_docs_help_anchor_ref": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "projected_aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "narrowing_reason": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "note": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        }
+      }
+    },
+    "blocking_finding": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "unknown_high_risk_gap",
+            "command_id_drift",
+            "label_drift",
+            "lifecycle_label_drift",
+            "preview_class_drift",
+            "disabled_reason_drift",
+            "missing_docs_help_anchor",
+            "alias_drift",
+            "missing_narrowing_reason",
+            "missing_projection"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "command_parity_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "descriptor",
+        "surfaces",
+        "blocking_findings",
+        "high_risk"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_command_parity_beta_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/command_parity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "descriptor": { "$ref": "#/$defs/command_descriptor" },
+        "surfaces": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_finding" }
+        },
+        "high_risk": { "type": "boolean" }
+      }
+    },
+    "surface_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_family",
+        "claimed_rows",
+        "explicitly_narrowed_rows",
+        "discoverable_only_rows",
+        "browser_handoff_only_rows",
+        "voice_addressable_rows",
+        "not_surfaced_on_this_client_rows",
+        "unknown_high_risk_gap_rows"
+      ],
+      "properties": {
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "claimed_rows": { "type": "integer", "minimum": 0 },
+        "explicitly_narrowed_rows": { "type": "integer", "minimum": 0 },
+        "discoverable_only_rows": { "type": "integer", "minimum": 0 },
+        "browser_handoff_only_rows": { "type": "integer", "minimum": 0 },
+        "voice_addressable_rows": { "type": "integer", "minimum": 0 },
+        "not_surfaced_on_this_client_rows": { "type": "integer", "minimum": 0 },
+        "unknown_high_risk_gap_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_blocking_findings",
+        "unknown_high_risk_gap",
+        "command_id_drift",
+        "label_drift",
+        "lifecycle_label_drift",
+        "preview_class_drift",
+        "disabled_reason_drift",
+        "missing_docs_help_anchor",
+        "alias_drift",
+        "missing_narrowing_reason",
+        "missing_projection"
+      ],
+      "properties": {
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "unknown_high_risk_gap": { "type": "integer", "minimum": 0 },
+        "command_id_drift": { "type": "integer", "minimum": 0 },
+        "label_drift": { "type": "integer", "minimum": 0 },
+        "lifecycle_label_drift": { "type": "integer", "minimum": 0 },
+        "preview_class_drift": { "type": "integer", "minimum": 0 },
+        "disabled_reason_drift": { "type": "integer", "minimum": 0 },
+        "missing_docs_help_anchor": { "type": "integer", "minimum": 0 },
+        "alias_drift": { "type": "integer", "minimum": 0 },
+        "missing_narrowing_reason": { "type": "integer", "minimum": 0 },
+        "missing_projection": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "command_parity_diff_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "report_id",
+        "source_descriptor_schema_ref",
+        "required_surface_families",
+        "rows",
+        "surface_coverage",
+        "findings_summary",
+        "claimed_command_count",
+        "high_risk_command_count",
+        "surface_rows_checked",
+        "report_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_command_parity_beta_diff_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/command_parity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_descriptor_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_surface_families": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/surface_family" },
+          "uniqueItems": true
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_parity_row_record" }
+        },
+        "surface_coverage": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/surface_coverage_summary" }
+        },
+        "findings_summary": { "$ref": "#/$defs/findings_summary" },
+        "claimed_command_count": { "type": "integer", "minimum": 1 },
+        "high_risk_command_count": { "type": "integer", "minimum": 0 },
+        "surface_rows_checked": { "type": "integer", "minimum": 5 },
+        "report_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "command_parity_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "report",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_command_parity_beta_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/command_parity_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "report": { "$ref": "#/$defs/command_parity_diff_report_record" },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  }
+}
