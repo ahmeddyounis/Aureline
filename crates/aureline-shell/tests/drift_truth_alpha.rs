@@ -1,9 +1,13 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use aureline_runtime::{
+    CompatibilityWindow, CompatibilityWindowStatus, EffectiveCapabilityPosture,
+    HelperCapabilityResponse, NegotiationOutcome, HELPER_CAPABILITY_NEGOTIATION_SCHEMA_VERSION,
+};
 use aureline_shell::drift_truth::{
-    DriftStateClass, DriftTruthExportAudience, DriftTruthSnapshot, DriftTruthSurfaceClass,
-    DRIFT_TRUTH_EXPORT_PACKET_RECORD_KIND,
+    helper_negotiation_refusal_row, DriftStateClass, DriftTruthExportAudience, DriftTruthSnapshot,
+    DriftTruthSurfaceClass, DRIFT_TRUTH_EXPORT_PACKET_RECORD_KIND, DRIFT_TRUTH_ROW_RECORD_KIND,
 };
 use aureline_shell::support_seed::SupportSeedSurface;
 use aureline_support::bundle::{DiagnosticDataClass, ExactBuildCapture, ReleaseChannelClass};
@@ -138,4 +142,60 @@ fn support_seed_consumes_drift_truth_export_packet() {
         .source_refs
         .iter()
         .any(|item| item == "docs/compat/version_skew_alpha.md"));
+}
+
+#[test]
+fn refused_helper_negotiation_projects_typed_drift_truth_row() {
+    let snapshot = load_snapshot();
+    let fixture_row = snapshot
+        .row_by_id("drift_truth.helper_agent.unsupported_required_feature")
+        .expect("unsupported helper row fixture");
+    let response = HelperCapabilityResponse {
+        schema_version: HELPER_CAPABILITY_NEGOTIATION_SCHEMA_VERSION,
+        request_id: fixture_row.surface_ref.clone(),
+        row_id: "drift_truth.helper_agent.runtime_negotiation_refused".to_owned(),
+        surface_ref: fixture_row.surface_ref.clone(),
+        title: fixture_row.title.clone(),
+        outcome: NegotiationOutcome::Refuse,
+        selected_protocol_ref: fixture_row.skew_truth.skew_case_ref.clone(),
+        negotiated_capabilities: Vec::new(),
+        dropped_capabilities: Vec::new(),
+        mutation_allowed: false,
+        effective_posture: EffectiveCapabilityPosture::Blocked,
+        visible_summary: fixture_row.visible_summary.clone(),
+        safe_continuation: fixture_row.safe_continuation.clone(),
+        primary_recovery_ref: fixture_row.repair_action_refs.first().cloned(),
+        recovery_refs: fixture_row.repair_action_refs.clone(),
+        blocked_action_refs: fixture_row.blocked_action_refs.clone(),
+        preserved_read_only_refs: Vec::new(),
+        retry_ref: None,
+        support_packet_refs: fixture_row.support_packet_refs.clone(),
+        review_packet_refs: fixture_row.review_packet_refs.clone(),
+        source_refs: fixture_row.source_refs.clone(),
+        client_manifest_digest: "digest:client-manifest-fixture".to_owned(),
+        helper_manifest_digest: "digest:helper-manifest-fixture".to_owned(),
+        compatibility_window: CompatibilityWindow {
+            boundary_family: fixture_row.skew_truth.boundary_family.clone(),
+            compatibility_row_ref: fixture_row.skew_truth.compatibility_row_ref.clone(),
+            version_skew_register_ref: fixture_row.skew_truth.version_skew_register_ref.clone(),
+            skew_case_ref: fixture_row.skew_truth.skew_case_ref.clone(),
+            skew_window_declaration_ref: fixture_row.skew_truth.skew_window_declaration_ref.clone(),
+            status: CompatibilityWindowStatus::Unsupported,
+            selected_protocol_ref: fixture_row.skew_truth.skew_case_ref.clone(),
+            source_refs: fixture_row.skew_truth.source_refs.clone(),
+        },
+    };
+
+    let row = helper_negotiation_refusal_row(&response).expect("refused response yields row");
+    row.validate().expect("projected row validates");
+
+    assert_eq!(row.record_kind, DRIFT_TRUTH_ROW_RECORD_KIND);
+    assert_eq!(row.state_class, DriftStateClass::UnsupportedSkew);
+    assert!(row.repair_action_refs.contains(
+        response
+            .primary_recovery_ref
+            .as_ref()
+            .expect("recovery ref")
+    ));
+    assert!(!row.support_packet_refs.is_empty());
 }

@@ -8,6 +8,7 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use aureline_runtime::{HelperCapabilityResponse, NegotiationOutcome};
 use serde::{Deserialize, Serialize};
 
 /// Stable record-kind tag carried by [`DriftTruthSnapshot`].
@@ -414,6 +415,64 @@ impl DriftTruthSurfaceRow {
         refs.extend(self.skew_truth.source_refs.iter().cloned());
         refs.into_iter().collect()
     }
+}
+
+/// Projects a refused helper negotiation into the typed drift-truth row model.
+pub fn helper_negotiation_refusal_row(
+    response: &HelperCapabilityResponse,
+) -> Option<DriftTruthSurfaceRow> {
+    if response.outcome != NegotiationOutcome::Refuse {
+        return None;
+    }
+
+    let retry_required = response.retry_ref.is_some();
+    let state_class = if retry_required {
+        DriftStateClass::RetryRequired
+    } else {
+        DriftStateClass::UnsupportedSkew
+    };
+    let mutation_posture = if retry_required {
+        DriftMutationPostureClass::InspectOnlyPendingRetry
+    } else {
+        DriftMutationPostureClass::BlockedUnsupportedSkew
+    };
+
+    Some(DriftTruthSurfaceRow {
+        record_kind: DRIFT_TRUTH_ROW_RECORD_KIND.to_owned(),
+        schema_version: DRIFT_TRUTH_SCHEMA_VERSION,
+        row_id: response.row_id.clone(),
+        surface_class: DriftTruthSurfaceClass::HelperAgent,
+        surface_ref: response.surface_ref.clone(),
+        title: response.title.clone(),
+        state_class,
+        mutation_posture,
+        skew_truth: VersionSkewTruth {
+            boundary_family: response.compatibility_window.boundary_family.clone(),
+            compatibility_row_ref: response.compatibility_window.compatibility_row_ref.clone(),
+            version_skew_register_ref: response
+                .compatibility_window
+                .version_skew_register_ref
+                .clone(),
+            skew_case_ref: response.compatibility_window.skew_case_ref.clone(),
+            skew_window_declaration_ref: response
+                .compatibility_window
+                .skew_window_declaration_ref
+                .clone(),
+            source_refs: response.compatibility_window.source_refs.clone(),
+        },
+        visible_summary: response.visible_summary.clone(),
+        safe_continuation: response.safe_continuation.clone(),
+        next_action: None,
+        retry_ref: response.retry_ref.clone(),
+        stale_since: None,
+        migration_review_ref: None,
+        repair_action_refs: response.recovery_refs.clone(),
+        blocked_action_refs: response.blocked_action_refs.clone(),
+        preserved_artifact_refs: Vec::new(),
+        support_packet_refs: response.support_packet_refs.clone(),
+        review_packet_refs: response.review_packet_refs.clone(),
+        source_refs: response.source_refs.clone(),
+    })
 }
 
 /// Top-level snapshot of all drift truth rows currently claimed by this alpha lane.

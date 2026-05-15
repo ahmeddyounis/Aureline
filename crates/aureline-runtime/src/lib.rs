@@ -25,6 +25,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-runtime/0.0.0")]
 
+pub mod capability_negotiation;
 pub mod capsule_resolver;
 pub mod detectors;
 pub mod discovery;
@@ -39,6 +40,13 @@ pub mod tasks;
 pub mod tests;
 pub mod trace_replay_alpha;
 
+pub use capability_negotiation::{
+    CapabilityEffectClass, CapabilityNegotiationParseError, CapabilityRequirementClass,
+    CompatibilityWindow, CompatibilityWindowStatus, DroppedHelperCapability,
+    EffectiveCapabilityPosture, HelperCapabilityRequest, HelperCapabilityRequirement,
+    HelperCapabilityResponse, MissingCapabilityReasonClass, NegotiationOutcome,
+    HELPER_CAPABILITY_NEGOTIATION_SCHEMA_VERSION,
+};
 pub use capsule_resolver::{
     EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,
     EnvironmentCapsuleResolverConfig, PrebuildFingerprintStub, ProjectArchetypeHint,
