@@ -12,6 +12,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::fitness::{current_fitness_packet_alpha, FitnessPacketProjection};
+
 /// Stable record-kind tag for the alpha artifact graph.
 pub const ALPHA_ARTIFACT_GRAPH_RECORD_KIND: &str = "alpha_artifact_graph";
 
@@ -281,6 +283,9 @@ impl AlphaArtifactGraph {
             evidence_refs: candidate
                 .map(|candidate| candidate.evidence_refs.clone())
                 .unwrap_or_default(),
+            protected_fitness_packet: current_fitness_packet_alpha()
+                .ok()
+                .map(|packet| packet.release_evidence_projection()),
             trust_domain_refs: trust_domain_refs.into_iter().collect(),
             raw_private_material_excluded: true,
         }
@@ -995,6 +1000,9 @@ pub struct AlphaReleaseEvidencePacket {
     pub artifact_node_refs: Vec<String>,
     /// Evidence refs linked to the candidate.
     pub evidence_refs: Vec<String>,
+    /// Typed protected fitness packet projection linked to release evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protected_fitness_packet: Option<FitnessPacketProjection>,
     /// Trust domains visible in the packet.
     pub trust_domain_refs: Vec<String>,
     /// Whether raw private material is excluded from the projection.
