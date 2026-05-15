@@ -1,0 +1,438 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/compatibility_report.schema.json",
+  "title": "Aureline governance compatibility report",
+  "description": "Generated, governed compatibility report. Each report is derived from the checked-in compatibility matrices (artifacts/compat/qualification_matrix_seed.yaml, artifacts/compat/skew_windows.yaml, artifacts/compat/version_skew_register.yaml, the cohort/archetype scorecard register, and the milestone-scoped skew-window matrix) so that release evidence, partner packets, docs, and Help/About surfaces all read one machine-derived truth instead of restating compatibility prose. Each row binds a stable compat_row id to its declared and effective support class, named skew window, declared downgrade behavior, and named client scope (deployment profiles, primary cohorts, and claimed beta surfaces).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "report_id",
+    "report_revision",
+    "milestone_id",
+    "report_state",
+    "release_channel_scope",
+    "as_of",
+    "generated_at",
+    "owner",
+    "backup_owner",
+    "backup_waiver",
+    "source_refs",
+    "vocabularies",
+    "consuming_surfaces",
+    "rows"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the governance compatibility-report record."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "compatibility_report",
+      "description": "Discriminator for the governance compatibility-report record."
+    },
+    "report_id": {
+      "type": "string",
+      "pattern": "^compat_report:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable report id; remains stable across freshness refreshes."
+    },
+    "report_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision number for the report."
+    },
+    "milestone_id": {
+      "type": "string",
+      "pattern": "^m[0-9]+$",
+      "description": "Milestone id the report scope is bound to."
+    },
+    "report_state": {
+      "$ref": "#/$defs/report_state"
+    },
+    "release_channel_scope": {
+      "$ref": "#/$defs/release_channel"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "description": "Reviewer-facing as-of date for the report scope."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp the report was generated."
+    },
+    "owner": {
+      "$ref": "#/$defs/owner_ref"
+    },
+    "backup_owner": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/owner_ref" }
+      ]
+    },
+    "backup_waiver": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ],
+      "description": "Waiver id used when backup_owner is null."
+    },
+    "source_refs": {
+      "$ref": "#/$defs/source_refs"
+    },
+    "vocabularies": {
+      "$ref": "#/$defs/vocabularies"
+    },
+    "consuming_surfaces": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ],
+      "description": "Surfaces that consume the generated report verbatim (Help/About, docs, partner packets, release evidence)."
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/report_row" },
+      "description": "One row per claim-bearing compatibility surface in scope for the report."
+    },
+    "notes": {
+      "$ref": "#/$defs/non_empty_string",
+      "description": "Optional reviewer-facing guidance that does not fit a structured field."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "backup_owner": { "type": "null" } },
+        "required": ["backup_owner"]
+      },
+      "then": {
+        "properties": {
+          "backup_waiver": { "type": "string", "minLength": 1 }
+        },
+        "required": ["backup_waiver"]
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "owner_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewable handle or team alias."
+    },
+    "report_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_review",
+        "accepted",
+        "narrowed",
+        "blocked",
+        "superseded"
+      ],
+      "description": "Reviewer-state of the report."
+    },
+    "release_channel": {
+      "type": "string",
+      "enum": [
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "limited",
+        "experimental",
+        "community",
+        "retest_pending",
+        "evidence_stale",
+        "unsupported"
+      ],
+      "description": "Support-class vocabulary union of the qualification matrix and the cohort/archetype scorecard derivations."
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "skew_window_class": {
+      "type": "string",
+      "enum": [
+        "coordinated_artifact_set_only",
+        "exact_match",
+        "same_schema_epoch_additive_only",
+        "declared_adjacent_window",
+        "published_sdk_support_window",
+        "current_plus_previous_minor_or_lts",
+        "certified_report_freshness_window"
+      ]
+    },
+    "out_of_window_posture": {
+      "type": "string",
+      "enum": [
+        "fail_closed",
+        "read_only",
+        "degraded",
+        "explicitly_unsupported"
+      ]
+    },
+    "downgrade_support_class": {
+      "type": "string",
+      "enum": [
+        "downgrade_supported",
+        "downgrade_best_effort",
+        "downgrade_untested",
+        "downgrade_unsupported",
+        "downgrade_requires_coordinated_artifact_set"
+      ]
+    },
+    "row_scope": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "helper",
+        "extension",
+        "schema",
+        "provider",
+        "deployment_profile"
+      ],
+      "description": "Spec-mandated row scope for the M3 compatibility report."
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qualification_matrix",
+        "skew_windows",
+        "version_skew_register",
+        "scorecard_register",
+        "milestone_skew_window_matrix",
+        "claimed_surface_register"
+      ],
+      "properties": {
+        "qualification_matrix": { "$ref": "#/$defs/non_empty_string" },
+        "skew_windows": { "$ref": "#/$defs/non_empty_string" },
+        "version_skew_register": { "$ref": "#/$defs/non_empty_string" },
+        "scorecard_register": { "$ref": "#/$defs/non_empty_string" },
+        "milestone_skew_window_matrix": { "$ref": "#/$defs/non_empty_string" },
+        "claimed_surface_register": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Repo-relative paths to the canonical seeds the report is derived from."
+    },
+    "vocabularies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_class",
+        "deployment_profile",
+        "skew_window_class",
+        "out_of_window_posture",
+        "downgrade_support_class",
+        "row_scope"
+      ],
+      "properties": {
+        "support_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_class" },
+          "minItems": 1
+        },
+        "deployment_profile": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_profile" },
+          "minItems": 1
+        },
+        "skew_window_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/skew_window_class" },
+          "minItems": 1
+        },
+        "out_of_window_posture": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/out_of_window_posture" },
+          "minItems": 1
+        },
+        "downgrade_support_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_support_class" },
+          "minItems": 1
+        },
+        "row_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row_scope" },
+          "minItems": 1
+        }
+      }
+    },
+    "support_class_derivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared",
+        "effective",
+        "downgrade_triggers_fired",
+        "scorecard_ref"
+      ],
+      "properties": {
+        "declared": { "$ref": "#/$defs/support_class" },
+        "effective": { "$ref": "#/$defs/support_class" },
+        "downgrade_triggers_fired": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Triggers fired by the scorecard derivation. ['none'] when no trigger fired."
+        },
+        "scorecard_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Cohort or archetype scorecard id whose derivation feeds the effective support class."
+        }
+      }
+    },
+    "client_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profiles",
+        "primary_cohort_refs",
+        "claimed_beta_surface_refs"
+      ],
+      "properties": {
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile" }
+        },
+        "primary_cohort_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "claimed_beta_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "skew_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skew_window_id",
+        "window_class",
+        "summary",
+        "version_skew_register_ref",
+        "current_skew_case_ref"
+      ],
+      "properties": {
+        "skew_window_id": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "pattern": "^skew_window:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+            }
+          ],
+          "description": "Skew-window id from artifacts/compat/skew_windows.yaml when one exists for this row."
+        },
+        "window_class": { "$ref": "#/$defs/skew_window_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "version_skew_register_ref": {
+          "type": "string",
+          "pattern": "^skew_register:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "current_skew_case_ref": {
+          "type": "string",
+          "pattern": "^skew_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        }
+      }
+    },
+    "downgrade_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_class",
+        "out_of_window_posture",
+        "state_preservation_note",
+        "contract_rule"
+      ],
+      "properties": {
+        "support_class": { "$ref": "#/$defs/downgrade_support_class" },
+        "out_of_window_posture": { "$ref": "#/$defs/out_of_window_posture" },
+        "state_preservation_note": { "$ref": "#/$defs/non_empty_string" },
+        "contract_rule": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "report_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "report_row_id",
+        "row_id",
+        "artifact_or_protocol_boundary_label",
+        "row_scope",
+        "claimed_surface",
+        "support_class",
+        "client_scope",
+        "skew_window",
+        "downgrade_behavior",
+        "evidence_refs",
+        "notes"
+      ],
+      "properties": {
+        "report_row_id": {
+          "type": "string",
+          "pattern": "^m[0-9]+_compat_report_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable report-local row id."
+        },
+        "row_id": {
+          "type": "string",
+          "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Canonical compat_row id from artifacts/compat/qualification_matrix_seed.yaml."
+        },
+        "artifact_or_protocol_boundary_label": {
+          "type": "string",
+          "pattern": "^boundary\\.[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "row_scope": { "$ref": "#/$defs/row_scope" },
+        "claimed_surface": { "$ref": "#/$defs/non_empty_string" },
+        "support_class": { "$ref": "#/$defs/support_class_derivation" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "skew_window": { "$ref": "#/$defs/skew_window" },
+        "downgrade_behavior": { "$ref": "#/$defs/downgrade_behavior" },
+        "evidence_refs": {
+          "allOf": [
+            { "$ref": "#/$defs/ref_array" },
+            { "minItems": 1 }
+          ]
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

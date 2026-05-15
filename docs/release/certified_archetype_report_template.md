@@ -7,6 +7,10 @@ launch-language qualification packet, or a narrower archetype refresh.
 Related control artifacts:
 - artifacts/compat/qualification_matrix_seed.yaml
 - artifacts/compat/version_skew_register.yaml
+- artifacts/compat/m3/skew_window_matrix.yaml
+- artifacts/compat/m3/compatibility_report.md
+- artifacts/compat/m3/compatibility_report.json
+- schemas/governance/compatibility_report.schema.json
 - schemas/release/compatibility_row.schema.json
 - schemas/governance/evidence_packet_header.schema.json
 - artifacts/governance/governance_packet_template.yaml

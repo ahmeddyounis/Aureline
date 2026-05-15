@@ -61,6 +61,29 @@ graph TD
         scorecard_capture["scorecard_validation_capture<br/>artifacts/milestones/m3/captures/cohort_archetype_scorecard_validation_capture.json"]
     end
 
+    %% Compatibility-report lane (matrix-derived, governs Help/About,
+    %% docs, partner packets, and release evidence).
+    subgraph m3_compat_report["M3 governed compatibility report"]
+        compat_report_schema["compatibility_report_schema<br/>schemas/governance/compatibility_report.schema.json"]
+        compat_report_matrix["m3_skew_window_matrix<br/>artifacts/compat/m3/skew_window_matrix.yaml"]
+        compat_report_md["compatibility_report_md<br/>artifacts/compat/m3/compatibility_report.md"]
+        compat_report_json["compatibility_report_json<br/>artifacts/compat/m3/compatibility_report.json"]
+        compat_report_validator["compatibility_report_validator<br/>ci/check_m3_compatibility_report.py"]
+        compat_report_capture["compatibility_report_validation_capture<br/>artifacts/compat/m3/captures/compatibility_report_validation_capture.json"]
+    end
+
+    %% Compatibility-report lane edges (derived from canonical seeds and
+    %% the scorecard register; renders the matrix-derived report and capture).
+    compat_report_matrix -- "names rows, scopes, cohorts, and surfaces" --> compat_report_validator
+    surface_register -- "claimed beta surfaces ground client_scope" --> compat_report_validator
+    cohort_guardrails -- "cohort_id vocabulary grounds primary_cohort_refs" --> compat_report_validator
+    scorecard_register -- "scorecard derivations feed effective support class" --> compat_report_validator
+    compat_report_validator -- "renders the JSON report" --> compat_report_json
+    compat_report_validator -- "renders the markdown report" --> compat_report_md
+    compat_report_validator -- "writes the validation capture" --> compat_report_capture
+    compat_report_schema -- "constrains the JSON report" --> compat_report_validator
+    admission_doc -- "human entrypoint links the matrix-derived report" --> compat_report_md
+
     %% Scorecard lane edges (scorecards consume the register / guardrails and
     %% feed the derived register that downstream packets cite).
     surface_register -- "claimed surfaces feed scorecard surface bindings" --> cohort_scorecard_index
@@ -135,8 +158,10 @@ graph TD
     classDef consumer fill:#e8f7ec,stroke:#2f8a3f,stroke-width:1.5px;
     classDef cutline fill:#fff4e0,stroke:#b96b00,stroke-width:1.5px;
     classDef scorecard fill:#f3e8ff,stroke:#7a3cb8,stroke-width:1.5px;
+    classDef compat fill:#e0fbf6,stroke:#2f8a86,stroke-width:1.5px;
     class admission_doc,surface_register,cohort_guardrails m3;
     class m2_matrix,m2_scoreboard,m2_graph,m2_archetype_seed,reference_workspace_rows,archetype_rubric,deployment_locality,known_limits_contract,public_interface_versioning,certified_archetype_template m2;
     class beta_admission_validator,validation_capture consumer;
     class cutline_packet,unlock_map,stable_handoff,cutline_validator,cutline_capture cutline;
     class cohort_scorecard_index,archetype_scorecard_index,cohort_scorecards,archetype_scorecards,scorecard_validator,scorecard_register,scorecard_capture scorecard;
+    class compat_report_schema,compat_report_matrix,compat_report_md,compat_report_json,compat_report_validator,compat_report_capture compat;

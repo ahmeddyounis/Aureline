@@ -14,6 +14,29 @@ rules.
 - Beta admission validator: `ci/check_beta_admission.py`
 - Latest validation capture: `artifacts/milestones/m3/captures/beta_admission_validation_capture.json`
 
+## Beta compatibility report
+
+The beta compatibility report is generated from the checked-in
+compatibility matrices (qualification matrix, skew-window declarations,
+version-skew register, and the cohort/archetype scorecard register) so
+release evidence, partner packets, docs, and Help/About surfaces all
+read one machine-derived truth instead of restating compatibility prose.
+
+- M3 skew-window matrix: `artifacts/compat/m3/skew_window_matrix.yaml`
+- Generated report (Markdown): `artifacts/compat/m3/compatibility_report.md`
+- Generated report (JSON): `artifacts/compat/m3/compatibility_report.json`
+- Report schema: `schemas/governance/compatibility_report.schema.json`
+- Generator and validator: `ci/check_m3_compatibility_report.py`
+- Latest validation capture:
+  `artifacts/compat/m3/captures/compatibility_report_validation_capture.json`
+
+Each generated row names support class (declared and effective), skew
+window (id, class, summary), declared downgrade behavior, and client
+scope (deployment profiles, primary cohorts, claimed beta surfaces).
+Spec-mandated row scopes (desktop, helper, extension, schema, provider,
+deployment_profile) are all required to be present, and the validator
+fails closed when the on-disk report drifts from the matrices.
+
 ## Cohort and archetype scorecards
 
 Each named cohort and certified-archetype row owns a scorecard with owner,
@@ -146,6 +169,15 @@ Run the cohort and archetype scorecard validator (writes the derived
 register and the validation capture by default):
 
 `python3 ci/check_cohort_archetype_scorecards.py --repo-root .`
+
+Run the beta compatibility-report generator (writes the report JSON,
+markdown rendering, and validation capture from the checked-in
+matrices):
+
+`python3 ci/check_m3_compatibility_report.py --repo-root .`
+
+Use `--check` in CI to fail when the on-disk report or capture would
+drift from the matrices.
 
 ## Update rules
 

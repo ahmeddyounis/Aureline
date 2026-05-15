@@ -33,6 +33,17 @@ compatibility publication. It turns the seeded rows in
 format that release, docs, support, migration, and qualification-cadence
 work can all read without inventing a second compatibility dialect.
 
+The first governed milestone-scoped instance produced from this
+template is the M3 beta compatibility report at
+`artifacts/compat/m3/compatibility_report.md`
+(machine-readable companion at
+`artifacts/compat/m3/compatibility_report.json`). It is generated from
+the milestone-scoped matrix at
+`artifacts/compat/m3/skew_window_matrix.yaml` and conforms to
+`schemas/governance/compatibility_report.schema.json`. New milestone or
+release reports SHOULD follow the same matrix-derived shape rather than
+hand-authoring per-row prose.
+
 ## Shared packet shell
 
 Every compatibility report SHOULD:
