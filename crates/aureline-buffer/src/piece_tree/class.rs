@@ -40,7 +40,7 @@ impl UndoClass {
     ];
 
     /// The frozen `class_id` string from the ADR taxonomy.
-    pub fn class_id(self) -> &'static str {
+    pub const fn class_id(self) -> &'static str {
         match self {
             Self::TextEdit => "text_edit",
             Self::MultiCursorTextEdit => "multi_cursor_text_edit",

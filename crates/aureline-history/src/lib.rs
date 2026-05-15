@@ -28,10 +28,18 @@ pub use local_history::{
     LocalHistoryConsumerSurface, RestoreCheckpointAlpha, ReviewApplyLineageInput,
 };
 pub use mutation_journal::{
-    ActorClass, ActorRef, CheckpointDurabilityClass, CheckpointKind, CheckpointRef,
+    producers::{
+        emit_ai_apply_record, emit_build_output_record, emit_formatter_record,
+        emit_lockfile_record, emit_preview_record, emit_producer_record, emit_refactor_record,
+        producer_binding, validate_producer_registry, MutationProducerBinding,
+        MutationProducerClass, MutationProducerEmissionError, MutationProducerInput,
+        MUTATION_PRODUCER_REGISTRY, REQUIRED_MUTATION_PRODUCER_CLASSES,
+    },
+    ActorClass, ActorRef, ApprovalRef, CheckpointDurabilityClass, CheckpointKind, CheckpointRef,
     DurableVsDisposable, MutationGroupRecord, MutationJournalEntryRecord, MutationJournalStore,
-    RedactionClass, ReversalClass, ScopeClass, ScopeRef, SideEffectSummary, SourceClass,
-    TargetKind, TargetRef, MUTATION_GROUP_RECORD_KIND, MUTATION_JOURNAL_ENTRY_RECORD_KIND,
+    PreviewKind, PreviewRef, RedactionClass, ReversalClass, ScopeClass, ScopeRef,
+    SideEffectSummary, SourceClass, TargetKind, TargetRef, MUTATION_GROUP_RECORD_KIND,
+    MUTATION_JOURNAL_ENTRY_RECORD_KIND,
 };
 pub use storage::{HistoryError, HistoryStorageRoot, IdSource};
 

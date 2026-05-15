@@ -123,6 +123,29 @@ fn protected_envelopes(
     include_build_cue: bool,
     leaking_checkpoint_ref: Option<&str>,
 ) -> Vec<MutationLineageEnvelope> {
+    let refactor = entry(
+        "m-refactor-0001",
+        "language.refactor.rename",
+        MutationActorClass::RefactorEngine,
+        MutationSourceClass::MachineLocal,
+        MutationTargetKind::Buffer,
+        "buffer:src/lib.rs",
+        "refactor_multi_file",
+        MutationReversalClass::CompensatingUndo,
+        MutationRedactionClass::CodeAdjacent,
+        MutationDurabilityClass::DurableUserAuthored,
+        side_effect(
+            "Refactor engine renamed one symbol across reviewed edits.",
+            224,
+            2,
+        ),
+        checkpoint(
+            MutationCheckpointKind::MutationGroupPreview,
+            "ckpt-refactor-preview-0001",
+            MutationCheckpointDurabilityClass::Durable,
+        ),
+    );
+
     let formatter = entry(
         "m-format-0001",
         "editor.format_on_save",
@@ -228,6 +251,9 @@ fn protected_envelopes(
     }
 
     vec![
+        MutationLineageEnvelope::from_entry("env-refactor", MutationPathClass::Refactor, refactor)
+            .with_target_relative_path("src/lib.rs")
+            .with_preview_ref("preview-refactor-0001", "refactor_preview"),
         MutationLineageEnvelope::from_entry("env-format", MutationPathClass::Formatter, formatter)
             .with_target_relative_path("src/lib.rs"),
         MutationLineageEnvelope::from_entry("env-lockfile", MutationPathClass::Lockfile, lockfile)
@@ -266,7 +292,7 @@ fn envelopes_emit_required_path_coverage_and_generated_cues() {
     .expect("support export packet");
 
     assert!(packet.missing_required_alpha_coverage().is_empty());
-    assert_eq!(packet.mutation_lineage_rows.len(), 5);
+    assert_eq!(packet.mutation_lineage_rows.len(), 6);
     assert_eq!(
         packet.consumer_surface,
         MutationLineageConsumerSurface::SupportExport
@@ -275,6 +301,20 @@ fn envelopes_emit_required_path_coverage_and_generated_cues() {
         .export_safety
         .omitted_payload_classes
         .contains(&"raw_secret_material".to_owned()));
+
+    let refactor = packet
+        .mutation_lineage_rows
+        .iter()
+        .find(|row| row.mutation_path_class == MutationPathClass::Refactor)
+        .expect("refactor row");
+    assert_eq!(refactor.actor_class, "refactor_engine");
+    assert_eq!(
+        refactor
+            .preview_ref
+            .as_ref()
+            .map(|preview| preview.preview_kind.as_str()),
+        Some("refactor_preview")
+    );
 
     let lockfile = packet
         .mutation_lineage_rows
@@ -341,7 +381,7 @@ fn protected_fixture_packet_is_export_safe() {
 
     packet.validate().expect("fixture is export safe");
     assert!(packet.missing_required_alpha_coverage().is_empty());
-    assert_eq!(packet.mutation_lineage_rows.len(), 5);
+    assert_eq!(packet.mutation_lineage_rows.len(), 6);
     assert!(packet
         .mutation_lineage_rows
         .iter()

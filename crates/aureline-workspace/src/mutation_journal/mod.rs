@@ -2,8 +2,8 @@
 //!
 //! This module composes the canonical mutation-journal record types from
 //! `aureline-history` with the workspace generated-artifact detector. It gives
-//! formatter, lockfile, build-output, preview-regeneration, and AI-apply paths
-//! one support-export-safe envelope without re-minting actor, source,
+//! refactor, formatter, lockfile, build-output, preview-regeneration, and
+//! AI-apply paths one support-export-safe envelope without re-minting actor, source,
 //! reversal, checkpoint, or redaction vocabularies.
 
 use std::fmt;
@@ -29,7 +29,8 @@ pub use aureline_history::{
 pub const MUTATION_JOURNAL_ALPHA_SCHEMA_VERSION: u32 = 1;
 
 /// Protected mutation paths the alpha packet must prove.
-pub const REQUIRED_MUTATION_LINEAGE_ALPHA_PATHS: [MutationPathClass; 5] = [
+pub const REQUIRED_MUTATION_LINEAGE_ALPHA_PATHS: [MutationPathClass; 6] = [
+    MutationPathClass::Refactor,
     MutationPathClass::Formatter,
     MutationPathClass::Lockfile,
     MutationPathClass::BuildOutput,
@@ -41,6 +42,8 @@ pub const REQUIRED_MUTATION_LINEAGE_ALPHA_PATHS: [MutationPathClass; 5] = [
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MutationPathClass {
+    /// Language refactor or rename engine mutation.
+    Refactor,
     /// Formatter or save-participant formatting mutation.
     Formatter,
     /// Resolver-created lockfile refresh or write.
@@ -57,6 +60,7 @@ impl MutationPathClass {
     /// Returns the schema token for this path class.
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::Refactor => "refactor",
             Self::Formatter => "formatter",
             Self::Lockfile => "lockfile",
             Self::BuildOutput => "build_output",

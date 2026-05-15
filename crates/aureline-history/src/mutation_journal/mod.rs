@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::storage::{HistoryError, HistoryStorageRoot, IdSource};
 
+pub mod producers;
+
 /// Stable record-kind tag carried on every mutation-journal entry.
 pub const MUTATION_JOURNAL_ENTRY_RECORD_KIND: &str = "mutation_journal_entry";
 
@@ -106,6 +108,16 @@ pub struct MutationJournalEntryRecord {
     pub reversibility: Reversibility,
     pub checkpoint_refs: Vec<CheckpointRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview_ref: Option<PreviewRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approval_ref: Option<ApprovalRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub save_manifest_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_artifact_lineage_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diff_identity_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub policy_context: Option<PolicyContext>,
     pub redaction_class: RedactionClass,
     pub durable_vs_disposable: DurableVsDisposable,
@@ -159,6 +171,11 @@ impl MutationJournalEntryRecord {
                 downgrade_reason: None,
             },
             checkpoint_refs,
+            preview_ref: None,
+            approval_ref: None,
+            save_manifest_ref: None,
+            generated_artifact_lineage_ref: None,
+            diff_identity_ref: None,
             policy_context: None,
             redaction_class,
             durable_vs_disposable,
@@ -169,6 +186,39 @@ impl MutationJournalEntryRecord {
     /// Assigns a group id to this entry.
     pub fn with_group_id(mut self, group_id: String) -> Self {
         self.group_id = Some(group_id);
+        self
+    }
+
+    /// Adds the preview lineage that authorized or explained this mutation.
+    pub fn with_preview_ref(mut self, preview_ref: PreviewRef) -> Self {
+        self.preview_ref = Some(preview_ref);
+        self
+    }
+
+    /// Adds the approval lineage that admitted this mutation.
+    pub fn with_approval_ref(mut self, approval_ref: ApprovalRef) -> Self {
+        self.approval_ref = Some(approval_ref);
+        self
+    }
+
+    /// Adds the save-manifest ref emitted by the save pipeline.
+    pub fn with_save_manifest_ref(mut self, save_manifest_ref: String) -> Self {
+        self.save_manifest_ref = Some(save_manifest_ref);
+        self
+    }
+
+    /// Adds the generated-artifact lineage ref for derived targets.
+    pub fn with_generated_artifact_lineage_ref(
+        mut self,
+        generated_artifact_lineage_ref: String,
+    ) -> Self {
+        self.generated_artifact_lineage_ref = Some(generated_artifact_lineage_ref);
+        self
+    }
+
+    /// Adds the metadata-only diff identity for this mutation.
+    pub fn with_diff_identity_ref(mut self, diff_identity_ref: String) -> Self {
+        self.diff_identity_ref = Some(diff_identity_ref);
         self
     }
 }
@@ -195,6 +245,16 @@ pub struct MutationGroupRecord {
     pub durable_vs_disposable: DurableVsDisposable,
     pub side_effect_summary: SideEffectSummary,
     pub checkpoint_refs: Vec<CheckpointRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview_ref: Option<PreviewRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approval_ref: Option<ApprovalRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub save_manifest_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_artifact_lineage_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diff_identity_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub policy_context: Option<PolicyContext>,
 }
@@ -250,8 +310,46 @@ impl MutationGroupRecord {
             durable_vs_disposable,
             side_effect_summary,
             checkpoint_refs,
+            preview_ref: None,
+            approval_ref: None,
+            save_manifest_ref: None,
+            generated_artifact_lineage_ref: None,
+            diff_identity_ref: None,
             policy_context: None,
         }
+    }
+
+    /// Adds the preview lineage that authorized or explained this group.
+    pub fn with_preview_ref(mut self, preview_ref: PreviewRef) -> Self {
+        self.preview_ref = Some(preview_ref);
+        self
+    }
+
+    /// Adds the approval lineage that admitted this group.
+    pub fn with_approval_ref(mut self, approval_ref: ApprovalRef) -> Self {
+        self.approval_ref = Some(approval_ref);
+        self
+    }
+
+    /// Adds the save-manifest ref emitted by the save pipeline.
+    pub fn with_save_manifest_ref(mut self, save_manifest_ref: String) -> Self {
+        self.save_manifest_ref = Some(save_manifest_ref);
+        self
+    }
+
+    /// Adds the generated-artifact lineage ref for derived targets.
+    pub fn with_generated_artifact_lineage_ref(
+        mut self,
+        generated_artifact_lineage_ref: String,
+    ) -> Self {
+        self.generated_artifact_lineage_ref = Some(generated_artifact_lineage_ref);
+        self
+    }
+
+    /// Adds the metadata-only diff identity for this group.
+    pub fn with_diff_identity_ref(mut self, diff_identity_ref: String) -> Self {
+        self.diff_identity_ref = Some(diff_identity_ref);
+        self
     }
 }
 
@@ -468,6 +566,17 @@ pub enum DurableVsDisposable {
     DisposableDerived,
 }
 
+impl DurableVsDisposable {
+    /// Returns the schema token for this durability class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::DurableUserAuthored => "durable_user_authored",
+            Self::DurableWorkspaceAuthored => "durable_workspace_authored",
+            Self::DisposableDerived => "disposable_derived",
+        }
+    }
+}
+
 /// Reversibility flags carried on journal entries and group records.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Reversibility {
@@ -483,6 +592,61 @@ pub struct CheckpointRef {
     pub checkpoint_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub durability_class: Option<CheckpointDurabilityClass>,
+}
+
+/// Link to a preview record that produced or authorized a mutation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PreviewRef {
+    /// Stable preview id.
+    pub preview_id: String,
+    /// Preview kind when the producing surface declares one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview_kind: Option<PreviewKind>,
+}
+
+/// Preview-kind vocabulary for journal preview refs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreviewKind {
+    /// Refactor or rename preview.
+    RefactorPreview,
+    /// AI patch preview backed by an evidence packet.
+    AiPatchPreview,
+    /// Multi-file rename preview.
+    MultiFileRenamePreview,
+    /// Bulk replace preview.
+    BulkReplacePreview,
+    /// Generated-artifact refresh preview.
+    GeneratedArtifactRefreshPreview,
+    /// Workspace or settings migration preview.
+    MigrationPreview,
+    /// Review-apply preview.
+    ReviewApplyPreview,
+}
+
+impl PreviewKind {
+    /// Returns the schema token for this preview kind.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RefactorPreview => "refactor_preview",
+            Self::AiPatchPreview => "ai_patch_preview",
+            Self::MultiFileRenamePreview => "multi_file_rename_preview",
+            Self::BulkReplacePreview => "bulk_replace_preview",
+            Self::GeneratedArtifactRefreshPreview => "generated_artifact_refresh_preview",
+            Self::MigrationPreview => "migration_preview",
+            Self::ReviewApplyPreview => "review_apply_preview",
+        }
+    }
+}
+
+/// Link to an approval record that admitted a mutation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ApprovalRef {
+    /// Stable approval id.
+    pub approval_id: String,
+    /// Policy or review gate that required the approval.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approval_policy: Option<String>,
 }
 
 /// Checkpoint-kind vocabulary for journal entries.
@@ -573,6 +737,29 @@ pub enum MutationGroupKind {
     PreviewRegeneration,
     ExternalReloadGroup,
     ReviewApplyGroup,
+}
+
+impl MutationGroupKind {
+    /// Returns the schema token for this group kind.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::MultiCursorKeystroke => "multi_cursor_keystroke",
+            Self::RefactorSingleFile => "refactor_single_file",
+            Self::RefactorMultiFile => "refactor_multi_file",
+            Self::FormatOnSave => "format_on_save",
+            Self::SaveParticipantGroup => "save_participant_group",
+            Self::AiPatch => "ai_patch",
+            Self::BulkReplace => "bulk_replace",
+            Self::MultiFileRename => "multi_file_rename",
+            Self::ScaffoldingRun => "scaffolding_run",
+            Self::MigrationImport => "migration_import",
+            Self::SettingsImport => "settings_import",
+            Self::GeneratedArtifactRefresh => "generated_artifact_refresh",
+            Self::PreviewRegeneration => "preview_regeneration",
+            Self::ExternalReloadGroup => "external_reload_group",
+            Self::ReviewApplyGroup => "review_apply_group",
+        }
+    }
 }
 
 /// Resolution vocabulary for mutation-group records.
