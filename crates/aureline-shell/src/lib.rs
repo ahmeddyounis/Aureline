@@ -29,7 +29,7 @@
     clippy::wrong_self_convention
 )]
 
-pub(crate) mod a11y;
+pub mod a11y;
 pub mod activity_center;
 pub mod admin_alpha;
 pub mod ai_context_inspector;
