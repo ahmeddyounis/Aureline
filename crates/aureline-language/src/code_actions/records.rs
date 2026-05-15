@@ -1,7 +1,8 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+use aureline_graph::{WorksetScopeDescriptor, WorksetScopeMode};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostics::{
@@ -324,6 +325,263 @@ impl CodeActionSafetyClass {
         matches!(
             self,
             Self::CrossFileSemantic | Self::GeneratedOrProtected | Self::UnknownOrUnstable
+        )
+    }
+}
+
+/// Refactor-scope admission after binding candidate edits to workset truth.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefactorScopeAdmissionClass {
+    /// Every candidate edit remains inside the active named workset.
+    WithinNamedWorkset,
+    /// Candidate edits outside the named workset were refused.
+    OutsideNamedWorksetRefused,
+    /// The caller attempted to widen and must complete scope review first.
+    BlockedPendingScopeWideningReview,
+}
+
+impl RefactorScopeAdmissionClass {
+    /// Returns the stable schema token for this admission class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WithinNamedWorkset => "within_named_workset",
+            Self::OutsideNamedWorksetRefused => "outside_named_workset_refused",
+            Self::BlockedPendingScopeWideningReview => "blocked_pending_scope_widening_review",
+        }
+    }
+
+    /// Returns true when the admission requires visible scope disclosure.
+    pub const fn requires_disclosure(self) -> bool {
+        !matches!(self, Self::WithinNamedWorkset)
+    }
+}
+
+/// Surface trigger that requested a scope-widening review.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeWideningReviewTriggerClass {
+    /// Refactor preview or apply attempted to include outside-scope targets.
+    RefactorWiden,
+}
+
+impl ScopeWideningReviewTriggerClass {
+    /// Returns the stable schema token for this trigger class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RefactorWiden => "refactor_widen",
+        }
+    }
+}
+
+/// One candidate target in a refactor scope-admission request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RefactorScopeCandidate {
+    /// Stable target ref, such as a semantic result or occurrence id.
+    pub target_ref: String,
+    /// Scope ref that owns this target.
+    pub scope_ref: String,
+    /// Workspace-relative path for review surfaces.
+    pub workspace_relative_path: String,
+    /// Export-safe target summary.
+    pub summary: String,
+}
+
+impl RefactorScopeCandidate {
+    /// Builds a candidate target for workset-scope admission.
+    pub fn new(
+        target_ref: impl Into<String>,
+        scope_ref: impl Into<String>,
+        workspace_relative_path: impl Into<String>,
+        summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            target_ref: target_ref.into(),
+            scope_ref: scope_ref.into(),
+            workspace_relative_path: workspace_relative_path.into(),
+            summary: summary.into(),
+        }
+    }
+}
+
+/// Scope decision for one refactor candidate target.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RefactorScopeTargetRow {
+    /// Stable target ref from the candidate.
+    pub target_ref: String,
+    /// Scope ref that owns this target.
+    pub scope_ref: String,
+    /// Workspace-relative path for review surfaces.
+    pub workspace_relative_path: String,
+    /// True when the target is admitted by the active workset descriptor.
+    pub inside_named_workset: bool,
+    /// Refused reason token when the target is outside scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refused_reason_ref: Option<String>,
+    /// Export-safe target summary.
+    pub summary: String,
+}
+
+/// Typed review prompt created when a refactor attempts to widen scope.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CodeActionScopeWideningReview {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Stable review request id.
+    pub review_request_id: String,
+    /// Trigger that requested the widening review.
+    pub trigger_class: ScopeWideningReviewTriggerClass,
+    /// Active scope id from the workset descriptor.
+    pub active_scope_id: String,
+    /// Active scope class token from the workset descriptor.
+    pub active_scope_class: String,
+    /// Active scope mode reused from graph workset truth.
+    pub active_scope_mode: WorksetScopeMode,
+    /// Outside scope refs that would be added by the widening.
+    pub requested_scope_refs: Vec<String>,
+    /// Candidate targets blocked until the review is confirmed.
+    pub blocked_target_refs: Vec<String>,
+    /// Hidden result count from the active workset descriptor.
+    pub hidden_result_count: usize,
+    /// True because widening must be confirmed with an explicit review action.
+    pub typed_confirmation_required: bool,
+    /// Capture timestamp.
+    pub captured_at: String,
+    /// Export-safe review summary.
+    pub export_safe_summary: String,
+}
+
+impl CodeActionScopeWideningReview {
+    /// Stable record-kind tag for scope-widening reviews.
+    pub const RECORD_KIND: &'static str = "code_action_scope_widening_review";
+}
+
+/// Refactor-scope binding produced from graph workset truth.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CodeActionRefactorScopeBinding {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Workset descriptor that bounds the refactor.
+    pub workset_scope: WorksetScopeDescriptor,
+    /// Admission class after candidate targets were checked.
+    pub admission_class: RefactorScopeAdmissionClass,
+    /// Per-target scope decisions.
+    pub target_scope_rows: Vec<RefactorScopeTargetRow>,
+    /// Target refs admitted for mutation.
+    pub admitted_target_refs: Vec<String>,
+    /// Target refs refused because they are outside the active workset.
+    pub refused_target_refs: Vec<String>,
+    /// Typed scope-widening review when the caller attempted to widen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_widening_review: Option<CodeActionScopeWideningReview>,
+    /// Capture timestamp.
+    pub captured_at: String,
+    /// Export-safe scope caveat.
+    pub caveat_summary: String,
+}
+
+impl CodeActionRefactorScopeBinding {
+    /// Stable record-kind tag for refactor-scope bindings.
+    pub const RECORD_KIND: &'static str = "code_action_refactor_scope_binding";
+
+    /// Builds a scope binding by checking candidate targets against a workset descriptor.
+    pub fn from_workset_scope(
+        workset_scope: WorksetScopeDescriptor,
+        candidates: impl IntoIterator<Item = RefactorScopeCandidate>,
+        scope_widening_requested: bool,
+        captured_at: impl Into<String>,
+    ) -> Self {
+        let captured_at = captured_at.into();
+        let target_scope_rows = candidates
+            .into_iter()
+            .map(|candidate| {
+                let inside_named_workset = candidate_inside_workset(&workset_scope, &candidate);
+                RefactorScopeTargetRow {
+                    target_ref: candidate.target_ref,
+                    scope_ref: candidate.scope_ref,
+                    workspace_relative_path: candidate.workspace_relative_path,
+                    inside_named_workset,
+                    refused_reason_ref: (!inside_named_workset)
+                        .then(|| "outside_named_workset".to_owned()),
+                    summary: candidate.summary,
+                }
+            })
+            .collect::<Vec<_>>();
+        let admitted_target_refs = target_scope_rows
+            .iter()
+            .filter(|row| row.inside_named_workset)
+            .map(|row| row.target_ref.clone())
+            .collect::<Vec<_>>();
+        let refused_target_refs = target_scope_rows
+            .iter()
+            .filter(|row| !row.inside_named_workset)
+            .map(|row| row.target_ref.clone())
+            .collect::<Vec<_>>();
+        let admission_class = if refused_target_refs.is_empty() {
+            RefactorScopeAdmissionClass::WithinNamedWorkset
+        } else if scope_widening_requested {
+            RefactorScopeAdmissionClass::BlockedPendingScopeWideningReview
+        } else {
+            RefactorScopeAdmissionClass::OutsideNamedWorksetRefused
+        };
+        let scope_widening_review = if scope_widening_requested && !refused_target_refs.is_empty() {
+            Some(scope_widening_review(
+                &workset_scope,
+                &target_scope_rows,
+                &refused_target_refs,
+                &captured_at,
+            ))
+        } else {
+            None
+        };
+        let caveat_summary = match admission_class {
+            RefactorScopeAdmissionClass::WithinNamedWorkset => format!(
+                "Refactor is bound to {} with {} admitted targets.",
+                workset_scope.scope_id,
+                admitted_target_refs.len()
+            ),
+            RefactorScopeAdmissionClass::OutsideNamedWorksetRefused => format!(
+                "{} targets outside {} were refused; scope was not widened.",
+                refused_target_refs.len(),
+                workset_scope.scope_id
+            ),
+            RefactorScopeAdmissionClass::BlockedPendingScopeWideningReview => format!(
+                "{} targets outside {} require scope-widening review before mutation.",
+                refused_target_refs.len(),
+                workset_scope.scope_id
+            ),
+        };
+
+        Self {
+            record_kind: Self::RECORD_KIND.into(),
+            workset_scope,
+            admission_class,
+            target_scope_rows,
+            admitted_target_refs,
+            refused_target_refs,
+            scope_widening_review,
+            captured_at,
+            caveat_summary,
+        }
+    }
+
+    /// Returns true when the target ref is admitted for mutation.
+    pub fn admits_target_ref(&self, target_ref: &str) -> bool {
+        self.admitted_target_refs
+            .iter()
+            .any(|item| item == target_ref)
+    }
+
+    /// Returns true when scope state must be visible before apply.
+    pub fn requires_preview_or_review(&self) -> bool {
+        self.admission_class.requires_disclosure() || self.scope_widening_review.is_some()
+    }
+
+    /// Returns true when a widening review blocks outside-scope mutation.
+    pub fn requires_scope_widening_review(&self) -> bool {
+        matches!(
+            self.admission_class,
+            RefactorScopeAdmissionClass::BlockedPendingScopeWideningReview
         )
     }
 }
@@ -855,6 +1113,9 @@ pub struct CodeActionRecord {
     pub review_packet_ref: Option<String>,
     /// Content-integrity review cues.
     pub content_integrity_review: CodeActionContentIntegrityReview,
+    /// Refactor-scope binding when the action proposes a refactor mutation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refactor_scope_binding: Option<CodeActionRefactorScopeBinding>,
     /// Policy context applied to this proposal.
     pub policy_context: CodeActionPolicyContext,
     /// Redaction posture.
@@ -900,6 +1161,10 @@ impl CodeActionRecord {
             || self.mutation_counts.requires_preview()
             || self.acting_provider.requires_preview_or_block()
             || self.content_integrity_review.requires_preview()
+            || self
+                .refactor_scope_binding
+                .as_ref()
+                .is_some_and(CodeActionRefactorScopeBinding::requires_preview_or_review)
             || self.apply_posture_class == ApplyPostureClass::PreviewBeforeApply
             || !self.blocking_reason_classes.is_empty()
     }
@@ -947,6 +1212,15 @@ impl CodeActionRecord {
             preview_required: self.preview_required(),
             silent_apply_allowed,
             apply_posture_class: self.apply_posture_class,
+            refactor_scope_admission_class: self
+                .refactor_scope_binding
+                .as_ref()
+                .map(|binding| binding.admission_class),
+            scope_widening_review_ref: self
+                .refactor_scope_binding
+                .as_ref()
+                .and_then(|binding| binding.scope_widening_review.as_ref())
+                .map(|review| review.review_request_id.clone()),
             refused_silent_apply_reason_refs,
             undo_group_ref: self
                 .undo_group
@@ -996,6 +1270,14 @@ impl CodeActionRecord {
         if self.content_integrity_review.requires_preview() {
             reasons.push("content_integrity:preview_required".into());
         }
+        if let Some(binding) = self.refactor_scope_binding.as_ref() {
+            if binding.requires_preview_or_review() {
+                reasons.push(format!(
+                    "refactor_scope:{}",
+                    binding.admission_class.as_str()
+                ));
+            }
+        }
         if !self.has_required_undo_group() {
             reasons.push("undo_group:missing_or_unattributed".into());
         }
@@ -1025,6 +1307,12 @@ pub struct CodeActionAdmissionRecord {
     pub silent_apply_allowed: bool,
     /// Current apply posture.
     pub apply_posture_class: ApplyPostureClass,
+    /// Refactor-scope admission class, when the action is a refactor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refactor_scope_admission_class: Option<RefactorScopeAdmissionClass>,
+    /// Scope-widening review ref, when direct mutation is blocked by widening.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope_widening_review_ref: Option<String>,
     /// Reasons direct apply was refused.
     pub refused_silent_apply_reason_refs: Vec<String>,
     /// Undo group reference, when present.
@@ -1299,6 +1587,71 @@ pub struct CodeActionSurfaceProjection {
 impl CodeActionSurfaceProjection {
     /// Stable record-kind tag for surface projections.
     pub const RECORD_KIND: &'static str = "code_action_surface_projection_record";
+}
+
+fn candidate_inside_workset(
+    workset_scope: &WorksetScopeDescriptor,
+    candidate: &RefactorScopeCandidate,
+) -> bool {
+    let scope_ref = candidate.scope_ref.trim();
+    if scope_ref.is_empty() {
+        return false;
+    }
+    if scope_ref == workset_scope.scope_id {
+        return true;
+    }
+    if workset_scope
+        .included_roots_or_repos
+        .iter()
+        .any(|included| included == scope_ref)
+    {
+        return true;
+    }
+    matches!(workset_scope.scope_mode, WorksetScopeMode::Full)
+        && workset_scope.included_roots_or_repos.is_empty()
+        && workset_scope.hidden_result_count == 0
+        && workset_scope.index_coverage.not_loaded_count == 0
+}
+
+fn scope_widening_review(
+    workset_scope: &WorksetScopeDescriptor,
+    target_scope_rows: &[RefactorScopeTargetRow],
+    refused_target_refs: &[String],
+    captured_at: &str,
+) -> CodeActionScopeWideningReview {
+    let requested_scope_refs = target_scope_rows
+        .iter()
+        .filter(|row| !row.inside_named_workset)
+        .map(|row| row.scope_ref.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let suffix = refused_target_refs
+        .first()
+        .map(|target_ref| sanitize_id(target_ref))
+        .unwrap_or_else(|| "no_target".to_owned());
+
+    CodeActionScopeWideningReview {
+        record_kind: CodeActionScopeWideningReview::RECORD_KIND.into(),
+        review_request_id: format!(
+            "scope_widening_review:{}:{}",
+            sanitize_id(&workset_scope.scope_id),
+            suffix
+        ),
+        trigger_class: ScopeWideningReviewTriggerClass::RefactorWiden,
+        active_scope_id: workset_scope.scope_id.clone(),
+        active_scope_class: workset_scope.scope_class.clone(),
+        active_scope_mode: workset_scope.scope_mode,
+        requested_scope_refs,
+        blocked_target_refs: refused_target_refs.to_vec(),
+        hidden_result_count: workset_scope.hidden_result_count,
+        typed_confirmation_required: true,
+        captured_at: captured_at.to_owned(),
+        export_safe_summary: format!(
+            "Refactor scope widening from {} requires explicit review.",
+            workset_scope.scope_id
+        ),
+    }
 }
 
 fn support_from_diagnostic_source(source: &DiagnosticSourceDescriptor) -> CodeActionSupportClass {

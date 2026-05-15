@@ -1,16 +1,19 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use aureline_graph::WorksetScopeDescriptor;
 use aureline_language::{
     CodeActionAdmissionRecord, CodeActionAlphaAggregateCounts, CodeActionAlphaSnapshot,
     CodeActionCatalog, CodeActionClass, CodeActionContentIntegrityReview, CodeActionEpochBinding,
     CodeActionEpochRoleClass, CodeActionMutationCounts, CodeActionMutationScopeClass,
     CodeActionPolicyContext, CodeActionPreviewRequirementClass, CodeActionProviderDescriptor,
-    CodeActionRecord, CodeActionReplayHintClass, CodeActionSafetyClass, CodeActionSideEffectClass,
-    CodeActionSnapshotRequest, CodeActionSurfaceClass, CodeActionTrustState, CodeActionUndoGroup,
-    CodeActionValidationHintClass, CodeActionValidationPlan, DiagnosticEvidencePlaneClass,
-    DiagnosticFreshness, DiagnosticFreshnessClass, DiagnosticOriginClass,
-    DiagnosticSourceDescriptor, DiagnosticSourceFamily, RedactionClass, RouterLocalityClass,
+    CodeActionRecord, CodeActionRefactorScopeAdmissionClass, CodeActionRefactorScopeBinding,
+    CodeActionReplayHintClass, CodeActionSafetyClass, CodeActionScopeWideningReviewTriggerClass,
+    CodeActionSideEffectClass, CodeActionSnapshotRequest, CodeActionSurfaceClass,
+    CodeActionTrustState, CodeActionUndoGroup, CodeActionValidationHintClass,
+    CodeActionValidationPlan, DiagnosticEvidencePlaneClass, DiagnosticFreshness,
+    DiagnosticFreshnessClass, DiagnosticOriginClass, DiagnosticSourceDescriptor,
+    DiagnosticSourceFamily, RedactionClass, RefactorScopeCandidate, RouterLocalityClass,
     RouterSupportClass, CODE_ACTION_ALPHA_SCHEMA_VERSION,
 };
 use serde::Deserialize;
@@ -214,6 +217,80 @@ fn code_actions_disclose_side_effects_preview_and_undo_groups() {
     assert_eq!(round_trip, snapshot);
 }
 
+#[test]
+fn refactor_scope_binding_refuses_outside_workset_targets() {
+    let binding = CodeActionRefactorScopeBinding::from_workset_scope(
+        workset_scope(),
+        [
+            RefactorScopeCandidate::new(
+                "target:inside",
+                "scope:workset:payments:active",
+                "services/payments/src/pricing.py",
+                "Inside active workset.",
+            ),
+            RefactorScopeCandidate::new(
+                "target:outside",
+                "scope:root:payments-tests",
+                "services/payments/tests/test_pricing.py",
+                "Outside active workset.",
+            ),
+        ],
+        false,
+        "2026-05-13T19:10:00Z",
+    );
+
+    assert_eq!(
+        binding.admission_class,
+        CodeActionRefactorScopeAdmissionClass::OutsideNamedWorksetRefused
+    );
+    assert_eq!(binding.admitted_target_refs, vec!["target:inside"]);
+    assert_eq!(binding.refused_target_refs, vec!["target:outside"]);
+    assert!(binding.scope_widening_review.is_none());
+    assert!(binding.requires_preview_or_review());
+}
+
+#[test]
+fn refactor_scope_binding_prompts_review_for_requested_widening() {
+    let binding = CodeActionRefactorScopeBinding::from_workset_scope(
+        workset_scope(),
+        [
+            RefactorScopeCandidate::new(
+                "target:inside",
+                "scope:workset:payments:active",
+                "services/payments/src/pricing.py",
+                "Inside active workset.",
+            ),
+            RefactorScopeCandidate::new(
+                "target:outside",
+                "scope:root:payments-tests",
+                "services/payments/tests/test_pricing.py",
+                "Outside active workset.",
+            ),
+        ],
+        true,
+        "2026-05-13T19:10:00Z",
+    );
+
+    assert_eq!(
+        binding.admission_class,
+        CodeActionRefactorScopeAdmissionClass::BlockedPendingScopeWideningReview
+    );
+    let review = binding
+        .scope_widening_review
+        .as_ref()
+        .expect("review prompt");
+    assert_eq!(
+        review.trigger_class,
+        CodeActionScopeWideningReviewTriggerClass::RefactorWiden
+    );
+    assert!(review.typed_confirmation_required);
+    assert_eq!(review.blocked_target_refs, vec!["target:outside"]);
+    assert_eq!(
+        review.requested_scope_refs,
+        vec!["scope:root:payments-tests"]
+    );
+}
+
 fn provider_descriptors(fixture: &Fixture) -> BTreeMap<String, CodeActionProviderDescriptor> {
     fixture
         .provider_sources
@@ -299,6 +376,7 @@ fn action_from_case(
         checkpoint_ref: case.checkpoint_ref.clone(),
         review_packet_ref: case.review_packet_ref.clone(),
         content_integrity_review: case.content_integrity_review.clone(),
+        refactor_scope_binding: None,
         policy_context: CodeActionPolicyContext {
             policy_epoch: fixture.policy_epoch.clone(),
             trust_state: CodeActionTrustState::Trusted,
@@ -308,6 +386,18 @@ fn action_from_case(
         captured_at: fixture.captured_at.clone(),
         export_safe_summary: format!("{} code action preserves apply truth.", case.case_id),
     }
+}
+
+fn workset_scope() -> WorksetScopeDescriptor {
+    WorksetScopeDescriptor::local_sparse(
+        "scope:workset:payments:active",
+        "named_workset",
+        ["scope:workset:payments:active"],
+        1,
+        1,
+        0,
+        1,
+    )
 }
 
 fn load_fixture() -> Fixture {

@@ -7,7 +7,7 @@ use aureline_notices::{
 };
 
 const EXPECTED_LOCKFILE_PACKAGE_COUNT: usize = 490;
-const EXPECTED_LOCKFILE_FINGERPRINT: &str = "lock-fnv64:136af80bb3d5e137";
+const EXPECTED_LOCKFILE_FINGERPRINT: &str = "lock-fnv64:88d3f19bee30feed";
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

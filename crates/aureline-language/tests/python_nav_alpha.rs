@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use aureline_language::{
+    CodeActionRefactorScopeAdmissionClass, CodeActionScopeWideningReviewTriggerClass,
     LanguageServerHostIdentity, LanguageServerHostStatus, PythonHoverRecord,
     PythonInterpreterReadinessClass, PythonInterpreterSelectionStateClass, PythonLaunchWedge,
     PythonLaunchWedgeSnapshot, PythonReferenceSetRecord, PythonRenamePreviewRecord,
@@ -185,6 +186,25 @@ fn python_wedge_emits_hover_definition_references_and_rename_preview() {
             "rename preview must always label scope for {}",
             case.case_id
         );
+        let outside_test_ref =
+            "nav:semantic:result:python:reference:symbol-python-calculate_discount:occ-python-calculate_discount-test-call"
+                .to_string();
+        assert!(
+            !rename_preview
+                .refactor_scope_binding
+                .admitted_target_refs
+                .contains(&outside_test_ref),
+            "rename preview must not admit outside-workset test occurrence for {}",
+            case.case_id
+        );
+        assert!(
+            rename_preview
+                .refactor_scope_binding
+                .refused_target_refs
+                .contains(&outside_test_ref),
+            "rename preview must refuse outside-workset test occurrence for {}",
+            case.case_id
+        );
         assert_rename_preview_round_trips(&rename_preview);
         assert_eq!(
             rename_preview
@@ -199,6 +219,40 @@ fn python_wedge_emits_hover_definition_references_and_rename_preview() {
             case.case_id
         );
     }
+
+    let ready_case = fixture
+        .cases
+        .iter()
+        .find(|case| case.case_id == "python-nav-ready-semantic")
+        .expect("ready semantic case");
+    let ready_snapshot = snapshot_for_case(&fixture.snapshot, ready_case);
+    let ready_wedge = PythonLaunchWedge::new(ready_snapshot.clone());
+    let ready_host = host_status(&ready_snapshot, ready_case);
+    let widening_preview = ready_wedge
+        .rename_preview_with_scope_widening_review(
+            "symbol:python:calculate_discount",
+            "symbol:name:compute_discount",
+            &[ready_host],
+            true,
+        )
+        .expect("scope-widening rename preview");
+    assert_eq!(
+        widening_preview.refactor_scope_binding.admission_class,
+        CodeActionRefactorScopeAdmissionClass::BlockedPendingScopeWideningReview
+    );
+    let review = widening_preview
+        .refactor_scope_binding
+        .scope_widening_review
+        .as_ref()
+        .expect("widening attempt prompts review");
+    assert_eq!(
+        review.trigger_class,
+        CodeActionScopeWideningReviewTriggerClass::RefactorWiden
+    );
+    assert!(review.typed_confirmation_required);
+    assert!(review
+        .requested_scope_refs
+        .contains(&"scope:root:payments-tests".to_string()));
 }
 
 fn snapshot_for_case(base: &PythonLaunchWedgeSnapshot, case: &Case) -> PythonLaunchWedgeSnapshot {

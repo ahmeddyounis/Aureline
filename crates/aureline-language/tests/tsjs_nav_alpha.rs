@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use aureline_language::{
+    CodeActionRefactorScopeAdmissionClass, CodeActionScopeWideningReviewTriggerClass,
     LanguageServerHostIdentity, LanguageServerHostStatus, RouterCapabilityClass,
     RouterCompletenessClass, RouterFallbackClass, RouterFaultDomainId, RouterFreshnessClass,
     RouterHealthState, RouterLocalityClass, RouterScopeClaimClass, ScopeLimitClass,
@@ -158,8 +159,59 @@ fn tsjs_wedge_emits_hover_definition_references_and_rename_preview() {
             "rename preview must always label scope for {}",
             case.case_id
         );
+        let outside_test_ref =
+            "nav:semantic:result:tsjs:reference:symbol-tsjs-formatprice:occ-tsjs-formatprice-test-call"
+                .to_string();
+        assert!(
+            !rename_preview
+                .refactor_scope_binding
+                .admitted_target_refs
+                .contains(&outside_test_ref),
+            "rename preview must not admit outside-workset test occurrence for {}",
+            case.case_id
+        );
+        assert!(
+            rename_preview
+                .refactor_scope_binding
+                .refused_target_refs
+                .contains(&outside_test_ref),
+            "rename preview must refuse outside-workset test occurrence for {}",
+            case.case_id
+        );
         assert_rename_preview_round_trips(&rename_preview);
     }
+
+    let ready_case = fixture
+        .cases
+        .iter()
+        .find(|case| case.case_id == "tsjs-nav-ready-semantic")
+        .expect("ready semantic case");
+    let ready_host = host_status(&fixture.snapshot, ready_case);
+    let widening_preview = wedge
+        .rename_preview_with_scope_widening_review(
+            "symbol:tsjs:formatPrice",
+            "symbol:name:formatCurrency",
+            &[ready_host],
+            true,
+        )
+        .expect("scope-widening rename preview");
+    assert_eq!(
+        widening_preview.refactor_scope_binding.admission_class,
+        CodeActionRefactorScopeAdmissionClass::BlockedPendingScopeWideningReview
+    );
+    let review = widening_preview
+        .refactor_scope_binding
+        .scope_widening_review
+        .as_ref()
+        .expect("widening attempt prompts review");
+    assert_eq!(
+        review.trigger_class,
+        CodeActionScopeWideningReviewTriggerClass::RefactorWiden
+    );
+    assert!(review.typed_confirmation_required);
+    assert!(review
+        .requested_scope_refs
+        .contains(&"scope:root:packages-tests".to_string()));
 }
 
 fn host_status(snapshot: &TsJsLaunchWedgeSnapshot, case: &Case) -> LanguageServerHostStatus {

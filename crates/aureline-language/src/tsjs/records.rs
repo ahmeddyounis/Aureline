@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::code_actions::CodeActionRefactorScopeBinding;
 use crate::lsp_router::{
     DegradedStateClass, EpochBinding, FreshnessClass, HealthState, LocalityClass, ProviderFamily,
     ProviderPolicyContext, RedactionClass, RouterTrustState, ScopeClaimClass, ScopeLimitClass,
@@ -920,6 +921,8 @@ pub struct TsJsRenamePreviewRecord {
     pub count_summary: TsJsRenameCountSummary,
     /// Affected scope rows.
     pub affected_scope_rows: Vec<TsJsRenameAffectedScopeRow>,
+    /// Refactor-scope binding that admits only active-workset targets.
+    pub refactor_scope_binding: CodeActionRefactorScopeBinding,
     /// Warning rows.
     pub warning_rows: Vec<TsJsRenameWarningRow>,
     /// Checkpoint descriptor.
@@ -965,6 +968,7 @@ impl TsJsRenamePreviewRecord {
             || self.count_summary.unresolved_count > 0
             || self.count_summary.protected_count > 0
             || self.count_summary.skipped_count > 0
+            || self.refactor_scope_binding.requires_preview_or_review()
             || self
                 .affected_scope_rows
                 .iter()

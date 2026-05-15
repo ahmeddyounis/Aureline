@@ -2,6 +2,9 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
+use aureline_graph::WorksetScopeDescriptor;
+
+use crate::code_actions::{CodeActionRefactorScopeBinding, RefactorScopeCandidate};
 use crate::lsp_router::{
     CapabilityClass, CompletenessClass, CoordinateTranslationRequirementClass, FreshnessClass,
     HealthState, LaneClass, LanguageServerHostStatus, LspRouter, PlacementPreferenceClass,
@@ -234,6 +237,22 @@ impl PythonLaunchWedge {
         requested_new_name_ref: &str,
         host_statuses: &[LanguageServerHostStatus],
     ) -> Result<PythonRenamePreviewRecord, PythonNavigationError> {
+        self.rename_preview_with_scope_widening_review(
+            symbol_ref,
+            requested_new_name_ref,
+            host_statuses,
+            false,
+        )
+    }
+
+    /// Builds a rename preview and optionally prompts for scope-widening review.
+    pub fn rename_preview_with_scope_widening_review(
+        &self,
+        symbol_ref: &str,
+        requested_new_name_ref: &str,
+        host_statuses: &[LanguageServerHostStatus],
+        scope_widening_requested: bool,
+    ) -> Result<PythonRenamePreviewRecord, PythonNavigationError> {
         let symbol = self.symbol(symbol_ref)?;
         let decision = self.route(
             symbol_ref,
@@ -244,8 +263,20 @@ impl PythonLaunchWedge {
         let selected_host = selected_host(&decision, host_statuses);
         let provider_snapshot = self.provider_snapshot(&decision, selected_host);
         let target_semantic_result_ref = definition_result_id(symbol_ref);
-        let rename_occurrences =
-            self.materialized_rename_occurrences(symbol, &decision, selected_host);
+        let refactor_scope_binding = CodeActionRefactorScopeBinding::from_workset_scope(
+            refactor_workset_scope(&self.snapshot.workspace_context, symbol),
+            refactor_scope_candidates(symbol),
+            scope_widening_requested,
+            self.snapshot.captured_at.clone(),
+        );
+        let rename_occurrences = self
+            .materialized_rename_occurrences(symbol, &decision, selected_host)
+            .into_iter()
+            .filter(|occurrence| {
+                let target_ref = reference_result_id(symbol_ref, &occurrence.occurrence_ref);
+                refactor_scope_binding.admits_target_ref(&target_ref)
+            })
+            .collect::<Vec<_>>();
         let count_summary = rename_count_summary(symbol, &rename_occurrences);
         let preview_completeness_class =
             rename_preview_completeness(&decision, selected_host, &count_summary);
@@ -329,6 +360,7 @@ impl PythonLaunchWedge {
             apply_posture_class,
             count_summary,
             affected_scope_rows,
+            refactor_scope_binding,
             warning_rows,
             checkpoint_descriptor,
             provider_snapshot,
@@ -787,6 +819,89 @@ fn symbol_file_scope_ref(decision: &RouterDecisionRecord) -> String {
         "scope:file:{}",
         sanitize_id(&decision.request_context.requested_subject_ref)
     )
+}
+
+fn refactor_workset_scope(
+    context: &super::records::PythonWorkspaceContext,
+    symbol: &PythonSymbolSeed,
+) -> WorksetScopeDescriptor {
+    let included_scope_refs = included_scope_refs(context);
+    let hidden_result_count = context.omitted_scope_refs.len();
+    let covered_candidate_count = symbol
+        .occurrences
+        .iter()
+        .filter(|occurrence| occurrence.in_current_workset)
+        .count();
+    let covered_edge_count = symbol
+        .occurrences
+        .iter()
+        .filter(|occurrence| occurrence.in_current_workset && occurrence.rename_candidate)
+        .count();
+    let scope_class = scope_class_token(context.materialized_scope_class);
+
+    if context.materialized_scope_class == ScopeClaimClass::WholeWorkspace
+        && context.scope_limit_classes.is_empty()
+        && hidden_result_count == 0
+    {
+        WorksetScopeDescriptor::local_full(
+            context.covered_scope_ref.clone(),
+            scope_class,
+            included_scope_refs,
+            covered_candidate_count,
+            covered_edge_count,
+        )
+    } else {
+        WorksetScopeDescriptor::local_sparse(
+            context.covered_scope_ref.clone(),
+            scope_class,
+            included_scope_refs,
+            hidden_result_count,
+            covered_candidate_count,
+            covered_edge_count,
+            hidden_result_count,
+        )
+    }
+}
+
+fn included_scope_refs(context: &super::records::PythonWorkspaceContext) -> Vec<String> {
+    let mut refs = vec![
+        context.covered_scope_ref.clone(),
+        context.subject_root_ref.clone(),
+        context.package_root_ref.clone(),
+        context.config_root_ref.clone(),
+    ];
+    refs.sort();
+    refs.dedup();
+    refs
+}
+
+fn scope_class_token(scope_claim_class: ScopeClaimClass) -> &'static str {
+    match scope_claim_class {
+        ScopeClaimClass::SingleFile => "current_root",
+        ScopeClaimClass::LoadedSlice => "sparse_slice",
+        ScopeClaimClass::ActiveWorkset => "named_workset",
+        ScopeClaimClass::WholeWorkspace => "full_workspace",
+        ScopeClaimClass::NotebookCell
+        | ScopeClaimClass::TargetGraph
+        | ScopeClaimClass::TestTree
+        | ScopeClaimClass::DebugSession
+        | ScopeClaimClass::Unavailable => "sparse_slice",
+    }
+}
+
+fn refactor_scope_candidates(symbol: &PythonSymbolSeed) -> Vec<RefactorScopeCandidate> {
+    symbol
+        .reference_occurrences()
+        .filter(|occurrence| occurrence.rename_writable_authored_candidate())
+        .map(|occurrence| {
+            RefactorScopeCandidate::new(
+                reference_result_id(&symbol.symbol_ref, &occurrence.occurrence_ref),
+                occurrence.scope_ref.clone(),
+                occurrence.anchor.workspace_relative_path.clone(),
+                occurrence.summary.clone(),
+            )
+        })
+        .collect()
 }
 
 fn reference_count_summary(
