@@ -34,5 +34,6 @@ pub use invocation::{
     CommandInvocationSession, CommandResultPacketRecord, InvocationSessionPacketRecord,
 };
 pub use registry::{
-    CommandRegistry, CommandRegistryEntryRecord, CommandRegistrySeedRecord, RegistryError,
+    CommandPreviewGateMetadata, CommandRegistry, CommandRegistryEntryRecord,
+    CommandRegistrySeedRecord, RegistryError,
 };

@@ -10,6 +10,61 @@ use crate::enablement::{
     CommandEnablementContext, DisabledReasonRecord, EnablementSnapshot, PreflightDecision,
 };
 
+const NO_PREVIEW_REQUIRED: &str = "no_preview_required";
+const NO_APPROVAL_REQUIRED: &str = "no_approval_required";
+
+/// Registry metadata that binds a high-effect command to its preview or
+/// equivalent review lane.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommandPreviewGateMetadata {
+    /// Boundary record kind.
+    pub record_kind: String,
+    /// Schema version for this metadata block.
+    pub schema_version: u32,
+    /// Stable class for the gate or equivalent review lane.
+    pub gate_class: String,
+    /// Requirement class enforced by the owning lane.
+    pub requirement_class: String,
+    /// Review or disclosure surfaces that carry the gate.
+    pub review_surface_refs: Vec<String>,
+    /// Guard ref checked before the command mutates or exposes effects.
+    pub apply_guard_ref: String,
+    /// Recovery or revert posture exposed by the gate.
+    pub revert_posture_class: String,
+    /// Evidence refs emitted or required by the gate.
+    pub evidence_ref_class_required: Vec<String>,
+}
+
+impl CommandPreviewGateMetadata {
+    fn validate_minimal(&self) -> Result<(), &'static str> {
+        if self.record_kind != "command_preview_gate_metadata" {
+            return Err("preview gate record_kind must be command_preview_gate_metadata");
+        }
+        if self.schema_version != 1 {
+            return Err("unsupported preview gate schema_version");
+        }
+        if self.gate_class.trim().is_empty() {
+            return Err("preview gate gate_class must be non-empty");
+        }
+        if self.requirement_class.trim().is_empty() {
+            return Err("preview gate requirement_class must be non-empty");
+        }
+        if self.review_surface_refs.is_empty() {
+            return Err("preview gate review_surface_refs must be non-empty");
+        }
+        if self.apply_guard_ref.trim().is_empty() {
+            return Err("preview gate apply_guard_ref must be non-empty");
+        }
+        if self.revert_posture_class.trim().is_empty() {
+            return Err("preview gate revert_posture_class must be non-empty");
+        }
+        if self.evidence_ref_class_required.is_empty() {
+            return Err("preview gate evidence_ref_class_required must be non-empty");
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub enum RegistryError {
     Json(serde_json::Error),
@@ -59,6 +114,8 @@ pub struct CommandRegistryEntryRecord {
     pub discoverability_record: serde_json::Value,
     pub automation_labels: Vec<String>,
     pub dominant_side_effect_class: String,
+    #[serde(default)]
+    pub preview_gate_metadata: Option<CommandPreviewGateMetadata>,
     pub current_keybinding_refs: Vec<serde_json::Value>,
     pub disabled_reason_records: Vec<DisabledReasonRecord>,
     pub origin_badge: serde_json::Value,
@@ -83,11 +140,56 @@ impl CommandRegistryEntryRecord {
         if self.title.trim().is_empty() {
             return Err("title must be non-empty");
         }
+        if let Some(metadata) = self.preview_gate_metadata.as_ref() {
+            metadata.validate_minimal()?;
+        }
+        if self.destructive_or_external_effect_class().is_some()
+            && !self.has_preview_or_gate_metadata()
+        {
+            return Err("destructive or external-effect entry must declare preview metadata");
+        }
         Ok(())
     }
 
     pub fn command_id(&self) -> &CommandId {
         &self.descriptor.command_id
+    }
+
+    /// Returns the high-effect class that requires preview metadata, if any.
+    pub fn destructive_or_external_effect_class(&self) -> Option<&'static str> {
+        if matches!(
+            self.descriptor.capability_scope_class.as_str(),
+            "externally_visible_mutation"
+                | "credential_or_secret_bearing"
+                | "managed_workspace_control"
+                | "policy_authoring_or_waiver"
+        ) || matches!(
+            self.dominant_side_effect_class.as_str(),
+            "network_call" | "runs_process" | "remote_mutation" | "provider_visible_mutation"
+        ) {
+            return Some("external_effect");
+        }
+
+        if matches!(
+            self.descriptor.capability_scope_class.as_str(),
+            "recoverable_durable_mutation" | "irreversible_high_blast_mutation"
+        ) || self.dominant_side_effect_class == "writes_files"
+        {
+            return Some("destructive_or_durable_mutation");
+        }
+
+        None
+    }
+
+    /// Returns true when the descriptor itself forces preview or approval.
+    pub fn descriptor_requires_preview_or_approval(&self) -> bool {
+        self.descriptor.preview_class != NO_PREVIEW_REQUIRED
+            || self.descriptor.approval_posture_class != NO_APPROVAL_REQUIRED
+    }
+
+    /// Returns true when a high-effect command has preview metadata.
+    pub fn has_preview_or_gate_metadata(&self) -> bool {
+        self.descriptor_requires_preview_or_approval() || self.preview_gate_metadata.is_some()
     }
 
     /// Evaluates the enablement snapshot for this command entry.

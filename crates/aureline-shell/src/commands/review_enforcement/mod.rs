@@ -346,10 +346,15 @@ pub fn review_enforcement_row_for_entry(
     let command_id = entry.descriptor.command_id.as_str();
     let out_of_scope_reason = explicit_out_of_scope_reason(command_id).map(str::to_string);
     let descriptor_requires_review = descriptor_requires_review(entry);
-    let effect_requires_review = effect_requires_review(entry);
+    let high_effect_entry = entry.destructive_or_external_effect_class().is_some();
+    let metadata_backed_gate = entry.preview_gate_metadata.is_some();
     let review_requirement_class = if out_of_scope_reason.is_some() {
         "explicitly_out_of_scope"
-    } else if descriptor_requires_review || effect_requires_review {
+    } else if descriptor_requires_review {
+        "review_required"
+    } else if high_effect_entry && metadata_backed_gate {
+        "metadata_backed_review_lane"
+    } else if high_effect_entry {
         "review_required"
     } else {
         "direct_allowed"
@@ -359,7 +364,9 @@ pub fn review_enforcement_row_for_entry(
         "explicitly_out_of_scope"
     } else if descriptor_requires_review {
         "enforced"
-    } else if effect_requires_review {
+    } else if high_effect_entry && metadata_backed_gate {
+        "enforced"
+    } else if high_effect_entry {
         finding_codes.push("missing_review_path_for_destructive_or_external_effect".to_string());
         "gap_missing_review"
     } else {
@@ -394,7 +401,7 @@ pub fn review_enforcement_row_for_entry(
         enforcement_status: enforcement_status.to_string(),
         bypass_protection_class: bypass_protection_class_for_entry(entry, enforcement_status)
             .to_string(),
-        revert_posture_class: revert_posture_for_entry(entry).to_string(),
+        revert_posture_class: revert_posture_for_entry(entry),
         surface_families: surface_families_for_entry(entry),
         explicit_out_of_scope_reason: out_of_scope_reason,
         support_refs: support_refs_for_entry(entry),
@@ -533,50 +540,10 @@ fn descriptor_requires_review(entry: &CommandRegistryEntryRecord) -> bool {
         || entry.descriptor.approval_posture_class != NO_APPROVAL_REQUIRED
 }
 
-fn effect_requires_review(entry: &CommandRegistryEntryRecord) -> bool {
-    matches!(
-        entry.descriptor.capability_scope_class.as_str(),
-        "externally_visible_mutation"
-            | "irreversible_high_blast_mutation"
-            | "credential_or_secret_bearing"
-            | "managed_workspace_control"
-            | "policy_authoring_or_waiver"
-    ) || matches!(
-        entry.descriptor.preview_class.as_str(),
-        "destructive_bulk_mutation_preview"
-            | "irreversible_publish_preview"
-            | "externally_mutating_preview"
-            | "credential_or_secret_access_preview"
-            | "policy_authoring_or_waiver_preview"
-            | "managed_workspace_control_preview"
-            | "install_or_update_preview"
-            | "browser_handoff_preview"
-    )
-}
-
 fn effect_class_for_entry(entry: &CommandRegistryEntryRecord) -> &'static str {
-    if matches!(
-        entry.descriptor.capability_scope_class.as_str(),
-        "externally_visible_mutation"
-            | "credential_or_secret_bearing"
-            | "managed_workspace_control"
-            | "policy_authoring_or_waiver"
-    ) || matches!(
-        entry.dominant_side_effect_class.as_str(),
-        "network_call" | "runs_process" | "remote_mutation" | "provider_visible_mutation"
-    ) {
-        return "external_effect";
-    }
-
-    if matches!(
-        entry.descriptor.capability_scope_class.as_str(),
-        "recoverable_durable_mutation" | "irreversible_high_blast_mutation"
-    ) || entry.dominant_side_effect_class == "writes_files"
-    {
-        return "destructive_or_durable_mutation";
-    }
-
-    "direct_local_or_read"
+    entry
+        .destructive_or_external_effect_class()
+        .unwrap_or("direct_local_or_read")
 }
 
 fn lane_class_for_command(command_id: &str) -> &'static str {
@@ -622,6 +589,11 @@ fn bypass_protection_class_for_entry(
     enforcement_status: &str,
 ) -> &'static str {
     match enforcement_status {
+        "enforced"
+            if entry.preview_gate_metadata.is_some() && !descriptor_requires_review(entry) =>
+        {
+            "preview_gate_metadata_declared"
+        }
         "enforced" => "descriptor_preflight_all_declared_surfaces",
         "explicitly_out_of_scope" => "explicit_scope_exclusion_listed",
         "gap_missing_review" => "not_protected_gap_blocks_alpha",
@@ -632,7 +604,10 @@ fn bypass_protection_class_for_entry(
     }
 }
 
-fn revert_posture_for_entry(entry: &CommandRegistryEntryRecord) -> &'static str {
+fn revert_posture_for_entry(entry: &CommandRegistryEntryRecord) -> String {
+    if let Some(metadata) = entry.preview_gate_metadata.as_ref() {
+        return metadata.revert_posture_class.clone();
+    }
     match entry.descriptor.command_id.as_str() {
         "cmd:workspace.import_profile" | "cmd:workspace.restore_from_checkpoint" => {
             "restore_from_checkpoint"
@@ -645,6 +620,7 @@ fn revert_posture_for_entry(entry: &CommandRegistryEntryRecord) -> &'static str 
         _ if descriptor_requires_review(entry) => "review_packet_declares_recovery",
         _ => "not_applicable_no_reviewed_mutation",
     }
+    .to_string()
 }
 
 fn surface_families_for_entry(entry: &CommandRegistryEntryRecord) -> Vec<String> {
@@ -671,8 +647,13 @@ fn surface_families_for_entry(entry: &CommandRegistryEntryRecord) -> Vec<String>
 }
 
 fn support_refs_for_entry(entry: &CommandRegistryEntryRecord) -> Vec<String> {
-    vec![
+    let mut refs = vec![
         "artifacts/commands/command_registry_seed.yaml".to_string(),
         format!("command-registry-entry:{}", entry.registry_entry_id),
-    ]
+    ];
+    if let Some(metadata) = entry.preview_gate_metadata.as_ref() {
+        refs.push(format!("preview-gate:{}", metadata.gate_class));
+        refs.push(metadata.apply_guard_ref.clone());
+    }
+    refs
 }
