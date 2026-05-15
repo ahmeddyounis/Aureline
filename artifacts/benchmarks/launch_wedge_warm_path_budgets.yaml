@@ -1,0 +1,176 @@
+# Launch-wedge warm-path budget register.
+#
+# Machine-readable register of the warm-path performance budgets each
+# alpha launch wedge (TypeScript / JavaScript, Python) must hold on its
+# claimed reference workspace. Bench harness tests, journey-trace
+# captures, and release-evidence packets resolve budgets through this
+# file rather than restating the numbers locally.
+#
+# Source of truth for the numeric values:
+#   .t2/docs/Aureline_Milestones_Document.md §7.1 "Product-level
+#   performance targets" and its "Warm-path budget allocation" table.
+#
+# This register projects the §7.1 "Typical project (10k-100k files)"
+# column onto the alpha wedge reference workspaces, since both wedge
+# archetypes (ts_web_app_or_service, python_service_or_data_app) live
+# in that scale class. If §7.1 ever disagrees with this file the
+# milestones document wins and this file is updated in the same change.
+#
+# A run that breaches a budget is a regression by default. The only
+# way a breach may publish as non-blocking is via a current row in
+# artifacts/milestones/m2/known_limits_alpha.yaml. The known-limits
+# id is cited per-row under `known_limit_refs`.
+#
+# Planning / milestone slugs MUST NOT appear in any id, path, or tag.
+
+schema_version: 1
+register_id: aureline.launch_wedge_warm_path_budgets
+register_revision: 1
+status: seeded
+
+source_documents:
+  - ref: .t2/docs/Aureline_Milestones_Document.md
+    section: §7.1 Product-level performance targets
+    note: Numeric warm-path budgets and warm-path budget allocation table.
+
+source_register_refs:
+  fixture_register: artifacts/benchmarks/m2_fixture_register.yaml
+  warm_path_budget_ledger: artifacts/perf/warm_path_budget_ledger.yaml
+  latency_budget_ledger: artifacts/perf/latency_budget_ledger.yaml
+  known_limits: artifacts/milestones/m2/known_limits_alpha.yaml
+
+# -----------------------------------------------------------------------------
+# Wedges in scope.
+#
+# Each entry binds a wedge ref from the alpha wedge matrix to the
+# reference workspace whose measurements the budgets apply to.
+# -----------------------------------------------------------------------------
+wedges:
+  - wedge_id: typescript_javascript
+    wedge_ref: alpha_wedge:typescript_javascript
+    reference_workspace_id: refws.ts_web_app_archetype_seed
+    project_class: typical
+    fixture_register_row_ref: fixture_register:external_alpha.ts_web_app_reference
+
+  - wedge_id: python
+    wedge_ref: alpha_wedge:python
+    reference_workspace_id: refws.python_data_app_archetype_seed
+    project_class: typical
+    fixture_register_row_ref: fixture_register:external_alpha.python_service_data_reference
+
+# -----------------------------------------------------------------------------
+# Metrics covered.
+#
+# Each metric_id lifts a row from §7.1 onto every wedge. The unit is
+# always milliseconds; the threshold is the release bar for the
+# claimed project class. Provisional rows whose harness lane is not
+# yet emitting traces are flagged `measurement_state: pending_capture`
+# so a budget gate cannot silently pass on absent data.
+# -----------------------------------------------------------------------------
+metrics:
+  - metric_id: cold_startup_ms
+    label: Cold startup to usable shell
+    budget_ms: 2000
+    source_row: "§7.1 Cold startup, Typical project"
+
+  - metric_id: warm_startup_ms
+    label: Warm startup
+    budget_ms: 700
+    source_row: "§7.1 Warm startup, Typical project"
+
+  - metric_id: time_to_interactive_ms
+    label: Time to interactive
+    budget_ms: 1500
+    source_row: "§7.1 Time to interactive, Typical project"
+
+  - metric_id: warm_first_paint_ms
+    label: Warm first paint
+    budget_ms: 200
+    source_row: "§7.1 Warm first paint, Typical project"
+
+  - metric_id: file_open_1mb_ms
+    label: File open (1 MB text)
+    budget_ms: 70
+    source_row: "§7.1 File open (1 MB text), Typical project"
+
+  - metric_id: warm_file_switch_ms
+    label: Warm file switch
+    budget_ms: 30
+    source_row: "§7.1 Warm file switch, Typical project"
+
+  - metric_id: keystroke_to_screen_p95_ms
+    label: Keystroke-to-screen p95
+    budget_ms: 10
+    source_row: "§7.1 Keystroke-to-screen p95, Typical project"
+
+  - metric_id: scroll_latency_p95_ms
+    label: Scroll latency p95
+    budget_ms: 10
+    source_row: "§7.1 Scroll latency p95, Typical project"
+
+  - metric_id: hot_set_indexing_ms
+    label: Hot-set indexing
+    budget_ms: 5000
+    source_row: "§7.1 Hot-set indexing, Typical project"
+
+  - metric_id: search_first_results_ms
+    label: Search first results (indexed)
+    budget_ms: 150
+    source_row: "§7.1 Search first results, Typical project"
+
+  - metric_id: git_status_refresh_ms
+    label: Git status refresh
+    budget_ms: 500
+    source_row: "§7.1 Git status refresh, Typical project"
+
+  - metric_id: median_extension_activation_ms
+    label: Median extension activation
+    budget_ms: 50
+    source_row: "§7.1 Median extension activation, Typical project"
+
+# -----------------------------------------------------------------------------
+# Verification rules.
+#
+# These tell a gate how to interpret a measurement row against the
+# budgets above. The bench harness test enforces these rules; they
+# are surfaced here so review packets quote the same wording.
+# -----------------------------------------------------------------------------
+verification_rules:
+  - rule_id: measurement_must_resolve_to_budget_row
+    summary: >
+      Every measurement record MUST cite a `wedge_id` listed under
+      `wedges` and a `metric_id` listed under `metrics`. Rows that
+      do not resolve are reported as schema breaches, not budget
+      passes.
+
+  - rule_id: breach_without_known_limit_is_regression
+    summary: >
+      A `measured_ms` value strictly greater than the bound
+      `budget_ms` is a regression unless the row cites an active
+      `known_limit_refs` entry in
+      artifacts/milestones/m2/known_limits_alpha.yaml.
+
+  - rule_id: pending_capture_is_not_pass
+    summary: >
+      A row with `measurement_state: pending_capture` MUST be
+      reported as `not_measured`, never as green, and MAY NOT be
+      relied upon to clear a release gate.
+
+# -----------------------------------------------------------------------------
+# Acceptance state coverage.
+#
+# Names the gate cases the bench harness tests enforce so reviewers
+# can map test failures back to register state.
+# -----------------------------------------------------------------------------
+acceptance_state_coverage:
+  - case_id: warm_path_fixture_within_budget_passes
+    exercises_state: fixture_within_budget_passes_gate
+    expected_validator_result: pass
+
+  - case_id: warm_path_fixture_over_budget_fails
+    exercises_state: fixture_exceeding_warm_path_budget_fails_gate
+    expected_validator_result: fail
+
+  - case_id: known_limit_breach_is_not_regression
+    exercises_state: breach_with_active_known_limit_is_disclosed_not_failed
+    expected_validator_result: pass_with_known_limit
