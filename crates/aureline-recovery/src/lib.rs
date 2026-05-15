@@ -14,4 +14,5 @@
 #![doc(html_root_url = "https://docs.rs/aureline-recovery/0.0.0")]
 
 pub mod crash_journal;
+pub mod failover_alpha;
 pub mod session_restore;

@@ -27,6 +27,76 @@ pub const RECOVERY_LADDER_RELEASE_PACKET_RECORD_KIND: &str = "recovery_ladder_re
 /// Current schema version for recovery-ladder alpha records.
 pub const RECOVERY_LADDER_ALPHA_SCHEMA_VERSION: u32 = 1;
 
+/// Managed-service outage class used by continuity and failover surfaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OutageClass {
+    /// Local editing and recovery continue while optional service lanes degrade.
+    LocalCoreContinuity,
+    /// Identity, policy, tenancy, catalog, quota, or orchestration authority is impaired.
+    ControlPlaneImpairment,
+    /// Runtime traffic, attach streams, artifact transfer, or live IO is impaired.
+    DataPlaneImpairment,
+    /// The target workspace, device, remote agent, or authority identity is missing or untrusted.
+    FullTargetLoss,
+}
+
+impl OutageClass {
+    /// All outage classes in the protected backup, restore, and failover taxonomy.
+    pub const ALL: [Self; 4] = [
+        Self::LocalCoreContinuity,
+        Self::ControlPlaneImpairment,
+        Self::DataPlaneImpairment,
+        Self::FullTargetLoss,
+    ];
+
+    /// Returns the primary plane associated with this outage class.
+    pub const fn primary_plane_class(self) -> OutagePlaneClass {
+        match self {
+            Self::LocalCoreContinuity => OutagePlaneClass::LocalCore,
+            Self::ControlPlaneImpairment => OutagePlaneClass::ControlPlane,
+            Self::DataPlaneImpairment => OutagePlaneClass::DataPlane,
+            Self::FullTargetLoss => OutagePlaneClass::TargetAuthority,
+        }
+    }
+
+    /// Returns the stable fixture token for this outage class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalCoreContinuity => "local_core_continuity",
+            Self::ControlPlaneImpairment => "control_plane_impairment",
+            Self::DataPlaneImpairment => "data_plane_impairment",
+            Self::FullTargetLoss => "full_target_loss",
+        }
+    }
+}
+
+/// Primary plane affected by a managed-service or recovery outage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OutagePlaneClass {
+    /// Local shell, editor, search, Git, export, and diagnostics baseline.
+    LocalCore,
+    /// Identity, policy, catalog, tenancy, quota, and orchestration authority.
+    ControlPlane,
+    /// Interactive traffic, artifact transfer, prompt streams, presence, and remote attach IO.
+    DataPlane,
+    /// The workspace, device, mounted filesystem, remote agent, or route target identity.
+    TargetAuthority,
+}
+
+impl OutagePlaneClass {
+    /// Returns the stable fixture token for this plane class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalCore => "local_core",
+            Self::ControlPlane => "control_plane",
+            Self::DataPlane => "data_plane",
+            Self::TargetAuthority => "target_authority",
+        }
+    }
+}
+
 /// Loads a recovery-ladder alpha scenario from YAML text.
 ///
 /// # Errors

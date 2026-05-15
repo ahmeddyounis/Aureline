@@ -4,11 +4,11 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_support::recovery_ladder::{
-    load_alpha_scenario, FullerModeClass, QuarantineReleaseVisibilityClass, RecoveryActionClass,
-    RecoveryLadderAlpha, RecoveryLadderScenario, RecoveryLadderStateClass, RecoveryRungClass,
-    RecoveryStateClass, RecoveryTargetKind, RecoveryVisibleStateClass,
-    RECOVERY_LADDER_DECISION_RECORD_KIND, RECOVERY_LADDER_RELEASE_PACKET_RECORD_KIND,
-    RECOVERY_LADDER_SUPPORT_PACKET_RECORD_KIND,
+    load_alpha_scenario, FullerModeClass, OutageClass, OutagePlaneClass,
+    QuarantineReleaseVisibilityClass, RecoveryActionClass, RecoveryLadderAlpha,
+    RecoveryLadderScenario, RecoveryLadderStateClass, RecoveryRungClass, RecoveryStateClass,
+    RecoveryTargetKind, RecoveryVisibleStateClass, RECOVERY_LADDER_DECISION_RECORD_KIND,
+    RECOVERY_LADDER_RELEASE_PACKET_RECORD_KIND, RECOVERY_LADDER_SUPPORT_PACKET_RECORD_KIND,
 };
 use serde::Deserialize;
 
@@ -277,4 +277,27 @@ fn expired_or_anonymous_quarantine_blocks_evaluation() {
     assert!(check_ids.contains("recovery_ladder.quarantine_owner_missing"));
     assert!(check_ids.contains("recovery_ladder.quarantine_expired"));
     assert!(check_ids.contains("recovery_ladder.doctor_finding_ref_missing"));
+}
+
+#[test]
+fn outage_taxonomy_enums_round_trip_fixture_tokens() {
+    let control: OutageClass =
+        serde_yaml::from_str("control_plane_impairment").expect("class token parses");
+    let data: OutageClass = serde_yaml::from_str("data_plane_impairment").expect("class parses");
+    let target: OutageClass = serde_yaml::from_str("full_target_loss").expect("class parses");
+
+    assert_eq!(
+        control.primary_plane_class(),
+        OutagePlaneClass::ControlPlane
+    );
+    assert_eq!(data.primary_plane_class(), OutagePlaneClass::DataPlane);
+    assert_eq!(
+        target.primary_plane_class(),
+        OutagePlaneClass::TargetAuthority
+    );
+    assert_eq!(
+        OutageClass::LocalCoreContinuity.as_str(),
+        "local_core_continuity"
+    );
+    assert_eq!(OutagePlaneClass::DataPlane.as_str(), "data_plane");
 }
