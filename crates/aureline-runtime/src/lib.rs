@@ -25,6 +25,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-runtime/0.0.0")]
 
+pub mod capsule_resolver;
 pub mod detectors;
 pub mod discovery;
 pub mod execution_context;
@@ -38,6 +39,12 @@ pub mod tasks;
 pub mod tests;
 pub mod trace_replay_alpha;
 
+pub use capsule_resolver::{
+    EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,
+    EnvironmentCapsuleResolverConfig, PrebuildFingerprintStub, ProjectArchetypeHint,
+    ENVIRONMENT_CAPSULE_RESOLUTION_RECORD_KIND, ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION,
+    ENVIRONMENT_CAPSULE_RESOLVER_VERSION, PREBUILD_FINGERPRINT_STUB_RECORD_KIND,
+};
 pub use detectors::node::{
     NodePackageManagerKind, NodePackageManagerRequirement, NodePackageManagerResolution,
     NodeRuntimeResolution, NodeToolchainAmbiguity, NodeToolchainDetection, NodeToolchainDetector,
