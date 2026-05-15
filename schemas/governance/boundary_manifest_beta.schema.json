@@ -1,0 +1,526 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/boundary_manifest_beta.schema.json",
+  "title": "Beta managed-boundary and offboarding manifest",
+  "description": "Beta-scope boundary manifest that joins open/local, mirrored, self-hosted, managed, and paid/seat-bound rows under one vocabulary. Each row carries explicit org-switch behavior, grace-window posture, seat-quota state, and offboarding/export semantics so docs/help, admin, CLI/headless, support-export, and release-evidence surfaces consume one source of truth before labelling a beta capability as local-only, mirrored, managed, self-hosted, or paid/seat-bound. Adding a new boundary_class, deployment_profile, entitlement_state, seat_quota_state, org_switch_behavior, grace_window_class, offboarding_phase, or consumer_surface value is additive-minor and bumps schema_version; repurposing an existing value is breaking and opens a decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "as_of",
+    "owner_dri",
+    "schema_ref",
+    "status",
+    "source_contract_refs",
+    "consumer_bindings",
+    "boundary_class_vocabulary",
+    "deployment_profile_vocabulary",
+    "entitlement_state_vocabulary",
+    "seat_quota_state_vocabulary",
+    "org_switch_behavior_vocabulary",
+    "grace_window_class_vocabulary",
+    "offboarding_phase_vocabulary",
+    "export_packet_class_vocabulary",
+    "claim_state_vocabulary",
+    "rows"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_id": {
+      "type": "string",
+      "pattern": "^boundary_manifest\\.[a-z0-9_]+$"
+    },
+    "as_of": { "type": "string", "format": "date" },
+    "owner_dri": { "type": "string", "pattern": "^@.+" },
+    "backup_owner": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^@.+" }
+      ]
+    },
+    "backup_waiver": { "type": "string", "minLength": 1 },
+    "schema_ref": {
+      "type": "string",
+      "const": "schemas/governance/boundary_manifest_beta.schema.json"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["seeded", "draft", "ratified"],
+      "description": "Lifecycle state of this manifest instance. Beta manifests land as 'seeded' or 'draft'; ratification follows a decision row, not deletion of rows."
+    },
+    "release_channel_scope": { "type": "string", "const": "beta" },
+    "milestone_id": { "type": "string", "const": "m3" },
+
+    "source_contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claimed_surface_register_ref",
+        "cohort_guardrails_ref",
+        "alpha_boundary_manifest_ref",
+        "open_paid_boundary_rows_ref",
+        "usage_offboarding_contract_ref",
+        "boundary_strawman_ref"
+      ],
+      "properties": {
+        "claimed_surface_register_ref": { "type": "string", "minLength": 1 },
+        "cohort_guardrails_ref": { "type": "string", "minLength": 1 },
+        "alpha_boundary_manifest_ref": { "type": "string", "minLength": 1 },
+        "open_paid_boundary_rows_ref": { "type": "string", "minLength": 1 },
+        "usage_offboarding_contract_ref": { "type": "string", "minLength": 1 },
+        "boundary_strawman_ref": { "type": "string", "minLength": 1 },
+        "release_doc_ref": { "type": "string", "minLength": 1 },
+        "claim_manifest_ref": { "type": "string", "minLength": 1 },
+        "additional_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+
+    "consumer_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["first_consumer", "consumer_surfaces"],
+      "properties": {
+        "first_consumer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["consumer_id", "consumer_kind", "consumer_ref", "render_command"],
+          "properties": {
+            "consumer_id": { "type": "string", "minLength": 1 },
+            "consumer_kind": {
+              "type": "string",
+              "enum": [
+                "ci_validator",
+                "cli_support_export_projection",
+                "docs_help_projection",
+                "admin_projection",
+                "release_packet"
+              ]
+            },
+            "consumer_ref": { "type": "string", "minLength": 1 },
+            "render_command": { "type": "string", "minLength": 1 }
+          }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["docs_help", "admin", "support_export", "cli", "release_evidence"]
+          }
+        }
+      }
+    },
+
+    "boundary_class_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Closed beta boundary-class vocabulary. local_only: works with no account, no managed control plane, no seat. mirrored: reachable via a signed mirror or offline bundle when the live service is denied. self_hosted: hosted-on-customer-infra alternative to a managed service. managed: vendor-hosted convenience layered on a self-hostable protocol or workflow. paid_seat_bound: managed surface that is gated by a seat or paid entitlement and is denied when the seat is revoked. explicitly_out_of_scope: reserved row preventing implicit beta drift.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "local_only",
+          "mirrored",
+          "self_hosted",
+          "managed",
+          "paid_seat_bound",
+          "explicitly_out_of_scope"
+        ]
+      }
+    },
+
+    "deployment_profile_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Deployment-profile ids the manifest is allowed to cite. MUST match artifacts/governance/deployment_profiles.yaml#deployment_profile_vocabulary verbatim.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "individual_local",
+          "self_hosted",
+          "enterprise_online",
+          "air_gapped",
+          "managed_cloud"
+        ]
+      }
+    },
+
+    "entitlement_state_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "active",
+          "signed_out",
+          "grace",
+          "restricted_managed_only",
+          "offboarded"
+        ]
+      }
+    },
+
+    "seat_quota_state_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "not_applicable",
+          "seat_active",
+          "seat_unassigned",
+          "seat_revoked",
+          "quota_within_window",
+          "quota_grace",
+          "quota_exhausted"
+        ]
+      }
+    },
+
+    "org_switch_behavior_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "not_applicable",
+          "preserves_local_state",
+          "scopes_to_new_org",
+          "denies_until_resolved",
+          "requires_admin_handoff"
+        ]
+      }
+    },
+
+    "grace_window_class_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "not_applicable",
+          "short_lived",
+          "policy_pinned",
+          "audit_only",
+          "denied_for_beta"
+        ]
+      }
+    },
+
+    "offboarding_phase_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "not_applicable",
+          "announce",
+          "freeze_writes",
+          "export_available",
+          "managed_access_end",
+          "destruction_receipt_issued"
+        ]
+      }
+    },
+
+    "export_packet_class_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "not_applicable",
+          "local_support_bundle",
+          "managed_usage_export",
+          "entitlement_snapshot",
+          "destruction_receipt"
+        ]
+      }
+    },
+
+    "claim_state_vocabulary": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "beta_claim",
+          "preview_claim",
+          "held_for_later",
+          "explicitly_out_of_scope"
+        ]
+      }
+    },
+
+    "required_boundary_class_coverage": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "local_only",
+          "mirrored",
+          "self_hosted",
+          "managed",
+          "paid_seat_bound"
+        ]
+      },
+      "description": "Boundary classes the beta manifest MUST seed at least one row for. The validator fails closed when a required class has no row."
+    },
+
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/boundary_row" }
+    },
+
+    "notes": { "type": "string" }
+  },
+
+  "$defs": {
+    "boundary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "title",
+        "summary",
+        "boundary_class",
+        "claim_state",
+        "deployment_profiles",
+        "local_core_continuity",
+        "org_switch_behavior",
+        "grace_window",
+        "seat_quota",
+        "offboarding",
+        "evidence_refs",
+        "linked_evidence_class"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^beta_boundary_row:[a-z0-9_.]+$",
+          "description": "Stable row id namespaced under 'beta_boundary_row:'."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "boundary_class": {
+          "type": "string",
+          "enum": [
+            "local_only",
+            "mirrored",
+            "self_hosted",
+            "managed",
+            "paid_seat_bound",
+            "explicitly_out_of_scope"
+          ]
+        },
+        "claim_state": {
+          "type": "string",
+          "enum": [
+            "beta_claim",
+            "preview_claim",
+            "held_for_later",
+            "explicitly_out_of_scope"
+          ]
+        },
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "individual_local",
+              "self_hosted",
+              "enterprise_online",
+              "air_gapped",
+              "managed_cloud"
+            ]
+          }
+        },
+        "alpha_capability_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Optional links into capability rows in the alpha boundary manifest so the beta row resolves to a continuing alpha contract."
+        },
+        "local_core_continuity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Statement of what still works locally when every managed/paid service this row touches is absent, revoked, or offboarded. Required for every row, including paid_seat_bound rows, so absence narrows a claim rather than silently failing."
+        },
+        "org_switch_behavior": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["behavior_class", "summary"],
+          "properties": {
+            "behavior_class": {
+              "type": "string",
+              "enum": [
+                "not_applicable",
+                "preserves_local_state",
+                "scopes_to_new_org",
+                "denies_until_resolved",
+                "requires_admin_handoff"
+              ]
+            },
+            "summary": { "type": "string", "minLength": 1 },
+            "local_state_preserved": { "type": "boolean" }
+          }
+        },
+        "grace_window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["window_class", "summary"],
+          "properties": {
+            "window_class": {
+              "type": "string",
+              "enum": [
+                "not_applicable",
+                "short_lived",
+                "policy_pinned",
+                "audit_only",
+                "denied_for_beta"
+              ]
+            },
+            "duration_iso8601": {
+              "oneOf": [
+                { "type": "null" },
+                { "type": "string", "pattern": "^P([0-9]+D|T[0-9]+H)$" }
+              ]
+            },
+            "summary": { "type": "string", "minLength": 1 }
+          }
+        },
+        "seat_quota": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["quota_state", "states_observed", "summary"],
+          "properties": {
+            "quota_state": {
+              "type": "string",
+              "enum": [
+                "not_applicable",
+                "seat_active",
+                "seat_unassigned",
+                "seat_revoked",
+                "quota_within_window",
+                "quota_grace",
+                "quota_exhausted"
+              ]
+            },
+            "states_observed": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "not_applicable",
+                  "seat_active",
+                  "seat_unassigned",
+                  "seat_revoked",
+                  "quota_within_window",
+                  "quota_grace",
+                  "quota_exhausted"
+                ]
+              }
+            },
+            "meter_refs": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "summary": { "type": "string", "minLength": 1 }
+          }
+        },
+        "offboarding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["phases_observed", "export_packet_class", "summary"],
+          "properties": {
+            "phases_observed": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "not_applicable",
+                  "announce",
+                  "freeze_writes",
+                  "export_available",
+                  "managed_access_end",
+                  "destruction_receipt_issued"
+                ]
+              }
+            },
+            "export_packet_class": {
+              "type": "string",
+              "enum": [
+                "not_applicable",
+                "local_support_bundle",
+                "managed_usage_export",
+                "entitlement_snapshot",
+                "destruction_receipt"
+              ]
+            },
+            "destruction_receipt_required": { "type": "boolean" },
+            "summary": { "type": "string", "minLength": 1 }
+          }
+        },
+        "absence_narrows_to": {
+          "type": "string",
+          "description": "Optional narrowed claim the row carries when its managed/paid dependencies are absent. Required when boundary_class is managed or paid_seat_bound.",
+          "minLength": 1
+        },
+        "linked_evidence_class": {
+          "type": "string",
+          "enum": [
+            "alpha_seed",
+            "beta_partner_packet",
+            "beta_drill",
+            "policy_decision",
+            "out_of_scope_reserved"
+          ],
+          "description": "Class of the evidence the row leans on. paid_seat_bound and managed rows MUST link beta-class evidence, not just an alpha seed."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Evidence references that back the row. Every managed or paid_seat_bound row MUST cite at least one beta-era packet."
+        },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "boundary_class": { "enum": ["managed", "paid_seat_bound"] }
+            }
+          },
+          "then": {
+            "required": ["absence_narrows_to"]
+          }
+        }
+      ]
+    }
+  }
+}

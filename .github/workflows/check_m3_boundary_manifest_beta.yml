@@ -1,0 +1,65 @@
+# M3 beta managed-boundary and offboarding manifest gate.
+#
+# Validates the boundary manifest, the release doc, and the schema
+# together, and refreshes the checked-in validation capture so
+# downstream surfaces consume one source of truth without re-parsing
+# prose.
+
+name: check_m3_boundary_manifest_beta
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m3_boundary_manifest_beta.yml"
+      - "ci/check_m3_boundary_manifest_beta.py"
+      - "artifacts/milestones/m3/boundary_manifest_beta.yaml"
+      - "docs/release/m3/managed_boundary_beta.md"
+      - "schemas/governance/boundary_manifest_beta.schema.json"
+      - "artifacts/milestones/m3/captures/boundary_manifest_beta_validation_capture.json"
+      - "artifacts/governance/boundary_manifest_alpha.yaml"
+      - "artifacts/milestones/m3/claimed_surface_register.json"
+      - "artifacts/milestones/m3/cohort_guardrails.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m3-boundary-manifest-beta-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  boundary_manifest_beta:
+    name: M3 beta managed-boundary manifest
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run M3 boundary manifest beta validator
+        run: |
+          python3 ci/check_m3_boundary_manifest_beta.py --repo-root . --check
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-boundary-manifest-beta-${{ github.run_id }}
+          path: artifacts/milestones/m3/captures/boundary_manifest_beta_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
