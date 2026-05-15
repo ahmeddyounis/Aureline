@@ -63,6 +63,7 @@ pub mod layout;
 pub mod learning_tour_alpha;
 pub mod managed_truth;
 pub mod managed_workspace_labels;
+pub mod migration_wizard;
 pub mod notebook_alpha;
 pub mod notebook_trust_badges;
 pub mod notifications;

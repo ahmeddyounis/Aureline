@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/artifacts/migration/m3/mapping_report.schema.json",
+  "title": "Aureline M3 migration wizard mapping report contract",
+  "description": "Boundary schema for shell_migration_wizard_beta_mapping_report_record. The record is the retained mapping report produced by the M3 migration wizard. It carries every imported item classified as Exact, Translated, Partial, Shimmed, or Unsupported plus the rollback checkpoint ref and the reopen links that keep the report visible after first run. The schema composes with docs/migration/first_run_import_diff_and_rollback_contract.md, docs/migration/m3/migration_wizard_beta.md, and schemas/migration/import_rollback_checkpoint.schema.json. Raw profile bodies, raw absolute paths, raw credentials, and raw support payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/shell_migration_wizard_beta_mapping_report_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, persist, or export."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "import_mapping_classification": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "translated",
+        "partial",
+        "shimmed",
+        "unsupported"
+      ]
+    },
+    "import_review_domain": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "shortcuts",
+        "keymaps",
+        "themes_and_visuals",
+        "snippets_and_templates",
+        "tasks_and_run_configs",
+        "launch_debug",
+        "extensions_and_providers",
+        "workspace_profile"
+      ]
+    },
+    "reopen_surface": {
+      "type": "string",
+      "enum": ["settings", "help", "support_export"]
+    },
+    "source_classification": {
+      "type": "string",
+      "enum": [
+        "vscode_workspace_root",
+        "jetbrains_idea_root",
+        "unknown_config_root"
+      ]
+    },
+    "descriptors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_classification",
+        "source_descriptor",
+        "target_descriptor",
+        "source_ecosystem_id"
+      ],
+      "properties": {
+        "source_classification": { "$ref": "#/$defs/source_classification" },
+        "source_descriptor": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_descriptor": { "$ref": "#/$defs/redaction_aware_text" },
+        "source_ecosystem_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "mapping_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "domain",
+        "classification",
+        "source_item_ref",
+        "source_label",
+        "target_label",
+        "before_value_label",
+        "after_value_label",
+        "rollback_checkpoint_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "retained_after_apply"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_migration_wizard_beta_mapping_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "domain": { "$ref": "#/$defs/import_review_domain" },
+        "classification": { "$ref": "#/$defs/import_mapping_classification" },
+        "source_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_item_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "target_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "before_value_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "after_value_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "lossy_or_unsupported_note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "retained_after_apply": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "classification": {
+                "enum": ["partial", "shimmed", "unsupported"]
+              }
+            },
+            "required": ["classification"]
+          },
+          "then": {
+            "required": ["lossy_or_unsupported_note"],
+            "properties": {
+              "lossy_or_unsupported_note": { "$ref": "#/$defs/redaction_aware_text" },
+              "support_export_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "classification": { "const": "unsupported" }
+            },
+            "required": ["classification"]
+          },
+          "then": {
+            "properties": {
+              "target_item_ref": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "unsupported_gap_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "gap_id",
+        "domain",
+        "classification",
+        "source_label",
+        "gap_summary",
+        "visible_before_apply",
+        "retained_after_apply",
+        "docs_help_refs",
+        "support_export_refs"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_migration_wizard_beta_unsupported_gap_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "gap_id": { "$ref": "#/$defs/opaque_id" },
+        "domain": { "$ref": "#/$defs/import_review_domain" },
+        "classification": {
+          "type": "string",
+          "enum": ["shimmed", "unsupported"]
+        },
+        "source_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "gap_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "visible_before_apply": { "type": "boolean", "const": true },
+        "retained_after_apply": { "type": "boolean", "const": true },
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "classification_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact", "translated", "partial", "shimmed", "unsupported"],
+      "properties": {
+        "exact": { "type": "integer", "minimum": 0 },
+        "translated": { "type": "integer", "minimum": 0 },
+        "partial": { "type": "integer", "minimum": 0 },
+        "shimmed": { "type": "integer", "minimum": 0 },
+        "unsupported": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reopen_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "action_ref",
+        "migration_report_ref",
+        "shortcut_delta_report_ref",
+        "label"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/reopen_surface" },
+        "action_ref": { "$ref": "#/$defs/opaque_id" },
+        "migration_report_ref": { "$ref": "#/$defs/opaque_id" },
+        "shortcut_delta_report_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "shell_migration_wizard_beta_mapping_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "mapping_report_id",
+        "migration_session_ref",
+        "descriptors",
+        "rows",
+        "classification_summary",
+        "classifications_present",
+        "unsupported_gaps",
+        "rollback_checkpoint_ref",
+        "shortcut_delta_report_ref",
+        "retained_after_first_run",
+        "reopen_links",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_migration_wizard_beta_mapping_report_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": {
+          "type": "string",
+          "const": "shell:migration_wizard_beta:v1"
+        },
+        "mapping_report_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "descriptors": { "$ref": "#/$defs/descriptors" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/mapping_row" }
+        },
+        "classification_summary": { "$ref": "#/$defs/classification_summary" },
+        "classifications_present": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/import_mapping_classification" }
+        },
+        "unsupported_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_gap_row" }
+        },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "shortcut_delta_report_ref": { "$ref": "#/$defs/opaque_id" },
+        "retained_after_first_run": { "type": "boolean", "const": true },
+        "reopen_links": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/reopen_link" }
+        },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
