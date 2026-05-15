@@ -15,6 +15,16 @@ Machine-readable companions:
   — seed packet carrying canonical claim rows for boundary truth,
   exact-build identity, benchmark publication, docs freshness,
   version-skew truth, and one launch-wedge/certified-archetype family.
+- [`/artifacts/release/m3/claim_manifest.json`](../../artifacts/release/m3/claim_manifest.json)
+  and
+  [`/artifacts/release/m3/claim_manifest.md`](../../artifacts/release/m3/claim_manifest.md)
+  — M3 governed claim manifest generated from the matrix at
+  [`/artifacts/release/m3/claim_manifest_matrix.yaml`](../../artifacts/release/m3/claim_manifest_matrix.yaml)
+  by [`/ci/check_m3_claim_manifest.py`](../../ci/check_m3_claim_manifest.py).
+  The generator binds every claimed beta row, archetype, and canonical
+  claim family to support class, lifecycle state, freshness badge, and
+  provenance label so docs, Help/About, service health, support exports,
+  and release packets read one row shape.
 - [`/artifacts/governance/public_truth_parity_matrix.yaml`](../../artifacts/governance/public_truth_parity_matrix.yaml)
   — channel propagation matrix for docs, migration notes, Help/About,
   service health, support export, release packets, release notes,
