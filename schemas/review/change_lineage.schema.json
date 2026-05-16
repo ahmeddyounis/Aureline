@@ -1,0 +1,529 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/change_lineage.schema.json",
+  "title": "Aureline change-lineage alpha record (landing-state inspector view)",
+  "description": "Boundary schema for the alpha change-lineage family frozen in docs/ux/m3/change_lineage_alpha.md. A change-lineage record is the review-time projection of one underlying change-object record (validated by schemas/workspace/change_object.schema.json). It binds the change-object id, re-projects its target identity and ancestry, and adds the conflict-state and publish-readiness truth the landing-state inspector renders before a user mutates the underlying branch, worktree, or patch stack. Raw paths, raw credentials, raw URLs, raw notebook outputs, and raw diff bodies never cross this boundary; the record carries opaque refs, closed-vocabulary tokens, and short reviewable sentences only. Adding a new closed vocabulary value is additive-minor and bumps schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "$ref": "#/$defs/change_lineage_alpha_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe in support bundles, and safe on RPC. Raw paths, raw URLs, raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "change_object_kind": {
+      "type": "string",
+      "enum": ["branch", "worktree", "patch_stack"]
+    },
+    "active_scope_class": {
+      "type": "string",
+      "enum": [
+        "main_worktree",
+        "side_worktree",
+        "stacked_patch_set",
+        "detached_inspection",
+        "active_scope_unknown_requires_review"
+      ]
+    },
+    "landing_state_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_remote_yet",
+        "pending_publish_to_remote",
+        "pending_merge_into_base",
+        "pending_patch_apply",
+        "landed_locally_only",
+        "landed_publicly",
+        "degraded_unknown_target_requires_review"
+      ]
+    },
+    "landing_action_class": {
+      "type": "string",
+      "enum": [
+        "publish",
+        "merge",
+        "apply",
+        "inspect_only",
+        "action_class_unknown_requires_review"
+      ]
+    },
+    "mutation_authority_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "provider_bound",
+        "managed_workspace_bound",
+        "mirror_cached",
+        "mutation_authority_unknown_requires_review"
+      ]
+    },
+    "remote_visibility_class": {
+      "type": "string",
+      "enum": [
+        "no_remote_attached",
+        "remote_attached_private",
+        "remote_attached_team",
+        "remote_attached_public",
+        "remote_visibility_unknown_requires_review"
+      ]
+    },
+    "network_egress_class": {
+      "type": "string",
+      "enum": [
+        "no_network_egress_required",
+        "first_party_origin_only",
+        "team_managed_mirror_only",
+        "provider_bound_origin_required",
+        "managed_workspace_envelope_only",
+        "egress_envelope_unknown_requires_review"
+      ]
+    },
+    "divergence_class": {
+      "type": "string",
+      "enum": [
+        "even_with_base",
+        "ahead_of_base",
+        "behind_base",
+        "ahead_and_behind",
+        "no_base_bound",
+        "divergence_unknown_requires_review"
+      ]
+    },
+    "conflict_state_class": {
+      "type": "string",
+      "enum": [
+        "no_conflicts_detected",
+        "merge_conflicts_pending_review",
+        "rebase_conflicts_pending_review",
+        "apply_conflicts_pending_review",
+        "upstream_diverged_requires_rebase",
+        "conflict_state_unknown_requires_review"
+      ]
+    },
+    "publish_readiness_class": {
+      "type": "string",
+      "enum": [
+        "ready_to_publish",
+        "ready_to_merge",
+        "ready_to_apply",
+        "blocked_by_conflicts",
+        "blocked_by_review_required",
+        "blocked_by_authority",
+        "not_applicable_inspect_only",
+        "readiness_unknown_requires_review"
+      ]
+    },
+    "readiness_blocker_class": {
+      "type": "string",
+      "enum": [
+        "conflict_resolution_required",
+        "rebase_required",
+        "review_approval_required",
+        "authority_widening_required",
+        "remote_visibility_widening_required",
+        "policy_review_required",
+        "no_blockers",
+        "blocker_class_unknown_requires_review"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "change_inspector",
+        "change_object_inspector",
+        "activity_center",
+        "review_preview",
+        "cli_headless_entry",
+        "support_export",
+        "docs_review"
+      ]
+    },
+    "ancestor_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ancestor_ref", "ancestor_kind"],
+      "properties": {
+        "ancestor_ref": { "$ref": "#/$defs/opaque_id" },
+        "ancestor_kind": { "$ref": "#/$defs/non_empty_string" },
+        "ancestor_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "ancestry_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_ref",
+        "base_kind",
+        "divergence_class",
+        "ancestor_chain"
+      ],
+      "properties": {
+        "base_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_kind": { "$ref": "#/$defs/non_empty_string" },
+        "divergence_class": { "$ref": "#/$defs/divergence_class" },
+        "commits_ahead": { "type": "integer", "minimum": 0 },
+        "commits_behind": { "type": "integer", "minimum": 0 },
+        "ancestor_chain": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ancestor_entry" }
+        }
+      }
+    },
+    "target_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "landing_state_class",
+        "landing_action_class",
+        "target_ref",
+        "target_kind",
+        "mutation_authority_class",
+        "remote_visibility_class",
+        "required_network_egress_class",
+        "pending_writes_summary"
+      ],
+      "properties": {
+        "landing_state_class": { "$ref": "#/$defs/landing_state_class" },
+        "landing_action_class": { "$ref": "#/$defs/landing_action_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_kind": { "$ref": "#/$defs/non_empty_string" },
+        "mutation_authority_class": { "$ref": "#/$defs/mutation_authority_class" },
+        "remote_visibility_class": { "$ref": "#/$defs/remote_visibility_class" },
+        "required_network_egress_class": { "$ref": "#/$defs/network_egress_class" },
+        "pending_writes_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "conflict_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conflict_state_class", "conflict_path_count"],
+      "properties": {
+        "conflict_state_class": { "$ref": "#/$defs/conflict_state_class" },
+        "conflict_path_count": { "type": "integer", "minimum": 0 },
+        "conflict_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "publish_readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publish_readiness_class", "blockers"],
+      "properties": {
+        "publish_readiness_class": { "$ref": "#/$defs/publish_readiness_class" },
+        "blockers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/readiness_blocker_class" }
+        },
+        "readiness_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_packet_refs",
+        "raw_path_export_allowed",
+        "raw_branch_name_export_allowed",
+        "raw_remote_url_export_allowed",
+        "raw_diff_body_export_allowed",
+        "redaction_class"
+      ],
+      "properties": {
+        "export_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_path_export_allowed": { "const": false },
+        "raw_branch_name_export_allowed": { "const": false },
+        "raw_remote_url_export_allowed": { "const": false },
+        "raw_diff_body_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "review_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_ref_pinned",
+        "ancestry_pinned",
+        "conflict_state_inspectable",
+        "publish_readiness_inspectable",
+        "no_hidden_target_mutation"
+      ],
+      "properties": {
+        "target_ref_pinned": { "const": true },
+        "ancestry_pinned": { "const": true },
+        "conflict_state_inspectable": { "const": true },
+        "publish_readiness_inspectable": { "const": true },
+        "no_hidden_target_mutation": { "const": true }
+      }
+    },
+    "change_lineage_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "change_lineage_id",
+        "change_object_ref",
+        "change_object_kind",
+        "display_label",
+        "summary",
+        "active_scope_class",
+        "operator_caveat",
+        "target_summary",
+        "ancestry_view",
+        "conflict_state",
+        "publish_readiness",
+        "consumer_surfaces",
+        "support_export",
+        "review_invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "change_lineage_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "change_lineage_id": { "$ref": "#/$defs/opaque_id" },
+        "change_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_object_kind": { "$ref": "#/$defs/change_object_kind" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "active_scope_class": { "$ref": "#/$defs/active_scope_class" },
+        "operator_caveat": { "$ref": "#/$defs/reviewable_sentence" },
+        "target_summary": { "$ref": "#/$defs/target_summary" },
+        "ancestry_view": { "$ref": "#/$defs/ancestry_view" },
+        "conflict_state": { "$ref": "#/$defs/conflict_state" },
+        "publish_readiness": { "$ref": "#/$defs/publish_readiness" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "contains": { "const": "change_inspector" }
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "review_invariants": { "$ref": "#/$defs/review_invariants" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "branch change objects open the main or side worktree scope, never a stacked patch set.",
+          "if": {
+            "properties": {
+              "change_object_kind": { "const": "branch" }
+            }
+          },
+          "then": {
+            "properties": {
+              "active_scope_class": {
+                "enum": [
+                  "main_worktree",
+                  "side_worktree",
+                  "detached_inspection",
+                  "active_scope_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "worktree change objects always open a main or side worktree scope.",
+          "if": {
+            "properties": {
+              "change_object_kind": { "const": "worktree" }
+            }
+          },
+          "then": {
+            "properties": {
+              "active_scope_class": {
+                "enum": [
+                  "main_worktree",
+                  "side_worktree",
+                  "active_scope_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "patch_stack change objects always open the stacked patch set scope.",
+          "if": {
+            "properties": {
+              "change_object_kind": { "const": "patch_stack" }
+            }
+          },
+          "then": {
+            "properties": {
+              "active_scope_class": {
+                "enum": [
+                  "stacked_patch_set",
+                  "active_scope_unknown_requires_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "blocked_by_conflicts publish readiness must report at least one conflict path or upstream divergence.",
+          "if": {
+            "properties": {
+              "publish_readiness": {
+                "properties": {
+                  "publish_readiness_class": { "const": "blocked_by_conflicts" }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "conflict_state": {
+                "properties": {
+                  "conflict_state_class": {
+                    "not": { "const": "no_conflicts_detected" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ready_to_publish, ready_to_merge, and ready_to_apply require no_conflicts_detected.",
+          "if": {
+            "properties": {
+              "publish_readiness": {
+                "properties": {
+                  "publish_readiness_class": {
+                    "enum": ["ready_to_publish", "ready_to_merge", "ready_to_apply"]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "conflict_state": {
+                "properties": {
+                  "conflict_state_class": { "const": "no_conflicts_detected" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ready_to_publish requires landing_action_class=publish.",
+          "if": {
+            "properties": {
+              "publish_readiness": {
+                "properties": {
+                  "publish_readiness_class": { "const": "ready_to_publish" }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "target_summary": {
+                "properties": {
+                  "landing_action_class": { "const": "publish" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ready_to_merge requires landing_action_class=merge.",
+          "if": {
+            "properties": {
+              "publish_readiness": {
+                "properties": {
+                  "publish_readiness_class": { "const": "ready_to_merge" }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "target_summary": {
+                "properties": {
+                  "landing_action_class": { "const": "merge" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ready_to_apply requires landing_action_class=apply.",
+          "if": {
+            "properties": {
+              "publish_readiness": {
+                "properties": {
+                  "publish_readiness_class": { "const": "ready_to_apply" }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "target_summary": {
+                "properties": {
+                  "landing_action_class": { "const": "apply" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "not_applicable_inspect_only requires landing_action_class=inspect_only.",
+          "if": {
+            "properties": {
+              "publish_readiness": {
+                "properties": {
+                  "publish_readiness_class": { "const": "not_applicable_inspect_only" }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "target_summary": {
+                "properties": {
+                  "landing_action_class": { "const": "inspect_only" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

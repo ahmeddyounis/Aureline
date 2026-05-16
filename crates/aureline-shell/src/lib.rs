@@ -100,6 +100,7 @@ pub mod region_tenant_key_mode_beta;
 pub mod release_center;
 pub mod request_workspace;
 pub mod restore;
+pub mod review;
 pub mod review_preview;
 pub mod run_context;
 pub mod run_debug_profiles_beta;

@@ -9,10 +9,24 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-review/0.0.0")]
 
+pub mod change_inspector;
 pub mod collections;
 pub mod diff;
 pub mod workspace;
 
+pub use change_inspector::{
+    project_change_lineage, ChangeLineageAncestorEntry, ChangeLineageAncestryView,
+    ChangeLineageConflictState, ChangeLineageError, ChangeLineageProjection,
+    ChangeLineagePublishReadiness, ChangeLineageRecord, ChangeLineageReviewInvariants,
+    ChangeLineageSupportExport, ChangeLineageTargetSummary, ChangeLineageValidationError,
+    CHANGE_LINEAGE_ACTIVE_SCOPE_CLASSES, CHANGE_LINEAGE_ALPHA_RECORD_KIND,
+    CHANGE_LINEAGE_ALPHA_SCHEMA_VERSION, CHANGE_LINEAGE_CONFLICT_STATE_CLASSES,
+    CHANGE_LINEAGE_CONSUMER_SURFACES, CHANGE_LINEAGE_DIVERGENCE_CLASSES,
+    CHANGE_LINEAGE_LANDING_ACTION_CLASSES, CHANGE_LINEAGE_LANDING_STATE_CLASSES,
+    CHANGE_LINEAGE_MUTATION_AUTHORITY_CLASSES, CHANGE_LINEAGE_NETWORK_EGRESS_CLASSES,
+    CHANGE_LINEAGE_OBJECT_KINDS, CHANGE_LINEAGE_PUBLISH_READINESS_CLASSES,
+    CHANGE_LINEAGE_READINESS_BLOCKER_CLASSES, CHANGE_LINEAGE_REMOTE_VISIBILITY_CLASSES,
+};
 pub use collections::{
     ReviewCollectionAlphaInput, ReviewCollectionAlphaPacket,
     REVIEW_COLLECTION_ALPHA_PACKET_RECORD_KIND, REVIEW_COLLECTION_ALPHA_SCHEMA_VERSION,
