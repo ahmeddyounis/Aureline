@@ -45,6 +45,7 @@
 //! `/fixtures/ux/activity_center_cases/*.json`.
 
 pub mod alpha;
+pub mod beta;
 pub mod git_review;
 pub mod restore_job;
 
