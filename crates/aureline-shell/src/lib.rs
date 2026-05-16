@@ -84,6 +84,7 @@ pub mod onboarding;
 pub mod onboarding_metrics;
 pub mod ownership_audit;
 pub mod palette;
+pub mod passkey_step_up_beta;
 pub mod path_truth;
 pub mod permission_prompts;
 pub mod policy_pack_beta;

@@ -38,7 +38,13 @@
 //!   enterprise OIDC system-browser sign-in, recovery, and session-continuity
 //!   flows so claimed-enterprise rows disclose issuer source, tenant /
 //!   workspace binding, and return path, degrade truthfully on outage or
-//!   denial, and preserve local editing through sign-out and refresh.
+//!   denial, and preserve local editing through sign-out and refresh; and
+//! - one [`passkey::PasskeyStepUpBetaPage`] beta projection that audits
+//!   passkey-capable step-up, reauth, and recovery lanes so claimed rows
+//!   name their lane, disclose lifecycle state and client scope, name a
+//!   typed fallback when the platform or policy denies passkey, and
+//!   preserve the originating target / action identity across reauth and
+//!   recovery without widening authority.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -71,6 +77,7 @@ pub mod credential_state;
 pub mod identity_modes;
 pub mod network_trust;
 pub mod oidc;
+pub mod passkey;
 pub mod policy_packs;
 pub mod secrets;
 pub mod system_browser;
@@ -162,6 +169,22 @@ pub use system_browser::{
     ClaimedIdentitySurfaceRow, StageClaimedIdentityRowRequest, SystemBrowserAlphaPacket,
     CLAIMED_IDENTITY_ROW_RECORD_KIND, SYSTEM_BROWSER_ALPHA_PACKET_RECORD_KIND,
     SYSTEM_BROWSER_ALPHA_SCHEMA_VERSION,
+};
+
+pub use passkey::{
+    audit_passkey_step_up_beta_rows, seeded_passkey_step_up_beta_page,
+    validate_passkey_step_up_beta_page, PasskeyAuthorityScopeClass, PasskeyBetaLaneClass,
+    PasskeyBetaProfileClass, PasskeyClientScopeClass, PasskeyFallbackClass, PasskeyLaneBlock,
+    PasskeyLifecycleBlock, PasskeyLifecycleStateClass, PasskeyOutcomeBlock, PasskeyOutcomeClass,
+    PasskeyStepUpBetaAxis, PasskeyStepUpBetaDefect, PasskeyStepUpBetaDefectKind,
+    PasskeyStepUpBetaPage, PasskeyStepUpBetaRow, PasskeyStepUpBetaSummary,
+    PasskeyStepUpBetaSupportExport, PasskeyStepUpBetaSupportRow,
+    PasskeyTargetActionPreservationBlock, PasskeyTargetActionPreservationClass,
+    StagePasskeyStepUpBetaRowRequest, PASSKEY_STEP_UP_BETA_DEFECT_RECORD_KIND,
+    PASSKEY_STEP_UP_BETA_PAGE_RECORD_KIND, PASSKEY_STEP_UP_BETA_ROW_RECORD_KIND,
+    PASSKEY_STEP_UP_BETA_SCHEMA_VERSION, PASSKEY_STEP_UP_BETA_SHARED_CONTRACT_REF,
+    PASSKEY_STEP_UP_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    PASSKEY_STEP_UP_BETA_SUPPORT_ROW_RECORD_KIND,
 };
 
 pub use system_browser::beta::{

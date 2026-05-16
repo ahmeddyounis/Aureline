@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/auth/passkey_step_up_beta.schema.json",
+  "title": "Passkey-capable step-up, reauth, and recovery lanes (beta) page",
+  "description": "Reviewer-facing audit page that proves every claimed beta row participating in a passkey-bound lane (step-up before a risky action, reauth after session expiry, or recovery after device loss) names its lane, lifecycle state, client scope, outcome, and a typed fallback when the passkey cannot be satisfied; preserves the originating target / action identity across reauth and recovery instead of silently widening or rerouting; and never widens granted authority beyond the requested scope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "page_id",
+    "page_label",
+    "generated_at",
+    "summary",
+    "rows",
+    "support_rows",
+    "defects"
+  ],
+  "properties": {
+    "record_kind": { "const": "auth_passkey_step_up_beta_page_record" },
+    "schema_version": { "const": 1 },
+    "shared_contract_ref": { "const": "auth:passkey_step_up_beta:v1" },
+    "page_id": { "type": "string", "minLength": 1 },
+    "page_label": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "minLength": 1 },
+    "summary": { "$ref": "#/$defs/summary" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "support_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/support_row" }
+    },
+    "defects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/defect" }
+    }
+  },
+  "$defs": {
+    "profile_token": {
+      "type": "string",
+      "enum": ["connected", "mirror_only", "offline", "enterprise_managed"]
+    },
+    "lane_token": {
+      "type": "string",
+      "enum": [
+        "step_up_lane",
+        "reauth_lane",
+        "recovery_lane",
+        "not_applicable_account_free_local"
+      ]
+    },
+    "lifecycle_state_token": {
+      "type": "string",
+      "enum": [
+        "not_enrolled",
+        "enrollment_pending",
+        "active_on_this_device",
+        "active_on_other_device_only",
+        "revoked",
+        "expired_attestation_required",
+        "unavailable_this_platform",
+        "not_applicable_account_free_local"
+      ]
+    },
+    "client_scope_token": {
+      "type": "string",
+      "enum": [
+        "step_up_scope_risky_write_action",
+        "step_up_scope_admin_action",
+        "reauth_scope_refresh_session",
+        "recovery_scope_rebind_authenticator",
+        "no_scope_granted",
+        "not_applicable_account_free_local"
+      ]
+    },
+    "outcome_token": {
+      "type": "string",
+      "enum": [
+        "step_up_satisfied",
+        "step_up_pending_user_action",
+        "step_up_denied_by_policy",
+        "step_up_denied_authenticator_missing",
+        "step_up_user_canceled",
+        "fallback_engaged",
+        "not_applicable_account_free_local"
+      ]
+    },
+    "fallback_token": {
+      "type": "string",
+      "enum": [
+        "no_fallback_required",
+        "resume_after_step_up_in_system_browser",
+        "email_verified_link_fallback",
+        "backup_code_fallback",
+        "admin_approved_device_code_fallback",
+        "hardware_token_fallback",
+        "contact_admin_for_recovery",
+        "continue_local_without_sign_in",
+        "policy_denied_no_fallback_available",
+        "not_applicable_account_free_local"
+      ]
+    },
+    "preservation_token": {
+      "type": "string",
+      "enum": [
+        "target_action_preserved_exact",
+        "target_action_downscoped",
+        "target_action_rerouted",
+        "target_action_widened",
+        "not_applicable_account_free_local"
+      ]
+    },
+    "authority_scope_token": {
+      "type": "string",
+      "enum": [
+        "no_scope_granted",
+        "read_only_scope",
+        "step_up_scope",
+        "read_write_scope",
+        "workspace_admin_scope",
+        "tenant_admin_scope"
+      ]
+    },
+    "audit_axis_token": {
+      "type": "string",
+      "enum": [
+        "lane_identified_and_scoped_to_target_action",
+        "lifecycle_state_and_client_scope_disclosed",
+        "step_up_satisfied_or_fallback_named",
+        "target_action_identity_preserved_across_reauth_and_recovery",
+        "no_authority_widening_on_return",
+        "support_export_vocabulary_parity"
+      ]
+    },
+    "defect_kind_token": {
+      "type": "string",
+      "enum": [
+        "lane_target_label_missing",
+        "lane_requested_action_label_missing",
+        "lifecycle_state_missing",
+        "client_scope_missing",
+        "outcome_unsatisfied_without_fallback",
+        "lifecycle_state_requires_fallback",
+        "policy_denies_passkey_without_fallback",
+        "reauth_or_recovery_rerouted",
+        "reauth_or_recovery_widened",
+        "granted_authority_widens_requested",
+        "account_free_local_lane_mislabeled",
+        "support_row_vocabulary_drift"
+      ]
+    },
+    "redaction_class_token": {
+      "type": "string",
+      "enum": ["metadata_only_export_safe"]
+    },
+    "lane_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lane_token", "target_label", "requested_action_label"],
+      "properties": {
+        "lane_token": { "$ref": "#/$defs/lane_token" },
+        "target_label": { "type": "string" },
+        "requested_action_label": { "type": "string" },
+        "originating_target_ref": { "type": "string" }
+      }
+    },
+    "lifecycle_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_token",
+        "state_label",
+        "client_scope_token",
+        "client_scope_label"
+      ],
+      "properties": {
+        "state_token": { "$ref": "#/$defs/lifecycle_state_token" },
+        "state_label": { "type": "string" },
+        "client_scope_token": { "$ref": "#/$defs/client_scope_token" },
+        "client_scope_label": { "type": "string" }
+      }
+    },
+    "outcome_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome_token",
+        "outcome_label",
+        "fallback_token",
+        "fallback_label"
+      ],
+      "properties": {
+        "outcome_token": { "$ref": "#/$defs/outcome_token" },
+        "outcome_label": { "type": "string" },
+        "fallback_token": { "$ref": "#/$defs/fallback_token" },
+        "fallback_label": { "type": "string" }
+      }
+    },
+    "preservation_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preservation_token", "preservation_label"],
+      "properties": {
+        "preservation_token": { "$ref": "#/$defs/preservation_token" },
+        "preservation_label": { "type": "string" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "case_id",
+        "row_id",
+        "source_claim_row_ref",
+        "profile_token",
+        "lane",
+        "lifecycle",
+        "outcome",
+        "target_action_preservation",
+        "admin_policy_denies_passkey",
+        "requested_authority_scope_token",
+        "granted_authority_scope_token",
+        "authority_scope_summary_label",
+        "promised_audit_axes",
+        "plain_language_summary",
+        "redaction_class_token"
+      ],
+      "properties": {
+        "record_kind": { "const": "auth_passkey_step_up_beta_row_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "auth:passkey_step_up_beta:v1" },
+        "case_id": { "type": "string", "minLength": 1 },
+        "row_id": { "type": "string", "minLength": 1 },
+        "source_claim_row_ref": { "type": "string", "minLength": 1 },
+        "profile_token": { "$ref": "#/$defs/profile_token" },
+        "lane": { "$ref": "#/$defs/lane_block" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle_block" },
+        "outcome": { "$ref": "#/$defs/outcome_block" },
+        "target_action_preservation": { "$ref": "#/$defs/preservation_block" },
+        "admin_policy_denies_passkey": { "type": "boolean" },
+        "requested_authority_scope_token": { "$ref": "#/$defs/authority_scope_token" },
+        "granted_authority_scope_token": { "$ref": "#/$defs/authority_scope_token" },
+        "authority_scope_summary_label": { "type": "string" },
+        "promised_audit_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/audit_axis_token" }
+        },
+        "plain_language_summary": { "type": "string", "minLength": 1 },
+        "redaction_class_token": { "$ref": "#/$defs/redaction_class_token" }
+      }
+    },
+    "support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "case_id",
+        "row_id",
+        "profile_token",
+        "lane_token",
+        "target_label",
+        "requested_action_label",
+        "lifecycle_state_token",
+        "client_scope_token",
+        "outcome_token",
+        "fallback_token",
+        "preservation_token",
+        "admin_policy_denies_passkey",
+        "requested_authority_scope_token",
+        "granted_authority_scope_token",
+        "redaction_class_token"
+      ],
+      "properties": {
+        "record_kind": { "const": "auth_passkey_step_up_beta_support_row_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "auth:passkey_step_up_beta:v1" },
+        "case_id": { "type": "string", "minLength": 1 },
+        "row_id": { "type": "string", "minLength": 1 },
+        "profile_token": { "$ref": "#/$defs/profile_token" },
+        "lane_token": { "$ref": "#/$defs/lane_token" },
+        "target_label": { "type": "string" },
+        "requested_action_label": { "type": "string" },
+        "lifecycle_state_token": { "$ref": "#/$defs/lifecycle_state_token" },
+        "client_scope_token": { "$ref": "#/$defs/client_scope_token" },
+        "outcome_token": { "$ref": "#/$defs/outcome_token" },
+        "fallback_token": { "$ref": "#/$defs/fallback_token" },
+        "preservation_token": { "$ref": "#/$defs/preservation_token" },
+        "admin_policy_denies_passkey": { "type": "boolean" },
+        "requested_authority_scope_token": { "$ref": "#/$defs/authority_scope_token" },
+        "granted_authority_scope_token": { "$ref": "#/$defs/authority_scope_token" },
+        "redaction_class_token": { "$ref": "#/$defs/redaction_class_token" }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "defect_kind",
+        "defect_kind_token",
+        "row_id",
+        "field",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "auth_passkey_step_up_beta_defect_record" },
+        "schema_version": { "const": 1 },
+        "shared_contract_ref": { "const": "auth:passkey_step_up_beta:v1" },
+        "defect_id": { "type": "string", "minLength": 1 },
+        "defect_kind": { "$ref": "#/$defs/defect_kind_token" },
+        "defect_kind_token": { "$ref": "#/$defs/defect_kind_token" },
+        "row_id": { "type": "string", "minLength": 1 },
+        "field": { "type": "string", "minLength": 1 },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "support_row_count",
+        "defect_count",
+        "step_up_row_count",
+        "reauth_row_count",
+        "recovery_row_count",
+        "fallback_row_count",
+        "profiles_present",
+        "lanes_present",
+        "lifecycle_states_present",
+        "outcomes_present",
+        "fallbacks_present"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "support_row_count": { "type": "integer", "minimum": 0 },
+        "defect_count": { "type": "integer", "minimum": 0 },
+        "step_up_row_count": { "type": "integer", "minimum": 0 },
+        "reauth_row_count": { "type": "integer", "minimum": 0 },
+        "recovery_row_count": { "type": "integer", "minimum": 0 },
+        "fallback_row_count": { "type": "integer", "minimum": 0 },
+        "profiles_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/profile_token" }
+        },
+        "lanes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lane_token" }
+        },
+        "lifecycle_states_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_state_token" }
+        },
+        "outcomes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/outcome_token" }
+        },
+        "fallbacks_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_token" }
+        }
+      }
+    }
+  }
+}
