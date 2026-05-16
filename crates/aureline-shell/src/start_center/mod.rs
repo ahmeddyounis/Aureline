@@ -25,6 +25,7 @@ use crate::restore::placeholders::{
 pub mod admission_review;
 pub mod bundles;
 pub mod first_useful_work;
+pub mod prebuild_fingerprints;
 pub mod template_bundles;
 pub mod templates;
 

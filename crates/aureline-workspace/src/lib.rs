@@ -18,6 +18,7 @@ pub mod generated_projects;
 pub mod history;
 pub mod lifecycle;
 pub mod mutation_journal;
+pub mod prebuilds;
 pub mod profiles;
 pub mod recent_work;
 pub mod roots;
@@ -145,6 +146,24 @@ pub use templates::{
     TEMPLATE_BUNDLE_REMOTE_PROVISIONING_CLASSES, TEMPLATE_BUNDLE_RUNTIME_SCOPE_CLASSES,
     TEMPLATE_BUNDLE_SOURCE_CLASSES, TEMPLATE_BUNDLE_SUPPORT_CLASSES,
     WORKSPACE_TEMPLATE_BUNDLE_ALPHA_RECORD_KIND, WORKSPACE_TEMPLATE_BUNDLE_ALPHA_SCHEMA_VERSION,
+};
+
+pub use prebuilds::{
+    parse_prebuild_alpha_record, project_prebuild_fingerprint_alpha, PrebuildAlphaRecord,
+    PrebuildCacheArtifact, PrebuildDisclosureRecord, PrebuildEnvironmentIdentity,
+    PrebuildFingerprintError, PrebuildFingerprintProjection, PrebuildFingerprintRecord,
+    PrebuildFingerprintValidationError, PrebuildFreshness, PrebuildPolicyFeatureIdentity,
+    PrebuildPortRouteIdentity, PrebuildRedactionPortability, PrebuildReuseDecisionRecord,
+    PrebuildSecretHandleIdentity, PrebuildSourceIdentity, PrebuildToolchainIdentity, CACHE_CLASSES,
+    CREDENTIAL_EXPIRY_POSTURES, DISCLOSURE_STATE_CLASSES, EXCLUDED_RESIDUE_CLASSES,
+    EXPORT_FIELD_CLASSES, FRESHNESS_AGE_CLASSES, HOST_CLASSES, PLATFORM_ARCH_CLASSES,
+    PREBUILD_DISCLOSURE_RECORD_KIND, PREBUILD_FINGERPRINT_ALPHA_SCHEMA_VERSION,
+    PREBUILD_FINGERPRINT_CONSUMER_SURFACES, PREBUILD_FINGERPRINT_RECORD_KIND,
+    PREBUILD_INVALIDATION_REASON_ALPHA_SCHEMA_VERSION, PREBUILD_PATH_CLASSES,
+    PREBUILD_REUSE_DECISION_RECORD_KIND, PRODUCER_CLASSES, REQUIRED_EXCLUDED_RESIDUE_FOR_DISCLOSURE,
+    REQUIRED_EXCLUDED_RESIDUE_FOR_FINGERPRINT, REQUIRED_REVALIDATION_CLASSES, REUSE_OUTCOME_CLASSES,
+    ROUTE_DEPENDENCY_CLASSES, SIGNER_POSTURE_CLASSES, SOURCE_MATERIALIZATION_CLASSES,
+    SUPPORT_EXPORT_POSTURES, SUPPORT_PACKET_INCLUSION_CLASSES, TRUST_STATES,
 };
 
 pub use mutation_journal::{
