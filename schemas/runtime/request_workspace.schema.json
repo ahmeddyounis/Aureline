@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/request_workspace.schema.json",
+  "title": "Aureline request-workspace alpha contract",
+  "description": "Boundary schema for the request-workspace alpha record, its send-inspector projection, and its support-export wrapper. One record bundles the authored HTTP / GraphQL request, the layered environment set, the auth/credential class, the assertion suite, the optional response artifact, and the schema snapshot for one workspace row, and binds them all to one canonical execution_context_record reference via execution_context_ref and target_class. UI inspector chrome and the headless CLI consume the canonical send-inspector report verbatim; raw header bodies, raw command lines, raw secret material, and resolved secret-handle values are out of scope. The runtime Rust crate at /crates/aureline-runtime/src/request_workspace/ is the schema of record; this file is the cross-tool boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/request_workspace_alpha_record" },
+    { "$ref": "#/$defs/request_workspace_send_inspector_record" },
+    { "$ref": "#/$defs/request_workspace_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Request-workspace alpha schema version. Bumped on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "lane_id": {
+      "type": "string",
+      "const": "request_workspace_alpha",
+      "description": "Stable id for the bounded alpha lane this contract claims."
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "ssh_remote",
+        "container_local",
+        "devcontainer",
+        "remote_workspace_vm",
+        "prebuild_runtime",
+        "managed_workspace",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "ai_sandbox"
+      ]
+    },
+    "request_method_class": {
+      "type": "string",
+      "enum": [
+        "get",
+        "head",
+        "post",
+        "put",
+        "patch",
+        "delete",
+        "options",
+        "graphql_operation"
+      ]
+    },
+    "environment_layer_kind": {
+      "type": "string",
+      "enum": [
+        "request_file",
+        "workspace_default",
+        "profile_default",
+        "policy_injection",
+        "ad_hoc_override",
+        "secret_handle"
+      ]
+    },
+    "auth_strategy_kind": {
+      "type": "string",
+      "enum": [
+        "none",
+        "bearer_broker",
+        "basic_broker",
+        "oauth2_broker",
+        "api_key_broker",
+        "mutual_tls",
+        "signed_request"
+      ]
+    },
+    "credential_class": {
+      "type": "string",
+      "enum": [
+        "no_credentials",
+        "broker_handle",
+        "delegated_identity",
+        "mtls_certificate",
+        "policy_injected_token",
+        "raw_inline_disallowed"
+      ]
+    },
+    "assertion_kind": {
+      "type": "string",
+      "enum": [
+        "status_match",
+        "header_match",
+        "body_json_path",
+        "body_text_contains",
+        "schema_validation",
+        "latency_ceiling",
+        "custom_script"
+      ]
+    },
+    "assertion_outcome_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed",
+        "skipped_no_response",
+        "errored_during_evaluation",
+        "not_executed"
+      ]
+    },
+    "response_preview_class": {
+      "type": "string",
+      "enum": [
+        "json_tree",
+        "structured_text",
+        "plain_text",
+        "html_safe_preview",
+        "binary_summary",
+        "redacted_body"
+      ]
+    },
+    "latency_band_class": {
+      "type": "string",
+      "enum": [
+        "under_250_ms",
+        "under_1_second",
+        "under_5_seconds",
+        "over_5_seconds",
+        "timed_out"
+      ]
+    },
+    "response_redaction_class": {
+      "type": "string",
+      "enum": ["structured_tokens_only", "body_omitted_at_rest"]
+    },
+    "schema_snapshot_kind": {
+      "type": "string",
+      "enum": ["openapi", "graphql_sdl", "json_schema", "none_declared"]
+    },
+    "schema_snapshot_freshness": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale_under_day",
+        "stale_under_week",
+        "stale_over_week",
+        "missing"
+      ]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_side_effect",
+        "read_only_get",
+        "write_idempotent",
+        "write_non_idempotent",
+        "destructive_delete",
+        "file_upload",
+        "executes_remote_script",
+        "schema_introspection"
+      ]
+    },
+    "send_inspector_readiness": {
+      "type": "string",
+      "enum": [
+        "ready_to_send",
+        "review_required",
+        "blocked_missing_credential",
+        "blocked_schema_stale",
+        "blocked_policy"
+      ]
+    },
+    "environment_variable_layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "variable_name",
+        "layer_kind",
+        "layer_kind_token",
+        "source_ref",
+        "is_secret_handle"
+      ],
+      "properties": {
+        "variable_name": { "type": "string" },
+        "layer_kind": { "$ref": "#/$defs/environment_layer_kind" },
+        "layer_kind_token": { "type": "string" },
+        "source_ref": { "type": "string" },
+        "value_token": {
+          "type": "string",
+          "description": "Resolved value token. MUST be absent when is_secret_handle = true so secrets never leak through fixtures or support exports."
+        },
+        "is_secret_handle": { "type": "boolean" }
+      }
+    },
+    "environment_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_id",
+        "scope_label",
+        "base_url_template",
+        "effective_fingerprint"
+      ],
+      "properties": {
+        "environment_id": { "type": "string" },
+        "scope_label": { "type": "string" },
+        "base_url_template": { "type": "string" },
+        "layered_variables": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/environment_variable_layer" }
+        },
+        "effective_fingerprint": { "type": "string" }
+      }
+    },
+    "auth_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy_kind",
+        "strategy_kind_token",
+        "credential_class",
+        "credential_class_token"
+      ],
+      "properties": {
+        "strategy_kind": { "$ref": "#/$defs/auth_strategy_kind" },
+        "strategy_kind_token": { "type": "string" },
+        "credential_class": { "$ref": "#/$defs/credential_class" },
+        "credential_class_token": { "type": "string" },
+        "broker_handle_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "refresh_metadata_ref": { "type": "string" }
+      }
+    },
+    "request_document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_id", "method", "method_token", "url_template"],
+      "properties": {
+        "request_id": { "type": "string" },
+        "method": { "$ref": "#/$defs/request_method_class" },
+        "method_token": { "type": "string" },
+        "url_template": { "type": "string" },
+        "header_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "body_ref": { "type": "string" },
+        "assertion_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "collection_tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "assertion_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assertion_id",
+        "kind",
+        "kind_token",
+        "target_pointer",
+        "expected_token"
+      ],
+      "properties": {
+        "assertion_id": { "type": "string" },
+        "kind": { "$ref": "#/$defs/assertion_kind" },
+        "kind_token": { "type": "string" },
+        "target_pointer": { "type": "string" },
+        "expected_token": { "type": "string" }
+      }
+    },
+    "assertion_result_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_ref", "outcome", "outcome_token", "expected_token"],
+      "properties": {
+        "assertion_ref": { "type": "string" },
+        "outcome": { "$ref": "#/$defs/assertion_outcome_class" },
+        "outcome_token": { "type": "string" },
+        "observed_token": { "type": "string" },
+        "expected_token": { "type": "string" }
+      }
+    },
+    "response_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status_code",
+        "header_digest",
+        "body_digest",
+        "latency_band",
+        "latency_band_token",
+        "preview_class",
+        "preview_class_token",
+        "redaction_class",
+        "redaction_class_token"
+      ],
+      "properties": {
+        "status_code": { "type": "integer", "minimum": 0, "maximum": 999 },
+        "header_digest": { "type": "string" },
+        "body_digest": { "type": "string" },
+        "body_ref": { "type": "string" },
+        "latency_band": { "$ref": "#/$defs/latency_band_class" },
+        "latency_band_token": { "type": "string" },
+        "preview_class": { "$ref": "#/$defs/response_preview_class" },
+        "preview_class_token": { "type": "string" },
+        "redaction_class": { "$ref": "#/$defs/response_redaction_class" },
+        "redaction_class_token": { "type": "string" },
+        "assertion_results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/assertion_result_row" }
+        }
+      }
+    },
+    "schema_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "kind_token",
+        "source_ref",
+        "digest",
+        "freshness",
+        "freshness_token",
+        "target_endpoint_id"
+      ],
+      "properties": {
+        "kind": { "$ref": "#/$defs/schema_snapshot_kind" },
+        "kind_token": { "type": "string" },
+        "source_ref": { "type": "string" },
+        "digest": { "type": "string" },
+        "freshness": { "$ref": "#/$defs/schema_snapshot_freshness" },
+        "freshness_token": { "type": "string" },
+        "target_endpoint_id": { "type": "string" }
+      }
+    },
+    "expected_side_effect_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "class_token", "summary"],
+      "properties": {
+        "class": { "$ref": "#/$defs/side_effect_class" },
+        "class_token": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "send_inspector_banner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["banner_kind", "summary"],
+      "properties": {
+        "banner_kind": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "request_workspace_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "lane_id",
+        "request_workspace_ref",
+        "workspace_id",
+        "captured_at",
+        "execution_context_ref",
+        "target_class",
+        "target_class_token",
+        "boundary_cue_visible",
+        "request",
+        "environment",
+        "auth",
+        "schema_snapshot",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "request_workspace_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "lane_id": { "$ref": "#/$defs/lane_id" },
+        "request_workspace_ref": { "type": "string" },
+        "workspace_id": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "execution_context_ref": { "type": "string" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "target_class_token": { "type": "string" },
+        "boundary_cue_visible": { "type": "boolean" },
+        "request": { "$ref": "#/$defs/request_document" },
+        "environment": { "$ref": "#/$defs/environment_set" },
+        "auth": { "$ref": "#/$defs/auth_profile" },
+        "assertions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/assertion_descriptor" }
+        },
+        "schema_snapshot": { "$ref": "#/$defs/schema_snapshot" },
+        "expected_side_effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expected_side_effect_row" }
+        },
+        "response_artifact": { "$ref": "#/$defs/response_artifact" },
+        "summary": { "type": "string" }
+      }
+    },
+    "request_workspace_send_inspector_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "request_workspace_ref",
+        "request_id",
+        "execution_context_ref",
+        "target_class",
+        "target_class_token",
+        "boundary_cue_visible",
+        "method_token",
+        "effective_url_template",
+        "environment_fingerprint",
+        "credential_class",
+        "credential_class_token",
+        "auth_strategy",
+        "auth_strategy_token",
+        "expected_side_effects",
+        "schema_freshness_token",
+        "readiness",
+        "readiness_token",
+        "requires_review_before_dispatch",
+        "blocks_dispatch",
+        "banners",
+        "summary_line"
+      ],
+      "properties": {
+        "record_kind": { "const": "request_workspace_send_inspector_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "request_workspace_ref": { "type": "string" },
+        "request_id": { "type": "string" },
+        "execution_context_ref": { "type": "string" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "target_class_token": { "type": "string" },
+        "boundary_cue_visible": { "type": "boolean" },
+        "method_token": { "type": "string" },
+        "effective_url_template": { "type": "string" },
+        "environment_fingerprint": { "type": "string" },
+        "credential_class": { "$ref": "#/$defs/credential_class" },
+        "credential_class_token": { "type": "string" },
+        "auth_strategy": { "$ref": "#/$defs/auth_strategy_kind" },
+        "auth_strategy_token": { "type": "string" },
+        "expected_side_effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expected_side_effect_row" }
+        },
+        "schema_freshness_token": { "type": "string" },
+        "readiness": { "$ref": "#/$defs/send_inspector_readiness" },
+        "readiness_token": { "type": "string" },
+        "requires_review_before_dispatch": { "type": "boolean" },
+        "blocks_dispatch": { "type": "boolean" },
+        "banners": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/send_inspector_banner" }
+        },
+        "summary_line": { "type": "string" }
+      }
+    },
+    "request_workspace_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "lane_id",
+        "manifest_id",
+        "generated_at",
+        "records",
+        "send_inspector_reports",
+        "any_requires_review",
+        "any_blocks_dispatch"
+      ],
+      "properties": {
+        "record_kind": { "const": "request_workspace_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "lane_id": { "$ref": "#/$defs/lane_id" },
+        "manifest_id": { "type": "string" },
+        "generated_at": { "type": "string" },
+        "records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/request_workspace_alpha_record" }
+        },
+        "send_inspector_reports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/request_workspace_send_inspector_record" }
+        },
+        "any_requires_review": { "type": "boolean" },
+        "any_blocks_dispatch": { "type": "boolean" }
+      }
+    }
+  }
+}

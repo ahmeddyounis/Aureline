@@ -37,6 +37,7 @@ pub mod launch_profiles;
 pub mod managed_alpha;
 pub mod packages;
 pub mod provenance;
+pub mod request_workspace;
 pub mod rerun;
 pub mod targets;
 pub mod task_events;
@@ -207,6 +208,19 @@ pub use provenance::{
     ExecutionProvenanceEventClass, ExecutionProvenanceInputDecision,
     ExecutionProvenanceRedactionClass, EXECUTION_EVENT_PROVENANCE_RECORD_KIND,
     EXECUTION_EVENT_PROVENANCE_SCHEMA_VERSION, EXECUTION_PROVENANCE_EVENT_RECORD_KIND,
+};
+pub use request_workspace::{
+    seeded_request_workspace_record, seeded_request_workspace_support_export,
+    seeded_send_inspector_report, AssertionDescriptor, AssertionKind, AssertionOutcomeClass,
+    AssertionResultRow, AuthProfile, AuthStrategyKind, CredentialClass, EnvironmentLayerKind,
+    EnvironmentSet, EnvironmentVariableLayer, ExpectedSideEffectRow, LatencyBandClass,
+    RequestDocument, RequestMethodClass, RequestWorkspaceAlphaRecord,
+    RequestWorkspaceAlphaViolation, RequestWorkspaceSeededScenario, RequestWorkspaceSupportExport,
+    ResponseArtifact, ResponsePreviewClass, ResponseRedactionClass, SchemaSnapshot,
+    SchemaSnapshotFreshness, SchemaSnapshotKind, SendInspectorBanner, SendInspectorReadiness,
+    SendInspectorReport, SideEffectClass, REQUEST_WORKSPACE_ALPHA_LANE_ID,
+    REQUEST_WORKSPACE_ALPHA_RECORD_KIND, REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION,
+    REQUEST_WORKSPACE_SEND_INSPECTOR_RECORD_KIND, REQUEST_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use rerun::{
     built_in_rerun_command_bindings, RerunAttemptSummary, RerunCommandBinding, RerunContractKind,

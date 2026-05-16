@@ -86,6 +86,7 @@ pub mod previews;
 pub mod profiling_alpha;
 pub mod recovery;
 pub mod release_center;
+pub mod request_workspace;
 pub mod restore;
 pub mod review_preview;
 pub mod run_context;
