@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/runtime_replay_pack.schema.json",
+  "title": "Aureline runtime replay pack",
+  "description": "Support- and partner-facing replay pack that binds a runtime evidence packet, its replay comparator outcome, and opaque artefact references (transcript, runtime log, artifact blob, evidence packet, context provenance) to a closed fidelity label (exact / compatible / layout_only / evidence_only) and a closed reopen decision (allow_replay / allow_inspect_no_rerun / allow_evidence_only_view / blocked). Mutating and privileged subjects can never resolve to allow_replay, so no reopen flow silently reruns a privileged or mutating action.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/runtime_replay_pack_record" },
+    { "$ref": "#/$defs/runtime_replay_pack_support_export_record" },
+    { "$ref": "#/$defs/runtime_replay_pack_case" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "date_time": { "type": "string", "format": "date-time" },
+    "evidence_packet_ref": {
+      "$ref": "https://aureline.dev/schemas/runtime/evidence_packet.schema.json#/$defs/runtime_evidence_packet_record"
+    },
+    "replay_comparison_ref": {
+      "$ref": "https://aureline.dev/schemas/runtime/evidence_packet.schema.json#/$defs/runtime_evidence_replay_comparison_record"
+    },
+    "replay_fidelity_class": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "evidence_only"]
+    },
+    "replay_subject_privilege_class": {
+      "type": "string",
+      "enum": ["read_only", "mutating", "privileged"]
+    },
+    "replay_reopen_decision_class": {
+      "type": "string",
+      "enum": [
+        "allow_replay",
+        "allow_inspect_no_rerun",
+        "allow_evidence_only_view",
+        "blocked"
+      ]
+    },
+    "replay_pack_artefact_class": {
+      "type": "string",
+      "enum": [
+        "transcript_ref",
+        "runtime_log_ref",
+        "artifact_blob_ref",
+        "evidence_packet_ref",
+        "context_provenance_ref"
+      ]
+    },
+    "replay_pack_artefact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artefact_class",
+        "artefact_class_token",
+        "artefact_ref",
+        "label"
+      ],
+      "properties": {
+        "artefact_class": { "$ref": "#/$defs/replay_pack_artefact_class" },
+        "artefact_class_token": { "$ref": "#/$defs/replay_pack_artefact_class" },
+        "artefact_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime_replay_pack_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "replay_pack_id",
+        "workspace_id",
+        "created_at",
+        "evidence_packet",
+        "replay_comparison",
+        "subject_privilege",
+        "subject_privilege_token",
+        "fidelity",
+        "fidelity_token",
+        "reopen_decision",
+        "reopen_decision_token",
+        "artefacts",
+        "forbids_live_rerun",
+        "comparator_blocks_replay",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_replay_pack_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "replay_pack_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/date_time" },
+        "evidence_packet": { "$ref": "#/$defs/evidence_packet_ref" },
+        "replay_comparison": { "$ref": "#/$defs/replay_comparison_ref" },
+        "subject_privilege": { "$ref": "#/$defs/replay_subject_privilege_class" },
+        "subject_privilege_token": { "$ref": "#/$defs/replay_subject_privilege_class" },
+        "fidelity": { "$ref": "#/$defs/replay_fidelity_class" },
+        "fidelity_token": { "$ref": "#/$defs/replay_fidelity_class" },
+        "reopen_decision": { "$ref": "#/$defs/replay_reopen_decision_class" },
+        "reopen_decision_token": { "$ref": "#/$defs/replay_reopen_decision_class" },
+        "artefacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_pack_artefact" }
+        },
+        "forbids_live_rerun": { "type": "boolean" },
+        "comparator_blocks_replay": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime_replay_pack_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "workspace_id",
+        "generated_at",
+        "packs",
+        "any_pack_forbids_live_rerun",
+        "any_pack_comparator_blocks_replay",
+        "every_pack_covers_required_artefact_classes",
+        "fidelity_class_tokens_present",
+        "reopen_decision_tokens_present",
+        "summary_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_replay_pack_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "packs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/runtime_replay_pack_record" }
+        },
+        "any_pack_forbids_live_rerun": { "type": "boolean" },
+        "any_pack_comparator_blocks_replay": { "type": "boolean" },
+        "every_pack_covers_required_artefact_classes": { "type": "boolean" },
+        "fidelity_class_tokens_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_fidelity_class" }
+        },
+        "reopen_decision_tokens_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_reopen_decision_class" }
+        },
+        "summary_lines": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "runtime_replay_pack_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "case_id",
+        "scenario",
+        "expect"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_replay_pack_case" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "scenario": {
+          "type": "string",
+          "enum": [
+            "local_task_exact_read_only",
+            "local_test_compatible_read_only",
+            "container_debug_layout_only_mutating",
+            "managed_runtime_layout_only_privileged"
+          ]
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fidelity",
+            "subject_privilege",
+            "reopen_decision",
+            "forbids_live_rerun",
+            "comparator_blocks_replay",
+            "covers_required_artefact_classes"
+          ],
+          "properties": {
+            "fidelity": { "$ref": "#/$defs/replay_fidelity_class" },
+            "subject_privilege": { "$ref": "#/$defs/replay_subject_privilege_class" },
+            "reopen_decision": { "$ref": "#/$defs/replay_reopen_decision_class" },
+            "forbids_live_rerun": { "type": "boolean" },
+            "comparator_blocks_replay": { "type": "boolean" },
+            "covers_required_artefact_classes": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

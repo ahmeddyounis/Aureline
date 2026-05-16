@@ -81,5 +81,6 @@ pub mod recovery_ladder;
 pub mod release_evidence;
 pub mod repair;
 pub mod route_origin_alpha;
+pub mod runtime_evidence;
 pub mod runtime_health_alpha;
 pub mod scenario_scorecard;
