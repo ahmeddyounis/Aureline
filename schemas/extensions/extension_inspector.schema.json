@@ -1,0 +1,610 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/extension_inspector.schema.json",
+  "title": "Aureline extension settings and permission inspector packet",
+  "description": "Cross-tool boundary schema for the shell-owned extension inspector set. The page packet joins effective extension permissions, policy-locked and denied capability rows, current runtime host placement, runtime lifecycle state, and extension-local settings rows with source-attributed diffs. The support-export packet is projected from the same rows and must not carry raw secret values. Rust types in crates/aureline-shell/src/extensions/inspectors/ are the source of truth.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/extension_inspector_page" },
+    { "$ref": "#/$defs/extension_inspector_support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:extension_inspectors_beta:v1"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "capability_class_class": {
+      "type": "string",
+      "enum": ["network", "filesystem", "process", "data", "ui", "credential"]
+    },
+    "permission_scope_class": {
+      "type": "string",
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "shell_execute",
+        "network_egress",
+        "ai_provider_access",
+        "connected_provider_access",
+        "secret_handle_use",
+        "workspace_settings_read",
+        "workspace_settings_write",
+        "execution_context_bind",
+        "subscription_subscribe",
+        "ui_command_contribute",
+        "capability_inherit"
+      ]
+    },
+    "permission_diff_class": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "narrowed",
+        "denied",
+        "step_up_required",
+        "widening_attempted_blocked"
+      ]
+    },
+    "capability_disposition_class": {
+      "type": "string",
+      "enum": ["granted", "denied", "policy_locked"]
+    },
+    "capability_lock_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "narrowed_by_policy",
+        "step_up_required",
+        "denied_by_policy",
+        "widening_blocked"
+      ]
+    },
+    "host_placement_class": {
+      "type": "string",
+      "enum": [
+        "wasm_in_process_isolated_world",
+        "wasm_isolated_subprocess",
+        "external_host_supervised_process",
+        "helper_binary_short_lived",
+        "remote_side_component_attached",
+        "compatibility_bridge_translated",
+        "unknown_placement_class"
+      ]
+    },
+    "host_supervision_class": {
+      "type": "string",
+      "enum": [
+        "in_process_capability_sandbox",
+        "separate_subprocess_supervised",
+        "separate_subprocess_helper_kill_switch",
+        "remote_agent_attached_envelope",
+        "compatibility_bridge_translated_supervision",
+        "unknown_supervision_class"
+      ]
+    },
+    "runtime_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "discovered",
+        "installed",
+        "disabled",
+        "pending_activation",
+        "active",
+        "degraded",
+        "quarantined",
+        "recovered",
+        "removed",
+        "publisher_blocked"
+      ]
+    },
+    "runtime_admission_decision_class": {
+      "type": "string",
+      "enum": ["admitted", "admitted_narrowed", "awaiting_user_review", "refused", "quarantined"]
+    },
+    "runtime_admission_reason_class": {
+      "type": "string",
+      "enum": [
+        "admitted_after_capability_negotiation",
+        "admitted_with_world_narrowing",
+        "awaiting_user_world_acknowledgement",
+        "manifest_install_denied",
+        "publisher_identity_opaque",
+        "permission_diff_missing",
+        "effective_permission_widening_attempted",
+        "capability_world_unavailable_on_host",
+        "host_placement_unsupported",
+        "runtime_budget_quarantine_active",
+        "crash_loop_quarantine_active",
+        "sdk_or_marketplace_metadata_out_of_date",
+        "lifecycle_terminal_state"
+      ]
+    },
+    "metadata_redaction_class": {
+      "type": "string",
+      "enum": ["metadata_safe_default"]
+    },
+    "setting_source_scope_class": {
+      "type": "string",
+      "enum": [
+        "extension_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "admin_policy",
+        "session"
+      ]
+    },
+    "setting_source_relation_class": {
+      "type": "string",
+      "enum": ["winner", "shadowed", "policy_ceiling"]
+    },
+    "setting_lock_state_class": {
+      "type": "string",
+      "enum": ["unlocked", "policy_locked"]
+    },
+    "setting_diff_class": {
+      "type": "string",
+      "enum": ["added", "changed", "policy_locked", "redacted_secret_handle"]
+    },
+    "setting_redaction_class": {
+      "type": "string",
+      "enum": ["metadata_safe", "value_redacted", "secret_value_redacted"]
+    },
+    "permission_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "granted_count",
+        "denied_count",
+        "policy_locked_count",
+        "step_up_required_count"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "granted_count": { "type": "integer", "minimum": 0 },
+        "denied_count": { "type": "integer", "minimum": 0 },
+        "policy_locked_count": { "type": "integer", "minimum": 0 },
+        "step_up_required_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "settings_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "policy_locked_count",
+        "redacted_value_count",
+        "diffable_setting_count"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "policy_locked_count": { "type": "integer", "minimum": 0 },
+        "redacted_value_count": { "type": "integer", "minimum": 0 },
+        "diffable_setting_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "page_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permission_row_count",
+        "setting_row_count",
+        "denied_permission_count",
+        "policy_locked_permission_count",
+        "policy_locked_setting_count",
+        "redacted_setting_count"
+      ],
+      "properties": {
+        "permission_row_count": { "type": "integer", "minimum": 0 },
+        "setting_row_count": { "type": "integer", "minimum": 0 },
+        "denied_permission_count": { "type": "integer", "minimum": 0 },
+        "policy_locked_permission_count": { "type": "integer", "minimum": 0 },
+        "policy_locked_setting_count": { "type": "integer", "minimum": 0 },
+        "redacted_setting_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "permission_source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_baseline_ref",
+        "permission_manifest_ref",
+        "effective_permission_summary_ref",
+        "runtime_contract_ref",
+        "permission_support_export_ref",
+        "runtime_support_export_ref"
+      ],
+      "properties": {
+        "manifest_baseline_ref": { "$ref": "#/$defs/opaque_ref" },
+        "permission_manifest_ref": { "$ref": "#/$defs/opaque_ref" },
+        "effective_permission_summary_ref": { "$ref": "#/$defs/opaque_ref" },
+        "runtime_contract_ref": { "$ref": "#/$defs/opaque_ref" },
+        "permission_support_export_ref": { "$ref": "#/$defs/opaque_ref" },
+        "runtime_support_export_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "permission_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permission_row_id",
+        "capability_class_class",
+        "scope_class",
+        "scope_target",
+        "declared_scope_constraint",
+        "effective_scope_constraint",
+        "rationale_label",
+        "disposition_class",
+        "diff_class",
+        "lock_reason_class",
+        "policy_narrowing_refs",
+        "export_safe_explanation",
+        "support_export_required",
+        "redaction_class"
+      ],
+      "properties": {
+        "permission_row_id": { "$ref": "#/$defs/opaque_ref" },
+        "capability_class_class": { "$ref": "#/$defs/capability_class_class" },
+        "scope_class": { "$ref": "#/$defs/permission_scope_class" },
+        "scope_target": { "$ref": "#/$defs/opaque_ref" },
+        "declared_scope_constraint": { "type": ["string", "null"] },
+        "effective_scope_constraint": { "type": ["string", "null"] },
+        "rationale_label": { "type": "string", "minLength": 1 },
+        "disposition_class": { "$ref": "#/$defs/capability_disposition_class" },
+        "diff_class": { "$ref": "#/$defs/permission_diff_class" },
+        "lock_reason_class": { "$ref": "#/$defs/capability_lock_reason_class" },
+        "policy_narrowing_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "export_safe_explanation": { "type": "string", "minLength": 1 },
+        "support_export_required": { "type": "boolean", "const": true },
+        "redaction_class": { "$ref": "#/$defs/metadata_redaction_class" }
+      }
+    },
+    "setting_source_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ref",
+        "source_scope_class",
+        "source_label",
+        "value_preview",
+        "relation_class",
+        "source_attribution_ref",
+        "raw_secret_value_exported"
+      ],
+      "properties": {
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_scope_class": { "$ref": "#/$defs/setting_source_scope_class" },
+        "source_label": { "type": "string", "minLength": 1 },
+        "value_preview": { "type": "string" },
+        "relation_class": { "$ref": "#/$defs/setting_source_relation_class" },
+        "source_attribution_ref": { "$ref": "#/$defs/opaque_ref" },
+        "raw_secret_value_exported": { "type": "boolean", "const": false }
+      }
+    },
+    "setting_diff_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diff_row_id",
+        "field_path",
+        "diff_class",
+        "prior_source_ref",
+        "effective_source_ref",
+        "prior_value_preview",
+        "effective_value_preview",
+        "source_attribution_ref",
+        "raw_secret_value_exported"
+      ],
+      "properties": {
+        "diff_row_id": { "$ref": "#/$defs/opaque_ref" },
+        "field_path": { "type": "string", "minLength": 1 },
+        "diff_class": { "$ref": "#/$defs/setting_diff_class" },
+        "prior_source_ref": { "type": ["string", "null"], "minLength": 1 },
+        "effective_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "prior_value_preview": { "type": ["string", "null"] },
+        "effective_value_preview": { "type": "string" },
+        "source_attribution_ref": { "$ref": "#/$defs/opaque_ref" },
+        "raw_secret_value_exported": { "type": "boolean", "const": false }
+      }
+    },
+    "setting_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setting_row_id",
+        "setting_id",
+        "value_type",
+        "effective_value_preview",
+        "winning_scope_class",
+        "winning_source_ref",
+        "source_chain",
+        "diff_rows",
+        "lock_state_class",
+        "policy_source_ref",
+        "redaction_class",
+        "raw_secret_value_exported",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "setting_row_id": { "$ref": "#/$defs/opaque_ref" },
+        "setting_id": { "type": "string", "minLength": 1 },
+        "value_type": { "type": "string", "minLength": 1 },
+        "effective_value_preview": { "type": "string" },
+        "winning_scope_class": { "$ref": "#/$defs/setting_source_scope_class" },
+        "winning_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/setting_source_row" }
+        },
+        "diff_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/setting_diff_row" }
+        },
+        "lock_state_class": { "$ref": "#/$defs/setting_lock_state_class" },
+        "policy_source_ref": { "type": ["string", "null"], "minLength": 1 },
+        "redaction_class": { "$ref": "#/$defs/setting_redaction_class" },
+        "raw_secret_value_exported": { "type": "boolean", "const": false },
+        "export_safe_summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "permission_inspector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "inspector_id",
+        "extension_identity_ref",
+        "extension_version",
+        "source_refs",
+        "host_placement_class",
+        "host_supervision_class",
+        "lifecycle_state_class",
+        "admission_decision_class",
+        "admission_reason_class",
+        "rows",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_permission_inspector" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "inspector_id": { "$ref": "#/$defs/opaque_ref" },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "extension_version": { "$ref": "#/$defs/opaque_ref" },
+        "source_refs": { "$ref": "#/$defs/permission_source_refs" },
+        "host_placement_class": { "$ref": "#/$defs/host_placement_class" },
+        "host_supervision_class": { "$ref": "#/$defs/host_supervision_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/runtime_lifecycle_state_class" },
+        "admission_decision_class": { "$ref": "#/$defs/runtime_admission_decision_class" },
+        "admission_reason_class": { "$ref": "#/$defs/runtime_admission_reason_class" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/permission_row" }
+        },
+        "summary": { "$ref": "#/$defs/permission_summary" }
+      }
+    },
+    "settings_inspector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "inspector_id",
+        "extension_identity_ref",
+        "extension_version",
+        "settings_store_ref",
+        "rows",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_settings_inspector" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "inspector_id": { "$ref": "#/$defs/opaque_ref" },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "extension_version": { "$ref": "#/$defs/opaque_ref" },
+        "settings_store_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/setting_row" }
+        },
+        "summary": { "$ref": "#/$defs/settings_summary" }
+      }
+    },
+    "extension_inspector_page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "page_label",
+        "extension_identity_ref",
+        "extension_version",
+        "generated_at",
+        "permission_inspector",
+        "settings_inspector",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_inspector_page" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/opaque_ref" },
+        "page_label": { "type": "string", "minLength": 1 },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "extension_version": { "$ref": "#/$defs/opaque_ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "permission_inspector": { "$ref": "#/$defs/permission_inspector" },
+        "settings_inspector": { "$ref": "#/$defs/settings_inspector" },
+        "summary": { "$ref": "#/$defs/page_summary" }
+      }
+    },
+    "permission_support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permission_row_id",
+        "capability_class_class",
+        "scope_class",
+        "scope_target",
+        "disposition_class",
+        "diff_class",
+        "policy_narrowing_refs",
+        "export_safe_explanation",
+        "redaction_class"
+      ],
+      "properties": {
+        "permission_row_id": { "$ref": "#/$defs/opaque_ref" },
+        "capability_class_class": { "$ref": "#/$defs/capability_class_class" },
+        "scope_class": { "$ref": "#/$defs/permission_scope_class" },
+        "scope_target": { "$ref": "#/$defs/opaque_ref" },
+        "disposition_class": { "$ref": "#/$defs/capability_disposition_class" },
+        "diff_class": { "$ref": "#/$defs/permission_diff_class" },
+        "policy_narrowing_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "export_safe_explanation": { "type": "string", "minLength": 1 },
+        "redaction_class": { "$ref": "#/$defs/metadata_redaction_class" }
+      }
+    },
+    "setting_support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setting_row_id",
+        "setting_id",
+        "effective_value_preview",
+        "winning_scope_class",
+        "winning_source_ref",
+        "source_chain",
+        "diff_rows",
+        "lock_state_class",
+        "policy_source_ref",
+        "redaction_class",
+        "raw_secret_value_exported"
+      ],
+      "properties": {
+        "setting_row_id": { "$ref": "#/$defs/opaque_ref" },
+        "setting_id": { "type": "string", "minLength": 1 },
+        "effective_value_preview": { "type": "string" },
+        "winning_scope_class": { "$ref": "#/$defs/setting_source_scope_class" },
+        "winning_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/setting_source_row" }
+        },
+        "diff_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/setting_diff_row" }
+        },
+        "lock_state_class": { "$ref": "#/$defs/setting_lock_state_class" },
+        "policy_source_ref": { "type": ["string", "null"], "minLength": 1 },
+        "redaction_class": { "$ref": "#/$defs/setting_redaction_class" },
+        "raw_secret_value_exported": { "type": "boolean", "const": false }
+      }
+    },
+    "parity_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permission_row_ids",
+        "setting_row_ids",
+        "permission_summary",
+        "settings_summary",
+        "host_placement_class",
+        "lifecycle_state_class"
+      ],
+      "properties": {
+        "permission_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "setting_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "permission_summary": { "$ref": "#/$defs/permission_summary" },
+        "settings_summary": { "$ref": "#/$defs/settings_summary" },
+        "host_placement_class": { "$ref": "#/$defs/host_placement_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/runtime_lifecycle_state_class" }
+      }
+    },
+    "extension_inspector_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "page_ref",
+        "generated_at",
+        "extension_identity_ref",
+        "extension_version",
+        "permission_inspector_ref",
+        "settings_inspector_ref",
+        "host_placement_class",
+        "lifecycle_state_class",
+        "permission_rows",
+        "setting_rows",
+        "raw_secret_values_exported",
+        "parity_fingerprint"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_inspector_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/opaque_ref" },
+        "page_ref": { "$ref": "#/$defs/opaque_ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "extension_version": { "$ref": "#/$defs/opaque_ref" },
+        "permission_inspector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "settings_inspector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "host_placement_class": { "$ref": "#/$defs/host_placement_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/runtime_lifecycle_state_class" },
+        "permission_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/permission_support_row" }
+        },
+        "setting_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/setting_support_row" }
+        },
+        "raw_secret_values_exported": { "type": "boolean", "const": false },
+        "parity_fingerprint": { "$ref": "#/$defs/parity_fingerprint" }
+      }
+    }
+  }
+}
