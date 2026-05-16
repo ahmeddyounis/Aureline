@@ -30,6 +30,7 @@ pub mod capsule_resolver;
 pub mod debug;
 pub mod detectors;
 pub mod discovery;
+pub mod env_inspect;
 pub mod execution_context;
 pub mod language_hosts;
 pub mod launch_profiles;
@@ -121,6 +122,13 @@ pub use execution_context::{
     ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass, TargetClass,
     TargetConfidence, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
     TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
+};
+pub use env_inspect::{
+    seeded_env_inspect_resolver, seeded_env_inspect_snapshot, seeded_env_inspect_support_export,
+    EnvInspectCoreField, EnvInspectDegradationLabel, EnvInspectDegradationSeverity,
+    EnvInspectRedactionClass, EnvInspectSection, EnvInspectSeededScenario, EnvInspectSnapshot,
+    EnvInspectSupportExport, ENV_INSPECT_SCHEMA_VERSION, ENV_INSPECT_SNAPSHOT_RECORD_KIND,
+    ENV_INSPECT_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use execution_context::beta::{
     evaluate_ticket_drift, lane_for_context, lane_for_target_class,

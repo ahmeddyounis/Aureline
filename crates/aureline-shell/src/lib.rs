@@ -53,6 +53,7 @@ pub mod docs_browser;
 pub mod drift_truth;
 pub mod efficiency;
 pub mod embedded;
+pub mod env_inspect;
 pub mod embedded_boundary_audit;
 pub mod experiments_governance;
 pub mod explorer;
