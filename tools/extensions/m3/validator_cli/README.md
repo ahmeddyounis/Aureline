@@ -30,10 +30,23 @@ python3 tools/extensions/m3/validator_cli/aureline_extension_validator.py \
 Drop `--check` to refresh the report after intentionally changing the
 suite, schema, or validator behavior.
 
+## Validate lifecycle metadata
+
+```text
+python3 tools/extensions/m3/validator_cli/aureline_extension_validator.py \
+  --repo-root . \
+  validate-lifecycle-packet \
+  --packet artifacts/extensions/m3/lifecycle_metadata_packet.json \
+  --report artifacts/compat/m3/extension_lifecycle_metadata_report.json \
+  --check
+```
+
 ## Contracts
 
 - Author manifest schema:
   `schemas/extensions/beta_extension_manifest.schema.json`
+- Lifecycle metadata schema:
+  `schemas/extensions/lifecycle_metadata.schema.json`
 - Validator report schema:
   `schemas/extensions/conformance_kit_report.schema.json`
 - Reviewer guide:

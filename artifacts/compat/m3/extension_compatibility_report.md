@@ -16,6 +16,8 @@ below instead of restating compatibility claims locally.
 - **Source compatibility row:** `compat_row:extension_host.sdk_wit_permission_window`
 - **Canonical matrix:** [`artifacts/compat/m3/bridge_matrix.yaml`](./bridge_matrix.yaml)
 - **Docs projection:** [`docs/extensions/m3/compatibility_matrix_beta.md`](../../../docs/extensions/m3/compatibility_matrix_beta.md)
+- **Lifecycle metadata:** [`artifacts/extensions/m3/lifecycle_metadata_packet.json`](../../extensions/m3/lifecycle_metadata_packet.json)
+- **Versioning policy:** [`docs/extensions/m3/sdk_versioning_and_deprecation.md`](../../../docs/extensions/m3/sdk_versioning_and_deprecation.md)
 
 ## Compatibility rows
 
@@ -38,6 +40,7 @@ below instead of restating compatibility claims locally.
 - **Manifest window:** manifest schema `1` with permission vocabulary `1`; breaking field or permission drift fails closed.
 - **Downgrade behavior:** disable or quarantine the extension when host floor, WIT world, SDK floor, or permission vocabulary is outside the window. Installed state remains present but activation is refused.
 - **Evidence:** `artifacts/compat/m3/extension_conformance_kit_report.json`, `docs/extensions/m3/runtime_v1_beta.md`, `docs/extensions/m3/sdk_v1/README.md`.
+- **Lifecycle rows:** `lifecycle_row:sdk_api_surface.wasm_component_model_host_api`, `lifecycle_row:manifest_schema.extension_manifest_beta_v1`, `lifecycle_row:wit_world.extension_authoring_v1`.
 
 ### `extension_bridge_row:external_host_supervised_beta`
 
@@ -48,6 +51,7 @@ below instead of restating compatibility claims locally.
 - **Manifest window:** manifest schema `1` with executable disclosure and permission vocabulary `1`.
 - **Downgrade behavior:** stop, restart, disable, or quarantine the external host before widening shell authority. User-authored state stays visible.
 - **Evidence:** `docs/extensions/m3/host_isolation_beta.md`, `fixtures/extensions/m3/conformance_kit/external_host_degraded_disable_rollback_pass.json`.
+- **Lifecycle rows:** `lifecycle_row:sdk_api_surface.external_host_supervised_api`, `lifecycle_row:manifest_schema.extension_manifest_beta_v1`, `lifecycle_row:permission_vocabulary.extension_permissions_v1`.
 
 ### `extension_bridge_row:vscode_api_bridge_beta`
 
@@ -59,6 +63,7 @@ below instead of restating compatibility claims locally.
 - **Downgrade behavior:** bridge activation narrows or pauses when the analyzer profile is stale. Imported settings and user data remain readable.
 - **Known limits:** no workbench DOM injection, no undocumented private API compatibility, and no ambient Node.js privilege inside the shell.
 - **Evidence:** `fixtures/extensions/marketplace_discovery_cases/bridge_state_compatibility_bridge_required.yaml`, `docs/extensions/marketplace_ranking_and_trust_contract.md`.
+- **Lifecycle rows:** `lifecycle_row:manifest_schema.extension_manifest_beta_v1`, `lifecycle_row:permission_vocabulary.extension_permissions_v1`.
 
 ### `extension_bridge_row:vscode_theme_snippet_shim_beta`
 
@@ -70,6 +75,7 @@ below instead of restating compatibility claims locally.
 - **Downgrade behavior:** imported assets remain inspectable and reversible; unsupported runtime behavior stays disabled.
 - **Known limits:** token families outside the Aureline design system are approximated, extension-contributed commands are not carried, and runtime hooks or webviews are not executed.
 - **Evidence:** `fixtures/design/token_export_cases/extension_partial_high_contrast_inheritance_pass.json`, `docs/migration/source_ecosystem_coverage_matrix.md`.
+- **Lifecycle rows:** `lifecycle_row:manifest_schema.extension_manifest_beta_v1`.
 
 ### `extension_bridge_row:unsupported_webview_runtime`
 
@@ -81,6 +87,7 @@ below instead of restating compatibility claims locally.
 - **Downgrade behavior:** registry ingest, install, publication, and activation are refused. Imported metadata may remain visible for review.
 - **Known limits:** full VS Code webview API parity, workbench DOM injection, and undocumented private APIs are not claimed.
 - **Evidence:** `docs/extensions/marketplace_ranking_and_trust_contract.md`, `fixtures/contracts/reference_examples/migration/import_preview_partial_missing_extension.yaml`.
+- **Lifecycle rows:** `lifecycle_row:manifest_field.lifecycle_state_resolved`.
 
 ## Consumer contract
 
@@ -90,6 +97,7 @@ below instead of restating compatibility claims locally.
 - SDK docs must link the same row ids when describing native, bridge,
   shimmed, or unsupported paths.
 - Publication and support packets must carry both the extension
-  compatibility report ref and the bridge-matrix row ref.
+  compatibility report ref, bridge-matrix row ref, lifecycle metadata
+  ref, and deprecation packet template ref.
 - Release notes must cite this matrix whenever they mention extension
   runtime, SDK, manifest, or bridge support.

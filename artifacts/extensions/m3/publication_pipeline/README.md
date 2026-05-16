@@ -4,7 +4,9 @@ This directory contains the checked beta publication packet generated
 by `tools/extensions/m3/publish_extension.py`.
 
 The packet demonstrates the governed publication path for
-`dev.aureline.samples/wasm-notes`:
+`dev.aureline.samples/wasm-notes`. Its compatibility metadata cites the
+bridge matrix row, lifecycle metadata row, and deprecation packet
+template before any catalog mutation:
 
 - `publication_pipeline_record.json` is the canonical packet.
 - `publication_support_export.json` is the metadata-safe support view.

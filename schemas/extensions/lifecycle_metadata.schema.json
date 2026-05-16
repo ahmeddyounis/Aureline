@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/lifecycle_metadata.schema.json",
+  "title": "Aureline extension SDK and public-interface lifecycle metadata",
+  "description": "Cross-tool boundary schema for the canonical lifecycle metadata packet and support-export projection. The packet publishes versioning scheme, stability label, support window, deprecation posture, replacement path, migration guidance, expiry target, and consuming surfaces for declared beta extension SDK and public-interface rows. Publication tooling, SDK docs, compatibility reports, registry support exports, and validator reports cite this packet instead of copying local lifecycle prose.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/lifecycle_metadata_packet" },
+    { "$ref": "#/$defs/lifecycle_metadata_support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_safe_default"
+    },
+    "surface_kind": {
+      "type": "string",
+      "enum": [
+        "sdk_api_surface",
+        "manifest_schema",
+        "wit_world",
+        "permission_vocabulary",
+        "publication_pipeline",
+        "bridge_profile"
+      ]
+    },
+    "stability_label": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "experimental",
+        "beta",
+        "stable",
+        "lts_surface",
+        "deprecated",
+        "retired"
+      ]
+    },
+    "versioning_scheme": {
+      "type": "string",
+      "enum": [
+        "semver",
+        "json_schema_epoch",
+        "wit_package_version",
+        "permission_vocabulary_epoch",
+        "bridge_profile_epoch",
+        "publication_schema_epoch"
+      ]
+    },
+    "deprecation_posture_class": {
+      "type": "string",
+      "enum": [
+        "not_deprecated",
+        "deprecated_with_replacement",
+        "deprecated_no_direct_replacement",
+        "retired"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "ready_for_beta_use",
+        "deprecated_migration_required",
+        "refused_incomplete_metadata"
+      ]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "all_rows_governed",
+        "deprecated_rows_carry_migration",
+        "refused_packet_id_unprefixed",
+        "refused_policy_ref_missing",
+        "refused_rows_missing",
+        "refused_support_window_missing",
+        "refused_deprecated_row_missing_replacement_or_no_direct_replacement",
+        "refused_deprecated_row_missing_expiry",
+        "refused_deprecated_row_missing_migration_guide",
+        "refused_consumer_refs_missing",
+        "refused_redaction_class_not_metadata_safe"
+      ]
+    },
+    "support_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "introduced_in_version",
+        "minimum_overlap",
+        "support_window_summary"
+      ],
+      "properties": {
+        "introduced_in_version": { "$ref": "#/$defs/non_empty_string" },
+        "minimum_overlap": { "$ref": "#/$defs/non_empty_string" },
+        "removal_not_before_version": { "$ref": "#/$defs/non_empty_string" },
+        "removal_not_before_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "support_window_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "deprecation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deprecation_posture_class",
+        "alias_or_downgrade_behavior",
+        "author_impact"
+      ],
+      "properties": {
+        "deprecation_posture_class": { "$ref": "#/$defs/deprecation_posture_class" },
+        "deprecated_since_version": { "$ref": "#/$defs/non_empty_string" },
+        "replacement_surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "no_direct_replacement_reason": { "$ref": "#/$defs/non_empty_string" },
+        "migration_guide_ref": { "$ref": "#/$defs/non_empty_string" },
+        "removal_target_version": { "$ref": "#/$defs/non_empty_string" },
+        "removal_target_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "alias_or_downgrade_behavior": { "$ref": "#/$defs/non_empty_string" },
+        "author_impact": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "deprecation_posture_class": { "const": "deprecated_with_replacement" }
+            },
+            "required": ["deprecation_posture_class"]
+          },
+          "then": {
+            "required": [
+              "deprecated_since_version",
+              "replacement_surface_ref",
+              "migration_guide_ref"
+            ],
+            "anyOf": [
+              { "required": ["removal_target_version"] },
+              { "required": ["removal_target_date"] }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "deprecation_posture_class": { "const": "deprecated_no_direct_replacement" }
+            },
+            "required": ["deprecation_posture_class"]
+          },
+          "then": {
+            "required": [
+              "deprecated_since_version",
+              "no_direct_replacement_reason",
+              "migration_guide_ref"
+            ],
+            "anyOf": [
+              { "required": ["removal_target_version"] },
+              { "required": ["removal_target_date"] }
+            ]
+          }
+        }
+      ]
+    },
+    "lifecycle_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "surface_ref",
+        "surface_kind",
+        "stability_label",
+        "versioning_scheme",
+        "current_version",
+        "min_supported_version",
+        "max_tested_version",
+        "support_window",
+        "deprecation",
+        "docs_ref",
+        "schema_ref",
+        "compatibility_report_ref",
+        "owner",
+        "consumer_refs",
+        "redaction_class"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^lifecycle_row:"
+        },
+        "surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "stability_label": { "$ref": "#/$defs/stability_label" },
+        "versioning_scheme": { "$ref": "#/$defs/versioning_scheme" },
+        "current_version": { "$ref": "#/$defs/non_empty_string" },
+        "min_supported_version": { "$ref": "#/$defs/non_empty_string" },
+        "max_tested_version": { "$ref": "#/$defs/non_empty_string" },
+        "support_window": { "$ref": "#/$defs/support_window" },
+        "deprecation": { "$ref": "#/$defs/deprecation" },
+        "docs_ref": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "conformance_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "lifecycle_metadata_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "lifecycle_metadata_schema_version",
+        "packet_id",
+        "policy_ref",
+        "generated_at",
+        "owner",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "rows",
+        "row_count",
+        "deprecated_row_count",
+        "beta_or_stable_row_count",
+        "decision_class",
+        "reason_class",
+        "decision_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "extension_lifecycle_metadata_packet"
+        },
+        "lifecycle_metadata_schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": {
+          "type": "string",
+          "pattern": "^extension_lifecycle_metadata_packet:"
+        },
+        "policy_ref": {
+          "type": "string",
+          "const": "docs/extensions/m3/sdk_versioning_and_deprecation.md"
+        },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "owner": { "$ref": "#/$defs/non_empty_string" },
+        "sdk_line_id": { "$ref": "#/$defs/non_empty_string" },
+        "sdk_line_semver": { "$ref": "#/$defs/non_empty_string" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/lifecycle_row" }
+        },
+        "row_count": { "type": "integer", "minimum": 1 },
+        "deprecated_row_count": { "type": "integer", "minimum": 0 },
+        "beta_or_stable_row_count": { "type": "integer", "minimum": 1 },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "decision_summary": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "lifecycle_metadata_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "lifecycle_metadata_schema_version",
+        "export_id",
+        "packet_ref",
+        "policy_ref",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "row_count",
+        "deprecated_row_count",
+        "beta_or_stable_row_count",
+        "decision_class",
+        "reason_class",
+        "blocks_publication",
+        "deprecation_disclosure_required",
+        "export_safe_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "extension_lifecycle_metadata_support_export"
+        },
+        "lifecycle_metadata_schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": {
+          "type": "string",
+          "pattern": "^extension_lifecycle_metadata_support_export:"
+        },
+        "packet_ref": {
+          "type": "string",
+          "pattern": "^extension_lifecycle_metadata_packet:"
+        },
+        "policy_ref": {
+          "type": "string",
+          "const": "docs/extensions/m3/sdk_versioning_and_deprecation.md"
+        },
+        "sdk_line_id": { "$ref": "#/$defs/non_empty_string" },
+        "sdk_line_semver": { "$ref": "#/$defs/non_empty_string" },
+        "row_count": { "type": "integer", "minimum": 1 },
+        "deprecated_row_count": { "type": "integer", "minimum": 0 },
+        "beta_or_stable_row_count": { "type": "integer", "minimum": 1 },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "blocks_publication": { "type": "boolean" },
+        "deprecation_disclosure_required": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

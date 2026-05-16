@@ -22,6 +22,7 @@ SEMVER_RE = re.compile(
     r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
 )
 WORLD_RE = re.compile(r"^aureline:[a-z][a-z0-9-]*[a-z0-9]@[0-9]+\.[0-9]+\.[0-9]+$")
+LIFECYCLE_REF_RE = re.compile(r"^lifecycle_row:[A-Za-z0-9_.:-]+$")
 
 PERMISSION_SCOPES = {
     "filesystem_read",
@@ -118,6 +119,40 @@ RED_FLAGS = {
     "missing_lifecycle_metadata",
     "incompatible_sdk_target",
     "missing_disable_or_rollback",
+}
+LIFECYCLE_PACKET_SCHEMA_VERSION = 1
+LIFECYCLE_RECORD_KIND = "extension_lifecycle_metadata_packet"
+LIFECYCLE_POLICY_REF = "docs/extensions/m3/sdk_versioning_and_deprecation.md"
+LIFECYCLE_SURFACE_KINDS = {
+    "sdk_api_surface",
+    "manifest_schema",
+    "wit_world",
+    "permission_vocabulary",
+    "publication_pipeline",
+    "bridge_profile",
+}
+LIFECYCLE_STABILITY_LABELS = {
+    "internal",
+    "experimental",
+    "beta",
+    "stable",
+    "lts_surface",
+    "deprecated",
+    "retired",
+}
+LIFECYCLE_VERSIONING_SCHEMES = {
+    "semver",
+    "json_schema_epoch",
+    "wit_package_version",
+    "permission_vocabulary_epoch",
+    "bridge_profile_epoch",
+    "publication_schema_epoch",
+}
+LIFECYCLE_DEPRECATION_POSTURES = {
+    "not_deprecated",
+    "deprecated_with_replacement",
+    "deprecated_no_direct_replacement",
+    "retired",
 }
 
 
@@ -317,6 +352,7 @@ def validate_manifest_payload(
     sdk_line_semver = sdk.get("line_semver")
     host_abi_window = sdk.get("host_abi_window")
     wit_world_refs = as_list(sdk.get("wit_world_refs"))
+    lifecycle_metadata_refs = as_list(sdk.get("lifecycle_metadata_refs"))
     external_host_contract_ref = sdk.get("external_host_contract_ref")
     compatibility = ensure_obj(manifest.get("compatibility"), "compatibility", findings)
     aureline_versions = ensure_obj(compatibility.get("aureline_versions"), "compatibility.aureline_versions", findings)
@@ -341,6 +377,16 @@ def validate_manifest_payload(
         message="sdk.line_semver follows semver",
         field="sdk.line_semver",
         fix="Use the SDK line semver published with the beta host.",
+    )
+    add(
+        findings,
+        check_id="compatibility_targets.lifecycle_metadata_refs",
+        suite="compatibility_targets",
+        ok=bool(lifecycle_metadata_refs)
+        and all(isinstance(ref, str) and LIFECYCLE_REF_RE.match(ref) for ref in lifecycle_metadata_refs),
+        message="sdk.lifecycle_metadata_refs cite canonical lifecycle rows",
+        field="sdk.lifecycle_metadata_refs",
+        fix="Cite lifecycle_row:* entries from artifacts/extensions/m3/lifecycle_metadata_packet.json.",
     )
     add(
         findings,
@@ -790,6 +836,211 @@ def validate_suite(
     }
 
 
+def validate_lifecycle_packet_payload(
+    payload: Any,
+    *,
+    subject_packet_ref: str,
+    generated_at: str,
+) -> dict[str, Any]:
+    findings: list[Finding] = []
+    packet = payload if isinstance(payload, dict) else {}
+    add(
+        findings,
+        check_id="lifecycle_metadata_packet.object_required",
+        suite="lifecycle_metadata_packet",
+        ok=isinstance(payload, dict),
+        message="lifecycle metadata packet is a JSON object",
+        fix="Use the packet shape in schemas/extensions/lifecycle_metadata.schema.json.",
+    )
+    add(
+        findings,
+        check_id="lifecycle_metadata_packet.record_kind",
+        suite="lifecycle_metadata_packet",
+        ok=packet.get("record_kind") == LIFECYCLE_RECORD_KIND,
+        message="record_kind identifies the lifecycle metadata packet",
+        field="record_kind",
+        fix=f"Set record_kind to {LIFECYCLE_RECORD_KIND}.",
+    )
+    add(
+        findings,
+        check_id="lifecycle_metadata_packet.schema_version",
+        suite="lifecycle_metadata_packet",
+        ok=packet.get("lifecycle_metadata_schema_version") == LIFECYCLE_PACKET_SCHEMA_VERSION,
+        message="packet pins the lifecycle metadata schema version",
+        field="lifecycle_metadata_schema_version",
+        fix=f"Set lifecycle_metadata_schema_version to {LIFECYCLE_PACKET_SCHEMA_VERSION}.",
+    )
+    add(
+        findings,
+        check_id="lifecycle_metadata_packet.packet_id",
+        suite="lifecycle_metadata_packet",
+        ok=isinstance(packet.get("packet_id"), str)
+        and packet["packet_id"].startswith("extension_lifecycle_metadata_packet:"),
+        message="packet_id is in the lifecycle metadata namespace",
+        field="packet_id",
+        fix="Use an extension_lifecycle_metadata_packet:* id.",
+    )
+    add(
+        findings,
+        check_id="lifecycle_metadata_packet.policy_ref",
+        suite="lifecycle_metadata_packet",
+        ok=packet.get("policy_ref") == LIFECYCLE_POLICY_REF,
+        message="packet cites the SDK versioning and deprecation policy",
+        field="policy_ref",
+        fix=f"Set policy_ref to {LIFECYCLE_POLICY_REF}.",
+    )
+
+    rows = as_list(packet.get("rows"))
+    add(
+        findings,
+        check_id="lifecycle_metadata_packet.rows_present",
+        suite="lifecycle_metadata_packet",
+        ok=bool(rows),
+        message="packet contains governed lifecycle rows",
+        field="rows",
+        fix="Add lifecycle rows for the declared beta SDK/public-interface surfaces.",
+    )
+
+    deprecated_row_count = 0
+    beta_or_stable_row_count = 0
+    for idx, row_raw in enumerate(rows):
+        row = row_raw if isinstance(row_raw, dict) else {}
+        row_id = row.get("row_id")
+        field = f"rows[{idx}]"
+        add(
+            findings,
+            check_id="lifecycle_metadata_row.row_id",
+            suite="lifecycle_metadata_row",
+            ok=isinstance(row_id, str) and row_id.startswith("lifecycle_row:"),
+            message=f"{field}.row_id is in the lifecycle row namespace",
+            field=f"{field}.row_id",
+            fix="Use a lifecycle_row:* id.",
+        )
+        stability = row.get("stability_label")
+        deprecation = row.get("deprecation") if isinstance(row.get("deprecation"), dict) else {}
+        posture = deprecation.get("deprecation_posture_class")
+        if stability in {"beta", "stable", "lts_surface", "deprecated"}:
+            beta_or_stable_row_count += 1
+        if stability in {"deprecated", "retired"} or posture != "not_deprecated":
+            deprecated_row_count += 1
+        add(
+            findings,
+            check_id="lifecycle_metadata_row.surface_kind",
+            suite="lifecycle_metadata_row",
+            ok=row.get("surface_kind") in LIFECYCLE_SURFACE_KINDS,
+            message=f"{field}.surface_kind uses the closed lifecycle vocabulary",
+            field=f"{field}.surface_kind",
+            fix="Use a surface_kind from schemas/extensions/lifecycle_metadata.schema.json.",
+        )
+        add(
+            findings,
+            check_id="lifecycle_metadata_row.stability_label",
+            suite="lifecycle_metadata_row",
+            ok=stability in LIFECYCLE_STABILITY_LABELS,
+            message=f"{field}.stability_label uses the closed lifecycle vocabulary",
+            field=f"{field}.stability_label",
+            fix="Use internal, experimental, beta, stable, lts_surface, deprecated, or retired.",
+        )
+        add(
+            findings,
+            check_id="lifecycle_metadata_row.versioning_scheme",
+            suite="lifecycle_metadata_row",
+            ok=row.get("versioning_scheme") in LIFECYCLE_VERSIONING_SCHEMES,
+            message=f"{field}.versioning_scheme uses the closed lifecycle vocabulary",
+            field=f"{field}.versioning_scheme",
+            fix="Use the versioning_scheme defined for this public surface family.",
+        )
+        support = row.get("support_window") if isinstance(row.get("support_window"), dict) else {}
+        support_complete = (
+            non_empty_string(support.get("introduced_in_version"))
+            and non_empty_string(support.get("minimum_overlap"))
+            and non_empty_string(support.get("support_window_summary"))
+        )
+        add(
+            findings,
+            check_id="lifecycle_metadata_row.support_window",
+            suite="lifecycle_metadata_row",
+            ok=stability not in {"beta", "stable", "lts_surface", "deprecated"}
+            or support_complete,
+            message=f"{field}.support_window is present for governed public rows",
+            field=f"{field}.support_window",
+            fix="Declare introduced version, minimum overlap, and support-window summary.",
+        )
+        add(
+            findings,
+            check_id="lifecycle_metadata_row.consumer_refs",
+            suite="lifecycle_metadata_row",
+            ok=bool(as_list(row.get("consumer_refs"))),
+            message=f"{field}.consumer_refs names at least one consuming surface",
+            field=f"{field}.consumer_refs",
+            fix="Add the docs, CLI, support, or publication consumer that reads this row.",
+        )
+        add(
+            findings,
+            check_id="lifecycle_metadata_row.deprecation_posture",
+            suite="lifecycle_metadata_row",
+            ok=posture in LIFECYCLE_DEPRECATION_POSTURES,
+            message=f"{field}.deprecation.deprecation_posture_class uses the closed vocabulary",
+            field=f"{field}.deprecation.deprecation_posture_class",
+            fix="Use not_deprecated, deprecated_with_replacement, deprecated_no_direct_replacement, or retired.",
+        )
+        if stability in {"deprecated", "retired"} or posture != "not_deprecated":
+            replacement_or_no_direct = non_empty_string(deprecation.get("replacement_surface_ref")) or non_empty_string(
+                deprecation.get("no_direct_replacement_reason")
+            )
+            expiry_present = non_empty_string(deprecation.get("removal_target_version")) or non_empty_string(
+                deprecation.get("removal_target_date")
+            )
+            add(
+                findings,
+                check_id="lifecycle_metadata_row.deprecated_replacement_or_no_direct",
+                suite="lifecycle_metadata_row",
+                ok=replacement_or_no_direct,
+                message=f"{field} deprecated row names a replacement or no-direct-replacement reason",
+                field=f"{field}.deprecation",
+                fix="Add replacement_surface_ref or no_direct_replacement_reason.",
+            )
+            add(
+                findings,
+                check_id="lifecycle_metadata_row.deprecated_expiry",
+                suite="lifecycle_metadata_row",
+                ok=expiry_present,
+                message=f"{field} deprecated row publishes a removal target",
+                field=f"{field}.deprecation",
+                fix="Add removal_target_version or removal_target_date.",
+            )
+            add(
+                findings,
+                check_id="lifecycle_metadata_row.deprecated_migration_guide",
+                suite="lifecycle_metadata_row",
+                ok=non_empty_string(deprecation.get("migration_guide_ref")),
+                message=f"{field} deprecated row cites migration guidance",
+                field=f"{field}.deprecation.migration_guide_ref",
+                fix="Add migration_guide_ref.",
+            )
+
+    failed = [finding for finding in findings if finding.status == "fail"]
+    result_class = "fail" if any(f.severity == "blocker" for f in failed) else "pass"
+    return {
+        "record_kind": "extension_lifecycle_metadata_validation_report",
+        "lifecycle_metadata_schema_version": LIFECYCLE_PACKET_SCHEMA_VERSION,
+        "validator_id": VALIDATOR_ID,
+        "validator_version": VALIDATOR_VERSION,
+        "generated_at": generated_at,
+        "subject_packet_ref": subject_packet_ref,
+        "result_class": result_class,
+        "row_count": len(rows),
+        "deprecated_row_count": deprecated_row_count,
+        "beta_or_stable_row_count": beta_or_stable_row_count,
+        "summary": {
+            "passed": sum(1 for finding in findings if finding.status == "pass"),
+            "failed": len(failed),
+            "blockers": sum(1 for finding in failed if finding.severity == "blocker"),
+        },
+        "checks": [finding.as_report() for finding in findings],
+    }
+
+
 def render_report(report: dict[str, Any]) -> str:
     return json.dumps(report, indent=2, sort_keys=True) + "\n"
 
@@ -844,6 +1095,36 @@ def command_validate_suite(args: argparse.Namespace) -> int:
     return 0 if report["suite_result_class"] == "pass" else 1
 
 
+def command_validate_lifecycle_packet(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).resolve()
+    packet_path = Path(args.packet).resolve()
+    generated_at = args.generated_at or "2026-05-16T18:00:00Z"
+    report = validate_lifecycle_packet_payload(
+        load_json(packet_path),
+        subject_packet_ref=normalize_rel(packet_path, repo_root),
+        generated_at=generated_at,
+    )
+    rendered = render_report(report)
+    if args.report:
+        report_path = Path(args.report).resolve()
+        if args.check:
+            if not report_path.exists():
+                print(f"[extension-validator] missing lifecycle report: {report_path}", file=sys.stderr)
+                return 1
+            if report_path.read_text(encoding="utf-8") != rendered:
+                print(
+                    f"[extension-validator] lifecycle report drift detected: {report_path}",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(rendered, encoding="utf-8")
+    else:
+        sys.stdout.write(rendered)
+    return 0 if report["result_class"] == "pass" else 1
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", default=".")
@@ -864,6 +1145,20 @@ def parse_args() -> argparse.Namespace:
         help="fail when --report does not match the generated suite report",
     )
     suite.set_defaults(func=command_validate_suite)
+
+    lifecycle = sub.add_parser(
+        "validate-lifecycle-packet",
+        help="validate the canonical lifecycle/deprecation metadata packet",
+    )
+    lifecycle.add_argument("--packet", required=True)
+    lifecycle.add_argument("--generated-at")
+    lifecycle.add_argument("--report")
+    lifecycle.add_argument(
+        "--check",
+        action="store_true",
+        help="fail when --report does not match the generated lifecycle report",
+    )
+    lifecycle.set_defaults(func=command_validate_lifecycle_packet)
     return parser.parse_args()
 
 

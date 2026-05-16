@@ -11,6 +11,10 @@ The governed artifacts are:
   [`tools/extensions/m3/validator_cli/aureline_extension_validator.py`](../../../tools/extensions/m3/validator_cli/aureline_extension_validator.py)
 - Author manifest schema:
   [`schemas/extensions/beta_extension_manifest.schema.json`](../../../schemas/extensions/beta_extension_manifest.schema.json)
+- Lifecycle metadata schema:
+  [`schemas/extensions/lifecycle_metadata.schema.json`](../../../schemas/extensions/lifecycle_metadata.schema.json)
+- Canonical lifecycle packet:
+  [`artifacts/extensions/m3/lifecycle_metadata_packet.json`](../../../artifacts/extensions/m3/lifecycle_metadata_packet.json)
 - Validator report schema:
   [`schemas/extensions/conformance_kit_report.schema.json`](../../../schemas/extensions/conformance_kit_report.schema.json)
 - Fixture suite:
@@ -33,7 +37,7 @@ are grouped into five suites:
 | `manifest_shape` | Required manifest fields, schema version, package id, publisher id, semver, runtime origin, host family | Required identity or shape is missing, publisher is opaque, or runtime vocabulary is unknown |
 | `permission_declarations` | Declared permission scopes, purpose text, targets, trust-mode behavior, review requirement, network endpoint class, secret-handle posture | Privileged scope lacks purpose, prompt copy, review gating, endpoint class, or handle-only secret posture |
 | `lifecycle_metadata` | Lifecycle state, activation triggers, activation budget, degraded path, disable support, rollback target | Activation, degraded path, disable, or rollback truth is missing |
-| `compatibility_targets` | SDK line, SDK semver, host ABI window, WIT worlds or external-host contract, Aureline version range, platform rows, support class, bridge state | Host/runtime claims do not match the SDK beta contract or the compatibility target is incomplete |
+| `compatibility_targets` | SDK line, SDK semver, lifecycle metadata refs, host ABI window, WIT worlds or external-host contract, Aureline version range, platform rows, support class, bridge state | Host/runtime claims do not match the SDK beta contract or the compatibility target is incomplete |
 | `conformance_fixtures` | Install, activation, permission prompt, degraded path, and disable or rollback fixture coverage | Required scenario coverage is missing or fixture refs are empty |
 
 The report carries a closed `result_class`: `pass`, `warn`, or `fail`.
@@ -87,6 +91,17 @@ python3 tools/extensions/m3/validator_cli/aureline_extension_validator.py \
   validate-suite \
   --suite fixtures/extensions/m3/conformance_kit/suite.json \
   --report artifacts/compat/m3/extension_conformance_kit_report.json
+```
+
+Validate the lifecycle metadata packet and fail on report drift:
+
+```text
+python3 tools/extensions/m3/validator_cli/aureline_extension_validator.py \
+  --repo-root . \
+  validate-lifecycle-packet \
+  --packet artifacts/extensions/m3/lifecycle_metadata_packet.json \
+  --report artifacts/compat/m3/extension_lifecycle_metadata_report.json \
+  --check
 ```
 
 ## Relationship to existing contracts

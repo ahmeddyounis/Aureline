@@ -28,6 +28,10 @@ The contract is governed. The canonical Rust source of truth lives in
 [`crates/aureline-extensions/src/sdk_v1/`](../../../../crates/aureline-extensions/src/sdk_v1/);
 the extension runtime / SDK / manifest / bridge compatibility matrix is
 [`artifacts/compat/m3/bridge_matrix.yaml`](../../../../artifacts/compat/m3/bridge_matrix.yaml);
+the SDK/public-interface versioning and deprecation policy is
+[`docs/extensions/m3/sdk_versioning_and_deprecation.md`](../sdk_versioning_and_deprecation.md);
+the canonical lifecycle metadata packet is
+[`artifacts/extensions/m3/lifecycle_metadata_packet.json`](../../../../artifacts/extensions/m3/lifecycle_metadata_packet.json);
 the cross-tool boundary schema is
 [`schemas/extensions/sdk_v1_starter_pack.schema.json`](../../../../schemas/extensions/sdk_v1_starter_pack.schema.json);
 the checked-in fixtures live under
@@ -151,6 +155,24 @@ The `SdkV1ApiSurfaceClass` ↔ `HostContractFamilyClass` mapping is
 total and closed; `host_contract_family_for_api_surface` is the only
 authorized projection.
 
+## Versioning And Lifecycle
+
+Every declared beta SDK/public-interface row is governed by
+[`sdk_versioning_and_deprecation.md`](../sdk_versioning_and_deprecation.md)
+and one or more `lifecycle_row:*` entries in
+[`lifecycle_metadata_packet.json`](../../../../artifacts/extensions/m3/lifecycle_metadata_packet.json).
+The starter pack, compatibility matrix, publication packet, and
+conformance validator must cite those rows before they claim a beta
+surface is author-ready.
+
+Beta rows remain readable and documented for at least one minor release
+or 90 days before removal. Deprecated rows must carry a replacement
+surface or explicit no-direct-replacement reason, a migration guide, and
+a removal target. The current packet includes a deprecation for
+`manifest_field:extension_manifest.lifecycle.state.resolved`; new
+manifest writers should emit `verified` before activation and
+`activated` after runtime admission.
+
 ## Fixture catalogue
 
 | Fixture                                                                                            | Decision class                              | Reason class                                                              |
@@ -195,8 +217,8 @@ invent SDK-v1-shaped fields:
 - **Compatibility matrix.** Native, bridge, shimmed, partial, and
   unsupported author paths cite
   [`docs/extensions/m3/compatibility_matrix_beta.md`](../compatibility_matrix_beta.md)
-  and the matching `extension_bridge_row:*` id. Bridge or shimmed paths
-  cannot be documented as exact SDK parity.
+  plus matching `extension_bridge_row:*` and `lifecycle_row:*` ids.
+  Bridge or shimmed paths cannot be documented as exact SDK parity.
 - **Extension validator.** Validates author manifests against the beta
   SDK, permission, lifecycle, compatibility, and conformance-fixture
   expectations before registry ingest. The command and fixture suite
@@ -234,8 +256,6 @@ evaluator output for independent JSON-schema validation against
 
 ## Out of scope
 
-- Quantitative support-window lengths per surface class. Lengths
-  remain in the SDK publication contract.
 - A marketplace recommendation engine or vanity catalog surface.
 - A public-mirror service for the sample pack; the seed pins the row
   shape, the mirror service is a successor concern.

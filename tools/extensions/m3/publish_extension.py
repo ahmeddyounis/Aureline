@@ -17,6 +17,8 @@ SCHEMA_VERSION = 1
 PIPELINE_KIND = "extension_publication_pipeline_record"
 SUPPORT_EXPORT_KIND = "extension_publication_support_export_record"
 VALIDATOR_GENERATED_AT = "2026-05-16T18:00:00Z"
+DEFAULT_LIFECYCLE_PACKET = "artifacts/extensions/m3/lifecycle_metadata_packet.json"
+DEFAULT_DEPRECATION_PACKET_TEMPLATE = "artifacts/extensions/m3/deprecation_packet_template.md"
 
 
 def load_json(path: Path) -> Any:
@@ -106,6 +108,11 @@ def build_input(args: argparse.Namespace, manifest: dict[str, Any], artifact_add
     )
     bridge_matrix_ref = args.bridge_matrix_ref
     bridge_matrix_row_ref = args.bridge_matrix_row_ref
+    lifecycle_refs = [str(ref) for ref in as_list(sdk.get("lifecycle_metadata_refs"))]
+    lifecycle_metadata_ref = (
+        args.lifecycle_metadata_ref
+        or f"{DEFAULT_LIFECYCLE_PACKET}#{lifecycle_refs[0]}"
+    )
     previous_address = {
         "digest_algorithm": "sha256",
         "digest_hex": args.previous_digest_hex,
@@ -204,6 +211,8 @@ def build_input(args: argparse.Namespace, manifest: dict[str, Any], artifact_add
             "compatibility_report_ref": compatibility_report_ref,
             "bridge_matrix_ref": bridge_matrix_ref,
             "bridge_matrix_row_ref": bridge_matrix_row_ref,
+            "lifecycle_metadata_ref": lifecycle_metadata_ref,
+            "deprecation_packet_template_ref": args.deprecation_packet_template_ref,
             "host_contract_family_refs": host_refs,
             "capability_world_refs": world_refs,
             "target_platforms": target_platforms,
@@ -351,6 +360,8 @@ def decide(payload: dict[str, Any]) -> tuple[str, str, str]:
         not non_empty(compatibility.get("compatibility_report_ref"))
         or not non_empty(compatibility.get("bridge_matrix_ref"))
         or not non_empty(compatibility.get("bridge_matrix_row_ref"))
+        or not non_empty(compatibility.get("lifecycle_metadata_ref"))
+        or not non_empty(compatibility.get("deprecation_packet_template_ref"))
         or not as_list(compatibility.get("host_contract_family_refs"))
         or not as_list(compatibility.get("capability_world_refs"))
         or not as_list(compatibility.get("target_platforms"))
@@ -442,6 +453,8 @@ def support_export(record: dict[str, Any]) -> dict[str, Any]:
         "compatibility_report_ref": record["compatibility_metadata"]["compatibility_report_ref"],
         "bridge_matrix_ref": record["compatibility_metadata"]["bridge_matrix_ref"],
         "bridge_matrix_row_ref": record["compatibility_metadata"]["bridge_matrix_row_ref"],
+        "lifecycle_metadata_ref": record["compatibility_metadata"]["lifecycle_metadata_ref"],
+        "deprecation_packet_template_ref": record["compatibility_metadata"]["deprecation_packet_template_ref"],
         "rollback_manifest_ref": record["rollback_plan"]["rollback_manifest_ref"],
         "decision_class": record["decision_class"],
         "reason_class": record["reason_class"],
@@ -454,6 +467,7 @@ def support_export(record: dict[str, Any]) -> dict[str, Any]:
             f"signer={record['signer_metadata']['signer_ref']}; "
             f"provenance={record['provenance_metadata']['provenance_ref']}; "
             f"bridge_row={record['compatibility_metadata']['bridge_matrix_row_ref']}; "
+            f"lifecycle={record['compatibility_metadata']['lifecycle_metadata_ref']}; "
             f"promotion_steps={record['promotion_step_count']}; rollback={rollback_available}"
         ),
         "redaction_class": "metadata_safe_default",
@@ -488,6 +502,8 @@ def registry_manifest_row(record: dict[str, Any], generated_at: str) -> dict[str
                 "compatibility_claim_class": "compatible_on_all_declared_targets",
                 "bridge_matrix_ref": compat["bridge_matrix_ref"],
                 "bridge_matrix_row_ref": compat["bridge_matrix_row_ref"],
+                "lifecycle_metadata_ref": compat["lifecycle_metadata_ref"],
+                "deprecation_packet_template_ref": compat["deprecation_packet_template_ref"],
                 "declared_host_contract_family_refs": compat["host_contract_family_refs"],
                 "declared_capability_world_refs": compat["capability_world_refs"],
                 "known_caveat_labels": [],
@@ -591,6 +607,44 @@ def validate_packet_payload(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def lifecycle_packet_findings(packet: dict[str, Any], manifest: dict[str, Any]) -> list[str]:
+    findings = []
+    if packet.get("record_kind") != "extension_lifecycle_metadata_packet":
+        findings.append("record_kind must be extension_lifecycle_metadata_packet")
+    if packet.get("policy_ref") != "docs/extensions/m3/sdk_versioning_and_deprecation.md":
+        findings.append("policy_ref must cite the SDK versioning and deprecation policy")
+    rows = packet.get("rows")
+    if not isinstance(rows, list) or not rows:
+        findings.append("rows must contain lifecycle metadata rows")
+        rows = []
+    row_ids = {row.get("row_id") for row in rows if isinstance(row, dict)}
+    required_refs = set(as_list(manifest.get("sdk", {}).get("lifecycle_metadata_refs")))
+    missing_refs = sorted(ref for ref in required_refs if ref not in row_ids)
+    if missing_refs:
+        findings.append("manifest lifecycle refs missing from packet: " + ", ".join(missing_refs))
+    for row in rows:
+        if not isinstance(row, dict):
+            findings.append("lifecycle row must be an object")
+            continue
+        deprecation = row.get("deprecation") if isinstance(row.get("deprecation"), dict) else {}
+        posture = deprecation.get("deprecation_posture_class")
+        stability = row.get("stability_label")
+        if stability in {"deprecated", "retired"} or posture != "not_deprecated":
+            has_replacement_or_reason = non_empty(deprecation.get("replacement_surface_ref")) or non_empty(
+                deprecation.get("no_direct_replacement_reason")
+            )
+            has_expiry = non_empty(deprecation.get("removal_target_version")) or non_empty(
+                deprecation.get("removal_target_date")
+            )
+            if not has_replacement_or_reason:
+                findings.append(f"{row.get('row_id')}: deprecated row lacks replacement or no-direct-replacement reason")
+            if not has_expiry:
+                findings.append(f"{row.get('row_id')}: deprecated row lacks removal target")
+            if not non_empty(deprecation.get("migration_guide_ref")):
+                findings.append(f"{row.get('row_id')}: deprecated row lacks migration guide")
+    return findings
+
+
 def write_publication_outputs(out_dir: Path, record: dict[str, Any], support: dict[str, Any], generated_at: str, force: bool) -> None:
     files: dict[str, Any] = {
         "publication_pipeline_record.json": record,
@@ -638,6 +692,12 @@ def command_build_packet(args: argparse.Namespace) -> int:
         sys.stderr.write(json.dumps(manifest_report["summary"], sort_keys=True) + "\n")
         return 1
     manifest = load_json(manifest_path)
+    lifecycle_packet = load_json((repo_root / args.lifecycle_packet).resolve())
+    lifecycle_findings = lifecycle_packet_findings(lifecycle_packet, manifest)
+    if lifecycle_findings:
+        sys.stderr.write("[extension-publish] lifecycle metadata validation failed; no catalog outputs written\n")
+        sys.stderr.write(json.dumps(lifecycle_findings, indent=2) + "\n")
+        return 1
     packet_input = build_input(args, manifest, content_address_for(artifact_path))
     record = evaluate_input(packet_input)
     export = support_export(record)
@@ -728,6 +788,9 @@ def parse_args() -> argparse.Namespace:
         "--bridge-matrix-row-ref",
         default="extension_bridge_row:wasm_component_native_beta",
     )
+    build.add_argument("--lifecycle-packet", default=DEFAULT_LIFECYCLE_PACKET)
+    build.add_argument("--lifecycle-metadata-ref")
+    build.add_argument("--deprecation-packet-template-ref", default=DEFAULT_DEPRECATION_PACKET_TEMPLATE)
     build.add_argument("--signer-ref")
     build.add_argument("--signature-ref")
     build.add_argument("--signature-class", choices=[

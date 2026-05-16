@@ -122,6 +122,16 @@ fn run_fixture(name: &str) {
         record.compatibility_metadata.bridge_matrix_row_ref
     );
     assert_eq!(
+        export.lifecycle_metadata_ref,
+        record.compatibility_metadata.lifecycle_metadata_ref
+    );
+    assert_eq!(
+        export.deprecation_packet_template_ref,
+        record
+            .compatibility_metadata
+            .deprecation_packet_template_ref
+    );
+    assert_eq!(
         export.blocks_catalog_mutation,
         record.decision_class == PublicationDecisionClass::Refused
     );

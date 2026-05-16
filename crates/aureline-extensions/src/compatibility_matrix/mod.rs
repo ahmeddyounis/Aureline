@@ -5,8 +5,8 @@
 //! is the canonical source for beta extension compatibility lanes. It
 //! binds every claimed lane to four explicit windows: runtime, SDK,
 //! manifest, and bridge. Marketplace rows, SDK docs, publication
-//! packets, and support exports cite these row ids instead of creating
-//! local bridge or shim claims.
+//! packets, and support exports cite these row ids plus lifecycle row
+//! ids instead of creating local bridge, support-window, or shim claims.
 
 use std::collections::BTreeSet;
 
@@ -68,6 +68,12 @@ pub struct ExtensionBridgeMatrix {
     pub docs_projection_ref: String,
     /// JSON schema path for this matrix.
     pub schema_ref: String,
+    /// Canonical lifecycle metadata packet path.
+    pub lifecycle_metadata_ref: String,
+    /// SDK/public-interface versioning policy path.
+    pub versioning_policy_ref: String,
+    /// Deprecation packet template path.
+    pub deprecation_packet_template_ref: String,
     /// Surfaces that consume this matrix directly.
     pub consuming_surfaces: Vec<String>,
     /// Closed bridge-state vocabulary declared by the matrix.
@@ -112,6 +118,9 @@ pub struct ExtensionBridgeMatrixRow {
     pub downgrade_behavior: ExtensionDowngradeBehavior,
     /// Evidence refs cited by the row.
     pub evidence_refs: Vec<String>,
+    /// Lifecycle metadata row refs that govern this compatibility row.
+    #[serde(default)]
+    pub lifecycle_row_refs: Vec<String>,
     /// Marketplace row refs that consume this row.
     #[serde(default)]
     pub marketplace_surface_refs: Vec<String>,
@@ -339,6 +348,15 @@ pub fn validate_extension_bridge_matrix(
             "matrix must contain at least one compatibility row",
         ));
     }
+    if matrix.lifecycle_metadata_ref.trim().is_empty()
+        || matrix.versioning_policy_ref.trim().is_empty()
+        || matrix.deprecation_packet_template_ref.trim().is_empty()
+    {
+        findings.push(ExtensionBridgeMatrixFinding::matrix(
+            "extension_bridge_matrix.lifecycle_governance_ref_missing",
+            "matrix must cite lifecycle metadata, versioning policy, and deprecation packet template",
+        ));
+    }
 
     for state in ExtensionBridgeStateClass::required_acceptance_states() {
         if !matrix.bridge_state_vocabulary.contains(&state) {
@@ -395,6 +413,13 @@ fn validate_row(row: &ExtensionBridgeMatrixRow, findings: &mut Vec<ExtensionBrid
             &row.row_id,
             "extension_bridge_matrix.evidence_missing",
             "row must cite evidence refs",
+        ));
+    }
+    if row.lifecycle_row_refs.is_empty() {
+        findings.push(ExtensionBridgeMatrixFinding::row(
+            &row.row_id,
+            "extension_bridge_matrix.lifecycle_rows_missing",
+            "row must cite lifecycle metadata row refs",
         ));
     }
     if row.downgrade_behavior.default_repair_hints.is_empty() {

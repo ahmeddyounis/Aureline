@@ -5,6 +5,14 @@ This page is the author-facing projection of
 Use the row ids here in issue reports, marketplace reviews, publication
 packets, and SDK support questions.
 
+Support windows and deprecation posture come from
+[`artifacts/extensions/m3/lifecycle_metadata_packet.json`](../../../artifacts/extensions/m3/lifecycle_metadata_packet.json)
+under the policy in
+[`sdk_versioning_and_deprecation.md`](./sdk_versioning_and_deprecation.md).
+Each compatibility row cites both an `extension_bridge_row:*` id and
+the `lifecycle_row:*` ids that govern its SDK, manifest, WIT,
+permission, or bridge surface.
+
 ## Summary
 
 | Lane | Row id | State | What is supported |
@@ -25,6 +33,7 @@ Each row names four windows:
 | SDK window | SDK line, typed API availability, WIT or external-host contract coverage, and conformance requirement. |
 | Manifest window | Manifest schema, permission vocabulary, required disclosures, and unknown-field preservation rule. |
 | Bridge window | Native, bridge, shimmed, partial, or unsupported state plus parity posture, caveats, permission delta, and performance delta. |
+| Lifecycle rows | Support window, lifecycle state, deprecation posture, replacement path, and removal target for the governed surface. |
 
 The beta extension row uses the canonical compatibility row
 `compat_row:extension_host.sdk_wit_permission_window`. If a package is
@@ -62,10 +71,12 @@ surface a bridge or shim.
 ## Consumer Checklist
 
 - Marketplace rows cite `extension_bridge_matrix:m3.beta` and a concrete
-  `extension_bridge_row:*` value.
-- SDK docs link the same row id when explaining native, bridge,
+  `extension_bridge_row:*` value plus the lifecycle row refs from the
+  matrix.
+- SDK docs link the same row ids when explaining native, bridge,
   shimmed, or unsupported author paths.
 - Publication packets carry `bridge_matrix_ref` and
-  `bridge_matrix_row_ref` in compatibility metadata.
+  `bridge_matrix_row_ref` in compatibility metadata together with
+  `lifecycle_metadata_ref` and `deprecation_packet_template_ref`.
 - Release notes cite this matrix before mentioning beta extension
   runtime, SDK, manifest, or bridge support.

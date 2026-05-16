@@ -65,6 +65,12 @@
 //!   matrix that names the runtime, SDK, manifest, and bridge windows for
 //!   claimed beta extension lanes so marketplace, SDK docs, publication
 //!   packets, and support exports do not invent local bridge claims.
+//! - one [`lifecycle_metadata::LifecycleMetadataPacket`] packet that
+//!   publishes support windows, versioning rules, deprecation guidance,
+//!   replacement paths, and removal targets for declared beta SDK and
+//!   public-interface rows, plus a
+//!   [`lifecycle_metadata::LifecycleMetadataSupportExportRecord`]
+//!   projection for support, publication, and partner review consumers.
 //! - one [`webview_boundary::ExtensionWebviewBoundaryAuditPacket`] audit packet
 //!   that keeps extension-owned webviews, hosted dashboards, provider-auth
 //!   checkpoints, and browser-runtime bridges aligned on owner/origin chrome,
@@ -86,6 +92,7 @@
 pub mod collections;
 pub mod compatibility_matrix;
 pub mod install_review;
+pub mod lifecycle_metadata;
 pub mod manifest_baseline;
 pub mod marketplace_truth;
 pub mod permission_manifest;
@@ -121,6 +128,17 @@ pub use install_review::{
     InstallReviewDisclosureClass, InstallReviewSurfaceClass, NativeReviewAuthorityClass,
     RuntimeCostClass, RuntimeCostEvidenceClass, INSTALL_REVIEW_ALPHA_PACKET_RECORD_KIND,
     INSTALL_REVIEW_ALPHA_PROJECTION_RECORD_KIND, INSTALL_REVIEW_ALPHA_SCHEMA_VERSION,
+};
+pub use lifecycle_metadata::{
+    current_extension_lifecycle_metadata_packet, evaluate_lifecycle_metadata_packet,
+    project_lifecycle_metadata_support_export, validate_lifecycle_metadata_packet,
+    validate_lifecycle_metadata_support_export, LifecycleDeprecationMetadata,
+    LifecycleDeprecationPostureClass, LifecycleMetadataDecisionClass, LifecycleMetadataFinding,
+    LifecycleMetadataPacket, LifecycleMetadataPacketInput, LifecycleMetadataReasonClass,
+    LifecycleMetadataRow, LifecycleMetadataSupportExportRecord, LifecycleStabilityLabel,
+    LifecycleSupportWindow, LifecycleSurfaceKind, LifecycleVersioningScheme,
+    CURRENT_EXTENSION_LIFECYCLE_METADATA_PACKET_PATH, LIFECYCLE_METADATA_PACKET_RECORD_KIND,
+    LIFECYCLE_METADATA_SCHEMA_VERSION, LIFECYCLE_METADATA_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use manifest_baseline::{
     compute_effective_permission_baseline, decide_manifest_install,
