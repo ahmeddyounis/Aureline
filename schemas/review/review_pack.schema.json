@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/review_pack.schema.json",
+  "title": "Aureline review-pack DSL alpha record",
+  "description": "Boundary schema for the alpha review-pack DSL frozen in docs/review/m3/review_pack_dsl_alpha.md. A review-pack record is the versioned, repo-defined declaration of one bundle of review checks, ownership hints, and local/CI parity notes the local and CI review-pack harnesses share. The record is pre-execution review truth: it describes what would run, who owns the relevant scopes, and which fields are unsupported on the current DSL version, without itself mutating any branch, worktree, working tree, or remote. Raw paths, raw glob bodies, raw credentials, raw command lines, raw URLs, and raw check outputs never cross this boundary; the record carries opaque refs, closed-vocabulary tokens, and short reviewable sentences only. Adding a new closed vocabulary value is additive-minor and bumps schema_version; repurposing an existing value is breaking; bumping dsl_version is reserved for breaking DSL semantics changes.",
+  "type": "object",
+  "$ref": "#/$defs/review_pack_alpha_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "dsl_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe in support bundles, and safe on RPC. Raw paths, raw URLs, raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pack_authority_class": {
+      "type": "string",
+      "enum": [
+        "repo_first_party",
+        "repo_team_shared",
+        "repo_partner_signed",
+        "repo_uncertified_community",
+        "pack_authority_unknown_requires_review"
+      ]
+    },
+    "check_kind": {
+      "type": "string",
+      "enum": [
+        "policy_lint",
+        "schema_validation",
+        "ownership_review",
+        "test_replay",
+        "doc_freshness",
+        "format_check",
+        "custom_local",
+        "check_kind_unknown_requires_review"
+      ]
+    },
+    "check_severity_class": {
+      "type": "string",
+      "enum": [
+        "advisory",
+        "blocking",
+        "informational",
+        "severity_unknown_requires_review"
+      ]
+    },
+    "parity_class": {
+      "type": "string",
+      "enum": [
+        "local_and_ci_parity",
+        "ci_only_documented",
+        "local_only_documented",
+        "parity_unknown_requires_review"
+      ]
+    },
+    "execution_class": {
+      "type": "string",
+      "enum": [
+        "deterministic_replay",
+        "stateful_local_only",
+        "stateful_ci_managed",
+        "execution_class_unknown_requires_review"
+      ]
+    },
+    "ownership_scope_kind": {
+      "type": "string",
+      "enum": [
+        "path_glob_first_party",
+        "path_glob_team",
+        "path_glob_external_partner",
+        "path_glob_uncertified_community",
+        "ownership_scope_unknown_requires_review"
+      ]
+    },
+    "unsupported_field_class": {
+      "type": "string",
+      "enum": [
+        "future_dsl_version",
+        "vendor_specific_extension",
+        "experimental_local_only",
+        "deprecated_pending_removal",
+        "unsupported_class_unknown_requires_review"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_pack_inspector",
+        "review_preview",
+        "cli_headless_entry",
+        "support_export",
+        "docs_review",
+        "activity_center"
+      ]
+    },
+    "check_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_id",
+        "check_kind",
+        "display_label",
+        "summary",
+        "severity_class",
+        "parity_class",
+        "execution_class"
+      ],
+      "properties": {
+        "check_id": { "$ref": "#/$defs/opaque_id" },
+        "check_kind": { "$ref": "#/$defs/check_kind" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "severity_class": { "$ref": "#/$defs/check_severity_class" },
+        "parity_class": { "$ref": "#/$defs/parity_class" },
+        "execution_class": { "$ref": "#/$defs/execution_class" },
+        "parity_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "ownership_scope_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "ownership_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ownership_scope_id",
+        "ownership_scope_kind",
+        "display_label",
+        "owner_ref",
+        "summary"
+      ],
+      "properties": {
+        "ownership_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "ownership_scope_kind": { "$ref": "#/$defs/ownership_scope_kind" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "parity_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "unsupported_field_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_path",
+        "unsupported_class",
+        "summary"
+      ],
+      "properties": {
+        "field_path": { "$ref": "#/$defs/non_empty_string" },
+        "unsupported_class": { "$ref": "#/$defs/unsupported_field_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "parity_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parity_class", "summary"],
+      "properties": {
+        "parity_class": { "$ref": "#/$defs/parity_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_packet_refs",
+        "raw_path_export_allowed",
+        "raw_glob_body_export_allowed",
+        "raw_command_export_allowed",
+        "raw_check_output_export_allowed",
+        "redaction_class"
+      ],
+      "properties": {
+        "export_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_path_export_allowed": { "const": false },
+        "raw_glob_body_export_allowed": { "const": false },
+        "raw_command_export_allowed": { "const": false },
+        "raw_check_output_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "review_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo_anchor_pinned",
+        "checks_pinned",
+        "ownership_hints_pinned",
+        "local_ci_parity_declared",
+        "unsupported_fields_declared",
+        "no_hidden_writes"
+      ],
+      "properties": {
+        "repo_anchor_pinned": { "const": true },
+        "checks_pinned": { "const": true },
+        "ownership_hints_pinned": { "const": true },
+        "local_ci_parity_declared": { "const": true },
+        "unsupported_fields_declared": { "const": true },
+        "no_hidden_writes": { "const": true }
+      }
+    },
+    "review_pack_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "dsl_version",
+        "review_pack_id",
+        "repo_anchor_ref",
+        "display_label",
+        "summary",
+        "pack_authority_class",
+        "operator_caveat",
+        "checks",
+        "ownership_hints",
+        "parity_observations",
+        "unsupported_fields",
+        "consumer_surfaces",
+        "support_export",
+        "review_invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_pack_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "dsl_version": { "$ref": "#/$defs/dsl_version" },
+        "review_pack_id": { "$ref": "#/$defs/opaque_id" },
+        "repo_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "pack_authority_class": { "$ref": "#/$defs/pack_authority_class" },
+        "operator_caveat": { "$ref": "#/$defs/reviewable_sentence" },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/check_definition" }
+        },
+        "ownership_hints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ownership_hint" }
+        },
+        "parity_observations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/parity_observation" }
+        },
+        "unsupported_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/unsupported_field_declaration" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "contains": { "const": "review_pack_inspector" }
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "review_invariants": { "$ref": "#/$defs/review_invariants" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "uncertified-community packs must carry an operator caveat that explicitly names the trust posture; parity_unknown_requires_review parity_class also signals the harness must not silently broaden execution.",
+          "if": {
+            "properties": {
+              "pack_authority_class": {
+                "const": "repo_uncertified_community"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "operator_caveat": {
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

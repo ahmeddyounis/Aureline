@@ -12,6 +12,7 @@
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
+pub mod review_pack_dsl;
 pub mod workspace;
 
 pub use change_inspector::{
@@ -30,6 +31,16 @@ pub use change_inspector::{
 pub use collections::{
     ReviewCollectionAlphaInput, ReviewCollectionAlphaPacket,
     REVIEW_COLLECTION_ALPHA_PACKET_RECORD_KIND, REVIEW_COLLECTION_ALPHA_SCHEMA_VERSION,
+};
+pub use review_pack_dsl::{
+    project_review_pack, ReviewPackCheck, ReviewPackCheckProjection, ReviewPackError,
+    ReviewPackOwnershipHint, ReviewPackOwnershipProjection, ReviewPackParityObservation,
+    ReviewPackProjection, ReviewPackRecord, ReviewPackReviewInvariants, ReviewPackSupportExport,
+    ReviewPackUnsupportedField, ReviewPackValidationError, REVIEW_PACK_ALPHA_DSL_VERSION,
+    REVIEW_PACK_ALPHA_RECORD_KIND, REVIEW_PACK_ALPHA_SCHEMA_VERSION,
+    REVIEW_PACK_AUTHORITY_CLASSES, REVIEW_PACK_CHECK_KINDS, REVIEW_PACK_CONSUMER_SURFACES,
+    REVIEW_PACK_EXECUTION_CLASSES, REVIEW_PACK_OWNERSHIP_SCOPE_KINDS, REVIEW_PACK_PARITY_CLASSES,
+    REVIEW_PACK_SEVERITY_CLASSES, REVIEW_PACK_UNSUPPORTED_FIELD_CLASSES,
 };
 pub use diff::{
     DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,
