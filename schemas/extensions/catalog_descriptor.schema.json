@@ -1,0 +1,536 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/catalog_descriptor.schema.json",
+  "title": "Aureline extension catalog descriptor record",
+  "description": "Boundary schema for moderated extension catalog descriptors and metadata-safe support exports. A descriptor carries publisher continuity, lifecycle, moderation, revocation-ready, compatibility, and mirror metadata so public registries, approved mirrors, private registries, offline bundles, support exports, and docs/help surfaces preserve the same trust vocabulary. Raw artifact bytes, raw signing-key material, raw credentials, raw URLs, raw policy bodies, and publisher-private data must not appear in this record.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/catalog_descriptor_record" },
+    { "$ref": "#/$defs/catalog_descriptor_support_export_record" }
+  ],
+  "$defs": {
+    "catalog_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_safe_default"
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex", "digest_size_bytes"],
+      "properties": {
+        "digest_algorithm": {
+          "type": "string",
+          "enum": ["sha256", "sha384", "sha512", "blake3"]
+        },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ]
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": ["quarantine", "approved", "production"]
+    },
+    "publisher_trust_tier_class": {
+      "type": "string",
+      "enum": [
+        "verified_publisher",
+        "community_publisher",
+        "organisational_publisher",
+        "unverified_publisher",
+        "quarantined_publisher",
+        "anonymous_publisher_class"
+      ]
+    },
+    "publisher_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "key_rotation_in_progress",
+        "ownership_transfer_in_progress",
+        "transfer_completed_pending_verification",
+        "orphaned",
+        "succeeded",
+        "fork_adopted",
+        "retired"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": ["staged", "approved", "limited", "deprecated", "revoked", "quarantined"]
+    },
+    "moderation_state_class": {
+      "type": "string",
+      "enum": ["pending_review", "admitted", "limited", "revoked", "quarantined"]
+    },
+    "revocation_state_class": {
+      "type": "string",
+      "enum": [
+        "no_known_revocation",
+        "revoked",
+        "quarantined",
+        "emergency_disabled",
+        "mirror_promotion_revoked",
+        "pending_reverify"
+      ]
+    },
+    "revocation_snapshot_age_class": {
+      "type": "string",
+      "enum": ["fresh", "warm_cached", "degraded_cached", "stale", "unverified_no_snapshot"]
+    },
+    "mirrorability_class": {
+      "type": "string",
+      "enum": [
+        "mirrorable_verified",
+        "mirrorable_capped_trust",
+        "mirrorable_pending_reverify",
+        "mirror_blocked_digest_or_signature",
+        "mirror_blocked_source_not_allowed"
+      ]
+    },
+    "trust_badge_inheritance_rule_class": {
+      "type": "string",
+      "enum": [
+        "inherits_origin_tier",
+        "capped_at_organisational_on_private_registry",
+        "capped_at_community_on_approved_mirror",
+        "capped_at_unverified_on_local_archive",
+        "quarantined_cannot_inherit"
+      ]
+    },
+    "compatibility_claim_class": {
+      "type": "string",
+      "enum": [
+        "compatible_on_all_declared_targets",
+        "compatible_on_subset_of_declared_targets",
+        "compatibility_bridge_required",
+        "compatibility_unknown_pending_reverification",
+        "incompatible_blocked_on_policy"
+      ]
+    },
+    "bridge_state_class": {
+      "type": "string",
+      "enum": [
+        "no_bridge_required_native_match",
+        "bridge_required_compatibility_bridge_profile",
+        "bridge_required_capability_world_subset_only",
+        "bridge_required_host_contract_family_subset_only",
+        "bridge_unknown_pending_reverification",
+        "bridge_unsupported_blocked_on_policy"
+      ]
+    },
+    "compatibility_label": {
+      "type": "string",
+      "enum": ["unknown", "exact", "translated", "partial", "shimmed", "unsupported"]
+    },
+    "catalog_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "publisher_continuity",
+        "lifecycle_state",
+        "moderation_state",
+        "revocation_posture",
+        "compatibility_labels",
+        "mirror_metadata",
+        "permission_manifest",
+        "rollback_posture"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": ["ready_for_catalog", "staged_for_review", "limited", "refused"]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "ready_mirrorable_trust_complete",
+        "staged_pending_moderation",
+        "limited_by_policy_or_compatibility",
+        "refused_catalog_identity_missing",
+        "refused_publisher_continuity_missing",
+        "refused_required_disclosure_missing",
+        "refused_revoked",
+        "refused_quarantined",
+        "refused_mirror_metadata_missing",
+        "refused_mirror_blocked",
+        "refused_revocation_snapshot_stale",
+        "refused_rollback_unavailable"
+      ]
+    },
+    "support_explanation_class": {
+      "type": "string",
+      "enum": ["ready", "staged", "limited", "revoked", "quarantined", "mirror_blocked", "incomplete"]
+    },
+    "action_offer_class": {
+      "type": "string",
+      "enum": [
+        "approve_catalog_row",
+        "open_moderation_review",
+        "open_publisher_continuity",
+        "open_revocation_notice",
+        "open_mirror_details",
+        "open_compatibility_report",
+        "keep_pinned",
+        "request_admin_review",
+        "remove_or_disable",
+        "export_support_packet"
+      ]
+    },
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publisher_id",
+        "publisher_display_label",
+        "publisher_continuity_ref",
+        "publisher_trust_tier_class",
+        "continuity_state_class",
+        "active_signing_key_refs",
+        "lifecycle_event_refs",
+        "freshness_class"
+      ],
+      "properties": {
+        "publisher_id": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_display_label": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/publisher_trust_tier_class" },
+        "continuity_state_class": { "$ref": "#/$defs/publisher_continuity_state_class" },
+        "active_signing_key_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "lifecycle_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_state_class",
+        "source_registry_class",
+        "source_endpoint_ref",
+        "channel_class",
+        "support_class",
+        "lifecycle_event_refs"
+      ],
+      "properties": {
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "source_registry_class": { "$ref": "#/$defs/registry_source_class" },
+        "source_endpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "support_class": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "moderation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "moderation_state_class",
+        "moderation_review_ref",
+        "moderation_reason_refs",
+        "anti_abuse_signal_refs",
+        "operator_handoff_refs",
+        "primary_operator_ref",
+        "backup_operator_ref"
+      ],
+      "properties": {
+        "moderation_state_class": { "$ref": "#/$defs/moderation_state_class" },
+        "moderation_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "moderation_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "anti_abuse_signal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "operator_handoff_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "primary_operator_ref": { "$ref": "#/$defs/opaque_id" },
+        "backup_operator_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "revocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revocation_state_class",
+        "revocation_snapshot_ref",
+        "revocation_snapshot_age_class",
+        "last_known_good_version",
+        "rollback_manifest_ref",
+        "emergency_disable_refs",
+        "revocation_event_refs"
+      ],
+      "properties": {
+        "revocation_state_class": { "$ref": "#/$defs/revocation_state_class" },
+        "revocation_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "revocation_snapshot_age_class": { "$ref": "#/$defs/revocation_snapshot_age_class" },
+        "last_known_good_version": { "$ref": "#/$defs/non_empty_string" },
+        "rollback_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "emergency_disable_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "revocation_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "compatibility_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compatibility_claim_class",
+        "bridge_state_class",
+        "rendered_label",
+        "host_contract_family_refs",
+        "capability_world_refs",
+        "target_platforms",
+        "caveat_labels"
+      ],
+      "properties": {
+        "compatibility_claim_class": { "$ref": "#/$defs/compatibility_claim_class" },
+        "bridge_state_class": { "$ref": "#/$defs/bridge_state_class" },
+        "rendered_label": { "$ref": "#/$defs/compatibility_label" },
+        "host_contract_family_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "capability_world_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "target_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "caveat_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "mirror": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirrorability_class",
+        "mirror_descriptor_ref",
+        "mirror_registry_source_class",
+        "content_address",
+        "signature_ref",
+        "trust_badge_inheritance_rule_class",
+        "parity_assertion_refs",
+        "compatibility_labels"
+      ],
+      "properties": {
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "mirror_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "signature_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_badge_inheritance_rule_class": { "$ref": "#/$defs/trust_badge_inheritance_rule_class" },
+        "parity_assertion_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "compatibility_labels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_metadata" }
+        }
+      }
+    },
+    "catalog_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "catalog_descriptor_schema_version",
+        "descriptor_id",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "display_name",
+        "publication_ref",
+        "registry_manifest_ref",
+        "permission_manifest_ref",
+        "runtime_contract_ref",
+        "compatibility_report_ref",
+        "publisher",
+        "lifecycle",
+        "moderation",
+        "revocation",
+        "mirror",
+        "required_disclosures",
+        "rendered_disclosures",
+        "compatibility_label_count",
+        "parity_assertion_count",
+        "publisher_lifecycle_event_count",
+        "moderation_reason_count",
+        "mirrorable_catalog_metadata",
+        "revocation_ready",
+        "publisher_continuity_ready",
+        "decision_class",
+        "reason_class",
+        "support_explanation_class",
+        "decision_summary",
+        "generated_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "catalog_descriptor_record" },
+        "catalog_descriptor_schema_version": { "$ref": "#/$defs/catalog_descriptor_schema_version" },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/non_empty_string" },
+        "extension_version": { "$ref": "#/$defs/non_empty_string" },
+        "package_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "publication_ref": { "$ref": "#/$defs/opaque_id" },
+        "registry_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "permission_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "runtime_contract_ref": { "$ref": "#/$defs/opaque_id" },
+        "compatibility_report_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher": { "$ref": "#/$defs/publisher" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "moderation": { "$ref": "#/$defs/moderation" },
+        "revocation": { "$ref": "#/$defs/revocation" },
+        "mirror": { "$ref": "#/$defs/mirror" },
+        "required_disclosures": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/catalog_disclosure_class" }
+        },
+        "rendered_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/catalog_disclosure_class" }
+        },
+        "compatibility_label_count": { "type": "integer", "minimum": 0 },
+        "parity_assertion_count": { "type": "integer", "minimum": 0 },
+        "publisher_lifecycle_event_count": { "type": "integer", "minimum": 0 },
+        "moderation_reason_count": { "type": "integer", "minimum": 0 },
+        "mirrorable_catalog_metadata": { "type": "boolean" },
+        "revocation_ready": { "type": "boolean" },
+        "publisher_continuity_ready": { "type": "boolean" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "support_explanation_class": { "$ref": "#/$defs/support_explanation_class" },
+        "decision_summary": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "catalog_descriptor_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "catalog_descriptor_schema_version",
+        "export_id",
+        "descriptor_ref",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "publisher_continuity_ref",
+        "registry_source_class",
+        "lifecycle_state_class",
+        "moderation_state_class",
+        "revocation_state_class",
+        "mirrorability_class",
+        "decision_class",
+        "reason_class",
+        "support_explanation_class",
+        "blocks_install_or_update",
+        "offered_actions",
+        "export_safe_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "catalog_descriptor_support_export_record" },
+        "catalog_descriptor_schema_version": { "$ref": "#/$defs/catalog_descriptor_schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/non_empty_string" },
+        "extension_version": { "$ref": "#/$defs/non_empty_string" },
+        "package_id": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "moderation_state_class": { "$ref": "#/$defs/moderation_state_class" },
+        "revocation_state_class": { "$ref": "#/$defs/revocation_state_class" },
+        "mirrorability_class": { "$ref": "#/$defs/mirrorability_class" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "support_explanation_class": { "$ref": "#/$defs/support_explanation_class" },
+        "blocks_install_or_update": { "type": "boolean" },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_offer_class" }
+        },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

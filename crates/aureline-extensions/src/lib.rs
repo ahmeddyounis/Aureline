@@ -50,6 +50,10 @@
 //!   packet that binds artifact digest, signer metadata, provenance,
 //!   compatibility, promotion steps, rollback plan, and catalog
 //!   transaction guards into a single headless publication lane.
+//! - one [`registry::CatalogDescriptorRecord`] descriptor that carries
+//!   publisher continuity, lifecycle, moderation, revocation-ready, and
+//!   mirror-compatible catalog metadata from the publication lane into
+//!   discovery, support export, and mirror import consumers.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -68,6 +72,7 @@ pub mod install_review;
 pub mod manifest_baseline;
 pub mod permission_manifest;
 pub mod publication;
+pub mod registry;
 pub mod review_alpha;
 pub mod runtime;
 pub mod sdk_v1;
@@ -125,6 +130,19 @@ pub use publication::{
     PublicationSignerMetadata, PublicationTransactionWriteClass, PublicationVersionMetadata,
     EXTENSION_PUBLICATION_PIPELINE_RECORD_KIND, EXTENSION_PUBLICATION_SCHEMA_VERSION,
     EXTENSION_PUBLICATION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use registry::{
+    evaluate_catalog_descriptor, project_catalog_descriptor_support_export,
+    validate_catalog_descriptor_record, validate_catalog_descriptor_support_export_record,
+    CatalogActionOfferClass, CatalogCompatibilityMetadata, CatalogDescriptorDecisionClass,
+    CatalogDescriptorFinding, CatalogDescriptorInput, CatalogDescriptorReasonClass,
+    CatalogDescriptorRecord, CatalogDescriptorSupportExportRecord, CatalogDisclosureClass,
+    CatalogLifecycleMetadata, CatalogLifecycleStateClass, CatalogMirrorMetadata,
+    CatalogMirrorabilityClass, CatalogModerationMetadata, CatalogModerationStateClass,
+    CatalogPublisherContinuityMetadata, CatalogRegistrySourceClass, CatalogRevocationMetadata,
+    CatalogRevocationSnapshotAgeClass, CatalogSupportExplanationClass,
+    CatalogTrustBadgeInheritanceRuleClass, CATALOG_DESCRIPTOR_RECORD_KIND,
+    CATALOG_DESCRIPTOR_SCHEMA_VERSION, CATALOG_DESCRIPTOR_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use review_alpha::{
     evaluate_extension_review_alpha, project_review_alpha_surface,
