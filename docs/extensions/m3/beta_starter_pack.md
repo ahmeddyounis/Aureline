@@ -67,10 +67,20 @@ authorized ones.
   [`artifacts/compat/m3/compatibility_report.json`](../../../artifacts/compat/m3/compatibility_report.json)
 - M3 skew-window matrix:
   [`artifacts/compat/m3/skew_window_matrix.yaml`](../../../artifacts/compat/m3/skew_window_matrix.yaml)
+- Extension bridge matrix:
+  [`artifacts/compat/m3/bridge_matrix.yaml`](../../../artifacts/compat/m3/bridge_matrix.yaml)
+- Extension compatibility report:
+  [`artifacts/compat/m3/extension_compatibility_report.md`](../../../artifacts/compat/m3/extension_compatibility_report.md)
+- Author-facing compatibility matrix:
+  [`docs/extensions/m3/compatibility_matrix_beta.md`](./compatibility_matrix_beta.md)
 
 Authorized support classes (read verbatim from the claimed-surface
 register): `certified`, `supported`, `limited`, `experimental`,
 `community`, `retest_pending`, `evidence_stale`, `unsupported`.
+
+Bridge-backed and shimmed rows must cite a concrete
+`extension_bridge_row:*` id. They are never exact-parity claims, even
+when the imported workflow remains useful.
 
 ## Conformance validator
 

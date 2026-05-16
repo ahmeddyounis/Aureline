@@ -9,6 +9,14 @@ fn seeded_marketplace_truth_page_validates() {
     let page = seeded_marketplace_truth_page();
 
     validate_marketplace_truth_page(&page).expect("seeded marketplace truth page must validate");
+    assert_eq!(
+        page.extension_bridge_matrix_id,
+        "extension_bridge_matrix:m3.beta"
+    );
+    assert_eq!(
+        page.extension_compatibility_report_ref,
+        "artifacts/compat/m3/extension_compatibility_report.md"
+    );
     assert_eq!(page.rows.len(), page.support_rows.len());
     assert_eq!(
         page.controlled_badge_vocabulary,
@@ -42,6 +50,31 @@ fn public_beta_row_uses_generated_report_support_not_catalog_copy() {
     assert!(row
         .support_summary
         .contains("current generated compatibility report"));
+    assert_eq!(
+        row.extension_bridge_matrix_row_id,
+        "extension_bridge_row:wasm_component_native_beta"
+    );
+    assert!(row.bridge_summary.contains("runtime window"));
+}
+
+#[test]
+fn bridge_backed_row_quotes_bridge_matrix_limits() {
+    let page = seeded_marketplace_truth_page();
+    let row = page
+        .rows
+        .iter()
+        .find(|row| row.row_id.ends_with(":mirror-retest-pending"))
+        .expect("bridge-backed seed row exists");
+
+    assert_eq!(
+        row.extension_bridge_matrix_row_id,
+        "extension_bridge_row:vscode_api_bridge_beta"
+    );
+    assert_eq!(
+        row.extension_bridge_state_class,
+        aureline_extensions::ExtensionBridgeStateClass::Bridge
+    );
+    assert!(!row.bridge_known_limits.is_empty());
 }
 
 #[test]
@@ -85,6 +118,10 @@ fn support_export_rows_quote_source_rows() {
         assert_eq!(export.support_chips, row.support_chips);
         assert_eq!(export.trust_chips, row.trust_chips);
         assert_eq!(export.install_review_ref, row.install_review_ref);
+        assert_eq!(
+            export.extension_bridge_matrix_row_id,
+            row.extension_bridge_matrix_row_id
+        );
     }
 }
 
@@ -98,5 +135,24 @@ fn validator_detects_support_export_drift() {
         error,
         MarketplaceTruthPageValidationError::SupportExportParityDrift { field, .. }
             if field == "support_chips"
+    )));
+}
+
+#[test]
+fn validator_detects_bridge_support_export_drift() {
+    let mut page = seeded_marketplace_truth_page();
+    let export = page
+        .support_rows
+        .iter_mut()
+        .find(|export| export.row_ref.ends_with(":mirror-retest-pending"))
+        .expect("bridge-backed support export exists");
+    export.bridge_known_limits.clear();
+
+    let errors =
+        validate_marketplace_truth_page(&page).expect_err("bridge drift must fail validation");
+    assert!(errors.iter().any(|error| matches!(
+        error,
+        MarketplaceTruthPageValidationError::SupportExportParityDrift { field, .. }
+            if field == "bridge_known_limits"
     )));
 }

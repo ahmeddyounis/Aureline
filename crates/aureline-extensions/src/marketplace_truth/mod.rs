@@ -10,6 +10,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::compatibility_matrix::{
+    ExtensionBridgeMatrix, ExtensionBridgeMatrixRow, ExtensionBridgeStateClass,
+    ExtensionCompatibilityLabel,
+};
 use crate::install_review::{BridgeStateClass, CompatibilityClaimClass, CompatibilityLabel};
 use crate::manifest_baseline::{PublisherTrustTierClass, RedactionClass};
 use crate::registry::{
@@ -298,6 +302,10 @@ pub struct MarketplaceTruthRowInput<'a> {
     pub compatibility_report: &'a CompatibilityReportSnapshot,
     /// Compatibility report row id or report-row id to bind.
     pub compatibility_report_row_ref: &'a str,
+    /// Current extension bridge matrix.
+    pub extension_bridge_matrix: &'a ExtensionBridgeMatrix,
+    /// Extension bridge-matrix row id to bind.
+    pub extension_bridge_matrix_row_ref: &'a str,
     /// Native install-review or mutation-review ref opened from the row.
     pub install_review_ref: &'a str,
     /// Timestamp for the projected marketplace row.
@@ -337,6 +345,30 @@ pub struct MarketplaceTruthRowRecord {
     pub compatibility_report_row_id: String,
     /// Generated compatibility report timestamp.
     pub compatibility_report_generated_at: String,
+    /// Extension bridge matrix id consumed by this marketplace row.
+    pub extension_bridge_matrix_id: String,
+    /// Extension bridge matrix row consumed by this marketplace row.
+    pub extension_bridge_matrix_row_id: String,
+    /// Bridge state quoted from the bridge matrix.
+    pub extension_bridge_state_class: ExtensionBridgeStateClass,
+    /// Compatibility label quoted from the bridge matrix.
+    pub extension_bridge_compatibility_label: ExtensionCompatibilityLabel,
+    /// Runtime compatibility window quoted from the bridge matrix.
+    pub runtime_compatibility_window_id: String,
+    /// SDK compatibility window quoted from the bridge matrix.
+    pub sdk_compatibility_window_id: String,
+    /// Manifest compatibility window quoted from the bridge matrix.
+    pub manifest_compatibility_window_id: String,
+    /// Bridge compatibility window quoted from the bridge matrix.
+    pub bridge_compatibility_window_id: String,
+    /// Downgrade support class quoted from the bridge matrix.
+    pub bridge_downgrade_support_class: String,
+    /// Bridge out-of-window posture quoted from the bridge matrix.
+    pub bridge_out_of_window_posture: String,
+    /// Known limits quoted from the bridge matrix.
+    pub bridge_known_limits: Vec<String>,
+    /// Export-safe bridge summary.
+    pub bridge_summary: String,
     /// Support-class chips derived from the generated report row.
     pub support_chips: Vec<MarketplaceSupportChipClass>,
     /// Trust and source posture chips rendered before install review.
@@ -404,6 +436,14 @@ pub struct MarketplaceTruthSupportExportRecord {
     pub trust_chips: Vec<MarketplaceTrustChipClass>,
     /// Generated report row used by the projection.
     pub compatibility_report_row_id: String,
+    /// Extension bridge matrix id used by the projection.
+    pub extension_bridge_matrix_id: String,
+    /// Extension bridge matrix row used by the projection.
+    pub extension_bridge_matrix_row_id: String,
+    /// Bridge state rendered on the source row.
+    pub extension_bridge_state_class: ExtensionBridgeStateClass,
+    /// Bridge known limits rendered on the source row.
+    pub bridge_known_limits: Vec<String>,
     /// Native install-review or mutation-review ref opened from the row.
     pub install_review_ref: String,
     /// True when install or update is blocked before native review.
@@ -460,6 +500,18 @@ pub fn project_marketplace_truth_row(
                 "catalog descriptor must carry at least one compatibility label",
             )
         })?;
+    let bridge_row = input
+        .extension_bridge_matrix
+        .row_by_ref(input.extension_bridge_matrix_row_ref)
+        .ok_or_else(|| {
+            MarketplaceTruthFinding::new(
+                "marketplace_truth.extension_bridge_matrix_row_missing",
+                format!(
+                    "extension bridge matrix row {:?} was not found in {}",
+                    input.extension_bridge_matrix_row_ref, input.extension_bridge_matrix.matrix_id
+                ),
+            )
+        })?;
 
     let support_chip = support_chip_from_report(report_row);
     let retest_pending = report_row_retest_pending(report_row)
@@ -488,6 +540,7 @@ pub fn project_marketplace_truth_row(
         catalog_label.compatibility_claim_class,
         catalog_label.bridge_state_class,
         catalog_label.rendered_label,
+        bridge_row,
     );
     let lifecycle_badges = lifecycle_badges_for(
         input.catalog,
@@ -500,11 +553,25 @@ pub fn project_marketplace_truth_row(
     let support_chips = vec![support_chip];
 
     let compatibility_summary = format!(
-        "Compatibility label {} is derived from the current generated compatibility report row {} (effective support {}) and catalog label {}.",
+        "Compatibility label {} is derived from the current generated compatibility report row {} (effective support {}), catalog label {}, and extension bridge matrix row {}.",
         compatibility_label_class.label(),
         report_row.row_id,
         report_row.support_class.effective,
-        catalog_label.rendered_label.label()
+        catalog_label.rendered_label.label(),
+        bridge_row.row_id
+    );
+    let bridge_summary = format!(
+        "Bridge matrix {} row {} declares state {:?}, label {:?}, runtime window {}, SDK window {}, manifest window {}, bridge window {}, downgrade {} / {}.",
+        input.extension_bridge_matrix.matrix_id,
+        bridge_row.row_id,
+        bridge_row.bridge_window.bridge_state_class,
+        bridge_row.bridge_window.compatibility_label,
+        bridge_row.runtime_window.window_id,
+        bridge_row.sdk_window.window_id,
+        bridge_row.manifest_window.window_id,
+        bridge_row.bridge_window.window_id,
+        bridge_row.downgrade_behavior.support_class,
+        bridge_row.downgrade_behavior.out_of_window_posture
     );
     let trust_summary = format!(
         "Publisher {} is {:?}; source {:?}; mirrorability {:?}; trust inheritance {:?}.",
@@ -547,6 +614,18 @@ pub fn project_marketplace_truth_row(
         compatibility_report_revision: input.compatibility_report.report_revision,
         compatibility_report_row_id: report_row.row_id.clone(),
         compatibility_report_generated_at: input.compatibility_report.generated_at.clone(),
+        extension_bridge_matrix_id: input.extension_bridge_matrix.matrix_id.clone(),
+        extension_bridge_matrix_row_id: bridge_row.row_id.clone(),
+        extension_bridge_state_class: bridge_row.bridge_window.bridge_state_class,
+        extension_bridge_compatibility_label: bridge_row.bridge_window.compatibility_label,
+        runtime_compatibility_window_id: bridge_row.runtime_window.window_id.clone(),
+        sdk_compatibility_window_id: bridge_row.sdk_window.window_id.clone(),
+        manifest_compatibility_window_id: bridge_row.manifest_window.window_id.clone(),
+        bridge_compatibility_window_id: bridge_row.bridge_window.window_id.clone(),
+        bridge_downgrade_support_class: bridge_row.downgrade_behavior.support_class.clone(),
+        bridge_out_of_window_posture: bridge_row.downgrade_behavior.out_of_window_posture.clone(),
+        bridge_known_limits: bridge_row.bridge_window.known_limits.clone(),
+        bridge_summary,
         support_chips,
         trust_chips,
         report_effective_support_class: report_row.support_class.effective.clone(),
@@ -587,10 +666,14 @@ pub fn project_marketplace_truth_support_export(
         support_chips: row.support_chips.clone(),
         trust_chips: row.trust_chips.clone(),
         compatibility_report_row_id: row.compatibility_report_row_id.clone(),
+        extension_bridge_matrix_id: row.extension_bridge_matrix_id.clone(),
+        extension_bridge_matrix_row_id: row.extension_bridge_matrix_row_id.clone(),
+        extension_bridge_state_class: row.extension_bridge_state_class,
+        bridge_known_limits: row.bridge_known_limits.clone(),
         install_review_ref: row.install_review_ref.clone(),
         blocks_install_or_update: row.blocks_install_or_update,
         export_safe_summary: format!(
-            "{} {} badges={:?}; compatibility={:?}; support={:?}; trust={:?}; report_row={}; install_review={}",
+            "{} {} badges={:?}; compatibility={:?}; support={:?}; trust={:?}; report_row={}; bridge_row={}; install_review={}",
             row.extension_identity,
             row.extension_version,
             row.lifecycle_badges,
@@ -598,6 +681,7 @@ pub fn project_marketplace_truth_support_export(
             row.support_chips,
             row.trust_chips,
             row.compatibility_report_row_id,
+            row.extension_bridge_matrix_row_id,
             row.install_review_ref
         ),
         redaction_class: RedactionClass::MetadataSafeDefault,
@@ -662,6 +746,54 @@ pub fn validate_marketplace_truth_row(
         findings.push(MarketplaceTruthFinding::new(
             "marketplace_truth.compatibility_report_row_missing",
             "marketplace row must cite the generated compatibility report row",
+        ));
+    }
+    if !row
+        .extension_bridge_matrix_id
+        .starts_with("extension_bridge_matrix:")
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth.extension_bridge_matrix_missing",
+            "marketplace row must cite the extension bridge matrix",
+        ));
+    }
+    if !row
+        .extension_bridge_matrix_row_id
+        .starts_with("extension_bridge_row:")
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth.extension_bridge_matrix_row_missing",
+            "marketplace row must cite an extension bridge matrix row",
+        ));
+    }
+    if row.runtime_compatibility_window_id.trim().is_empty()
+        || row.sdk_compatibility_window_id.trim().is_empty()
+        || row.manifest_compatibility_window_id.trim().is_empty()
+        || row.bridge_compatibility_window_id.trim().is_empty()
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth.extension_window_refs_missing",
+            "marketplace row must cite runtime, SDK, manifest, and bridge windows",
+        ));
+    }
+    if row
+        .extension_bridge_state_class
+        .requires_non_parity_disclosure()
+        && row.bridge_known_limits.is_empty()
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth.bridge_limits_missing",
+            "bridge, shimmed, partial, and unsupported marketplace rows must carry known limits",
+        ));
+    }
+    if row
+        .extension_bridge_state_class
+        .requires_non_parity_disclosure()
+        && row.compatibility_label_class == MarketplaceCompatibilityLabelClass::Compatible
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth.bridge_overclaims_compatible",
+            "bridge, shimmed, partial, and unsupported rows must not render the Compatible marketplace label",
         ));
     }
     if row.compatibility_label_source_class
@@ -758,6 +890,44 @@ pub fn validate_marketplace_truth_support_export(
             "row_ref must start with 'marketplace_truth_row:'",
         ));
     }
+    if !export
+        .extension_bridge_matrix_id
+        .starts_with("extension_bridge_matrix:")
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth_export.extension_bridge_matrix_missing",
+            "support export must cite the extension bridge matrix",
+        ));
+    }
+    if !export
+        .extension_bridge_matrix_row_id
+        .starts_with("extension_bridge_row:")
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth_export.extension_bridge_matrix_row_missing",
+            "support export must cite the extension bridge matrix row",
+        ));
+    }
+    if export
+        .extension_bridge_state_class
+        .requires_non_parity_disclosure()
+        && export.bridge_known_limits.is_empty()
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth_export.bridge_limits_missing",
+            "bridge, shimmed, partial, and unsupported support exports must carry known limits",
+        ));
+    }
+    if export
+        .extension_bridge_state_class
+        .requires_non_parity_disclosure()
+        && export.compatibility_label_class == MarketplaceCompatibilityLabelClass::Compatible
+    {
+        findings.push(MarketplaceTruthFinding::new(
+            "marketplace_truth_export.bridge_overclaims_compatible",
+            "bridge, shimmed, partial, and unsupported support exports must not render the Compatible compatibility label",
+        ));
+    }
     if export.export_safe_summary.trim().is_empty() {
         findings.push(MarketplaceTruthFinding::new(
             "marketplace_truth_export.summary_missing",
@@ -812,6 +982,7 @@ fn compatibility_label_from_sources(
     compatibility_claim_class: CompatibilityClaimClass,
     bridge_state_class: BridgeStateClass,
     catalog_label: CompatibilityLabel,
+    bridge_row: &ExtensionBridgeMatrixRow,
 ) -> MarketplaceCompatibilityLabelClass {
     if retest_pending {
         return MarketplaceCompatibilityLabelClass::RetestPending;
@@ -825,6 +996,24 @@ fn compatibility_label_from_sources(
         || matches!(catalog_label, CompatibilityLabel::Unsupported)
     {
         return MarketplaceCompatibilityLabelClass::Unsupported;
+    }
+    if matches!(
+        bridge_row.bridge_window.bridge_state_class,
+        ExtensionBridgeStateClass::Unsupported
+    ) {
+        return MarketplaceCompatibilityLabelClass::Unsupported;
+    }
+    if matches!(
+        bridge_row.bridge_window.bridge_state_class,
+        ExtensionBridgeStateClass::Bridge | ExtensionBridgeStateClass::Shimmed
+    ) {
+        return MarketplaceCompatibilityLabelClass::NeedsBridge;
+    }
+    if matches!(
+        bridge_row.bridge_window.bridge_state_class,
+        ExtensionBridgeStateClass::Partial
+    ) {
+        return MarketplaceCompatibilityLabelClass::Limited;
     }
     if matches!(
         compatibility_claim_class,

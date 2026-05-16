@@ -25,7 +25,7 @@ Every publication packet carries:
 | Artifact metadata | artifact ref, registry manifest ref, permission manifest ref, runtime contract ref, digest algorithm, digest, byte size |
 | Signer metadata | signer ref, key fingerprint, signature ref, signature class, signed content address, signing timestamp |
 | Provenance metadata | builder id, source manifest ref, source revision ref, build run ref, conformance report ref, SDK release bundle ref, subject content address |
-| Compatibility metadata | compatibility report ref, host contract family refs, capability world refs, target platforms, support class, bridge state |
+| Compatibility metadata | compatibility report ref, bridge matrix ref, bridge matrix row ref, host contract family refs, capability world refs, target platforms, support class, bridge state |
 | Promotion steps | monotone channel movement, evidence refs, approver refs, signature ref, and `preserves_artifact_identity = true` |
 | Rollback plan | previous version, previous registry manifest ref, previous content address, rollback manifest ref, and preservation flags |
 | Failure guard | staging catalog ref, target catalog ref, guarded write class, catalog-after-verification rule, revocation-after-commit rule, zero orphaned revocation states |
@@ -74,6 +74,8 @@ python3 tools/extensions/m3/publish_extension.py \
   --source-revision-ref git:dev.aureline.samples/wasm-notes@fixture \
   --build-run-ref build_run:extensions:wasm-notes:2026-05-16 \
   --conformance-report-ref conformance_report:dev.aureline.samples/wasm-notes:1.0.0-beta.1:pass \
+  --bridge-matrix-ref artifacts/compat/m3/bridge_matrix.yaml \
+  --bridge-matrix-row-ref extension_bridge_row:wasm_component_native_beta \
   --security-review-ref security_review:dev.aureline.samples/wasm-notes:1.0.0-beta.1 \
   --mirror-rehearsal-ref mirror_rehearsal:dev.aureline.samples/wasm-notes:1.0.0-beta.1 \
   --rollback-drill-ref rollback_drill:dev.aureline.samples/wasm-notes:1.0.0-beta.0-to-1.0.0-beta.1 \
@@ -111,3 +113,5 @@ The Rust crate mirrors the same decisions through
 `aureline_extensions::evaluate_extension_publication_pipeline`, and the
 support export is produced through
 `aureline_extensions::project_extension_publication_support_export`.
+Both the packet and support export quote the same bridge matrix row that
+marketplace and SDK docs use.

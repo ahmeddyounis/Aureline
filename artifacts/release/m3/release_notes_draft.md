@@ -21,6 +21,9 @@ machine-readable truth.
 - Claim manifest as_of: `2026-05-15`
 - Compatibility report id: `compat_report:m3.beta`
 - Compatibility report as_of: `2026-05-15`
+- Extension compatibility report id: `extension_compatibility_report:m3.beta`
+- Extension bridge matrix id: `extension_bridge_matrix:m3.beta`
+- Extension bridge matrix as_of: `2026-05-16`
 - Reviewer landing page:
   [`docs/milestones/m3/beta_admission_matrix.md`](../../../docs/milestones/m3/beta_admission_matrix.md)
 - Claim-manifest contract:
@@ -29,6 +32,10 @@ machine-readable truth.
   [`docs/release/compatibility_report_template.md`](../../../docs/release/compatibility_report_template.md)
 - Release-evidence packet template:
   [`docs/release/release_evidence_packet_template.md`](../../../docs/release/release_evidence_packet_template.md)
+- Extension compatibility report:
+  [`artifacts/compat/m3/extension_compatibility_report.md`](../../compat/m3/extension_compatibility_report.md)
+- Extension bridge matrix:
+  [`artifacts/compat/m3/bridge_matrix.yaml`](../../compat/m3/bridge_matrix.yaml)
 - Help/About truth source:
   [`docs/help/help_about_truth_source.md`](../../../docs/help/help_about_truth_source.md)
 - About / provenance contract:
@@ -73,6 +80,24 @@ every line back to the named row before sign-off.
   through the same generated record shape the M3 compatibility report
   uses; the report state, support class, and evidence date are
   machine-derived, never hand-edited.
+
+### Extension runtime, SDK, manifest, and bridge compatibility
+
+- Claim-manifest row:
+  `m3_claim_row:beta_surface.extension_runtime`
+- Compat row dependency:
+  `compat_row:extension_host.sdk_wit_permission_window`
+- Extension bridge matrix rows:
+  `extension_bridge_row:wasm_component_native_beta`,
+  `extension_bridge_row:external_host_supervised_beta`,
+  `extension_bridge_row:vscode_api_bridge_beta`,
+  `extension_bridge_row:vscode_theme_snippet_shim_beta`,
+  `extension_bridge_row:unsupported_webview_runtime`
+- Public-truth statement: beta extension claims name runtime, SDK,
+  manifest, and bridge windows in one matrix. Bridge and shimmed lanes
+  render as `translated` or `shimmed` with known limits; unsupported
+  webview/private workbench runtime is refused explicitly rather than
+  implied as future parity.
 
 ### Launch wedge — TypeScript / web archetype
 

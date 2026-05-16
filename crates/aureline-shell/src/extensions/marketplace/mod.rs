@@ -9,10 +9,11 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_extensions::{
-    evaluate_catalog_descriptor, project_marketplace_truth_row,
-    project_marketplace_truth_support_export, validate_marketplace_truth_row,
-    validate_marketplace_truth_support_export, CatalogDescriptorInput, CatalogDescriptorRecord,
-    CompatibilityReportSnapshot, MarketplaceTruthBadgeClass, MarketplaceTruthFinding,
+    current_extension_bridge_matrix, evaluate_catalog_descriptor, project_marketplace_truth_row,
+    project_marketplace_truth_support_export, validate_extension_bridge_matrix,
+    validate_marketplace_truth_row, validate_marketplace_truth_support_export,
+    CatalogDescriptorInput, CatalogDescriptorRecord, CompatibilityReportSnapshot,
+    ExtensionBridgeMatrix, MarketplaceTruthBadgeClass, MarketplaceTruthFinding,
     MarketplaceTruthRowInput, MarketplaceTruthRowRecord, MarketplaceTruthSupportExportRecord,
 };
 
@@ -37,6 +38,10 @@ pub struct MarketplaceTruthPageRecord {
     pub schema_version: u32,
     /// Shared contract ref consumed by all row surfaces.
     pub shared_contract_ref: String,
+    /// Extension bridge matrix consumed by the marketplace page.
+    pub extension_bridge_matrix_id: String,
+    /// Extension bridge matrix report ref consumed by the marketplace page.
+    pub extension_compatibility_report_ref: String,
     /// Stable page id.
     pub page_id: String,
     /// Page label for headless and support consumers.
@@ -96,6 +101,13 @@ pub enum MarketplaceTruthPageValidationError {
     PageSchemaVersionWrong,
     /// Page-level shared contract ref is not current.
     SharedContractWrong,
+    /// Extension bridge matrix did not validate.
+    BridgeMatrixFinding {
+        /// Validation check id.
+        check_id: String,
+        /// Validation message.
+        message: String,
+    },
     /// Required badge vocabulary is missing from the page declaration.
     ControlledBadgeMissing {
         /// Missing controlled badge class.
@@ -146,6 +158,9 @@ impl std::fmt::Display for MarketplaceTruthPageValidationError {
                 write!(f, "marketplace truth page schema version is wrong")
             }
             Self::SharedContractWrong => write!(f, "marketplace truth shared contract is wrong"),
+            Self::BridgeMatrixFinding { check_id, message } => {
+                write!(f, "extension bridge matrix failed {check_id}: {message}")
+            }
             Self::ControlledBadgeMissing { badge_class } => {
                 write!(
                     f,
@@ -181,29 +196,38 @@ impl std::error::Error for MarketplaceTruthPageValidationError {}
 /// Builds the seeded marketplace truth page used by the shell and headless inspector.
 pub fn seeded_marketplace_truth_page() -> MarketplaceTruthPageRecord {
     let report = compatibility_report();
+    let bridge_matrix = bridge_matrix();
     let rows = vec![
         project_seeded_row(
             "public-beta",
             &catalog_record(),
             &report,
+            &bridge_matrix,
+            "extension_bridge_row:wasm_component_native_beta",
             "install_review_alpha:dev.aureline.samples/wasm-notes:1.0.0-beta.1",
         ),
         project_seeded_row(
             "mirror-preview",
             &evaluated_catalog_fixture("staged_pending_moderation"),
             &report,
+            &bridge_matrix,
+            "extension_bridge_row:wasm_component_native_beta",
             "install_review_alpha:dev.aureline.samples/wasm-notes:mirror-staged",
         ),
         project_seeded_row(
             "mirror-retest-pending",
             &evaluated_catalog_fixture("limited_compatibility_catalog"),
             &report,
+            &bridge_matrix,
+            "extension_bridge_row:vscode_api_bridge_beta",
             "install_review_alpha:dev.aureline.samples/wasm-notes:limited",
         ),
         project_seeded_row(
             "revoked",
             &evaluated_catalog_fixture("revoked_catalog_refused"),
             &report,
+            &bridge_matrix,
+            "extension_bridge_row:unsupported_webview_runtime",
             "install_review_alpha:dev.aureline.samples/wasm-notes:revoked",
         ),
     ];
@@ -221,6 +245,8 @@ pub fn seeded_marketplace_truth_page() -> MarketplaceTruthPageRecord {
         record_kind: MARKETPLACE_TRUTH_PAGE_RECORD_KIND.to_string(),
         schema_version: MARKETPLACE_TRUTH_PAGE_SCHEMA_VERSION,
         shared_contract_ref: MARKETPLACE_TRUTH_SHARED_CONTRACT_REF.to_string(),
+        extension_bridge_matrix_id: bridge_matrix.matrix_id.clone(),
+        extension_compatibility_report_ref: bridge_matrix.extension_report_ref.clone(),
         page_id: "shell:marketplace-truth:beta:page:default".to_string(),
         page_label:
             "Marketplace truth rows: lifecycle, compatibility, support, trust, mirrorability"
@@ -247,6 +273,25 @@ pub fn validate_marketplace_truth_page(
     }
     if page.shared_contract_ref != MARKETPLACE_TRUTH_SHARED_CONTRACT_REF {
         errors.push(MarketplaceTruthPageValidationError::SharedContractWrong);
+    }
+    let bridge_matrix = bridge_matrix();
+    for finding in validate_extension_bridge_matrix(&bridge_matrix) {
+        errors.push(MarketplaceTruthPageValidationError::BridgeMatrixFinding {
+            check_id: finding.check_id,
+            message: finding.message,
+        });
+    }
+    if page.extension_bridge_matrix_id != bridge_matrix.matrix_id {
+        errors.push(MarketplaceTruthPageValidationError::BridgeMatrixFinding {
+            check_id: "marketplace_truth_page.bridge_matrix_id_drift".to_string(),
+            message: "page bridge matrix id does not match checked matrix".to_string(),
+        });
+    }
+    if page.extension_compatibility_report_ref != bridge_matrix.extension_report_ref {
+        errors.push(MarketplaceTruthPageValidationError::BridgeMatrixFinding {
+            check_id: "marketplace_truth_page.extension_report_ref_drift".to_string(),
+            message: "page extension report ref does not match checked matrix".to_string(),
+        });
     }
     for badge_class in MarketplaceTruthBadgeClass::required_acceptance_states() {
         if !page.controlled_badge_vocabulary.contains(&badge_class) {
@@ -308,6 +353,38 @@ pub fn validate_marketplace_truth_page(
                 },
             );
         }
+        if export.extension_bridge_matrix_row_id != row.extension_bridge_matrix_row_id {
+            errors.push(
+                MarketplaceTruthPageValidationError::SupportExportParityDrift {
+                    row_id: row.row_id.clone(),
+                    field: "extension_bridge_matrix_row_id".to_string(),
+                },
+            );
+        }
+        if export.extension_bridge_matrix_id != row.extension_bridge_matrix_id {
+            errors.push(
+                MarketplaceTruthPageValidationError::SupportExportParityDrift {
+                    row_id: row.row_id.clone(),
+                    field: "extension_bridge_matrix_id".to_string(),
+                },
+            );
+        }
+        if export.extension_bridge_state_class != row.extension_bridge_state_class {
+            errors.push(
+                MarketplaceTruthPageValidationError::SupportExportParityDrift {
+                    row_id: row.row_id.clone(),
+                    field: "extension_bridge_state_class".to_string(),
+                },
+            );
+        }
+        if export.bridge_known_limits != row.bridge_known_limits {
+            errors.push(
+                MarketplaceTruthPageValidationError::SupportExportParityDrift {
+                    row_id: row.row_id.clone(),
+                    field: "bridge_known_limits".to_string(),
+                },
+            );
+        }
     }
 
     let expected_summary = MarketplaceTruthPageSummary::from_rows(&page.rows);
@@ -345,6 +422,8 @@ fn project_seeded_row(
     row_suffix: &str,
     catalog: &CatalogDescriptorRecord,
     report: &CompatibilityReportSnapshot,
+    bridge_matrix: &ExtensionBridgeMatrix,
+    bridge_matrix_row_ref: &str,
     install_review_ref: &str,
 ) -> MarketplaceTruthRowRecord {
     project_marketplace_truth_row(MarketplaceTruthRowInput {
@@ -352,6 +431,8 @@ fn project_seeded_row(
         catalog,
         compatibility_report: report,
         compatibility_report_row_ref: "compat_row:extension_host.sdk_wit_permission_window",
+        extension_bridge_matrix: bridge_matrix,
+        extension_bridge_matrix_row_ref: bridge_matrix_row_ref,
         install_review_ref,
         generated_at: "2026-05-16T19:30:00Z",
     })
@@ -364,6 +445,11 @@ fn compatibility_report() -> CompatibilityReportSnapshot {
         "/../../artifacts/compat/m3/compatibility_report.json"
     )))
     .expect("compatibility report artifact must parse")
+}
+
+/// Loads the checked extension bridge matrix consumed by the marketplace page.
+pub fn bridge_matrix() -> ExtensionBridgeMatrix {
+    current_extension_bridge_matrix().expect("extension bridge matrix artifact must parse")
 }
 
 fn catalog_record() -> CatalogDescriptorRecord {

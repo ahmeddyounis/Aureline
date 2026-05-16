@@ -8,6 +8,7 @@ use super::{
     CompatibilityReportSnapshot, MarketplaceCompatibilityLabelClass, MarketplaceSupportChipClass,
     MarketplaceTruthBadgeClass, MarketplaceTruthRowInput,
 };
+use crate::compatibility_matrix::{current_extension_bridge_matrix, ExtensionBridgeMatrix};
 use crate::registry::{
     evaluate_catalog_descriptor, CatalogDescriptorInput, CatalogDescriptorRecord,
 };
@@ -22,6 +23,10 @@ fn compatibility_report() -> CompatibilityReportSnapshot {
         "../../../../artifacts/compat/m3/compatibility_report.json"
     ))
     .expect("compatibility report fixture must deserialize")
+}
+
+fn bridge_matrix() -> ExtensionBridgeMatrix {
+    current_extension_bridge_matrix().expect("bridge matrix fixture must deserialize")
 }
 
 fn catalog_record() -> CatalogDescriptorRecord {
@@ -50,11 +55,14 @@ fn project_row(
     catalog: &CatalogDescriptorRecord,
 ) -> super::MarketplaceTruthRowRecord {
     let report = compatibility_report();
+    let bridge_matrix = bridge_matrix();
     project_marketplace_truth_row(MarketplaceTruthRowInput {
         row_id: &format!("marketplace_truth_row:{row_suffix}"),
         catalog,
         compatibility_report: &report,
         compatibility_report_row_ref: "compat_row:extension_host.sdk_wit_permission_window",
+        extension_bridge_matrix: &bridge_matrix,
+        extension_bridge_matrix_row_ref: "extension_bridge_row:wasm_component_native_beta",
         install_review_ref: "install_review_alpha:dev.aureline.samples/wasm-notes:1.0.0-beta.1",
         generated_at: "2026-05-16T19:00:00Z",
     })
@@ -111,6 +119,14 @@ fn generated_report_narrows_catalog_exact_label_on_beta_marketplace_row() {
         crate::install_review::CompatibilityLabel::Exact
     );
     assert_eq!(row.report_effective_support_class, "experimental");
+    assert_eq!(
+        row.extension_bridge_matrix_row_id,
+        "extension_bridge_row:wasm_component_native_beta"
+    );
+    assert_eq!(
+        row.runtime_compatibility_window_id,
+        "runtime_window:extension_host_v1_beta.wasm_component"
+    );
     assert!(row
         .support_summary
         .contains("compat_row:extension_host.sdk_wit_permission_window"));
@@ -128,9 +144,49 @@ fn generated_report_narrows_catalog_exact_label_on_beta_marketplace_row() {
 }
 
 #[test]
+fn support_export_refuses_bridge_row_without_limits() {
+    let catalog = evaluated_catalog_fixture("limited_compatibility_catalog");
+    let report = compatibility_report();
+    let bridge_matrix = bridge_matrix();
+    let row = project_marketplace_truth_row(MarketplaceTruthRowInput {
+        row_id: "marketplace_truth_row:dev.aureline.samples/wasm-notes:bridge-limits",
+        catalog: &catalog,
+        compatibility_report: &report,
+        compatibility_report_row_ref: "compat_row:extension_host.sdk_wit_permission_window",
+        extension_bridge_matrix: &bridge_matrix,
+        extension_bridge_matrix_row_ref: "extension_bridge_row:vscode_api_bridge_beta",
+        install_review_ref: "install_review_alpha:dev.aureline.samples/wasm-notes:limited",
+        generated_at: "2026-05-16T19:00:00Z",
+    })
+    .expect("bridge-backed row must project");
+    let mut export = project_marketplace_truth_support_export(
+        &row,
+        "marketplace_truth_support_export:dev.aureline.samples/wasm-notes:bridge-limits",
+    );
+    export.bridge_known_limits.clear();
+
+    let findings = validate_marketplace_truth_support_export(&export);
+    assert!(findings
+        .iter()
+        .any(|finding| { finding.check_id == "marketplace_truth_export.bridge_limits_missing" }));
+}
+
+#[test]
 fn mirror_pending_reverify_renders_retest_pending_before_install_review() {
     let catalog = evaluated_catalog_fixture("limited_compatibility_catalog");
-    let row = project_row("dev.aureline.samples/wasm-notes:retest", &catalog);
+    let report = compatibility_report();
+    let bridge_matrix = bridge_matrix();
+    let row = project_marketplace_truth_row(MarketplaceTruthRowInput {
+        row_id: "marketplace_truth_row:dev.aureline.samples/wasm-notes:retest",
+        catalog: &catalog,
+        compatibility_report: &report,
+        compatibility_report_row_ref: "compat_row:extension_host.sdk_wit_permission_window",
+        extension_bridge_matrix: &bridge_matrix,
+        extension_bridge_matrix_row_ref: "extension_bridge_row:vscode_api_bridge_beta",
+        install_review_ref: "install_review_alpha:dev.aureline.samples/wasm-notes:limited",
+        generated_at: "2026-05-16T19:00:00Z",
+    })
+    .expect("bridge-backed row must project");
 
     assert!(validate_marketplace_truth_row(&row).is_empty());
     assert!(row.blocks_install_or_update);
@@ -144,6 +200,11 @@ fn mirror_pending_reverify_renders_retest_pending_before_install_review() {
     assert!(row
         .lifecycle_badges
         .contains(&MarketplaceTruthBadgeClass::Mirrored));
+    assert_eq!(
+        row.extension_bridge_matrix_row_id,
+        "extension_bridge_row:vscode_api_bridge_beta"
+    );
+    assert!(!row.bridge_known_limits.is_empty());
 }
 
 #[test]
@@ -165,12 +226,15 @@ fn revoked_catalog_row_remains_visible_but_blocks_install_update() {
 #[test]
 fn missing_generated_report_row_refuses_projection() {
     let report = compatibility_report();
+    let bridge_matrix = bridge_matrix();
     let catalog = catalog_record();
     let finding = project_marketplace_truth_row(MarketplaceTruthRowInput {
         row_id: "marketplace_truth_row:missing-report-row",
         catalog: &catalog,
         compatibility_report: &report,
         compatibility_report_row_ref: "compat_row:missing",
+        extension_bridge_matrix: &bridge_matrix,
+        extension_bridge_matrix_row_ref: "extension_bridge_row:wasm_component_native_beta",
         install_review_ref: "install_review_alpha:dev.aureline.samples/wasm-notes:1.0.0-beta.1",
         generated_at: "2026-05-16T19:00:00Z",
     })
@@ -179,5 +243,28 @@ fn missing_generated_report_row_refuses_projection() {
     assert_eq!(
         finding.check_id,
         "marketplace_truth.compatibility_report_row_missing"
+    );
+}
+
+#[test]
+fn missing_bridge_matrix_row_refuses_projection() {
+    let report = compatibility_report();
+    let bridge_matrix = bridge_matrix();
+    let catalog = catalog_record();
+    let finding = project_marketplace_truth_row(MarketplaceTruthRowInput {
+        row_id: "marketplace_truth_row:missing-bridge-row",
+        catalog: &catalog,
+        compatibility_report: &report,
+        compatibility_report_row_ref: "compat_row:extension_host.sdk_wit_permission_window",
+        extension_bridge_matrix: &bridge_matrix,
+        extension_bridge_matrix_row_ref: "extension_bridge_row:missing",
+        install_review_ref: "install_review_alpha:dev.aureline.samples/wasm-notes:1.0.0-beta.1",
+        generated_at: "2026-05-16T19:00:00Z",
+    })
+    .expect_err("missing bridge row must refuse projection");
+
+    assert_eq!(
+        finding.check_id,
+        "marketplace_truth.extension_bridge_matrix_row_missing"
     );
 }

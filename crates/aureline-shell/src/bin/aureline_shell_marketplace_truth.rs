@@ -6,9 +6,12 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- page
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- rows
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- support-rows
+//! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- bridge-matrix
+//! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- validate-bridge-matrix
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- validate
 //! ```
 
+use aureline_extensions::{current_extension_bridge_matrix, validate_extension_bridge_matrix};
 use aureline_shell::extensions::marketplace::{
     seeded_marketplace_truth_page, validate_marketplace_truth_page,
 };
@@ -33,6 +36,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("support-rows") => {
             print_json(&page.support_rows)?;
+        }
+        Some("bridge-matrix") => {
+            print_json(&current_extension_bridge_matrix()?)?;
+        }
+        Some("validate-bridge-matrix") => {
+            let matrix = current_extension_bridge_matrix()?;
+            let findings = validate_extension_bridge_matrix(&matrix);
+            if findings.is_empty() {
+                println!("ok");
+            } else {
+                for finding in findings {
+                    eprintln!(
+                        "extension bridge matrix error: {}: {}",
+                        finding.check_id, finding.message
+                    );
+                }
+                std::process::exit(3);
+            }
         }
         Some("validate") => match validate_marketplace_truth_page(&page) {
             Ok(()) => println!("ok"),

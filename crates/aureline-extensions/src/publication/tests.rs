@@ -114,6 +114,14 @@ fn run_fixture(name: &str) {
     assert_eq!(export.decision_class, record.decision_class);
     assert_eq!(export.reason_class, record.reason_class);
     assert_eq!(
+        export.bridge_matrix_ref,
+        record.compatibility_metadata.bridge_matrix_ref
+    );
+    assert_eq!(
+        export.bridge_matrix_row_ref,
+        record.compatibility_metadata.bridge_matrix_row_ref
+    );
+    assert_eq!(
         export.blocks_catalog_mutation,
         record.decision_class == PublicationDecisionClass::Refused
     );

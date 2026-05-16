@@ -104,6 +104,8 @@ def build_input(args: argparse.Namespace, manifest: dict[str, Any], artifact_add
     compatibility_report_ref = (
         args.compatibility_report_ref or f"compatibility_report:extensions:{identity}:{version}"
     )
+    bridge_matrix_ref = args.bridge_matrix_ref
+    bridge_matrix_row_ref = args.bridge_matrix_row_ref
     previous_address = {
         "digest_algorithm": "sha256",
         "digest_hex": args.previous_digest_hex,
@@ -200,6 +202,8 @@ def build_input(args: argparse.Namespace, manifest: dict[str, Any], artifact_add
         },
         "compatibility_metadata": {
             "compatibility_report_ref": compatibility_report_ref,
+            "bridge_matrix_ref": bridge_matrix_ref,
+            "bridge_matrix_row_ref": bridge_matrix_row_ref,
             "host_contract_family_refs": host_refs,
             "capability_world_refs": world_refs,
             "target_platforms": target_platforms,
@@ -345,6 +349,8 @@ def decide(payload: dict[str, Any]) -> tuple[str, str, str]:
         return refused("refused_provenance_missing", "provenance metadata is incomplete")
     if (
         not non_empty(compatibility.get("compatibility_report_ref"))
+        or not non_empty(compatibility.get("bridge_matrix_ref"))
+        or not non_empty(compatibility.get("bridge_matrix_row_ref"))
         or not as_list(compatibility.get("host_contract_family_refs"))
         or not as_list(compatibility.get("capability_world_refs"))
         or not as_list(compatibility.get("target_platforms"))
@@ -434,6 +440,8 @@ def support_export(record: dict[str, Any]) -> dict[str, Any]:
         "signature_ref": record["signer_metadata"]["signature_ref"],
         "provenance_ref": record["provenance_metadata"]["provenance_ref"],
         "compatibility_report_ref": record["compatibility_metadata"]["compatibility_report_ref"],
+        "bridge_matrix_ref": record["compatibility_metadata"]["bridge_matrix_ref"],
+        "bridge_matrix_row_ref": record["compatibility_metadata"]["bridge_matrix_row_ref"],
         "rollback_manifest_ref": record["rollback_plan"]["rollback_manifest_ref"],
         "decision_class": record["decision_class"],
         "reason_class": record["reason_class"],
@@ -445,6 +453,7 @@ def support_export(record: dict[str, Any]) -> dict[str, Any]:
             f"{record['version_metadata']['extension_version']} decision={record['decision_class']}; "
             f"signer={record['signer_metadata']['signer_ref']}; "
             f"provenance={record['provenance_metadata']['provenance_ref']}; "
+            f"bridge_row={record['compatibility_metadata']['bridge_matrix_row_ref']}; "
             f"promotion_steps={record['promotion_step_count']}; rollback={rollback_available}"
         ),
         "redaction_class": "metadata_safe_default",
@@ -477,6 +486,8 @@ def registry_manifest_row(record: dict[str, Any], generated_at: str) -> dict[str
         "compatibility_notes": [
             {
                 "compatibility_claim_class": "compatible_on_all_declared_targets",
+                "bridge_matrix_ref": compat["bridge_matrix_ref"],
+                "bridge_matrix_row_ref": compat["bridge_matrix_row_ref"],
                 "declared_host_contract_family_refs": compat["host_contract_family_refs"],
                 "declared_capability_world_refs": compat["capability_world_refs"],
                 "known_caveat_labels": [],
@@ -712,6 +723,11 @@ def parse_args() -> argparse.Namespace:
     build.add_argument("--permission-manifest-ref")
     build.add_argument("--runtime-contract-ref")
     build.add_argument("--compatibility-report-ref")
+    build.add_argument("--bridge-matrix-ref", default="artifacts/compat/m3/bridge_matrix.yaml")
+    build.add_argument(
+        "--bridge-matrix-row-ref",
+        default="extension_bridge_row:wasm_component_native_beta",
+    )
     build.add_argument("--signer-ref")
     build.add_argument("--signature-ref")
     build.add_argument("--signature-class", choices=[

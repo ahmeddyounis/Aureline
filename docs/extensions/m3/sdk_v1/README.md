@@ -26,6 +26,8 @@ copy:
 
 The contract is governed. The canonical Rust source of truth lives in
 [`crates/aureline-extensions/src/sdk_v1/`](../../../../crates/aureline-extensions/src/sdk_v1/);
+the extension runtime / SDK / manifest / bridge compatibility matrix is
+[`artifacts/compat/m3/bridge_matrix.yaml`](../../../../artifacts/compat/m3/bridge_matrix.yaml);
 the cross-tool boundary schema is
 [`schemas/extensions/sdk_v1_starter_pack.schema.json`](../../../../schemas/extensions/sdk_v1_starter_pack.schema.json);
 the checked-in fixtures live under
@@ -190,6 +192,11 @@ invent SDK-v1-shaped fields:
 - **CLI / headless review.** Quotes the same closed tokens as the
   install / review chrome; refuse the install with the same reason
   class the chrome would show.
+- **Compatibility matrix.** Native, bridge, shimmed, partial, and
+  unsupported author paths cite
+  [`docs/extensions/m3/compatibility_matrix_beta.md`](../compatibility_matrix_beta.md)
+  and the matching `extension_bridge_row:*` id. Bridge or shimmed paths
+  cannot be documented as exact SDK parity.
 - **Extension validator.** Validates author manifests against the beta
   SDK, permission, lifecycle, compatibility, and conformance-fixture
   expectations before registry ingest. The command and fixture suite

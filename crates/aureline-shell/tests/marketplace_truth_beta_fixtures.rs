@@ -40,6 +40,18 @@ fn fixtures_round_trip_through_shared_types() {
             row.row_id
         );
         assert!(
+            row.extension_bridge_matrix_id
+                .starts_with("extension_bridge_matrix:"),
+            "{} must cite bridge matrix",
+            row.row_id
+        );
+        assert!(
+            row.extension_bridge_matrix_row_id
+                .starts_with("extension_bridge_row:"),
+            "{} must cite bridge matrix row",
+            row.row_id
+        );
+        assert!(
             !row.support_chips.is_empty(),
             "{} must render support chips",
             row.row_id
@@ -67,6 +79,10 @@ fn fixtures_round_trip_through_shared_types() {
         public_beta.catalog_rendered_compatibility_label,
         aureline_extensions::CompatibilityLabel::Exact
     );
+    assert_eq!(
+        public_beta.extension_bridge_matrix_row_id,
+        "extension_bridge_row:wasm_component_native_beta"
+    );
 
     let retest = rows
         .iter()
@@ -76,6 +92,11 @@ fn fixtures_round_trip_through_shared_types() {
     assert!(retest
         .lifecycle_badges
         .contains(&MarketplaceTruthBadgeClass::RetestPending));
+    assert_eq!(
+        retest.extension_bridge_matrix_row_id,
+        "extension_bridge_row:vscode_api_bridge_beta"
+    );
+    assert!(!retest.bridge_known_limits.is_empty());
 
     let support_rows: Vec<MarketplaceTruthSupportExportRecord> = load("support_rows.json");
     assert_eq!(support_rows.len(), rows.len());
@@ -91,6 +112,10 @@ fn fixtures_round_trip_through_shared_types() {
         );
         assert_eq!(export.support_chips, row.support_chips);
         assert_eq!(export.trust_chips, row.trust_chips);
+        assert_eq!(
+            export.extension_bridge_matrix_row_id,
+            row.extension_bridge_matrix_row_id
+        );
     }
 
     let page: MarketplaceTruthPageRecord = load("page.json");
@@ -98,6 +123,10 @@ fn fixtures_round_trip_through_shared_types() {
     assert_eq!(
         page.shared_contract_ref,
         MARKETPLACE_TRUTH_SHARED_CONTRACT_REF
+    );
+    assert_eq!(
+        page.extension_bridge_matrix_id,
+        "extension_bridge_matrix:m3.beta"
     );
     assert_eq!(
         page.controlled_badge_vocabulary,

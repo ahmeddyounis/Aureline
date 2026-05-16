@@ -57,6 +57,10 @@
 //! - one [`marketplace_truth::MarketplaceTruthRowRecord`] row projection
 //!   that binds catalog descriptor truth to the current generated
 //!   compatibility report before any marketplace row can open install review.
+//! - one [`compatibility_matrix::ExtensionBridgeMatrix`] compatibility
+//!   matrix that names the runtime, SDK, manifest, and bridge windows for
+//!   claimed beta extension lanes so marketplace, SDK docs, publication
+//!   packets, and support exports do not invent local bridge claims.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -71,6 +75,7 @@
 //! [`/schemas/extensions/m1_extension_manifest.schema.json`](../../../schemas/extensions/m1_extension_manifest.schema.json).
 
 pub mod collections;
+pub mod compatibility_matrix;
 pub mod install_review;
 pub mod manifest_baseline;
 pub mod marketplace_truth;
@@ -86,6 +91,13 @@ pub use collections::{
     ExtensionInstallCollectionAlphaInput, ExtensionInstallCollectionAlphaPacket,
     EXTENSION_INSTALL_COLLECTION_ALPHA_PACKET_RECORD_KIND,
     EXTENSION_INSTALL_COLLECTION_ALPHA_SCHEMA_VERSION,
+};
+pub use compatibility_matrix::{
+    current_extension_bridge_matrix, validate_extension_bridge_matrix, ExtensionBridgeMatrix,
+    ExtensionBridgeMatrixFinding, ExtensionBridgeMatrixRow, ExtensionBridgeStateClass,
+    ExtensionBridgeWindow, ExtensionCompatibilityLabel, ExtensionCompatibilityWindow,
+    ExtensionDowngradeBehavior, ExtensionParityClaimClass, CURRENT_EXTENSION_BRIDGE_MATRIX_PATH,
+    EXTENSION_BRIDGE_MATRIX_RECORD_KIND, EXTENSION_BRIDGE_MATRIX_SCHEMA_VERSION,
 };
 pub use install_review::{
     evaluate_install_review_alpha, project_install_review_alpha_surface,

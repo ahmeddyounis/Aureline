@@ -187,6 +187,8 @@ pub struct PublicationProvenanceMetadata {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicationCompatibilityMetadata {
     pub compatibility_report_ref: String,
+    pub bridge_matrix_ref: String,
+    pub bridge_matrix_row_ref: String,
     pub host_contract_family_refs: Vec<String>,
     pub capability_world_refs: Vec<String>,
     pub target_platforms: Vec<String>,
@@ -288,6 +290,8 @@ pub struct ExtensionPublicationSupportExportRecord {
     pub signature_ref: String,
     pub provenance_ref: String,
     pub compatibility_report_ref: String,
+    pub bridge_matrix_ref: String,
+    pub bridge_matrix_row_ref: String,
     pub rollback_manifest_ref: String,
     pub decision_class: PublicationDecisionClass,
     pub reason_class: PublicationReasonClass,
@@ -402,12 +406,13 @@ pub fn project_extension_publication_support_export(
             .trim()
             .is_empty();
     let export_safe_summary = format!(
-        "{} {} decision={:?}; signer={}; provenance={}; promotion_steps={}; rollback={}",
+        "{} {} decision={:?}; signer={}; provenance={}; bridge_row={}; promotion_steps={}; rollback={}",
         record.version_metadata.extension_identity,
         record.version_metadata.extension_version,
         record.decision_class,
         record.signer_metadata.signer_ref,
         record.provenance_metadata.provenance_ref,
+        record.compatibility_metadata.bridge_matrix_row_ref,
         record.promotion_step_count,
         rollback_available,
     );
@@ -427,6 +432,8 @@ pub fn project_extension_publication_support_export(
             .compatibility_metadata
             .compatibility_report_ref
             .clone(),
+        bridge_matrix_ref: record.compatibility_metadata.bridge_matrix_ref.clone(),
+        bridge_matrix_row_ref: record.compatibility_metadata.bridge_matrix_row_ref.clone(),
         rollback_manifest_ref: record.rollback_plan.rollback_manifest_ref.clone(),
         decision_class: record.decision_class,
         reason_class: record.reason_class,
@@ -530,6 +537,22 @@ pub fn validate_extension_publication_pipeline_record(
             "transactional_catalog_update must reflect the atomicity guard",
         ));
     }
+    if record
+        .compatibility_metadata
+        .bridge_matrix_ref
+        .trim()
+        .is_empty()
+        || record
+            .compatibility_metadata
+            .bridge_matrix_row_ref
+            .trim()
+            .is_empty()
+    {
+        findings.push(PublicationPipelineFinding::new(
+            "extension_publication.bridge_matrix_ref_missing",
+            "compatibility metadata must cite the extension bridge matrix and row",
+        ));
+    }
     findings
 }
 
@@ -570,6 +593,13 @@ pub fn validate_extension_publication_support_export_record(
         findings.push(PublicationPipelineFinding::new(
             "extension_publication_support_export.publication_ref_unprefixed",
             "publication_ref must start with 'extension_publication:'",
+        ));
+    }
+    if record.bridge_matrix_ref.trim().is_empty() || record.bridge_matrix_row_ref.trim().is_empty()
+    {
+        findings.push(PublicationPipelineFinding::new(
+            "extension_publication_support_export.bridge_matrix_ref_missing",
+            "support export must cite the extension bridge matrix and row",
         ));
     }
     if record.export_safe_summary.trim().is_empty() {
@@ -671,6 +701,8 @@ fn decide_publication_pipeline(
         );
     }
     if compatibility.compatibility_report_ref.trim().is_empty()
+        || compatibility.bridge_matrix_ref.trim().is_empty()
+        || compatibility.bridge_matrix_row_ref.trim().is_empty()
         || compatibility.host_contract_family_refs.is_empty()
         || compatibility.capability_world_refs.is_empty()
         || compatibility.target_platforms.is_empty()
