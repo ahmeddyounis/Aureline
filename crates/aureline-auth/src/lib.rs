@@ -26,7 +26,10 @@
 //!   provider, registry, database, and remote lanes reference OS credential-
 //!   store handles, session-only broker memory, and delegated credentials
 //!   while exporting only redaction-safe metadata and first-class continuity
-//!   results.
+//!   results; and
+//! - one [`workspace_trust::WorkspaceTrustBetaPage`] beta audit that keeps
+//!   open, run, debug, extension, AI, provider, review, support, and admin
+//!   rows on the same restricted-mode and trust-elevation vocabulary.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -60,6 +63,7 @@ pub mod identity_modes;
 pub mod secrets;
 pub mod system_browser;
 pub mod trust;
+pub mod workspace_trust;
 
 pub use browser_callback::{
     AccountBoundaryClass, AuthFlowClass, BrowserCallbackHandoff, BrowserCallbackPacket,
@@ -134,11 +138,24 @@ pub use system_browser::beta::{
 };
 
 pub use trust::{
-    CapabilityAuthorityClass, CapabilityDecisionSource, CapabilityDisclosureRow, CapabilityScope,
-    ExternalEffectClass, LaunchWedgeCapabilityFamily, RememberedDecisionScopeClass,
-    RestrictedModeAlphaPacket, RestrictedModeEntryTransitionClass,
-    RestrictedModeLaunchWedgeDisclosure, RestrictedModeTrustSource, RestrictedModeTrustStateClass,
-    RestrictedModeValidationError, StageRestrictedModeLaunchRequest, TrustAuditEventClass,
-    TrustDecisionSourceClass, TrustEscalationCueClass, TrustReasonClass, TrustRecoveryActionClass,
+    authority_for_trust_state, external_effect_for_capability, CapabilityAuthorityClass,
+    CapabilityDecisionSource, CapabilityDisclosureRow, CapabilityScope, ExternalEffectClass,
+    LaunchWedgeCapabilityFamily, RememberedDecisionScopeClass, RestrictedModeAlphaPacket,
+    RestrictedModeEntryTransitionClass, RestrictedModeLaunchWedgeDisclosure,
+    RestrictedModeTrustSource, RestrictedModeTrustStateClass, RestrictedModeValidationError,
+    StageRestrictedModeLaunchRequest, TrustAuditEventClass, TrustDecisionSourceClass,
+    TrustEscalationCueClass, TrustReasonClass, TrustRecoveryActionClass,
     RESTRICTED_MODE_ALPHA_PACKET_RECORD_KIND, RESTRICTED_MODE_ALPHA_SCHEMA_VERSION,
+};
+
+pub use workspace_trust::{
+    audit_workspace_trust_beta_rows, seeded_workspace_trust_beta_page,
+    validate_workspace_trust_beta_page, WorkspaceTrustBetaDefect, WorkspaceTrustBetaDefectKind,
+    WorkspaceTrustBetaLaneClass, WorkspaceTrustBetaPage, WorkspaceTrustBetaProfileAuthority,
+    WorkspaceTrustBetaProfileClass, WorkspaceTrustBetaRow, WorkspaceTrustBetaSummary,
+    WorkspaceTrustBetaSupportExport, WorkspaceTrustBetaSupportRow,
+    WORKSPACE_TRUST_BETA_DEFECT_RECORD_KIND, WORKSPACE_TRUST_BETA_PAGE_RECORD_KIND,
+    WORKSPACE_TRUST_BETA_ROW_RECORD_KIND, WORKSPACE_TRUST_BETA_SCHEMA_VERSION,
+    WORKSPACE_TRUST_BETA_SHARED_CONTRACT_REF, WORKSPACE_TRUST_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    WORKSPACE_TRUST_BETA_SUPPORT_ROW_RECORD_KIND, WORKSPACE_TRUST_BETA_SURFACE_FAMILIES,
 };

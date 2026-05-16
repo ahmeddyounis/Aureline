@@ -331,6 +331,8 @@ pub enum LaunchWedgeCapabilityFamily {
     NotebookKernelConnect,
     /// Execute a notebook cell.
     NotebookCellExecute,
+    /// Render rich notebook output that may contain active content.
+    NotebookRichOutputRender,
     /// Assemble or inspect AI context without applying changes.
     AiContextRead,
     /// Apply AI-generated edits or create files.
@@ -345,6 +347,8 @@ pub enum LaunchWedgeCapabilityFamily {
     EnvironmentActivatorRun,
     /// Run package install helpers or install/update scripts.
     PackageInstallHelper,
+    /// Run a scaffold or template that can write files or run hooks.
+    ScaffoldTemplateRun,
     /// Start browser or device handoff for a connected provider.
     ConnectedProviderOpen,
     /// Call a connected-provider tool with egress, billing, or mutation effects.
@@ -375,6 +379,7 @@ impl LaunchWedgeCapabilityFamily {
             Self::DebugLaunch => "debug_launch",
             Self::NotebookKernelConnect => "notebook_kernel_connect",
             Self::NotebookCellExecute => "notebook_cell_execute",
+            Self::NotebookRichOutputRender => "notebook_rich_output_render",
             Self::AiContextRead => "ai_context_read",
             Self::AiApplyMutation => "ai_apply_mutation",
             Self::AiToolCallMutating => "ai_tool_call_mutating",
@@ -382,6 +387,7 @@ impl LaunchWedgeCapabilityFamily {
             Self::ExtensionInstall => "extension_install",
             Self::EnvironmentActivatorRun => "environment_activator_run",
             Self::PackageInstallHelper => "package_install_helper",
+            Self::ScaffoldTemplateRun => "scaffold_template_run",
             Self::ConnectedProviderOpen => "connected_provider_open",
             Self::ConnectedProviderToolCall => "connected_provider_tool_call",
             Self::RemoteAttach => "remote_attach",
@@ -419,6 +425,7 @@ impl LaunchWedgeCapabilityFamily {
             Self::DebugLaunch => "Start debugger launch",
             Self::NotebookKernelConnect => "Connect notebook kernel",
             Self::NotebookCellExecute => "Execute notebook cell",
+            Self::NotebookRichOutputRender => "Render notebook rich output",
             Self::AiContextRead => "Inspect AI context",
             Self::AiApplyMutation => "Apply AI changes",
             Self::AiToolCallMutating => "Run AI mutating tool",
@@ -426,6 +433,7 @@ impl LaunchWedgeCapabilityFamily {
             Self::ExtensionInstall => "Install or update extension",
             Self::EnvironmentActivatorRun => "Run environment activator",
             Self::PackageInstallHelper => "Run package install helper",
+            Self::ScaffoldTemplateRun => "Run scaffold or template",
             Self::ConnectedProviderOpen => "Open connected-provider handoff",
             Self::ConnectedProviderToolCall => "Call connected-provider tool",
             Self::RemoteAttach => "Attach remote target",
@@ -537,6 +545,59 @@ impl ExternalEffectClass {
     }
 }
 
+/// Returns the side-effect class for a workspace-trust capability family.
+pub const fn external_effect_for_capability(
+    family: LaunchWedgeCapabilityFamily,
+) -> ExternalEffectClass {
+    match family {
+        LaunchWedgeCapabilityFamily::WorkspaceOpenRestore
+        | LaunchWedgeCapabilityFamily::EditorReadWrite
+        | LaunchWedgeCapabilityFamily::SearchLocal
+        | LaunchWedgeCapabilityFamily::LocalGitRead
+        | LaunchWedgeCapabilityFamily::NotebookRichOutputRender
+        | LaunchWedgeCapabilityFamily::AiContextRead
+        | LaunchWedgeCapabilityFamily::SupportBundleExport
+        | LaunchWedgeCapabilityFamily::AdminPolicyRead => {
+            ExternalEffectClass::LocalOnlyNoExternalEffect
+        }
+        LaunchWedgeCapabilityFamily::ShellCommandPalette
+        | LaunchWedgeCapabilityFamily::TasksRun
+        | LaunchWedgeCapabilityFamily::TerminalManualOpen
+        | LaunchWedgeCapabilityFamily::TerminalRepoRecipeLaunch
+        | LaunchWedgeCapabilityFamily::DebugLaunch
+        | LaunchWedgeCapabilityFamily::NotebookKernelConnect
+        | LaunchWedgeCapabilityFamily::NotebookCellExecute
+        | LaunchWedgeCapabilityFamily::ExtensionActivation
+        | LaunchWedgeCapabilityFamily::EnvironmentActivatorRun
+        | LaunchWedgeCapabilityFamily::McpServerLaunch => ExternalEffectClass::LocalProcessLaunch,
+        LaunchWedgeCapabilityFamily::LocalGitWrite
+        | LaunchWedgeCapabilityFamily::AiApplyMutation
+        | LaunchWedgeCapabilityFamily::AiToolCallMutating
+        | LaunchWedgeCapabilityFamily::ScaffoldTemplateRun => {
+            ExternalEffectClass::WorkspaceMutation
+        }
+        LaunchWedgeCapabilityFamily::ConnectedProviderToolCall => {
+            ExternalEffectClass::NetworkOrProviderEgress
+        }
+        LaunchWedgeCapabilityFamily::RemoteAttach => ExternalEffectClass::HostedDependency,
+        LaunchWedgeCapabilityFamily::ConnectedProviderOpen => {
+            ExternalEffectClass::SecretOrIdentityUse
+        }
+        LaunchWedgeCapabilityFamily::ExtensionInstall
+        | LaunchWedgeCapabilityFamily::PackageInstallHelper => {
+            ExternalEffectClass::InstallOrUpdateMutation
+        }
+    }
+}
+
+/// Returns the authority admitted for a capability family under one trust state.
+pub const fn authority_for_trust_state(
+    trust_state: RestrictedModeTrustStateClass,
+    family: LaunchWedgeCapabilityFamily,
+) -> CapabilityAuthorityClass {
+    authority_for(trust_state, family, external_effect_for_capability(family))
+}
+
 /// Recovery or review action offered for a trust-gated capability.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -605,14 +666,30 @@ pub enum TrustAuditEventClass {
     WorkspaceTrustDeclined,
     /// Trust was revoked.
     WorkspaceTrustRevoked,
+    /// A session-scoped trust grant expired.
+    WorkspaceTrustSessionGrantExpired,
     /// A policy narrowed trust.
     WorkspaceTrustPolicyNarrowed,
+    /// A policy restored trust.
+    WorkspaceTrustPolicyRestored,
+    /// An emergency action narrowed trust.
+    WorkspaceTrustEmergencyApplied,
     /// A recovery action forced restricted mode.
     WorkspaceTrustRecoveryApplied,
+    /// A managed identity gate became unavailable.
+    WorkspaceTrustIdentityGateUnavailable,
+    /// A managed identity gate was restored.
+    WorkspaceTrustIdentityGateRestored,
+    /// A remembered trust decision was recorded.
+    WorkspaceTrustRememberedDecisionRecorded,
+    /// A remembered trust decision was invalidated.
+    WorkspaceTrustRememberedDecisionInvalidated,
     /// A surface request was denied by the trust matrix.
     WorkspaceTrustMatrixRowDenied,
     /// A surface request was admitted by the trust matrix.
     WorkspaceTrustMatrixRowAdmitted,
+    /// A trust decision packet was malformed.
+    WorkspaceTrustDecisionMalformed,
 }
 
 impl TrustAuditEventClass {
@@ -623,10 +700,24 @@ impl TrustAuditEventClass {
             Self::WorkspaceTrustGranted => "workspace_trust_granted",
             Self::WorkspaceTrustDeclined => "workspace_trust_declined",
             Self::WorkspaceTrustRevoked => "workspace_trust_revoked",
+            Self::WorkspaceTrustSessionGrantExpired => "workspace_trust_session_grant_expired",
             Self::WorkspaceTrustPolicyNarrowed => "workspace_trust_policy_narrowed",
+            Self::WorkspaceTrustPolicyRestored => "workspace_trust_policy_restored",
+            Self::WorkspaceTrustEmergencyApplied => "workspace_trust_emergency_applied",
             Self::WorkspaceTrustRecoveryApplied => "workspace_trust_recovery_applied",
+            Self::WorkspaceTrustIdentityGateUnavailable => {
+                "workspace_trust_identity_gate_unavailable"
+            }
+            Self::WorkspaceTrustIdentityGateRestored => "workspace_trust_identity_gate_restored",
+            Self::WorkspaceTrustRememberedDecisionRecorded => {
+                "workspace_trust_remembered_decision_recorded"
+            }
+            Self::WorkspaceTrustRememberedDecisionInvalidated => {
+                "workspace_trust_remembered_decision_invalidated"
+            }
             Self::WorkspaceTrustMatrixRowDenied => "workspace_trust_matrix_row_denied",
             Self::WorkspaceTrustMatrixRowAdmitted => "workspace_trust_matrix_row_admitted",
+            Self::WorkspaceTrustDecisionMalformed => "workspace_trust_decision_malformed",
         }
     }
 }
@@ -964,7 +1055,7 @@ impl RestrictedModeAlphaPacket {
             .iter()
             .map(|cue| cue.as_str().to_owned())
             .collect();
-        let audit_event_class = audit_event_for(request.entry_transition);
+        let audit_event_class = audit_event_for(request.entry_transition, request.reason_class);
 
         Self {
             record_kind: RESTRICTED_MODE_ALPHA_PACKET_RECORD_KIND.to_owned(),
@@ -1434,8 +1525,12 @@ fn default_capability_gates(
             ExternalEffectClass::LocalProcessLaunch,
         ),
         (
+            LaunchWedgeCapabilityFamily::NotebookRichOutputRender,
+            ExternalEffectClass::LocalOnlyNoExternalEffect,
+        ),
+        (
             LaunchWedgeCapabilityFamily::AiContextRead,
-            ExternalEffectClass::NetworkOrProviderEgress,
+            ExternalEffectClass::LocalOnlyNoExternalEffect,
         ),
         (
             LaunchWedgeCapabilityFamily::AiApplyMutation,
@@ -1460,6 +1555,10 @@ fn default_capability_gates(
         (
             LaunchWedgeCapabilityFamily::PackageInstallHelper,
             ExternalEffectClass::InstallOrUpdateMutation,
+        ),
+        (
+            LaunchWedgeCapabilityFamily::ScaffoldTemplateRun,
+            ExternalEffectClass::WorkspaceMutation,
         ),
         (
             LaunchWedgeCapabilityFamily::ConnectedProviderOpen,
@@ -1503,18 +1602,24 @@ const fn authority_for(
     family: LaunchWedgeCapabilityFamily,
     effect: ExternalEffectClass,
 ) -> CapabilityAuthorityClass {
+    if family.restricted_floor_family() {
+        return restricted_floor_authority_for(family);
+    }
     if trust_state.trusted_execution_available() {
-        if effect.requires_install_review() {
-            return CapabilityAuthorityClass::BlockedPendingApproval;
-        }
         if matches!(
             family,
             LaunchWedgeCapabilityFamily::AiApplyMutation
                 | LaunchWedgeCapabilityFamily::AiToolCallMutating
+                | LaunchWedgeCapabilityFamily::ExtensionInstall
                 | LaunchWedgeCapabilityFamily::RemoteAttach
                 | LaunchWedgeCapabilityFamily::ConnectedProviderToolCall
+                | LaunchWedgeCapabilityFamily::McpServerLaunch
+                | LaunchWedgeCapabilityFamily::ScaffoldTemplateRun
         ) {
             return CapabilityAuthorityClass::ApprovalRequiredPerInvocation;
+        }
+        if effect.requires_install_review() {
+            return CapabilityAuthorityClass::BlockedPendingApproval;
         }
         return CapabilityAuthorityClass::Allowed;
     }
@@ -1524,11 +1629,31 @@ const fn authority_for(
     ) {
         if matches!(
             family,
-            LaunchWedgeCapabilityFamily::AiApplyMutation
+            LaunchWedgeCapabilityFamily::ShellCommandPalette
+                | LaunchWedgeCapabilityFamily::LocalGitWrite
+                | LaunchWedgeCapabilityFamily::TasksRun
+                | LaunchWedgeCapabilityFamily::TerminalRepoRecipeLaunch
+                | LaunchWedgeCapabilityFamily::DebugLaunch
+                | LaunchWedgeCapabilityFamily::NotebookKernelConnect
+                | LaunchWedgeCapabilityFamily::NotebookCellExecute
+                | LaunchWedgeCapabilityFamily::AiApplyMutation
                 | LaunchWedgeCapabilityFamily::AiToolCallMutating
+                | LaunchWedgeCapabilityFamily::ExtensionActivation
+                | LaunchWedgeCapabilityFamily::ExtensionInstall
+                | LaunchWedgeCapabilityFamily::EnvironmentActivatorRun
+                | LaunchWedgeCapabilityFamily::ScaffoldTemplateRun
                 | LaunchWedgeCapabilityFamily::ConnectedProviderToolCall
+                | LaunchWedgeCapabilityFamily::RemoteAttach
+                | LaunchWedgeCapabilityFamily::McpServerLaunch
         ) {
             return CapabilityAuthorityClass::ApprovalRequiredPerInvocation;
+        }
+        if matches!(
+            family,
+            LaunchWedgeCapabilityFamily::NotebookRichOutputRender
+                | LaunchWedgeCapabilityFamily::ConnectedProviderOpen
+        ) {
+            return CapabilityAuthorityClass::DegradedPreviewOnly;
         }
         if effect.requires_install_review() {
             return CapabilityAuthorityClass::BlockedPendingApproval;
@@ -1536,13 +1661,25 @@ const fn authority_for(
         return CapabilityAuthorityClass::Allowed;
     }
     match family {
-        LaunchWedgeCapabilityFamily::AiContextRead => CapabilityAuthorityClass::DegradedPreviewOnly,
-        LaunchWedgeCapabilityFamily::ConnectedProviderOpen
-        | LaunchWedgeCapabilityFamily::ConnectedProviderToolCall
-        | LaunchWedgeCapabilityFamily::RemoteAttach
-        | LaunchWedgeCapabilityFamily::TerminalManualOpen => {
-            CapabilityAuthorityClass::BlockedPendingApproval
+        LaunchWedgeCapabilityFamily::AiContextRead => CapabilityAuthorityClass::Allowed,
+        LaunchWedgeCapabilityFamily::NotebookRichOutputRender
+        | LaunchWedgeCapabilityFamily::ConnectedProviderOpen => {
+            CapabilityAuthorityClass::DegradedPreviewOnly
         }
+        _ => CapabilityAuthorityClass::BlockedPendingTrust,
+    }
+}
+
+const fn restricted_floor_authority_for(
+    family: LaunchWedgeCapabilityFamily,
+) -> CapabilityAuthorityClass {
+    match family {
+        LaunchWedgeCapabilityFamily::WorkspaceOpenRestore
+        | LaunchWedgeCapabilityFamily::EditorReadWrite
+        | LaunchWedgeCapabilityFamily::SearchLocal => CapabilityAuthorityClass::Allowed,
+        LaunchWedgeCapabilityFamily::LocalGitRead
+        | LaunchWedgeCapabilityFamily::SupportBundleExport
+        | LaunchWedgeCapabilityFamily::AdminPolicyRead => CapabilityAuthorityClass::ReadOnly,
         _ => CapabilityAuthorityClass::BlockedPendingTrust,
     }
 }
@@ -1585,11 +1722,13 @@ fn recovery_actions_for(
                     TrustRecoveryActionClass::RequestTrustGrantSessionOnly,
                     TrustRecoveryActionClass::RequestApprovalTicket,
                     TrustRecoveryActionClass::ContinueRestrictedNoElevation,
+                    TrustRecoveryActionClass::RouteToSupportBundleExport,
                 ]
             } else {
                 vec![
                     TrustRecoveryActionClass::RequestTrustGrantSessionOnly,
                     TrustRecoveryActionClass::ContinueRestrictedNoElevation,
+                    TrustRecoveryActionClass::RouteToSupportBundleExport,
                 ]
             }
         }
@@ -1604,11 +1743,17 @@ fn gated_explanation(
 ) -> String {
     match family {
         LaunchWedgeCapabilityFamily::AiContextRead => {
-            "AI context can be inspected locally, but provider dispatch waits for trust and policy review.".to_owned()
+            "AI context assembly remains local and inspectable; provider dispatch is covered by provider and AI tool rows.".to_owned()
+        }
+        LaunchWedgeCapabilityFamily::NotebookRichOutputRender => {
+            "Rich notebook output is sanitized or reduced to metadata until workspace and output trust allow active rendering.".to_owned()
         }
         LaunchWedgeCapabilityFamily::ExtensionInstall
         | LaunchWedgeCapabilityFamily::PackageInstallHelper => {
             "Install or update mutation requires trust plus an explicit review before code or scripts can run.".to_owned()
+        }
+        LaunchWedgeCapabilityFamily::ScaffoldTemplateRun => {
+            "Scaffold or template runs may write files or execute hooks, so they wait for trust and reviewed scope.".to_owned()
         }
         LaunchWedgeCapabilityFamily::ConnectedProviderOpen
         | LaunchWedgeCapabilityFamily::ConnectedProviderToolCall
@@ -1644,7 +1789,16 @@ fn escalation_cues_for(trust_state: RestrictedModeTrustStateClass) -> Vec<TrustE
     }
 }
 
-const fn audit_event_for(transition: RestrictedModeEntryTransitionClass) -> TrustAuditEventClass {
+const fn audit_event_for(
+    transition: RestrictedModeEntryTransitionClass,
+    reason: TrustReasonClass,
+) -> TrustAuditEventClass {
+    if matches!(reason, TrustReasonClass::ExplicitUserDecline) {
+        return TrustAuditEventClass::WorkspaceTrustDeclined;
+    }
+    if matches!(reason, TrustReasonClass::SessionExpired) {
+        return TrustAuditEventClass::WorkspaceTrustSessionGrantExpired;
+    }
     match transition {
         RestrictedModeEntryTransitionClass::GrantTrustSession
         | RestrictedModeEntryTransitionClass::GrantTrustRemembered
@@ -1657,9 +1811,18 @@ const fn audit_event_for(transition: RestrictedModeEntryTransitionClass) -> Trus
         RestrictedModeEntryTransitionClass::PolicyNarrowToDegraded => {
             TrustAuditEventClass::WorkspaceTrustPolicyNarrowed
         }
+        RestrictedModeEntryTransitionClass::PolicyRestoreTrusted => {
+            TrustAuditEventClass::WorkspaceTrustPolicyRestored
+        }
+        RestrictedModeEntryTransitionClass::EmergencyActionForceRestricted => {
+            TrustAuditEventClass::WorkspaceTrustEmergencyApplied
+        }
         RestrictedModeEntryTransitionClass::SafeModeWorkspaceRestricted
         | RestrictedModeEntryTransitionClass::ExtensionQuarantineRestricted => {
             TrustAuditEventClass::WorkspaceTrustRecoveryApplied
+        }
+        RestrictedModeEntryTransitionClass::IdentityGateUnavailable => {
+            TrustAuditEventClass::WorkspaceTrustIdentityGateUnavailable
         }
         _ => TrustAuditEventClass::WorkspaceTrustStateResolved,
     }

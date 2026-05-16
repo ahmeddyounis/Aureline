@@ -117,3 +117,4 @@ pub mod windowing;
 pub mod windows;
 pub mod workset_switcher;
 pub mod workspace_switcher;
+pub mod workspace_trust_beta;
