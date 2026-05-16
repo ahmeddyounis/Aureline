@@ -39,6 +39,16 @@ pub mod schema;
 pub mod sync;
 pub mod ui;
 
+pub use experiments::labs_governance_beta::{
+    build_default_labs_governance_beta_page, build_labs_governance_beta_page_from_records,
+    project_labs_governance_beta_cli, project_labs_governance_beta_support_export,
+    validate_labs_governance_beta_page, validate_labs_governance_beta_support_export,
+    HostSurfaceAssignment, HostSurfaceClass, KillSwitchPathProjection,
+    LabsGovernanceBetaBadge, LabsGovernanceBetaCliProjection, LabsGovernanceBetaCliRow,
+    LabsGovernanceBetaPage, LabsGovernanceBetaRow, LabsGovernanceBetaSupportExport,
+    LabsGovernanceBetaSupportExportRow, LabsGovernanceBetaValidationError, VisibleMarkerToken,
+    LABS_GOVERNANCE_BETA_SCHEMA_VERSION, LABS_GOVERNANCE_BETA_SHARED_CONTRACT_REF,
+};
 pub use experiments::{
     inspect_default_inventory, load_default_inventory, project_cli_inventory,
     project_support_export as project_experiments_support_export, ArtifactDependencyWarning,

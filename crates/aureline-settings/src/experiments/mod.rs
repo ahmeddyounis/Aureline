@@ -5,6 +5,8 @@
 //! consume these records so Labs, Preview, policy-disabled, deprecated, and
 //! retired capability truth stays tied to one artifact.
 
+pub mod labs_governance_beta;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};

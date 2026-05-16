@@ -51,6 +51,7 @@ pub mod docs_browser;
 pub mod drift_truth;
 pub mod efficiency;
 pub mod embedded;
+pub mod experiments_governance;
 pub mod explorer;
 pub mod git_changes;
 pub mod graph_state_card;
