@@ -41,6 +41,7 @@ pub mod rerun;
 pub mod targets;
 pub mod task_events;
 pub mod tasks;
+pub mod testing;
 pub mod tests;
 pub mod trace_replay_alpha;
 
@@ -237,6 +238,17 @@ pub use tasks::{
     TASK_ACTIVITY_PROJECTION_RECORD_KIND, TASK_EVENT_RECORD_KIND, TASK_EVENT_SCHEMA_VERSION,
     TASK_EVENT_STREAM_RECORD_KIND, TASK_SHELL_PROJECTION_RECORD_KIND, TASK_STATE_RECORD_KIND,
     TASK_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use testing::{
+    InlineTestResultProjection, InlineTestResultRow, TestArtifactIdentity, TestArtifactKind,
+    TestRunnerBetaCoverageManifest, TestRunnerBetaCoverageRow, TestRunnerBetaFramework,
+    TestRunnerBetaParityState, TestRunnerBetaProjection, TestRunnerBetaRerunParity,
+    TestRunnerBetaSupportExport, TestTreeProjection, TestTreeRow, TestTreeRowKind,
+    TEST_RUNNER_BETA_ARTIFACT_IDENTITY_RECORD_KIND,
+    TEST_RUNNER_BETA_COVERAGE_MANIFEST_RECORD_KIND, TEST_RUNNER_BETA_INLINE_PROJECTION_RECORD_KIND,
+    TEST_RUNNER_BETA_INLINE_ROW_RECORD_KIND, TEST_RUNNER_BETA_RERUN_PARITY_RECORD_KIND,
+    TEST_RUNNER_BETA_SCHEMA_VERSION, TEST_RUNNER_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    TEST_RUNNER_BETA_TREE_PROJECTION_RECORD_KIND, TEST_RUNNER_BETA_TREE_ROW_RECORD_KIND,
 };
 pub use tests::{
     AiTestGenerationGateState, CoverageMergeClass, FlakyVerdictState, ImportedCiProjection,

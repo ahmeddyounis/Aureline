@@ -1,0 +1,476 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/test_runner_beta.schema.json",
+  "title": "Aureline test runner beta records",
+  "description": "Boundary schema for the beta finalize layer of the test runner. The schema pins the closed framework, artifact-kind, tree-row-kind, and parity-state vocabularies; the test-tree projection (workspace -> file -> case rows); the inline editor result projection; the structured artifact identity rows; the rerun-last parity rows binding the tree row, the inline row, and the rerun-last command; and the support-export packet that carries all of the above plus the canonical alpha test-attempt packet refs. Raw command lines, raw stdout / stderr bytes, raw test names beyond the discovery-supplied display labels, raw assertion bodies, raw artifact bytes, raw provider payloads, and raw stack traces MUST NOT cross this boundary; records carry opaque refs, controlled tokens, bounded summaries, and timestamps only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_runner_beta_coverage_manifest_record" },
+    { "$ref": "#/$defs/test_runner_beta_tree_projection_record" },
+    { "$ref": "#/$defs/test_runner_beta_tree_row_record" },
+    { "$ref": "#/$defs/test_runner_beta_inline_projection_record" },
+    { "$ref": "#/$defs/test_runner_beta_inline_row_record" },
+    { "$ref": "#/$defs/test_runner_beta_artifact_identity_record" },
+    { "$ref": "#/$defs/test_runner_beta_rerun_parity_record" },
+    { "$ref": "#/$defs/test_runner_beta_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version shared with the canonical alpha test-attempt model."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "framework_token": {
+      "type": "string",
+      "enum": ["pytest"],
+      "description": "Closed framework vocabulary claimed by the beta layer. Widening this enum is a beta-policy change."
+    },
+    "wedge_token": {
+      "type": "string",
+      "enum": [
+        "build",
+        "test",
+        "debug",
+        "review",
+        "ai_tool",
+        "terminal",
+        "package",
+        "notebook",
+        "generic"
+      ]
+    },
+    "rerun_lane_token": {
+      "type": "string",
+      "enum": ["task", "test"]
+    },
+    "consumer_surface_token": {
+      "type": "string",
+      "enum": [
+        "launch_wedge",
+        "test_tree",
+        "editor_inline",
+        "cli_output",
+        "support_export"
+      ]
+    },
+    "artifact_kind_token": {
+      "type": "string",
+      "enum": [
+        "run_report",
+        "coverage_report",
+        "snapshot_diff",
+        "log_slice",
+        "raw_event_envelope",
+        "debug_trace",
+        "ai_suggestion"
+      ]
+    },
+    "tree_row_kind_token": {
+      "type": "string",
+      "enum": ["workspace_root", "test_file", "test_case"]
+    },
+    "parity_state_token": {
+      "type": "string",
+      "enum": [
+        "rows_agree",
+        "rerun_lane_unset",
+        "surface_disagreement_requires_review"
+      ]
+    },
+    "discovery_state_token": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "no_tests_discovered",
+        "workspace_unreadable",
+        "partial"
+      ]
+    },
+    "rerun_dispatch_state_token": {
+      "type": "string",
+      "enum": ["ready", "review_required", "unavailable"]
+    },
+    "test_runner_beta_coverage_row": {
+      "type": "object",
+      "required": [
+        "framework",
+        "framework_token",
+        "framework_label",
+        "wedge",
+        "wedge_token",
+        "rerun_lane",
+        "rerun_lane_token",
+        "rerun_last_command_id",
+        "consumer_surfaces",
+        "consumer_surface_tokens",
+        "claimed_artifact_kinds",
+        "claimed_artifact_kind_tokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "framework": { "$ref": "#/$defs/framework_token" },
+        "framework_token": { "$ref": "#/$defs/framework_token" },
+        "framework_label": { "type": "string", "minLength": 1 },
+        "wedge": { "$ref": "#/$defs/wedge_token" },
+        "wedge_token": { "$ref": "#/$defs/wedge_token" },
+        "rerun_lane": { "$ref": "#/$defs/rerun_lane_token" },
+        "rerun_lane_token": { "$ref": "#/$defs/rerun_lane_token" },
+        "rerun_last_command_id": { "type": "string", "minLength": 1 },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface_token" }
+        },
+        "consumer_surface_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface_token" }
+        },
+        "claimed_artifact_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_kind_token" }
+        },
+        "claimed_artifact_kind_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_kind_token" }
+        }
+      }
+    },
+    "test_runner_beta_coverage_manifest_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "test_attempt_schema_version",
+        "manifest_id",
+        "generated_at",
+        "frameworks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "test_runner_beta_coverage_manifest_record"
+        },
+        "test_attempt_schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "frameworks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/test_runner_beta_coverage_row" }
+        }
+      }
+    },
+    "test_runner_beta_tree_row_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "tree_row_id",
+        "row_kind",
+        "row_kind_token",
+        "display_label",
+        "child_row_ids",
+        "artifact_identity_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "test_runner_beta_tree_row_record"
+        },
+        "tree_row_id": { "$ref": "#/$defs/opaque_id" },
+        "row_kind": { "$ref": "#/$defs/tree_row_kind_token" },
+        "row_kind_token": { "$ref": "#/$defs/tree_row_kind_token" },
+        "parent_row_id": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "type": "string" },
+        "source_file_ref": { "$ref": "#/$defs/opaque_ref" },
+        "line_number": { "type": "integer", "minimum": 1 },
+        "canonical_test_item_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "identity_stability_token": { "type": "string" },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "latest_result_state_token": { "type": "string" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "run_contract_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rerun_last_command_id": { "type": "string" },
+        "child_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "artifact_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        }
+      }
+    },
+    "test_runner_beta_tree_projection_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "test_attempt_schema_version",
+        "tree_projection_id",
+        "workspace_id",
+        "framework",
+        "framework_token",
+        "discovery_state_token",
+        "execution_context_ref",
+        "target_id",
+        "root_row_id",
+        "rows",
+        "honesty_marker_present"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "test_runner_beta_tree_projection_record"
+        },
+        "test_attempt_schema_version": { "$ref": "#/$defs/schema_version" },
+        "tree_projection_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "framework": { "$ref": "#/$defs/framework_token" },
+        "framework_token": { "$ref": "#/$defs/framework_token" },
+        "discovery_state_token": { "$ref": "#/$defs/discovery_state_token" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "root_row_id": { "$ref": "#/$defs/opaque_id" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/test_runner_beta_tree_row_record" }
+        },
+        "honesty_marker_present": { "type": "boolean" }
+      }
+    },
+    "test_runner_beta_inline_row_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "inline_row_id",
+        "canonical_test_item_ref",
+        "selector_ref",
+        "source_file_ref",
+        "line_number",
+        "identity_stability_token",
+        "test_session_ref",
+        "tree_row_ref",
+        "artifact_identity_refs",
+        "summary"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "test_runner_beta_inline_row_record"
+        },
+        "inline_row_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_test_item_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_file_ref": { "$ref": "#/$defs/opaque_ref" },
+        "line_number": { "type": "integer", "minimum": 1 },
+        "identity_stability_token": { "type": "string" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "latest_result_state_token": { "type": "string" },
+        "tree_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "artifact_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "summary": { "type": "string" }
+      }
+    },
+    "test_runner_beta_inline_projection_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "test_attempt_schema_version",
+        "inline_projection_id",
+        "workspace_id",
+        "framework",
+        "framework_token",
+        "execution_context_ref",
+        "target_id",
+        "tree_projection_ref",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "test_runner_beta_inline_projection_record"
+        },
+        "test_attempt_schema_version": { "$ref": "#/$defs/schema_version" },
+        "inline_projection_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "framework": { "$ref": "#/$defs/framework_token" },
+        "framework_token": { "$ref": "#/$defs/framework_token" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "tree_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_runner_beta_inline_row_record" }
+        }
+      }
+    },
+    "test_runner_beta_artifact_identity_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "artifact_identity_id",
+        "artifact_kind",
+        "artifact_kind_token",
+        "artifact_ref",
+        "test_session_ref",
+        "test_attempt_ref",
+        "canonical_test_item_refs",
+        "selector_ref",
+        "execution_context_ref",
+        "target_id",
+        "framework",
+        "framework_token",
+        "producing_run_ref",
+        "identity_stability_token"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "test_runner_beta_artifact_identity_record"
+        },
+        "artifact_identity_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_kind": { "$ref": "#/$defs/artifact_kind_token" },
+        "artifact_kind_token": { "$ref": "#/$defs/artifact_kind_token" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "test_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "canonical_test_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "selector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "framework": { "$ref": "#/$defs/framework_token" },
+        "framework_token": { "$ref": "#/$defs/framework_token" },
+        "producing_run_ref": { "$ref": "#/$defs/opaque_ref" },
+        "producing_execution_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "identity_stability_token": { "type": "string" }
+      }
+    },
+    "test_runner_beta_rerun_parity_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "parity_id",
+        "framework",
+        "framework_token",
+        "test_session_ref",
+        "canonical_test_item_ref",
+        "tree_row_ref",
+        "inline_row_ref",
+        "rerun_last_command_id",
+        "rerun_lane_token",
+        "agreement_state",
+        "agreement_state_token",
+        "summary"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "test_runner_beta_rerun_parity_record"
+        },
+        "parity_id": { "$ref": "#/$defs/opaque_id" },
+        "framework": { "$ref": "#/$defs/framework_token" },
+        "framework_token": { "$ref": "#/$defs/framework_token" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "canonical_test_item_ref": { "$ref": "#/$defs/opaque_ref" },
+        "tree_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "inline_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rerun_last_command_id": { "type": "string" },
+        "rerun_lane_token": { "$ref": "#/$defs/rerun_lane_token" },
+        "rerun_last_prior_attempt_id": { "$ref": "#/$defs/opaque_ref" },
+        "rerun_last_prepared_attempt_id": { "$ref": "#/$defs/opaque_ref" },
+        "rerun_dispatch_state_token": {
+          "$ref": "#/$defs/rerun_dispatch_state_token"
+        },
+        "agreement_state": { "$ref": "#/$defs/parity_state_token" },
+        "agreement_state_token": { "$ref": "#/$defs/parity_state_token" },
+        "summary": { "type": "string" }
+      }
+    },
+    "test_runner_beta_support_export_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "test_attempt_schema_version",
+        "support_export_id",
+        "generated_at",
+        "workspace_id",
+        "coverage_manifest",
+        "tree_projection_refs",
+        "inline_projection_refs",
+        "artifact_identities",
+        "parity_rows",
+        "attempt_packet_refs",
+        "attempt_support_export_refs",
+        "summary_lines"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "test_runner_beta_support_export_record"
+        },
+        "test_attempt_schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "coverage_manifest": {
+          "$ref": "#/$defs/test_runner_beta_coverage_manifest_record"
+        },
+        "tree_projection_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "inline_projection_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "artifact_identities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_runner_beta_artifact_identity_record" }
+        },
+        "parity_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_runner_beta_rerun_parity_record" }
+        },
+        "attempt_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "attempt_support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "summary_lines": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

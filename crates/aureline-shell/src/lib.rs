@@ -105,6 +105,7 @@ pub mod support_seed;
 pub mod system_browser_return_paths;
 pub mod tasks_seed;
 pub mod terminal_pane;
+pub mod test_runner_beta;
 pub mod token_state_audit;
 pub mod transfer;
 pub mod wedge_inspector;
