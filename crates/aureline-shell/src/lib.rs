@@ -88,6 +88,7 @@ pub mod release_center;
 pub mod restore;
 pub mod review_preview;
 pub mod run_context;
+pub mod run_debug_profiles_beta;
 pub mod runtime;
 pub mod runtime_adaptation;
 pub mod safe_preview_card;

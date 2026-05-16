@@ -32,6 +32,7 @@ pub mod detectors;
 pub mod discovery;
 pub mod execution_context;
 pub mod language_hosts;
+pub mod launch_profiles;
 pub mod managed_alpha;
 pub mod packages;
 pub mod provenance;
@@ -119,6 +120,18 @@ pub use execution_context::{
     ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass, TargetClass,
     TargetConfidence, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
     TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
+};
+pub use launch_profiles::{
+    LaunchProfile, LaunchProfileAdapterBinding, LaunchProfileArguments,
+    LaunchProfileCreateRequest, LaunchProfileDisclosureRow, LaunchProfileEdit,
+    LaunchProfileEditClass, LaunchProfileEnvironmentBinding, LaunchProfileInvalidReason,
+    LaunchProfileKind, LaunchProfileMode, LaunchProfileMutable, LaunchProfilePreview,
+    LaunchProfilePreviewState, LaunchProfileRevision, LaunchProfileSideEffectClass,
+    LaunchProfileStore, LaunchProfileStoreError, LaunchProfileSupportExport,
+    LaunchProfileSupportRow, LaunchProfileTargetBinding, LAUNCH_PROFILE_EDIT_RECORD_KIND,
+    LAUNCH_PROFILE_PREVIEW_RECORD_KIND, LAUNCH_PROFILE_RECORD_KIND,
+    LAUNCH_PROFILE_REVISION_RECORD_KIND, LAUNCH_PROFILE_SCHEMA_VERSION,
+    LAUNCH_PROFILE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use language_hosts::{
     LanguageHostEventClass, LanguageHostExitReasonClass, LanguageHostIdentity,

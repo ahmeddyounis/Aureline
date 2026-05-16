@@ -1,0 +1,417 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/launch_profile.schema.json",
+  "title": "Aureline launch / attach profile export",
+  "description": "Boundary schema for beta launch and attach profiles. One typed object covers profile snapshots, revisions, edits, previews, and the support-export packet that ties them together. Profiles are versioned: every edit produces a new revision pointing at the prior one, so edits are durable, diffable, and reversible. Preview records project the stored binding against a freshly resolved execution context so the shell, runtime, and support evidence agree on the selected profile and the resolved execution context.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/launch_profile_record" },
+    { "$ref": "#/$defs/launch_profile_revision_record" },
+    { "$ref": "#/$defs/launch_profile_edit_record" },
+    { "$ref": "#/$defs/launch_profile_preview_record" },
+    { "$ref": "#/$defs/launch_profile_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque identifier safe for logs, RPC, fixtures, and support exports."
+    },
+    "date_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "launch_profile_mode": {
+      "type": "string",
+      "enum": ["launch", "attach"]
+    },
+    "launch_profile_kind": {
+      "type": "string",
+      "enum": ["task", "test", "debug"]
+    },
+    "launch_profile_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "target_process_spawn",
+        "target_process_attach",
+        "workspace_filesystem_write",
+        "outbound_network",
+        "inbound_network_listener",
+        "process_env_mutation",
+        "remote_host_handoff"
+      ]
+    },
+    "launch_profile_edit_class": {
+      "type": "string",
+      "enum": [
+        "created",
+        "renamed_display_name",
+        "mode_changed",
+        "target_binding_changed",
+        "adapter_binding_changed",
+        "environment_binding_changed",
+        "arguments_changed",
+        "side_effects_changed",
+        "rolled_back"
+      ]
+    },
+    "launch_profile_preview_state": {
+      "type": "string",
+      "enum": [
+        "ready_to_dispatch",
+        "drift_requires_review",
+        "target_unreachable",
+        "unavailable_invalid_config"
+      ]
+    },
+    "launch_profile_invalid_reason": {
+      "type": "string",
+      "enum": [
+        "missing_target_binding",
+        "missing_adapter_binding",
+        "attach_missing_process_id",
+        "launch_missing_program"
+      ]
+    },
+    "launch_profile_target_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_target_id",
+        "target_class_token",
+        "target_label",
+        "scope_class_token"
+      ],
+      "properties": {
+        "canonical_target_id": { "$ref": "#/$defs/opaque_id" },
+        "target_class_token": { "$ref": "#/$defs/non_empty_string" },
+        "target_label": { "$ref": "#/$defs/non_empty_string" },
+        "working_directory": { "type": ["string", "null"] },
+        "scope_class_token": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "launch_profile_adapter_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_id",
+        "adapter_label",
+        "transport_class_token",
+        "requested_dap_protocol_version"
+      ],
+      "properties": {
+        "adapter_id": { "$ref": "#/$defs/opaque_id" },
+        "adapter_label": { "$ref": "#/$defs/non_empty_string" },
+        "transport_class_token": { "$ref": "#/$defs/non_empty_string" },
+        "requested_dap_protocol_version": { "$ref": "#/$defs/non_empty_string" },
+        "required_capability_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "launch_profile_environment_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capsule_id", "capsule_hash"],
+      "properties": {
+        "capsule_id": { "$ref": "#/$defs/opaque_id" },
+        "capsule_hash": { "$ref": "#/$defs/non_empty_string" },
+        "declared_overlay_keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "launch_profile_arguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "program": { "type": ["string", "null"] },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "working_directory": { "type": ["string", "null"] },
+        "attach_process_id": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+    "launch_profile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "profile_id",
+        "workspace_id",
+        "display_name",
+        "mode",
+        "mode_token",
+        "kind",
+        "kind_token",
+        "target",
+        "environment",
+        "arguments",
+        "declared_side_effects",
+        "revision_id",
+        "last_edited_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "launch_profile_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "mode": { "$ref": "#/$defs/launch_profile_mode" },
+        "mode_token": { "$ref": "#/$defs/launch_profile_mode" },
+        "kind": { "$ref": "#/$defs/launch_profile_kind" },
+        "kind_token": { "$ref": "#/$defs/launch_profile_kind" },
+        "target": { "$ref": "#/$defs/launch_profile_target_binding" },
+        "adapter": {
+          "anyOf": [
+            { "$ref": "#/$defs/launch_profile_adapter_binding" },
+            { "type": "null" }
+          ]
+        },
+        "environment": { "$ref": "#/$defs/launch_profile_environment_binding" },
+        "arguments": { "$ref": "#/$defs/launch_profile_arguments" },
+        "declared_side_effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/launch_profile_side_effect_class" }
+        },
+        "revision_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_revision_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "last_edited_at": { "$ref": "#/$defs/date_time" }
+      }
+    },
+    "launch_profile_edit_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "profile_id",
+        "edit_class",
+        "edit_class_token",
+        "summary",
+        "observed_at",
+        "created_revision_id"
+      ],
+      "properties": {
+        "record_kind": { "const": "launch_profile_edit_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "edit_class": { "$ref": "#/$defs/launch_profile_edit_class" },
+        "edit_class_token": { "$ref": "#/$defs/launch_profile_edit_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "observed_at": { "$ref": "#/$defs/date_time" },
+        "created_revision_id": { "$ref": "#/$defs/opaque_id" },
+        "previous_revision_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "rollback_target_revision_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        }
+      }
+    },
+    "launch_profile_revision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "profile_id",
+        "revision_id",
+        "created_at",
+        "edit",
+        "snapshot"
+      ],
+      "properties": {
+        "record_kind": { "const": "launch_profile_revision_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "revision_id": { "$ref": "#/$defs/opaque_id" },
+        "parent_revision_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "created_at": { "$ref": "#/$defs/date_time" },
+        "edit": { "$ref": "#/$defs/launch_profile_edit_record" },
+        "snapshot": { "$ref": "#/$defs/launch_profile_record" }
+      }
+    },
+    "launch_profile_disclosure_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_path",
+        "label",
+        "drift_detected",
+        "affects_target_boundary"
+      ],
+      "properties": {
+        "field_path": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "profile_value_token": { "type": ["string", "null"] },
+        "current_value_token": { "type": ["string", "null"] },
+        "drift_detected": { "type": "boolean" },
+        "affects_target_boundary": { "type": "boolean" }
+      }
+    },
+    "launch_profile_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "profile_id",
+        "workspace_id",
+        "display_name",
+        "mode_token",
+        "kind_token",
+        "current_revision_id",
+        "execution_context_ref",
+        "observed_at",
+        "state",
+        "state_token",
+        "target_disclosure",
+        "environment_disclosure",
+        "adapter_disclosure",
+        "side_effect_disclosure_tokens",
+        "target_or_boundary_changed",
+        "current_target_reachable",
+        "requires_review_before_dispatch",
+        "honesty_marker_present",
+        "summary_headline"
+      ],
+      "properties": {
+        "record_kind": { "const": "launch_profile_preview_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "mode_token": { "$ref": "#/$defs/launch_profile_mode" },
+        "kind_token": { "$ref": "#/$defs/launch_profile_kind" },
+        "current_revision_id": { "$ref": "#/$defs/opaque_id" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "observed_at": { "$ref": "#/$defs/date_time" },
+        "state": { "$ref": "#/$defs/launch_profile_preview_state" },
+        "state_token": { "$ref": "#/$defs/launch_profile_preview_state" },
+        "target_disclosure": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/launch_profile_disclosure_row" }
+        },
+        "environment_disclosure": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/launch_profile_disclosure_row" }
+        },
+        "adapter_disclosure": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/launch_profile_disclosure_row" }
+        },
+        "side_effect_disclosure_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/launch_profile_side_effect_class" }
+        },
+        "drift_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/launch_profile_disclosure_row" }
+        },
+        "target_or_boundary_changed": { "type": "boolean" },
+        "current_target_reachable": { "type": "boolean" },
+        "requires_review_before_dispatch": { "type": "boolean" },
+        "honesty_marker_present": { "type": "boolean" },
+        "invalid_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/launch_profile_invalid_reason" },
+            { "type": "null" }
+          ]
+        },
+        "invalid_reason_token": {
+          "anyOf": [
+            { "$ref": "#/$defs/launch_profile_invalid_reason" },
+            { "type": "null" }
+          ]
+        },
+        "summary_headline": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "launch_profile_support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "display_name",
+        "current_revision_id",
+        "mode_token",
+        "kind_token",
+        "canonical_target_id",
+        "capsule_id",
+        "revision_count",
+        "edit_lineage"
+      ],
+      "properties": {
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "current_revision_id": { "$ref": "#/$defs/opaque_id" },
+        "mode_token": { "$ref": "#/$defs/launch_profile_mode" },
+        "kind_token": { "$ref": "#/$defs/launch_profile_kind" },
+        "canonical_target_id": { "$ref": "#/$defs/opaque_id" },
+        "adapter_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "capsule_id": { "$ref": "#/$defs/opaque_id" },
+        "revision_count": { "type": "integer", "minimum": 1 },
+        "edit_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/launch_profile_edit_record" }
+        },
+        "latest_preview": {
+          "anyOf": [
+            { "$ref": "#/$defs/launch_profile_preview_record" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "launch_profile_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "workspace_id",
+        "generated_at",
+        "profile_rows",
+        "honesty_marker_present",
+        "summary_headline"
+      ],
+      "properties": {
+        "record_kind": { "const": "launch_profile_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "profile_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/launch_profile_support_row" }
+        },
+        "honesty_marker_present": { "type": "boolean" },
+        "summary_headline": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
