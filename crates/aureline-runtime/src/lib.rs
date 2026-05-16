@@ -36,6 +36,7 @@ pub mod execution_context;
 pub mod language_hosts;
 pub mod launch_profiles;
 pub mod managed_alpha;
+pub mod managed_workspace_lifecycle_beta;
 pub mod packages;
 pub mod provenance;
 pub mod remote_helper_skew_beta;
@@ -188,6 +189,15 @@ pub use managed_alpha::{
     MANAGED_WORKSPACE_ALPHA_LANE_ID, MANAGED_WORKSPACE_ALPHA_RECORD_KIND,
     MANAGED_WORKSPACE_ALPHA_SCHEMA_VERSION, MANAGED_WORKSPACE_RUNTIME_INSPECTION_RECORD_KIND,
     MANAGED_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use managed_workspace_lifecycle_beta::{
+    ManagedLifecycleLineageEntry, ManagedLifecyclePhaseClass, ManagedLifecycleStateClass,
+    ManagedLocalEditingContinuityClass, ManagedSurfaceClass,
+    ManagedWorkspaceLifecycleBetaRecord, ManagedWorkspaceLifecycleBetaSupportExport,
+    ManagedWorkspaceLifecycleBetaSurfaceProjection, ManagedWorkspaceLifecycleBetaViolation,
+    MANAGED_WORKSPACE_LIFECYCLE_BETA_RECORD_KIND, MANAGED_WORKSPACE_LIFECYCLE_BETA_SCHEMA_VERSION,
+    MANAGED_WORKSPACE_LIFECYCLE_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    MANAGED_WORKSPACE_LIFECYCLE_BETA_SURFACE_PROJECTION_RECORD_KIND,
 };
 pub use packages::{
     DependencySection, LockfileAlphaRef, LockfileCouplingClass, LockfileImpactAlphaRecord,
