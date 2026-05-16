@@ -23,6 +23,7 @@ pub mod recent_work;
 pub mod roots;
 pub mod save;
 pub mod state_packages;
+pub mod templates;
 pub mod workset_switcher;
 pub mod worksets;
 
@@ -128,6 +129,22 @@ pub use generated_projects::{
     ScaffoldRunAlphaProjection, TemplateHealthAlphaProjection, TemplateScaffoldAlphaError,
     TemplateScaffoldAlphaProjection, TemplateScaffoldAlphaValidationError,
     TemplateScaffoldPreflightProjection, TEMPLATE_HEALTH_ALPHA_FRESHNESS_SOURCES,
+};
+
+pub use templates::{
+    project_workspace_template_bundle, WorkspaceTemplateBundleBypassReview,
+    WorkspaceTemplateBundleError, WorkspaceTemplateBundleProjection, WorkspaceTemplateBundleRecord,
+    WorkspaceTemplateBundleReviewInvariants, WorkspaceTemplateBundleSideEffectReview,
+    WorkspaceTemplateBundleSourceReview, WorkspaceTemplateBundleSupportExport,
+    WorkspaceTemplateBundleSupportReview, WorkspaceTemplateBundleTargetRuntimeReview,
+    WorkspaceTemplateBundleTrustReview, WorkspaceTemplateBundleValidationError,
+    TEMPLATE_BUNDLE_BYPASS_CONTINUITY_CLASS_EQUAL_WEIGHT, TEMPLATE_BUNDLE_BYPASS_ROUTE_IDS,
+    TEMPLATE_BUNDLE_CONSUMER_SURFACES, TEMPLATE_BUNDLE_CREDENTIAL_PROVISIONING_CLASSES,
+    TEMPLATE_BUNDLE_EXTENSION_INSTALL_CLASSES, TEMPLATE_BUNDLE_HOST_BOUNDARY_CLASSES,
+    TEMPLATE_BUNDLE_MANAGED_SERVICE_CLASSES, TEMPLATE_BUNDLE_NETWORK_EGRESS_CLASSES,
+    TEMPLATE_BUNDLE_REMOTE_PROVISIONING_CLASSES, TEMPLATE_BUNDLE_RUNTIME_SCOPE_CLASSES,
+    TEMPLATE_BUNDLE_SOURCE_CLASSES, TEMPLATE_BUNDLE_SUPPORT_CLASSES,
+    WORKSPACE_TEMPLATE_BUNDLE_ALPHA_RECORD_KIND, WORKSPACE_TEMPLATE_BUNDLE_ALPHA_SCHEMA_VERSION,
 };
 
 pub use mutation_journal::{
