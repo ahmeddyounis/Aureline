@@ -23,6 +23,7 @@ pub mod recent_work;
 pub mod roots;
 pub mod save;
 pub mod state_packages;
+pub mod workset_switcher;
 pub mod worksets;
 
 pub use recent_work::{
@@ -147,6 +148,17 @@ pub use history::{
     NavigationContinuityRecordKind, NavigationContinuityState, NavigationDestinationVisibility,
     NavigationFailureReason, NavigationOriginClass, NavigationRecoveryAction,
     NavigationScopeIdentity, NavigationSurfaceClass, NAVIGATION_CONTINUITY_SCHEMA_VERSION,
+};
+
+pub use workset_switcher::{
+    derive_portability_label, project_switcher_record, project_switcher_row, root_taxonomy_badge,
+    PolicyOverlaySummary, ReopenParityDowngrade, ScopeDriftClass, SwitcherRowAction,
+    WorksetActivationPreview, WorksetActivationPreviewError, WorksetPortabilityLabel,
+    WorksetReopenParityError, WorksetReopenParityPacket, WorksetSwitcherBetaError,
+    WorksetSwitcherBetaRecord, WorksetSwitcherBetaRow, WorksetSwitcherBetaSupportExport,
+    WORKSET_ACTIVATION_PREVIEW_RECORD_KIND, WORKSET_REOPEN_PARITY_PACKET_RECORD_KIND,
+    WORKSET_SWITCHER_BETA_RECORD_KIND, WORKSET_SWITCHER_BETA_ROW_RECORD_KIND,
+    WORKSET_SWITCHER_BETA_SCHEMA_VERSION, WORKSET_SWITCHER_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use worksets::{

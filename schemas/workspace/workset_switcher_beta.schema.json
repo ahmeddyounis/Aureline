@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/workset_switcher_beta.schema.json",
+  "title": "Aureline workset switcher beta: switcher row, activation preview, reopen-parity packet, and support-export bundle",
+  "description": "Beta layer on top of workset_artifact.schema.json and workset_switcher.schema.json. The beta record kinds (workset_switcher_beta_record, workset_switcher_beta_row, workset_activation_preview, workset_reopen_parity_packet, workset_switcher_beta_support_export) project the durable workset_artifact_record into a closed switcher / activation-preview / reopen-parity contract. Frozen rules: (a) every switcher row names every included root with root_kind + partial_truth + presentation label; (b) every row carries one closed portability_label and the row's offered_actions honor that label (managed_provider_locked and local_only/ephemeral_session MUST NOT offer export); (c) every inactive row offers preview_activation_diff so opening the workset goes through a typed preview; (d) policy_limited_view rows carry a policy_overlay whose hidden_member_list_visible is false for admin_policy and license_or_export_control narrowing causes; (e) activation previews quote a closed scope_drift class that matches the recorded additions/removals/posture changes; (f) reopen-parity packets must include the default consumer classes local_ui, remote_ui, headless and preserve the same workset_ref + stable_scope_id across every binding; (g) the support-export bundle quotes one switcher record, every activation preview, and every reopen-parity packet for the same workspace. Adding a new portability_label, scope_drift class, switcher-row action, or downgrade reason is additive-minor and bumps workset_switcher_beta_schema_version; repurposing an existing enum is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/workset_switcher_beta_record" },
+    { "$ref": "#/$defs/workset_switcher_beta_row" },
+    { "$ref": "#/$defs/workset_activation_preview" },
+    { "$ref": "#/$defs/workset_reopen_parity_packet" },
+    { "$ref": "#/$defs/workset_switcher_beta_support_export" }
+  ],
+  "$defs": {
+    "workset_switcher_beta_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for every beta workset-switcher record. Bumped only on breaking changes."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "workset_switcher_beta_record",
+        "workset_switcher_beta_row",
+        "workset_activation_preview",
+        "workset_reopen_parity_packet",
+        "workset_switcher_beta_support_export"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, safe on RPC, safe in support bundles."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes)."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ],
+      "description": "Re-export of the alpha scope class vocabulary."
+    },
+    "scope_mode": {
+      "type": "string",
+      "enum": ["full", "sparse"]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "workspace_shared",
+        "profile_imported",
+        "managed",
+        "ephemeral_session"
+      ]
+    },
+    "portability_class": {
+      "type": "string",
+      "enum": [
+        "fully_portable",
+        "portable_with_rebinding",
+        "machine_local_only",
+        "managed_provider_locked"
+      ]
+    },
+    "portability_label": {
+      "type": "string",
+      "enum": [
+        "portable",
+        "portable_with_rebinding",
+        "local_only",
+        "policy_limited",
+        "managed_provider_locked"
+      ],
+      "description": "Closed user-visible portability label. Derived from the artifact's portability_class, source_class, and policy overlay. managed_provider_locked rows MUST NOT offer export; local_only / ephemeral_session rows MUST NOT offer export; policy_limited rows MUST carry a policy_overlay block."
+    },
+    "readiness_state": {
+      "type": "string",
+      "enum": ["cold", "warming", "warm", "partial", "ready"]
+    },
+    "root_kind": {
+      "type": "string",
+      "enum": [
+        "local_folder",
+        "local_repo_root",
+        "remote_repository",
+        "ssh_workspace",
+        "container_root",
+        "devcontainer_root",
+        "managed_cloud_root",
+        "virtual_document_root",
+        "archive_root"
+      ]
+    },
+    "partial_truth_label": {
+      "type": "string",
+      "enum": ["loaded", "manifest_known", "cached", "unavailable"]
+    },
+    "narrowing_cause": {
+      "type": "string",
+      "enum": [
+        "admin_policy",
+        "trust_policy",
+        "license_or_export_control",
+        "remote_unavailable",
+        "index_not_built",
+        "user_muted"
+      ]
+    },
+    "scope_drift_class": {
+      "type": "string",
+      "enum": [
+        "same_identity",
+        "widens",
+        "narrows",
+        "mixed",
+        "portability_or_readiness_only",
+        "presentation_only"
+      ]
+    },
+    "switcher_row_action": {
+      "type": "string",
+      "enum": [
+        "open_workset",
+        "preview_activation_diff",
+        "copy_workset_id",
+        "export_workset_artifact",
+        "open_underlying_workset",
+        "reopen_across_surfaces",
+        "open_in_new_pane"
+      ]
+    },
+    "scope_reopen_state": {
+      "type": "string",
+      "enum": ["exact", "degraded"]
+    },
+    "scope_degraded_reason": {
+      "type": "string",
+      "enum": [
+        "missing_root",
+        "root_kind_unsupported",
+        "rebinding_required",
+        "remote_unavailable",
+        "managed_provider_unavailable",
+        "manifest_unavailable",
+        "policy_limited"
+      ]
+    },
+    "workset_scope_consumer_class": {
+      "type": "string",
+      "enum": [
+        "local_ui",
+        "remote_ui",
+        "headless",
+        "support_export",
+        "navigation",
+        "refactor_scope"
+      ]
+    },
+    "included_root_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_ref", "root_kind", "partial_truth"],
+      "properties": {
+        "root_ref": { "$ref": "#/$defs/opaque_id" },
+        "root_kind": { "$ref": "#/$defs/root_kind" },
+        "partial_truth": { "$ref": "#/$defs/partial_truth_label" },
+        "presentation_label": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        }
+      },
+      "description": "Per-root taxonomy entry. Every switcher row carries one entry per declared root."
+    },
+    "hidden_result_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["known", "count_class"],
+      "properties": {
+        "known": { "type": "boolean" },
+        "count": { "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }] },
+        "count_class": {
+          "type": "string",
+          "enum": [
+            "none_known",
+            "partial_index",
+            "outside_scope_roots",
+            "policy_hidden",
+            "warming_index",
+            "remote_unreachable"
+          ]
+        }
+      }
+    },
+    "policy_overlay_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "narrowing_cause",
+        "visible_member_count",
+        "hidden_member_count",
+        "hidden_member_list_visible",
+        "policy_ref",
+        "underlying_workset_ref"
+      ],
+      "properties": {
+        "narrowing_cause": { "$ref": "#/$defs/narrowing_cause" },
+        "visible_member_count": { "type": "integer", "minimum": 0 },
+        "hidden_member_count": { "type": "integer", "minimum": 0 },
+        "hidden_member_list_visible": {
+          "type": "boolean",
+          "description": "Must be false for admin_policy and license_or_export_control narrowing causes."
+        },
+        "policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "underlying_workset_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "workset_switcher_beta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "workset_ref",
+        "stable_scope_id",
+        "workset_name",
+        "scope_class",
+        "scope_mode",
+        "source_class",
+        "portability_class",
+        "portability_label",
+        "readiness_state",
+        "repo_count",
+        "folder_count",
+        "is_active",
+        "root_taxonomy",
+        "includes_machine_local_refs",
+        "includes_managed_provider_refs",
+        "requires_rebinding_on_import",
+        "offered_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "workset_switcher_beta_row" },
+        "schema_version": { "$ref": "#/$defs/workset_switcher_beta_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_mode": { "$ref": "#/$defs/scope_mode" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "portability_class": { "$ref": "#/$defs/portability_class" },
+        "portability_label": { "$ref": "#/$defs/portability_label" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "repo_count": { "type": "integer", "minimum": 1 },
+        "folder_count": { "type": "integer", "minimum": 0 },
+        "is_active": { "type": "boolean" },
+        "root_taxonomy": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/included_root_ref" }
+        },
+        "include_patterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 1024 }
+        },
+        "exclude_patterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 1024 }
+        },
+        "hidden_result_summary": {
+          "anyOf": [{ "$ref": "#/$defs/hidden_result_summary" }, { "type": "null" }]
+        },
+        "policy_overlay": {
+          "anyOf": [{ "$ref": "#/$defs/policy_overlay_summary" }, { "type": "null" }]
+        },
+        "includes_machine_local_refs": { "type": "boolean" },
+        "includes_managed_provider_refs": { "type": "boolean" },
+        "requires_rebinding_on_import": { "type": "boolean" },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/switcher_row_action" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "partial_index_note": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        }
+      }
+    },
+    "workset_switcher_beta_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "switcher_id",
+        "workspace_ref",
+        "active_workset_ref",
+        "rows",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "workset_switcher_beta_record" },
+        "schema_version": { "$ref": "#/$defs/workset_switcher_beta_schema_version" },
+        "switcher_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/workset_switcher_beta_row" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        }
+      }
+    },
+    "workset_activation_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "preview_id",
+        "base_workset_ref",
+        "base_stable_scope_id",
+        "candidate_workset_ref",
+        "candidate_stable_scope_id",
+        "same_identity",
+        "scope_drift",
+        "root_additions",
+        "root_removals",
+        "changes_portability",
+        "changes_readiness",
+        "base_portability_label",
+        "candidate_portability_label",
+        "base_readiness",
+        "candidate_readiness",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "workset_activation_preview" },
+        "schema_version": { "$ref": "#/$defs/workset_switcher_beta_schema_version" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "base_workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "candidate_workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "candidate_stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "same_identity": { "type": "boolean" },
+        "scope_drift": { "$ref": "#/$defs/scope_drift_class" },
+        "root_additions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/included_root_ref" }
+        },
+        "root_removals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/included_root_ref" }
+        },
+        "changes_portability": { "type": "boolean" },
+        "changes_readiness": { "type": "boolean" },
+        "base_portability_label": { "$ref": "#/$defs/portability_label" },
+        "candidate_portability_label": { "$ref": "#/$defs/portability_label" },
+        "base_readiness": { "$ref": "#/$defs/readiness_state" },
+        "candidate_readiness": { "$ref": "#/$defs/readiness_state" },
+        "diff": {
+          "anyOf": [
+            { "$ref": "https://aureline.dev/schemas/workspace/workset_artifact.schema.json#/$defs/scope_widen_diff_record" },
+            { "type": "null" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "explain_note": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        }
+      },
+      "description": "Typed activation preview projected when a candidate row is selected. Frozen rules: same_identity = true forbids root_additions / root_removals / changes_portability / changes_readiness; scope_drift = widens requires at least one root_addition; scope_drift = narrows requires at least one root_removal; scope_drift = mixed requires both; scope_drift = portability_or_readiness_only is the only class that allows posture changes without root drift."
+    },
+    "reopen_parity_downgrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer_class", "reason", "note"],
+      "properties": {
+        "consumer_class": { "$ref": "#/$defs/workset_scope_consumer_class" },
+        "reason": { "$ref": "#/$defs/scope_degraded_reason" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "workset_scope_consumer_binding": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Mirrors workset_artifact.schema.json#/$defs/workset_scope_consumer_binding; quoted verbatim in this schema's reopen-parity packets.",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stable_scope_id",
+        "workset_ref",
+        "workset_name",
+        "scope_class",
+        "scope_mode",
+        "consumer_class",
+        "reopen_state",
+        "included_roots",
+        "patterns",
+        "emitted_at"
+      ]
+    },
+    "workset_reopen_parity_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "workset_ref",
+        "stable_scope_id",
+        "workset_name",
+        "portability_label",
+        "bindings",
+        "identity_preserved_across_consumers",
+        "exact_consumer_classes",
+        "degraded",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "workset_reopen_parity_packet" },
+        "schema_version": { "$ref": "#/$defs/workset_switcher_beta_schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "portability_label": { "$ref": "#/$defs/portability_label" },
+        "bindings": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/workset_scope_consumer_binding" }
+        },
+        "identity_preserved_across_consumers": { "type": "boolean" },
+        "exact_consumer_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_scope_consumer_class" }
+        },
+        "degraded": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_parity_downgrade" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Reopen-parity packet bundling consumer bindings for one workset across local UI, remote UI, and headless. Frozen rules: bindings MUST include the default classes local_ui, remote_ui, headless; every binding MUST quote the same workset_ref + stable_scope_id (identity preservation); a managed_provider_locked workset MUST NOT include a support_export binding; degraded entries MUST match the binding's degraded_reason exactly."
+    },
+    "workset_switcher_beta_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "switcher",
+        "reopen_parity_packets",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "workset_switcher_beta_support_export" },
+        "schema_version": { "$ref": "#/$defs/workset_switcher_beta_schema_version" },
+        "switcher": { "$ref": "#/$defs/workset_switcher_beta_record" },
+        "activation_previews": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workset_activation_preview" }
+        },
+        "reopen_parity_packets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/workset_reopen_parity_packet" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Support-export bundle for one workspace's switcher beta: one switcher record + zero or more activation previews + one or more reopen-parity packets. Every preview's candidate_workset_ref and every parity packet's workset_ref MUST appear in switcher.rows."
+    }
+  }
+}
