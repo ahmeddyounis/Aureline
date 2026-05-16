@@ -54,6 +54,8 @@ use crate::discovery::toolchains::WorkspaceToolchainDiscovery;
 
 pub use aureline_workspace::TrustState;
 
+pub mod beta;
+
 /// Schema version of the seed [`ExecutionContext`] record this crate emits.
 ///
 /// Bumped on breaking payload changes; additive-optional fields do not bump

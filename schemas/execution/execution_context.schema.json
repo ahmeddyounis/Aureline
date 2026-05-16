@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/execution/execution_context.schema.json",
+  "title": "Aureline execution-context beta boundary",
+  "description": "Boundary schema for the beta execution-context resolver lane. The beta layer republishes the canonical execution-context record alongside three lane-aware companion records: the lane coverage manifest (claimed lanes and their target classes / surfaces), the ticket-drift evaluation record (stored binding vs. freshly resolved context), and the support-export packet (coverage manifest + lane samples + drift evaluations). Raw environment bodies, raw command lines, and raw secrets are out of scope; records carry ids, class tokens, hashes, and structured drift rows. The runtime Rust crate at /crates/aureline-runtime/src/execution_context/ is the schema of record; this file is the cross-tool boundary. Adding a new lane, drift field, or target class is additive-minor and bumps execution_context_schema_version; repurposing a field is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/execution_context_beta_coverage_manifest_record" },
+    { "$ref": "#/$defs/execution_context_ticket_drift_record" },
+    { "$ref": "#/$defs/execution_context_beta_support_export_record" }
+  ],
+  "$defs": {
+    "execution_context_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version mirrored from the seed crate. Bumped on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "execution_context_beta_lane": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "remote_attach",
+        "container",
+        "request_workspace"
+      ],
+      "description": "Closed set of beta execution-context lanes. Adding a lane is a vocabulary change that requires schema + reviewer doc + coverage fixture updates."
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "ssh_remote",
+        "container_local",
+        "devcontainer",
+        "remote_workspace_vm",
+        "prebuild_runtime",
+        "managed_workspace",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "ai_sandbox"
+      ]
+    },
+    "toolchain_class": {
+      "type": "string",
+      "enum": [
+        "interpreter",
+        "compiler_toolchain",
+        "package_manager_runner",
+        "containerised_runtime",
+        "notebook_kernel_runtime",
+        "language_server_process",
+        "debug_adapter_runtime",
+        "test_runner_runtime",
+        "build_driver_runtime",
+        "ai_tool_runtime",
+        "login_shell"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "terminal",
+        "task",
+        "debug",
+        "test",
+        "notebook_kernel",
+        "scaffolding",
+        "ai_tool_call",
+        "doctor_repair",
+        "import_probe",
+        "replay_probe"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ]
+    },
+    "capsule_drift_state": {
+      "type": "string",
+      "enum": [
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "manually_diverged",
+        "unknown_lineage"
+      ]
+    },
+    "ticket_drift_field": {
+      "type": "string",
+      "enum": [
+        "target_class",
+        "canonical_target_id",
+        "working_directory",
+        "toolchain_class",
+        "capsule_hash",
+        "capsule_drift_state",
+        "scope_class",
+        "policy_epoch_advanced",
+        "trust_state_regressed"
+      ]
+    },
+    "ticket_drift_outcome": {
+      "type": "string",
+      "enum": ["fresh", "invalidated"],
+      "description": "Discriminator for the ticket-drift outcome payload."
+    },
+    "execution_context_beta_lane_coverage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "lane_token",
+        "lane_label",
+        "target_classes",
+        "target_class_tokens",
+        "claimed_surfaces",
+        "claimed_surface_tokens",
+        "requires_boundary_cue"
+      ],
+      "properties": {
+        "lane": { "$ref": "#/$defs/execution_context_beta_lane" },
+        "lane_token": { "type": "string", "minLength": 1 },
+        "lane_label": { "type": "string", "minLength": 1 },
+        "target_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/target_class" },
+          "minItems": 1
+        },
+        "target_class_tokens": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "claimed_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" },
+          "minItems": 1
+        },
+        "claimed_surface_tokens": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "requires_boundary_cue": { "type": "boolean" }
+      }
+    },
+    "execution_context_beta_coverage_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "execution_context_schema_version",
+        "manifest_id",
+        "generated_at",
+        "lanes"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "execution_context_beta_coverage_manifest_record"
+        },
+        "execution_context_schema_version": {
+          "$ref": "#/$defs/execution_context_schema_version"
+        },
+        "manifest_id": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "minLength": 1 },
+        "lanes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_context_beta_lane_coverage_row" },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      }
+    },
+    "ticket_drift_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_id",
+        "lane",
+        "target_class",
+        "canonical_target_id",
+        "toolchain_class",
+        "capsule_hash",
+        "capsule_drift_state",
+        "workset_scope_class",
+        "policy_epoch",
+        "trust_state"
+      ],
+      "properties": {
+        "execution_context_id": { "type": "string", "minLength": 1 },
+        "lane": { "$ref": "#/$defs/execution_context_beta_lane" },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "canonical_target_id": { "type": "string", "minLength": 1 },
+        "working_directory": { "type": "string", "minLength": 1 },
+        "toolchain_class": { "$ref": "#/$defs/toolchain_class" },
+        "capsule_hash": { "type": "string", "minLength": 1 },
+        "capsule_drift_state": { "$ref": "#/$defs/capsule_drift_state" },
+        "workset_scope_class": { "$ref": "#/$defs/scope_class" },
+        "policy_epoch": { "type": "integer", "minimum": 0 },
+        "trust_state": { "$ref": "#/$defs/trust_state" }
+      }
+    },
+    "ticket_drift_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "field_token",
+        "stored_value_token",
+        "fresh_value_token"
+      ],
+      "properties": {
+        "field": { "$ref": "#/$defs/ticket_drift_field" },
+        "field_token": { "type": "string", "minLength": 1 },
+        "stored_value_token": { "type": "string" },
+        "fresh_value_token": { "type": "string" }
+      }
+    },
+    "ticket_drift_evaluation_outcome_payload": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outcome"],
+          "properties": {
+            "outcome": { "const": "fresh" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outcome", "drift_rows"],
+          "properties": {
+            "outcome": { "const": "invalidated" },
+            "drift_rows": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/ticket_drift_row" },
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    },
+    "execution_context_ticket_drift_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "execution_context_schema_version",
+        "stored_binding",
+        "fresh_execution_context_id",
+        "fresh_lane",
+        "outcome"
+      ],
+      "properties": {
+        "record_kind": { "const": "execution_context_ticket_drift_record" },
+        "execution_context_schema_version": {
+          "$ref": "#/$defs/execution_context_schema_version"
+        },
+        "stored_binding": { "$ref": "#/$defs/ticket_drift_binding" },
+        "fresh_execution_context_id": { "type": "string", "minLength": 1 },
+        "fresh_lane": { "$ref": "#/$defs/execution_context_beta_lane" },
+        "outcome": { "$ref": "#/$defs/ticket_drift_evaluation_outcome_payload" }
+      }
+    },
+    "execution_context_beta_lane_sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "lane_token",
+        "surface",
+        "execution_context_id",
+        "canonical_target_id",
+        "target_class",
+        "boundary_cue_visible",
+        "has_degraded_field"
+      ],
+      "properties": {
+        "lane": { "$ref": "#/$defs/execution_context_beta_lane" },
+        "lane_token": { "type": "string", "minLength": 1 },
+        "surface": { "$ref": "#/$defs/surface_class" },
+        "execution_context_id": { "type": "string", "minLength": 1 },
+        "canonical_target_id": { "type": "string", "minLength": 1 },
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "boundary_cue_visible": { "type": "boolean" },
+        "has_degraded_field": { "type": "boolean" }
+      }
+    },
+    "execution_context_beta_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "execution_context_schema_version",
+        "coverage_manifest",
+        "lane_samples",
+        "ticket_drift_evaluations"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "execution_context_beta_support_export_record"
+        },
+        "execution_context_schema_version": {
+          "$ref": "#/$defs/execution_context_schema_version"
+        },
+        "coverage_manifest": {
+          "$ref": "#/$defs/execution_context_beta_coverage_manifest_record"
+        },
+        "lane_samples": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_context_beta_lane_sample" }
+        },
+        "ticket_drift_evaluations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/execution_context_ticket_drift_record" }
+        }
+      }
+    }
+  }
+}

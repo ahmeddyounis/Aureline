@@ -122,6 +122,15 @@ pub use execution_context::{
     TargetConfidence, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
     TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
 };
+pub use execution_context::beta::{
+    evaluate_ticket_drift, lane_for_context, lane_for_target_class,
+    ExecutionContextBetaCoverageManifest, ExecutionContextBetaLane,
+    ExecutionContextBetaLaneCoverageRow, ExecutionContextBetaLaneSample,
+    ExecutionContextBetaSupportExport, TicketDriftBinding, TicketDriftEvaluation,
+    TicketDriftField, TicketDriftOutcome, TicketDriftRow,
+    EXECUTION_CONTEXT_BETA_COVERAGE_MANIFEST_RECORD_KIND, EXECUTION_CONTEXT_BETA_SCHEMA_VERSION,
+    EXECUTION_CONTEXT_BETA_SUPPORT_EXPORT_RECORD_KIND, EXECUTION_CONTEXT_TICKET_DRIFT_RECORD_KIND,
+};
 pub use language_hosts::{
     LanguageHostEventClass, LanguageHostExitReasonClass, LanguageHostIdentity,
     LanguageHostLaunchSpec, LanguageHostRuntimeStateClass, LanguageHostScopeKey,
