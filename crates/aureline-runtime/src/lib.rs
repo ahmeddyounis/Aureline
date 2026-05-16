@@ -37,6 +37,7 @@ pub mod launch_profiles;
 pub mod managed_alpha;
 pub mod packages;
 pub mod provenance;
+pub mod remote_helper_skew_beta;
 pub mod request_workspace;
 pub mod rerun;
 pub mod support_matrix_beta;
@@ -204,6 +205,13 @@ pub use packages::{
     PACKAGE_MUTATION_REVIEWER_VERSION, PACKAGE_OPERATION_ALPHA_RECORD_KIND,
     PACKAGE_OPERATION_ALPHA_SCHEMA_VERSION, PACKAGE_OPERATION_AUDIT_RECORD_KIND,
     PACKAGE_OPERATION_SUPPORT_EXPORT_RECORD_KIND, REGISTRY_SOURCE_ALPHA_RECORD_KIND,
+};
+pub use remote_helper_skew_beta::{
+    RemoteHelperBetaCompatibilityRow, RemoteHelperBetaRecord, RemoteHelperBetaSupportExport,
+    RemoteHelperLifecyclePhaseClass, RemoteHelperRepairPathClass, RemoteHelperSkewVisibilityClass,
+    RemoteHelperVisibleVersionState, REMOTE_HELPER_SKEW_BETA_COMPATIBILITY_ROW_RECORD_KIND,
+    REMOTE_HELPER_SKEW_BETA_RECORD_KIND, REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION,
+    REMOTE_HELPER_SKEW_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use provenance::evidence_packet::{
     seeded_runtime_evidence_packet, seeded_runtime_evidence_packet_support_export,

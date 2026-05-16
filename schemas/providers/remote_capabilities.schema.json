@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/remote_capabilities.schema.json",
+  "title": "Aureline remote helper capability and skew-window beta contract",
+  "description": "Beta boundary schema for the remote_capability_envelope_record consumed by remote helper attach and reconnect flows, support exports, and compatibility reports. The record builds on the alpha helper_capability_envelope_record (schemas/remote/helper_capabilities_alpha.schema.json) by binding the negotiated capability set to a lifecycle phase (attach, reconnect), a typed skew-visibility class, a typed repair-path class, and a visible version disclosure that compatibility reports and support exports share. Raw hostnames, IP addresses, endpoint URLs, paths, ports, query strings, raw provider payloads, raw helper process arguments, raw transport frames, credentials, secret values, and support bundle bodies never appear. Adding an enum value or optional field is additive-minor and bumps remote_capability_envelope_schema_version when the wire payload changes; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "remote_capability_envelope_schema_version",
+    "envelope_id",
+    "row_id",
+    "generated_at",
+    "lifecycle_phase",
+    "reconnect_attempt",
+    "attach_session_ref",
+    "negotiation_outcome",
+    "effective_posture",
+    "mutation_allowed",
+    "skew_visibility",
+    "repair_path",
+    "visible_version_state",
+    "negotiated_capabilities",
+    "dropped_capabilities",
+    "visible_summary",
+    "safe_continuation",
+    "evidence_refs",
+    "support_packet_refs",
+    "compatibility_report_row_refs",
+    "harness_expectations"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "remote_helper_skew_beta_record"
+    },
+    "remote_capability_envelope_schema_version": {
+      "$ref": "#/$defs/schema_version"
+    },
+    "envelope_id": {
+      "type": "string",
+      "pattern": "^helper_capability_envelope:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable opaque envelope id shared with the alpha negotiation. Raw URLs, hostnames, ports, and secrets are forbidden."
+    },
+    "row_id": {
+      "type": "string",
+      "pattern": "^remote-helper-beta-row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable row id shared with the compatibility-report row and the support-export bundle."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "lifecycle_phase": {
+      "$ref": "#/$defs/lifecycle_phase_class"
+    },
+    "reconnect_attempt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Reconnect attempt counter; zero for the initial attach phase."
+    },
+    "attach_session_ref": {
+      "type": "string",
+      "pattern": "^attach_session:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Opaque attach-session ref from schemas/remote/attach_session.schema.json."
+    },
+    "negotiation_outcome": {
+      "$ref": "#/$defs/negotiation_outcome_class"
+    },
+    "effective_posture": {
+      "$ref": "#/$defs/effective_capability_posture_class"
+    },
+    "mutation_allowed": {
+      "type": "boolean",
+      "description": "True only when the negotiation outcome is match and the effective posture admits full remote mutation."
+    },
+    "skew_visibility": {
+      "$ref": "#/$defs/skew_visibility_class"
+    },
+    "repair_path": {
+      "$ref": "#/$defs/repair_path_class"
+    },
+    "visible_version_state": {
+      "$ref": "#/$defs/visible_version_state"
+    },
+    "negotiated_capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability_token" },
+      "uniqueItems": true,
+      "description": "Capability intersection admitted for this record. May be empty for refused outcomes."
+    },
+    "dropped_capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dropped_capability_record" }
+    },
+    "visible_summary": {
+      "$ref": "#/$defs/short_summary"
+    },
+    "safe_continuation": {
+      "$ref": "#/$defs/short_summary"
+    },
+    "evidence_refs": {
+      "$ref": "#/$defs/evidence_refs"
+    },
+    "support_packet_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^support_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+      },
+      "uniqueItems": true,
+      "description": "Redaction-safe support-packet refs under which this record can be embedded."
+    },
+    "compatibility_report_row_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^compat_report_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+      },
+      "uniqueItems": true,
+      "description": "Compatibility-report row refs this record contributes to. The shared row_id binds support and report consumers to one truth."
+    },
+    "harness_expectations": {
+      "$ref": "#/$defs/harness_expectations"
+    }
+  },
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640,
+      "description": "Review-safe summary; raw endpoints, hostnames, ports, tokens, and secret values are forbidden."
+    },
+    "capability_token": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "lifecycle_phase_class": {
+      "type": "string",
+      "enum": ["attach", "reconnect"],
+      "description": "Closed lifecycle vocabulary for the exchange that minted this record."
+    },
+    "negotiation_outcome_class": {
+      "type": "string",
+      "enum": ["match", "downgrade", "refuse"],
+      "description": "Closed outcome vocabulary lifted from the alpha negotiation."
+    },
+    "effective_capability_posture_class": {
+      "type": "string",
+      "enum": [
+        "full_remote",
+        "review_only",
+        "file_only",
+        "inspect_only",
+        "local_only",
+        "blocked"
+      ]
+    },
+    "skew_visibility_class": {
+      "type": "string",
+      "enum": [
+        "adjacent_supported",
+        "narrowed_supported_window",
+        "probe_required_untested",
+        "outside_supported_window"
+      ],
+      "description": "Closed visibility vocabulary. probe_required_untested and outside_supported_window fail closed for mutating remote work."
+    },
+    "repair_path_class": {
+      "type": "string",
+      "enum": [
+        "no_repair_required",
+        "continue_narrowed_posture",
+        "run_drift_probe_or_reattach",
+        "upgrade_or_repin",
+        "continue_local_only",
+        "contact_admin_or_support"
+      ],
+      "description": "Closed recovery vocabulary. Every non-supported visibility class names a truthful next action."
+    },
+    "missing_capability_reason_class": {
+      "type": "string",
+      "enum": [
+        "helper_does_not_offer",
+        "client_requires_unknown_feature",
+        "outside_skew_window",
+        "protocol_floor_mismatch",
+        "policy_narrowed",
+        "trust_not_verified",
+        "probe_required"
+      ]
+    },
+    "visible_version_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_version",
+        "helper_version",
+        "selected_protocol_version",
+        "skew_case_ref",
+        "skew_window_declaration_ref",
+        "compatibility_row_ref"
+      ],
+      "properties": {
+        "client_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque client version token (e.g. client@2026.05). Raw user-agent strings are forbidden."
+        },
+        "helper_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque helper or remote-agent version token. Raw process arguments are forbidden."
+        },
+        "selected_protocol_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skew_case_ref": {
+          "type": "string",
+          "pattern": "^skew_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "skew_window_declaration_ref": {
+          "type": "string",
+          "pattern": "^skew_window:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "compatibility_row_ref": {
+          "type": "string",
+          "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        }
+      }
+    },
+    "dropped_capability_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "reason_class", "visible_reason", "retryable"],
+      "properties": {
+        "capability": { "$ref": "#/$defs/capability_token" },
+        "reason_class": { "$ref": "#/$defs/missing_capability_reason_class" },
+        "visible_reason": { "$ref": "#/$defs/short_summary" },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "evidence_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alpha_envelope_ref",
+        "schema_refs",
+        "fixture_refs",
+        "doc_refs",
+        "compat_refs"
+      ],
+      "properties": {
+        "alpha_envelope_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the alpha helper_capability_envelope_record this beta record promotes."
+        },
+        "schema_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "fixture_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "doc_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "compat_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "harness_expectations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "expected_skew_visibility",
+        "expected_repair_path",
+        "expected_negotiation_outcome",
+        "expected_mutation_allowed",
+        "acceptance_states"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^remote_helper_skew_beta_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "expected_skew_visibility": { "$ref": "#/$defs/skew_visibility_class" },
+        "expected_repair_path": { "$ref": "#/$defs/repair_path_class" },
+        "expected_negotiation_outcome": { "$ref": "#/$defs/negotiation_outcome_class" },
+        "expected_mutation_allowed": { "type": "boolean" },
+        "acceptance_states": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
