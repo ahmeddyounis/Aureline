@@ -74,6 +74,7 @@ pub mod managed_workspace_labels;
 pub mod migration_center;
 pub mod migration_corpus;
 pub mod migration_wizard;
+pub mod network_badges;
 pub mod network_trust_beta;
 pub mod notebook_alpha;
 pub mod notebook_trust_badges;
