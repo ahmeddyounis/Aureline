@@ -81,6 +81,8 @@ headless validator before publication:
   [`docs/extensions/m3/conformance_kit_beta.md`](./conformance_kit_beta.md)
 - Validator CLI:
   [`tools/extensions/m3/validator_cli/aureline_extension_validator.py`](../../../tools/extensions/m3/validator_cli/aureline_extension_validator.py)
+- Publication pipeline:
+  [`docs/extensions/m3/publication_pipeline_beta.md`](./publication_pipeline_beta.md)
 - Fixture suite:
   [`fixtures/extensions/m3/conformance_kit/suite.json`](../../../fixtures/extensions/m3/conformance_kit/suite.json)
 - Compatibility packet:

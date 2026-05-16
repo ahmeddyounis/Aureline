@@ -46,6 +46,10 @@
 //! - a headless extension conformance validator that consumes authored
 //!   beta manifests before registry ingest and emits the report schema at
 //!   [`/schemas/extensions/conformance_kit_report.schema.json`](../../../schemas/extensions/conformance_kit_report.schema.json).
+//! - one [`publication::ExtensionPublicationPipelineRecord`] publication
+//!   packet that binds artifact digest, signer metadata, provenance,
+//!   compatibility, promotion steps, rollback plan, and catalog
+//!   transaction guards into a single headless publication lane.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -63,6 +67,7 @@ pub mod collections;
 pub mod install_review;
 pub mod manifest_baseline;
 pub mod permission_manifest;
+pub mod publication;
 pub mod review_alpha;
 pub mod runtime;
 pub mod sdk_v1;
@@ -85,17 +90,6 @@ pub use install_review::{
     RuntimeCostClass, RuntimeCostEvidenceClass, INSTALL_REVIEW_ALPHA_PACKET_RECORD_KIND,
     INSTALL_REVIEW_ALPHA_PROJECTION_RECORD_KIND, INSTALL_REVIEW_ALPHA_SCHEMA_VERSION,
 };
-pub use permission_manifest::{
-    capability_class_for_scope, evaluate_permission_manifest_delta, project_permission_manifest,
-    project_permission_manifest_support_export, validate_permission_manifest_delta_record,
-    validate_permission_manifest_record, CapabilityClassClass, CapabilityClassDeltaClass,
-    CapabilityClassDeltaEntry, CapabilityClassSummaryEntry, CapabilityScopeEntry,
-    PermissionDeltaClass, PermissionDeltaEntry, PermissionManifestDeltaInput,
-    PermissionManifestDeltaRecord, PermissionManifestFinding, PermissionManifestRecord,
-    PermissionManifestSupportExportRecord, ReConsentDecisionClass, ReConsentReasonClass,
-    PERMISSION_MANIFEST_DELTA_RECORD_KIND, PERMISSION_MANIFEST_RECORD_KIND,
-    PERMISSION_MANIFEST_SCHEMA_VERSION, PERMISSION_MANIFEST_SUPPORT_EXPORT_RECORD_KIND,
-};
 pub use manifest_baseline::{
     compute_effective_permission_baseline, decide_manifest_install,
     validate_manifest_baseline_record, DeclaredVsEffectiveDiffEntry,
@@ -107,6 +101,30 @@ pub use manifest_baseline::{
     PublisherTrustTierClass, RedactionClass, SummaryFreshnessClass,
     EFFECTIVE_PERMISSION_BASELINE_RECORD_KIND, EXTENSION_MANIFEST_BASELINE_RECORD_KIND,
     EXTENSION_MANIFEST_BASELINE_SCHEMA_VERSION, MANIFEST_INSTALL_DECISION_RECORD_KIND,
+};
+pub use permission_manifest::{
+    capability_class_for_scope, evaluate_permission_manifest_delta, project_permission_manifest,
+    project_permission_manifest_support_export, validate_permission_manifest_delta_record,
+    validate_permission_manifest_record, CapabilityClassClass, CapabilityClassDeltaClass,
+    CapabilityClassDeltaEntry, CapabilityClassSummaryEntry, CapabilityScopeEntry,
+    PermissionDeltaClass, PermissionDeltaEntry, PermissionManifestDeltaInput,
+    PermissionManifestDeltaRecord, PermissionManifestFinding, PermissionManifestRecord,
+    PermissionManifestSupportExportRecord, ReConsentDecisionClass, ReConsentReasonClass,
+    PERMISSION_MANIFEST_DELTA_RECORD_KIND, PERMISSION_MANIFEST_RECORD_KIND,
+    PERMISSION_MANIFEST_SCHEMA_VERSION, PERMISSION_MANIFEST_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use publication::{
+    evaluate_extension_publication_pipeline, project_extension_publication_support_export,
+    validate_extension_publication_pipeline_record,
+    validate_extension_publication_support_export_record, ExtensionPublicationPipelineInput,
+    ExtensionPublicationPipelineRecord, ExtensionPublicationSupportExportRecord,
+    PublicationArtifactMetadata, PublicationChannelClass, PublicationCompatibilityMetadata,
+    PublicationContentAddress, PublicationDecisionClass, PublicationFailureAtomicityGuard,
+    PublicationPipelineFinding, PublicationProvenanceClass, PublicationProvenanceMetadata,
+    PublicationReasonClass, PublicationRollbackPlan, PublicationSignatureClass,
+    PublicationSignerMetadata, PublicationTransactionWriteClass, PublicationVersionMetadata,
+    EXTENSION_PUBLICATION_PIPELINE_RECORD_KIND, EXTENSION_PUBLICATION_SCHEMA_VERSION,
+    EXTENSION_PUBLICATION_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use review_alpha::{
     evaluate_extension_review_alpha, project_review_alpha_surface,
