@@ -50,7 +50,14 @@
 //!   name their lane, disclose lifecycle state and client scope, name a
 //!   typed fallback when the platform or policy denies passkey, and
 //!   preserve the originating target / action identity across reauth and
-//!   recovery without widening authority.
+//!   recovery without widening authority; and
+//! - one [`provisioning::AdminAuditExportBetaPage`] beta projection that
+//!   turns SCIM and signed-file provisioning hooks, policy-bundle history
+//!   transitions, and entitlement changes into one auditable admin-audit
+//!   export so enterprise pilots inspect provisioning, history, and
+//!   entitlement state with one record kind across connected, mirror-only,
+//!   offline, and enterprise-managed beta profiles without silently widening
+//!   managed authority.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -86,6 +93,7 @@ pub mod offline_entitlements;
 pub mod oidc;
 pub mod passkey;
 pub mod policy_packs;
+pub mod provisioning;
 pub mod secrets;
 pub mod system_browser;
 pub mod trust;
@@ -129,6 +137,22 @@ pub use offline_entitlements::{
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUMMARY_RECORD_KIND,
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUPPORT_EXPORT_RECORD_KIND,
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUPPORT_ROW_RECORD_KIND,
+};
+
+pub use provisioning::{
+    audit_admin_audit_export_beta_page, seeded_admin_audit_export_beta_page,
+    validate_admin_audit_export_beta_page, AdminAuditExportBetaDefect,
+    AdminAuditExportBetaDefectKind, AdminAuditExportBetaPage,
+    AdminAuditExportBetaProfileClass, AdminAuditExportBetaSummary,
+    AdminAuditExportBetaSupportExport, EntitlementChangeClass, EntitlementChangeEvent,
+    PolicyBundleHistoryEvent, PolicyBundleTransitionClass, ProvisioningEvent,
+    ProvisioningEventClass, ProvisioningFreshnessClass, ProvisioningLifecycleStateClass,
+    ProvisioningProvenance, ProvisioningSourceClass, ProvisioningSubjectKindClass,
+    ADMIN_AUDIT_EXPORT_BETA_DEFECT_RECORD_KIND, ADMIN_AUDIT_EXPORT_BETA_PAGE_RECORD_KIND,
+    ADMIN_AUDIT_EXPORT_BETA_SCHEMA_VERSION, ADMIN_AUDIT_EXPORT_BETA_SHARED_CONTRACT_REF,
+    ADMIN_AUDIT_EXPORT_BETA_SOURCE_MATRIX_REF, ADMIN_AUDIT_EXPORT_BETA_SUMMARY_RECORD_KIND,
+    ADMIN_AUDIT_EXPORT_BETA_SUPPORT_EXPORT_RECORD_KIND, ENTITLEMENT_CHANGE_EVENT_RECORD_KIND,
+    POLICY_BUNDLE_HISTORY_EVENT_RECORD_KIND, PROVISIONING_EVENT_RECORD_KIND,
 };
 
 pub use policy_packs::{

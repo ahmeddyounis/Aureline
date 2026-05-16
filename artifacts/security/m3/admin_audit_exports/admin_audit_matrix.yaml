@@ -1,0 +1,125 @@
+# Admin-audit export beta matrix.
+#
+# Declares the provisioning sources, lifecycle/freshness postures, policy-bundle
+# history transitions, and entitlement-change classes the beta projection must
+# inspect on connected, mirror-only, offline, and enterprise-managed beta
+# profiles. The matrix mirrors the vocabulary owned by
+# `crates/aureline-auth/src/provisioning/mod.rs`. Every cell stays inspectable
+# from the same record kind across admin, support, shell, and reviewer
+# surfaces.
+
+shared_contract_ref: "security:admin_audit_export_beta:v1"
+schema_version: 1
+record_kinds:
+  page: "security_admin_audit_export_beta_page_record"
+  provisioning_event: "security_admin_audit_export_beta_provisioning_event_record"
+  policy_bundle_history_event: "security_admin_audit_export_beta_policy_bundle_history_event_record"
+  entitlement_change_event: "security_admin_audit_export_beta_entitlement_change_event_record"
+  summary: "security_admin_audit_export_beta_summary_record"
+  defect: "security_admin_audit_export_beta_defect_record"
+  support_export: "security_admin_audit_export_beta_support_export_record"
+
+profiles:
+  - token: "connected"
+    note: "Live SCIM and managed origins available."
+  - token: "mirror_only"
+    note: "Signed mirror is the only authority; managed origins are unreachable."
+  - token: "offline"
+    note: "Air-gapped courier or last-known-good snapshot only."
+  - token: "enterprise_managed"
+    note: "Manual signed-file import drives provisioning and entitlement state."
+
+provisioning_sources:
+  - token: "scim_managed_endpoint"
+    requires_signature: true
+    managed_authority: true
+  - token: "scim_self_hosted_endpoint"
+    requires_signature: true
+    managed_authority: true
+  - token: "signed_file_import"
+    requires_signature: true
+    managed_authority: true
+  - token: "signed_mirror_import"
+    requires_signature: true
+    managed_authority: true
+  - token: "air_gapped_signed_import"
+    requires_signature: true
+    managed_authority: true
+  - token: "local_advisory_file"
+    requires_signature: false
+    managed_authority: false
+  - token: "runtime_preload_origin"
+    requires_signature: false
+    managed_authority: false
+
+lifecycle_states:
+  - token: "active"
+    fails_closed: false
+  - token: "suspended"
+    fails_closed: true
+  - token: "disabled"
+    fails_closed: true
+  - token: "deleted"
+    fails_closed: true
+
+freshness_states:
+  - token: "live"
+    fails_closed: false
+  - token: "cached"
+    fails_closed: false
+  - token: "stale"
+    fails_closed: true
+  - token: "expired"
+    fails_closed: true
+  - token: "missing"
+    fails_closed: true
+
+policy_bundle_transitions:
+  - token: "applied"
+    requires_predecessor: false
+  - token: "staged"
+    requires_predecessor: false
+  - token: "replaced_by_successor"
+    requires_predecessor: true
+  - token: "rolled_back"
+    requires_predecessor: true
+  - token: "revoked"
+    requires_predecessor: false
+
+entitlement_changes:
+  - token: "granted"
+    narrows_authority: false
+  - token: "revoked"
+    narrows_authority: true
+  - token: "scope_narrowed"
+    narrows_authority: true
+  - token: "scope_widened"
+    narrows_authority: false
+  - token: "seat_added"
+    narrows_authority: false
+  - token: "seat_removed"
+    narrows_authority: true
+  - token: "quota_changed"
+    narrows_authority: true
+  - token: "expiry_shortened"
+    narrows_authority: true
+  - token: "expiry_extended"
+    narrows_authority: false
+
+defect_kinds:
+  - "source_token_drift"
+  - "event_class_token_drift"
+  - "subject_kind_token_drift"
+  - "lifecycle_state_token_drift"
+  - "freshness_token_drift"
+  - "bundle_transition_token_drift"
+  - "entitlement_change_token_drift"
+  - "entitlement_authority_token_drift"
+  - "managed_source_missing_signature"
+  - "subject_kind_mismatch"
+  - "history_transition_missing_predecessor"
+  - "history_managed_source_missing_signature"
+  - "entitlement_narrowing_without_managed_source"
+  - "hidden_public_endpoint_fallback"
+  - "raw_private_material_exposed"
+  - "profile_coverage_missing"

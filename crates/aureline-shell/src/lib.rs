@@ -33,6 +33,7 @@ pub mod a11y;
 pub mod about;
 pub mod activity_center;
 pub mod admin_alpha;
+pub mod admin_audit_export_beta;
 pub mod ai_context_inspector;
 pub mod ai_truth_strip;
 pub mod app_frame;
