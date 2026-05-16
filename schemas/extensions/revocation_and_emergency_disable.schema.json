@@ -1,0 +1,512 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/revocation_and_emergency_disable.schema.json",
+  "title": "Aureline extension revocation and emergency-disable incident records",
+  "description": "Boundary schema for extension advisory, emergency-disable, quarantine, and revocation communication packets plus metadata-safe support exports. Records preserve the same incident ID, advisory ID, affected extension identity, lifecycle state, registry/mirror trust state, blocked operations, and rollback/recovery guidance across product, CLI/headless, docs/help, support export, primary registry, approved mirror, private registry, and offline lanes. Raw artifact bytes, raw signing-key material, raw credentials, raw URLs, raw policy bodies, private publisher data, and unredacted incident notes must not appear in these records.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/extension_incident_communication_record" },
+    { "$ref": "#/$defs/extension_incident_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_safe_default"
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "advisory_severity_class": {
+      "type": "string",
+      "enum": ["critical", "high", "moderate", "low", "operational_emergency"]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": ["advisory_only", "disable", "quarantine", "revoke"]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "advisory_active",
+        "disabled",
+        "quarantined",
+        "revoked",
+        "mitigated_locally",
+        "resolved_retained"
+      ]
+    },
+    "revocation_state_class": {
+      "type": "string",
+      "enum": [
+        "no_known_revocation",
+        "revoked",
+        "quarantined",
+        "emergency_disabled",
+        "mirror_promotion_revoked",
+        "pending_reverify"
+      ]
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "signing_key_compromised",
+        "artifact_supply_chain_compromise",
+        "confirmed_malware",
+        "permission_abuse",
+        "crash_loop_or_resource_abuse",
+        "registry_moderation_emergency",
+        "mirror_continuity_broken",
+        "admin_policy_emergency_disable",
+        "publisher_withdrawal"
+      ]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "admin_policy_pack",
+        "emergency_disable_bundle",
+        "runtime_supervisor",
+        "user_choice"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "registry_operator",
+        "mirror_operator",
+        "private_registry_administrator",
+        "security_responder",
+        "runtime_supervisor",
+        "workspace_admin",
+        "publisher",
+        "user"
+      ]
+    },
+    "registry_lane_class": {
+      "type": "string",
+      "enum": ["primary_registry", "approved_mirror", "private_registry", "offline_bundle"]
+    },
+    "trust_state_class": {
+      "type": "string",
+      "enum": [
+        "verified_current",
+        "verified_stale",
+        "pending_mirror_import",
+        "mirror_continuity_broken",
+        "signature_or_digest_mismatch",
+        "revocation_snapshot_missing",
+        "unknown_refused"
+      ]
+    },
+    "blocked_operation_class": {
+      "type": "string",
+      "enum": ["new_install", "update", "auto_update", "activation", "execution", "mirror_import"]
+    },
+    "recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "roll_back_to_last_known_good",
+        "keep_pinned",
+        "disable_until_reenabled",
+        "remove_extension",
+        "refresh_mirror_metadata",
+        "import_emergency_bundle",
+        "consult_admin",
+        "open_safe_mode",
+        "open_incident_packet",
+        "no_recovery_available"
+      ]
+    },
+    "disclosure_class": {
+      "type": "string",
+      "enum": [
+        "advisory_identity",
+        "affected_extension",
+        "severity_and_reason",
+        "source_and_actor",
+        "registry_and_mirror_state",
+        "blocked_operations",
+        "lifecycle_state",
+        "recovery_guidance"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "advisory_published",
+        "disable_engaged",
+        "quarantine_engaged",
+        "revocation_engaged",
+        "awaiting_mirror_import",
+        "refused"
+      ]
+    },
+    "decision_reason_class": {
+      "type": "string",
+      "enum": [
+        "advisory_no_forced_action",
+        "emergency_disable_engaged",
+        "quarantine_engaged",
+        "revocation_engaged",
+        "awaiting_mirror_import",
+        "refused_incident_identity_missing",
+        "refused_subject_identity_missing",
+        "refused_required_disclosure_missing",
+        "refused_ambiguous_trust_state",
+        "refused_blocked_operations_missing",
+        "refused_recovery_guidance_missing"
+      ]
+    },
+    "support_action_class": {
+      "type": "string",
+      "enum": [
+        "acknowledge",
+        "open_advisory",
+        "open_recovery_guidance",
+        "roll_back_or_pin",
+        "remove_or_disable",
+        "refresh_mirror",
+        "consult_admin",
+        "export_support_packet"
+      ]
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "publisher_id",
+        "registry_manifest_ref",
+        "catalog_descriptor_ref",
+        "runtime_contract_ref",
+        "installed_state_refs",
+        "affected_artifact_refs"
+      ],
+      "properties": {
+        "extension_identity": { "$ref": "#/$defs/non_empty_string" },
+        "extension_version": { "$ref": "#/$defs/non_empty_string" },
+        "package_id": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_id": { "$ref": "#/$defs/non_empty_string" },
+        "registry_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "catalog_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "runtime_contract_ref": { "$ref": "#/$defs/opaque_id" },
+        "installed_state_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "affected_artifact_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "advisory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advisory_id",
+        "severity_class",
+        "reason_code",
+        "source_class",
+        "source_ref",
+        "signer_ref",
+        "published_at",
+        "updated_at",
+        "disclosure_refs"
+      ],
+      "properties": {
+        "advisory_id": { "$ref": "#/$defs/non_empty_string" },
+        "severity_class": { "$ref": "#/$defs/advisory_severity_class" },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "signer_ref": { "$ref": "#/$defs/opaque_id" },
+        "published_at": { "$ref": "#/$defs/timestamp" },
+        "updated_at": { "$ref": "#/$defs/timestamp" },
+        "disclosure_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "incident_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "actor_class",
+        "effective_at",
+        "deadline_at",
+        "blocked_operations",
+        "emergency_bundle_ref",
+        "policy_refs",
+        "audit_event_refs"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "effective_at": { "$ref": "#/$defs/timestamp" },
+        "deadline_at": {
+          "anyOf": [
+            { "$ref": "#/$defs/timestamp" },
+            { "type": "null" }
+          ]
+        },
+        "blocked_operations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_operation_class" }
+        },
+        "emergency_bundle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "registry_lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_class",
+        "source_ref",
+        "snapshot_ref",
+        "trust_state_class",
+        "freshness_class",
+        "signer_continuity_ref",
+        "mirror_continuity_ref",
+        "import_required"
+      ],
+      "properties": {
+        "lane_class": { "$ref": "#/$defs/registry_lane_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_state_class": { "$ref": "#/$defs/trust_state_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "signer_continuity_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_continuity_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "import_required": { "type": "boolean" }
+      }
+    },
+    "recovery_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "last_known_good_version",
+        "rollback_manifest_ref",
+        "recovery_action_classes",
+        "user_facing_guidance",
+        "admin_handoff_refs",
+        "safe_mode_profile_ref"
+      ],
+      "properties": {
+        "last_known_good_version": {
+          "anyOf": [
+            { "$ref": "#/$defs/non_empty_string" },
+            { "type": "null" }
+          ]
+        },
+        "rollback_manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "recovery_action_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action_class" }
+        },
+        "user_facing_guidance": { "$ref": "#/$defs/non_empty_string" },
+        "admin_handoff_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "safe_mode_profile_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "extension_incident_communication_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_incident_schema_version",
+        "incident_id",
+        "subject",
+        "advisory",
+        "action",
+        "primary_registry_lane",
+        "mirror_lane",
+        "recovery",
+        "required_disclosures",
+        "rendered_disclosures",
+        "lifecycle_state_class",
+        "revocation_state_class",
+        "blocks_new_installs",
+        "blocks_updates",
+        "blocks_activation",
+        "blocks_execution",
+        "mirror_trust_unambiguous",
+        "recovery_guidance_ready",
+        "decision_class",
+        "reason_class",
+        "decision_summary",
+        "generated_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_incident_communication_record" },
+        "extension_incident_schema_version": { "$ref": "#/$defs/schema_version" },
+        "incident_id": {
+          "type": "string",
+          "pattern": "^extension_incident:.+"
+        },
+        "subject": { "$ref": "#/$defs/subject" },
+        "advisory": { "$ref": "#/$defs/advisory" },
+        "action": { "$ref": "#/$defs/incident_action" },
+        "primary_registry_lane": { "$ref": "#/$defs/registry_lane" },
+        "mirror_lane": { "$ref": "#/$defs/registry_lane" },
+        "recovery": { "$ref": "#/$defs/recovery_guidance" },
+        "required_disclosures": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/disclosure_class" }
+        },
+        "rendered_disclosures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disclosure_class" }
+        },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "revocation_state_class": { "$ref": "#/$defs/revocation_state_class" },
+        "blocks_new_installs": { "type": "boolean" },
+        "blocks_updates": { "type": "boolean" },
+        "blocks_activation": { "type": "boolean" },
+        "blocks_execution": { "type": "boolean" },
+        "mirror_trust_unambiguous": { "type": "boolean" },
+        "recovery_guidance_ready": { "type": "boolean" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/decision_reason_class" },
+        "decision_summary": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "extension_incident_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "extension_incident_schema_version",
+        "export_id",
+        "incident_ref",
+        "advisory_id",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "publisher_id",
+        "severity_class",
+        "reason_code",
+        "source_class",
+        "actor_class",
+        "primary_registry_trust_state_class",
+        "mirror_trust_state_class",
+        "lifecycle_state_class",
+        "revocation_state_class",
+        "decision_class",
+        "reason_class",
+        "blocked_operations",
+        "recovery_action_classes",
+        "support_action_classes",
+        "blocks_install_or_update",
+        "blocks_activation_or_execution",
+        "mirror_trust_unambiguous",
+        "recovery_guidance_ready",
+        "audit_event_refs",
+        "export_safe_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_incident_support_export_record" },
+        "extension_incident_schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": {
+          "type": "string",
+          "pattern": "^extension_incident_support_export:.+"
+        },
+        "incident_ref": {
+          "type": "string",
+          "pattern": "^extension_incident:.+"
+        },
+        "advisory_id": { "$ref": "#/$defs/non_empty_string" },
+        "extension_identity": { "$ref": "#/$defs/non_empty_string" },
+        "extension_version": { "$ref": "#/$defs/non_empty_string" },
+        "package_id": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_id": { "$ref": "#/$defs/non_empty_string" },
+        "severity_class": { "$ref": "#/$defs/advisory_severity_class" },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "primary_registry_trust_state_class": { "$ref": "#/$defs/trust_state_class" },
+        "mirror_trust_state_class": { "$ref": "#/$defs/trust_state_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "revocation_state_class": { "$ref": "#/$defs/revocation_state_class" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/decision_reason_class" },
+        "blocked_operations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_operation_class" }
+        },
+        "recovery_action_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_action_class" }
+        },
+        "support_action_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_action_class" }
+        },
+        "blocks_install_or_update": { "type": "boolean" },
+        "blocks_activation_or_execution": { "type": "boolean" },
+        "mirror_trust_unambiguous": { "type": "boolean" },
+        "recovery_guidance_ready": { "type": "boolean" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

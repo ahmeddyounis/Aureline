@@ -54,6 +54,10 @@
 //!   publisher continuity, lifecycle, moderation, revocation-ready, and
 //!   mirror-compatible catalog metadata from the publication lane into
 //!   discovery, support export, and mirror import consumers.
+//! - one [`revocation::ExtensionIncidentCommunicationRecord`] incident
+//!   packet that binds advisory, emergency disable, quarantine,
+//!   revocation, primary-registry, mirror, and recovery guidance into one
+//!   support-exportable ecosystem incident lane.
 //! - one [`marketplace_truth::MarketplaceTruthRowRecord`] row projection
 //!   that binds catalog descriptor truth to the current generated
 //!   compatibility report before any marketplace row can open install review.
@@ -88,6 +92,7 @@ pub mod permission_manifest;
 pub mod publication;
 pub mod registry;
 pub mod review_alpha;
+pub mod revocation;
 pub mod runtime;
 pub mod sdk_v1;
 pub mod supervision;
@@ -189,6 +194,23 @@ pub use review_alpha::{
     EXTENSION_REVIEW_ALPHA_PACKET_RECORD_KIND, EXTENSION_REVIEW_ALPHA_PROJECTION_RECORD_KIND,
     PUBLISHER_CONTINUITY_ALPHA_RECORD_KIND, REVIEW_ALPHA_SCHEMA_VERSION,
     REVOCATION_ALPHA_RECORD_KIND,
+};
+pub use revocation::{
+    evaluate_extension_incident_communication, project_extension_incident_support_export,
+    validate_extension_incident_communication_record,
+    validate_extension_incident_support_export_record, AdvisorySeverityClass,
+    ExtensionIncidentAction, ExtensionIncidentActionClass, ExtensionIncidentActorClass,
+    ExtensionIncidentAdvisory, ExtensionIncidentBlockedOperationClass,
+    ExtensionIncidentCommunicationInput, ExtensionIncidentCommunicationRecord,
+    ExtensionIncidentDecisionClass, ExtensionIncidentDecisionReasonClass,
+    ExtensionIncidentDisclosureClass, ExtensionIncidentFinding,
+    ExtensionIncidentLifecycleStateClass, ExtensionIncidentReasonCode,
+    ExtensionIncidentRecoveryActionClass, ExtensionIncidentRecoveryGuidance,
+    ExtensionIncidentRegistryLane, ExtensionIncidentRegistryLaneClass,
+    ExtensionIncidentSourceClass, ExtensionIncidentSubject, ExtensionIncidentSupportActionClass,
+    ExtensionIncidentSupportExportRecord, ExtensionIncidentTrustStateClass,
+    EXTENSION_INCIDENT_COMMUNICATION_RECORD_KIND, EXTENSION_INCIDENT_COMMUNICATION_SCHEMA_VERSION,
+    EXTENSION_INCIDENT_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use runtime::{
     evaluate_runtime_v1_beta_contract, project_runtime_v1_beta_support_export,
