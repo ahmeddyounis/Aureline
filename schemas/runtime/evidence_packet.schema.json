@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/evidence_packet.schema.json",
+  "title": "Aureline runtime evidence packet",
+  "description": "Redaction-safe runtime evidence packet that binds a task-event, test-attempt, debug-session, or runtime-trace subject reference to a canonical execution-context provenance projection. Carries lane / kind / target / toolchain / capsule / policy / trust truth so support and incident flows can replay or compare evidence against a freshly resolved context without re-deriving target identity from logs.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/runtime_evidence_packet_record" },
+    { "$ref": "#/$defs/runtime_evidence_replay_comparison_record" },
+    { "$ref": "#/$defs/runtime_evidence_packet_support_export_record" },
+    { "$ref": "#/$defs/runtime_evidence_packet_case" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "date_time": { "type": "string", "format": "date-time" },
+    "execution_event_provenance_ref": {
+      "$ref": "https://aureline.dev/schemas/runtime/execution_event_provenance.schema.json#/$defs/execution_event_provenance_record"
+    },
+    "redaction_class": { "const": "metadata_safe_default" },
+    "redaction_safe": { "const": true },
+    "runtime_evidence_lane": {
+      "type": "string",
+      "enum": ["task", "test", "debug", "runtime"]
+    },
+    "runtime_evidence_kind": {
+      "type": "string",
+      "enum": [
+        "task_event",
+        "test_attempt",
+        "debug_session",
+        "runtime_trace_evidence"
+      ]
+    },
+    "replay_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "compatible_replay",
+        "compatible_minor_drift",
+        "incompatible_target_id_changed",
+        "incompatible_target_class_changed",
+        "incompatible_toolchain_changed",
+        "incompatible_capsule_drift",
+        "incompatible_policy_epoch_regressed",
+        "incompatible_trust_state_downgraded",
+        "incompatible_redaction_class",
+        "unknown_requires_review"
+      ]
+    },
+    "replay_incompatibility_reason": {
+      "type": "string",
+      "enum": [
+        "target_id_drift",
+        "target_class_drift",
+        "toolchain_class_drift",
+        "toolchain_id_drift",
+        "environment_capsule_hash_drift",
+        "environment_capsule_drift_state_regressed",
+        "policy_epoch_regressed",
+        "trust_state_downgraded",
+        "redaction_class_unsafe",
+        "clean_forward_drift"
+      ]
+    },
+    "runtime_evidence_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evidence_packet_id",
+        "workspace_id",
+        "lane",
+        "lane_token",
+        "evidence_kind",
+        "evidence_kind_token",
+        "subject_ref",
+        "captured_at",
+        "context_provenance",
+        "redaction_class",
+        "redaction_class_token",
+        "redaction_safe",
+        "summary",
+        "reconstruction_fields"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_evidence_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "evidence_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "lane": { "$ref": "#/$defs/runtime_evidence_lane" },
+        "lane_token": { "$ref": "#/$defs/runtime_evidence_lane" },
+        "evidence_kind": { "$ref": "#/$defs/runtime_evidence_kind" },
+        "evidence_kind_token": { "$ref": "#/$defs/runtime_evidence_kind" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/date_time" },
+        "context_provenance": { "$ref": "#/$defs/execution_event_provenance_ref" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "redaction_class_token": { "const": "metadata_safe_default" },
+        "redaction_safe": { "$ref": "#/$defs/redaction_safe" },
+        "summary": { "type": "string", "minLength": 1 },
+        "reconstruction_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "runtime_evidence_replay_comparison_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "comparison_id",
+        "evidence_packet_ref",
+        "original_context_provenance_id",
+        "replay_execution_context_ref",
+        "replay_provenance_record_ref",
+        "evaluated_at",
+        "compatibility",
+        "compatibility_token",
+        "permits_replay_without_review",
+        "blocks_replay",
+        "incompatibility_reasons",
+        "incompatibility_reason_tokens",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_evidence_replay_comparison_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "comparison_id": { "$ref": "#/$defs/opaque_id" },
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "original_context_provenance_id": { "$ref": "#/$defs/opaque_id" },
+        "replay_execution_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "replay_provenance_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "evaluated_at": { "$ref": "#/$defs/date_time" },
+        "compatibility": { "$ref": "#/$defs/replay_compatibility_class" },
+        "compatibility_token": { "$ref": "#/$defs/replay_compatibility_class" },
+        "permits_replay_without_review": { "type": "boolean" },
+        "blocks_replay": { "type": "boolean" },
+        "incompatibility_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_incompatibility_reason" }
+        },
+        "incompatibility_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_incompatibility_reason" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime_evidence_packet_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "workspace_id",
+        "generated_at",
+        "packets",
+        "comparisons",
+        "redaction_class",
+        "redaction_class_token",
+        "redaction_safe",
+        "any_comparison_blocks_replay",
+        "any_minor_drift",
+        "summary_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_evidence_packet_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "packets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/runtime_evidence_packet_record" }
+        },
+        "comparisons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/runtime_evidence_replay_comparison_record" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "redaction_class_token": { "const": "metadata_safe_default" },
+        "redaction_safe": { "$ref": "#/$defs/redaction_safe" },
+        "any_comparison_blocks_replay": { "type": "boolean" },
+        "any_minor_drift": { "type": "boolean" },
+        "summary_lines": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "runtime_evidence_packet_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "case_id",
+        "scenario",
+        "expect"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_evidence_packet_case" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "scenario": {
+          "type": "string",
+          "enum": [
+            "local_task_compatible",
+            "local_test_policy_advanced_clean",
+            "container_debug_capsule_drift",
+            "managed_runtime_trust_downgraded"
+          ]
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lane",
+            "evidence_kind",
+            "compatibility",
+            "permits_replay_without_review",
+            "blocks_replay",
+            "required_incompatibility_reasons"
+          ],
+          "properties": {
+            "lane": { "$ref": "#/$defs/runtime_evidence_lane" },
+            "evidence_kind": { "$ref": "#/$defs/runtime_evidence_kind" },
+            "compatibility": { "$ref": "#/$defs/replay_compatibility_class" },
+            "permits_replay_without_review": { "type": "boolean" },
+            "blocks_replay": { "type": "boolean" },
+            "required_incompatibility_reasons": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/replay_incompatibility_reason" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

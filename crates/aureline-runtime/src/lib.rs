@@ -204,6 +204,15 @@ pub use packages::{
     PACKAGE_OPERATION_ALPHA_SCHEMA_VERSION, PACKAGE_OPERATION_AUDIT_RECORD_KIND,
     PACKAGE_OPERATION_SUPPORT_EXPORT_RECORD_KIND, REGISTRY_SOURCE_ALPHA_RECORD_KIND,
 };
+pub use provenance::evidence_packet::{
+    seeded_runtime_evidence_packet, seeded_runtime_evidence_packet_support_export,
+    ReplayCompatibilityClass, ReplayIncompatibilityReason, RuntimeEvidenceKind,
+    RuntimeEvidenceLane, RuntimeEvidencePacket, RuntimeEvidencePacketSeededScenario,
+    RuntimeEvidencePacketSupportExport, RuntimeEvidenceReplayComparison,
+    RUNTIME_EVIDENCE_PACKET_RECORD_KIND, RUNTIME_EVIDENCE_PACKET_SCHEMA_VERSION,
+    RUNTIME_EVIDENCE_PACKET_SUPPORT_EXPORT_RECORD_KIND,
+    RUNTIME_EVIDENCE_REPLAY_COMPARISON_RECORD_KIND,
+};
 pub use provenance::{
     dedupe_context_provenance, ExecutionEventProvenance, ExecutionProvenanceEvent,
     ExecutionProvenanceEventClass, ExecutionProvenanceInputDecision,

@@ -7,3 +7,4 @@
 //! than forking a private terminal-only, task-only, or debug-only copy.
 
 pub mod context_inspector;
+pub mod evidence_packet;

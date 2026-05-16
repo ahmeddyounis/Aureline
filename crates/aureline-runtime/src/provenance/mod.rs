@@ -16,6 +16,8 @@ use crate::execution_context::{
     TargetClass, ToolchainClass, TrustState,
 };
 
+pub mod evidence_packet;
+
 /// Schema version emitted for execution-event provenance records.
 pub const EXECUTION_EVENT_PROVENANCE_SCHEMA_VERSION: u32 = 1;
 /// Stable record-kind tag for the reusable provenance object.
