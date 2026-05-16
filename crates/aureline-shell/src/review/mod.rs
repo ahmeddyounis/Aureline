@@ -2,4 +2,5 @@
 //! and the other pre-execution review records.
 
 pub mod change_inspector;
+pub mod parity_harness_inspector;
 pub mod review_pack_inspector;

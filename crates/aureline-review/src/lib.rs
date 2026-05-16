@@ -13,6 +13,7 @@ pub mod change_inspector;
 pub mod collections;
 pub mod diff;
 pub mod review_pack_dsl;
+pub mod review_pack_parity_harness;
 pub mod workspace;
 
 pub use change_inspector::{
@@ -41,6 +42,26 @@ pub use review_pack_dsl::{
     REVIEW_PACK_AUTHORITY_CLASSES, REVIEW_PACK_CHECK_KINDS, REVIEW_PACK_CONSUMER_SURFACES,
     REVIEW_PACK_EXECUTION_CLASSES, REVIEW_PACK_OWNERSHIP_SCOPE_KINDS, REVIEW_PACK_PARITY_CLASSES,
     REVIEW_PACK_SEVERITY_CLASSES, REVIEW_PACK_UNSUPPORTED_FIELD_CLASSES,
+};
+pub use review_pack_parity_harness::{
+    project_review_pack_parity_harness, ReviewPackParityHarnessCheckFinding,
+    ReviewPackParityHarnessDowngradeProjection, ReviewPackParityHarnessDriftDowngrade,
+    ReviewPackParityHarnessError, ReviewPackParityHarnessFindingProjection,
+    ReviewPackParityHarnessLaneObservation, ReviewPackParityHarnessLaneProjection,
+    ReviewPackParityHarnessProjection, ReviewPackParityHarnessRecord,
+    ReviewPackParityHarnessReviewInvariants, ReviewPackParityHarnessSupportExport,
+    ReviewPackParityHarnessValidationError,
+    REVIEW_PACK_PARITY_HARNESS_ALPHA_HARNESS_VERSION,
+    REVIEW_PACK_PARITY_HARNESS_ALPHA_RECORD_KIND,
+    REVIEW_PACK_PARITY_HARNESS_ALPHA_SCHEMA_VERSION,
+    REVIEW_PACK_PARITY_HARNESS_AUTHORITY_CLASSES,
+    REVIEW_PACK_PARITY_HARNESS_CONSUMER_SURFACES,
+    REVIEW_PACK_PARITY_HARNESS_EXPECTED_PARITY_CLASSES,
+    REVIEW_PACK_PARITY_HARNESS_LANE_CLASSES, REVIEW_PACK_PARITY_HARNESS_LANE_OUTCOME_CLASSES,
+    REVIEW_PACK_PARITY_HARNESS_LANE_STATUS_CLASSES,
+    REVIEW_PACK_PARITY_HARNESS_OVERALL_VERDICT_CLASSES,
+    REVIEW_PACK_PARITY_HARNESS_PARITY_FINDING_CLASSES,
+    REVIEW_PACK_PARITY_HARNESS_ROW_DOWNGRADE_CLASSES,
 };
 pub use diff::{
     DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,

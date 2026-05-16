@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/review_pack_parity_harness.schema.json",
+  "title": "Aureline review-pack parity-harness alpha record",
+  "description": "Boundary schema for the alpha review-pack parity-harness family frozen in docs/review/m3/review_pack_parity_alpha.md. A parity-harness record is the post-execution comparison between a local-lane run and a CI-derived run of one underlying review-pack DSL record (validated by schemas/review/review_pack.schema.json). It binds the source review_pack_alpha id, names the engaged or declined lanes, projects per-check outcomes for each lane, declares the resulting parity_finding_class per check, names any drift_downgrades that lowered the row, and quotes the overall verdict the docs / support / partner packets read. Raw paths, raw glob bodies, raw credentials, raw command lines, raw URLs, and raw check outputs never cross this boundary; the record carries opaque refs, closed-vocabulary tokens, and short reviewable sentences only. Adding a new closed vocabulary value is additive-minor and bumps schema_version; repurposing an existing value is breaking; bumping harness_version is reserved for breaking harness semantics changes.",
+  "type": "object",
+  "$ref": "#/$defs/review_pack_parity_harness_alpha_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "harness_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe in support bundles, and safe on RPC. Raw paths, raw URLs, raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pack_authority_class": {
+      "type": "string",
+      "enum": [
+        "repo_first_party",
+        "repo_team_shared",
+        "repo_partner_signed",
+        "repo_uncertified_community",
+        "pack_authority_unknown_requires_review"
+      ]
+    },
+    "harness_lane_class": {
+      "type": "string",
+      "enum": [
+        "local_lane",
+        "ci_lane"
+      ]
+    },
+    "harness_lane_status_class": {
+      "type": "string",
+      "enum": [
+        "lane_engaged",
+        "lane_declined_uncertified",
+        "lane_declined_unsupported",
+        "lane_degraded_unknown_requires_review"
+      ]
+    },
+    "check_lane_outcome_class": {
+      "type": "string",
+      "enum": [
+        "passed_parity",
+        "passed_with_drift_note",
+        "failed_blocking",
+        "failed_advisory",
+        "declined_by_lane_documented",
+        "skipped_by_lane_documented",
+        "lane_outcome_unknown_requires_review"
+      ]
+    },
+    "parity_finding_class": {
+      "type": "string",
+      "enum": [
+        "full_parity",
+        "local_only_documented_match",
+        "ci_only_documented_match",
+        "declined_documented_match",
+        "drift_detected",
+        "parity_unknown_requires_review"
+      ]
+    },
+    "row_downgrade_class": {
+      "type": "string",
+      "enum": [
+        "no_downgrade",
+        "downgraded_to_advisory",
+        "downgraded_to_review_required",
+        "suspended_pack"
+      ]
+    },
+    "overall_verdict_class": {
+      "type": "string",
+      "enum": [
+        "full_parity",
+        "drift_downgraded",
+        "lane_declined_documented",
+        "parity_unknown_requires_review"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "parity_harness_inspector",
+        "review_pack_inspector",
+        "review_preview",
+        "cli_headless_entry",
+        "support_export",
+        "docs_review",
+        "activity_center"
+      ]
+    },
+    "harness_lane_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_class",
+        "lane_status_class",
+        "summary"
+      ],
+      "properties": {
+        "lane_class": { "$ref": "#/$defs/harness_lane_class" },
+        "lane_status_class": { "$ref": "#/$defs/harness_lane_status_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "check_parity_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_ref",
+        "expected_parity_class",
+        "local_outcome_class",
+        "ci_outcome_class",
+        "observed_parity_class",
+        "parity_finding_class",
+        "summary"
+      ],
+      "properties": {
+        "check_ref": { "$ref": "#/$defs/opaque_id" },
+        "expected_parity_class": {
+          "type": "string",
+          "enum": [
+            "local_and_ci_parity",
+            "ci_only_documented",
+            "local_only_documented",
+            "parity_unknown_requires_review"
+          ]
+        },
+        "local_outcome_class": { "$ref": "#/$defs/check_lane_outcome_class" },
+        "ci_outcome_class": { "$ref": "#/$defs/check_lane_outcome_class" },
+        "observed_parity_class": {
+          "type": "string",
+          "enum": [
+            "local_and_ci_parity",
+            "ci_only_documented",
+            "local_only_documented",
+            "parity_unknown_requires_review"
+          ]
+        },
+        "parity_finding_class": { "$ref": "#/$defs/parity_finding_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "drift_downgrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_ref",
+        "downgrade_class",
+        "summary"
+      ],
+      "properties": {
+        "check_ref": { "$ref": "#/$defs/opaque_id" },
+        "downgrade_class": { "$ref": "#/$defs/row_downgrade_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_packet_refs",
+        "raw_path_export_allowed",
+        "raw_glob_body_export_allowed",
+        "raw_command_export_allowed",
+        "raw_check_output_export_allowed",
+        "redaction_class"
+      ],
+      "properties": {
+        "export_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_path_export_allowed": { "const": false },
+        "raw_glob_body_export_allowed": { "const": false },
+        "raw_command_export_allowed": { "const": false },
+        "raw_check_output_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "review_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_pack_ref_pinned",
+        "harness_lanes_pinned",
+        "check_findings_pinned",
+        "drift_downgrades_pinned",
+        "overall_verdict_pinned",
+        "no_hidden_writes"
+      ],
+      "properties": {
+        "review_pack_ref_pinned": { "const": true },
+        "harness_lanes_pinned": { "const": true },
+        "check_findings_pinned": { "const": true },
+        "drift_downgrades_pinned": { "const": true },
+        "overall_verdict_pinned": { "const": true },
+        "no_hidden_writes": { "const": true }
+      }
+    },
+    "review_pack_parity_harness_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "harness_version",
+        "parity_harness_id",
+        "review_pack_ref",
+        "repo_anchor_ref",
+        "pack_authority_class",
+        "display_label",
+        "summary",
+        "operator_caveat",
+        "harness_lane_observations",
+        "check_parity_findings",
+        "drift_downgrades",
+        "overall_verdict_class",
+        "row_downgrade_class",
+        "consumer_surfaces",
+        "support_export",
+        "review_invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_pack_parity_harness_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "harness_version": { "$ref": "#/$defs/harness_version" },
+        "parity_harness_id": { "$ref": "#/$defs/opaque_id" },
+        "review_pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "repo_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "pack_authority_class": { "$ref": "#/$defs/pack_authority_class" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "operator_caveat": { "$ref": "#/$defs/reviewable_sentence" },
+        "harness_lane_observations": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/harness_lane_observation" }
+        },
+        "check_parity_findings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/check_parity_finding" }
+        },
+        "drift_downgrades": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/drift_downgrade" }
+        },
+        "overall_verdict_class": { "$ref": "#/$defs/overall_verdict_class" },
+        "row_downgrade_class": { "$ref": "#/$defs/row_downgrade_class" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "contains": { "const": "parity_harness_inspector" }
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "review_invariants": { "$ref": "#/$defs/review_invariants" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
