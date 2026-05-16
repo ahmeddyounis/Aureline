@@ -1,0 +1,481 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/test_quality_truth_beta.schema.json",
+  "title": "Aureline test quality truth beta records",
+  "description": "Boundary schema for the beta test-quality truth lane. Every claimed beta test row republishes the alpha test-attempt tokens into one typed coverage packet, one flaky packet, one snapshot packet, and one baseline packet, plus a per-row roll-up that downgrades the row support class when a packet is missing, imported-only, or stale. Raw command lines, raw stdout / stderr bytes, raw coverage payloads, raw snapshot bytes, raw stack traces, and raw provider payloads MUST NOT cross this boundary; records carry opaque refs, controlled tokens, and bounded summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_quality_beta_coverage_manifest_record" },
+    { "$ref": "#/$defs/test_quality_coverage_packet_record" },
+    { "$ref": "#/$defs/test_quality_flaky_packet_record" },
+    { "$ref": "#/$defs/test_quality_snapshot_packet_record" },
+    { "$ref": "#/$defs/test_quality_baseline_packet_record" },
+    { "$ref": "#/$defs/test_quality_row_truth_record" },
+    { "$ref": "#/$defs/test_quality_beta_projection_record" },
+    { "$ref": "#/$defs/test_quality_beta_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version pinned to the canonical alpha test-attempt model."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "framework_token": {
+      "type": "string",
+      "enum": ["pytest"]
+    },
+    "quality_kind_token": {
+      "type": "string",
+      "enum": ["coverage", "flaky", "snapshot", "baseline"]
+    },
+    "freshness_token": {
+      "type": "string",
+      "enum": [
+        "current_local_evidence",
+        "authoritative_imported_read_only",
+        "stale_requires_retest",
+        "no_evidence_retest_pending",
+        "unknown_requires_review"
+      ]
+    },
+    "support_class_token": {
+      "type": "string",
+      "enum": [
+        "out_of_scope",
+        "stable_supported",
+        "limited_imported_or_partial",
+        "retest_pending_no_current_packet",
+        "unknown_requires_review"
+      ]
+    },
+    "provenance_source_token": {
+      "type": "string",
+      "enum": [
+        "not_established",
+        "local_attempt",
+        "imported_provider_ci",
+        "merged_local_and_imported"
+      ]
+    },
+    "imported_signal_authority_token": {
+      "type": "string",
+      "enum": [
+        "none",
+        "authoritative_imported_evidence",
+        "stale_imported_evidence",
+        "fresh_local_reconfirmation"
+      ]
+    },
+    "artifact_kind_token": {
+      "type": "string",
+      "enum": [
+        "run_report",
+        "coverage_report",
+        "snapshot_diff",
+        "log_slice",
+        "raw_event_envelope",
+        "debug_trace",
+        "ai_suggestion"
+      ]
+    },
+    "packet_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_test_item_ref",
+        "selector_ref",
+        "test_session_ref",
+        "framework",
+        "framework_token"
+      ],
+      "properties": {
+        "canonical_test_item_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "framework": { "$ref": "#/$defs/framework_token" },
+        "framework_token": { "$ref": "#/$defs/framework_token" },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "test_quality_beta_coverage_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "frameworks"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quality_beta_coverage_manifest_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "frameworks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "framework",
+              "framework_token",
+              "claimed_quality_kinds",
+              "claimed_quality_kind_tokens",
+              "backing_artifact_kinds",
+              "backing_artifact_kind_tokens"
+            ],
+            "properties": {
+              "framework": { "$ref": "#/$defs/framework_token" },
+              "framework_token": { "$ref": "#/$defs/framework_token" },
+              "claimed_quality_kinds": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/quality_kind_token" }
+              },
+              "claimed_quality_kind_tokens": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/quality_kind_token" }
+              },
+              "backing_artifact_kinds": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/artifact_kind_token" }
+              },
+              "backing_artifact_kind_tokens": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/artifact_kind_token" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "test_quality_coverage_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "coverage_packet_id",
+        "quality_kind_token",
+        "identity",
+        "coverage_merge_token",
+        "provenance_source",
+        "provenance_source_token",
+        "imported_signal_authority",
+        "imported_signal_authority_token",
+        "freshness",
+        "freshness_token",
+        "support_class",
+        "support_class_token",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quality_coverage_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "coverage_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "quality_kind_token": { "const": "coverage" },
+        "identity": { "$ref": "#/$defs/packet_identity" },
+        "producing_test_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "producing_execution_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "coverage_artifact_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "coverage_merge_token": { "type": "string" },
+        "provenance_source": { "$ref": "#/$defs/provenance_source_token" },
+        "provenance_source_token": { "$ref": "#/$defs/provenance_source_token" },
+        "imported_signal_authority": { "$ref": "#/$defs/imported_signal_authority_token" },
+        "imported_signal_authority_token": { "$ref": "#/$defs/imported_signal_authority_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "freshness_token": { "$ref": "#/$defs/freshness_token" },
+        "support_class": { "$ref": "#/$defs/support_class_token" },
+        "support_class_token": { "$ref": "#/$defs/support_class_token" },
+        "summary": { "type": "string" }
+      }
+    },
+    "test_quality_flaky_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "flaky_packet_id",
+        "quality_kind_token",
+        "identity",
+        "evidence_attempt_refs",
+        "observation_window_attempts",
+        "flaky_verdict_state",
+        "flaky_verdict_token",
+        "provenance_source",
+        "provenance_source_token",
+        "imported_signal_authority",
+        "imported_signal_authority_token",
+        "freshness",
+        "freshness_token",
+        "support_class",
+        "support_class_token",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quality_flaky_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "flaky_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "quality_kind_token": { "const": "flaky" },
+        "identity": { "$ref": "#/$defs/packet_identity" },
+        "producing_test_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "observation_window_attempts": { "type": "integer", "minimum": 0 },
+        "flaky_verdict_state": { "type": "string" },
+        "flaky_verdict_token": { "type": "string" },
+        "provenance_source": { "$ref": "#/$defs/provenance_source_token" },
+        "provenance_source_token": { "$ref": "#/$defs/provenance_source_token" },
+        "imported_signal_authority": { "$ref": "#/$defs/imported_signal_authority_token" },
+        "imported_signal_authority_token": { "$ref": "#/$defs/imported_signal_authority_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "freshness_token": { "$ref": "#/$defs/freshness_token" },
+        "support_class": { "$ref": "#/$defs/support_class_token" },
+        "support_class_token": { "$ref": "#/$defs/support_class_token" },
+        "summary": { "type": "string" }
+      }
+    },
+    "test_quality_snapshot_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "snapshot_packet_id",
+        "quality_kind_token",
+        "identity",
+        "snapshot_review_token",
+        "provenance_source",
+        "provenance_source_token",
+        "imported_signal_authority",
+        "imported_signal_authority_token",
+        "freshness",
+        "freshness_token",
+        "support_class",
+        "support_class_token",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quality_snapshot_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "snapshot_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "quality_kind_token": { "const": "snapshot" },
+        "identity": { "$ref": "#/$defs/packet_identity" },
+        "producing_test_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "snapshot_diff_artifact_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "snapshot_review_token": { "type": "string" },
+        "provenance_source": { "$ref": "#/$defs/provenance_source_token" },
+        "provenance_source_token": { "$ref": "#/$defs/provenance_source_token" },
+        "imported_signal_authority": { "$ref": "#/$defs/imported_signal_authority_token" },
+        "imported_signal_authority_token": { "$ref": "#/$defs/imported_signal_authority_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "freshness_token": { "$ref": "#/$defs/freshness_token" },
+        "support_class": { "$ref": "#/$defs/support_class_token" },
+        "support_class_token": { "$ref": "#/$defs/support_class_token" },
+        "summary": { "type": "string" }
+      }
+    },
+    "test_quality_baseline_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "baseline_packet_id",
+        "quality_kind_token",
+        "identity",
+        "baseline_state_token",
+        "regression_against_baseline",
+        "provenance_source",
+        "provenance_source_token",
+        "freshness",
+        "freshness_token",
+        "support_class",
+        "support_class_token",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quality_baseline_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "baseline_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "quality_kind_token": { "const": "baseline" },
+        "identity": { "$ref": "#/$defs/packet_identity" },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_state_token": {
+          "type": "string",
+          "enum": [
+            "established_baseline_matches",
+            "regression_against_baseline",
+            "baseline_stale_requires_refresh",
+            "no_baseline_established_yet",
+            "baseline_unknown_requires_review"
+          ]
+        },
+        "regression_against_baseline": { "type": "boolean" },
+        "provenance_source": { "$ref": "#/$defs/provenance_source_token" },
+        "provenance_source_token": { "$ref": "#/$defs/provenance_source_token" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "freshness_token": { "$ref": "#/$defs/freshness_token" },
+        "support_class": { "$ref": "#/$defs/support_class_token" },
+        "support_class_token": { "$ref": "#/$defs/support_class_token" },
+        "summary": { "type": "string" }
+      }
+    },
+    "test_quality_row_truth_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_truth_id",
+        "identity",
+        "tree_row_ref",
+        "inline_row_ref",
+        "coverage_packet_ref",
+        "flaky_packet_ref",
+        "snapshot_packet_ref",
+        "baseline_packet_ref",
+        "row_support_class",
+        "row_support_class_token",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quality_row_truth_record" },
+        "row_truth_id": { "$ref": "#/$defs/opaque_id" },
+        "identity": { "$ref": "#/$defs/packet_identity" },
+        "tree_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "inline_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "coverage_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "flaky_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "snapshot_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "baseline_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "row_support_class": { "$ref": "#/$defs/support_class_token" },
+        "row_support_class_token": { "$ref": "#/$defs/support_class_token" },
+        "summary": { "type": "string" }
+      }
+    },
+    "test_quality_beta_projection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "projection_id",
+        "workspace_id",
+        "framework",
+        "framework_token",
+        "tree_projection_ref",
+        "inline_projection_ref",
+        "coverage_packets",
+        "flaky_packets",
+        "snapshot_packets",
+        "baseline_packets",
+        "row_truths"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quality_beta_projection_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "projection_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "framework": { "$ref": "#/$defs/framework_token" },
+        "framework_token": { "$ref": "#/$defs/framework_token" },
+        "tree_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "inline_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "coverage_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_coverage_packet_record" }
+        },
+        "flaky_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_flaky_packet_record" }
+        },
+        "snapshot_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_snapshot_packet_record" }
+        },
+        "baseline_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_baseline_packet_record" }
+        },
+        "row_truths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_row_truth_record" }
+        }
+      }
+    },
+    "test_quality_beta_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "generated_at",
+        "workspace_id",
+        "coverage_manifest",
+        "projection_ref",
+        "tree_projection_ref",
+        "inline_projection_ref",
+        "coverage_packets",
+        "flaky_packets",
+        "snapshot_packets",
+        "baseline_packets",
+        "row_truths",
+        "summary_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quality_beta_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "coverage_manifest": { "$ref": "#/$defs/test_quality_beta_coverage_manifest_record" },
+        "projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "tree_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "inline_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "coverage_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_coverage_packet_record" }
+        },
+        "flaky_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_flaky_packet_record" }
+        },
+        "snapshot_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_snapshot_packet_record" }
+        },
+        "baseline_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_baseline_packet_record" }
+        },
+        "row_truths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/test_quality_row_truth_record" }
+        },
+        "summary_lines": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

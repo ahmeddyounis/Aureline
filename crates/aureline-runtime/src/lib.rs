@@ -42,6 +42,7 @@ pub mod targets;
 pub mod task_events;
 pub mod tasks;
 pub mod testing;
+pub mod testing_quality;
 pub mod tests;
 pub mod trace_replay_alpha;
 
@@ -249,6 +250,17 @@ pub use testing::{
     TEST_RUNNER_BETA_INLINE_ROW_RECORD_KIND, TEST_RUNNER_BETA_RERUN_PARITY_RECORD_KIND,
     TEST_RUNNER_BETA_SCHEMA_VERSION, TEST_RUNNER_BETA_SUPPORT_EXPORT_RECORD_KIND,
     TEST_RUNNER_BETA_TREE_PROJECTION_RECORD_KIND, TEST_RUNNER_BETA_TREE_ROW_RECORD_KIND,
+};
+pub use testing_quality::{
+    BaselineTruthPacket, CoverageTruthPacket, FlakyTruthPacket, SnapshotTruthPacket,
+    TestQualityBetaCoverageManifest, TestQualityBetaCoverageRow, TestQualityBetaSupportExport,
+    TestQualityFreshness, TestQualityKind, TestQualityPacketIdentity, TestQualityProjection,
+    TestQualityProvenanceSource, TestQualityRowTruth, TestQualitySupportClass,
+    TEST_QUALITY_BASELINE_PACKET_RECORD_KIND, TEST_QUALITY_BETA_COVERAGE_MANIFEST_RECORD_KIND,
+    TEST_QUALITY_BETA_PROJECTION_RECORD_KIND, TEST_QUALITY_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    TEST_QUALITY_COVERAGE_PACKET_RECORD_KIND, TEST_QUALITY_FLAKY_PACKET_RECORD_KIND,
+    TEST_QUALITY_ROW_TRUTH_RECORD_KIND, TEST_QUALITY_SNAPSHOT_PACKET_RECORD_KIND,
+    TEST_QUALITY_TRUTH_BETA_SCHEMA_VERSION,
 };
 pub use tests::{
     AiTestGenerationGateState, CoverageMergeClass, FlakyVerdictState, ImportedCiProjection,

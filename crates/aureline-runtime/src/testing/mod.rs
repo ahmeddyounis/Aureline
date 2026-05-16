@@ -829,6 +829,18 @@ pub struct TestRunnerBetaSupportExport {
     pub attempt_packet_refs: Vec<String>,
     /// Underlying alpha support-export ids included for support replay.
     pub attempt_support_export_refs: Vec<String>,
+    /// Test-quality truth projection ref, when one has been attached.
+    ///
+    /// When present, every claimed beta row in the export points to the same
+    /// projection that the in-product flow renders, so support reviewers can
+    /// join a row to its coverage / flaky / snapshot / baseline packets
+    /// without re-deriving them from log text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quality_projection_ref: Option<String>,
+    /// Test-quality support-export ref carried alongside this packet, when
+    /// the in-product flow attached one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quality_support_export_ref: Option<String>,
     /// Reviewer-facing summary lines.
     pub summary_lines: Vec<String>,
 }
@@ -886,8 +898,23 @@ impl TestRunnerBetaSupportExport {
             parity_rows: projection.parity_rows.clone(),
             attempt_packet_refs,
             attempt_support_export_refs,
+            quality_projection_ref: None,
+            quality_support_export_ref: None,
             summary_lines,
         }
+    }
+
+    /// Attaches the test-quality truth projection refs to this export so
+    /// support reviewers can join the same packet the in-product flow
+    /// renders. The refs MUST point to the projection and support-export
+    /// that share this packet's workspace and tree-projection ref.
+    pub fn attach_quality_truth_refs(
+        &mut self,
+        projection_ref: impl Into<String>,
+        support_export_ref: impl Into<String>,
+    ) {
+        self.quality_projection_ref = Some(projection_ref.into());
+        self.quality_support_export_ref = Some(support_export_ref.into());
     }
 
     /// Renders deterministic plaintext lines for support exports.
@@ -904,6 +931,12 @@ impl TestRunnerBetaSupportExport {
                 .collect::<Vec<_>>()
                 .join(",")
         ));
+        if let Some(projection_ref) = &self.quality_projection_ref {
+            out.push_str(&format!("Quality projection: {}\n", projection_ref));
+        }
+        if let Some(support_export_ref) = &self.quality_support_export_ref {
+            out.push_str(&format!("Quality support export: {}\n", support_export_ref));
+        }
         for line in &self.summary_lines {
             out.push_str(line);
             out.push('\n');
