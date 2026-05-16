@@ -57,6 +57,7 @@ pub mod embedded_boundary_audit;
 pub mod env_inspect;
 pub mod experiments_governance;
 pub mod explorer;
+pub mod extensions;
 pub mod git_changes;
 pub mod graph_state_card;
 pub mod help;
