@@ -67,6 +67,7 @@ pub mod layout;
 pub mod learning_tour_alpha;
 pub mod managed_truth;
 pub mod managed_workspace_labels;
+pub mod migration_center;
 pub mod migration_corpus;
 pub mod migration_wizard;
 pub mod notebook_alpha;
