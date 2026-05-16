@@ -1,0 +1,393 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/sdk_v1_starter_pack.schema.json",
+  "title": "Aureline SDK v1 starter pack: typed API surfaces, manifest authoring guides, canonical sample-extension pack, and support-export projection (beta lane)",
+  "description": "Cross-tool boundary schema for the SDK v1 starter-pack lane. One record set captures (1) the published typed-API surfaces under the M3 beta admission lane, (2) the manifest authoring guides authors read against those surfaces, (3) the canonical sample-extension pack (wasm and external-host) that exercises the real runtime, permission, and publication contracts, (4) the bundled starter-pack row paired with a closed decision and reason vocabulary the install / review chrome reads verbatim, and (5) a metadata-safe support / partner export projection the support bundle, partner packet template, and CLI / headless review surfaces read instead of inventing a local 'authors can build against this' string. The Rust types in crates/aureline-extensions/src/sdk_v1/ are the source of truth; this schema is the typed cross-tool boundary every non-owning surface reads. Adding a new enum value or an additive optional field is additive-minor with an sdk_v1_starter_pack_schema_version bump; repurposing an existing value is breaking and requires a new decision row. Raw SDK release bytes, raw signing-key material, raw policy bodies, raw paths, raw tokens, raw bridge-shim payloads, and raw publisher-private data MUST NOT appear in any record; records carry refs only and pin redaction_class = metadata_safe_default.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/sdk_v1_api_surface_record" },
+    { "$ref": "#/$defs/sdk_v1_manifest_authoring_guide_record" },
+    { "$ref": "#/$defs/sample_pack_extension_record" },
+    { "$ref": "#/$defs/sdk_v1_starter_pack_record" },
+    { "$ref": "#/$defs/sdk_v1_starter_pack_support_export_record" }
+  ],
+  "$defs": {
+    "sdk_v1_starter_pack_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "non_empty_label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_safe_default"
+    },
+    "host_contract_family_class": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ]
+    },
+    "sdk_v1_api_surface_class": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model_host_api",
+        "wasm_core_module_host_api",
+        "external_host_supervised_api",
+        "helper_binary_api",
+        "compatibility_bridge_api",
+        "remote_side_component_api"
+      ]
+    },
+    "sdk_v1_api_availability_class": {
+      "type": "string",
+      "enum": [
+        "available_in_beta",
+        "preview_in_beta",
+        "not_available_until_general",
+        "retired_pending_successor"
+      ]
+    },
+    "sample_pack_entry_class": {
+      "type": "string",
+      "enum": [
+        "wasm_component_minimal",
+        "wasm_component_capability_negotiated",
+        "external_host_supervised_minimal",
+        "external_host_supervised_capability_negotiated",
+        "helper_binary_short_lived",
+        "manifest_authoring_walkthrough"
+      ]
+    },
+    "sample_pack_validation_class": {
+      "type": "string",
+      "enum": [
+        "must_compile_in_ci",
+        "must_validate_in_ci",
+        "must_run_in_ci",
+        "documentation_only"
+      ]
+    },
+    "sdk_v1_manifest_guide_class": {
+      "type": "string",
+      "enum": [
+        "permission_declaration_walkthrough",
+        "host_contract_family_walkthrough",
+        "publisher_identity_walkthrough",
+        "runtime_budget_walkthrough",
+        "update_and_rollback_walkthrough",
+        "sdk_publication_walkthrough"
+      ]
+    },
+    "sdk_v1_starter_pack_decision_class": {
+      "type": "string",
+      "enum": [
+        "ready_for_authors",
+        "partially_ready_preview_surfaces_only",
+        "refused_inconsistent_input"
+      ]
+    },
+    "sdk_v1_starter_pack_reason_class": {
+      "type": "string",
+      "enum": [
+        "all_claimed_surfaces_available_in_beta",
+        "some_claimed_surfaces_preview_in_beta",
+        "refused_pack_id_unprefixed",
+        "refused_sdk_line_ref_missing",
+        "refused_claimed_surfaces_empty",
+        "refused_no_wasm_sample_for_claimed_wasm_lane",
+        "refused_no_external_host_sample_for_claimed_external_host_lane",
+        "refused_authoring_guide_missing_for_claimed_surface",
+        "refused_sample_validation_documentation_only_on_runnable_entry",
+        "refused_sample_host_family_disagrees_with_api_surface",
+        "refused_sample_manifest_ref_unprefixed",
+        "refused_sample_permission_manifest_ref_unprefixed",
+        "refused_sample_runtime_contract_ref_unprefixed",
+        "refused_surface_availability_retired",
+        "refused_redaction_class_not_metadata_safe"
+      ]
+    },
+    "sdk_v1_api_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_v1_starter_pack_schema_version",
+        "api_surface_id",
+        "api_surface_class",
+        "host_contract_family_class",
+        "availability_class",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "sdk_release_bundle_ref",
+        "covered_wit_world_refs",
+        "surface_summary_label",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "sdk_v1_api_surface_record" },
+        "sdk_v1_starter_pack_schema_version": { "$ref": "#/$defs/sdk_v1_starter_pack_schema_version" },
+        "api_surface_id": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^sdk_v1_api_surface:" }
+          ]
+        },
+        "api_surface_class": { "$ref": "#/$defs/sdk_v1_api_surface_class" },
+        "host_contract_family_class": { "$ref": "#/$defs/host_contract_family_class" },
+        "availability_class": { "$ref": "#/$defs/sdk_v1_api_availability_class" },
+        "sdk_line_id": { "$ref": "#/$defs/non_empty_label" },
+        "sdk_line_semver": { "$ref": "#/$defs/non_empty_label" },
+        "sdk_release_bundle_ref": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^sdk_release_bundle:" }
+          ]
+        },
+        "covered_wit_world_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "external_host_contract_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "surface_summary_label": { "$ref": "#/$defs/non_empty_label" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "sdk_v1_manifest_authoring_guide_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_v1_starter_pack_schema_version",
+        "manifest_guide_id",
+        "guide_class",
+        "covered_api_surface_classes",
+        "guide_summary_label",
+        "repair_affordance_label",
+        "doc_path_label",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "sdk_v1_manifest_authoring_guide_record" },
+        "sdk_v1_starter_pack_schema_version": { "$ref": "#/$defs/sdk_v1_starter_pack_schema_version" },
+        "manifest_guide_id": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^manifest_guide:" }
+          ]
+        },
+        "guide_class": { "$ref": "#/$defs/sdk_v1_manifest_guide_class" },
+        "covered_api_surface_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/sdk_v1_api_surface_class" }
+        },
+        "guide_summary_label": { "$ref": "#/$defs/non_empty_label" },
+        "repair_affordance_label": { "$ref": "#/$defs/non_empty_label" },
+        "doc_path_label": { "$ref": "#/$defs/non_empty_label" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "sample_pack_extension_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_v1_starter_pack_schema_version",
+        "sample_pack_id",
+        "sample_entry_class",
+        "sample_validation_class",
+        "host_contract_family_class",
+        "api_surface_class",
+        "manifest_baseline_ref",
+        "permission_manifest_ref",
+        "runtime_contract_ref",
+        "sdk_release_bundle_ref",
+        "sample_summary_label",
+        "repair_affordance_label",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "sample_pack_extension_record" },
+        "sdk_v1_starter_pack_schema_version": { "$ref": "#/$defs/sdk_v1_starter_pack_schema_version" },
+        "sample_pack_id": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^sample_pack:" }
+          ]
+        },
+        "sample_entry_class": { "$ref": "#/$defs/sample_pack_entry_class" },
+        "sample_validation_class": { "$ref": "#/$defs/sample_pack_validation_class" },
+        "host_contract_family_class": { "$ref": "#/$defs/host_contract_family_class" },
+        "api_surface_class": { "$ref": "#/$defs/sdk_v1_api_surface_class" },
+        "manifest_baseline_ref": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^manifest_baseline:" }
+          ]
+        },
+        "permission_manifest_ref": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^permission_manifest:" }
+          ]
+        },
+        "runtime_contract_ref": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^runtime_v1_beta:" }
+          ]
+        },
+        "sdk_release_bundle_ref": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^sdk_release_bundle:" }
+          ]
+        },
+        "conformance_result_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "sample_summary_label": { "$ref": "#/$defs/non_empty_label" },
+        "repair_affordance_label": { "$ref": "#/$defs/non_empty_label" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "sdk_v1_starter_pack_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_v1_starter_pack_schema_version",
+        "starter_pack_id",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "claimed_api_surfaces",
+        "authoring_guides",
+        "sample_pack_entries",
+        "claimed_api_surface_count",
+        "available_in_beta_surface_count",
+        "preview_in_beta_surface_count",
+        "wasm_sample_count",
+        "external_host_sample_count",
+        "authoring_guide_count",
+        "decision_class",
+        "reason_class",
+        "decision_summary",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "sdk_v1_starter_pack_record" },
+        "sdk_v1_starter_pack_schema_version": { "$ref": "#/$defs/sdk_v1_starter_pack_schema_version" },
+        "starter_pack_id": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^sdk_v1_starter_pack:" }
+          ]
+        },
+        "sdk_line_id": { "$ref": "#/$defs/non_empty_label" },
+        "sdk_line_semver": { "$ref": "#/$defs/non_empty_label" },
+        "claimed_api_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sdk_v1_api_surface_record" }
+        },
+        "authoring_guides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sdk_v1_manifest_authoring_guide_record" }
+        },
+        "sample_pack_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sample_pack_extension_record" }
+        },
+        "claimed_api_surface_count": { "type": "integer", "minimum": 0 },
+        "available_in_beta_surface_count": { "type": "integer", "minimum": 0 },
+        "preview_in_beta_surface_count": { "type": "integer", "minimum": 0 },
+        "wasm_sample_count": { "type": "integer", "minimum": 0 },
+        "external_host_sample_count": { "type": "integer", "minimum": 0 },
+        "authoring_guide_count": { "type": "integer", "minimum": 0 },
+        "decision_class": { "$ref": "#/$defs/sdk_v1_starter_pack_decision_class" },
+        "reason_class": { "$ref": "#/$defs/sdk_v1_starter_pack_reason_class" },
+        "decision_summary": { "$ref": "#/$defs/non_empty_label" },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "sdk_v1_starter_pack_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "sdk_v1_starter_pack_schema_version",
+        "export_id",
+        "starter_pack_ref",
+        "sdk_line_id",
+        "sdk_line_semver",
+        "decision_class",
+        "reason_class",
+        "claimed_api_surface_count",
+        "available_in_beta_surface_count",
+        "preview_in_beta_surface_count",
+        "wasm_sample_count",
+        "external_host_sample_count",
+        "authoring_guide_count",
+        "blocks_authoring",
+        "preview_disclosure_required",
+        "export_safe_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "sdk_v1_starter_pack_support_export_record" },
+        "sdk_v1_starter_pack_schema_version": { "$ref": "#/$defs/sdk_v1_starter_pack_schema_version" },
+        "export_id": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^sdk_v1_starter_pack_support_export:" }
+          ]
+        },
+        "starter_pack_ref": {
+          "allOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "string", "pattern": "^sdk_v1_starter_pack:" }
+          ]
+        },
+        "sdk_line_id": { "$ref": "#/$defs/non_empty_label" },
+        "sdk_line_semver": { "$ref": "#/$defs/non_empty_label" },
+        "decision_class": { "$ref": "#/$defs/sdk_v1_starter_pack_decision_class" },
+        "reason_class": { "$ref": "#/$defs/sdk_v1_starter_pack_reason_class" },
+        "claimed_api_surface_count": { "type": "integer", "minimum": 0 },
+        "available_in_beta_surface_count": { "type": "integer", "minimum": 0 },
+        "preview_in_beta_surface_count": { "type": "integer", "minimum": 0 },
+        "wasm_sample_count": { "type": "integer", "minimum": 0 },
+        "external_host_sample_count": { "type": "integer", "minimum": 0 },
+        "authoring_guide_count": { "type": "integer", "minimum": 0 },
+        "blocks_authoring": { "type": "boolean" },
+        "preview_disclosure_required": { "type": "boolean" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_label" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

@@ -37,6 +37,12 @@
 //!   [`supervision::ExtensionHostSupervisionSupportExportRecord`]
 //!   projection for the first consuming support / partner export
 //!   surface.
+//! - one [`sdk_v1::SdkV1StarterPackRecord`] starter pack that joins the
+//!   published SDK v1 typed API surfaces, the manifest authoring guides,
+//!   and the canonical sample-extension pack (wasm and external-host)
+//!   into one inspectable row, plus an
+//!   [`sdk_v1::SdkV1StarterPackSupportExportRecord`] projection for the
+//!   first consuming support / partner export surface.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -56,6 +62,7 @@ pub mod manifest_baseline;
 pub mod permission_manifest;
 pub mod review_alpha;
 pub mod runtime;
+pub mod sdk_v1;
 pub mod supervision;
 
 pub use collections::{
@@ -120,6 +127,19 @@ pub use runtime::{
     RuntimeV1BetaContractRecord, RuntimeV1BetaFinding, RuntimeV1BetaSupportExportRecord,
     SdkAlignmentClass, RUNTIME_V1_BETA_CONTRACT_RECORD_KIND, RUNTIME_V1_BETA_SCHEMA_VERSION,
     RUNTIME_V1_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use sdk_v1::{
+    evaluate_sdk_v1_starter_pack, host_contract_family_for_api_surface,
+    project_sdk_v1_starter_pack_support_export, validate_sample_pack_extension_record,
+    validate_sdk_v1_api_surface_record, validate_sdk_v1_manifest_authoring_guide_record,
+    validate_sdk_v1_starter_pack_record, SamplePackEntryClass, SamplePackExtensionRecord,
+    SamplePackValidationClass, SdkV1ApiAvailabilityClass, SdkV1ApiSurfaceClass,
+    SdkV1ApiSurfaceRecord, SdkV1ManifestAuthoringGuideRecord, SdkV1ManifestGuideClass,
+    SdkV1StarterPackDecisionClass, SdkV1StarterPackFinding, SdkV1StarterPackInput,
+    SdkV1StarterPackReasonClass, SdkV1StarterPackRecord, SdkV1StarterPackSupportExportRecord,
+    SAMPLE_PACK_EXTENSION_RECORD_KIND, SDK_V1_API_SURFACE_RECORD_KIND,
+    SDK_V1_MANIFEST_AUTHORING_GUIDE_RECORD_KIND, SDK_V1_STARTER_PACK_RECORD_KIND,
+    SDK_V1_STARTER_PACK_SCHEMA_VERSION, SDK_V1_STARTER_PACK_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use supervision::{
     evaluate_extension_host_supervision, project_extension_host_supervision_support_export,
