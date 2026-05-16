@@ -30,6 +30,7 @@
 )]
 
 pub mod a11y;
+pub mod about;
 pub mod activity_center;
 pub mod admin_alpha;
 pub mod ai_context_inspector;
@@ -88,6 +89,7 @@ pub mod safe_preview_card;
 pub mod save_review;
 pub mod scope_truth;
 pub mod search;
+pub mod service_health;
 pub mod start_center;
 pub mod state_cards;
 pub mod status;
