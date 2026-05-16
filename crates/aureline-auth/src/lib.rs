@@ -64,6 +64,7 @@
 pub mod browser_callback;
 pub mod credential_state;
 pub mod identity_modes;
+pub mod network_trust;
 pub mod policy_packs;
 pub mod secrets;
 pub mod system_browser;
@@ -166,6 +167,21 @@ pub use trust::{
     StageRestrictedModeLaunchRequest, TrustAuditEventClass, TrustDecisionSourceClass,
     TrustEscalationCueClass, TrustReasonClass, TrustRecoveryActionClass,
     RESTRICTED_MODE_ALPHA_PACKET_RECORD_KIND, RESTRICTED_MODE_ALPHA_SCHEMA_VERSION,
+};
+
+pub use network_trust::{
+    audit_network_trust_beta_rows, seeded_network_trust_beta_page,
+    validate_network_trust_beta_page, ClientCertificateStateClass, NetworkAuthorityClass,
+    NetworkConsumerLaneClass, NetworkSettingLockClass, NetworkSettingSourceClass,
+    NetworkTrustBetaDefect, NetworkTrustBetaDefectKind, NetworkTrustBetaFacetClass,
+    NetworkTrustBetaPage, NetworkTrustBetaProfileBinding, NetworkTrustBetaProfileClass,
+    NetworkTrustBetaRow, NetworkTrustBetaSummary, NetworkTrustBetaSupportExport,
+    NetworkTrustBetaSupportRow, ProxyResolutionModeClass, SshHostProofClass, TrustStoreSourceClass,
+    NETWORK_TRUST_BETA_DEFECT_RECORD_KIND, NETWORK_TRUST_BETA_PAGE_RECORD_KIND,
+    NETWORK_TRUST_BETA_PROFILE_BINDING_RECORD_KIND, NETWORK_TRUST_BETA_ROW_RECORD_KIND,
+    NETWORK_TRUST_BETA_SCHEMA_VERSION, NETWORK_TRUST_BETA_SHARED_CONTRACT_REF,
+    NETWORK_TRUST_BETA_SOURCE_MATRIX_REF, NETWORK_TRUST_BETA_SUMMARY_RECORD_KIND,
+    NETWORK_TRUST_BETA_SUPPORT_EXPORT_RECORD_KIND, NETWORK_TRUST_BETA_SUPPORT_ROW_RECORD_KIND,
 };
 
 pub use workspace_trust::{
