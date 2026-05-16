@@ -57,7 +57,15 @@
 //!   export so enterprise pilots inspect provisioning, history, and
 //!   entitlement state with one record kind across connected, mirror-only,
 //!   offline, and enterprise-managed beta profiles without silently widening
-//!   managed authority.
+//!   managed authority; and
+//! - one [`secret_broker::SecretBrokerBetaPage`] beta projection that turns
+//!   vault/keychain integration into handle-only projection rows paired with
+//!   a consumer-identity audit stream so admin, support, and reviewer
+//!   surfaces inspect which consumer, target, workspace scope, and projection
+//!   mode requested a secret across connected, mirror-only, offline, and
+//!   enterprise-managed beta profiles without exposing raw secret material,
+//!   raw handle ids, plaintext persistence, silent in-memory promotion,
+//!   stale handle reuse, or undeclared public-endpoint fallback.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -94,6 +102,7 @@ pub mod oidc;
 pub mod passkey;
 pub mod policy_packs;
 pub mod provisioning;
+pub mod secret_broker;
 pub mod secrets;
 pub mod system_browser;
 pub mod trust;
@@ -193,6 +202,19 @@ pub use secrets::{
     SECRET_BROKER_ALPHA_PACKET_RECORD_KIND, SECRET_BROKER_ALPHA_SCHEMA_VERSION,
     SECRET_BROKER_ROW_RECORD_KIND, SECRET_BROKER_SUPPORT_EXPORT_RECORD_KIND,
     SECRET_BROKER_SUPPORT_EXPORT_ROW_RECORD_KIND,
+};
+
+pub use secret_broker::{
+    audit_secret_broker_beta_page, seeded_secret_broker_beta_page,
+    validate_secret_broker_beta_page, ConsumerAuditOutcomeClass, HandleLifecycleStateClass,
+    HandleProjectionModeClass, SecretBrokerBetaDefect, SecretBrokerBetaDefectKind,
+    SecretBrokerBetaHandleRow, SecretBrokerBetaPage, SecretBrokerBetaProfileClass,
+    SecretBrokerBetaSummary, SecretBrokerBetaSupportExport, SecretConsumerAuditEvent, VaultAdapterClass,
+    VaultBinding, VaultSignatureStateClass, SECRET_BROKER_BETA_CONSUMER_AUDIT_RECORD_KIND,
+    SECRET_BROKER_BETA_DEFECT_RECORD_KIND, SECRET_BROKER_BETA_HANDLE_ROW_RECORD_KIND,
+    SECRET_BROKER_BETA_PAGE_RECORD_KIND, SECRET_BROKER_BETA_SCHEMA_VERSION,
+    SECRET_BROKER_BETA_SHARED_CONTRACT_REF, SECRET_BROKER_BETA_SOURCE_MATRIX_REF,
+    SECRET_BROKER_BETA_SUMMARY_RECORD_KIND, SECRET_BROKER_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use oidc::{
