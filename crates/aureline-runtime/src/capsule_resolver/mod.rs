@@ -1,11 +1,16 @@
-//! Metadata-only environment-capsule resolver for alpha workspace entry.
+//! Environment-capsule resolver.
 //!
 //! This module sits upstream of [`crate::execution_context::ExecutionContextResolver`].
-//! It inspects read-only workspace metadata, chooses an alpha capsule hint, and
+//! It inspects read-only workspace metadata, chooses a capsule hint, and
 //! returns the [`EnvironmentCapsuleRef`] plus a prebuild fingerprint stub needed
-//! by launch, template, and support surfaces. It intentionally does not parse
-//! devcontainer, Nix, or Compose bodies and never executes repository-owned
-//! hooks.
+//! by launch, template, and support surfaces. The alpha resolver here is
+//! metadata-only: it does not parse devcontainer, Nix, or Compose bodies and
+//! never executes repository-owned hooks. The beta extension in [`beta`] adds
+//! devcontainer, Nix, and Compose body parsing with a closed precedence ladder
+//! and typed drift evaluation; the alpha resolver remains the body the beta
+//! resolution carries verbatim so reviewers can compare the two side-by-side.
+
+pub mod beta;
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -478,7 +483,7 @@ fn critical_toolchain_hashes(
     hashes
 }
 
-fn digest_token(parts: &[&str]) -> String {
+pub(crate) fn digest_token(parts: &[&str]) -> String {
     let mut lanes = [
         0xcbf29ce484222325_u64,
         0x9e3779b97f4a7c15_u64,

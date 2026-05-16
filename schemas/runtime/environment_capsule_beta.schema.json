@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/environment_capsule_beta.schema.json",
+  "title": "Aureline environment-capsule beta resolution, drift, support-export, and coverage-manifest records",
+  "description": "Boundary schema for the beta environment-capsule resolver projected by crates/aureline-runtime/src/capsule_resolver/beta.rs. The beta resolver extends the alpha capsule resolver with devcontainer.json, docker-compose.yml, flake.nix / shell.nix / default.nix body parsing under a closed precedence ladder (devcontainer > docker_compose > nix_flake > nix_shell > nix_default > node_manifest > python_manifest). Every parsed source is stamped with one of three confidence labels — imported (clean structured parse), heuristic (partial / fallback parse), unsupported (file class the contract does not parse). Conflicting sources MUST be labelled overridden_by_higher_precedence rather than silently merged. Drift detection is content-digest based and projects onto a closed outcome vocabulary (in_sync, stale_inputs, manually_diverged, unknown_lineage). Raw devcontainer.json / docker-compose / Nix bodies, raw command lines, and raw secret values do not cross this boundary; only opaque content digests, source-class tokens, confidence tokens, and structured-token parsed fields do. Adding a new source class, confidence label, source note, or drift outcome is additive-minor and bumps environment_capsule_beta_schema_version; repurposing an existing field is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/environment_capsule_beta_resolution_record" },
+    { "$ref": "#/$defs/environment_capsule_beta_drift_record" },
+    { "$ref": "#/$defs/environment_capsule_beta_support_export_record" },
+    { "$ref": "#/$defs/environment_capsule_beta_coverage_manifest_record" }
+  ],
+  "$defs": {
+    "environment_capsule_beta_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this beta capsule resolver vocabulary."
+    },
+    "opaque_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]+$",
+      "description": "Opaque sha256-shaped digest token minted by the beta resolver. Raw file bodies are not embedded."
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "devcontainer",
+        "docker_compose",
+        "nix_flake",
+        "nix_shell",
+        "nix_default",
+        "node_manifest",
+        "python_manifest"
+      ]
+    },
+    "source_confidence": {
+      "type": "string",
+      "enum": ["imported", "heuristic", "unsupported"]
+    },
+    "source_note": {
+      "type": "string",
+      "enum": [
+        "body_unparseable",
+        "required_field_missing",
+        "dependent_source_missing",
+        "unsupported_body_parse",
+        "overridden_by_higher_precedence",
+        "unknown_field_kept"
+      ]
+    },
+    "capsule_drift_state": {
+      "type": "string",
+      "enum": [
+        "in_sync",
+        "stale_inputs",
+        "generator_changed",
+        "manually_diverged",
+        "unknown_lineage"
+      ]
+    },
+    "drift_outcome": {
+      "type": "string",
+      "enum": ["in_sync", "stale_inputs", "manually_diverged", "unknown_lineage"]
+    },
+    "prebuild_reuse_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "candidate",
+        "reused",
+        "rejected_drift",
+        "rejected_policy",
+        "rejected_trust"
+      ]
+    },
+    "parsed_fields": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "devcontainer" },
+            "image_ref": { "type": ["string", "null"] },
+            "dockerfile_ref": { "type": ["string", "null"] },
+            "compose_file_ref": { "type": ["string", "null"] },
+            "compose_service": { "type": ["string", "null"] },
+            "feature_keys": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "forward_port_count": { "type": "integer", "minimum": 0 },
+            "lifecycle_hook_keys": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "docker_compose" },
+            "service_keys": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "has_image_service": { "type": "boolean" },
+            "has_build_service": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["kind", "variant_token"],
+          "properties": {
+            "kind": { "const": "nix" },
+            "variant_token": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "node_manifest" },
+            "has_package_json": { "type": "boolean" },
+            "lockfile_refs": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "python_manifest" },
+            "has_pyproject": { "type": "boolean" },
+            "has_python_version": { "type": "boolean" },
+            "lockfile_refs": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "source_parse_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "source_class_token",
+        "source_ref",
+        "content_digest",
+        "confidence",
+        "confidence_token",
+        "parsed_fields"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_class_token": { "type": "string", "minLength": 1 },
+        "source_ref": { "type": "string", "minLength": 1 },
+        "content_digest": { "$ref": "#/$defs/opaque_digest" },
+        "confidence": { "$ref": "#/$defs/source_confidence" },
+        "confidence_token": { "type": "string", "minLength": 1 },
+        "notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_note" }
+        },
+        "parsed_fields": { "$ref": "#/$defs/parsed_fields" }
+      }
+    },
+    "precedence_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "source_class_token", "rank", "source_present", "winner"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_class_token": { "type": "string", "minLength": 1 },
+        "rank": { "type": "integer", "minimum": 0 },
+        "source_present": { "type": "boolean" },
+        "winner": { "type": "boolean" }
+      }
+    },
+    "alpha_resolution_record": {
+      "type": "object",
+      "description": "The alpha capsule resolution carried verbatim. Shape is owned by environment_capsule_alpha.schema.json; this schema accepts the alpha body without re-validating it.",
+      "additionalProperties": true
+    },
+    "drift_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class", "source_class_token"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_class_token": { "type": "string", "minLength": 1 },
+        "stored_content_digest": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_digest" }, { "type": "null" }]
+        },
+        "fresh_content_digest": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_digest" }, { "type": "null" }]
+        }
+      }
+    },
+    "environment_capsule_beta_resolution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "resolver_version",
+        "workspace_root_ref",
+        "archetype_hint",
+        "alpha_resolution",
+        "sources",
+        "precedence",
+        "source_set_digest",
+        "drift_state",
+        "environment_capsule_ref",
+        "prebuild_reuse_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "environment_capsule_beta_resolution_record" },
+        "schema_version": { "$ref": "#/$defs/environment_capsule_beta_schema_version" },
+        "resolver_version": { "type": "string", "minLength": 1 },
+        "workspace_root_ref": { "type": "string", "minLength": 1 },
+        "archetype_hint": { "type": "string", "minLength": 1 },
+        "alpha_resolution": { "$ref": "#/$defs/alpha_resolution_record" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_parse_record" }
+        },
+        "precedence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/precedence_row" }
+        },
+        "primary_source": {
+          "anyOf": [{ "$ref": "#/$defs/source_class" }, { "type": "null" }]
+        },
+        "primary_source_token": { "type": ["string", "null"] },
+        "conflict_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_note" }
+        },
+        "source_set_digest": { "$ref": "#/$defs/opaque_digest" },
+        "drift_state": { "$ref": "#/$defs/capsule_drift_state" },
+        "environment_capsule_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["capsule_id", "capsule_hash", "resolved_schema_version", "drift_state"],
+          "properties": {
+            "capsule_id": { "type": "string", "minLength": 1 },
+            "capsule_hash": { "type": "string", "minLength": 1 },
+            "resolved_schema_version": { "type": "string", "minLength": 1 },
+            "drift_state": { "$ref": "#/$defs/capsule_drift_state" }
+          }
+        },
+        "prebuild_reuse_state": { "$ref": "#/$defs/prebuild_reuse_state" }
+      }
+    },
+    "environment_capsule_beta_drift_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stored_source_set_digest",
+        "fresh_source_set_digest",
+        "outcome",
+        "outcome_token",
+        "drift_rows",
+        "added_sources",
+        "removed_sources"
+      ],
+      "properties": {
+        "record_kind": { "const": "environment_capsule_beta_drift_record" },
+        "schema_version": { "$ref": "#/$defs/environment_capsule_beta_schema_version" },
+        "stored_source_set_digest": { "$ref": "#/$defs/opaque_digest" },
+        "fresh_source_set_digest": { "$ref": "#/$defs/opaque_digest" },
+        "outcome": { "$ref": "#/$defs/drift_outcome" },
+        "outcome_token": { "type": "string", "minLength": 1 },
+        "drift_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drift_row" }
+        },
+        "added_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_class" }
+        },
+        "removed_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_class" }
+        }
+      }
+    },
+    "environment_capsule_beta_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "coverage_manifest",
+        "resolution"
+      ],
+      "properties": {
+        "record_kind": { "const": "environment_capsule_beta_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/environment_capsule_beta_schema_version" },
+        "manifest_id": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "minLength": 1 },
+        "coverage_manifest": { "$ref": "#/$defs/environment_capsule_beta_coverage_manifest_record" },
+        "resolution": { "$ref": "#/$defs/environment_capsule_beta_resolution_record" },
+        "drift_evaluations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/environment_capsule_beta_drift_record" }
+        }
+      }
+    },
+    "environment_capsule_beta_coverage_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "manifest_id", "generated_at", "source_classes"],
+      "properties": {
+        "record_kind": { "const": "environment_capsule_beta_coverage_manifest_record" },
+        "schema_version": { "$ref": "#/$defs/environment_capsule_beta_schema_version" },
+        "manifest_id": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "minLength": 1 },
+        "source_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_class", "source_class_token", "rank", "default_confidence", "default_confidence_token"],
+            "properties": {
+              "source_class": { "$ref": "#/$defs/source_class" },
+              "source_class_token": { "type": "string", "minLength": 1 },
+              "rank": { "type": "integer", "minimum": 0 },
+              "default_confidence": { "$ref": "#/$defs/source_confidence" },
+              "default_confidence_token": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

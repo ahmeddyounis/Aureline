@@ -57,6 +57,19 @@ pub use capsule_resolver::{
     ENVIRONMENT_CAPSULE_RESOLUTION_RECORD_KIND, ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION,
     ENVIRONMENT_CAPSULE_RESOLVER_VERSION, PREBUILD_FINGERPRINT_STUB_RECORD_KIND,
 };
+pub use capsule_resolver::beta::{
+    evaluate_capsule_drift, CapsuleBetaDriftOutcome, CapsuleBetaDriftRow, CapsuleBetaParsedFields,
+    CapsuleBetaPrecedenceRow, CapsuleBetaSourceBaseline, CapsuleBetaSourceClass,
+    CapsuleBetaSourceConfidence, CapsuleBetaSourceCoverageRow, CapsuleBetaSourceNote,
+    CapsuleBetaSourceParse, ComposeParsedFields, DevcontainerParsedFields,
+    EnvironmentCapsuleBetaCoverageManifest, EnvironmentCapsuleBetaDriftEvaluation,
+    EnvironmentCapsuleBetaResolution, EnvironmentCapsuleBetaResolver,
+    EnvironmentCapsuleBetaResolverConfig, EnvironmentCapsuleBetaSupportExport, NixParsedFields,
+    NodeParsedFields, PythonParsedFields, ENVIRONMENT_CAPSULE_BETA_COVERAGE_MANIFEST_RECORD_KIND,
+    ENVIRONMENT_CAPSULE_BETA_DRIFT_RECORD_KIND, ENVIRONMENT_CAPSULE_BETA_RESOLUTION_RECORD_KIND,
+    ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION, ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION,
+    ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use debug::{
     DapHostSupervisor, DapHostSupervisorConfig, DapHostSupervisorError,
     DebugAdapterCapabilityClass, DebugAdapterCapabilityRequest, DebugAdapterCapabilityResponse,
