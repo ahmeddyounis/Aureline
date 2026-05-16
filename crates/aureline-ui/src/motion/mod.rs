@@ -13,11 +13,14 @@
 
 use std::time::Duration;
 
+use serde::{Deserialize, Serialize};
+
 use crate::themes::AccessibilityPostureClass;
 use crate::tokens::{TokenRegistry, TokenRegistryError};
 
 /// Closed vocabulary describing how a motion preset adapts under constrained postures.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ReducedMotionSubstitutionClass {
     /// Render an opacity-only transition (no translation or scale).
     CrossfadeOnly,

@@ -95,6 +95,7 @@ pub mod status_bar;
 pub mod support_seed;
 pub mod tasks_seed;
 pub mod terminal_pane;
+pub mod token_state_audit;
 pub mod transfer;
 pub mod wedge_inspector;
 pub mod windowing;
