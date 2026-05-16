@@ -39,6 +39,7 @@ pub mod packages;
 pub mod provenance;
 pub mod request_workspace;
 pub mod rerun;
+pub mod support_matrix_beta;
 pub mod target_discovery;
 pub mod targets;
 pub mod task_events;
@@ -240,6 +241,16 @@ pub use rerun::{
     RERUN_COMMAND_BINDING_RECORD_KIND, RERUN_LAST_LAUNCH_RECORD_KIND, RERUN_LAST_TASK_COMMAND_ID,
     RERUN_LAST_TEST_COMMAND_ID, RERUN_LOOP_SCHEMA_VERSION, RERUN_PREPARED_ATTEMPT_RECORD_KIND,
     RERUN_SUPPORT_EXPORT_RECORD_KIND, RERUN_TARGET_COMPARISON_RECORD_KIND,
+};
+pub use support_matrix_beta::{
+    SupportMatrixAttachSupport, SupportMatrixBetaManifest, SupportMatrixBetaSupportExport,
+    SupportMatrixClass, SupportMatrixContextLane, SupportMatrixContextLaneExpectation,
+    SupportMatrixContextLaneSupport, SupportMatrixContextSupport, SupportMatrixDowngradeRule,
+    SupportMatrixInputMismatch, SupportMatrixLaunchSupport, SupportMatrixTestSupport,
+    SupportMatrixWedgeId, SupportMatrixWedgeInput, SupportMatrixWedgeRow,
+    SUPPORT_MATRIX_BETA_MANIFEST_RECORD_KIND, SUPPORT_MATRIX_BETA_SCHEMA_VERSION,
+    SUPPORT_MATRIX_BETA_SUPPORT_EXPORT_RECORD_KIND, SUPPORT_MATRIX_BETA_WEDGE_INPUT_RECORD_KIND,
+    SUPPORT_MATRIX_BETA_WEDGE_ROW_RECORD_KIND,
 };
 pub use target_discovery::{
     DiscoveryFreshnessClass, DiscoverySourceClass, ProtectedActionClass,
