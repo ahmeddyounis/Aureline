@@ -1,0 +1,58 @@
+{
+  "__fixture__": {
+    "name": "adapter_crash_loop_quarantine",
+    "scenario": "Failure drill: the adapter crashes three times inside the restart budget. The first two crashes schedule a reconnect; the third crash exhausts the budget and quarantines the session without touching unrelated lanes. The honesty marker MUST light and the support packet MUST surface the quarantine reference, an adapter_crash_inside_budget cause lineage, and adapter_crash_unhandled as the last exit reason.",
+    "owning_lane": "debugger_host_beta",
+    "owning_packet": "docs/runtime/m3/debugger_host_beta.md"
+  },
+  "record_kind": "debugger_host_beta_case",
+  "schema_version": 1,
+  "supervisor_session_id": "supervisor:dap-host:local",
+  "workspace_id": "ws-test",
+  "spec": {
+    "mode": "attach",
+    "root_ref": "workspace:root:webapp",
+    "language_id": "language:python",
+    "execution_context_id": "ctx:ws-test:02",
+    "adapter": {
+      "adapter_id": "adapter:python:debugpy",
+      "adapter_label": "Python debugpy adapter",
+      "adapter_version": "1.8.0",
+      "requested_dap_protocol_version": "DAP/1.55",
+      "transport_class": "local_sidecar_stdio"
+    },
+    "target": {
+      "canonical_target_id": "target:local:debugged:python:99",
+      "target_class_token": "local_host",
+      "target_label": "Local Python process",
+      "working_directory_digest": "digest:cwd:99",
+      "inferior_process_id": 9999
+    }
+  },
+  "negotiation": {
+    "requested": ["function_breakpoints", "exception_breakpoint_filters"],
+    "required": ["function_breakpoints"],
+    "advertised": ["function_breakpoints", "exception_breakpoint_filters"],
+    "agreed_dap_protocol_version": "DAP/1.55"
+  },
+  "steps": [
+    { "kind": "open", "observed_at": "2026-05-13T00:10:00Z" },
+    { "kind": "negotiate", "observed_at": "2026-05-13T00:10:01Z" },
+    { "kind": "mark_ready", "observed_at": "2026-05-13T00:10:02Z" },
+    { "kind": "adapter_exit", "observed_at": "2026-05-13T00:10:10Z", "reason": "adapter_crash_unhandled" },
+    { "kind": "adapter_exit", "observed_at": "2026-05-13T00:10:11Z", "reason": "adapter_crash_signal" },
+    { "kind": "adapter_exit", "observed_at": "2026-05-13T00:10:12Z", "reason": "adapter_crash_unhandled" }
+  ],
+  "expect": {
+    "support_packet_record_kind": "debug_session_support_packet_record",
+    "session_count": 1,
+    "final_state_class_token": "quarantined",
+    "negotiation_outcome_token": "agreed_full",
+    "last_exit_reason_token": "adapter_crash_unhandled",
+    "restart_strike_count": 3,
+    "reconnect_attempt_count": 3,
+    "quarantine_ref_present": true,
+    "honesty_marker_present": true,
+    "captured_at": "2026-05-13T00:11:00Z"
+  }
+}

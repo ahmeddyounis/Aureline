@@ -27,6 +27,7 @@
 
 pub mod capability_negotiation;
 pub mod capsule_resolver;
+pub mod debug;
 pub mod detectors;
 pub mod discovery;
 pub mod execution_context;
@@ -46,6 +47,17 @@ pub use capability_negotiation::{
     EffectiveCapabilityPosture, HelperCapabilityRequest, HelperCapabilityRequirement,
     HelperCapabilityResponse, MissingCapabilityReasonClass, NegotiationOutcome,
     HELPER_CAPABILITY_NEGOTIATION_SCHEMA_VERSION,
+};
+pub use debug::{
+    DapHostSupervisor, DapHostSupervisorConfig, DapHostSupervisorError,
+    DebugAdapterCapabilityClass, DebugAdapterCapabilityRequest, DebugAdapterCapabilityResponse,
+    DebugAdapterIdentity, DebugAdapterNegotiationInput, DebugAdapterNegotiationOutcome,
+    DebugAdapterTransportClass, DebugSessionEventClass, DebugSessionExitReasonClass,
+    DebugSessionIdentity, DebugSessionLaunchSpec, DebugSessionLifecycleEvent, DebugSessionMode,
+    DebugSessionRestartCause, DebugSessionSnapshot, DebugSessionStateClass,
+    DebugSessionSupportPacket, DebugSessionTargetIdentity, DEBUG_SESSION_EVENT_RECORD_KIND,
+    DEBUG_SESSION_LIFECYCLE_SCHEMA_VERSION, DEBUG_SESSION_RECORD_KIND,
+    DEBUG_SESSION_SUPPORT_PACKET_RECORD_KIND,
 };
 pub use capsule_resolver::{
     EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,

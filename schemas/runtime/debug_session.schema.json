@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/debug_session.schema.json",
+  "title": "Aureline debug-session lifecycle export",
+  "description": "Boundary schema for the beta debugger / DAP host. One typed session lifecycle covers launch, attach, reconnect, and termination across every debug adapter. Adapter crashes, hangs, or protocol violations degrade only the affected session; the supervisor records a typed exit reason, bounded restart strikes, and either schedules a reconnect or moves the session into quarantine. Snapshot, event, and support-export records share the same vocabulary so the shell, release evidence, and support packets never fork their state copy.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/debug_session_record" },
+    { "$ref": "#/$defs/debug_session_event_record" },
+    { "$ref": "#/$defs/debug_session_support_packet_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque identifier safe for logs, RPC, fixtures, and support exports."
+    },
+    "date_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "debug_session_state_class": {
+      "type": "string",
+      "enum": [
+        "launch_requested",
+        "negotiating_capabilities",
+        "handshake_complete",
+        "attached_running",
+        "launched_running",
+        "paused",
+        "reconnecting",
+        "degraded",
+        "quarantined",
+        "terminated"
+      ]
+    },
+    "debug_session_mode": {
+      "type": "string",
+      "enum": ["launch", "attach", "reconnect"]
+    },
+    "debug_adapter_transport_class": {
+      "type": "string",
+      "enum": [
+        "local_sidecar_stdio",
+        "local_sidecar_loopback_socket",
+        "managed_connector"
+      ]
+    },
+    "debug_adapter_capability_class": {
+      "type": "string",
+      "enum": [
+        "function_breakpoints",
+        "conditional_breakpoints",
+        "hit_count_breakpoints",
+        "log_points",
+        "data_breakpoints",
+        "exception_breakpoint_filters",
+        "target_restart_request",
+        "terminate_request",
+        "reverse_execution",
+        "hot_reload",
+        "breakpoint_locations",
+        "granularity_stepping",
+        "modules_events",
+        "loaded_sources_events",
+        "memory_access"
+      ]
+    },
+    "debug_adapter_negotiation_outcome": {
+      "type": "string",
+      "enum": [
+        "agreed_full",
+        "agreed_with_capability_downgrade",
+        "refused_incompatible_protocol",
+        "refused_missing_required_capability",
+        "refused_policy_blocked",
+        "refused_initialize_timeout"
+      ]
+    },
+    "debug_session_exit_reason_class": {
+      "type": "string",
+      "enum": [
+        "clean_termination",
+        "user_requested_termination",
+        "supervisor_requested_termination",
+        "adapter_crash_unhandled",
+        "adapter_crash_signal",
+        "adapter_protocol_violation",
+        "adapter_initialize_timeout",
+        "adapter_resource_quota_exceeded",
+        "watchdog_forced_kill_after_stall",
+        "target_lost",
+        "contract_mismatch",
+        "unknown_nonclean_exit"
+      ]
+    },
+    "debug_session_restart_cause": {
+      "type": "string",
+      "enum": [
+        "adapter_crash_inside_budget",
+        "watchdog_stall_inside_budget",
+        "protocol_violation_inside_budget",
+        "user_requested"
+      ]
+    },
+    "debug_session_event_class": {
+      "type": "string",
+      "enum": [
+        "launch_requested",
+        "attach_requested",
+        "negotiation_started",
+        "capabilities_agreed",
+        "negotiation_refused",
+        "session_ready",
+        "paused",
+        "resumed",
+        "adapter_exited",
+        "restart_scheduled",
+        "session_reconnected",
+        "session_quarantined",
+        "session_terminated",
+        "support_export_emitted"
+      ]
+    },
+    "debug_session_target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_target_id",
+        "target_class_token",
+        "target_label"
+      ],
+      "properties": {
+        "canonical_target_id": { "$ref": "#/$defs/opaque_id" },
+        "target_class_token": { "$ref": "#/$defs/non_empty_string" },
+        "target_label": { "$ref": "#/$defs/non_empty_string" },
+        "working_directory_digest": { "$ref": "#/$defs/opaque_id" },
+        "inferior_process_id": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "debug_adapter_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_id",
+        "adapter_label",
+        "adapter_version",
+        "requested_dap_protocol_version",
+        "transport_class",
+        "transport_class_token"
+      ],
+      "properties": {
+        "adapter_id": { "$ref": "#/$defs/opaque_id" },
+        "adapter_label": { "$ref": "#/$defs/non_empty_string" },
+        "adapter_version": { "$ref": "#/$defs/non_empty_string" },
+        "requested_dap_protocol_version": { "$ref": "#/$defs/non_empty_string" },
+        "agreed_dap_protocol_version": { "$ref": "#/$defs/non_empty_string" },
+        "transport_class": { "$ref": "#/$defs/debug_adapter_transport_class" },
+        "transport_class_token": { "$ref": "#/$defs/debug_adapter_transport_class" }
+      }
+    },
+    "debug_session_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_id",
+        "workspace_id",
+        "root_ref",
+        "language_id",
+        "execution_context_id",
+        "mode",
+        "mode_token",
+        "adapter",
+        "target",
+        "fault_domain_id",
+        "restart_budget_ref"
+      ],
+      "properties": {
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "language_id": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_id" },
+        "mode": { "$ref": "#/$defs/debug_session_mode" },
+        "mode_token": { "$ref": "#/$defs/debug_session_mode" },
+        "adapter": { "$ref": "#/$defs/debug_adapter_identity" },
+        "target": { "$ref": "#/$defs/debug_session_target_identity" },
+        "fault_domain_id": { "$ref": "#/$defs/non_empty_string" },
+        "restart_budget_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "debug_session_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "event_id",
+        "session_id",
+        "event_class",
+        "event_class_token",
+        "state_after",
+        "state_after_token",
+        "restart_strike_count",
+        "observed_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_session_event_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "session_id": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/debug_session_event_class" },
+        "event_class_token": { "$ref": "#/$defs/debug_session_event_class" },
+        "state_after": { "$ref": "#/$defs/debug_session_state_class" },
+        "state_after_token": { "$ref": "#/$defs/debug_session_state_class" },
+        "exit_reason_class": { "$ref": "#/$defs/debug_session_exit_reason_class" },
+        "exit_reason_token": { "$ref": "#/$defs/debug_session_exit_reason_class" },
+        "restart_cause": { "$ref": "#/$defs/debug_session_restart_cause" },
+        "restart_cause_token": { "$ref": "#/$defs/debug_session_restart_cause" },
+        "restart_strike_count": { "type": "integer", "minimum": 0 },
+        "observed_at": { "$ref": "#/$defs/date_time" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "debug_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "identity",
+        "state_class",
+        "state_class_token",
+        "requested_capabilities",
+        "advertised_capabilities",
+        "agreed_capabilities",
+        "dropped_capabilities",
+        "restart_strike_count",
+        "restart_budget_in_window",
+        "reconnect_attempt_count",
+        "opened_at",
+        "last_state_change_at",
+        "event_lineage",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_session_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "identity": { "$ref": "#/$defs/debug_session_identity" },
+        "state_class": { "$ref": "#/$defs/debug_session_state_class" },
+        "state_class_token": { "$ref": "#/$defs/debug_session_state_class" },
+        "negotiation_outcome": {
+          "$ref": "#/$defs/debug_adapter_negotiation_outcome"
+        },
+        "negotiation_outcome_token": {
+          "$ref": "#/$defs/debug_adapter_negotiation_outcome"
+        },
+        "requested_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debug_adapter_capability_class" }
+        },
+        "advertised_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debug_adapter_capability_class" }
+        },
+        "agreed_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debug_adapter_capability_class" }
+        },
+        "dropped_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debug_adapter_capability_class" }
+        },
+        "restart_strike_count": { "type": "integer", "minimum": 0 },
+        "restart_budget_in_window": { "type": "integer", "minimum": 0 },
+        "reconnect_attempt_count": { "type": "integer", "minimum": 0 },
+        "quarantine_ref": { "$ref": "#/$defs/non_empty_string" },
+        "last_exit_reason_class": {
+          "$ref": "#/$defs/debug_session_exit_reason_class"
+        },
+        "last_exit_reason_token": {
+          "$ref": "#/$defs/debug_session_exit_reason_class"
+        },
+        "opened_at": { "$ref": "#/$defs/date_time" },
+        "last_state_change_at": { "$ref": "#/$defs/date_time" },
+        "event_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debug_session_event_record" }
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "debug_session_support_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "debug_session_lifecycle_schema_version",
+        "supervisor_session_id",
+        "workspace_id",
+        "session_rows",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "debug_session_support_packet_record" },
+        "debug_session_lifecycle_schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "supervisor_session_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "session_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/debug_session_record" }
+        },
+        "captured_at": { "$ref": "#/$defs/date_time" },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
