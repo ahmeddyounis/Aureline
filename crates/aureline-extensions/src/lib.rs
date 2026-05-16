@@ -61,6 +61,11 @@
 //!   matrix that names the runtime, SDK, manifest, and bridge windows for
 //!   claimed beta extension lanes so marketplace, SDK docs, publication
 //!   packets, and support exports do not invent local bridge claims.
+//! - one [`webview_boundary::ExtensionWebviewBoundaryAuditPacket`] audit packet
+//!   that keeps extension-owned webviews, hosted dashboards, provider-auth
+//!   checkpoints, and browser-runtime bridges aligned on owner/origin chrome,
+//!   system-browser handoff posture, trust-class parity, and support-export
+//!   vocabulary.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -86,6 +91,7 @@ pub mod review_alpha;
 pub mod runtime;
 pub mod sdk_v1;
 pub mod supervision;
+pub mod webview_boundary;
 
 pub use collections::{
     ExtensionInstallCollectionAlphaInput, ExtensionInstallCollectionAlphaPacket,
@@ -216,4 +222,25 @@ pub use supervision::{
     SupervisionResponseClass, VisibilityPostureClass, EXTENSION_HOST_SUPERVISION_RECORD_KIND,
     EXTENSION_HOST_SUPERVISION_SCHEMA_VERSION,
     EXTENSION_HOST_SUPERVISION_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use webview_boundary::{
+    audit_extension_webview_boundary_rows, evaluate_extension_webview_boundary_row,
+    project_extension_webview_boundary_support_export,
+    project_extension_webview_boundary_support_row, seeded_extension_webview_boundary_audit_packet,
+    seeded_extension_webview_boundary_inputs, validate_extension_webview_boundary_packet,
+    validate_extension_webview_boundary_row, validate_extension_webview_boundary_support_export,
+    ExtensionAppearanceInheritance, ExtensionBoundaryStateClass,
+    ExtensionBrowserHandoffPostureClass, ExtensionBrowserHandoffReasonClass,
+    ExtensionEmbeddedSurfaceClass, ExtensionFallbackTargetClass, ExtensionHostAuthorityScopeClass,
+    ExtensionHostChromeControlClass, ExtensionInheritanceClass,
+    ExtensionNativeApprovalBoundaryClass, ExtensionOriginClass, ExtensionSurfacePermissionClass,
+    ExtensionSurfaceTrustClass, ExtensionWebviewBoundaryAuditPacket,
+    ExtensionWebviewBoundaryDecisionClass, ExtensionWebviewBoundaryDefect,
+    ExtensionWebviewBoundaryDefectKind, ExtensionWebviewBoundaryInput, ExtensionWebviewBoundaryRow,
+    ExtensionWebviewBoundarySummary, ExtensionWebviewBoundarySupportExport,
+    ExtensionWebviewBoundarySupportRow, EXTENSION_WEBVIEW_BOUNDARY_AUDIT_PACKET_RECORD_KIND,
+    EXTENSION_WEBVIEW_BOUNDARY_DEFECT_RECORD_KIND, EXTENSION_WEBVIEW_BOUNDARY_ROW_RECORD_KIND,
+    EXTENSION_WEBVIEW_BOUNDARY_SCHEMA_VERSION, EXTENSION_WEBVIEW_BOUNDARY_SHARED_CONTRACT_REF,
+    EXTENSION_WEBVIEW_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND,
+    EXTENSION_WEBVIEW_BOUNDARY_SUPPORT_ROW_RECORD_KIND,
 };

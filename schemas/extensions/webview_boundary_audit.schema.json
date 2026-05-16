@@ -1,0 +1,494 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/webview_boundary_audit.schema.json",
+  "title": "Aureline extension webview boundary audit packet",
+  "description": "Cross-tool schema for extension-owned webviews, hosted dashboards, provider-auth checkpoints, documentation panes, and browser-runtime bridges. Product rows and support exports must agree on owner, publisher, origin, permission state, trust class, browser handoff posture, and visible boundary finding refs. Rust types in crates/aureline-extensions/src/webview_boundary/ are the source of truth.",
+  "anyOf": [
+    { "$ref": "#/$defs/input_corpus" },
+    { "$ref": "#/$defs/input" },
+    { "$ref": "#/$defs/audit_packet" },
+    { "$ref": "#/$defs/row" },
+    { "$ref": "#/$defs/support_row" },
+    { "$ref": "#/$defs/defect" },
+    { "$ref": "#/$defs/support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "extensions:webview_boundary_beta:v1"
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "extension_webview_panel",
+        "hosted_dashboard",
+        "provider_auth_surface",
+        "browser_runtime_bridge",
+        "documentation_provider_pane"
+      ]
+    },
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "extension_local_asset",
+        "publisher_hosted_origin",
+        "cross_origin_subframe",
+        "provider_owned_auth_domain",
+        "runtime_target_origin"
+      ]
+    },
+    "boundary_state_class": {
+      "type": "string",
+      "enum": [
+        "live_verified",
+        "cross_origin_limited",
+        "stale_snapshot",
+        "policy_blocked",
+        "certificate_failed"
+      ]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": ["trusted", "limited", "stale", "policy_blocked", "untrusted"]
+    },
+    "permission_state_class": {
+      "type": "string",
+      "enum": [
+        "host_owned_inspect_only",
+        "host_owned_browser_only",
+        "host_owned_with_native_step_up_required",
+        "extension_mutable_with_host_review"
+      ]
+    },
+    "handoff_posture_class": {
+      "type": "string",
+      "enum": [
+        "system_browser_first",
+        "device_code_fallback_offered",
+        "external_open_blocked_by_policy",
+        "external_open_unavailable_offline",
+        "in_product_only"
+      ]
+    },
+    "fallback_target_class": {
+      "type": "string",
+      "enum": [
+        "system_browser_handoff_packet",
+        "device_code_flow",
+        "policy_review",
+        "no_external_handoff"
+      ]
+    },
+    "handoff_reason_class": {
+      "type": "string",
+      "enum": [
+        "cross_origin_active_content",
+        "provider_owned_auth",
+        "hosted_dashboard_authority",
+        "browser_runtime_protocol_limit",
+        "documentation_provider_external",
+        "not_applicable"
+      ]
+    },
+    "host_chrome_control": {
+      "type": "string",
+      "enum": [
+        "extension_name",
+        "publisher_label",
+        "origin_label",
+        "boundary_state",
+        "trust_class",
+        "permission_state",
+        "reload",
+        "open_in_browser",
+        "support_export",
+        "profile_or_target_scope"
+      ]
+    },
+    "inheritance_class": {
+      "type": "string",
+      "enum": ["inherits", "partial", "does_not_inherit", "not_disclosed"]
+    },
+    "native_approval_boundary_class": {
+      "type": "string",
+      "enum": ["host_owned_native_surface", "embedded_surface_attempted_approval"]
+    },
+    "host_authority_scope_class": {
+      "type": "string",
+      "enum": [
+        "no_host_authority",
+        "declared_bounded_host_authority",
+        "unbounded_host_authority"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": ["conformant", "needs_review", "refused"]
+    },
+    "defect_kind": {
+      "type": "string",
+      "enum": [
+        "owner_origin_chrome_missing",
+        "host_chrome_control_missing",
+        "permission_state_missing",
+        "trust_class_parity_drift",
+        "risky_surface_without_safe_browser_baseline",
+        "browser_handoff_packet_missing",
+        "embedded_native_approval_attempt",
+        "unbounded_host_authority",
+        "appearance_inheritance_disclosure_missing",
+        "support_export_parity_drift",
+        "raw_private_material_exported"
+      ]
+    },
+    "string_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ref" }
+    },
+    "appearance_inheritance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "theme_class",
+        "zoom_class",
+        "density_class",
+        "focus_class",
+        "reduced_motion_class",
+        "contrast_class"
+      ],
+      "properties": {
+        "theme_class": { "$ref": "#/$defs/inheritance_class" },
+        "zoom_class": { "$ref": "#/$defs/inheritance_class" },
+        "density_class": { "$ref": "#/$defs/inheritance_class" },
+        "focus_class": { "$ref": "#/$defs/inheritance_class" },
+        "reduced_motion_class": { "$ref": "#/$defs/inheritance_class" },
+        "contrast_class": { "$ref": "#/$defs/inheritance_class" }
+      }
+    },
+    "input_corpus": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/input" }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "row_id",
+        "extension_id",
+        "extension_name",
+        "publisher_label",
+        "surface_id",
+        "surface_label",
+        "surface_class",
+        "origin_label",
+        "origin_host_label",
+        "origin_class",
+        "boundary_state_class",
+        "host_chrome_trust_class",
+        "embedded_content_trust_class",
+        "permission_state_class",
+        "browser_handoff_posture_class",
+        "fallback_target_class",
+        "browser_handoff_reason_class",
+        "current_scope_label",
+        "host_chrome_controls",
+        "appearance_inheritance",
+        "native_approval_boundary_class",
+        "host_authority_scope_class",
+        "risky_content_flow",
+        "support_boundary_summary",
+        "generated_at"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/ref" },
+        "extension_id": { "$ref": "#/$defs/ref" },
+        "extension_name": { "$ref": "#/$defs/ref" },
+        "publisher_label": { "$ref": "#/$defs/ref" },
+        "surface_id": { "$ref": "#/$defs/ref" },
+        "surface_label": { "$ref": "#/$defs/ref" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "origin_label": { "$ref": "#/$defs/ref" },
+        "origin_host_label": { "$ref": "#/$defs/ref" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "boundary_state_class": { "$ref": "#/$defs/boundary_state_class" },
+        "host_chrome_trust_class": { "$ref": "#/$defs/trust_class" },
+        "embedded_content_trust_class": { "$ref": "#/$defs/trust_class" },
+        "permission_state_class": { "$ref": "#/$defs/permission_state_class" },
+        "browser_handoff_posture_class": { "$ref": "#/$defs/handoff_posture_class" },
+        "fallback_target_class": { "$ref": "#/$defs/fallback_target_class" },
+        "browser_handoff_reason_class": { "$ref": "#/$defs/handoff_reason_class" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/ref" },
+        "current_scope_label": { "$ref": "#/$defs/ref" },
+        "host_chrome_controls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/host_chrome_control" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "appearance_inheritance": { "$ref": "#/$defs/appearance_inheritance" },
+        "native_approval_boundary_class": { "$ref": "#/$defs/native_approval_boundary_class" },
+        "host_authority_scope_class": { "$ref": "#/$defs/host_authority_scope_class" },
+        "risky_content_flow": { "type": "boolean" },
+        "permission_evidence_refs": { "$ref": "#/$defs/string_list" },
+        "evidence_refs": { "$ref": "#/$defs/string_list" },
+        "support_boundary_summary": { "$ref": "#/$defs/ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "row": {
+      "allOf": [
+        { "$ref": "#/$defs/input" },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "record_kind",
+            "schema_version",
+            "shared_contract_ref",
+            "safe_browser_baseline_required",
+            "safe_browser_baseline_satisfied",
+            "visible_boundary_finding_refs",
+            "decision_class",
+            "row_defect_kind_tokens"
+          ],
+          "properties": {
+            "record_kind": { "type": "string", "const": "extension_webview_boundary_row" },
+            "schema_version": { "$ref": "#/$defs/schema_version" },
+            "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+            "safe_browser_baseline_required": { "type": "boolean" },
+            "safe_browser_baseline_satisfied": { "type": "boolean" },
+            "visible_boundary_finding_refs": { "$ref": "#/$defs/string_list" },
+            "decision_class": { "$ref": "#/$defs/decision_class" },
+            "row_defect_kind_tokens": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/defect_kind" },
+              "uniqueItems": true
+            }
+          }
+        }
+      ]
+    },
+    "support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_row_id",
+        "row_ref",
+        "extension_id",
+        "extension_name",
+        "publisher_label",
+        "surface_label",
+        "surface_class",
+        "origin_host_label",
+        "boundary_state_class",
+        "host_chrome_trust_class",
+        "permission_state_class",
+        "browser_handoff_posture_class",
+        "fallback_target_class",
+        "current_scope_label",
+        "visible_boundary_finding_refs",
+        "row_defect_kind_tokens",
+        "support_boundary_summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "extension_webview_boundary_support_row" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_row_id": { "$ref": "#/$defs/ref" },
+        "row_ref": { "$ref": "#/$defs/ref" },
+        "extension_id": { "$ref": "#/$defs/ref" },
+        "extension_name": { "$ref": "#/$defs/ref" },
+        "publisher_label": { "$ref": "#/$defs/ref" },
+        "surface_label": { "$ref": "#/$defs/ref" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "origin_host_label": { "$ref": "#/$defs/ref" },
+        "boundary_state_class": { "$ref": "#/$defs/boundary_state_class" },
+        "host_chrome_trust_class": { "$ref": "#/$defs/trust_class" },
+        "permission_state_class": { "$ref": "#/$defs/permission_state_class" },
+        "browser_handoff_posture_class": { "$ref": "#/$defs/handoff_posture_class" },
+        "fallback_target_class": { "$ref": "#/$defs/fallback_target_class" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/ref" },
+        "current_scope_label": { "$ref": "#/$defs/ref" },
+        "visible_boundary_finding_refs": { "$ref": "#/$defs/string_list" },
+        "row_defect_kind_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect_kind" },
+          "uniqueItems": true
+        },
+        "support_boundary_summary": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "defect_kind",
+        "row_ref",
+        "field",
+        "message",
+        "visible_in_product",
+        "support_export_safe"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "extension_webview_boundary_defect" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "defect_id": { "$ref": "#/$defs/ref" },
+        "defect_kind": { "$ref": "#/$defs/defect_kind" },
+        "row_ref": { "$ref": "#/$defs/ref" },
+        "field": { "$ref": "#/$defs/ref" },
+        "message": { "$ref": "#/$defs/ref" },
+        "visible_in_product": { "type": "boolean" },
+        "support_export_safe": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "support_row_count",
+        "conformant_row_count",
+        "needs_review_row_count",
+        "refused_row_count",
+        "safe_browser_baseline_required_row_count",
+        "safe_browser_baseline_satisfied_row_count",
+        "trust_class_parity_row_count",
+        "host_owned_native_approval_row_count",
+        "defect_count",
+        "surface_classes_present",
+        "boundary_states_present",
+        "handoff_postures_present"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "support_row_count": { "type": "integer", "minimum": 0 },
+        "conformant_row_count": { "type": "integer", "minimum": 0 },
+        "needs_review_row_count": { "type": "integer", "minimum": 0 },
+        "refused_row_count": { "type": "integer", "minimum": 0 },
+        "safe_browser_baseline_required_row_count": { "type": "integer", "minimum": 0 },
+        "safe_browser_baseline_satisfied_row_count": { "type": "integer", "minimum": 0 },
+        "trust_class_parity_row_count": { "type": "integer", "minimum": 0 },
+        "host_owned_native_approval_row_count": { "type": "integer", "minimum": 0 },
+        "defect_count": { "type": "integer", "minimum": 0 },
+        "surface_classes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" },
+          "uniqueItems": true
+        },
+        "boundary_states_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_state_class" },
+          "uniqueItems": true
+        },
+        "handoff_postures_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/handoff_posture_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "audit_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "audit_id",
+        "generated_at",
+        "docs_ref",
+        "schema_ref",
+        "report_ref",
+        "summary",
+        "rows",
+        "support_rows",
+        "defects"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "extension_webview_boundary_audit_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "audit_id": { "$ref": "#/$defs/ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "docs_ref": { "$ref": "#/$defs/ref" },
+        "schema_ref": { "$ref": "#/$defs/ref" },
+        "report_ref": { "$ref": "#/$defs/ref" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row" },
+          "minItems": 1
+        },
+        "support_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_row" }
+        },
+        "defects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect" }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "generated_at",
+        "audit_ref",
+        "docs_ref",
+        "report_ref",
+        "summary",
+        "support_rows",
+        "defect_counts_by_kind",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "extension_webview_boundary_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "audit_ref": { "$ref": "#/$defs/ref" },
+        "docs_ref": { "$ref": "#/$defs/ref" },
+        "report_ref": { "$ref": "#/$defs/ref" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "support_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_row" }
+        },
+        "defect_counts_by_kind": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}
