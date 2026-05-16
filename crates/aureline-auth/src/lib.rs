@@ -111,6 +111,7 @@
 pub mod approval_tickets;
 pub mod browser_callback;
 pub mod credential_state;
+pub mod enterprise_drill_baseline;
 pub mod identity_modes;
 pub mod keychain_state;
 pub mod network_trust;
@@ -164,6 +165,21 @@ pub use offline_entitlements::{
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUMMARY_RECORD_KIND,
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUPPORT_EXPORT_RECORD_KIND,
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUPPORT_ROW_RECORD_KIND,
+};
+
+pub use enterprise_drill_baseline::{
+    audit_enterprise_drill_baseline_page, seeded_enterprise_drill_baseline_page,
+    validate_enterprise_drill_baseline_page, EnterpriseDrillBaselineDefect,
+    EnterpriseDrillBaselineDefectKind, EnterpriseDrillBaselinePage,
+    EnterpriseDrillBaselineSummary, EnterpriseDrillBaselineSupportExport,
+    EnterpriseDrillClaimImpactClass, EnterpriseDrillEvidenceFreshnessClass,
+    EnterpriseDrillKindClass, EnterpriseDrillOutcomeClass, EnterpriseDrillPacket,
+    EnterpriseDrillProfileClass, EnterpriseRowFamilyClass,
+    ENTERPRISE_DRILL_BASELINE_DEFECT_RECORD_KIND, ENTERPRISE_DRILL_BASELINE_PACKET_RECORD_KIND,
+    ENTERPRISE_DRILL_BASELINE_PAGE_RECORD_KIND, ENTERPRISE_DRILL_BASELINE_SCHEMA_VERSION,
+    ENTERPRISE_DRILL_BASELINE_SHARED_CONTRACT_REF, ENTERPRISE_DRILL_BASELINE_SOURCE_MATRIX_REF,
+    ENTERPRISE_DRILL_BASELINE_SUMMARY_RECORD_KIND,
+    ENTERPRISE_DRILL_BASELINE_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use region_and_tenant::{

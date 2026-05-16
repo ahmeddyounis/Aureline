@@ -1,0 +1,113 @@
+# Enterprise drill baseline matrix.
+#
+# Declares the backup-restore, failover, and key-rotation drills the beta
+# baseline must record on each claimed managed / enterprise row family across
+# connected, mirror-only, offline, and enterprise-managed beta profiles.
+# Every cell stays inspectable from the same record kind across admin,
+# support, shell, settings, and reviewer surfaces.
+#
+# The vocabulary is owned by
+# `crates/aureline-auth/src/enterprise_drill_baseline/mod.rs`. Schema:
+# `schemas/security/enterprise_drill_baseline.schema.json`.
+
+shared_contract_ref: "security:enterprise_drill_baseline:v1"
+schema_version: 1
+
+record_kinds:
+  page: "security_enterprise_drill_baseline_page_record"
+  drill_packet: "security_enterprise_drill_baseline_packet_record"
+  defect: "security_enterprise_drill_baseline_defect_record"
+  summary: "security_enterprise_drill_baseline_summary_record"
+  support_export: "security_enterprise_drill_baseline_support_export_record"
+
+profiles:
+  - token: "connected"
+    note: "Live managed control plane reachable."
+  - token: "mirror_only"
+    note: "Signed mirror is the only authority; managed control plane unreachable."
+  - token: "offline"
+    note: "Air-gapped courier or last-known-good snapshot only."
+  - token: "enterprise_managed"
+    note: "Signed-file or managed control plane drives the claim state."
+
+row_families:
+  - token: "managed_policy_distribution"
+    note: >-
+      Managed policy distribution claims (policy packs, admin policy push,
+      signed mirror). Backed by the policy-pack and admin-audit-export beta
+      pages.
+  - token: "managed_credential_handle"
+    note: >-
+      Managed credential / vault handle claims (secret broker handles,
+      keychain custody, BYOK wrap keys). Backed by the secret-broker and
+      secret-repair beta pages.
+  - token: "enterprise_identity_session"
+    note: >-
+      Enterprise identity session claims (managed OIDC sessions, passkey
+      step-up, tenant binding continuity). Backed by the OIDC and passkey
+      beta pages.
+
+drill_kinds:
+  - token: "backup_restore"
+    note: >-
+      Restore the row family from its last signed snapshot, mirror, or
+      air-gapped courier and replay it into the active claim.
+  - token: "failover"
+    note: >-
+      Fail the row family over from its primary path to its declared
+      secondary path without widening sibling-lane authority.
+  - token: "key_rotation"
+    note: >-
+      Rotate the row family's signing or wrapping key material and confirm
+      the rotated material drives the claim.
+
+drill_outcomes:
+  - "restored_from_trusted_snapshot"
+  - "failed_over_to_declared_fallback"
+  - "rotated_then_recovered"
+  - "downgraded_awaiting_admin"
+
+evidence_freshness_states:
+  - token: "fresh"
+    requires_downgrade: false
+  - token: "stale_within_window"
+    requires_downgrade: false
+  - token: "stale_beyond_window"
+    requires_downgrade: true
+  - token: "missing"
+    requires_downgrade: true
+
+claim_impact_states:
+  - token: "no_impact"
+    downgrades: false
+  - token: "downgrade_affected_claim"
+    downgrades: true
+  - token: "downgrade_family_claims"
+    downgrades: true
+
+defect_kinds:
+  - "token_drift"
+  - "drill_kind_coverage_missing_for_family"
+  - "drill_sibling_lane_widened"
+  - "drill_local_editing_not_preserved"
+  - "raw_private_material_exposed"
+  - "hidden_public_endpoint_fallback"
+  - "stale_evidence_without_downgrade"
+  - "fresh_evidence_with_unexpected_downgrade"
+  - "outcome_does_not_match_drill_kind"
+
+invariants:
+  - >-
+    Every claimed managed / enterprise row family carries at least one current
+    drill packet for backup_restore, failover, and key_rotation.
+  - >-
+    Drill packets feed claim downgrades: stale_beyond_window and missing
+    evidence states must declare a non-no_impact claim impact, and fresh
+    evidence must not assert a downgrade.
+  - >-
+    A drill packet never widens authority on a sibling lane, never falls back
+    to an undeclared public endpoint, never exposes raw private material, and
+    never blocks local editing.
+  - >-
+    Enterprise support exports consume the same drill packets verbatim — no
+    private interpretation, no per-export rewrites.
