@@ -65,7 +65,14 @@
 //!   mode requested a secret across connected, mirror-only, offline, and
 //!   enterprise-managed beta profiles without exposing raw secret material,
 //!   raw handle ids, plaintext persistence, silent in-memory promotion,
-//!   stale handle reuse, or undeclared public-endpoint fallback.
+//!   stale handle reuse, or undeclared public-endpoint fallback; and
+//! - one [`keychain_state::SecretRepairBetaPage`] beta projection that turns
+//!   keychain lock-state, denied projection, and secret-repair flows into
+//!   three reviewable record kinds so admin, support, and reviewer surfaces
+//!   can name the affected consumer, the blocked target, the typed repair
+//!   action, and the typed repair outcome across connected, mirror-only,
+//!   offline, and enterprise-managed beta profiles while preserving the
+//!   no-plaintext-fallback invariant and local editing.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -96,6 +103,7 @@
 pub mod browser_callback;
 pub mod credential_state;
 pub mod identity_modes;
+pub mod keychain_state;
 pub mod network_trust;
 pub mod offline_entitlements;
 pub mod oidc;
@@ -215,6 +223,19 @@ pub use secret_broker::{
     SECRET_BROKER_BETA_PAGE_RECORD_KIND, SECRET_BROKER_BETA_SCHEMA_VERSION,
     SECRET_BROKER_BETA_SHARED_CONTRACT_REF, SECRET_BROKER_BETA_SOURCE_MATRIX_REF,
     SECRET_BROKER_BETA_SUMMARY_RECORD_KIND, SECRET_BROKER_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use keychain_state::{
+    audit_secret_repair_beta_page, seeded_secret_repair_beta_page,
+    validate_secret_repair_beta_page, DeniedProjectionRow, DenialReasonClass,
+    KeychainLockStateClass, KeychainLockStateRow, RepairActionClass, RepairOutcomeClass,
+    SecretRepairActionEvent, SecretRepairBetaDefect, SecretRepairBetaDefectKind,
+    SecretRepairBetaPage, SecretRepairBetaSummary, SecretRepairBetaSupportExport,
+    SECRET_REPAIR_BETA_DEFECT_RECORD_KIND, SECRET_REPAIR_BETA_DENIED_PROJECTION_ROW_RECORD_KIND,
+    SECRET_REPAIR_BETA_LOCK_STATE_ROW_RECORD_KIND, SECRET_REPAIR_BETA_PAGE_RECORD_KIND,
+    SECRET_REPAIR_BETA_REPAIR_EVENT_RECORD_KIND, SECRET_REPAIR_BETA_SCHEMA_VERSION,
+    SECRET_REPAIR_BETA_SHARED_CONTRACT_REF, SECRET_REPAIR_BETA_SOURCE_MATRIX_REF,
+    SECRET_REPAIR_BETA_SUMMARY_RECORD_KIND, SECRET_REPAIR_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use oidc::{
