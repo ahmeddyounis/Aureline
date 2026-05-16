@@ -34,6 +34,12 @@
 //!   effective policy packs, mirror and manual-import receipts, before/after
 //!   diffs, and product-denial explain traces into a single inspectable record
 //!   for admin, support, mirror, and offline lanes; and
+//! - one [`offline_entitlements::OfflineEntitlementVerifierBetaPage`] beta
+//!   projection that runs a signed policy-bundle and offline-entitlement
+//!   verifier across connected, mirror, offline, and enterprise-managed
+//!   profiles for both policy and entitlement bundle kinds, downgrades
+//!   managed capability authority on expired, missing, or unverifiable
+//!   bundles, and preserves local editing through every failure mode; and
 //! - one [`oidc::OidcSystemBrowserBetaPage`] beta projection that audits
 //!   enterprise OIDC system-browser sign-in, recovery, and session-continuity
 //!   flows so claimed-enterprise rows disclose issuer source, tenant /
@@ -76,6 +82,7 @@ pub mod browser_callback;
 pub mod credential_state;
 pub mod identity_modes;
 pub mod network_trust;
+pub mod offline_entitlements;
 pub mod oidc;
 pub mod passkey;
 pub mod policy_packs;
@@ -101,6 +108,27 @@ pub use credential_state::{
     ProviderAccountRegistry, RevokeActionClass, StorageModeClass, StoragePosture, StoreSourceClass,
     CREDENTIAL_STATE_ROW_RECORD_KIND, CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
     PROVIDER_ACCOUNT_RECORD_KIND, PROVIDER_ACCOUNT_REGISTRY_RECORD_KIND,
+};
+
+pub use offline_entitlements::{
+    audit_offline_entitlement_verifier_beta_rows, seeded_offline_entitlement_verifier_beta_page,
+    validate_offline_entitlement_verifier_beta_page, LocalEditingPreservationClass,
+    ManagedCapabilityImpactClass, OfflineEntitlementVerifierBetaDefect,
+    OfflineEntitlementVerifierBetaDefectKind, OfflineEntitlementVerifierBetaPage,
+    OfflineEntitlementVerifierBetaProfileClass, OfflineEntitlementVerifierBetaRow,
+    OfflineEntitlementVerifierBetaSummary, OfflineEntitlementVerifierBetaSupportExport,
+    OfflineEntitlementVerifierBetaSupportRow, StageOfflineEntitlementVerifierBetaRowRequest,
+    TrustAnchorSourceClass, VerifiedBundleKindClass, VerifierBundleSubject,
+    VerifierOutcomeClass, VerifierRecoveryActionClass, VerifierTrustAnchor,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_DEFECT_RECORD_KIND,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_PAGE_RECORD_KIND,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_ROW_RECORD_KIND,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_SCHEMA_VERSION,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_SHARED_CONTRACT_REF,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_SOURCE_MATRIX_REF,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUMMARY_RECORD_KIND,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUPPORT_ROW_RECORD_KIND,
 };
 
 pub use policy_packs::{
