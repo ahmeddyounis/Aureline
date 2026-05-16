@@ -39,6 +39,7 @@ pub mod packages;
 pub mod provenance;
 pub mod request_workspace;
 pub mod rerun;
+pub mod target_discovery;
 pub mod targets;
 pub mod task_events;
 pub mod tasks;
@@ -54,12 +55,6 @@ pub use capability_negotiation::{
     HelperCapabilityResponse, MissingCapabilityReasonClass, NegotiationOutcome,
     HELPER_CAPABILITY_NEGOTIATION_SCHEMA_VERSION,
 };
-pub use capsule_resolver::{
-    EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,
-    EnvironmentCapsuleResolverConfig, PrebuildFingerprintStub, ProjectArchetypeHint,
-    ENVIRONMENT_CAPSULE_RESOLUTION_RECORD_KIND, ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION,
-    ENVIRONMENT_CAPSULE_RESOLVER_VERSION, PREBUILD_FINGERPRINT_STUB_RECORD_KIND,
-};
 pub use capsule_resolver::beta::{
     evaluate_capsule_drift, CapsuleBetaDriftOutcome, CapsuleBetaDriftRow, CapsuleBetaParsedFields,
     CapsuleBetaPrecedenceRow, CapsuleBetaSourceBaseline, CapsuleBetaSourceClass,
@@ -72,6 +67,12 @@ pub use capsule_resolver::beta::{
     ENVIRONMENT_CAPSULE_BETA_DRIFT_RECORD_KIND, ENVIRONMENT_CAPSULE_BETA_RESOLUTION_RECORD_KIND,
     ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION, ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION,
     ENVIRONMENT_CAPSULE_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use capsule_resolver::{
+    EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,
+    EnvironmentCapsuleResolverConfig, PrebuildFingerprintStub, ProjectArchetypeHint,
+    ENVIRONMENT_CAPSULE_RESOLUTION_RECORD_KIND, ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION,
+    ENVIRONMENT_CAPSULE_RESOLVER_VERSION, PREBUILD_FINGERPRINT_STUB_RECORD_KIND,
 };
 pub use debug::{
     DapHostSupervisor, DapHostSupervisorConfig, DapHostSupervisorError,
@@ -127,18 +128,6 @@ pub use discovery::toolchains::{
     WorkspaceToolchainDiscovery, WorkspaceToolchainKind, WORKSPACE_TOOLCHAIN_DETECTOR_VERSION,
     WORKSPACE_TOOLCHAIN_DISCOVERY_RECORD_KIND, WORKSPACE_TOOLCHAIN_DISCOVERY_SCHEMA_VERSION,
 };
-pub use execution_context::{
-    ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
-    DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextEffectClass,
-    ExecutionContextExplanation, ExecutionContextReasonCode, ExecutionContextReasonSource,
-    ExecutionContextRequest, ExecutionContextResolver, ExecutionContextResolverConfig,
-    ExecutionRouteClass, ExecutionRouteOrigin, IdentityMode, InvocationSubject, MixedVersionDrift,
-    MixedVersionDriftState, MixedVersionReason, PolicyAndTrust, PrebuildInvalidationReason,
-    PrebuildMetadata, PrebuildReuseState, Provenance, ReachabilityState, ResolverInputDecision,
-    ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass, TargetClass,
-    TargetConfidence, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
-    TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
-};
 pub use env_inspect::{
     seeded_env_inspect_resolver, seeded_env_inspect_snapshot, seeded_env_inspect_support_export,
     EnvInspectCoreField, EnvInspectDegradationLabel, EnvInspectDegradationSeverity,
@@ -150,10 +139,22 @@ pub use execution_context::beta::{
     evaluate_ticket_drift, lane_for_context, lane_for_target_class,
     ExecutionContextBetaCoverageManifest, ExecutionContextBetaLane,
     ExecutionContextBetaLaneCoverageRow, ExecutionContextBetaLaneSample,
-    ExecutionContextBetaSupportExport, TicketDriftBinding, TicketDriftEvaluation,
-    TicketDriftField, TicketDriftOutcome, TicketDriftRow,
-    EXECUTION_CONTEXT_BETA_COVERAGE_MANIFEST_RECORD_KIND, EXECUTION_CONTEXT_BETA_SCHEMA_VERSION,
-    EXECUTION_CONTEXT_BETA_SUPPORT_EXPORT_RECORD_KIND, EXECUTION_CONTEXT_TICKET_DRIFT_RECORD_KIND,
+    ExecutionContextBetaSupportExport, TicketDriftBinding, TicketDriftEvaluation, TicketDriftField,
+    TicketDriftOutcome, TicketDriftRow, EXECUTION_CONTEXT_BETA_COVERAGE_MANIFEST_RECORD_KIND,
+    EXECUTION_CONTEXT_BETA_SCHEMA_VERSION, EXECUTION_CONTEXT_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    EXECUTION_CONTEXT_TICKET_DRIFT_RECORD_KIND,
+};
+pub use execution_context::{
+    ActorClass, CacheDisposition, CapsuleDriftState, ConfidenceLevel, DegradedFieldReason,
+    DegradedFieldRecord, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextEffectClass,
+    ExecutionContextExplanation, ExecutionContextReasonCode, ExecutionContextReasonSource,
+    ExecutionContextRequest, ExecutionContextResolver, ExecutionContextResolverConfig,
+    ExecutionRouteClass, ExecutionRouteOrigin, IdentityMode, InvocationSubject, MixedVersionDrift,
+    MixedVersionDriftState, MixedVersionReason, PolicyAndTrust, PrebuildInvalidationReason,
+    PrebuildMetadata, PrebuildReuseState, Provenance, ReachabilityState, ResolverInputDecision,
+    ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass, TargetClass,
+    TargetConfidence, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
+    TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
 };
 pub use language_hosts::{
     LanguageHostEventClass, LanguageHostExitReasonClass, LanguageHostIdentity,
@@ -231,6 +232,15 @@ pub use rerun::{
     RERUN_LAST_TEST_COMMAND_ID, RERUN_LOOP_SCHEMA_VERSION, RERUN_PREPARED_ATTEMPT_RECORD_KIND,
     RERUN_SUPPORT_EXPORT_RECORD_KIND, RERUN_TARGET_COMPARISON_RECORD_KIND,
 };
+pub use target_discovery::{
+    DiscoveryFreshnessClass, DiscoverySourceClass, ProtectedActionClass,
+    ProtectedActionDecisionClass, ProtectedActionDecisionRow, SupportedCapabilityClass,
+    TargetDiscoveryBetaCoverageManifest, TargetDiscoveryBetaCoverageRow,
+    TargetDiscoveryBetaProjection, TargetDiscoveryBetaRow, TargetDiscoveryBetaSupportExport,
+    TARGET_DISCOVERY_BETA_COVERAGE_MANIFEST_RECORD_KIND,
+    TARGET_DISCOVERY_BETA_PROJECTION_RECORD_KIND, TARGET_DISCOVERY_BETA_ROW_RECORD_KIND,
+    TARGET_DISCOVERY_BETA_SCHEMA_VERSION, TARGET_DISCOVERY_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use targets::{
     HostBoundaryCueClass, TargetConfidenceCard, TargetConfidenceExplanationRow,
     TargetConfidenceLaneClass, TargetConfidenceReviewPacket, TargetConfidenceReviewRow,
@@ -259,11 +269,11 @@ pub use testing::{
     TestRunnerBetaCoverageManifest, TestRunnerBetaCoverageRow, TestRunnerBetaFramework,
     TestRunnerBetaParityState, TestRunnerBetaProjection, TestRunnerBetaRerunParity,
     TestRunnerBetaSupportExport, TestTreeProjection, TestTreeRow, TestTreeRowKind,
-    TEST_RUNNER_BETA_ARTIFACT_IDENTITY_RECORD_KIND,
-    TEST_RUNNER_BETA_COVERAGE_MANIFEST_RECORD_KIND, TEST_RUNNER_BETA_INLINE_PROJECTION_RECORD_KIND,
-    TEST_RUNNER_BETA_INLINE_ROW_RECORD_KIND, TEST_RUNNER_BETA_RERUN_PARITY_RECORD_KIND,
-    TEST_RUNNER_BETA_SCHEMA_VERSION, TEST_RUNNER_BETA_SUPPORT_EXPORT_RECORD_KIND,
-    TEST_RUNNER_BETA_TREE_PROJECTION_RECORD_KIND, TEST_RUNNER_BETA_TREE_ROW_RECORD_KIND,
+    TEST_RUNNER_BETA_ARTIFACT_IDENTITY_RECORD_KIND, TEST_RUNNER_BETA_COVERAGE_MANIFEST_RECORD_KIND,
+    TEST_RUNNER_BETA_INLINE_PROJECTION_RECORD_KIND, TEST_RUNNER_BETA_INLINE_ROW_RECORD_KIND,
+    TEST_RUNNER_BETA_RERUN_PARITY_RECORD_KIND, TEST_RUNNER_BETA_SCHEMA_VERSION,
+    TEST_RUNNER_BETA_SUPPORT_EXPORT_RECORD_KIND, TEST_RUNNER_BETA_TREE_PROJECTION_RECORD_KIND,
+    TEST_RUNNER_BETA_TREE_ROW_RECORD_KIND,
 };
 pub use testing_quality::{
     BaselineTruthPacket, CoverageTruthPacket, FlakyTruthPacket, SnapshotTruthPacket,

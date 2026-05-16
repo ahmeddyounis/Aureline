@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/target_discovery_beta.schema.json",
+  "title": "Aureline target-discovery beta row, projection, support-export, and coverage-manifest records",
+  "description": "Boundary schema for the beta target-discovery layer projected by crates/aureline-runtime/src/target_discovery/mod.rs. The beta layer promotes the alpha target_confidence_card's single discovery-confidence token into two orthogonal closed vocabularies — discovery_source (where the target came from: native_protocol, structured_adapter, heuristic_parser, imported_metadata, user_declared, resolver_unavailable) and discovery_freshness (how current the discovery is: fresh_probe, recent_within_session, imported_authoritative, stale_imported, unknown). Each row also carries a closed supported_capability list and one decision per protected_action class (dispatch_run, dispatch_test, dispatch_debug_launch, dispatch_debug_attach, dispatch_build, export_artifact) using the closed protected_action_decision vocabulary (allowed, requires_review, blocked_heuristic_target, blocked_imported_target, blocked_unsupported_capability, blocked_resolver_unavailable, blocked_freshness_stale). Heuristic-discovered, imported-only, and resolver-unavailable rows are guaranteed to block protected dispatch; export_artifact is always permitted. Raw paths, command lines, env bodies, and secrets do not cross this boundary. Adding a source, freshness, capability, action, or decision token is additive-minor and bumps target_discovery_beta_schema_version; repurposing an existing token is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/target_discovery_beta_row_record" },
+    { "$ref": "#/$defs/target_discovery_beta_projection_record" },
+    { "$ref": "#/$defs/target_discovery_beta_support_export_record" },
+    { "$ref": "#/$defs/target_discovery_beta_coverage_manifest_record" }
+  ],
+  "$defs": {
+    "target_discovery_beta_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the beta target-discovery vocabulary."
+    },
+    "discovery_source": {
+      "type": "string",
+      "enum": [
+        "native_protocol",
+        "structured_adapter",
+        "heuristic_parser",
+        "imported_metadata",
+        "user_declared",
+        "resolver_unavailable"
+      ]
+    },
+    "discovery_freshness": {
+      "type": "string",
+      "enum": [
+        "fresh_probe",
+        "recent_within_session",
+        "imported_authoritative",
+        "stale_imported",
+        "unknown"
+      ]
+    },
+    "supported_capability": {
+      "type": "string",
+      "enum": [
+        "run",
+        "test",
+        "debug_launch",
+        "debug_attach",
+        "build",
+        "inspect_only"
+      ]
+    },
+    "protected_action": {
+      "type": "string",
+      "enum": [
+        "dispatch_run",
+        "dispatch_test",
+        "dispatch_debug_launch",
+        "dispatch_debug_attach",
+        "dispatch_build",
+        "export_artifact"
+      ]
+    },
+    "protected_action_decision": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "requires_review",
+        "blocked_heuristic_target",
+        "blocked_imported_target",
+        "blocked_unsupported_capability",
+        "blocked_resolver_unavailable",
+        "blocked_freshness_stale"
+      ]
+    },
+    "protected_action_decision_row": {
+      "type": "object",
+      "required": ["action", "action_token", "decision", "decision_token", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "$ref": "#/$defs/protected_action" },
+        "action_token": { "type": "string" },
+        "decision": { "$ref": "#/$defs/protected_action_decision" },
+        "decision_token": { "type": "string" },
+        "summary": { "type": "string" }
+      }
+    },
+    "target_discovery_beta_row_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "card_ref",
+        "execution_context_ref",
+        "target_id",
+        "target_class_token",
+        "lane_token",
+        "discovery_source",
+        "discovery_source_token",
+        "discovery_source_label",
+        "discovery_freshness",
+        "discovery_freshness_token",
+        "alpha_discovery_confidence_token",
+        "target_confidence_level_token",
+        "host_boundary_cue_token",
+        "host_boundary_label",
+        "supported_capabilities",
+        "supported_capability_tokens",
+        "protected_action_decisions",
+        "explanation_summary",
+        "inspect_action_ref",
+        "change_target_action_ref",
+        "redaction_safe"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "target_discovery_beta_row_record" },
+        "schema_version": { "$ref": "#/$defs/target_discovery_beta_schema_version" },
+        "row_id": { "type": "string" },
+        "card_ref": { "type": "string" },
+        "execution_context_ref": { "type": "string" },
+        "target_id": { "type": "string" },
+        "target_class_token": { "type": "string" },
+        "lane_token": { "type": "string", "enum": ["local", "helper_backed"] },
+        "discovery_source": { "$ref": "#/$defs/discovery_source" },
+        "discovery_source_token": { "type": "string" },
+        "discovery_source_label": { "type": "string" },
+        "discovery_freshness": { "$ref": "#/$defs/discovery_freshness" },
+        "discovery_freshness_token": { "type": "string" },
+        "alpha_discovery_confidence_token": { "type": "string" },
+        "target_confidence_level_token": { "type": "string", "enum": ["high", "medium", "low"] },
+        "host_boundary_cue_token": { "type": "string" },
+        "host_boundary_label": { "type": "string" },
+        "supported_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supported_capability" }
+        },
+        "supported_capability_tokens": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "protected_action_decisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/protected_action_decision_row" }
+        },
+        "explanation_summary": { "type": "string" },
+        "inspect_action_ref": { "type": "string" },
+        "change_target_action_ref": { "type": "string" },
+        "redaction_safe": { "type": "boolean", "const": true }
+      }
+    },
+    "target_discovery_beta_projection_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "projection_id",
+        "workspace_id",
+        "generated_at",
+        "rows",
+        "any_row_blocks_protected_dispatch",
+        "redaction_safe"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "type": "string", "const": "target_discovery_beta_projection_record" },
+        "schema_version": { "$ref": "#/$defs/target_discovery_beta_schema_version" },
+        "projection_id": { "type": "string" },
+        "workspace_id": { "type": "string" },
+        "generated_at": { "type": "string" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/target_discovery_beta_row_record" }
+        },
+        "any_row_blocks_protected_dispatch": { "type": "boolean" },
+        "redaction_safe": { "type": "boolean", "const": true }
+      }
+    },
+    "target_discovery_beta_coverage_row": {
+      "type": "object",
+      "required": [
+        "source",
+        "source_token",
+        "source_label",
+        "blocks_protected_dispatch_by_default",
+        "gated_action_tokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "$ref": "#/$defs/discovery_source" },
+        "source_token": { "type": "string" },
+        "source_label": { "type": "string" },
+        "blocks_protected_dispatch_by_default": { "type": "boolean" },
+        "gated_action_tokens": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "target_discovery_beta_coverage_manifest_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "manifest_id",
+        "generated_at",
+        "source_rows",
+        "freshness_tokens",
+        "supported_capability_tokens",
+        "protected_action_tokens",
+        "protected_action_decision_tokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "target_discovery_beta_coverage_manifest_record"
+        },
+        "schema_version": { "$ref": "#/$defs/target_discovery_beta_schema_version" },
+        "manifest_id": { "type": "string" },
+        "generated_at": { "type": "string" },
+        "source_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/target_discovery_beta_coverage_row" }
+        },
+        "freshness_tokens": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "supported_capability_tokens": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "protected_action_tokens": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "protected_action_decision_tokens": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "target_discovery_beta_support_export_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "workspace_id",
+        "generated_at",
+        "coverage_manifest",
+        "projection",
+        "cards",
+        "host_boundaries",
+        "review_rows",
+        "context_provenance",
+        "context_provenance_events",
+        "redaction_safe"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "target_discovery_beta_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/target_discovery_beta_schema_version" },
+        "support_export_id": { "type": "string" },
+        "workspace_id": { "type": "string" },
+        "generated_at": { "type": "string" },
+        "coverage_manifest": {
+          "$ref": "#/$defs/target_discovery_beta_coverage_manifest_record"
+        },
+        "projection": { "$ref": "#/$defs/target_discovery_beta_projection_record" },
+        "cards": { "type": "array" },
+        "host_boundaries": { "type": "array" },
+        "review_rows": { "type": "array" },
+        "context_provenance": { "type": "array" },
+        "context_provenance_events": { "type": "array" },
+        "redaction_safe": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}
