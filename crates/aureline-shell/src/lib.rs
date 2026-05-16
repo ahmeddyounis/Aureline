@@ -97,6 +97,7 @@ pub mod state_cards;
 pub mod status;
 pub mod status_bar;
 pub mod support_seed;
+pub mod system_browser_return_paths;
 pub mod tasks_seed;
 pub mod terminal_pane;
 pub mod token_state_audit;

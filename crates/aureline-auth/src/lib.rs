@@ -115,6 +115,24 @@ pub use system_browser::{
     SYSTEM_BROWSER_ALPHA_SCHEMA_VERSION,
 };
 
+pub use system_browser::beta::{
+    audit_rows as audit_system_browser_return_paths_beta_rows,
+    seeded_system_browser_return_paths_beta_page, validate_system_browser_return_paths_beta_page,
+    AuthorityScopeClass, PasskeyStepUpBlock, PasskeyStepUpPostureClass, ReturnPathLabel,
+    StageSystemBrowserReturnPathBetaRowRequest, SystemBrowserPolicyExceptionClass,
+    SystemBrowserReturnPathBetaAxis, SystemBrowserReturnPathBetaDefect,
+    SystemBrowserReturnPathBetaDefectKind, SystemBrowserReturnPathBetaRow,
+    SystemBrowserReturnPathBetaSupportRow, SystemBrowserReturnPathsBetaPage,
+    SystemBrowserReturnPathsBetaSummary, SystemBrowserReturnPathsBetaSupportExport,
+    SYSTEM_BROWSER_RETURN_PATHS_BETA_DEFECT_RECORD_KIND,
+    SYSTEM_BROWSER_RETURN_PATHS_BETA_PAGE_RECORD_KIND,
+    SYSTEM_BROWSER_RETURN_PATHS_BETA_ROW_RECORD_KIND,
+    SYSTEM_BROWSER_RETURN_PATHS_BETA_SCHEMA_VERSION,
+    SYSTEM_BROWSER_RETURN_PATHS_BETA_SHARED_CONTRACT_REF,
+    SYSTEM_BROWSER_RETURN_PATHS_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    SYSTEM_BROWSER_RETURN_PATHS_BETA_SUPPORT_ROW_RECORD_KIND,
+};
+
 pub use trust::{
     CapabilityAuthorityClass, CapabilityDecisionSource, CapabilityDisclosureRow, CapabilityScope,
     ExternalEffectClass, LaunchWedgeCapabilityFamily, RememberedDecisionScopeClass,

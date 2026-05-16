@@ -10,6 +10,8 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod beta;
+
 pub use crate::browser_callback::{
     AccountBoundaryClass, AuthFlowClass, BrowserLaunchPolicyClass, EmbeddedFallbackPosture,
     IdentityModeAlias, PreservedLocalWork, RetryPathClass, TrustState,
