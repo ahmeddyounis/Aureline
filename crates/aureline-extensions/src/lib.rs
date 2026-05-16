@@ -53,6 +53,7 @@
 pub mod collections;
 pub mod install_review;
 pub mod manifest_baseline;
+pub mod permission_manifest;
 pub mod review_alpha;
 pub mod runtime;
 pub mod supervision;
@@ -73,6 +74,17 @@ pub use install_review::{
     InstallReviewDisclosureClass, InstallReviewSurfaceClass, NativeReviewAuthorityClass,
     RuntimeCostClass, RuntimeCostEvidenceClass, INSTALL_REVIEW_ALPHA_PACKET_RECORD_KIND,
     INSTALL_REVIEW_ALPHA_PROJECTION_RECORD_KIND, INSTALL_REVIEW_ALPHA_SCHEMA_VERSION,
+};
+pub use permission_manifest::{
+    capability_class_for_scope, evaluate_permission_manifest_delta, project_permission_manifest,
+    project_permission_manifest_support_export, validate_permission_manifest_delta_record,
+    validate_permission_manifest_record, CapabilityClassClass, CapabilityClassDeltaClass,
+    CapabilityClassDeltaEntry, CapabilityClassSummaryEntry, CapabilityScopeEntry,
+    PermissionDeltaClass, PermissionDeltaEntry, PermissionManifestDeltaInput,
+    PermissionManifestDeltaRecord, PermissionManifestFinding, PermissionManifestRecord,
+    PermissionManifestSupportExportRecord, ReConsentDecisionClass, ReConsentReasonClass,
+    PERMISSION_MANIFEST_DELTA_RECORD_KIND, PERMISSION_MANIFEST_RECORD_KIND,
+    PERMISSION_MANIFEST_SCHEMA_VERSION, PERMISSION_MANIFEST_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use manifest_baseline::{
     compute_effective_permission_baseline, decide_manifest_install,

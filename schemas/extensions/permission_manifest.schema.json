@@ -1,0 +1,426 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/permission_manifest.schema.json",
+  "title": "Aureline extension permission manifest, version-to-version re-consent delta, and support-export projection (beta lane)",
+  "description": "Cross-tool boundary schema for the typed permission-manifest beta lane. One record set captures (1) the per-version capability-class projection of an extension's declared permissions, (2) the deterministic delta between two versions of the same extension paired with a closed re-consent decision and reason vocabulary the install / update review surface reads verbatim, and (3) a metadata-safe support / partner export projection the support bundle, partner packet template, and CLI / headless review surfaces read instead of inventing a local 'permissions changed' string. The Rust types in crates/aureline-extensions/src/permission_manifest/ are the source of truth; this schema is the typed cross-tool boundary every non-owning surface reads. The same record set applies whether the manifest came in through the primary registry, a private registry, a mirror, an offline bundle, or a vendored-local install — mirror and manual-install flows preserve the same closed permission vocabulary as the primary registry path. Adding a new enum value or an additive optional field is additive-minor with a permission_manifest_schema_version bump; repurposing an existing value is breaking and requires a new decision row. Raw manifest bytes, raw signing-key material, raw policy bodies, raw paths, raw tokens, and raw publisher-private data MUST NOT appear in any record; records carry refs only and pin redaction_class = metadata_safe_default.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/permission_manifest_record" },
+    { "$ref": "#/$defs/permission_manifest_delta_record" },
+    { "$ref": "#/$defs/permission_manifest_support_export_record" }
+  ],
+  "$defs": {
+    "permission_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this permission-manifest export. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "permission_manifest_record",
+        "permission_manifest_delta_record",
+        "permission_manifest_support_export_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "capability_class_class": {
+      "type": "string",
+      "enum": ["network", "filesystem", "process", "data", "ui", "credential"],
+      "description": "Closed capability-class vocabulary covering the six high-level domains the spec calls out: network egress, filesystem read/write, process / shell / execution-context, data (AI / connected provider / workspace settings / subscription / capability inherit), UI command contribution, and credential / secret handle use."
+    },
+    "permission_scope_class": {
+      "type": "string",
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "shell_execute",
+        "network_egress",
+        "ai_provider_access",
+        "connected_provider_access",
+        "secret_handle_use",
+        "workspace_settings_read",
+        "workspace_settings_write",
+        "execution_context_bind",
+        "subscription_subscribe",
+        "ui_command_contribute",
+        "capability_inherit"
+      ],
+      "description": "Frozen permission-scope vocabulary mirrored from the manifest baseline schema."
+    },
+    "extension_lifecycle_state_class": {
+      "type": "string",
+      "enum": ["published", "preview", "deprecated", "retired", "quarantined"]
+    },
+    "manifest_origin_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "private_registry",
+        "mirror",
+        "offline_bundle",
+        "vendored_local",
+        "unknown_source_class"
+      ],
+      "description": "Mirror / offline_bundle / vendored_local manifests use the same permission vocabulary as the primary registry; the install / update review surface MUST NOT fork on origin source."
+    },
+    "publisher_trust_tier_class": {
+      "type": "string",
+      "enum": [
+        "verified_publisher",
+        "community_publisher",
+        "organisational_publisher",
+        "unverified_publisher",
+        "quarantined_publisher",
+        "anonymous_publisher_class"
+      ]
+    },
+    "publisher_lifecycle_state_class": {
+      "type": "string",
+      "enum": ["active", "preview", "deprecated", "retired", "quarantined"]
+    },
+    "permission_delta_class": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "scope_added",
+        "scope_removed",
+        "scope_constraint_widened",
+        "scope_constraint_narrowed",
+        "rationale_only_changed"
+      ]
+    },
+    "capability_class_delta_class": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "capability_class_added",
+        "capability_class_removed",
+        "entries_widened_within_class",
+        "entries_narrowed_within_class",
+        "entries_mixed_widening_and_narrowing"
+      ]
+    },
+    "re_consent_decision_class": {
+      "type": "string",
+      "enum": [
+        "not_required_no_change",
+        "not_required_narrowing_only",
+        "inform_only_rationale_changed",
+        "re_consent_required_widening",
+        "re_consent_required_new_capability_class",
+        "refused_inconsistent_input"
+      ]
+    },
+    "re_consent_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_change_between_versions",
+        "narrowing_does_not_require_re_consent",
+        "rationale_changed_inform_only",
+        "widening_added_new_scope",
+        "widening_constraint_loosened",
+        "widening_added_new_capability_class",
+        "refused_extension_identity_mismatch",
+        "refused_prior_and_next_same_version",
+        "refused_prior_manifest_ref_missing",
+        "refused_next_manifest_ref_missing",
+        "refused_publisher_quarantined",
+        "refused_publisher_lifecycle_retired",
+        "refused_extension_lifecycle_retired",
+        "refused_origin_source_unknown",
+        "refused_rationale_missing_on_widening_entry"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": ["metadata_safe_default"]
+    },
+    "capability_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_class_class",
+        "scope_class",
+        "scope_target",
+        "rationale_label"
+      ],
+      "properties": {
+        "capability_class_class": { "$ref": "#/$defs/capability_class_class" },
+        "scope_class": { "$ref": "#/$defs/permission_scope_class" },
+        "scope_target": { "type": "string", "minLength": 1 },
+        "scope_constraint": { "type": "string" },
+        "rationale_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "capability_class_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_class_class", "declared_entry_count"],
+      "properties": {
+        "capability_class_class": { "$ref": "#/$defs/capability_class_class" },
+        "declared_entry_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "permission_delta_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_class_class",
+        "scope_class",
+        "scope_target",
+        "delta_class",
+        "delta_reason_label"
+      ],
+      "properties": {
+        "capability_class_class": { "$ref": "#/$defs/capability_class_class" },
+        "scope_class": { "$ref": "#/$defs/permission_scope_class" },
+        "scope_target": { "type": "string", "minLength": 1 },
+        "delta_class": { "$ref": "#/$defs/permission_delta_class" },
+        "prior_constraint": { "type": "string" },
+        "next_constraint": { "type": "string" },
+        "prior_rationale_label": { "type": "string" },
+        "next_rationale_label": { "type": "string" },
+        "delta_reason_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "capability_class_delta_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_class_class",
+        "prior_entry_count",
+        "next_entry_count",
+        "delta_class",
+        "entries_added_count",
+        "entries_removed_count"
+      ],
+      "properties": {
+        "capability_class_class": { "$ref": "#/$defs/capability_class_class" },
+        "prior_entry_count": { "type": "integer", "minimum": 0 },
+        "next_entry_count": { "type": "integer", "minimum": 0 },
+        "delta_class": { "$ref": "#/$defs/capability_class_delta_class" },
+        "entries_added_count": { "type": "integer", "minimum": 0 },
+        "entries_removed_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "permission_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "permission_manifest_schema_version",
+        "permission_manifest_id",
+        "manifest_baseline_ref",
+        "extension_identity",
+        "extension_version",
+        "extension_lifecycle_state_class",
+        "manifest_origin_source_class",
+        "origin_source_label",
+        "publisher_identity_ref",
+        "publisher_trust_tier_class",
+        "publisher_lifecycle_state_class",
+        "declared_permissions",
+        "capability_class_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "permission_manifest_record" },
+        "permission_manifest_schema_version": {
+          "$ref": "#/$defs/permission_manifest_schema_version"
+        },
+        "permission_manifest_id": {
+          "type": "string",
+          "pattern": "^permission_manifest:.+"
+        },
+        "manifest_baseline_ref": {
+          "type": "string",
+          "pattern": "^manifest_baseline:.+"
+        },
+        "extension_identity": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
+        },
+        "extension_version": { "type": "string", "minLength": 1 },
+        "extension_lifecycle_state_class": {
+          "$ref": "#/$defs/extension_lifecycle_state_class"
+        },
+        "manifest_origin_source_class": {
+          "$ref": "#/$defs/manifest_origin_source_class"
+        },
+        "origin_source_label": { "type": "string", "minLength": 1 },
+        "publisher_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_trust_tier_class": {
+          "$ref": "#/$defs/publisher_trust_tier_class"
+        },
+        "publisher_lifecycle_state_class": {
+          "$ref": "#/$defs/publisher_lifecycle_state_class"
+        },
+        "declared_permissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_scope_entry" }
+        },
+        "capability_class_summary": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_class_summary_entry" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "permission_manifest_delta_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "permission_manifest_schema_version",
+        "delta_id",
+        "extension_identity_ref",
+        "prior_manifest_ref",
+        "prior_extension_version",
+        "next_manifest_ref",
+        "next_extension_version",
+        "delta_entries",
+        "capability_class_deltas",
+        "widening_count",
+        "narrowing_count",
+        "rationale_only_changed_count",
+        "re_consent_decision_class",
+        "re_consent_reason_class",
+        "delta_summary",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "permission_manifest_delta_record" },
+        "permission_manifest_schema_version": {
+          "$ref": "#/$defs/permission_manifest_schema_version"
+        },
+        "delta_id": {
+          "type": "string",
+          "pattern": "^permission_manifest_delta:.+"
+        },
+        "extension_identity_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
+        },
+        "prior_manifest_ref": {
+          "type": "string",
+          "pattern": "^permission_manifest:.+"
+        },
+        "prior_extension_version": { "type": "string", "minLength": 1 },
+        "next_manifest_ref": {
+          "type": "string",
+          "pattern": "^permission_manifest:.+"
+        },
+        "next_extension_version": { "type": "string", "minLength": 1 },
+        "delta_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/permission_delta_entry" }
+        },
+        "capability_class_deltas": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_class_delta_entry" }
+        },
+        "widening_count": { "type": "integer", "minimum": 0 },
+        "narrowing_count": { "type": "integer", "minimum": 0 },
+        "rationale_only_changed_count": { "type": "integer", "minimum": 0 },
+        "re_consent_decision_class": {
+          "$ref": "#/$defs/re_consent_decision_class"
+        },
+        "re_consent_reason_class": {
+          "$ref": "#/$defs/re_consent_reason_class"
+        },
+        "delta_summary": { "type": "string", "minLength": 1 },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "permission_manifest_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "permission_manifest_schema_version",
+        "export_id",
+        "manifest_ref",
+        "extension_identity_ref",
+        "extension_version",
+        "manifest_origin_source_class",
+        "origin_source_label",
+        "publisher_trust_tier_class",
+        "declared_capability_classes",
+        "declared_entry_count",
+        "widening_count",
+        "narrowing_count",
+        "rationale_only_changed_count",
+        "requires_re_consent",
+        "blocks_activation",
+        "export_safe_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "permission_manifest_support_export_record"
+        },
+        "permission_manifest_schema_version": {
+          "$ref": "#/$defs/permission_manifest_schema_version"
+        },
+        "export_id": {
+          "type": "string",
+          "pattern": "^permission_manifest_support_export:.+"
+        },
+        "manifest_ref": {
+          "type": "string",
+          "pattern": "^permission_manifest:.+"
+        },
+        "delta_ref": {
+          "type": ["string", "null"],
+          "pattern": "^permission_manifest_delta:.+"
+        },
+        "extension_identity_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
+        },
+        "extension_version": { "type": "string", "minLength": 1 },
+        "manifest_origin_source_class": {
+          "$ref": "#/$defs/manifest_origin_source_class"
+        },
+        "origin_source_label": { "type": "string", "minLength": 1 },
+        "publisher_trust_tier_class": {
+          "$ref": "#/$defs/publisher_trust_tier_class"
+        },
+        "declared_capability_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_class_class" }
+        },
+        "declared_entry_count": { "type": "integer", "minimum": 0 },
+        "re_consent_decision_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/re_consent_decision_class" },
+            { "type": "null" }
+          ]
+        },
+        "re_consent_reason_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/re_consent_reason_class" },
+            { "type": "null" }
+          ]
+        },
+        "widening_count": { "type": "integer", "minimum": 0 },
+        "narrowing_count": { "type": "integer", "minimum": 0 },
+        "rationale_only_changed_count": { "type": "integer", "minimum": 0 },
+        "requires_re_consent": { "type": "boolean" },
+        "blocks_activation": { "type": "boolean" },
+        "export_safe_summary": { "type": "string", "minLength": 1 },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}
