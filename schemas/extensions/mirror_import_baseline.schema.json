@@ -1,0 +1,525 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/mirror_import_baseline.schema.json",
+  "title": "Aureline extension mirror and manual-import baseline record",
+  "description": "Boundary schema for extension artifact, catalog, permission, compatibility, lifecycle, publisher-continuity, and trust-claim metadata preserved across primary catalog, approved mirror, offline bundle, and manual artifact imports. Raw artifact bytes, raw signing-key material, raw credentials, raw URLs, private mirror endpoints, and raw local filesystem paths must not appear in this record.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/mirror_import_baseline_record" },
+    { "$ref": "#/$defs/mirror_import_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_non_empty_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_safe_default"
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex", "digest_size_bytes"],
+      "properties": {
+        "digest_algorithm": {
+          "type": "string",
+          "enum": ["sha256", "sha384", "sha512", "blake3"]
+        },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "route_class": {
+      "type": "string",
+      "enum": ["primary_catalog", "approved_mirror", "offline_bundle", "manual_artifact"]
+    },
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"]
+    },
+    "publisher_trust_tier_class": {
+      "type": "string",
+      "enum": [
+        "verified_publisher",
+        "community_publisher",
+        "organisational_publisher",
+        "unverified_publisher",
+        "quarantined_publisher",
+        "anonymous_publisher_class"
+      ]
+    },
+    "publisher_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "key_rotation_in_progress",
+        "ownership_transfer_in_progress",
+        "transfer_completed_pending_verification",
+        "orphaned",
+        "succeeded",
+        "fork_adopted",
+        "retired"
+      ]
+    },
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": ["staged", "approved", "limited", "deprecated", "revoked", "quarantined"]
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": ["quarantine", "approved", "production"]
+    },
+    "compatibility_claim_class": {
+      "type": "string",
+      "enum": [
+        "compatible_on_all_declared_targets",
+        "compatible_on_subset_of_declared_targets",
+        "compatibility_bridge_required",
+        "compatibility_unknown_pending_reverification",
+        "incompatible_blocked_on_policy"
+      ]
+    },
+    "bridge_state_class": {
+      "type": "string",
+      "enum": [
+        "no_bridge_required_native_match",
+        "bridge_required_compatibility_bridge_profile",
+        "bridge_required_capability_world_subset_only",
+        "bridge_required_host_contract_family_subset_only",
+        "bridge_unknown_pending_reverification",
+        "bridge_unsupported_blocked_on_policy"
+      ]
+    },
+    "compatibility_label": {
+      "type": "string",
+      "enum": ["unknown", "exact", "translated", "partial", "shimmed", "unsupported"]
+    },
+    "disclosure_class": {
+      "type": "string",
+      "enum": [
+        "publisher_continuity",
+        "source_lane",
+        "artifact_identity",
+        "permission_manifest",
+        "compatibility_metadata",
+        "lifecycle_metadata",
+        "trust_claims",
+        "revocation_snapshot",
+        "native_install_review"
+      ]
+    },
+    "trust_claim_class": {
+      "type": "string",
+      "enum": [
+        "publisher_continuity",
+        "artifact_digest",
+        "signature",
+        "attestation",
+        "revocation_snapshot",
+        "compatibility_evidence",
+        "lifecycle_metadata",
+        "permission_manifest"
+      ]
+    },
+    "trust_claim_state_class": {
+      "type": "string",
+      "enum": ["verified", "preserved_from_origin", "downgraded", "missing", "refused"]
+    },
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_downgrade",
+        "mirror_limitation",
+        "manual_artifact_unverified",
+        "degraded_cached_snapshot",
+        "missing_evidence",
+        "artifact_identity_mismatch",
+        "policy_blocked"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "ready_for_import",
+        "ready_with_downgraded_trust_claims",
+        "awaiting_admin_review",
+        "refused"
+      ]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "ready_primary_catalog_baseline",
+        "ready_mirror_semantic_parity",
+        "ready_manual_import_unverified",
+        "limited_by_mirror_trust_downgrade",
+        "awaiting_admin_out_of_band_verification",
+        "refused_identity_missing",
+        "refused_artifact_identity_mismatch",
+        "refused_publisher_continuity_missing",
+        "refused_permission_metadata_missing",
+        "refused_compatibility_metadata_missing",
+        "refused_lifecycle_metadata_missing",
+        "refused_required_disclosure_missing",
+        "refused_trust_claim_blocks_install"
+      ]
+    },
+    "support_explanation_class": {
+      "type": "string",
+      "enum": ["ready", "limited", "awaiting_admin", "refused"]
+    },
+    "action_offer_class": {
+      "type": "string",
+      "enum": [
+        "open_source_details",
+        "open_publisher_continuity",
+        "open_permission_manifest",
+        "open_compatibility_report",
+        "open_lifecycle_metadata",
+        "open_trust_claim_details",
+        "request_admin_review",
+        "open_native_install_review",
+        "export_support_packet"
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publisher_id",
+        "publisher_display_label",
+        "publisher_continuity_ref",
+        "publisher_trust_tier_class",
+        "continuity_state_class",
+        "active_signing_key_refs",
+        "lifecycle_event_refs",
+        "freshness_class"
+      ],
+      "properties": {
+        "publisher_id": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_display_label": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_trust_tier_class": { "$ref": "#/$defs/publisher_trust_tier_class" },
+        "continuity_state_class": { "$ref": "#/$defs/publisher_continuity_state_class" },
+        "active_signing_key_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "lifecycle_event_refs": { "$ref": "#/$defs/ref_array" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_state_class",
+        "source_registry_class",
+        "source_endpoint_ref",
+        "channel_class",
+        "support_class",
+        "lifecycle_event_refs"
+      ],
+      "properties": {
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "source_registry_class": { "$ref": "#/$defs/registry_source_class" },
+        "source_endpoint_ref": { "$ref": "#/$defs/non_empty_string" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "support_class": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_event_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permission_manifest_ref",
+        "declared_permission_refs",
+        "effective_permission_refs",
+        "permission_delta_ref",
+        "freshness_class"
+      ],
+      "properties": {
+        "permission_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "declared_permission_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "effective_permission_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "permission_delta_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compatibility_claim_class",
+        "bridge_state_class",
+        "rendered_label",
+        "host_contract_family_refs",
+        "capability_world_refs",
+        "target_platforms",
+        "caveat_labels"
+      ],
+      "properties": {
+        "compatibility_claim_class": { "$ref": "#/$defs/compatibility_claim_class" },
+        "bridge_state_class": { "$ref": "#/$defs/bridge_state_class" },
+        "rendered_label": { "$ref": "#/$defs/compatibility_label" },
+        "host_contract_family_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "capability_world_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "target_platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "caveat_labels": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "trust_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_class",
+        "state_class",
+        "source_registry_class",
+        "downgrade_reason_class",
+        "evidence_refs",
+        "rendered_label"
+      ],
+      "properties": {
+        "claim_class": { "$ref": "#/$defs/trust_claim_class" },
+        "state_class": { "$ref": "#/$defs/trust_claim_state_class" },
+        "source_registry_class": { "$ref": "#/$defs/registry_source_class" },
+        "downgrade_reason_class": { "$ref": "#/$defs/downgrade_reason_class" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "rendered_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "mirror_import_baseline_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "mirror_import_baseline_schema_version",
+        "baseline_id",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "display_name",
+        "route_class",
+        "origin_registry_source_class",
+        "delivered_registry_source_class",
+        "source_label",
+        "origin_catalog_ref",
+        "delivered_artifact_ref",
+        "registry_manifest_ref",
+        "compatibility_report_ref",
+        "lifecycle_metadata_ref",
+        "content_address",
+        "origin_content_address",
+        "publisher",
+        "lifecycle",
+        "permission",
+        "compatibility",
+        "trust_claims",
+        "required_disclosures",
+        "rendered_disclosures",
+        "trust_claim_count",
+        "downgraded_trust_claim_count",
+        "refused_trust_claim_count",
+        "artifact_identity_preserved",
+        "publisher_continuity_preserved",
+        "permission_metadata_preserved",
+        "compatibility_metadata_preserved",
+        "lifecycle_metadata_preserved",
+        "source_visible_to_users_admins",
+        "install_lane_continues",
+        "decision_class",
+        "reason_class",
+        "support_explanation_class",
+        "decision_summary",
+        "generated_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "mirror_import_baseline_record" },
+        "mirror_import_baseline_schema_version": { "$ref": "#/$defs/schema_version" },
+        "baseline_id": { "type": "string", "pattern": "^mirror_import_baseline:" },
+        "extension_identity": { "$ref": "#/$defs/non_empty_string" },
+        "extension_version": { "$ref": "#/$defs/non_empty_string" },
+        "package_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "route_class": { "$ref": "#/$defs/route_class" },
+        "origin_registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "delivered_registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "origin_catalog_ref": { "$ref": "#/$defs/non_empty_string" },
+        "delivered_artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "registry_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_metadata_ref": { "$ref": "#/$defs/non_empty_string" },
+        "local_archive_import_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "manual_import_receipt_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "origin_content_address": { "$ref": "#/$defs/content_address" },
+        "publisher": { "$ref": "#/$defs/publisher" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "permission": { "$ref": "#/$defs/permission" },
+        "compatibility": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility" }
+        },
+        "trust_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/trust_claim" }
+        },
+        "required_disclosures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/disclosure_class" }
+        },
+        "rendered_disclosures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/disclosure_class" }
+        },
+        "trust_claim_count": { "type": "integer", "minimum": 0 },
+        "downgraded_trust_claim_count": { "type": "integer", "minimum": 0 },
+        "refused_trust_claim_count": { "type": "integer", "minimum": 0 },
+        "artifact_identity_preserved": { "type": "boolean" },
+        "publisher_continuity_preserved": { "type": "boolean" },
+        "permission_metadata_preserved": { "type": "boolean" },
+        "compatibility_metadata_preserved": { "type": "boolean" },
+        "lifecycle_metadata_preserved": { "type": "boolean" },
+        "source_visible_to_users_admins": { "type": "boolean" },
+        "install_lane_continues": { "type": "boolean" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "support_explanation_class": { "$ref": "#/$defs/support_explanation_class" },
+        "decision_summary": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "mirror_import_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "mirror_import_baseline_schema_version",
+        "export_id",
+        "baseline_ref",
+        "extension_identity",
+        "extension_version",
+        "package_id",
+        "route_class",
+        "origin_registry_source_class",
+        "delivered_registry_source_class",
+        "source_label",
+        "publisher_continuity_ref",
+        "permission_manifest_ref",
+        "compatibility_report_ref",
+        "lifecycle_metadata_ref",
+        "content_address",
+        "artifact_identity_preserved",
+        "downgraded_trust_claim_count",
+        "refused_trust_claim_count",
+        "source_visible_to_users_admins",
+        "install_lane_continues",
+        "decision_class",
+        "reason_class",
+        "support_explanation_class",
+        "offered_actions",
+        "export_safe_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "mirror_import_support_export_record" },
+        "mirror_import_baseline_schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "type": "string", "pattern": "^mirror_import_support_export:" },
+        "baseline_ref": { "type": "string", "pattern": "^mirror_import_baseline:" },
+        "extension_identity": { "$ref": "#/$defs/non_empty_string" },
+        "extension_version": { "$ref": "#/$defs/non_empty_string" },
+        "package_id": { "$ref": "#/$defs/non_empty_string" },
+        "route_class": { "$ref": "#/$defs/route_class" },
+        "origin_registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "delivered_registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "source_label": { "$ref": "#/$defs/non_empty_string" },
+        "publisher_continuity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "permission_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_metadata_ref": { "$ref": "#/$defs/non_empty_string" },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "artifact_identity_preserved": { "type": "boolean" },
+        "downgraded_trust_claim_count": { "type": "integer", "minimum": 0 },
+        "refused_trust_claim_count": { "type": "integer", "minimum": 0 },
+        "source_visible_to_users_admins": { "type": "boolean" },
+        "install_lane_continues": { "type": "boolean" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "support_explanation_class": { "$ref": "#/$defs/support_explanation_class" },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_offer_class" }
+        },
+        "export_safe_summary": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}

@@ -54,6 +54,11 @@
 //!   publisher continuity, lifecycle, moderation, revocation-ready, and
 //!   mirror-compatible catalog metadata from the publication lane into
 //!   discovery, support export, and mirror import consumers.
+//! - one [`mirror_import::MirrorImportBaselineRecord`] baseline that keeps
+//!   primary catalog, approved mirror, offline bundle, and manual artifact
+//!   imports aligned on artifact identity, source visibility, publisher
+//!   continuity, permission, compatibility, lifecycle, and per-claim trust
+//!   downgrade metadata.
 //! - one [`revocation::ExtensionIncidentCommunicationRecord`] incident
 //!   packet that binds advisory, emergency disable, quarantine,
 //!   revocation, primary-registry, mirror, and recovery guidance into one
@@ -95,6 +100,7 @@ pub mod install_review;
 pub mod lifecycle_metadata;
 pub mod manifest_baseline;
 pub mod marketplace_truth;
+pub mod mirror_import;
 pub mod permission_manifest;
 pub mod publication;
 pub mod registry;
@@ -161,6 +167,17 @@ pub use marketplace_truth::{
     MarketplaceTruthFinding, MarketplaceTruthRowInput, MarketplaceTruthRowRecord,
     MarketplaceTruthSupportExportRecord, MARKETPLACE_TRUTH_ROW_RECORD_KIND,
     MARKETPLACE_TRUTH_SCHEMA_VERSION, MARKETPLACE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use mirror_import::{
+    evaluate_mirror_import_baseline, project_mirror_import_support_export,
+    validate_mirror_import_baseline_record, validate_mirror_import_support_export_record,
+    MirrorImportActionOfferClass, MirrorImportBaselineInput, MirrorImportBaselineRecord,
+    MirrorImportDecisionClass, MirrorImportDisclosureClass, MirrorImportDowngradeReasonClass,
+    MirrorImportFinding, MirrorImportPermissionMetadata, MirrorImportReasonClass,
+    MirrorImportRouteClass, MirrorImportSupportExplanationClass, MirrorImportSupportExportRecord,
+    MirrorImportTrustClaimClass, MirrorImportTrustClaimEntry, MirrorImportTrustClaimStateClass,
+    MIRROR_IMPORT_BASELINE_RECORD_KIND, MIRROR_IMPORT_BASELINE_SCHEMA_VERSION,
+    MIRROR_IMPORT_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use permission_manifest::{
     capability_class_for_scope, evaluate_permission_manifest_delta, project_permission_manifest,
