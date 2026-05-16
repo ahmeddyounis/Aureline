@@ -43,6 +43,9 @@
 //!   into one inspectable row, plus an
 //!   [`sdk_v1::SdkV1StarterPackSupportExportRecord`] projection for the
 //!   first consuming support / partner export surface.
+//! - a headless extension conformance validator that consumes authored
+//!   beta manifests before registry ingest and emits the report schema at
+//!   [`/schemas/extensions/conformance_kit_report.schema.json`](../../../schemas/extensions/conformance_kit_report.schema.json).
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never

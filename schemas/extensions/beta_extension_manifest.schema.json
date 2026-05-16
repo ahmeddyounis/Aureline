@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/beta_extension_manifest.schema.json",
+  "title": "Aureline beta extension manifest",
+  "description": "Author-facing extension manifest shape consumed by the beta extension conformance validator. It covers manifest identity, permission declarations, lifecycle metadata, compatibility targets, and replayable conformance fixture refs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "package_id",
+    "publisher_id",
+    "version",
+    "runtime_origin",
+    "host_contract_family",
+    "sdk",
+    "compatibility",
+    "permissions",
+    "lifecycle",
+    "conformance"
+  ],
+  "properties": {
+    "manifest_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(?:\\.[a-z0-9-]+)+$"
+    },
+    "publisher_id": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "enum": ["anonymous", "unknown"]
+      }
+    },
+    "version": {
+      "$ref": "#/$defs/semver"
+    },
+    "runtime_origin": {
+      "$ref": "#/$defs/runtime_origin"
+    },
+    "host_contract_family": {
+      "$ref": "#/$defs/host_contract_family"
+    },
+    "sdk": {
+      "$ref": "#/$defs/sdk"
+    },
+    "compatibility": {
+      "$ref": "#/$defs/compatibility"
+    },
+    "permissions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/permission"
+      }
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/lifecycle"
+    },
+    "conformance": {
+      "$ref": "#/$defs/conformance"
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "non_empty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime_origin": {
+      "type": "string",
+      "enum": ["wasm", "external_host", "helper_binary", "remote_side_component", "bridge"]
+    },
+    "host_contract_family": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ]
+    },
+    "host_abi_window": {
+      "type": "string",
+      "enum": [
+        "component_model_abi_window_beta_1",
+        "core_module_abi_window_beta_1",
+        "external_host_process_window_documented",
+        "compatibility_bridge_window_documented"
+      ]
+    },
+    "wit_world_ref": {
+      "type": "string",
+      "pattern": "^aureline:[a-z][a-z0-9-]*[a-z0-9]@[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "sdk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line_id", "line_semver", "host_abi_window", "wit_world_refs"],
+      "properties": {
+        "line_id": {
+          "type": "string",
+          "const": "aureline.sdk.beta"
+        },
+        "line_semver": {
+          "$ref": "#/$defs/semver"
+        },
+        "host_abi_window": {
+          "$ref": "#/$defs/host_abi_window"
+        },
+        "wit_world_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/wit_world_ref"
+          }
+        },
+        "external_host_contract_ref": {
+          "$ref": "#/$defs/non_empty"
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aureline_versions", "platforms", "support_class", "bridge_state"],
+      "properties": {
+        "aureline_versions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min", "max"],
+          "properties": {
+            "min": {
+              "$ref": "#/$defs/non_empty"
+            },
+            "max": {
+              "$ref": "#/$defs/non_empty"
+            }
+          }
+        },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty"
+          }
+        },
+        "support_class": {
+          "type": "string",
+          "enum": [
+            "certified",
+            "supported",
+            "limited",
+            "experimental",
+            "community",
+            "retest_pending",
+            "evidence_stale",
+            "unsupported"
+          ]
+        },
+        "bridge_state": {
+          "type": "string",
+          "enum": ["native", "bridge", "partial", "unsupported", "retest_pending"]
+        }
+      }
+    },
+    "permission_scope": {
+      "type": "string",
+      "enum": [
+        "filesystem_read",
+        "filesystem_write",
+        "shell_execute",
+        "network_egress",
+        "ai_provider_access",
+        "connected_provider_access",
+        "secret_handle_use",
+        "workspace_settings_read",
+        "workspace_settings_write",
+        "execution_context_bind",
+        "subscription_subscribe",
+        "ui_command_contribute",
+        "capability_inherit"
+      ]
+    },
+    "trust_mode": {
+      "type": "string",
+      "enum": [
+        "allowed_in_trusted_workspace",
+        "read_only_degrade",
+        "disabled_in_restricted_mode",
+        "explicit_approval_required"
+      ]
+    },
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "targets", "purpose", "trust_mode", "review_required"],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/permission_scope"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty"
+          }
+        },
+        "purpose": {
+          "$ref": "#/$defs/non_empty"
+        },
+        "trust_mode": {
+          "$ref": "#/$defs/trust_mode"
+        },
+        "review_required": {
+          "type": "boolean"
+        },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["endpoint_class"],
+          "properties": {
+            "endpoint_class": {
+              "type": "string",
+              "enum": ["metadata_fetch", "package_registry", "vendor_api", "user_configured_url"]
+            }
+          }
+        },
+        "prompt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary", "deniable"],
+          "properties": {
+            "summary": {
+              "$ref": "#/$defs/non_empty"
+            },
+            "deniable": {
+              "type": "boolean"
+            }
+          }
+        },
+        "handle_only": {
+          "type": "boolean"
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "activation", "degraded_path", "disable", "rollback"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["verified", "resolved", "activated", "degraded", "disabled", "removed"]
+        },
+        "activation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["triggers", "lazy", "startup", "budget_ms"],
+          "properties": {
+            "triggers": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/non_empty"
+              }
+            },
+            "lazy": {
+              "type": "boolean"
+            },
+            "startup": {
+              "type": "boolean"
+            },
+            "budget_ms": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "degraded_path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["behavior_class", "preserves_core_editing", "user_message_ref"],
+          "properties": {
+            "behavior_class": {
+              "type": "string",
+              "enum": [
+                "read_only_degrade",
+                "disable_background_work",
+                "disable_until_review",
+                "quarantine_pending_review"
+              ]
+            },
+            "preserves_core_editing": {
+              "type": "boolean",
+              "const": true
+            },
+            "user_message_ref": {
+              "$ref": "#/$defs/non_empty"
+            }
+          }
+        },
+        "disable": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["supported", "preserves_user_state"],
+          "properties": {
+            "supported": {
+              "type": "boolean"
+            },
+            "preserves_user_state": {
+              "type": "boolean"
+            },
+            "evidence_ref": {
+              "$ref": "#/$defs/non_empty"
+            }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["supported"],
+          "properties": {
+            "supported": {
+              "type": "boolean"
+            },
+            "last_known_good_ref": {
+              "$ref": "#/$defs/non_empty"
+            }
+          }
+        }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fixtures"],
+      "properties": {
+        "fixtures": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scenario_class", "fixture_ref"],
+            "properties": {
+              "scenario_class": {
+                "type": "string",
+                "enum": ["install", "activation", "permission_prompt", "degraded_path", "disable_rollback"]
+              },
+              "fixture_ref": {
+                "$ref": "#/$defs/non_empty"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

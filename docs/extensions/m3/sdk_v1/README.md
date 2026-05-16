@@ -190,6 +190,11 @@ invent SDK-v1-shaped fields:
 - **CLI / headless review.** Quotes the same closed tokens as the
   install / review chrome; refuse the install with the same reason
   class the chrome would show.
+- **Extension validator.** Validates author manifests against the beta
+  SDK, permission, lifecycle, compatibility, and conformance-fixture
+  expectations before registry ingest. The command and fixture suite
+  are documented in
+  [`docs/extensions/m3/conformance_kit_beta.md`](../conformance_kit_beta.md).
 - **Air-gapped mirror / offline-bundle review.** Re-emits the same
   record set when the SDK line is republished into a sealed bundle;
   the same closed vocabulary applies regardless of the origin source.

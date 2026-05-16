@@ -72,6 +72,31 @@ Authorized support classes (read verbatim from the claimed-surface
 register): `certified`, `supported`, `limited`, `experimental`,
 `community`, `retest_pending`, `evidence_stale`, `unsupported`.
 
+## Conformance validator
+
+Extension authors and maintainers validate manifests with the same
+headless validator before publication:
+
+- Validator guide:
+  [`docs/extensions/m3/conformance_kit_beta.md`](./conformance_kit_beta.md)
+- Validator CLI:
+  [`tools/extensions/m3/validator_cli/aureline_extension_validator.py`](../../../tools/extensions/m3/validator_cli/aureline_extension_validator.py)
+- Fixture suite:
+  [`fixtures/extensions/m3/conformance_kit/suite.json`](../../../fixtures/extensions/m3/conformance_kit/suite.json)
+- Compatibility packet:
+  [`artifacts/compat/m3/extension_conformance_kit_report.json`](../../../artifacts/compat/m3/extension_conformance_kit_report.json)
+
+CI should use the suite check form:
+
+```text
+python3 tools/extensions/m3/validator_cli/aureline_extension_validator.py \
+  --repo-root . \
+  validate-suite \
+  --suite fixtures/extensions/m3/conformance_kit/suite.json \
+  --report artifacts/compat/m3/extension_conformance_kit_report.json \
+  --check
+```
+
 ## Sample packs
 
 Reproducible sample extensions are the precondition for a beta-class
