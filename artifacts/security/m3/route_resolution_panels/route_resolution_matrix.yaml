@@ -1,0 +1,223 @@
+# Provider route-resolution, browser-handoff, and authority-truth panel beta
+# matrix.
+#
+# Declares the profiles, lane classes, route choices, route owners, grant
+# (acting-identity) classes, action classes, fallback modes, route-degraded
+# states, browser-handoff reasons, and authority-truth states the beta
+# projection must inspect on connected, mirror-only, offline, and
+# enterprise-managed beta profiles. The matrix mirrors the vocabulary owned
+# by `crates/aureline-provider/src/route_resolution/mod.rs`. Every cell stays
+# inspectable from the same record kind across admin, support, shell, and
+# reviewer surfaces.
+
+shared_contract_ref: "providers:route_resolution_beta:v1"
+schema_version: 1
+
+record_kinds:
+  page: "providers_route_resolution_beta_page_record"
+  row: "providers_route_resolution_beta_row_record"
+  browser_handoff_panel: "providers_route_resolution_beta_browser_handoff_panel_record"
+  authority_truth_panel: "providers_route_resolution_beta_authority_truth_panel_record"
+  summary: "providers_route_resolution_beta_summary_record"
+  defect: "providers_route_resolution_beta_defect_record"
+  support_export: "providers_route_resolution_beta_support_export_record"
+
+profiles:
+  - token: "connected"
+    note: "Connected workstation reaching live providers."
+  - token: "mirror_only"
+    note: "Mirror-only workstation reaching providers through a signed mirror."
+  - token: "offline"
+    note: "Offline workstation working from imported snapshots."
+  - token: "enterprise_managed"
+    note: "Enterprise-managed workstation under managed-policy authority."
+
+lane_classes:
+  - token: "managed_provider_lane"
+    is_managed: true
+    note: "Managed lane reached through enterprise managed authority."
+  - token: "managed_mirror_lane"
+    is_managed: true
+    note: "Managed lane reached through a signed enterprise mirror."
+  - token: "external_provider_lane"
+    is_managed: false
+    note: "External, customer-region provider lane."
+  - token: "tunnel_exposed_external_lane"
+    is_managed: false
+    note: "Tunnel-exposed external lane (SSH tunnel, dev tunnel, etc.)."
+  - token: "offline_snapshot_lane"
+    is_managed: false
+    note: "Air-gapped / offline lane reading imported provider snapshots."
+
+route_choices:
+  - token: "live_provider_direct"
+    crosses_provider_boundary: true
+  - token: "signed_mirror_route"
+    crosses_provider_boundary: true
+  - token: "tunnel_exposed_route"
+    crosses_provider_boundary: true
+  - token: "imported_snapshot_route"
+    crosses_provider_boundary: false
+  - token: "system_browser_handoff_route"
+    crosses_provider_boundary: true
+  - token: "local_only_route"
+    crosses_provider_boundary: false
+
+route_owners:
+  - token: "workspace_user"
+  - token: "provider_authority"
+  - token: "managed_policy_authority"
+  - token: "tunnel_session_owner"
+  - token: "offline_import_authority"
+
+acting_identity_classes:
+  - token: "connected_account"
+    proposes_human_authority: true
+  - token: "installation_grant"
+    proposes_human_authority: false
+  - token: "delegated_credential"
+    proposes_human_authority: false
+
+provider_auth_sources:
+  - token: "human_session"
+  - token: "installation_grant"
+  - token: "delegated_credential"
+  - token: "project_scoped_grant"
+  - token: "policy_injected_service"
+  - token: "browser_only"
+  - token: "unknown_auth_source"
+
+action_classes:
+  - token: "read_only_inspection"
+    proposes_mutation: false
+  - token: "provider_mutation"
+    proposes_mutation: true
+  - token: "ci_or_check_mutation"
+    proposes_mutation: true
+  - token: "release_publish"
+    proposes_mutation: true
+  - token: "credential_projection"
+    proposes_mutation: true
+
+fallback_modes:
+  - token: "copy_or_export"
+    requires_ref: "copy_or_export_evidence_ref"
+  - token: "open_in_provider"
+    requires_ref: "browser_handoff_packet_ref"
+  - token: "publish_later_queue"
+    requires_ref: "publish_later_queue_item_ref"
+  - token: "inspect_only"
+    requires_ref: "inspect_only_snapshot_ref"
+
+route_degraded_states:
+  - token: "green"
+    holds_mutation_closed: false
+  - token: "freshness_floor_drifted"
+    holds_mutation_closed: true
+  - token: "mirror_lag_beyond_tolerance"
+    holds_mutation_closed: true
+  - token: "tunnel_session_expired"
+    holds_mutation_closed: true
+  - token: "snapshot_older_than_retention_floor"
+    holds_mutation_closed: true
+  - token: "managed_policy_boundary_closed"
+    holds_mutation_closed: true
+  - token: "route_unreachable"
+    holds_mutation_closed: true
+
+browser_handoff_reasons:
+  - token: "mutation_not_supported_in_product"
+  - token: "publish_requires_browser_auth"
+  - token: "license_or_portal_acceptance"
+  - token: "admin_only_surface"
+  - token: "provider_consent_flow"
+  - token: "provider_admin_delegation"
+  - token: "step_up_required"
+
+authority_truth_states:
+  - token: "green_claim_honest"
+    allows_green_claim: true
+  - token: "claim_degraded"
+    allows_green_claim: false
+  - token: "claim_stale_and_retracted"
+    allows_green_claim: false
+  - token: "never_resolved"
+    allows_green_claim: false
+
+defect_kinds:
+  - token: "raw_token_material_present"
+  - token: "silent_public_endpoint_fallback_taken"
+  - token: "silent_authority_widening_taken"
+  - token: "local_editing_not_preserved"
+  - token: "browser_handoff_route_without_packet_ref"
+  - token: "tunnel_route_without_session_ref"
+  - token: "mirror_route_without_mirror_ref"
+  - token: "snapshot_route_without_publisher_ref"
+  - token: "managed_lane_without_managed_policy_bundle"
+  - token: "external_lane_with_managed_policy_bundle"
+  - token: "browser_handoff_panel_row_ref_unknown"
+  - token: "browser_handoff_panel_route_choice_mismatch"
+  - token: "browser_handoff_panel_owner_class_mismatch"
+  - token: "browser_handoff_panel_identity_class_mismatch"
+  - token: "browser_handoff_panel_raw_url_present"
+  - token: "browser_handoff_panel_raw_provider_payload_present"
+  - token: "authority_truth_panel_row_ref_unknown"
+  - token: "authority_truth_panel_green_claim_while_stale"
+  - token: "authority_truth_panel_green_claim_without_managed_bundle"
+  - token: "authority_truth_panel_green_flag_disagrees_with_state"
+  - token: "route_green_state_with_stale_freshness"
+  - token: "mutation_action_without_fallback_proof_ref"
+  - token: "fallback_open_in_provider_without_packet_ref"
+  - token: "fallback_publish_later_without_queue_ref"
+  - token: "fallback_inspect_only_without_snapshot_ref"
+  - token: "fallback_copy_or_export_without_evidence_ref"
+  - token: "profile_coverage_missing"
+  - token: "profile_token_drift"
+  - token: "lane_class_token_drift"
+  - token: "route_choice_token_drift"
+  - token: "owner_class_token_drift"
+  - token: "acting_identity_class_token_drift"
+  - token: "auth_source_token_drift"
+  - token: "action_class_token_drift"
+  - token: "fallback_mode_token_drift"
+  - token: "freshness_class_token_drift"
+  - token: "route_degraded_state_token_drift"
+  - token: "handoff_reason_token_drift"
+  - token: "truth_state_token_drift"
+
+acceptance_invariants:
+  - id: "current_route_named"
+    note: |
+      Every provider-linked beta row names a typed route choice, route label,
+      transport label, target identity, and (where applicable) tunnel, mirror,
+      or snapshot publisher refs.
+  - id: "route_owner_named"
+    note: |
+      Every row names a typed route owner class, owner ref, and owner label.
+      Managed lanes additionally cite a managed-policy bundle ref on either
+      the owner or the grant.
+  - id: "grant_type_named"
+    note: |
+      Every row names the acting-identity class, auth source, and the
+      account-scope beta identity row the grant binds to.
+  - id: "fallback_path_named"
+    note: |
+      Every row names a typed fallback mode plus the structured proof ref
+      that proves the fallback is real (browser-handoff packet ref,
+      publish-later queue item ref, inspect-only snapshot ref, or
+      copy-or-export evidence ref).
+  - id: "browser_handoff_traceable"
+    note: |
+      Every browser-handoff panel projects the same route choice, owner
+      class, and acting-identity class as its bound row, and cites the same
+      browser-handoff packet seed the command/support packets use.
+  - id: "no_green_claim_on_stale_truth"
+    note: |
+      Authority-truth panels never claim green when route or freshness holds
+      mutation closed on the bound row, and never claim green on a managed
+      lane without a managed-policy bundle ref.
+  - id: "no_silent_widening_or_fallback"
+    note: |
+      Beta rows never carry raw token material, never silently fall back to a
+      public endpoint, and never silently widen mutation authority above the
+      grant scope.

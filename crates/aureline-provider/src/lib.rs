@@ -19,6 +19,7 @@ pub mod account_scope;
 pub mod approval_tickets;
 pub mod publish_later;
 pub mod registry;
+pub mod route_resolution;
 
 pub use account_scope::{
     audit_account_scope_beta_page, seeded_account_scope_beta_page,
@@ -58,6 +59,21 @@ pub use publish_later::{
     DependencyClass, DependencyState, ExportSafetyClass, PublishLaterQueueAlphaItem,
     QueueActionKind, QueueDependency, QueueNextSafeActionClass, QueueState, ReauthRequirementClass,
     RescopeRequirementClass,
+};
+pub use route_resolution::{
+    audit_route_resolution_beta_page, seeded_route_resolution_beta_page,
+    validate_route_resolution_beta_page, AuthorityTruthPanel, AuthorityTruthState,
+    BrowserHandoffPanel, BrowserHandoffReasonClass, FallbackDescriptor, GrantDescriptor,
+    LaneClass, RouteActionClass, RouteChoiceClass, RouteDegradedStateClass, RouteDescriptor,
+    RouteFreshness, RouteOwnerClass, RouteOwnerDescriptor, RouteResolutionBetaDefect,
+    RouteResolutionBetaDefectKind, RouteResolutionBetaPage, RouteResolutionBetaSummary,
+    RouteResolutionBetaSupportExport, RouteResolutionRow,
+    ROUTE_RESOLUTION_BETA_AUTHORITY_TRUTH_PANEL_RECORD_KIND,
+    ROUTE_RESOLUTION_BETA_BROWSER_HANDOFF_PANEL_RECORD_KIND,
+    ROUTE_RESOLUTION_BETA_DEFECT_RECORD_KIND, ROUTE_RESOLUTION_BETA_PAGE_RECORD_KIND,
+    ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND, ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
+    ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF, ROUTE_RESOLUTION_BETA_SOURCE_MATRIX_REF,
+    ROUTE_RESOLUTION_BETA_SUMMARY_RECORD_KIND, ROUTE_RESOLUTION_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use registry::{
     validate_provider_capability_lifecycle_claim, ActorScope, ArtifactTrustClass,
