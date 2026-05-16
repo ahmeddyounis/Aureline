@@ -30,6 +30,7 @@ pub mod capsule_resolver;
 pub mod debug;
 pub mod detectors;
 pub mod discovery;
+pub mod drift_repair;
 pub mod env_inspect;
 pub mod execution_context;
 pub mod language_hosts;
@@ -212,6 +213,12 @@ pub use remote_helper_skew_beta::{
     RemoteHelperVisibleVersionState, REMOTE_HELPER_SKEW_BETA_COMPATIBILITY_ROW_RECORD_KIND,
     REMOTE_HELPER_SKEW_BETA_RECORD_KIND, REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION,
     REMOTE_HELPER_SKEW_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use drift_repair::{
+    DriftReasonClass, DriftRepairAction, DriftRepairActionClass, DriftRepairAuthorityImpactClass,
+    RemoteDriftRepairDiagnosticsPacket, RemoteDriftRepairGuidance,
+    REMOTE_DRIFT_REPAIR_BETA_DIAGNOSTICS_PACKET_RECORD_KIND,
+    REMOTE_DRIFT_REPAIR_BETA_GUIDANCE_RECORD_KIND, REMOTE_DRIFT_REPAIR_BETA_SCHEMA_VERSION,
 };
 pub use provenance::evidence_packet::{
     seeded_runtime_evidence_packet, seeded_runtime_evidence_packet_support_export,

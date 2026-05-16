@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/remote_drift_repair.schema.json",
+  "title": "Aureline remote drift-repair beta contract",
+  "description": "Beta boundary schema for the remote_drift_repair_beta_guidance_record consumed by remote attach/reconnect surfaces, headless inspectors, support exports, and exportable diagnostics packets. Each guidance record is derived from one remote_helper_skew_beta_record (schemas/providers/remote_capabilities.schema.json) and adds typed drift reasoning (version, capability, auth, route, target), a primary recovery action, alternative recovery actions, and the authority-impact stamp each action carries. Raw hostnames, IP addresses, endpoint URLs, paths, ports, query strings, raw provider payloads, raw helper process arguments, raw transport frames, credentials, secret values, and support bundle bodies never appear. Adding an enum value or optional field is additive-minor and bumps schema_version when the wire payload changes; repurposing an existing value is breaking and requires a new decision row.",
+  "oneOf": [
+    { "$ref": "#/$defs/guidance_record" },
+    { "$ref": "#/$defs/diagnostics_packet" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "drift_reason_class": {
+      "type": "string",
+      "enum": [
+        "version_mismatch",
+        "capability_mismatch",
+        "auth_mismatch",
+        "route_mismatch",
+        "target_mismatch"
+      ],
+      "description": "Closed drift-reason vocabulary. A guidance record may carry multiple reasons; the schema preserves the input order so reviewers see the same ranking as in-product surfaces."
+    },
+    "repair_action_class": {
+      "type": "string",
+      "enum": [
+        "no_repair_required",
+        "continue_narrowed_posture",
+        "run_drift_probe",
+        "reconnect",
+        "upgrade",
+        "downgrade",
+        "continue_local_only",
+        "contact_admin_or_support"
+      ],
+      "description": "Closed recovery-action vocabulary. Adding a value is additive-minor; repurposing an existing value is breaking."
+    },
+    "authority_impact_class": {
+      "type": "string",
+      "enum": [
+        "maintains_current",
+        "narrows_authority",
+        "requires_reapproval"
+      ],
+      "description": "Closed authority-impact vocabulary. No path may widen authority silently; widening actions stamp requires_reapproval and surfaces gate them behind an explicit re-approval prompt."
+    },
+    "lifecycle_phase_class": {
+      "type": "string",
+      "enum": ["attach", "reconnect"]
+    },
+    "negotiation_outcome_class": {
+      "type": "string",
+      "enum": ["match", "downgrade", "refuse"]
+    },
+    "effective_capability_posture_class": {
+      "type": "string",
+      "enum": [
+        "full_remote",
+        "review_only",
+        "file_only",
+        "inspect_only",
+        "local_only",
+        "blocked"
+      ]
+    },
+    "skew_visibility_class": {
+      "type": "string",
+      "enum": [
+        "adjacent_supported",
+        "narrowed_supported_window",
+        "probe_required_untested",
+        "outside_supported_window"
+      ]
+    },
+    "source_repair_path_class": {
+      "type": "string",
+      "enum": [
+        "no_repair_required",
+        "continue_narrowed_posture",
+        "run_drift_probe_or_reattach",
+        "upgrade_or_repin",
+        "continue_local_only",
+        "contact_admin_or_support"
+      ]
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640,
+      "description": "Review-safe summary; raw endpoints, hostnames, ports, tokens, and secret values are forbidden."
+    },
+    "visible_version_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_version",
+        "helper_version",
+        "selected_protocol_version",
+        "skew_case_ref",
+        "skew_window_declaration_ref",
+        "compatibility_row_ref"
+      ],
+      "properties": {
+        "client_version": { "type": "string", "minLength": 1 },
+        "helper_version": { "type": "string", "minLength": 1 },
+        "selected_protocol_version": { "type": "string", "minLength": 1 },
+        "skew_case_ref": {
+          "type": "string",
+          "pattern": "^skew_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "skew_window_declaration_ref": {
+          "type": "string",
+          "pattern": "^skew_window:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "compatibility_row_ref": {
+          "type": "string",
+          "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        }
+      }
+    },
+    "repair_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "action_label",
+        "authority_impact",
+        "authority_impact_label",
+        "fails_closed",
+        "requires_reapproval",
+        "visible_summary"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/repair_action_class" },
+        "action_label": { "type": "string", "minLength": 1 },
+        "authority_impact": { "$ref": "#/$defs/authority_impact_class" },
+        "authority_impact_label": { "type": "string", "minLength": 1 },
+        "fails_closed": { "type": "boolean" },
+        "requires_reapproval": {
+          "type": "boolean",
+          "description": "True only when authority_impact == requires_reapproval; surfaces gate the action behind explicit re-approval."
+        },
+        "visible_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "evidence_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_record_ref",
+        "schema_refs",
+        "fixture_refs",
+        "doc_refs"
+      ],
+      "properties": {
+        "source_record_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the remote_helper_skew_beta_record this guidance record is derived from."
+        },
+        "schema_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "fixture_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "doc_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "harness_expectations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "expected_primary_action_class",
+        "expected_authority_impact",
+        "expected_drift_reasons",
+        "expected_fails_closed_for_mutation",
+        "expected_any_action_requires_reapproval",
+        "acceptance_states"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^remote_drift_repair_beta_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "expected_primary_action_class": {
+          "$ref": "#/$defs/repair_action_class"
+        },
+        "expected_authority_impact": {
+          "$ref": "#/$defs/authority_impact_class"
+        },
+        "expected_drift_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drift_reason_class" },
+          "uniqueItems": true
+        },
+        "expected_fails_closed_for_mutation": { "type": "boolean" },
+        "expected_any_action_requires_reapproval": { "type": "boolean" },
+        "acceptance_states": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "dropped_capability_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "reason_class", "visible_reason", "retryable"],
+      "properties": {
+        "capability": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "reason_class": {
+          "type": "string",
+          "enum": [
+            "helper_does_not_offer",
+            "client_requires_unknown_feature",
+            "outside_skew_window",
+            "protocol_floor_mismatch",
+            "policy_narrowed",
+            "trust_not_verified",
+            "probe_required"
+          ]
+        },
+        "visible_reason": { "$ref": "#/$defs/short_summary" },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "guidance_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "guidance_row_id",
+        "source_record_row_id",
+        "envelope_id",
+        "generated_at",
+        "lifecycle_phase",
+        "drift_reasons",
+        "primary_action",
+        "alternative_actions",
+        "fails_closed_for_mutation",
+        "any_action_requires_reapproval",
+        "visible_version_state",
+        "effective_posture",
+        "negotiation_outcome",
+        "skew_visibility",
+        "source_repair_path",
+        "dropped_capabilities",
+        "visible_summary",
+        "safe_continuation",
+        "evidence_refs",
+        "support_packet_refs",
+        "compatibility_report_row_refs",
+        "harness_expectations"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_drift_repair_beta_guidance_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "guidance_row_id": {
+          "type": "string",
+          "pattern": "^remote-drift-repair-row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "source_record_row_id": {
+          "type": "string",
+          "pattern": "^remote-helper-beta-row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "envelope_id": {
+          "type": "string",
+          "pattern": "^helper_capability_envelope:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "lifecycle_phase": { "$ref": "#/$defs/lifecycle_phase_class" },
+        "drift_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drift_reason_class" },
+          "uniqueItems": true
+        },
+        "primary_action": { "$ref": "#/$defs/repair_action_record" },
+        "alternative_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repair_action_record" }
+        },
+        "fails_closed_for_mutation": { "type": "boolean" },
+        "any_action_requires_reapproval": { "type": "boolean" },
+        "visible_version_state": { "$ref": "#/$defs/visible_version_state" },
+        "effective_posture": {
+          "$ref": "#/$defs/effective_capability_posture_class"
+        },
+        "negotiation_outcome": {
+          "$ref": "#/$defs/negotiation_outcome_class"
+        },
+        "skew_visibility": { "$ref": "#/$defs/skew_visibility_class" },
+        "source_repair_path": {
+          "$ref": "#/$defs/source_repair_path_class"
+        },
+        "dropped_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dropped_capability_record" }
+        },
+        "visible_summary": { "$ref": "#/$defs/short_summary" },
+        "safe_continuation": { "$ref": "#/$defs/short_summary" },
+        "evidence_refs": { "$ref": "#/$defs/evidence_refs" },
+        "support_packet_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^support_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "compatibility_report_row_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^compat_report_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "harness_expectations": { "$ref": "#/$defs/harness_expectations" }
+      }
+    },
+    "diagnostics_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "diagnostics_packet_id",
+        "generated_at",
+        "guidance_record_refs",
+        "any_record_fails_closed_for_mutation",
+        "any_record_requires_reapproval",
+        "drift_reason_summary_tokens",
+        "repair_action_summary_tokens"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "remote_drift_repair_beta_diagnostics_packet"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "diagnostics_packet_id": {
+          "type": "string",
+          "pattern": "^remote_drift_repair_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "guidance_record_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "any_record_fails_closed_for_mutation": { "type": "boolean" },
+        "any_record_requires_reapproval": { "type": "boolean" },
+        "drift_reason_summary_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/drift_reason_class" },
+          "uniqueItems": true
+        },
+        "repair_action_summary_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repair_action_class" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
