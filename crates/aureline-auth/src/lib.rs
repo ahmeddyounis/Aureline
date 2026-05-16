@@ -33,7 +33,12 @@
 //! - one [`policy_packs::PolicyPackBetaPage`] beta projection that turns
 //!   effective policy packs, mirror and manual-import receipts, before/after
 //!   diffs, and product-denial explain traces into a single inspectable record
-//!   for admin, support, mirror, and offline lanes.
+//!   for admin, support, mirror, and offline lanes; and
+//! - one [`oidc::OidcSystemBrowserBetaPage`] beta projection that audits
+//!   enterprise OIDC system-browser sign-in, recovery, and session-continuity
+//!   flows so claimed-enterprise rows disclose issuer source, tenant /
+//!   workspace binding, and return path, degrade truthfully on outage or
+//!   denial, and preserve local editing through sign-out and refresh.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -65,6 +70,7 @@ pub mod browser_callback;
 pub mod credential_state;
 pub mod identity_modes;
 pub mod network_trust;
+pub mod oidc;
 pub mod policy_packs;
 pub mod secrets;
 pub mod system_browser;
@@ -128,6 +134,24 @@ pub use secrets::{
     SECRET_BROKER_ALPHA_PACKET_RECORD_KIND, SECRET_BROKER_ALPHA_SCHEMA_VERSION,
     SECRET_BROKER_ROW_RECORD_KIND, SECRET_BROKER_SUPPORT_EXPORT_RECORD_KIND,
     SECRET_BROKER_SUPPORT_EXPORT_ROW_RECORD_KIND,
+};
+
+pub use oidc::{
+    audit_oidc_system_browser_beta_rows, seeded_oidc_system_browser_beta_page,
+    validate_oidc_system_browser_beta_page, OidcAuthorityScopeClass, OidcIdentityOutageBlock,
+    OidcIdentityOutageClass, OidcIssuerDisclosure, OidcIssuerSourceClass, OidcRecoveryActionClass,
+    OidcReturnPathLabel, OidcSessionContinuityBlock, OidcSessionStateClass,
+    OidcSignOutContinuityClass, OidcSystemBrowserBetaAxis, OidcSystemBrowserBetaDefect,
+    OidcSystemBrowserBetaDefectKind, OidcSystemBrowserBetaPage,
+    OidcSystemBrowserBetaProfileClass, OidcSystemBrowserBetaRow, OidcSystemBrowserBetaSummary,
+    OidcSystemBrowserBetaSupportExport, OidcSystemBrowserBetaSupportRow, OidcTenantBinding,
+    OidcTenantBindingClass, StageOidcSystemBrowserBetaRowRequest,
+    OIDC_SYSTEM_BROWSER_BETA_DEFECT_RECORD_KIND, OIDC_SYSTEM_BROWSER_BETA_PAGE_RECORD_KIND,
+    OIDC_SYSTEM_BROWSER_BETA_ROW_RECORD_KIND, OIDC_SYSTEM_BROWSER_BETA_SCHEMA_VERSION,
+    OIDC_SYSTEM_BROWSER_BETA_SHARED_CONTRACT_REF,
+    OIDC_SYSTEM_BROWSER_BETA_SUMMARY_RECORD_KIND,
+    OIDC_SYSTEM_BROWSER_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    OIDC_SYSTEM_BROWSER_BETA_SUPPORT_ROW_RECORD_KIND,
 };
 
 pub use system_browser::{
