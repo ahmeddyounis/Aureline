@@ -24,6 +24,12 @@
 //! - one [`collections::ExtensionInstallCollectionAlphaPacket`] projection
 //!   that renders package/inventory rows through the shared dense-collection
 //!   filter, counter, selection, and batch-review contract.
+//! - one [`runtime::RuntimeV1BetaContractRecord`] admission packet that
+//!   binds capability-bounded Wasm extensions and separately supervised
+//!   external host processes into the runtime v1 beta lifecycle and
+//!   capability-negotiation model, plus a
+//!   [`runtime::RuntimeV1BetaSupportExportRecord`] projection for the
+//!   first consuming support / partner export surface.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -41,6 +47,7 @@ pub mod collections;
 pub mod install_review;
 pub mod manifest_baseline;
 pub mod review_alpha;
+pub mod runtime;
 
 pub use collections::{
     ExtensionInstallCollectionAlphaInput, ExtensionInstallCollectionAlphaPacket,
@@ -84,4 +91,13 @@ pub use review_alpha::{
     EXTENSION_REVIEW_ALPHA_PACKET_RECORD_KIND, EXTENSION_REVIEW_ALPHA_PROJECTION_RECORD_KIND,
     PUBLISHER_CONTINUITY_ALPHA_RECORD_KIND, REVIEW_ALPHA_SCHEMA_VERSION,
     REVOCATION_ALPHA_RECORD_KIND,
+};
+pub use runtime::{
+    evaluate_runtime_v1_beta_contract, project_runtime_v1_beta_support_export,
+    validate_runtime_v1_beta_contract, DegradedStateClass, HostPlacementClass,
+    HostSupervisionClass, RestartPostureClass, RuntimeAdmissionDecisionClass,
+    RuntimeAdmissionReasonClass, RuntimeLifecycleStateClass, RuntimeV1BetaContractInput,
+    RuntimeV1BetaContractRecord, RuntimeV1BetaFinding, RuntimeV1BetaSupportExportRecord,
+    SdkAlignmentClass, RUNTIME_V1_BETA_CONTRACT_RECORD_KIND, RUNTIME_V1_BETA_SCHEMA_VERSION,
+    RUNTIME_V1_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };

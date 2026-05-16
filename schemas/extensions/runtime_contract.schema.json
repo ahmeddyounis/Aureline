@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/runtime_contract.schema.json",
+  "title": "Aureline extension runtime v1 beta admission contract and support-export packet",
+  "description": "Cross-tool boundary schema for the extension runtime v1 beta. One record-kind binds a manifest baseline (publisher identity, host contract family), a host-negotiation packet (declared and negotiated capability worlds), a lifecycle / restart / degraded-state row, the runtime-budget summary, and the SDK / marketplace alignment refs into one typed admission contract that the install / review surface, the permission inspector, the support export, and the partner packet template read instead of inventing per-surface runtime truth. The runtime crate's Rust types in crates/aureline-extensions/src/runtime/ are the source of truth; this schema is the typed cross-tool boundary every non-owning surface reads. Both capability-bounded Wasm extensions (component model and core module) and separately supervised external hosts (helper binaries, remote-side components, compatibility bridges) resolve through the same record. Adding a new enum value or an additive optional field is additive-minor with a runtime_v1_beta_schema_version bump; repurposing an existing value is breaking and requires a new decision row. Raw manifest bytes, raw signatures, raw policy bodies, raw paths, raw tokens, raw helper-binary invocation bodies, raw bridge-shim payloads, and raw runtime payload bytes MUST NOT appear in any record; records carry refs only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/runtime_v1_beta_contract_record" },
+    { "$ref": "#/$defs/runtime_v1_beta_support_export_record" }
+  ],
+  "$defs": {
+    "runtime_v1_beta_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this runtime v1 beta export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "runtime_v1_beta_contract_record",
+        "runtime_v1_beta_support_export_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "host_contract_family_class": {
+      "type": "string",
+      "enum": [
+        "wasm_component_model",
+        "wasm_core_module",
+        "external_host_process",
+        "helper_binary",
+        "remote_side_component",
+        "compatibility_bridge"
+      ],
+      "description": "Frozen host-contract-family vocabulary mirrored from the M1 extension-manifest baseline."
+    },
+    "host_placement_class": {
+      "type": "string",
+      "enum": [
+        "wasm_in_process_isolated_world",
+        "wasm_isolated_subprocess",
+        "external_host_supervised_process",
+        "helper_binary_short_lived",
+        "remote_side_component_attached",
+        "compatibility_bridge_translated",
+        "unknown_placement_class"
+      ],
+      "description": "Closed host-placement vocabulary. unknown_placement_class is reserved for denial drills and MUST pair with admission_decision_class=refused and admission_reason_class=host_placement_unsupported."
+    },
+    "host_supervision_class": {
+      "type": "string",
+      "enum": [
+        "in_process_capability_sandbox",
+        "separate_subprocess_supervised",
+        "separate_subprocess_helper_kill_switch",
+        "remote_agent_attached_envelope",
+        "compatibility_bridge_translated_supervision",
+        "unknown_supervision_class"
+      ],
+      "description": "Closed host-supervision vocabulary. unknown_supervision_class is reserved for denial drills and MUST pair with admission_decision_class=refused and admission_reason_class=host_placement_unsupported."
+    },
+    "runtime_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "discovered",
+        "installed",
+        "disabled",
+        "pending_activation",
+        "active",
+        "degraded",
+        "quarantined",
+        "recovered",
+        "removed",
+        "publisher_blocked"
+      ],
+      "description": "Closed lifecycle-state vocabulary mirrored from artifacts/extensions/extension_lifecycle_states.yaml."
+    },
+    "restart_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_restart_attempted",
+        "one_warm_restart_under_budget",
+        "exponential_backoff_bounded"
+      ],
+      "description": "Closed restart-posture vocabulary mirrored from artifacts/extensions/quarantine_rules.yaml."
+    },
+    "degraded_state_class": {
+      "type": "string",
+      "enum": [
+        "none_nominal",
+        "throttled_background_work",
+        "disabled_until_next_session",
+        "disabled_until_user_explicit_reenable",
+        "quarantined_pending_review",
+        "publisher_blocked"
+      ],
+      "description": "Closed degraded-state vocabulary projected onto review and support surfaces."
+    },
+    "install_decision_class": {
+      "type": "string",
+      "enum": ["admit", "admit_with_step_up", "review_only", "denied"],
+      "description": "Install-decision class consumed from the manifest baseline lane."
+    },
+    "install_decision_reason_class": {
+      "type": "string",
+      "enum": [
+        "admitted_no_violation",
+        "step_up_required_by_policy_pack",
+        "review_only_unverified_publisher",
+        "publisher_identity_required",
+        "publisher_anonymous",
+        "publisher_quarantined",
+        "publisher_lifecycle_retired",
+        "extension_lifecycle_retired",
+        "manifest_scope_incomplete",
+        "manifest_origin_unknown",
+        "declared_permission_rationale_required",
+        "effective_permission_widening_attempted",
+        "lifecycle_state_unknown_class"
+      ],
+      "description": "Install-decision reason class consumed from the manifest baseline lane."
+    },
+    "runtime_admission_decision_class": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "admitted_narrowed",
+        "awaiting_user_review",
+        "refused",
+        "quarantined"
+      ],
+      "description": "Closed runtime-admission decision class."
+    },
+    "runtime_admission_reason_class": {
+      "type": "string",
+      "enum": [
+        "admitted_after_capability_negotiation",
+        "admitted_with_world_narrowing",
+        "awaiting_user_world_acknowledgement",
+        "manifest_install_denied",
+        "publisher_identity_opaque",
+        "permission_diff_missing",
+        "effective_permission_widening_attempted",
+        "capability_world_unavailable_on_host",
+        "host_placement_unsupported",
+        "runtime_budget_quarantine_active",
+        "crash_loop_quarantine_active",
+        "sdk_or_marketplace_metadata_out_of_date",
+        "lifecycle_terminal_state"
+      ],
+      "description": "Closed runtime-admission reason class paired with runtime_admission_decision_class."
+    },
+    "sdk_alignment_class": {
+      "type": "string",
+      "enum": [
+        "aligned",
+        "sdk_lags",
+        "marketplace_leads",
+        "sdk_marketplace_drift",
+        "unknown"
+      ],
+      "description": "Closed SDK / marketplace alignment class. Only 'aligned' passes the beta admission guardrail."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": ["metadata_safe_default"],
+      "description": "Runtime v1 beta records emit only the metadata-safe redaction class."
+    },
+    "runtime_v1_beta_contract_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "runtime_v1_beta_schema_version",
+        "contract_id",
+        "extension_identity_ref",
+        "extension_version",
+        "manifest_baseline_ref",
+        "manifest_install_decision_class",
+        "manifest_install_decision_reason_class",
+        "host_contract_family_class",
+        "host_placement_class",
+        "host_supervision_class",
+        "host_negotiation_packet_ref",
+        "declared_capability_world_refs",
+        "negotiated_capability_world_refs",
+        "narrowed_capability_world_refs",
+        "narrowing_reasons_recorded",
+        "effective_permission_summary_ref",
+        "effective_permission_diff_present",
+        "effective_permission_widening_attempted_blocked_count",
+        "lifecycle_state_class",
+        "restart_posture_class",
+        "restart_attempt_count",
+        "degraded_state_class",
+        "runtime_budget_summary_ref",
+        "runtime_budget_quarantine_active",
+        "runtime_budget_crash_loop_active",
+        "sdk_release_bundle_ref",
+        "marketplace_metadata_ref",
+        "sdk_alignment_class",
+        "audit_event_refs",
+        "decided_at",
+        "admission_decision_class",
+        "admission_reason_class",
+        "admission_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_v1_beta_contract_record" },
+        "runtime_v1_beta_schema_version": { "$ref": "#/$defs/runtime_v1_beta_schema_version" },
+        "contract_id": {
+          "type": "string",
+          "pattern": "^runtime_v1_beta:.+"
+        },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifest_baseline_ref": {
+          "type": "string",
+          "pattern": "^manifest_baseline:.+"
+        },
+        "manifest_install_decision_class": { "$ref": "#/$defs/install_decision_class" },
+        "manifest_install_decision_reason_class": { "$ref": "#/$defs/install_decision_reason_class" },
+        "host_contract_family_class": { "$ref": "#/$defs/host_contract_family_class" },
+        "host_placement_class": { "$ref": "#/$defs/host_placement_class" },
+        "host_supervision_class": { "$ref": "#/$defs/host_supervision_class" },
+        "host_negotiation_packet_ref": {
+          "type": "string",
+          "pattern": "^host_negotiation:.+"
+        },
+        "declared_capability_world_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "negotiated_capability_world_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "narrowed_capability_world_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "narrowing_reasons_recorded": { "type": "boolean" },
+        "effective_permission_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_permission_diff_present": { "type": "boolean" },
+        "effective_permission_widening_attempted_blocked_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lifecycle_state_class": { "$ref": "#/$defs/runtime_lifecycle_state_class" },
+        "restart_posture_class": { "$ref": "#/$defs/restart_posture_class" },
+        "restart_attempt_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "degraded_state_class": { "$ref": "#/$defs/degraded_state_class" },
+        "runtime_budget_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "runtime_budget_quarantine_active": { "type": "boolean" },
+        "runtime_budget_crash_loop_active": { "type": "boolean" },
+        "sdk_release_bundle_ref": {
+          "type": "string",
+          "pattern": "^sdk_release_bundle:.+"
+        },
+        "marketplace_metadata_ref": {
+          "type": "string",
+          "pattern": "^marketplace_metadata:.+"
+        },
+        "sdk_alignment_class": { "$ref": "#/$defs/sdk_alignment_class" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "decided_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "admission_decision_class": { "$ref": "#/$defs/runtime_admission_decision_class" },
+        "admission_reason_class": { "$ref": "#/$defs/runtime_admission_reason_class" },
+        "admission_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "runtime_v1_beta_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "runtime_v1_beta_schema_version",
+        "export_id",
+        "contract_ref",
+        "extension_identity_ref",
+        "extension_version",
+        "host_contract_family_class",
+        "host_placement_class",
+        "host_supervision_class",
+        "lifecycle_state_class",
+        "restart_posture_class",
+        "restart_attempt_count",
+        "degraded_state_class",
+        "declared_world_count",
+        "negotiated_world_count",
+        "narrowed_world_count",
+        "sdk_alignment_class",
+        "admission_decision_class",
+        "admission_reason_class",
+        "blocks_activation",
+        "export_safe_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "runtime_v1_beta_support_export_record" },
+        "runtime_v1_beta_schema_version": { "$ref": "#/$defs/runtime_v1_beta_schema_version" },
+        "export_id": {
+          "type": "string",
+          "pattern": "^runtime_v1_beta_support_export:.+"
+        },
+        "contract_ref": {
+          "type": "string",
+          "pattern": "^runtime_v1_beta:.+"
+        },
+        "extension_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "extension_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "host_contract_family_class": { "$ref": "#/$defs/host_contract_family_class" },
+        "host_placement_class": { "$ref": "#/$defs/host_placement_class" },
+        "host_supervision_class": { "$ref": "#/$defs/host_supervision_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/runtime_lifecycle_state_class" },
+        "restart_posture_class": { "$ref": "#/$defs/restart_posture_class" },
+        "restart_attempt_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "degraded_state_class": { "$ref": "#/$defs/degraded_state_class" },
+        "declared_world_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "negotiated_world_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "narrowed_world_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sdk_alignment_class": { "$ref": "#/$defs/sdk_alignment_class" },
+        "admission_decision_class": { "$ref": "#/$defs/runtime_admission_decision_class" },
+        "admission_reason_class": { "$ref": "#/$defs/runtime_admission_reason_class" },
+        "blocks_activation": { "type": "boolean" },
+        "export_safe_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    }
+  }
+}
