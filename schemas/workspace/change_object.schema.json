@@ -1,0 +1,589 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/change_object.schema.json",
+  "title": "Aureline change-object alpha record (branch / worktree / patch stack)",
+  "description": "Boundary schema for the alpha change-object family frozen in docs/review/m3/change_objects_alpha.md. A change object is the explicit, reviewable record that names a branch, worktree, or patch stack with a stable id, lineage, and landing-state summary so Activity Center, shell change-list surfaces, review previews, CLI / headless entry, and support packets read one truth about where the change will land before publish, merge, or apply. Raw paths, raw credentials, raw URLs with secrets, and raw uncommitted file bodies never cross this boundary; raw branch and remote names are not exported (the bundle quotes opaque ref labels and class tokens only). Adding a new closed vocabulary value is additive-minor and bumps schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "$ref": "#/$defs/change_object_alpha_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe in support bundles, and safe on RPC. Raw paths, raw URLs, raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "change_object_kind": {
+      "type": "string",
+      "enum": ["branch", "worktree", "patch_stack"]
+    },
+    "landing_state_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_remote_yet",
+        "pending_publish_to_remote",
+        "pending_merge_into_base",
+        "pending_patch_apply",
+        "landed_locally_only",
+        "landed_publicly",
+        "degraded_unknown_target_requires_review"
+      ]
+    },
+    "landing_action_class": {
+      "type": "string",
+      "enum": [
+        "publish",
+        "merge",
+        "apply",
+        "inspect_only",
+        "action_class_unknown_requires_review"
+      ]
+    },
+    "mutation_authority_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "provider_bound",
+        "managed_workspace_bound",
+        "mirror_cached",
+        "mutation_authority_unknown_requires_review"
+      ]
+    },
+    "remote_visibility_class": {
+      "type": "string",
+      "enum": [
+        "no_remote_attached",
+        "remote_attached_private",
+        "remote_attached_team",
+        "remote_attached_public",
+        "remote_visibility_unknown_requires_review"
+      ]
+    },
+    "network_egress_class": {
+      "type": "string",
+      "enum": [
+        "no_network_egress_required",
+        "first_party_origin_only",
+        "team_managed_mirror_only",
+        "provider_bound_origin_required",
+        "managed_workspace_envelope_only",
+        "egress_envelope_unknown_requires_review"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "change_object_inspector",
+        "activity_center",
+        "review_preview",
+        "cli_headless_entry",
+        "support_export",
+        "docs_review"
+      ]
+    },
+    "divergence_class": {
+      "type": "string",
+      "enum": [
+        "even_with_base",
+        "ahead_of_base",
+        "behind_base",
+        "ahead_and_behind",
+        "no_base_bound",
+        "divergence_unknown_requires_review"
+      ]
+    },
+    "branch_kind_class": {
+      "type": "string",
+      "enum": [
+        "local_branch",
+        "remote_tracking_branch",
+        "detached_head",
+        "orphan_branch",
+        "branch_kind_unknown_requires_review"
+      ]
+    },
+    "worktree_kind_class": {
+      "type": "string",
+      "enum": [
+        "primary_worktree",
+        "linked_worktree",
+        "sparse_worktree",
+        "snapshot_worktree",
+        "worktree_kind_unknown_requires_review"
+      ]
+    },
+    "worktree_attachment_class": {
+      "type": "string",
+      "enum": [
+        "attached_local",
+        "attached_devcontainer",
+        "attached_container",
+        "attached_remote_workspace",
+        "attached_managed_workspace",
+        "detached_requires_reattach",
+        "attachment_class_unknown_requires_review"
+      ]
+    },
+    "patch_stack_target_class": {
+      "type": "string",
+      "enum": [
+        "current_branch",
+        "named_local_branch",
+        "remote_provider_pull_request",
+        "remote_provider_change_request",
+        "mailing_list_thread",
+        "patch_stack_target_unknown_requires_review"
+      ]
+    },
+    "patch_state_class": {
+      "type": "string",
+      "enum": [
+        "drafted",
+        "applied_local_only",
+        "applied_remote",
+        "needs_rebase",
+        "conflict_requires_review",
+        "patch_state_unknown_requires_review"
+      ]
+    },
+    "review_class": {
+      "type": "string",
+      "enum": [
+        "not_requested",
+        "draft_review",
+        "open_review",
+        "merged_review",
+        "abandoned_review",
+        "review_class_unknown_requires_review"
+      ]
+    },
+    "lineage_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ancestor_ref", "ancestor_kind"],
+      "properties": {
+        "ancestor_ref": { "$ref": "#/$defs/opaque_id" },
+        "ancestor_kind": { "$ref": "#/$defs/non_empty_string" },
+        "ancestor_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_ref",
+        "base_kind",
+        "divergence_class",
+        "ancestor_chain"
+      ],
+      "properties": {
+        "base_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_kind": { "$ref": "#/$defs/non_empty_string" },
+        "divergence_class": { "$ref": "#/$defs/divergence_class" },
+        "commits_ahead": { "type": "integer", "minimum": 0 },
+        "commits_behind": { "type": "integer", "minimum": 0 },
+        "ancestor_chain": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lineage_entry" }
+        }
+      }
+    },
+    "landing_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "landing_state_class",
+        "landing_action_class",
+        "target_ref",
+        "target_kind",
+        "mutation_authority_class",
+        "remote_visibility_class",
+        "required_network_egress_class",
+        "pending_writes_summary"
+      ],
+      "properties": {
+        "landing_state_class": { "$ref": "#/$defs/landing_state_class" },
+        "landing_action_class": { "$ref": "#/$defs/landing_action_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_kind": { "$ref": "#/$defs/non_empty_string" },
+        "mutation_authority_class": {
+          "$ref": "#/$defs/mutation_authority_class"
+        },
+        "remote_visibility_class": {
+          "$ref": "#/$defs/remote_visibility_class"
+        },
+        "required_network_egress_class": {
+          "$ref": "#/$defs/network_egress_class"
+        },
+        "pending_writes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "landing_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "branch_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "branch_kind_class",
+        "head_ref_label",
+        "upstream_ref_label"
+      ],
+      "properties": {
+        "branch_kind_class": { "$ref": "#/$defs/branch_kind_class" },
+        "head_ref_label": { "$ref": "#/$defs/opaque_id" },
+        "upstream_ref_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "uncommitted_paths_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "worktree_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "worktree_kind_class",
+        "worktree_attachment_class",
+        "checked_out_ref_label"
+      ],
+      "properties": {
+        "worktree_kind_class": { "$ref": "#/$defs/worktree_kind_class" },
+        "worktree_attachment_class": {
+          "$ref": "#/$defs/worktree_attachment_class"
+        },
+        "checked_out_ref_label": { "$ref": "#/$defs/opaque_id" },
+        "linked_branch_ref_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "sparse_scope_token": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "patch_stack_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "patch_stack_target_class",
+        "patch_state_class",
+        "patch_count",
+        "top_patch_label"
+      ],
+      "properties": {
+        "patch_stack_target_class": {
+          "$ref": "#/$defs/patch_stack_target_class"
+        },
+        "patch_state_class": { "$ref": "#/$defs/patch_state_class" },
+        "patch_count": { "type": "integer", "minimum": 0 },
+        "top_patch_label": { "$ref": "#/$defs/opaque_id" },
+        "review_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_class" }
+          ]
+        },
+        "review_handle_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_packet_refs",
+        "raw_path_export_allowed",
+        "raw_branch_name_export_allowed",
+        "raw_remote_url_export_allowed",
+        "raw_diff_body_export_allowed",
+        "redaction_class"
+      ],
+      "properties": {
+        "export_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_path_export_allowed": { "const": false },
+        "raw_branch_name_export_allowed": { "const": false },
+        "raw_remote_url_export_allowed": { "const": false },
+        "raw_diff_body_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "review_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inspectable_before_publish",
+        "inspectable_before_merge",
+        "inspectable_before_apply",
+        "no_hidden_target_mutation"
+      ],
+      "properties": {
+        "inspectable_before_publish": { "const": true },
+        "inspectable_before_merge": { "const": true },
+        "inspectable_before_apply": { "const": true },
+        "no_hidden_target_mutation": { "const": true }
+      }
+    },
+    "change_object_alpha_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "change_object_id",
+        "change_object_kind",
+        "display_label",
+        "summary",
+        "lineage",
+        "landing_state",
+        "consumer_surfaces",
+        "support_export",
+        "review_invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "change_object_alpha_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "change_object_id": { "$ref": "#/$defs/opaque_id" },
+        "change_object_kind": { "$ref": "#/$defs/change_object_kind" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "landing_state": { "$ref": "#/$defs/landing_state" },
+        "branch": { "$ref": "#/$defs/branch_variant" },
+        "worktree": { "$ref": "#/$defs/worktree_variant" },
+        "patch_stack": { "$ref": "#/$defs/patch_stack_variant" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "contains": { "const": "change_object_inspector" }
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "review_invariants": { "$ref": "#/$defs/review_invariants" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "branch change objects must carry the branch variant block.",
+          "if": {
+            "properties": {
+              "change_object_kind": { "const": "branch" }
+            }
+          },
+          "then": {
+            "required": ["branch"],
+            "not": {
+              "anyOf": [
+                { "required": ["worktree"] },
+                { "required": ["patch_stack"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "worktree change objects must carry the worktree variant block.",
+          "if": {
+            "properties": {
+              "change_object_kind": { "const": "worktree" }
+            }
+          },
+          "then": {
+            "required": ["worktree"],
+            "not": {
+              "anyOf": [
+                { "required": ["branch"] },
+                { "required": ["patch_stack"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "patch-stack change objects must carry the patch-stack variant block.",
+          "if": {
+            "properties": {
+              "change_object_kind": { "const": "patch_stack" }
+            }
+          },
+          "then": {
+            "required": ["patch_stack"],
+            "not": {
+              "anyOf": [
+                { "required": ["branch"] },
+                { "required": ["worktree"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "pending_publish_to_remote requires a remote-attached visibility class and a non-zero egress envelope.",
+          "if": {
+            "properties": {
+              "landing_state": {
+                "properties": {
+                  "landing_state_class": {
+                    "const": "pending_publish_to_remote"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "landing_state": {
+                "properties": {
+                  "remote_visibility_class": {
+                    "not": { "const": "no_remote_attached" }
+                  },
+                  "required_network_egress_class": {
+                    "not": { "const": "no_network_egress_required" }
+                  },
+                  "landing_action_class": {
+                    "enum": [
+                      "publish",
+                      "action_class_unknown_requires_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "local_only_no_remote_yet must keep remote visibility detached and egress closed.",
+          "if": {
+            "properties": {
+              "landing_state": {
+                "properties": {
+                  "landing_state_class": {
+                    "const": "local_only_no_remote_yet"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "landing_state": {
+                "properties": {
+                  "remote_visibility_class": {
+                    "enum": [
+                      "no_remote_attached",
+                      "remote_visibility_unknown_requires_review"
+                    ]
+                  },
+                  "required_network_egress_class": {
+                    "enum": [
+                      "no_network_egress_required",
+                      "egress_envelope_unknown_requires_review"
+                    ]
+                  },
+                  "mutation_authority_class": {
+                    "enum": [
+                      "local_only",
+                      "mutation_authority_unknown_requires_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "pending_merge_into_base must declare a merge action class.",
+          "if": {
+            "properties": {
+              "landing_state": {
+                "properties": {
+                  "landing_state_class": {
+                    "const": "pending_merge_into_base"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "landing_state": {
+                "properties": {
+                  "landing_action_class": {
+                    "enum": [
+                      "merge",
+                      "action_class_unknown_requires_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "pending_patch_apply must declare an apply action class.",
+          "if": {
+            "properties": {
+              "landing_state": {
+                "properties": {
+                  "landing_state_class": {
+                    "const": "pending_patch_apply"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "landing_state": {
+                "properties": {
+                  "landing_action_class": {
+                    "enum": [
+                      "apply",
+                      "action_class_unknown_requires_review"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

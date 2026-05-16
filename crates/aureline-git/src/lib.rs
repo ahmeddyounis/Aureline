@@ -9,12 +9,27 @@
 #![doc(html_root_url = "https://docs.rs/aureline-git/0.0.0")]
 
 pub mod branches;
+pub mod change_objects;
 pub mod commit;
 pub mod conflicts;
 pub mod mutations;
 pub mod publish;
 pub mod status;
 
+pub use change_objects::{
+    project_change_object, ChangeObjectBranchVariant, ChangeObjectError,
+    ChangeObjectLandingState, ChangeObjectLineage, ChangeObjectLineageEntry,
+    ChangeObjectPatchStackVariant, ChangeObjectProjection, ChangeObjectRecord,
+    ChangeObjectReviewInvariants, ChangeObjectSupportExport, ChangeObjectValidationError,
+    ChangeObjectWorktreeVariant, CHANGE_OBJECT_ALPHA_RECORD_KIND,
+    CHANGE_OBJECT_ALPHA_SCHEMA_VERSION, CHANGE_OBJECT_BRANCH_KIND_CLASSES,
+    CHANGE_OBJECT_CONSUMER_SURFACES, CHANGE_OBJECT_DIVERGENCE_CLASSES, CHANGE_OBJECT_KINDS,
+    CHANGE_OBJECT_LANDING_ACTION_CLASSES, CHANGE_OBJECT_LANDING_STATE_CLASSES,
+    CHANGE_OBJECT_MUTATION_AUTHORITY_CLASSES, CHANGE_OBJECT_NETWORK_EGRESS_CLASSES,
+    CHANGE_OBJECT_PATCH_STACK_TARGET_CLASSES, CHANGE_OBJECT_PATCH_STATE_CLASSES,
+    CHANGE_OBJECT_REMOTE_VISIBILITY_CLASSES, CHANGE_OBJECT_REVIEW_CLASSES,
+    CHANGE_OBJECT_WORKTREE_ATTACHMENT_CLASSES, CHANGE_OBJECT_WORKTREE_KIND_CLASSES,
+};
 pub use branches::{
     GitBranchActivityRecord, GitBranchActorRef, GitBranchBackend, GitBranchBackendError,
     GitBranchCommandOutput, GitBranchCurrentWorkReview, GitBranchJournalRecord,

@@ -40,6 +40,7 @@ pub mod app_frame;
 pub mod badges;
 pub mod bootstrap;
 pub mod breadcrumbs;
+pub mod change_object_inspector;
 pub mod chrome;
 pub mod clone;
 pub mod command_parity;
