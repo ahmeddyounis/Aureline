@@ -32,9 +32,11 @@
 //!    cross-repo result rows whose owning root is not in the active
 //!    workset's `root_refs`; it is never set on the active scope chip.
 
+pub mod beta;
 pub mod card;
 pub mod counts;
 
+pub use beta::{render_beta_truth_lines, render_support_export_lines};
 pub use card::{
     project_outside_scope_truth_chip_card, project_scope_truth_chip_card,
     project_scope_truth_chip_card_for_artifact, render_scope_truth_chip_lines, ScopeTruthChipCard,

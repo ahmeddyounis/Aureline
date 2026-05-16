@@ -1,0 +1,314 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/workset_scope_beta.schema.json",
+  "title": "Aureline workset-scope beta truth and support-export packet",
+  "description": "Beta layer that hardens the workset_artifact_record foundation for search, graph, refactor, AI, and export consumers. Names every included and excluded root with a typed reason, narrows or blocks unsafe broad actions when the active scope is partial or policy-limited, and preserves the scope lineage chain so support / export bundles do not flatten a narrowed workset into a workspace-wide answer. Raw absolute paths, credential material, and the exact policy-hidden member list never appear. The runtime activation contract still lives in /schemas/runtime/execution_context.schema.json; this schema freezes the durable, replayable, exportable beta scope-truth. Adding a new consumer surface, broad-action class, broad-action decision, broad-action reason, or excluded-root reason is additive-minor and bumps schema_version; repurposing an existing enum value is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/workset_scope_beta_truth" },
+    { "$ref": "#/$defs/workset_scope_beta_support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the workset-scope beta payload. Current value is 1; bumped only on breaking payload changes."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "workset_scope_beta_truth",
+        "workset_scope_beta_support_export"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, safe on RPC, safe in support bundles."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp; opaque to this schema."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply redaction policy before the value crosses the schema boundary."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ]
+    },
+    "scope_mode": {
+      "type": "string",
+      "enum": ["full", "sparse"]
+    },
+    "readiness_state": {
+      "type": "string",
+      "enum": ["cold", "warming", "warm", "partial", "ready"]
+    },
+    "partial_truth": {
+      "type": "string",
+      "enum": ["loaded", "manifest_known", "cached", "unavailable"]
+    },
+    "portability_class": {
+      "type": "string",
+      "enum": [
+        "fully_portable",
+        "portable_with_rebinding",
+        "machine_local_only",
+        "managed_provider_locked"
+      ]
+    },
+    "narrowing_cause": {
+      "type": "string",
+      "enum": [
+        "admin_policy",
+        "trust_policy",
+        "license_or_export_control",
+        "remote_unavailable",
+        "index_not_built",
+        "user_muted"
+      ]
+    },
+    "root_kind": {
+      "type": "string",
+      "enum": [
+        "local_folder",
+        "local_repo_root",
+        "remote_repository",
+        "ssh_workspace",
+        "container_root",
+        "devcontainer_root",
+        "managed_cloud_root",
+        "virtual_document_root",
+        "archive_root"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "search",
+        "graph",
+        "refactor",
+        "ai",
+        "export",
+        "support_packet"
+      ],
+      "description": "Beta consumer surfaces that read scope truth. A surface that quotes its own private string is non-conforming."
+    },
+    "broad_action_class": {
+      "type": "string",
+      "enum": [
+        "search_query",
+        "graph_traversal",
+        "refactor_apply",
+        "ai_apply",
+        "export_artifact",
+        "support_archive"
+      ],
+      "description": "Closed set of broad-action classes the beta gate decides on. Every truth carries one admission per class."
+    },
+    "broad_action_decision": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "narrowed_to_scope",
+        "blocked_by_policy",
+        "blocked_by_portability",
+        "blocked_by_sparse_partial",
+        "blocked_by_outside_scope"
+      ]
+    },
+    "broad_action_reason": {
+      "type": "string",
+      "enum": [
+        "honor_active_workset_roots",
+        "sparse_slice_narrowing",
+        "readiness_below_ready",
+        "index_warming",
+        "admin_policy_blocked",
+        "trust_policy_blocked",
+        "license_or_export_control_blocked",
+        "managed_provider_locked",
+        "ephemeral_session",
+        "partial_membership_missing",
+        "outside_workset_roots"
+      ]
+    },
+    "excluded_root_reason": {
+      "type": "string",
+      "enum": [
+        "excluded_by_pattern",
+        "not_in_workset_root_list",
+        "policy_hidden",
+        "unavailable"
+      ]
+    },
+    "included_root_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_ref", "root_kind", "partial_truth"],
+      "properties": {
+        "root_ref": { "$ref": "#/$defs/opaque_id" },
+        "root_kind": { "$ref": "#/$defs/root_kind" },
+        "partial_truth": { "$ref": "#/$defs/partial_truth" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "excluded_root_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_ref", "reason"],
+      "properties": {
+        "root_ref": { "type": "string", "minLength": 1 },
+        "reason": { "$ref": "#/$defs/excluded_root_reason" },
+        "pattern": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "broad_action_admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "decision"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/broad_action_class" },
+        "decision": { "$ref": "#/$defs/broad_action_decision" },
+        "reason": { "$ref": "#/$defs/broad_action_reason" },
+        "explain_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "scope_lineage_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workset_ref",
+        "scope_class",
+        "scope_mode",
+        "readiness_state",
+        "portability_class"
+      ],
+      "properties": {
+        "workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_mode": { "$ref": "#/$defs/scope_mode" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "portability_class": { "$ref": "#/$defs/portability_class" },
+        "narrowing_cause": { "$ref": "#/$defs/narrowing_cause" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "workset_scope_beta_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stable_scope_id",
+        "workset_ref",
+        "workset_name",
+        "scope_class",
+        "scope_mode",
+        "consumer_surface",
+        "included_roots",
+        "include_patterns",
+        "exclude_patterns",
+        "admissions",
+        "lineage",
+        "portability_lineage_preserved",
+        "outside_current_scope_marker_visible",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "workset_scope_beta_truth"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "workset_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_mode": { "$ref": "#/$defs/scope_mode" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "included_roots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/included_root_ref" }
+        },
+        "excluded_roots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/excluded_root_entry" }
+        },
+        "include_patterns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" }
+        },
+        "exclude_patterns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" }
+        },
+        "admissions": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/broad_action_admission" }
+        },
+        "lineage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope_lineage_entry" }
+        },
+        "portability_lineage_preserved": { "type": "boolean" },
+        "outside_current_scope_marker_visible": { "type": "boolean" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "explain_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "workset_scope_beta_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "artifact_workset_ref",
+        "artifact_stable_scope_id",
+        "artifact_workset_name",
+        "artifact_scope_class",
+        "artifact_scope_mode",
+        "lineage",
+        "truths",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "workset_scope_beta_support_export"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "artifact_workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_workset_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "artifact_scope_class": { "$ref": "#/$defs/scope_class" },
+        "artifact_scope_mode": { "$ref": "#/$defs/scope_mode" },
+        "lineage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope_lineage_entry" }
+        },
+        "truths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/workset_scope_beta_truth" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

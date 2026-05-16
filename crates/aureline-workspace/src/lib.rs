@@ -150,14 +150,18 @@ pub use history::{
 };
 
 pub use worksets::{
-    ChipAction, ChipPresentationState, ChipSurfaceClass, ExpectedIndexCostClass,
-    HiddenResultCountClass, HiddenResultSummary, IncludedRootRef, MemberRef, MemberRefKind,
-    MembershipDecision, MembershipPolicy, NarrowingCause, PartialTruthLabel, PatternEntry,
-    PatternKind, PolicyLimitation, PortabilityClass as WorksetPortabilityClass,
-    PortabilityMetadata, ReadinessMetadata, ReadinessState, ScopeClass, ScopeDegradedReason,
-    ScopeDiffClass, ScopeDiffEntry, ScopeMode, ScopeReopenPosture, ScopeReopenState,
+    BetaConsumerSurface, BroadActionAdmission, BroadActionClass, BroadActionDecision,
+    BroadActionReason, ChipAction, ChipPresentationState, ChipSurfaceClass, ExcludedRootEntry,
+    ExcludedRootReason, ExpectedIndexCostClass, HiddenResultCountClass, HiddenResultSummary,
+    IncludedRootRef, MemberRef, MemberRefKind, MembershipDecision, MembershipPolicy,
+    NarrowingCause, PartialTruthLabel, PatternEntry, PatternKind, PolicyLimitation,
+    PortabilityClass as WorksetPortabilityClass, PortabilityMetadata, ReadinessMetadata,
+    ReadinessState, ScopeClass, ScopeDegradedReason, ScopeDiffClass, ScopeDiffEntry,
+    ScopeLineageEntry, ScopeMode, ScopeObservationInputs, ScopeReopenPosture, ScopeReopenState,
     ScopeTruthChipRecord, ScopeTruthChipRecordKind, ScopeWidenDiffError, ScopeWidenDiffRecord,
     ScopeWidenDiffRecordKind, SourceClass, WorksetArtifactError, WorksetArtifactRecord,
-    WorksetArtifactRecordKind, WorksetArtifactSchemaVersion, WorksetScopeConsumerBinding,
-    WorksetScopeConsumerClass,
+    WorksetArtifactRecordKind, WorksetArtifactSchemaVersion, WorksetScopeBetaError,
+    WorksetScopeBetaSupportExport, WorksetScopeBetaTruth, WorksetScopeConsumerBinding,
+    WorksetScopeConsumerClass, WORKSET_SCOPE_BETA_SCHEMA_VERSION,
+    WORKSET_SCOPE_BETA_SUPPORT_EXPORT_RECORD_KIND, WORKSET_SCOPE_BETA_TRUTH_RECORD_KIND,
 };

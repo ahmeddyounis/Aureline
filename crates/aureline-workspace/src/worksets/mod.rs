@@ -16,6 +16,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::roots::WorkspaceRootKind;
 
+pub mod beta;
+
+pub use beta::{
+    BetaConsumerSurface, BroadActionAdmission, BroadActionClass, BroadActionDecision,
+    BroadActionReason, ExcludedRootEntry, ExcludedRootReason, ScopeLineageEntry,
+    ScopeObservationInputs, WorksetScopeBetaError, WorksetScopeBetaSupportExport,
+    WorksetScopeBetaTruth, WORKSET_SCOPE_BETA_SCHEMA_VERSION,
+    WORKSET_SCOPE_BETA_SUPPORT_EXPORT_RECORD_KIND, WORKSET_SCOPE_BETA_TRUTH_RECORD_KIND,
+};
+
 /// Schema version for the seeded workset-artifact payload shape.
 pub type WorksetArtifactSchemaVersion = u32;
 
