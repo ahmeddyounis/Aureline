@@ -71,6 +71,7 @@ pub mod notebook_trust_badges;
 pub mod notifications;
 pub mod onboarding;
 pub mod onboarding_metrics;
+pub mod ownership_audit;
 pub mod palette;
 pub mod path_truth;
 pub mod permission_prompts;
