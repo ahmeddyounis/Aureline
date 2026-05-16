@@ -29,7 +29,11 @@
 //!   results; and
 //! - one [`workspace_trust::WorkspaceTrustBetaPage`] beta audit that keeps
 //!   open, run, debug, extension, AI, provider, review, support, and admin
-//!   rows on the same restricted-mode and trust-elevation vocabulary.
+//!   rows on the same restricted-mode and trust-elevation vocabulary; and
+//! - one [`policy_packs::PolicyPackBetaPage`] beta projection that turns
+//!   effective policy packs, mirror and manual-import receipts, before/after
+//!   diffs, and product-denial explain traces into a single inspectable record
+//!   for admin, support, mirror, and offline lanes.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -60,6 +64,7 @@
 pub mod browser_callback;
 pub mod credential_state;
 pub mod identity_modes;
+pub mod policy_packs;
 pub mod secrets;
 pub mod system_browser;
 pub mod trust;
@@ -82,6 +87,21 @@ pub use credential_state::{
     ProviderAccountRegistry, RevokeActionClass, StorageModeClass, StoragePosture, StoreSourceClass,
     CREDENTIAL_STATE_ROW_RECORD_KIND, CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
     PROVIDER_ACCOUNT_RECORD_KIND, PROVIDER_ACCOUNT_REGISTRY_RECORD_KIND,
+};
+
+pub use policy_packs::{
+    audit_policy_pack_beta_page, seeded_policy_pack_beta_page, validate_policy_pack_beta_page,
+    PolicyPackApplyStateClass, PolicyPackBetaDefect, PolicyPackBetaDefectKind, PolicyPackBetaDiff,
+    PolicyPackBetaDiffEntry, PolicyPackBetaDenialTrace, PolicyPackBetaImportReceipt,
+    PolicyPackBetaPack, PolicyPackBetaPage, PolicyPackBetaProfileClass, PolicyPackBetaRule,
+    PolicyPackBetaSummary, PolicyPackBetaSupportExport, PolicyPackDiffEntryKind, PolicyPackProvenance,
+    PolicyPackRuleEffectClass, PolicyPackSignatureStateClass, PolicyPackSourceClass,
+    POLICY_PACK_BETA_DEFECT_RECORD_KIND, POLICY_PACK_BETA_DENIAL_TRACE_RECORD_KIND,
+    POLICY_PACK_BETA_DIFF_ENTRY_RECORD_KIND, POLICY_PACK_BETA_DIFF_RECORD_KIND,
+    POLICY_PACK_BETA_IMPORT_RECEIPT_RECORD_KIND, POLICY_PACK_BETA_PACK_RECORD_KIND,
+    POLICY_PACK_BETA_PAGE_RECORD_KIND, POLICY_PACK_BETA_RULE_RECORD_KIND,
+    POLICY_PACK_BETA_SCHEMA_VERSION, POLICY_PACK_BETA_SHARED_CONTRACT_REF,
+    POLICY_PACK_BETA_SUMMARY_RECORD_KIND, POLICY_PACK_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use identity_modes::{

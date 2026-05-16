@@ -83,6 +83,7 @@ pub mod ownership_audit;
 pub mod palette;
 pub mod path_truth;
 pub mod permission_prompts;
+pub mod policy_pack_beta;
 pub mod previews;
 pub mod profiling_alpha;
 pub mod recovery;
