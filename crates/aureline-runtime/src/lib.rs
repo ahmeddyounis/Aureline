@@ -38,6 +38,7 @@ pub mod packages;
 pub mod provenance;
 pub mod rerun;
 pub mod targets;
+pub mod task_events;
 pub mod tasks;
 pub mod tests;
 pub mod trace_replay_alpha;
@@ -49,6 +50,12 @@ pub use capability_negotiation::{
     HelperCapabilityResponse, MissingCapabilityReasonClass, NegotiationOutcome,
     HELPER_CAPABILITY_NEGOTIATION_SCHEMA_VERSION,
 };
+pub use capsule_resolver::{
+    EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,
+    EnvironmentCapsuleResolverConfig, PrebuildFingerprintStub, ProjectArchetypeHint,
+    ENVIRONMENT_CAPSULE_RESOLUTION_RECORD_KIND, ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION,
+    ENVIRONMENT_CAPSULE_RESOLVER_VERSION, PREBUILD_FINGERPRINT_STUB_RECORD_KIND,
+};
 pub use debug::{
     DapHostSupervisor, DapHostSupervisorConfig, DapHostSupervisorError,
     DebugAdapterCapabilityClass, DebugAdapterCapabilityRequest, DebugAdapterCapabilityResponse,
@@ -59,12 +66,6 @@ pub use debug::{
     DebugSessionSupportPacket, DebugSessionTargetIdentity, DEBUG_SESSION_EVENT_RECORD_KIND,
     DEBUG_SESSION_LIFECYCLE_SCHEMA_VERSION, DEBUG_SESSION_RECORD_KIND,
     DEBUG_SESSION_SUPPORT_PACKET_RECORD_KIND,
-};
-pub use capsule_resolver::{
-    EnvironmentCapsuleHint, EnvironmentCapsuleResolution, EnvironmentCapsuleResolver,
-    EnvironmentCapsuleResolverConfig, PrebuildFingerprintStub, ProjectArchetypeHint,
-    ENVIRONMENT_CAPSULE_RESOLUTION_RECORD_KIND, ENVIRONMENT_CAPSULE_RESOLUTION_SCHEMA_VERSION,
-    ENVIRONMENT_CAPSULE_RESOLVER_VERSION, PREBUILD_FINGERPRINT_STUB_RECORD_KIND,
 };
 pub use detectors::node::{
     NodePackageManagerKind, NodePackageManagerRequirement, NodePackageManagerResolution,
@@ -121,24 +122,24 @@ pub use execution_context::{
     TargetConfidence, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
     TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
 };
-pub use launch_profiles::{
-    LaunchProfile, LaunchProfileAdapterBinding, LaunchProfileArguments,
-    LaunchProfileCreateRequest, LaunchProfileDisclosureRow, LaunchProfileEdit,
-    LaunchProfileEditClass, LaunchProfileEnvironmentBinding, LaunchProfileInvalidReason,
-    LaunchProfileKind, LaunchProfileMode, LaunchProfileMutable, LaunchProfilePreview,
-    LaunchProfilePreviewState, LaunchProfileRevision, LaunchProfileSideEffectClass,
-    LaunchProfileStore, LaunchProfileStoreError, LaunchProfileSupportExport,
-    LaunchProfileSupportRow, LaunchProfileTargetBinding, LAUNCH_PROFILE_EDIT_RECORD_KIND,
-    LAUNCH_PROFILE_PREVIEW_RECORD_KIND, LAUNCH_PROFILE_RECORD_KIND,
-    LAUNCH_PROFILE_REVISION_RECORD_KIND, LAUNCH_PROFILE_SCHEMA_VERSION,
-    LAUNCH_PROFILE_SUPPORT_EXPORT_RECORD_KIND,
-};
 pub use language_hosts::{
     LanguageHostEventClass, LanguageHostExitReasonClass, LanguageHostIdentity,
     LanguageHostLaunchSpec, LanguageHostRuntimeStateClass, LanguageHostScopeKey,
     LanguageHostSnapshot, LanguageHostSupervisor, LanguageHostSupervisorConfig,
     LanguageHostSupervisorError, LanguageHostSupervisorEvent, LanguageHostSupportPacket,
     LANGUAGE_HOST_SUPERVISION_SCHEMA_VERSION,
+};
+pub use launch_profiles::{
+    LaunchProfile, LaunchProfileAdapterBinding, LaunchProfileArguments, LaunchProfileCreateRequest,
+    LaunchProfileDisclosureRow, LaunchProfileEdit, LaunchProfileEditClass,
+    LaunchProfileEnvironmentBinding, LaunchProfileInvalidReason, LaunchProfileKind,
+    LaunchProfileMode, LaunchProfileMutable, LaunchProfilePreview, LaunchProfilePreviewState,
+    LaunchProfileRevision, LaunchProfileSideEffectClass, LaunchProfileStore,
+    LaunchProfileStoreError, LaunchProfileSupportExport, LaunchProfileSupportRow,
+    LaunchProfileTargetBinding, LAUNCH_PROFILE_EDIT_RECORD_KIND,
+    LAUNCH_PROFILE_PREVIEW_RECORD_KIND, LAUNCH_PROFILE_RECORD_KIND,
+    LAUNCH_PROFILE_REVISION_RECORD_KIND, LAUNCH_PROFILE_SCHEMA_VERSION,
+    LAUNCH_PROFILE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use managed_alpha::{
     ManagedReachabilityClass, ManagedReapprovalRequirementClass, ManagedRerunPostureClass,
@@ -191,14 +192,18 @@ pub use targets::{
     TARGET_CONFIDENCE_ALPHA_SCHEMA_VERSION, TARGET_CONFIDENCE_CARD_RECORD_KIND,
     TARGET_CONFIDENCE_REVIEW_PACKET_RECORD_KIND, TARGET_CONFIDENCE_SUPPORT_EXPORT_RECORD_KIND,
 };
+pub use task_events::{
+    lane_for_event, lane_for_wedge, TaskEventBetaCoverageManifest, TaskEventBetaLane,
+    TaskEventBetaLaneCoverageRow, TASK_EVENT_BETA_COVERAGE_MANIFEST_RECORD_KIND,
+};
 pub use tasks::{
     RawEnvelopeRetentionState, RawTaskEventEnvelope, TaskActivityProjection, TaskArtifactKind,
-    TaskBlockReason, TaskConsumerSurfaceClass, TaskDiagnosticSeverity, TaskEvent,
-    TaskEventConfidence, TaskEventIdentity, TaskEventKind, TaskEventPayload, TaskEventProvenance,
-    TaskEventRedactionClass, TaskEventSourceKind, TaskEventStream, TaskEventStreamError,
-    TaskExitStatus, TaskFailureClass, TaskInputClass, TaskInputRequest, TaskOutputStreamClass,
-    TaskProgress, TaskShellProjection, TaskState, TaskStateClass, TaskSupportEventRow,
-    TaskSupportExport, TaskWedgeClass, RAW_TASK_EVENT_ENVELOPE_RECORD_KIND,
+    TaskBlockReason, TaskConsumerSurfaceClass, TaskDegradationReason, TaskDiagnosticSeverity,
+    TaskEvent, TaskEventConfidence, TaskEventIdentity, TaskEventKind, TaskEventPayload,
+    TaskEventProvenance, TaskEventRedactionClass, TaskEventSourceKind, TaskEventStream,
+    TaskEventStreamError, TaskExitStatus, TaskFailureClass, TaskInputClass, TaskInputRequest,
+    TaskOutputStreamClass, TaskProgress, TaskShellProjection, TaskState, TaskStateClass,
+    TaskSupportEventRow, TaskSupportExport, TaskWedgeClass, RAW_TASK_EVENT_ENVELOPE_RECORD_KIND,
     TASK_ACTIVITY_PROJECTION_RECORD_KIND, TASK_EVENT_RECORD_KIND, TASK_EVENT_SCHEMA_VERSION,
     TASK_EVENT_STREAM_RECORD_KIND, TASK_SHELL_PROJECTION_RECORD_KIND, TASK_STATE_RECORD_KIND,
     TASK_SUPPORT_EXPORT_RECORD_KIND,

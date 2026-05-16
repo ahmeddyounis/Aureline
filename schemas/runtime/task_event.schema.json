@@ -8,7 +8,8 @@
     { "$ref": "#/$defs/task_event_record" },
     { "$ref": "#/$defs/task_event_stream_record" },
     { "$ref": "#/$defs/task_event_support_export_record" },
-    { "$ref": "#/$defs/raw_task_event_envelope_record" }
+    { "$ref": "#/$defs/raw_task_event_envelope_record" },
+    { "$ref": "#/$defs/task_event_beta_coverage_manifest_record" }
   ],
   "$defs": {
     "schema_version": {
@@ -114,6 +115,7 @@
         "output_appended",
         "diagnostic_emitted",
         "artifact_published",
+        "degraded_state_reported",
         "task_completed",
         "task_failed",
         "task_cancelled"
@@ -129,7 +131,20 @@
         "package",
         "notebook",
         "ai_tool",
+        "review",
         "generic"
+      ]
+    },
+    "task_degradation_reason": {
+      "type": "string",
+      "enum": [
+        "progress_unavailable",
+        "adapter_capability_dropped",
+        "fallback_parser_active",
+        "output_truncated",
+        "partial_output_only",
+        "transient_target_unreachable",
+        "policy_partial_visibility"
       ]
     },
     "task_event_source_kind": {
@@ -214,6 +229,86 @@
     "task_consumer_surface_class": {
       "type": "string",
       "enum": ["shell", "activity_center", "support_bundle_export"]
+    },
+    "task_event_beta_lane_class": {
+      "type": "string",
+      "enum": [
+        "run",
+        "test",
+        "debug",
+        "review",
+        "ai",
+        "support_export"
+      ]
+    },
+    "task_event_beta_lane_coverage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "lane_token",
+        "wedges",
+        "wedge_tokens",
+        "claimed_event_kinds",
+        "claimed_event_kind_tokens",
+        "consumer_surfaces"
+      ],
+      "properties": {
+        "lane": { "$ref": "#/$defs/task_event_beta_lane_class" },
+        "lane_token": { "$ref": "#/$defs/task_event_beta_lane_class" },
+        "wedges": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/task_wedge_class" },
+          "uniqueItems": true
+        },
+        "wedge_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/task_wedge_class" },
+          "uniqueItems": true
+        },
+        "claimed_event_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/task_event_kind" },
+          "uniqueItems": true
+        },
+        "claimed_event_kind_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/task_event_kind" },
+          "uniqueItems": true
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/task_consumer_surface_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "task_event_beta_coverage_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "task_event_schema_version",
+        "manifest_id",
+        "generated_at",
+        "lanes"
+      ],
+      "properties": {
+        "record_kind": { "const": "task_event_beta_coverage_manifest_record" },
+        "task_event_schema_version": { "$ref": "#/$defs/schema_version" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "lanes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/task_event_beta_lane_coverage_row" }
+        }
+      }
     },
     "task_event_identity": {
       "type": "object",
@@ -411,6 +506,17 @@
             "reason": { "$ref": "#/$defs/task_block_reason" },
             "unblock_ref": { "$ref": "#/$defs/optional_string" }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payload_kind", "reason", "scope_label"],
+          "properties": {
+            "payload_kind": { "const": "degraded" },
+            "reason": { "$ref": "#/$defs/task_degradation_reason" },
+            "scope_label": { "$ref": "#/$defs/non_empty_string" },
+            "recovery_hint_ref": { "$ref": "#/$defs/optional_string" }
+          }
         }
       ]
     },
@@ -474,6 +580,9 @@
         "progress": { "$ref": "#/$defs/task_progress" },
         "input_request": { "$ref": "#/$defs/task_input_request" },
         "block_reason": { "$ref": "#/$defs/task_block_reason" },
+        "degradation_reason": { "$ref": "#/$defs/task_degradation_reason" },
+        "degradation_scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "degradation_recovery_hint_ref": { "$ref": "#/$defs/non_empty_string" },
         "exit_status": { "$ref": "#/$defs/task_exit_status" },
         "summary": { "$ref": "#/$defs/non_empty_string" }
       }
@@ -541,6 +650,7 @@
         "raw_envelope_ref": { "$ref": "#/$defs/opaque_id" },
         "payload_digest": { "$ref": "#/$defs/non_empty_string" },
         "context_provenance_ref": { "$ref": "#/$defs/opaque_id" },
+        "degradation_reason": { "$ref": "#/$defs/task_degradation_reason" },
         "summary": { "$ref": "#/$defs/non_empty_string" }
       }
     },

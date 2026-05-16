@@ -123,6 +123,8 @@ pub enum TaskEventKind {
     DiagnosticEmitted,
     /// A build, coverage, debug, or log artifact was published.
     ArtifactPublished,
+    /// A task entered or refreshed a typed degraded posture.
+    DegradedStateReported,
     /// A task completed successfully.
     TaskCompleted,
     /// A task failed.
@@ -143,6 +145,7 @@ impl TaskEventKind {
             Self::OutputAppended => "output_appended",
             Self::DiagnosticEmitted => "diagnostic_emitted",
             Self::ArtifactPublished => "artifact_published",
+            Self::DegradedStateReported => "degraded_state_reported",
             Self::TaskCompleted => "task_completed",
             Self::TaskFailed => "task_failed",
             Self::TaskCancelled => "task_cancelled",
@@ -168,6 +171,8 @@ pub enum TaskWedgeClass {
     Notebook,
     /// AI-tool validation or tool execution work.
     AiTool,
+    /// Review-lane validation, comparison, or audit work.
+    Review,
     /// Generic task runner work.
     Generic,
 }
@@ -183,6 +188,7 @@ impl TaskWedgeClass {
             Self::Package => "package",
             Self::Notebook => "notebook",
             Self::AiTool => "ai_tool",
+            Self::Review => "review",
             Self::Generic => "generic",
         }
     }
@@ -388,6 +394,46 @@ pub enum TaskArtifactKind {
     Profile,
     /// Debug artifact.
     DebugArtifact,
+}
+
+/// Typed reason recorded with a `degraded_state_reported` event.
+///
+/// Captures the partial- or degraded-state semantics that earlier task lanes
+/// expressed only through console heuristics, so shell rows, activity-center
+/// rows, and support exports can read the same closed vocabulary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskDegradationReason {
+    /// Output is reaching consumers but progress counters are unavailable.
+    ProgressUnavailable,
+    /// Adapter advertised fewer capabilities than the canonical request set.
+    AdapterCapabilityDropped,
+    /// Heuristic or fallback parser is filling in for a missing structured
+    /// adapter source.
+    FallbackParserActive,
+    /// Output bytes were truncated by retention or policy.
+    OutputTruncated,
+    /// Only a subset of output streams or artifacts is reaching consumers.
+    PartialOutputOnly,
+    /// Target became unreachable but the task is expected to resume on its own.
+    TransientTargetUnreachable,
+    /// Policy is hiding part of the run from this surface.
+    PolicyPartialVisibility,
+}
+
+impl TaskDegradationReason {
+    /// Stable token recorded in schemas, fixtures, and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ProgressUnavailable => "progress_unavailable",
+            Self::AdapterCapabilityDropped => "adapter_capability_dropped",
+            Self::FallbackParserActive => "fallback_parser_active",
+            Self::OutputTruncated => "output_truncated",
+            Self::PartialOutputOnly => "partial_output_only",
+            Self::TransientTargetUnreachable => "transient_target_unreachable",
+            Self::PolicyPartialVisibility => "policy_partial_visibility",
+        }
+    }
 }
 
 /// Failure classification for terminal states.
@@ -616,6 +662,19 @@ pub enum TaskEventPayload {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         unblock_ref: Option<String>,
     },
+    /// Degraded or partial state reported as a typed event so consumers no
+    /// longer have to parse free-form console output.
+    Degraded {
+        /// Typed degradation reason.
+        reason: TaskDegradationReason,
+        /// Export-safe label describing the affected scope (stream, surface,
+        /// or capability) for shell and activity rows.
+        scope_label: String,
+        /// Optional pointer to a recovery action, doctor row, or operator
+        /// note that explains how to restore full fidelity.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        recovery_hint_ref: Option<String>,
+    },
 }
 
 impl TaskEventPayload {
@@ -629,6 +688,15 @@ impl TaskEventPayload {
             Self::Artifact { .. } => "artifact",
             Self::InputRequest { .. } => "input_request",
             Self::Blocked { .. } => "blocked",
+            Self::Degraded { .. } => "degraded",
+        }
+    }
+
+    /// Returns the typed degradation reason, if this payload carries one.
+    pub const fn degradation_reason(&self) -> Option<TaskDegradationReason> {
+        match self {
+            Self::Degraded { reason, .. } => Some(*reason),
+            _ => None,
         }
     }
 
@@ -649,6 +717,17 @@ impl TaskEventPayload {
     fn block_reason(&self) -> Option<TaskBlockReason> {
         match self {
             Self::Blocked { reason, .. } => Some(*reason),
+            _ => None,
+        }
+    }
+
+    fn degradation(&self) -> Option<(TaskDegradationReason, String, Option<String>)> {
+        match self {
+            Self::Degraded {
+                reason,
+                scope_label,
+                recovery_hint_ref,
+            } => Some((*reason, scope_label.clone(), recovery_hint_ref.clone())),
             _ => None,
         }
     }
@@ -732,6 +811,15 @@ pub struct TaskState {
     /// Current block reason, when blocked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub block_reason: Option<TaskBlockReason>,
+    /// Active degradation reason, when a typed degraded posture is in effect.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degradation_reason: Option<TaskDegradationReason>,
+    /// Export-safe label describing the degraded scope, when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degradation_scope_label: Option<String>,
+    /// Optional recovery hint reference for the active degraded posture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degradation_recovery_hint_ref: Option<String>,
     /// Exit status, when terminal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exit_status: Option<TaskExitStatus>,
@@ -763,6 +851,18 @@ impl TaskState {
         } else {
             None
         };
+        let (degradation_reason, degradation_scope_label, degradation_recovery_hint_ref) =
+            if event.state_after.is_terminal() {
+                (None, None, None)
+            } else if let Some((reason, scope, hint)) = event.payload.degradation() {
+                (Some(reason), Some(scope), hint)
+            } else {
+                (
+                    previous.and_then(|state| state.degradation_reason),
+                    previous.and_then(|state| state.degradation_scope_label.clone()),
+                    previous.and_then(|state| state.degradation_recovery_hint_ref.clone()),
+                )
+            };
         let exit_status = if event.state_after.is_terminal() {
             event
                 .payload
@@ -787,9 +887,17 @@ impl TaskState {
             progress,
             input_request,
             block_reason,
+            degradation_reason,
+            degradation_scope_label,
+            degradation_recovery_hint_ref,
             exit_status,
             summary: event.summary.clone(),
         }
+    }
+
+    /// True when the task currently carries a typed degraded posture.
+    pub const fn is_degraded(&self) -> bool {
+        self.degradation_reason.is_some()
     }
 }
 
@@ -1113,6 +1221,9 @@ pub struct TaskShellProjection {
     pub needs_attention: bool,
     /// True when the task is terminal.
     pub is_terminal: bool,
+    /// Typed degradation reason carried on this event, when applicable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degradation_reason: Option<TaskDegradationReason>,
     /// Inspect-context action ref.
     pub inspect_execution_context_action_ref: String,
 }
@@ -1120,6 +1231,7 @@ pub struct TaskShellProjection {
 impl TaskShellProjection {
     /// Builds a shell projection from one typed event.
     pub fn from_event(event: &TaskEvent) -> Self {
+        let degradation_reason = event.payload.degradation_reason();
         Self {
             record_kind: TASK_SHELL_PROJECTION_RECORD_KIND.to_owned(),
             task_event_schema_version: TASK_EVENT_SCHEMA_VERSION,
@@ -1136,8 +1248,9 @@ impl TaskShellProjection {
             payload_kind_token: event.payload_kind().to_owned(),
             summary: event.summary.clone(),
             raw_envelope_ref: event.raw_envelope.raw_envelope_ref.clone(),
-            needs_attention: event.state_after.needs_attention(),
+            needs_attention: event.state_after.needs_attention() || degradation_reason.is_some(),
             is_terminal: event.state_after.is_terminal(),
+            degradation_reason,
             inspect_execution_context_action_ref: format!(
                 "action:execution-context:inspect:{}",
                 event.identity.execution_context_id
@@ -1188,10 +1301,21 @@ pub struct TaskActivityProjection {
     /// Current block reason, when blocked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub block_reason: Option<TaskBlockReason>,
+    /// Active degradation reason, when a typed degraded posture is in effect.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degradation_reason: Option<TaskDegradationReason>,
+    /// Export-safe label describing the degraded scope, when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degradation_scope_label: Option<String>,
+    /// Recovery hint reference for the active degraded posture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degradation_recovery_hint_ref: Option<String>,
     /// True when terminal.
     pub is_terminal: bool,
     /// True when the activity center should place the row in an attention partition.
     pub needs_attention: bool,
+    /// True when a typed degraded posture is currently in effect.
+    pub is_degraded: bool,
     /// Exact reopen identity for the durable row.
     pub exact_reopen_identity_ref: String,
     /// Support-pack item id.
@@ -1204,6 +1328,7 @@ impl TaskActivityProjection {
     /// Builds an activity-center projection from a current task state.
     pub fn from_state(state: &TaskState) -> Self {
         let exact_reopen_identity_ref = format!("task:{}", state.identity.task_id);
+        let is_degraded = state.is_degraded();
         Self {
             record_kind: TASK_ACTIVITY_PROJECTION_RECORD_KIND.to_owned(),
             task_event_schema_version: TASK_EVENT_SCHEMA_VERSION,
@@ -1223,8 +1348,12 @@ impl TaskActivityProjection {
             progress: state.progress.clone(),
             input_request: state.input_request.clone(),
             block_reason: state.block_reason,
+            degradation_reason: state.degradation_reason,
+            degradation_scope_label: state.degradation_scope_label.clone(),
+            degradation_recovery_hint_ref: state.degradation_recovery_hint_ref.clone(),
             is_terminal: state.current_state.is_terminal(),
-            needs_attention: state.current_state.needs_attention(),
+            needs_attention: state.current_state.needs_attention() || is_degraded,
+            is_degraded,
             exact_reopen_identity_ref,
             support_pack_item_id: format!("support.item.task_event.{}", state.identity.task_id),
             raw_private_material_excluded: true,
@@ -1266,6 +1395,9 @@ pub struct TaskSupportEventRow {
     /// Execution-context provenance projection ref, when present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_provenance_ref: Option<String>,
+    /// Typed degradation reason carried on this event, when applicable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub degradation_reason: Option<TaskDegradationReason>,
     /// Export-safe summary.
     pub summary: String,
 }
@@ -1293,6 +1425,7 @@ impl TaskSupportEventRow {
                 .context_provenance
                 .as_ref()
                 .map(|provenance| provenance.context_provenance_id.clone()),
+            degradation_reason: event.payload.degradation_reason(),
             summary: event.summary.clone(),
         }
     }
@@ -1691,6 +1824,118 @@ mod tests {
             err,
             TaskEventStreamError::ContextProvenanceIdentityMismatch { .. }
         ));
+    }
+
+    #[test]
+    fn degraded_payload_threads_through_state_and_projections() {
+        let mut stream = TaskEventStream::new(
+            "stream:task-event-alpha",
+            "workspace:payments",
+            "trace:task-event-alpha",
+        );
+        stream
+            .append(event(
+                1,
+                "review-audit",
+                TaskWedgeClass::Review,
+                TaskEventKind::TaskStarted,
+                TaskStateClass::Running,
+                TaskEventPayload::Lifecycle {
+                    lifecycle_reason: Some("review adapter started".to_owned()),
+                    exit_status: None,
+                },
+                TaskEventSourceKind::Native,
+                TaskEventRedactionClass::MetadataSafeDefault,
+            ))
+            .expect("started appends");
+        stream
+            .append(event(
+                2,
+                "review-audit",
+                TaskWedgeClass::Review,
+                TaskEventKind::DegradedStateReported,
+                TaskStateClass::Running,
+                TaskEventPayload::Degraded {
+                    reason: TaskDegradationReason::FallbackParserActive,
+                    scope_label: "structured output".to_owned(),
+                    recovery_hint_ref: Some("doctor:review:fallback".to_owned()),
+                },
+                TaskEventSourceKind::HeuristicParser,
+                TaskEventRedactionClass::MetadataSafeDefault,
+            ))
+            .expect("degraded appends");
+
+        let state = stream
+            .state_for_task("review-audit")
+            .expect("review task tracked");
+        assert!(state.is_degraded());
+        assert_eq!(
+            state.degradation_reason,
+            Some(TaskDegradationReason::FallbackParserActive)
+        );
+        assert_eq!(
+            state.degradation_scope_label.as_deref(),
+            Some("structured output")
+        );
+
+        let activity = stream.activity_projection();
+        let row = activity
+            .iter()
+            .find(|row| row.task_id == "review-audit")
+            .expect("review row");
+        assert!(row.is_degraded);
+        assert!(row.needs_attention);
+        assert_eq!(
+            row.degradation_reason,
+            Some(TaskDegradationReason::FallbackParserActive)
+        );
+
+        let shell = stream.shell_projection();
+        let shell_row = shell
+            .iter()
+            .find(|row| row.event_kind == TaskEventKind::DegradedStateReported)
+            .expect("shell carries degraded event");
+        assert!(shell_row.needs_attention);
+        assert_eq!(
+            shell_row.degradation_reason,
+            Some(TaskDegradationReason::FallbackParserActive)
+        );
+
+        let support = stream.support_export("support-export:degraded", "2026-05-13T16:30:00Z");
+        let support_row = support
+            .events
+            .iter()
+            .find(|row| row.event_kind == TaskEventKind::DegradedStateReported)
+            .expect("support retains degraded row");
+        assert_eq!(
+            support_row.degradation_reason,
+            Some(TaskDegradationReason::FallbackParserActive)
+        );
+
+        stream
+            .append(event(
+                3,
+                "review-audit",
+                TaskWedgeClass::Review,
+                TaskEventKind::TaskCompleted,
+                TaskStateClass::Completed,
+                TaskEventPayload::Lifecycle {
+                    lifecycle_reason: Some("review completed".to_owned()),
+                    exit_status: Some(TaskExitStatus {
+                        exit_code: Some(0),
+                        failure_class: None,
+                    }),
+                },
+                TaskEventSourceKind::Native,
+                TaskEventRedactionClass::MetadataSafeDefault,
+            ))
+            .expect("completed appends");
+
+        let state = stream
+            .state_for_task("review-audit")
+            .expect("review task tracked after completion");
+        assert!(!state.is_degraded(), "terminal state clears degradation");
+        assert!(state.degradation_reason.is_none());
     }
 
     #[test]
