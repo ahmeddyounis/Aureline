@@ -93,6 +93,7 @@ pub mod policy_pack_beta;
 pub mod previews;
 pub mod profiling_alpha;
 pub mod recovery;
+pub mod region_tenant_key_mode_beta;
 pub mod release_center;
 pub mod request_workspace;
 pub mod restore;

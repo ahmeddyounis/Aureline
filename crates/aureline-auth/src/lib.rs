@@ -72,7 +72,15 @@
 //!   can name the affected consumer, the blocked target, the typed repair
 //!   action, and the typed repair outcome across connected, mirror-only,
 //!   offline, and enterprise-managed beta profiles while preserving the
-//!   no-plaintext-fallback invariant and local editing.
+//!   no-plaintext-fallback invariant and local editing; and
+//! - one [`region_and_tenant::RegionTenantKeyModeBetaPage`] beta projection
+//!   that turns region pinning, tenant boundary, and key-mode posture into
+//!   one inspectable record kind paired with region, tenant, and key-mode
+//!   drill packets so claimed managed and enterprise rows disclose
+//!   processing location, tenant boundary, and key mode in product and
+//!   exported packets across connected, mirror-only, offline, and
+//!   enterprise-managed beta profiles while narrowing only the affected
+//!   managed action on mismatch or degraded states.
 //!
 //! Surfaces (terminal pane, task / debug-prep seeds, provider/auth entry
 //! points, activity center, status bar, support / export flows) read these
@@ -110,6 +118,7 @@ pub mod oidc;
 pub mod passkey;
 pub mod policy_packs;
 pub mod provisioning;
+pub mod region_and_tenant;
 pub mod secret_broker;
 pub mod secrets;
 pub mod system_browser;
@@ -154,6 +163,24 @@ pub use offline_entitlements::{
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUMMARY_RECORD_KIND,
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUPPORT_EXPORT_RECORD_KIND,
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SUPPORT_ROW_RECORD_KIND,
+};
+
+pub use region_and_tenant::{
+    audit_region_tenant_key_mode_beta_page, seeded_region_tenant_key_mode_beta_page,
+    validate_region_tenant_key_mode_beta_page, KeyModeRow, KeyModeStateClass,
+    ManagedActionLaneClass, ProcessingLocationDisclosure, RegionDisclosureRow,
+    RegionPinningStateClass, RegionTenantDrillKindClass, RegionTenantDrillOutcomeClass,
+    RegionTenantDrillPacket, RegionTenantKeyModeBetaDefect, RegionTenantKeyModeBetaDefectKind,
+    RegionTenantKeyModeBetaPage, RegionTenantKeyModeBetaProfileClass,
+    RegionTenantKeyModeBetaSummary, RegionTenantKeyModeBetaSupportExport, TenantBoundaryRow,
+    TenantBoundaryStateClass, KEY_MODE_ROW_RECORD_KIND, REGION_DISCLOSURE_ROW_RECORD_KIND,
+    REGION_TENANT_DRILL_PACKET_RECORD_KIND, REGION_TENANT_KEY_MODE_BETA_DEFECT_RECORD_KIND,
+    REGION_TENANT_KEY_MODE_BETA_PAGE_RECORD_KIND,
+    REGION_TENANT_KEY_MODE_BETA_SCHEMA_VERSION,
+    REGION_TENANT_KEY_MODE_BETA_SHARED_CONTRACT_REF,
+    REGION_TENANT_KEY_MODE_BETA_SOURCE_MATRIX_REF,
+    REGION_TENANT_KEY_MODE_BETA_SUMMARY_RECORD_KIND,
+    REGION_TENANT_KEY_MODE_BETA_SUPPORT_EXPORT_RECORD_KIND, TENANT_BOUNDARY_ROW_RECORD_KIND,
 };
 
 pub use provisioning::{

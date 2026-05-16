@@ -1,0 +1,126 @@
+# Region / tenant / key-mode beta matrix.
+#
+# Declares the managed action lanes, region pinning, tenant boundary, key-mode,
+# and drill axes the beta projection must inspect on connected, mirror-only,
+# offline, and enterprise-managed beta profiles. The matrix mirrors the
+# vocabulary owned by `crates/aureline-auth/src/region_and_tenant/mod.rs`.
+# Every cell stays inspectable from the same record kind across admin, support,
+# shell, settings, and reviewer surfaces.
+
+shared_contract_ref: "security:region_tenant_key_mode_beta:v1"
+schema_version: 1
+
+record_kinds:
+  page: "security_region_tenant_key_mode_beta_page_record"
+  region_disclosure_row: "security_region_tenant_key_mode_beta_region_disclosure_row_record"
+  tenant_boundary_row: "security_region_tenant_key_mode_beta_tenant_boundary_row_record"
+  key_mode_row: "security_region_tenant_key_mode_beta_key_mode_row_record"
+  drill_packet: "security_region_tenant_key_mode_beta_drill_packet_record"
+  summary: "security_region_tenant_key_mode_beta_summary_record"
+  defect: "security_region_tenant_key_mode_beta_defect_record"
+  support_export: "security_region_tenant_key_mode_beta_support_export_record"
+
+profiles:
+  - token: "connected"
+    note: "Live managed control plane reachable."
+  - token: "mirror_only"
+    note: "Signed mirror is the only authority; managed control plane unreachable."
+  - token: "offline"
+    note: "Air-gapped courier or last-known-good snapshot only."
+  - token: "enterprise_managed"
+    note: "Signed-file or managed control plane drives region, tenant, and key-mode state."
+
+managed_lanes:
+  - "ai_inference"
+  - "provider_tool_call"
+  - "remote_attach"
+  - "mirror_sync"
+  - "support_export_upload"
+  - "admin_policy_push"
+
+region_pinning_states:
+  - token: "pinned_matches_claim"
+    narrows_authority: false
+  - token: "pinned_recheck_required"
+    narrows_authority: false
+  - token: "provider_default_disclosed"
+    narrows_authority: false
+  - token: "pinning_lost"
+    narrows_authority: true
+  - token: "drifted_from_claim"
+    narrows_authority: true
+  - token: "unresolved"
+    narrows_authority: true
+
+tenant_boundary_states:
+  - token: "bound_matches_claim"
+    narrows_authority: false
+  - token: "bound_recheck_required"
+    narrows_authority: false
+  - token: "drifted_from_claim"
+    narrows_authority: true
+  - token: "binding_lost"
+    narrows_authority: true
+  - token: "unresolved"
+    narrows_authority: true
+  - token: "not_applicable_local"
+    narrows_authority: false
+
+key_mode_states:
+  - token: "matches_claim"
+    narrows_authority: false
+  - token: "matches_recheck_required"
+    narrows_authority: false
+  - token: "drifted_from_claim"
+    narrows_authority: true
+  - token: "custody_degraded"
+    narrows_authority: true
+  - token: "unresolved"
+    narrows_authority: true
+
+drill_axes:
+  - "region"
+  - "tenant"
+  - "key_mode"
+
+drill_kinds:
+  - token: "region_pinning_failure"
+    axis: "region"
+  - token: "region_failover"
+    axis: "region"
+  - token: "tenant_boundary_drift"
+    axis: "tenant"
+  - token: "tenant_failover"
+    axis: "tenant"
+  - token: "key_mode_drift"
+    axis: "key_mode"
+  - token: "key_mode_failover"
+    axis: "key_mode"
+
+drill_outcomes:
+  - "narrowed_then_recovered"
+  - "narrowed_awaiting_admin"
+  - "failed_over_to_declared_fallback"
+
+defect_kinds:
+  - "token_drift"
+  - "claimed_managed_region_undisclosed"
+  - "claimed_managed_tenant_undisclosed"
+  - "claimed_managed_key_mode_undisclosed"
+  - "narrowing_authority_drift"
+  - "mismatch_masks_issue"
+  - "hidden_public_endpoint_fallback"
+  - "raw_private_material_exposed"
+  - "local_editing_not_preserved"
+  - "drill_axis_token_drift"
+  - "drill_sibling_lane_widened"
+  - "drill_local_editing_not_preserved"
+  - "drill_axis_coverage_missing"
+  - "profile_coverage_missing"
+
+invariants:
+  - "Claimed managed and enterprise rows disclose region, tenant, and key-mode truth in product and exported packets."
+  - "Mismatch and degraded states narrow only the affected managed lane and never widen authority on a sibling lane."
+  - "Drill packets exist for region, tenant, and key-mode failure or failover scenarios on at least one beta profile."
+  - "No row or drill permits undeclared public-endpoint fallback or exposes raw private material."
+  - "Local editing is preserved across every row and drill, on every profile."
