@@ -30,6 +30,13 @@
 //!   capability-negotiation model, plus a
 //!   [`runtime::RuntimeV1BetaSupportExportRecord`] projection for the
 //!   first consuming support / partner export surface.
+//! - one [`supervision::ExtensionHostSupervisionRecord`] supervision
+//!   packet that finalizes extension host isolation, restart budgets,
+//!   resource limits, and quarantine behavior on top of the runtime
+//!   contract, plus a
+//!   [`supervision::ExtensionHostSupervisionSupportExportRecord`]
+//!   projection for the first consuming support / partner export
+//!   surface.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -48,6 +55,7 @@ pub mod install_review;
 pub mod manifest_baseline;
 pub mod review_alpha;
 pub mod runtime;
+pub mod supervision;
 
 pub use collections::{
     ExtensionInstallCollectionAlphaInput, ExtensionInstallCollectionAlphaPacket,
@@ -100,4 +108,15 @@ pub use runtime::{
     RuntimeV1BetaContractRecord, RuntimeV1BetaFinding, RuntimeV1BetaSupportExportRecord,
     SdkAlignmentClass, RUNTIME_V1_BETA_CONTRACT_RECORD_KIND, RUNTIME_V1_BETA_SCHEMA_VERSION,
     RUNTIME_V1_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use supervision::{
+    evaluate_extension_host_supervision, project_extension_host_supervision_support_export,
+    validate_extension_host_supervision, AxisBudgetEntry, BudgetPressureClass,
+    DiscoveryRankingPostureClass, ExtensionHostSupervisionFinding, ExtensionHostSupervisionInput,
+    ExtensionHostSupervisionRecord, ExtensionHostSupervisionSupportExportRecord,
+    MaintainerCoverageClass, RecoveryPreconditionClass, RecoveryVisibleProjectionClass,
+    RestartBudgetSnapshot, SupervisionAxisClass, SupervisionDecisionClass, SupervisionReasonClass,
+    SupervisionResponseClass, VisibilityPostureClass, EXTENSION_HOST_SUPERVISION_RECORD_KIND,
+    EXTENSION_HOST_SUPERVISION_SCHEMA_VERSION,
+    EXTENSION_HOST_SUPERVISION_SUPPORT_EXPORT_RECORD_KIND,
 };
