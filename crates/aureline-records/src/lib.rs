@@ -583,6 +583,10 @@ pub const PRODUCER_RECORD_KIND_BINDINGS: &[RecordKindBinding] = &[
         record_kind: "support_bundle_diagnosis_latency_scorecard_projection",
         record_class_id: RecordClassId::SupportBundleArchive,
     },
+    RecordKindBinding {
+        record_kind: "records_governance_packet_record",
+        record_class_id: RecordClassId::SupportBundleArchive,
+    },
 ];
 
 static CURRENT_REGISTRY: OnceLock<Result<RecordClassRegistry, RecordRegistryError>> =

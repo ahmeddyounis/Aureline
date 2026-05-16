@@ -24,6 +24,7 @@ pub mod exact_build;
 pub mod manifest;
 pub mod notices;
 pub mod preview;
+pub mod records;
 pub mod redaction;
 pub mod vocabulary;
 
@@ -59,6 +60,15 @@ pub use preview::{
     ActionReconstructionSeed, DiagnosisLatencyScorecardProjectionSeed, PreviewItemSeed,
     SupportBundlePreview, SupportBundlePreviewBuilder, SupportBundlePreviewError,
     SUPPORT_BUNDLE_PREVIEW_RECORD_KIND, SUPPORT_BUNDLE_PREVIEW_SEED_SCOPE_NOTICE,
+};
+pub use records::{
+    add_records_governance_preview_item, evaluate_records_governance_packet,
+    records_governance_preview_item_seed, ArtifactClass, ChainOfCustodyEvent, CustodyActionClass,
+    CustodyActorClass, CustodyLocationClass, DestructionCaveatClass, HoldClass, HoldState,
+    RecordsGovernanceError, RecordsGovernanceInputs, RecordsGovernancePacket, RetentionOwnerClass,
+    RECORDS_GOVERNANCE_PACKET_DOC_REF, RECORDS_GOVERNANCE_PACKET_RECORD_KIND,
+    RECORDS_GOVERNANCE_PACKET_REDACTION_CLASS, RECORDS_GOVERNANCE_PACKET_SCHEMA_REF,
+    RECORDS_GOVERNANCE_PACKET_SCHEMA_VERSION, SUPPORT_ITEM_RECORDS_GOVERNANCE_PACKET,
 };
 pub use redaction::LocalFirstDefaults;
 pub use vocabulary::{

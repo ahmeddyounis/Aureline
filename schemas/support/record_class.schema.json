@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/record_class.schema.json",
+  "title": "Aureline records-governance packet for exported support artifacts",
+  "description": "Boundary schema for the records-governance packet that travels with a support-bundle preview row. The packet binds one artifact to its governed record class, current artifact class (local-only, managed-copy, held, queued-for-delete, or export-only), hold state, retention owner, destruction caveat, and chain-of-custody timeline so reviewers reading an exported support bundle see the same governance truth that the record-class registry pins. The packet is metadata-only: it cites refs, ids, counts, and closed-vocabulary tokens, never raw payloads, credentials, or hold-justification bytes.",
+  "$ref": "#/$defs/records_governance_packet_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Frozen schema version. Bumped only on breaking payload changes."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewer-safe prose. No raw payload bodies, raw paths, raw credentials, or raw hold justification bytes."
+    },
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$",
+      "description": "Opaque, stable reference safe to log, render, and cite."
+    },
+    "packet_id": {
+      "type": "string",
+      "pattern": "^records_governance_packet:[a-z0-9][a-z0-9._:/-]*$",
+      "description": "Stable packet id prefixed with records_governance_packet:."
+    },
+    "support_pack_item_id": {
+      "type": "string",
+      "pattern": "^support\\.item\\.[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "rfc3339_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "record_class_id": {
+      "type": "string",
+      "enum": [
+        "durable_workspace_state",
+        "portable_state_package",
+        "support_bundle_archive",
+        "managed_copy_index_entry",
+        "managed_workspace_lifecycle_copy",
+        "entitlement_usage_export_packet",
+        "offboarding_exit_packet",
+        "destruction_receipt_record",
+        "ai_retained_evidence_packet"
+      ],
+      "description": "Closed record-class id from the alpha record-class registry."
+    },
+    "class_scope": {
+      "type": "string",
+      "enum": [
+        "durable_state",
+        "support_bundle",
+        "portable_package",
+        "managed_copy",
+        "export_packet",
+        "receipt"
+      ],
+      "description": "Class scope inherited from the record-class registry row."
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "held",
+        "queued_for_delete",
+        "export_only"
+      ],
+      "description": "Closed artifact-class vocabulary. local_only: the row never left the device. managed_copy: a managed-service copy exists alongside (or instead of) the local row. held: at least one hold gates destructive lifecycle. queued_for_delete: a delete was requested but has not completed. export_only: the artifact only ever existed as a generated export packet."
+    },
+    "hold_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "on_hold",
+        "release_pending"
+      ],
+      "description": "Hold state for this row. on_hold requires at least one hold_class; release_pending records that a hold was lifted but downstream destructive steps are not yet complete."
+    },
+    "hold_class": {
+      "type": "string",
+      "enum": [
+        "administrative_legal",
+        "support_investigation",
+        "retention_minimum",
+        "export_pending"
+      ],
+      "description": "Closed hold-class vocabulary mirroring the alpha record-class registry."
+    },
+    "retention_owner_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "operator_admin",
+        "support_export",
+        "governance_packets",
+        "mixed"
+      ],
+      "description": "Closed retention-owner vocabulary. Inherits from the registry row's local_owner_ref and managed_owner_ref pair."
+    },
+    "destruction_caveat_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "receipt_retained",
+        "retained_subset_remains",
+        "hold_blocks_completion",
+        "legal_hold_prevents",
+        "retention_minimum_applies",
+        "exported_local_copy_remains",
+        "outside_platform_scope",
+        "provider_backlog"
+      ],
+      "description": "Closed caveat vocabulary describing why a deletion is delayed, partial, or impossible. none means a delete completed cleanly or none has been requested."
+    },
+    "custody_actor_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "admin_initiated",
+        "support_agent",
+        "automated_retention_job",
+        "export_pipeline",
+        "offboarding_job",
+        "governance_packets"
+      ]
+    },
+    "custody_action_class": {
+      "type": "string",
+      "enum": [
+        "created",
+        "packaged_for_export",
+        "exported_locally",
+        "mirrored_to_managed",
+        "placed_on_hold",
+        "hold_released",
+        "delete_requested",
+        "delete_completed",
+        "receipt_issued",
+        "access_handed_off",
+        "imported_from_handoff"
+      ]
+    },
+    "custody_location_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "local_export_copy",
+        "managed_archive_active",
+        "managed_archive_held",
+        "managed_archive_policy_retained",
+        "managed_archive_replicated_pending_purge",
+        "destruction_receipt_only",
+        "import_source_origin",
+        "outside_platform_scope",
+        "no_remaining_location"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_safe_default",
+      "description": "Pinned redaction class. Raw payloads, raw credentials, raw policy bundle bytes, raw prompts, and raw hold justification bytes never appear in this record."
+    },
+    "chain_of_custody_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "sequence",
+        "actor_class",
+        "actor_ref",
+        "action_class",
+        "occurred_at",
+        "location_class",
+        "note"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable event id, unique within a single packet."
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Sequence within the chain. Strictly increasing oldest-first."
+        },
+        "actor_class": { "$ref": "#/$defs/custody_actor_class" },
+        "actor_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque actor ref. No raw email, token, or username body."
+        },
+        "action_class": { "$ref": "#/$defs/custody_action_class" },
+        "occurred_at": { "$ref": "#/$defs/rfc3339_utc" },
+        "location_class": { "$ref": "#/$defs/custody_location_class" },
+        "evidence_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional opaque evidence ref backing the event."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "records_governance_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "artifact_id",
+        "title",
+        "record_class_id",
+        "record_class_token",
+        "registry_row_id",
+        "registry_ref",
+        "schema_ref",
+        "doc_ref",
+        "class_scope",
+        "artifact_class",
+        "hold_state",
+        "hold_classes",
+        "retention_owner_class",
+        "local_owner_ref",
+        "managed_owner_ref",
+        "destruction_caveat_class",
+        "destruction_caveat_note",
+        "exported_copy_remains_local",
+        "chain_of_custody",
+        "redaction_class",
+        "raw_content_exported",
+        "reviewer_summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "records_governance_packet_record"
+        },
+        "packet_id": { "$ref": "#/$defs/packet_id" },
+        "artifact_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "record_class_id": { "$ref": "#/$defs/record_class_id" },
+        "record_class_token": { "$ref": "#/$defs/non_empty_string" },
+        "registry_row_id": { "$ref": "#/$defs/non_empty_string" },
+        "registry_ref": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "class_scope": { "$ref": "#/$defs/class_scope" },
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "hold_state": { "$ref": "#/$defs/hold_state" },
+        "hold_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hold_class" },
+          "uniqueItems": true
+        },
+        "retention_owner_class": { "$ref": "#/$defs/retention_owner_class" },
+        "local_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "managed_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "destruction_caveat_class": { "$ref": "#/$defs/destruction_caveat_class" },
+        "destruction_caveat_note": {
+          "type": "string",
+          "description": "Reviewer-safe caveat note. MUST be non-empty whenever destruction_caveat_class is not 'none'."
+        },
+        "exported_copy_remains_local": {
+          "type": "boolean",
+          "description": "True when a downloaded export copy remains under user/device control even after a managed-side delete."
+        },
+        "chain_of_custody": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/chain_of_custody_event" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "raw_content_exported": {
+          "type": "boolean",
+          "const": false,
+          "description": "Pinned false. Records-governance packets never export raw content."
+        },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "hold_state": { "const": "on_hold" }
+            },
+            "required": ["hold_state"]
+          },
+          "then": {
+            "properties": {
+              "hold_classes": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["hold_classes"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "hold_state": { "const": "none" }
+            },
+            "required": ["hold_state"]
+          },
+          "then": {
+            "properties": {
+              "hold_classes": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "destruction_caveat_class": { "const": "none" }
+              },
+              "required": ["destruction_caveat_class"]
+            }
+          },
+          "then": {
+            "properties": {
+              "destruction_caveat_note": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["destruction_caveat_note"]
+          }
+        }
+      ]
+    }
+  }
+}

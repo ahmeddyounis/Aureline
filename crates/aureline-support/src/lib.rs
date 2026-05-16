@@ -59,6 +59,11 @@
 //!   route-origin matrix, transport-decision fixtures, and reconstruction
 //!   packet so support/export previews can rebuild command, target, route,
 //!   traffic-origin, policy, outcome, and fallback truth.
+//! - The [`bundle::records`] records-governance projection — consumes the
+//!   record-class registry alongside typed governance inputs and emits one
+//!   typed records-governance packet per artifact so support exports
+//!   carry artifact-class, hold-state, retention-owner, chain-of-custody,
+//!   and destruction-caveat truth instead of implying it.
 //!
 //! ## Failure-drill posture
 //!
