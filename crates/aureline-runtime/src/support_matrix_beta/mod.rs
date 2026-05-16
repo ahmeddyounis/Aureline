@@ -28,12 +28,10 @@ use serde::{Deserialize, Serialize};
 pub const SUPPORT_MATRIX_BETA_SCHEMA_VERSION: u32 = 1;
 
 /// Stable record-kind tag for one matrix wedge row.
-pub const SUPPORT_MATRIX_BETA_WEDGE_ROW_RECORD_KIND: &str =
-    "support_matrix_beta_wedge_row_record";
+pub const SUPPORT_MATRIX_BETA_WEDGE_ROW_RECORD_KIND: &str = "support_matrix_beta_wedge_row_record";
 
 /// Stable record-kind tag for the canonical manifest.
-pub const SUPPORT_MATRIX_BETA_MANIFEST_RECORD_KIND: &str =
-    "support_matrix_beta_manifest_record";
+pub const SUPPORT_MATRIX_BETA_MANIFEST_RECORD_KIND: &str = "support_matrix_beta_manifest_record";
 
 /// Stable record-kind tag for one partner-input fixture record.
 pub const SUPPORT_MATRIX_BETA_WEDGE_INPUT_RECORD_KIND: &str =
@@ -223,9 +221,7 @@ impl SupportMatrixDowngradeRule {
             }
             Self::BlockOnUnclaimedTestFramework => "block_on_unclaimed_test_framework",
             Self::BlockOnUnclaimedTargetClass => "block_on_unclaimed_target_class",
-            Self::BlockProtectedDispatchOnTicketDrift => {
-                "block_protected_dispatch_on_ticket_drift"
-            }
+            Self::BlockProtectedDispatchOnTicketDrift => "block_protected_dispatch_on_ticket_drift",
             Self::BlockProtectedDispatchOnCapsuleDrift => {
                 "block_protected_dispatch_on_capsule_drift"
             }
@@ -360,7 +356,10 @@ impl SupportMatrixWedgeRow {
         self.launch.class.allows_protected_dispatch()
             && self.attach.class.allows_protected_dispatch()
             && self.test.class.allows_protected_dispatch()
-            && self.execution_context.overall_class.allows_protected_dispatch()
+            && self
+                .execution_context
+                .overall_class
+                .allows_protected_dispatch()
     }
 }
 
@@ -435,8 +434,10 @@ fn rollup_class(rows: &[SupportMatrixContextLaneSupport]) -> SupportMatrixClass 
                 }
             }
             SupportMatrixClass::Limited => {
-                if matches!(rollup, SupportMatrixClass::Supported | SupportMatrixClass::Preview)
-                {
+                if matches!(
+                    rollup,
+                    SupportMatrixClass::Supported | SupportMatrixClass::Preview
+                ) {
                     rollup = SupportMatrixClass::Limited;
                 }
             }
@@ -756,7 +757,10 @@ impl SupportMatrixBetaManifest {
     /// Compares an input fixture row against the canonical row for the same
     /// wedge, returning the full mismatch list (empty when the fixture
     /// matches the canonical row).
-    pub fn compare_input(&self, input: &SupportMatrixWedgeInput) -> Vec<SupportMatrixInputMismatch> {
+    pub fn compare_input(
+        &self,
+        input: &SupportMatrixWedgeInput,
+    ) -> Vec<SupportMatrixInputMismatch> {
         let canonical = match self.row_for_wedge(input.wedge_id) {
             Some(row) => row,
             None => return vec![SupportMatrixInputMismatch::UnknownWedge],
@@ -859,8 +863,7 @@ mod tests {
 
     #[test]
     fn canonical_manifest_has_one_row_per_claimed_wedge() {
-        let manifest =
-            SupportMatrixBetaManifest::canonical("matrix:test", "2026-05-15T00:00:00Z");
+        let manifest = SupportMatrixBetaManifest::canonical("matrix:test", "2026-05-15T00:00:00Z");
         assert_eq!(manifest.rows.len(), SupportMatrixWedgeId::ALL.len());
         for wedge_id in SupportMatrixWedgeId::ALL {
             let row = manifest
@@ -938,8 +941,7 @@ mod tests {
 
     #[test]
     fn input_comparison_reports_class_mismatch() {
-        let manifest =
-            SupportMatrixBetaManifest::canonical("matrix:test", "2026-05-15T00:00:00Z");
+        let manifest = SupportMatrixBetaManifest::canonical("matrix:test", "2026-05-15T00:00:00Z");
         let input = SupportMatrixWedgeInput {
             record_kind: SUPPORT_MATRIX_BETA_WEDGE_INPUT_RECORD_KIND.to_owned(),
             schema_version: SUPPORT_MATRIX_BETA_SCHEMA_VERSION,

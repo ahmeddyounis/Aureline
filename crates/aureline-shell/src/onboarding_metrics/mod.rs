@@ -50,8 +50,8 @@ use aureline_telemetry::onboarding::{
     MigrationOutcomeCounts, MigrationSourceKind, OnboardingEventInput, OnboardingEventName,
     OnboardingEventPhase, OnboardingTaskSuccessCaptureRecord, OnboardingTaskSuccessRecorder,
     OnboardingTelemetryContext, OnboardingTelemetryValidationError, OutcomeClass,
-    ProhibitedContentClass, RollbackState, SemanticWarmupState, TargetKind,
-    TelemetryExportPosture, TelemetryPrivacyClass,
+    ProhibitedContentClass, RollbackState, SemanticWarmupState, TargetKind, TelemetryExportPosture,
+    TelemetryPrivacyClass,
 };
 use aureline_telemetry::trace_event::BuildIdentityRecord;
 
@@ -650,7 +650,11 @@ pub fn validate_first_run_task_success_packet(
         }
     }
 
-    if packet.telemetry_capture.privacy.contains_raw_project_content {
+    if packet
+        .telemetry_capture
+        .privacy
+        .contains_raw_project_content
+    {
         errors.push(FirstRunTaskSuccessValidationError::TelemetryEnvelopeAllowsRawContent);
     }
     if !packet
@@ -791,9 +795,7 @@ pub fn seeded_first_run_task_success_packet() -> FirstRunTaskSuccessPacket {
             "docs/ux/m3/first_run_task_success_packet.md".to_owned(),
             "docs/product/onboarding_measurement_plan.md".to_owned(),
         ],
-        support_export_refs: vec![
-            "support:export.include_first_run_task_success_packet".to_owned(),
-        ],
+        support_export_refs: vec!["support:export.include_first_run_task_success_packet".to_owned()],
         generated_at: GENERATED_AT.to_owned(),
     }
 }
@@ -1207,12 +1209,12 @@ fn build_row(seed: &RowSeed) -> FirstRunTaskSuccessRow {
         outcome_class: seed.outcome_class,
         repair_action_token: seed.repair_action_token,
         no_raw_sensitive_user_content: true,
-        telemetry_event_names: seed
-            .events
+        telemetry_event_names: seed.events.iter().map(|event| event.event_name).collect(),
+        docs_help_refs: seed
+            .docs_help_refs
             .iter()
-            .map(|event| event.event_name)
+            .map(|s| (*s).to_owned())
             .collect(),
-        docs_help_refs: seed.docs_help_refs.iter().map(|s| (*s).to_owned()).collect(),
         support_export_refs: seed
             .support_export_refs
             .iter()
@@ -1308,9 +1310,7 @@ fn event(
         first_useful_work,
         migration_funnel: None,
         failure_category: None,
-        evidence_refs: vec![
-            "fixtures/ux/first_run_task_success_packet/packet.json".to_owned(),
-        ],
+        evidence_refs: vec!["fixtures/ux/first_run_task_success_packet/packet.json".to_owned()],
         occurred_tick,
     }
 }
@@ -1498,10 +1498,12 @@ mod tests {
     fn seeded_packet_declares_metadata_safe_envelope() {
         let packet = seeded_first_run_task_success_packet();
         assert!(packet.no_raw_sensitive_user_content);
-        assert!(!packet
-            .telemetry_capture
-            .privacy
-            .contains_raw_project_content);
+        assert!(
+            !packet
+                .telemetry_capture
+                .privacy
+                .contains_raw_project_content
+        );
         assert!(packet
             .telemetry_capture
             .privacy
@@ -1572,8 +1574,8 @@ mod tests {
     fn validation_flags_stale_state_summary() {
         let mut packet = seeded_first_run_task_success_packet();
         packet.state_summary.first_run.completion = 99;
-        let errors = validate_first_run_task_success_packet(&packet)
-            .expect_err("must flag stale summary");
+        let errors =
+            validate_first_run_task_success_packet(&packet).expect_err("must flag stale summary");
         assert!(errors
             .iter()
             .any(|err| matches!(err, FirstRunTaskSuccessValidationError::StateSummaryStale)));
@@ -1608,7 +1610,9 @@ mod tests {
         let lines = packet.compact_lines();
         assert!(lines.iter().any(|line| line.starts_with("packet:")));
         assert!(lines.iter().any(|line| line.starts_with("first_run:")));
-        assert!(lines.iter().any(|line| line.starts_with("imported_profile:")));
+        assert!(lines
+            .iter()
+            .any(|line| line.starts_with("imported_profile:")));
     }
 
     #[test]
@@ -1624,16 +1628,15 @@ mod tests {
     #[test]
     fn checked_in_fixture_matches_seeded_packet() {
         let packet = seeded_first_run_task_success_packet();
-        let serialized = serde_json::to_string_pretty(&packet)
-            .expect("seeded packet must serialize");
+        let serialized =
+            serde_json::to_string_pretty(&packet).expect("seeded packet must serialize");
         let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../fixtures/ux/first_run_task_success_packet/packet.json");
-        let on_disk = std::fs::read_to_string(&fixture_path)
-            .expect("checked-in packet fixture must exist");
+        let on_disk =
+            std::fs::read_to_string(&fixture_path).expect("checked-in packet fixture must exist");
         let trimmed = on_disk.trim_end_matches('\n');
         assert_eq!(
-            trimmed,
-            serialized,
+            trimmed, serialized,
             "seeded packet drifted from fixture; regenerate with \
              `cargo run -q -p aureline-shell --bin aureline_shell_onboarding_metrics -- packet > \
              fixtures/ux/first_run_task_success_packet/packet.json`"

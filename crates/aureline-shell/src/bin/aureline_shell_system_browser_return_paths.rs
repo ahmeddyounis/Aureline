@@ -130,7 +130,9 @@ fn print_json<T: serde::Serialize>(value: &T) -> Result<(), Box<dyn std::error::
 
 /// Rebuild a mutated page so its `defects` array is freshly recomputed by the
 /// validator instead of being inherited from the seeded source.
-fn rebuild_with_defects(mut page: SystemBrowserReturnPathsBetaPage) -> SystemBrowserReturnPathsBetaPage {
+fn rebuild_with_defects(
+    mut page: SystemBrowserReturnPathsBetaPage,
+) -> SystemBrowserReturnPathsBetaPage {
     page.defects = audit_system_browser_return_paths_beta_rows(&page.rows, &page.support_rows);
     page.summary.defect_count = page.defects.len();
     page

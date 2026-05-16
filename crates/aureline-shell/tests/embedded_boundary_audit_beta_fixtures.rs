@@ -37,7 +37,10 @@ fn fixtures_round_trip_through_shared_types() {
             row.shared_contract_ref,
             EMBEDDED_BOUNDARY_AUDIT_BETA_SHARED_CONTRACT_REF
         );
-        assert_eq!(row.schema_version, EMBEDDED_BOUNDARY_AUDIT_BETA_SCHEMA_VERSION);
+        assert_eq!(
+            row.schema_version,
+            EMBEDDED_BOUNDARY_AUDIT_BETA_SCHEMA_VERSION
+        );
         assert!(
             !row.owner_label.is_empty(),
             "{} must quote an owner label",
@@ -166,7 +169,9 @@ fn fixtures_keep_high_risk_approval_host_owned_on_every_row() {
     for row in &page.rows {
         for token in required {
             assert!(
-                row.native_reserved_surface_tokens.iter().any(|t| t == token),
+                row.native_reserved_surface_tokens
+                    .iter()
+                    .any(|t| t == token),
                 "row {} must keep {} on host-owned set",
                 row.row_id,
                 token
@@ -281,8 +286,7 @@ fn fixtures_exercise_step_up_permission_for_auth_confirmation() {
         auth_row.permission_class_token.as_str(),
         "host_owned_with_native_step_up_required"
     ));
-    let _: Option<PermissionClass> =
-        Some(PermissionClass::HostOwnedWithNativeStepUpRequired);
+    let _: Option<PermissionClass> = Some(PermissionClass::HostOwnedWithNativeStepUpRequired);
     let _: Option<BrowserFallbackPostureClass> =
         Some(BrowserFallbackPostureClass::SystemBrowserFirst);
 }

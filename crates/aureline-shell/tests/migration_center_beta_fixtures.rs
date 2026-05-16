@@ -41,14 +41,20 @@ fn page_fixture_matches_seeded_builder() {
         from_file.shared_contract_ref,
         MIGRATION_CENTER_BETA_SHARED_CONTRACT_REF
     );
-    assert_eq!(from_file.schema_version, MIGRATION_CENTER_BETA_SCHEMA_VERSION);
+    assert_eq!(
+        from_file.schema_version,
+        MIGRATION_CENTER_BETA_SCHEMA_VERSION
+    );
 }
 
 #[test]
 fn page_fixture_passes_validation() {
     let page: MigrationCenterPage = load("page.json");
     validate_migration_center_page(&page).expect("fixture page must validate");
-    assert!(page.defects.is_empty(), "defects fixture must seed zero defects");
+    assert!(
+        page.defects.is_empty(),
+        "defects fixture must seed zero defects"
+    );
 }
 
 #[test]
@@ -139,7 +145,11 @@ fn fixtures_keep_every_keyboard_first_entry_anchored_to_a_command_id() {
                 .command_id
                 .as_deref()
                 .unwrap_or_else(|| panic!("{} must quote a command_id", entry.entry_id));
-            assert!(cmd.starts_with("cmd:"), "{} must use cmd: prefix", entry.entry_id);
+            assert!(
+                cmd.starts_with("cmd:"),
+                "{} must use cmd: prefix",
+                entry.entry_id
+            );
         }
     }
 }
@@ -186,8 +196,7 @@ fn fixtures_keep_support_export_redacted() {
 fn drill_account_detour_emits_defect() {
     let mut page = seeded_migration_center_page();
     page.entries[0].requires_account_detour = true;
-    let defects =
-        audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
+    let defects = audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
     assert!(defects
         .iter()
         .any(|d| d.defect_kind == MigrationCenterDefectKind::EntryRequiresAccountDetour));
@@ -202,8 +211,7 @@ fn drill_missing_command_id_emits_defect() {
         .position(|e| e.keyboard_reach == KeyboardReachClass::KeyboardFirstCommandInvocation)
         .expect("seeded page must include a keyboard-first entry");
     page.entries[idx].command_id = None;
-    let defects =
-        audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
+    let defects = audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
     assert!(defects
         .iter()
         .any(|d| d.defect_kind == MigrationCenterDefectKind::EntryCommandIdMissing));
@@ -215,8 +223,8 @@ fn drill_review_overdue_emits_defect() {
     page.entries[0].learnability_claim.freshness_class = FreshnessClass::ReviewOverdue;
     page.entries[0].learnability_claim.freshness_class_token =
         FreshnessClass::ReviewOverdue.as_str().to_owned();
-    let defects =
-        audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
-    assert!(defects.iter().any(|d| d.defect_kind
-        == MigrationCenterDefectKind::FreshnessReviewOverdueOnClaimedRow));
+    let defects = audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
+    assert!(defects
+        .iter()
+        .any(|d| d.defect_kind == MigrationCenterDefectKind::FreshnessReviewOverdueOnClaimedRow));
 }

@@ -33,8 +33,8 @@ use tempfile::TempDir;
 // renames as long as the type exists).
 use aureline_ai::evidence::ConfidenceClass;
 use aureline_auth::credential_state::LifetimeClass;
-use aureline_build_info::build_identity;
 use aureline_buffer::piece_tree::buffer::Buffer;
+use aureline_build_info::build_identity;
 use aureline_commands::descriptor::CommandId;
 use aureline_content_safety::detector::has_suspicious_content;
 use aureline_docs::citations::DocsNodeKind;

@@ -46,7 +46,8 @@ pub const TOKEN_STATE_AUDIT_BETA_SCHEMA_VERSION: u32 = 1;
 pub const TOKEN_STATE_AUDIT_BETA_SHARED_CONTRACT_REF: &str = "shell:token_state_audit_beta:v1";
 
 /// Stable record kind for [`TokenStateAuditPage`] payloads.
-pub const TOKEN_STATE_AUDIT_BETA_PAGE_RECORD_KIND: &str = "shell_token_state_audit_beta_page_record";
+pub const TOKEN_STATE_AUDIT_BETA_PAGE_RECORD_KIND: &str =
+    "shell_token_state_audit_beta_page_record";
 
 /// Stable record kind for [`TokenStateAuditRow`] payloads.
 pub const TOKEN_STATE_AUDIT_BETA_ROW_RECORD_KIND: &str = "shell_token_state_audit_beta_row_record";
@@ -818,9 +819,18 @@ fn make_row(
         theme,
         density,
         posture,
-        required_color_tokens: required_color_tokens.iter().map(|s| (*s).to_owned()).collect(),
-        required_size_tokens: required_size_tokens.iter().map(|s| (*s).to_owned()).collect(),
-        required_space_tokens: required_space_tokens.iter().map(|s| (*s).to_owned()).collect(),
+        required_color_tokens: required_color_tokens
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
+        required_size_tokens: required_size_tokens
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
+        required_space_tokens: required_space_tokens
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
         required_component_states: required_component_states.to_vec(),
         density_preservation: DensityPreservation::preserved(),
         motion_preservation: MotionPreservation {
@@ -1413,10 +1423,14 @@ mod tests {
         let row = page
             .rows
             .iter_mut()
-            .find(|r| r.promised_semantics.contains(&SemanticPromise::TrustLegible))
+            .find(|r| {
+                r.promised_semantics
+                    .contains(&SemanticPromise::TrustLegible)
+            })
             .expect("seed has a trust row");
-        row.required_color_tokens
-            .retain(|tok| !tok.starts_with("status.warning.") && !tok.starts_with("status.danger."));
+        row.required_color_tokens.retain(|tok| {
+            !tok.starts_with("status.warning.") && !tok.starts_with("status.danger.")
+        });
         let defects = audit_rows(&page.rows);
         assert!(defects
             .iter()
@@ -1429,7 +1443,10 @@ mod tests {
         let row = page
             .rows
             .iter_mut()
-            .find(|r| r.promised_semantics.contains(&SemanticPromise::TrustLegible))
+            .find(|r| {
+                r.promised_semantics
+                    .contains(&SemanticPromise::TrustLegible)
+            })
             .expect("seed has a trust row");
         row.required_component_states.retain(|state| {
             !matches!(
@@ -1453,9 +1470,10 @@ mod tests {
         let row = page
             .rows
             .iter_mut()
-            .find(|r| r
-                .promised_semantics
-                .contains(&SemanticPromise::DegradedLegible))
+            .find(|r| {
+                r.promised_semantics
+                    .contains(&SemanticPromise::DegradedLegible)
+            })
             .expect("seed has a degraded row");
         row.required_component_states
             .retain(|s| !matches!(s, ComponentStateClass::Degraded));
@@ -1481,9 +1499,10 @@ mod tests {
         let row = page
             .rows
             .iter_mut()
-            .find(|r| r
-                .promised_semantics
-                .contains(&SemanticPromise::DegradedLegible))
+            .find(|r| {
+                r.promised_semantics
+                    .contains(&SemanticPromise::DegradedLegible)
+            })
             .expect("seed has a degraded row");
         row.motion_preservation.preserves_state_conveyance = false;
         let defects = audit_rows(&page.rows);
@@ -1495,9 +1514,7 @@ mod tests {
     #[test]
     fn audit_flags_density_geometry_collapse() {
         let mut page = seeded_token_state_audit_page();
-        page.rows[0]
-            .density_preservation
-            .preserves_row_height_token = false;
+        page.rows[0].density_preservation.preserves_row_height_token = false;
         let defects = audit_rows(&page.rows);
         assert!(defects
             .iter()

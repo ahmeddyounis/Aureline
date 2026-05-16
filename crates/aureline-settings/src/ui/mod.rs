@@ -713,10 +713,7 @@ fn sensitivity_badge_from_record(record: &EffectiveSettingInspectionRecord) -> S
 
 fn restart_badge_from_state(state: &InspectorRestartState) -> RestartBadge {
     let (label, explanation) = match state.restart_posture.as_str() {
-        "no_restart" => (
-            "Applies live",
-            "Live apply with no restart required.",
-        ),
+        "no_restart" => ("Applies live", "Live apply with no restart required."),
         "reload_workspace" => (
             "Reload workspace",
             "Reload the active workspace for the new value to fully apply.",
@@ -887,7 +884,9 @@ fn denial_explanation_from_preview(preview: &SettingWritePreviewRecord) -> Denia
     }
 }
 
-fn restart_summary_from_records(records: &[EffectiveSettingInspectionRecord]) -> RestartPostureSummary {
+fn restart_summary_from_records(
+    records: &[EffectiveSettingInspectionRecord],
+) -> RestartPostureSummary {
     let mut postures: BTreeMap<String, ()> = BTreeMap::new();
     let mut required = 0usize;
     let mut any_process_restart = false;
@@ -945,7 +944,9 @@ fn policy_summary_from_records(records: &[EffectiveSettingInspectionRecord]) -> 
     }
 }
 
-fn redaction_summary_from_records(records: &[EffectiveSettingInspectionRecord]) -> RedactionSummary {
+fn redaction_summary_from_records(
+    records: &[EffectiveSettingInspectionRecord],
+) -> RedactionSummary {
     let mut redacted = 0usize;
     let mut classes: BTreeMap<String, ()> = BTreeMap::new();
     for record in records {
@@ -1021,8 +1022,7 @@ mod tests {
     fn beta_row_carries_lock_owner_and_remediation_for_policy_locked_setting() {
         let resolver = seeded_resolver();
         let context = seeded_context(&resolver);
-        let record =
-            inspect_setting(&resolver, "security.ai.egress_policy", &context).unwrap();
+        let record = inspect_setting(&resolver, "security.ai.egress_policy", &context).unwrap();
         let row = SettingsUiBetaRow::from_record(&record);
 
         assert_eq!(row.setting_id, "security.ai.egress_policy");
@@ -1047,13 +1047,8 @@ mod tests {
     fn beta_page_groups_rows_and_aggregates_restart_and_policy_banners() {
         let resolver = seeded_resolver();
         let context = seeded_context(&resolver);
-        let page = project_settings_ui_beta_page(
-            &resolver,
-            &context,
-            "all",
-            "All settings",
-        )
-        .unwrap();
+        let page =
+            project_settings_ui_beta_page(&resolver, &context, "all", "All settings").unwrap();
 
         assert_eq!(page.page_id, "all");
         assert!(page.groups.iter().any(|group| group.group_id == "editor"));
@@ -1075,12 +1070,7 @@ mod tests {
     fn inspector_pane_renders_source_chain_with_labelled_relations() {
         let resolver = seeded_resolver();
         let context = seeded_context(&resolver);
-        let pane = inspect_setting_pane(
-            &resolver,
-            "security.ai.egress_policy",
-            &context,
-        )
-        .unwrap();
+        let pane = inspect_setting_pane(&resolver, "security.ai.egress_policy", &context).unwrap();
 
         assert_eq!(pane.setting_id, "security.ai.egress_policy");
         assert!(pane
@@ -1090,7 +1080,10 @@ mod tests {
         assert!(pane.source_chain.iter().any(|row| row.relation == "capped"));
         assert_eq!(pane.lock_explanation.state, "policy_locked");
         assert!(pane.policy_lock_explanation.is_some());
-        assert_eq!(pane.restart_explanation.restart_posture, "restart_extensions");
+        assert_eq!(
+            pane.restart_explanation.restart_posture,
+            "restart_extensions"
+        );
     }
 
     #[test]
@@ -1116,7 +1109,10 @@ mod tests {
         assert_eq!(denial.reason, "policy_locked_value");
         assert!(denial.owner_label.contains("Admin policy"));
         assert!(denial.policy_source_ref.is_some());
-        assert!(denial.remediation_label.to_lowercase().contains("administrator"));
+        assert!(denial
+            .remediation_label
+            .to_lowercase()
+            .contains("administrator"));
     }
 
     #[test]
@@ -1139,7 +1135,10 @@ mod tests {
 
         assert_eq!(composer.target_scope, "workspace");
         assert!(composer.destination_preview.scope_explicit);
-        assert_eq!(composer.destination_preview.scope_broadening_verdict, "none");
+        assert_eq!(
+            composer.destination_preview.scope_broadening_verdict,
+            "none"
+        );
         assert_eq!(composer.apply_state, "awaiting_preview");
         assert!(composer.preview_required);
         assert!(composer.checkpoint_required);

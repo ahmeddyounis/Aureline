@@ -43,11 +43,11 @@ pub use experiments::labs_governance_beta::{
     build_default_labs_governance_beta_page, build_labs_governance_beta_page_from_records,
     project_labs_governance_beta_cli, project_labs_governance_beta_support_export,
     validate_labs_governance_beta_page, validate_labs_governance_beta_support_export,
-    HostSurfaceAssignment, HostSurfaceClass, KillSwitchPathProjection,
-    LabsGovernanceBetaBadge, LabsGovernanceBetaCliProjection, LabsGovernanceBetaCliRow,
-    LabsGovernanceBetaPage, LabsGovernanceBetaRow, LabsGovernanceBetaSupportExport,
-    LabsGovernanceBetaSupportExportRow, LabsGovernanceBetaValidationError, VisibleMarkerToken,
-    LABS_GOVERNANCE_BETA_SCHEMA_VERSION, LABS_GOVERNANCE_BETA_SHARED_CONTRACT_REF,
+    HostSurfaceAssignment, HostSurfaceClass, KillSwitchPathProjection, LabsGovernanceBetaBadge,
+    LabsGovernanceBetaCliProjection, LabsGovernanceBetaCliRow, LabsGovernanceBetaPage,
+    LabsGovernanceBetaRow, LabsGovernanceBetaSupportExport, LabsGovernanceBetaSupportExportRow,
+    LabsGovernanceBetaValidationError, VisibleMarkerToken, LABS_GOVERNANCE_BETA_SCHEMA_VERSION,
+    LABS_GOVERNANCE_BETA_SHARED_CONTRACT_REF,
 };
 pub use experiments::{
     inspect_default_inventory, load_default_inventory, project_cli_inventory,
@@ -91,8 +91,8 @@ pub use ui::{
     project_settings_ui_beta_page, project_support_export as project_ui_beta_support_export,
     project_write_composer, write_composer_from_preview, DefinitionSummary, DenialExplanation,
     LifecycleBadge, LockBadge, LockExplanation, PolicyLockSummary, RedactionBadge,
-    RedactionSummary, RestartBadge, RestartPostureSummary, SensitivityBadge,
-    SettingsUiBetaGroup, SettingsUiBetaInspectorPane, SettingsUiBetaPage, SettingsUiBetaRow,
+    RedactionSummary, RestartBadge, RestartPostureSummary, SensitivityBadge, SettingsUiBetaGroup,
+    SettingsUiBetaInspectorPane, SettingsUiBetaPage, SettingsUiBetaRow,
     SettingsUiBetaSupportExport, SettingsUiBetaWriteComposer, SourceChainRow, WriteAffordance,
     SETTINGS_UI_BETA_SCHEMA_VERSION,
 };

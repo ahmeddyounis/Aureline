@@ -46,8 +46,7 @@ fn python_fixture_matches_canonical_row() {
 
 #[test]
 fn typescript_javascript_fixture_matches_canonical_row() {
-    let manifest =
-        SupportMatrixBetaManifest::canonical("matrix:test:tsjs", "2026-05-16T00:00:00Z");
+    let manifest = SupportMatrixBetaManifest::canonical("matrix:test:tsjs", "2026-05-16T00:00:00Z");
     let input = load_input("typescript_javascript.json");
     assert_eq!(input.wedge_id, SupportMatrixWedgeId::TypescriptJavascript);
     let mismatches = manifest.compare_input(&input);
@@ -59,9 +58,11 @@ fn typescript_javascript_fixture_matches_canonical_row() {
 
 #[test]
 fn support_export_round_trips_canonical_manifest_and_input_rows() {
-    let manifest =
-        SupportMatrixBetaManifest::canonical("matrix:roundtrip", "2026-05-16T00:00:00Z");
-    let inputs = vec![load_input("python.json"), load_input("typescript_javascript.json")];
+    let manifest = SupportMatrixBetaManifest::canonical("matrix:roundtrip", "2026-05-16T00:00:00Z");
+    let inputs = vec![
+        load_input("python.json"),
+        load_input("typescript_javascript.json"),
+    ];
     let export = SupportMatrixBetaSupportExport::new(
         "support-export:matrix-beta:1",
         "2026-05-16T00:00:01Z",
@@ -73,7 +74,10 @@ fn support_export_round_trips_canonical_manifest_and_input_rows() {
         SUPPORT_MATRIX_BETA_SUPPORT_EXPORT_RECORD_KIND
     );
     assert_eq!(export.schema_version, SUPPORT_MATRIX_BETA_SCHEMA_VERSION);
-    assert_eq!(export.manifest.record_kind, SUPPORT_MATRIX_BETA_MANIFEST_RECORD_KIND);
+    assert_eq!(
+        export.manifest.record_kind,
+        SUPPORT_MATRIX_BETA_MANIFEST_RECORD_KIND
+    );
     assert_eq!(export.manifest, manifest);
     assert_eq!(export.inputs, inputs);
 
@@ -116,8 +120,7 @@ fn support_export_round_trips_canonical_manifest_and_input_rows() {
 
 #[test]
 fn missing_features_render_as_limited_or_preview_rather_than_supported() {
-    let manifest =
-        SupportMatrixBetaManifest::canonical("matrix:missing", "2026-05-16T00:00:00Z");
+    let manifest = SupportMatrixBetaManifest::canonical("matrix:missing", "2026-05-16T00:00:00Z");
     let tsjs = manifest
         .row_for_wedge(SupportMatrixWedgeId::TypescriptJavascript)
         .expect("tsjs row present");

@@ -144,7 +144,11 @@ struct Gate<'a> {
 
 impl<'a> Gate<'a> {
     fn new(register: &'a BudgetRegister, known_limits: &'a KnownLimitsPacket) -> Self {
-        let wedges = register.wedges.iter().map(|w| w.wedge_id.as_str()).collect();
+        let wedges = register
+            .wedges
+            .iter()
+            .map(|w| w.wedge_id.as_str())
+            .collect();
         let budgets = register
             .metrics
             .iter()
@@ -198,7 +202,10 @@ impl<'a> Gate<'a> {
 fn register_loads_from_artifact() {
     let register = load_register();
     assert_eq!(register.schema_version, 1);
-    assert_eq!(register.register_id, "aureline.launch_wedge_warm_path_budgets");
+    assert_eq!(
+        register.register_id,
+        "aureline.launch_wedge_warm_path_budgets"
+    );
     assert!(!register.wedges.is_empty(), "register must list wedges");
     assert!(!register.metrics.is_empty(), "register must list metrics");
 }
@@ -206,7 +213,11 @@ fn register_loads_from_artifact() {
 #[test]
 fn register_covers_alpha_launch_wedges() {
     let register = load_register();
-    let listed: BTreeSet<&str> = register.wedges.iter().map(|w| w.wedge_id.as_str()).collect();
+    let listed: BTreeSet<&str> = register
+        .wedges
+        .iter()
+        .map(|w| w.wedge_id.as_str())
+        .collect();
     for required in REQUIRED_WEDGES {
         assert!(
             listed.contains(required),
@@ -218,8 +229,11 @@ fn register_covers_alpha_launch_wedges() {
 #[test]
 fn register_covers_warm_path_metrics_named_in_milestones_7_1() {
     let register = load_register();
-    let listed: BTreeSet<&str> =
-        register.metrics.iter().map(|m| m.metric_id.as_str()).collect();
+    let listed: BTreeSet<&str> = register
+        .metrics
+        .iter()
+        .map(|m| m.metric_id.as_str())
+        .collect();
     for required in REQUIRED_METRICS {
         assert!(
             listed.contains(required),
@@ -246,7 +260,11 @@ fn metric_ids_are_unique_and_well_formed() {
             "metric_id {} must be [a-z0-9_]+",
             metric.metric_id
         );
-        assert!(metric.budget_ms > 0, "metric {} must have a positive budget", metric.metric_id);
+        assert!(
+            metric.budget_ms > 0,
+            "metric {} must have a positive budget",
+            metric.metric_id
+        );
     }
 }
 
@@ -367,7 +385,9 @@ fn breach_disclosed_under_active_known_limit_does_not_regress() {
 
     assert_eq!(
         gate.evaluate(&capture),
-        GateVerdict::BreachWithActiveKnownLimit { known_limit_id: active },
+        GateVerdict::BreachWithActiveKnownLimit {
+            known_limit_id: active
+        },
     );
 }
 
@@ -382,8 +402,12 @@ fn breach_citing_unknown_known_limit_id_remains_a_regression_signal() {
         .iter()
         .find(|m| m.metric_id == "warm_startup_ms")
         .expect("warm_startup_ms must be registered");
-    let capture = CaptureRow::new("typescript_javascript", &metric.metric_id, metric.budget_ms + 1)
-        .with_known_limit("known_limit:does_not_exist");
+    let capture = CaptureRow::new(
+        "typescript_javascript",
+        &metric.metric_id,
+        metric.budget_ms + 1,
+    )
+    .with_known_limit("known_limit:does_not_exist");
 
     assert_eq!(
         gate.evaluate(&capture),

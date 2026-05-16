@@ -12,20 +12,25 @@ use aureline_shell::windows::{
     WINDOWS_BETA_SHARED_CONTRACT_REF,
 };
 
-const FIXTURE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../fixtures/ux/m3/window_topology");
+const FIXTURE_DIR: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ux/m3/window_topology"
+);
 
 fn load<T: serde::de::DeserializeOwned>(filename: &str) -> T {
     let path = format!("{}/{}", FIXTURE_DIR, filename);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
-    serde_json::from_str(&body)
-        .unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
+    let body =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
+    serde_json::from_str(&body).unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
 }
 
 #[test]
 fn fixtures_round_trip_through_shared_types() {
     let split: Vec<SplitWindowIntent> = load("split_intents.json");
-    assert!(!split.is_empty(), "split fixtures must seed at least one intent");
+    assert!(
+        !split.is_empty(),
+        "split fixtures must seed at least one intent"
+    );
     for record in &split {
         assert_eq!(record.shared_contract_ref, WINDOWS_BETA_SHARED_CONTRACT_REF);
         assert_eq!(record.schema_version, WINDOWS_BETA_SCHEMA_VERSION);
@@ -38,7 +43,10 @@ fn fixtures_round_trip_through_shared_types() {
     }
 
     let detach: Vec<PaneDetachIntent> = load("detach_intents.json");
-    assert!(!detach.is_empty(), "detach fixtures must seed at least one intent");
+    assert!(
+        !detach.is_empty(),
+        "detach fixtures must seed at least one intent"
+    );
     for record in &detach {
         assert_eq!(record.shared_contract_ref, WINDOWS_BETA_SHARED_CONTRACT_REF);
         assert!(
@@ -51,7 +59,10 @@ fn fixtures_round_trip_through_shared_types() {
     }
 
     let moves: Vec<CrossWindowMoveIntent> = load("move_intents.json");
-    assert!(moves.len() >= 3, "move fixtures must cover tab, review, and inspector");
+    assert!(
+        moves.len() >= 3,
+        "move fixtures must cover tab, review, and inspector"
+    );
     let mut has_tab = false;
     let mut has_diff = false;
     let mut has_inspector = false;
@@ -70,7 +81,10 @@ fn fixtures_round_trip_through_shared_types() {
     }
     assert!(has_tab, "move corpus must include a tab transfer");
     assert!(has_diff, "move corpus must include a diff/review transfer");
-    assert!(has_inspector, "move corpus must include an inspector transfer");
+    assert!(
+        has_inspector,
+        "move corpus must include an inspector transfer"
+    );
 
     let outcomes: Vec<RestoreTopologyOutcome> = load("restore_outcomes.json");
     assert!(
@@ -81,7 +95,10 @@ fn fixtures_round_trip_through_shared_types() {
     let mut has_display_removed = false;
     let mut has_docking = false;
     for outcome in &outcomes {
-        assert_eq!(outcome.shared_contract_ref, WINDOWS_BETA_SHARED_CONTRACT_REF);
+        assert_eq!(
+            outcome.shared_contract_ref,
+            WINDOWS_BETA_SHARED_CONTRACT_REF
+        );
         if !matches!(outcome.restore_fidelity, RestoreFidelityClass::Exact) {
             assert!(
                 outcome.user_visible_layout_adjusted_note_required,
@@ -116,12 +133,18 @@ fn fixtures_round_trip_through_shared_types() {
             }
         }
     }
-    assert!(has_scale, "restore corpus must include a scale_changed case");
+    assert!(
+        has_scale,
+        "restore corpus must include a scale_changed case"
+    );
     assert!(
         has_display_removed,
         "restore corpus must include a display_removed case"
     );
-    assert!(has_docking, "restore corpus must include a docking_changed case");
+    assert!(
+        has_docking,
+        "restore corpus must include a docking_changed case"
+    );
 
     let page: WindowsBetaPage = load("page.json");
     assert_eq!(page.shared_contract_ref, WINDOWS_BETA_SHARED_CONTRACT_REF);

@@ -125,10 +125,7 @@ impl PowerPostureClass {
     pub const fn background_work_must_degrade(self) -> bool {
         matches!(
             self,
-            Self::LowBattery
-                | Self::CriticalBattery
-                | Self::OsBatterySaver
-                | Self::ThermalPressure
+            Self::LowBattery | Self::CriticalBattery | Self::OsBatterySaver | Self::ThermalPressure
         )
     }
 }
@@ -845,9 +842,11 @@ pub fn validate_runtime_adaptation_page(
             });
         }
         if !row.user_visible_resume_summary_required {
-            errors.push(RuntimeAdaptationValidationError::SuspendResumeMissingSummary {
-                case_id: row.case_id.clone(),
-            });
+            errors.push(
+                RuntimeAdaptationValidationError::SuspendResumeMissingSummary {
+                    case_id: row.case_id.clone(),
+                },
+            );
         }
     }
 
@@ -870,9 +869,11 @@ pub fn validate_runtime_adaptation_page(
 
     for row in &page.foreground_protection_rows {
         if !row.remains_responsive || !row.no_input_event_drops || !row.no_blocking_dialog {
-            errors.push(RuntimeAdaptationValidationError::ForegroundProtectionViolation {
-                case_id: row.case_id.clone(),
-            });
+            errors.push(
+                RuntimeAdaptationValidationError::ForegroundProtectionViolation {
+                    case_id: row.case_id.clone(),
+                },
+            );
         }
     }
 
@@ -1297,7 +1298,11 @@ pub fn seeded_runtime_adaptation_page() -> RuntimeAdaptationPage {
             posture_thermal,
             posture_critical,
         ],
-        vec![suspend_macos_wake, suspend_windows_lock, suspend_linux_hibernate],
+        vec![
+            suspend_macos_wake,
+            suspend_windows_lock,
+            suspend_linux_hibernate,
+        ],
         vec![
             monitor_macos_detach,
             monitor_windows_dock,
@@ -1385,8 +1390,7 @@ mod tests {
     fn validation_flags_silent_rerun() {
         let mut page = seeded_runtime_adaptation_page();
         page.suspend_resume_rows[0].no_silent_rerun_or_authority_reuse = false;
-        let errors = validate_runtime_adaptation_page(&page)
-            .expect_err("must flag silent rerun");
+        let errors = validate_runtime_adaptation_page(&page).expect_err("must flag silent rerun");
         assert!(errors.iter().any(|e| matches!(
             e,
             RuntimeAdaptationValidationError::SuspendResumeSilentRerun { .. }
@@ -1397,8 +1401,8 @@ mod tests {
     fn validation_flags_monitor_bounds_drop() {
         let mut page = seeded_runtime_adaptation_page();
         page.monitor_continuity_rows[0].visible_bounds_preserved = false;
-        let errors = validate_runtime_adaptation_page(&page)
-            .expect_err("must flag monitor bounds drop");
+        let errors =
+            validate_runtime_adaptation_page(&page).expect_err("must flag monitor bounds drop");
         assert!(errors.iter().any(|e| matches!(
             e,
             RuntimeAdaptationValidationError::MonitorContinuityBoundsOrFocusDropped { .. }
@@ -1410,8 +1414,7 @@ mod tests {
         let mut page = seeded_runtime_adaptation_page();
         page.desktop_matrix_rows
             .retain(|row| !matches!(row.host_os, HostOsClass::Linux));
-        let errors = validate_runtime_adaptation_page(&page)
-            .expect_err("must flag missing OS row");
+        let errors = validate_runtime_adaptation_page(&page).expect_err("must flag missing OS row");
         assert!(errors.iter().any(|e| matches!(
             e,
             RuntimeAdaptationValidationError::DesktopMatrixIncomplete { .. }

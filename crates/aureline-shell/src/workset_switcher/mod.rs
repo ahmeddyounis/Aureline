@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 pub mod beta;
 
 pub use beta::{
-    render_activation_preview_lines, render_reopen_parity_lines, render_support_export_bundle_lines,
-    render_switcher_beta_lines, render_switcher_row_lines,
+    render_activation_preview_lines, render_reopen_parity_lines,
+    render_support_export_bundle_lines, render_switcher_beta_lines, render_switcher_row_lines,
 };
 
 use aureline_workspace::{

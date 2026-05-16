@@ -670,7 +670,9 @@ impl<'a> OwnershipAuditValidator<'a> {
         }
 
         self.coverage.channel_layouts.insert(row.channel_layout);
-        self.coverage.handoff_surfaces.insert(row.handoff_surface_class);
+        self.coverage
+            .handoff_surfaces
+            .insert(row.handoff_surface_class);
         self.coverage
             .install_modes
             .insert(row.owning_install_mode_class);

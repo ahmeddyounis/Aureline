@@ -105,7 +105,10 @@ fn every_seeded_scenario_fixture_replays_through_the_canonical_snapshot() {
             snapshot.target_class, fixture.expect.target_class,
             "{fixture_name}: target_class"
         );
-        assert_eq!(snapshot.surface, fixture.expect.surface, "{fixture_name}: surface");
+        assert_eq!(
+            snapshot.surface, fixture.expect.surface,
+            "{fixture_name}: surface"
+        );
         assert_eq!(
             snapshot.toolchain_class, fixture.expect.toolchain_class,
             "{fixture_name}: toolchain_class"
@@ -160,8 +163,10 @@ fn seeded_snapshots_are_deterministic_across_calls() {
     // the fixture-pinned record byte-for-byte. The test serialises the
     // snapshot twice and asserts character-identical output.
     for scenario in EnvInspectSeededScenario::ALL {
-        let first = serde_json::to_string(&seeded_env_inspect_snapshot(scenario)).expect("serialize first");
-        let second = serde_json::to_string(&seeded_env_inspect_snapshot(scenario)).expect("serialize second");
+        let first =
+            serde_json::to_string(&seeded_env_inspect_snapshot(scenario)).expect("serialize first");
+        let second = serde_json::to_string(&seeded_env_inspect_snapshot(scenario))
+            .expect("serialize second");
         assert_eq!(
             first,
             second,
@@ -173,8 +178,7 @@ fn seeded_snapshots_are_deterministic_across_calls() {
 
 #[test]
 fn support_export_round_trips_and_pins_the_redaction_class() {
-    let export =
-        seeded_env_inspect_support_export("env-inspect-beta:test", "2026-05-15T00:00:00Z");
+    let export = seeded_env_inspect_support_export("env-inspect-beta:test", "2026-05-15T00:00:00Z");
     assert_eq!(export.record_kind, ENV_INSPECT_SUPPORT_EXPORT_RECORD_KIND);
     assert_eq!(export.snapshots.len(), EnvInspectSeededScenario::ALL.len());
     assert_eq!(
@@ -211,7 +215,8 @@ fn snapshot_plaintext_renders_every_canonical_section_header() {
     // EnvInspectSnapshot::render_plaintext for the export-safe textual
     // form. Asserting the section header set keeps the contract stable
     // for support playbooks that grep this output.
-    let snapshot: EnvInspectSnapshot = seeded_env_inspect_snapshot(EnvInspectSeededScenario::LocalTerminal);
+    let snapshot: EnvInspectSnapshot =
+        seeded_env_inspect_snapshot(EnvInspectSeededScenario::LocalTerminal);
     let text = snapshot.render_plaintext();
     for header in [
         "[lane] Lane",

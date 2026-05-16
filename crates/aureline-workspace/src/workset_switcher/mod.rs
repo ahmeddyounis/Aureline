@@ -28,9 +28,9 @@
 pub mod beta;
 
 pub use beta::{
-    derive_portability_label, project_switcher_record, project_switcher_row,
-    root_taxonomy_badge, ReopenParityDowngrade, ScopeDriftClass, SwitcherRowAction,
-    PolicyOverlaySummary, WorksetActivationPreview, WorksetActivationPreviewError, WorksetPortabilityLabel,
+    derive_portability_label, project_switcher_record, project_switcher_row, root_taxonomy_badge,
+    PolicyOverlaySummary, ReopenParityDowngrade, ScopeDriftClass, SwitcherRowAction,
+    WorksetActivationPreview, WorksetActivationPreviewError, WorksetPortabilityLabel,
     WorksetReopenParityError, WorksetReopenParityPacket, WorksetSwitcherBetaError,
     WorksetSwitcherBetaRecord, WorksetSwitcherBetaRow, WorksetSwitcherBetaSupportExport,
     WORKSET_ACTIVATION_PREVIEW_RECORD_KIND, WORKSET_REOPEN_PARITY_PACKET_RECORD_KIND,

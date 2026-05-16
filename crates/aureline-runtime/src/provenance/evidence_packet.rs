@@ -34,8 +34,8 @@ use serde::{Deserialize, Serialize};
 use super::{ExecutionEventProvenance, ExecutionProvenanceRedactionClass};
 use crate::execution_context::{
     CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContext, ExecutionContextRequest,
-    ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode, ScopeClass, TargetClass,
-    TrustState,
+    ExecutionContextResolver, ExecutionContextResolverConfig, IdentityMode, ScopeClass,
+    TargetClass, TrustState,
 };
 
 /// Schema version stamped on every runtime evidence packet.
@@ -601,7 +601,10 @@ impl RuntimeEvidencePacketSupportExport {
         let summary_lines = packets.iter().map(|p| p.summary.clone()).collect();
         let any_comparison_blocks_replay = comparisons.iter().any(|c| c.blocks_replay);
         let any_minor_drift = comparisons.iter().any(|c| {
-            matches!(c.compatibility, ReplayCompatibilityClass::CompatibleMinorDrift)
+            matches!(
+                c.compatibility,
+                ReplayCompatibilityClass::CompatibleMinorDrift
+            )
         });
         let redaction_safe = packets.iter().all(|p| {
             p.redaction_safe
@@ -775,7 +778,11 @@ impl RuntimeEvidencePacketSeededScenario {
     }
 }
 
-fn seeded_resolver(policy_epoch: u64, drift_state: CapsuleDriftState, capsule_hash: &str) -> ExecutionContextResolver {
+fn seeded_resolver(
+    policy_epoch: u64,
+    drift_state: CapsuleDriftState,
+    capsule_hash: &str,
+) -> ExecutionContextResolver {
     ExecutionContextResolver::new(ExecutionContextResolverConfig {
         workspace_id: "ws-evidence-packet-beta".to_owned(),
         profile_id: Some("prof.evidence-packet-beta".to_owned()),
@@ -804,7 +811,8 @@ pub fn seeded_runtime_evidence_packet(
     use RuntimeEvidencePacketSeededScenario::*;
     match scenario {
         LocalTaskCompatible => {
-            let mut original = seeded_resolver(1, CapsuleDriftState::InSync, "sha256:caps-baseline");
+            let mut original =
+                seeded_resolver(1, CapsuleDriftState::InSync, "sha256:caps-baseline");
             let original_context = original.resolve(ExecutionContextRequest::task_seed(
                 "task.run",
                 TrustState::Trusted,
@@ -832,7 +840,8 @@ pub fn seeded_runtime_evidence_packet(
             (packet, comparison)
         }
         LocalTestPolicyAdvancedClean => {
-            let mut original = seeded_resolver(2, CapsuleDriftState::InSync, "sha256:caps-baseline");
+            let mut original =
+                seeded_resolver(2, CapsuleDriftState::InSync, "sha256:caps-baseline");
             let original_context = original.resolve(ExecutionContextRequest::test_seed(
                 "test.run",
                 TrustState::Trusted,
@@ -860,7 +869,8 @@ pub fn seeded_runtime_evidence_packet(
             (packet, comparison)
         }
         ContainerDebugCapsuleDrift => {
-            let mut original = seeded_resolver(2, CapsuleDriftState::InSync, "sha256:caps-baseline");
+            let mut original =
+                seeded_resolver(2, CapsuleDriftState::InSync, "sha256:caps-baseline");
             let original_context = original.resolve(ExecutionContextRequest::container_task_seed(
                 "debug.launch",
                 TargetClass::Devcontainer,
@@ -894,13 +904,15 @@ pub fn seeded_runtime_evidence_packet(
             (packet, comparison)
         }
         ManagedRuntimeTrustDowngraded => {
-            let mut original = seeded_resolver(4, CapsuleDriftState::InSync, "sha256:caps-baseline");
-            let original_context = original.resolve(ExecutionContextRequest::request_workspace_task_seed(
-                "runtime.evidence.replay",
-                TargetClass::ManagedWorkspace,
-                TrustState::Trusted,
-                "2026-05-15T19:00:00Z",
-            ));
+            let mut original =
+                seeded_resolver(4, CapsuleDriftState::InSync, "sha256:caps-baseline");
+            let original_context =
+                original.resolve(ExecutionContextRequest::request_workspace_task_seed(
+                    "runtime.evidence.replay",
+                    TargetClass::ManagedWorkspace,
+                    TrustState::Trusted,
+                    "2026-05-15T19:00:00Z",
+                ));
             let packet = RuntimeEvidencePacket::from_context(
                 format!("evpkt:{}", scenario.as_str()),
                 "ws-evidence-packet-beta",
@@ -910,12 +922,13 @@ pub fn seeded_runtime_evidence_packet(
                 &original_context,
             );
             let mut replay = seeded_resolver(4, CapsuleDriftState::InSync, "sha256:caps-baseline");
-            let replay_context = replay.resolve(ExecutionContextRequest::request_workspace_task_seed(
-                "runtime.evidence.replay",
-                TargetClass::ManagedWorkspace,
-                TrustState::Restricted,
-                "2026-05-15T19:01:00Z",
-            ));
+            let replay_context =
+                replay.resolve(ExecutionContextRequest::request_workspace_task_seed(
+                    "runtime.evidence.replay",
+                    TargetClass::ManagedWorkspace,
+                    TrustState::Restricted,
+                    "2026-05-15T19:01:00Z",
+                ));
             let comparison = packet.compare_with_context(
                 format!("evcmp:{}", scenario.as_str()),
                 &replay_context,
@@ -961,8 +974,9 @@ mod tests {
 
     #[test]
     fn local_task_scenario_replays_cleanly() {
-        let (packet, comparison) =
-            seeded_runtime_evidence_packet(RuntimeEvidencePacketSeededScenario::LocalTaskCompatible);
+        let (packet, comparison) = seeded_runtime_evidence_packet(
+            RuntimeEvidencePacketSeededScenario::LocalTaskCompatible,
+        );
         assert_eq!(packet.lane, RuntimeEvidenceLane::Task);
         assert_eq!(packet.evidence_kind, RuntimeEvidenceKind::TaskEvent);
         assert!(packet.redaction_safe);
@@ -1061,10 +1075,7 @@ mod tests {
                 ExecutionProvenanceRedactionClass::MetadataSafeDefault
             ));
             assert!(packet.redaction_safe);
-            assert!(packet
-                .context_provenance
-                .working_directory_digest
-                .is_some());
+            assert!(packet.context_provenance.working_directory_digest.is_some());
         }
         let json = serde_json::to_string(&export).expect("serialize export");
         // The projection never copies raw env bodies, raw command lines, or
@@ -1107,11 +1118,8 @@ mod tests {
             "2026-05-15T19:00:00Z",
             &context,
         );
-        let comparison = packet.compare_with_context(
-            "evcmp:self",
-            &context,
-            "2026-05-15T19:00:01Z",
-        );
+        let comparison =
+            packet.compare_with_context("evcmp:self", &context, "2026-05-15T19:00:01Z");
         assert_eq!(
             comparison.compatibility,
             ReplayCompatibilityClass::CompatibleReplay

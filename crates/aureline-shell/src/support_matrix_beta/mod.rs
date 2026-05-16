@@ -125,7 +125,10 @@ impl SupportMatrixBetaPanel {
             self.any_row_blocks_protected_dispatch
         ));
         for row in &self.rows {
-            out.push_str(&format!("\nWedge: {} ({})\n", row.wedge_token, row.wedge_label));
+            out.push_str(&format!(
+                "\nWedge: {} ({})\n",
+                row.wedge_token, row.wedge_label
+            ));
             out.push_str(&format!(
                 "  Launch: {} — {}\n",
                 row.launch_class_token, row.launch_summary

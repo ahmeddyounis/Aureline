@@ -157,8 +157,9 @@ fn drill_widening_authority_scope_replays_typed_defect() {
         recomputed, page.defects,
         "fixture defects must equal the live validator output"
     );
-    assert!(recomputed.iter().any(|d| d.defect_kind
-        == SystemBrowserReturnPathBetaDefectKind::ReturnWidensAuthorityScope));
+    assert!(recomputed.iter().any(
+        |d| d.defect_kind == SystemBrowserReturnPathBetaDefectKind::ReturnWidensAuthorityScope
+    ));
 }
 
 #[test]

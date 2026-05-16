@@ -114,8 +114,8 @@ fn assert_resolution_case(case_path: &Path) {
 
     let workspace = fixture_root().join(&case.workspace_dir);
     let resolver = EnvironmentCapsuleBetaResolver::default_read_only();
-    let resolution = resolver
-        .resolve_workspace(&workspace, archetype_for_token(&case.archetype_hint));
+    let resolution =
+        resolver.resolve_workspace(&workspace, archetype_for_token(&case.archetype_hint));
 
     assert_eq!(
         resolution.primary_source_token, case.expect.primary_source_token,
@@ -279,10 +279,7 @@ fn every_resolution_case_replays_through_the_beta_resolver() {
 
 #[test]
 fn drift_cases_classify_against_typed_outcomes() {
-    for case_name in [
-        "drift_after_edit_case.json",
-        "source_added_drift_case.json",
-    ] {
+    for case_name in ["drift_after_edit_case.json", "source_added_drift_case.json"] {
         let case_path = fixture_root().join(case_name);
         assert_drift_case(&case_path);
     }
@@ -334,7 +331,10 @@ fn conflict_drill_support_export_round_trips_with_drift_evaluations() {
     );
     assert!(round.coverage_manifest.covers_every_source_class());
     assert!(round.drift_evaluations.iter().any(|eval| eval.is_drifted()));
-    assert_eq!(round.resolution.primary_source_token.as_deref(), Some("devcontainer"));
+    assert_eq!(
+        round.resolution.primary_source_token.as_deref(),
+        Some("devcontainer")
+    );
     assert!(round
         .resolution
         .conflict_notes

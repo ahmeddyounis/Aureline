@@ -46,19 +46,16 @@ use crate::tests::{
 pub const TEST_QUALITY_TRUTH_BETA_SCHEMA_VERSION: u32 = TEST_RUNNER_BETA_SCHEMA_VERSION;
 
 /// Stable record-kind tag for the beta coverage-truth packet.
-pub const TEST_QUALITY_COVERAGE_PACKET_RECORD_KIND: &str =
-    "test_quality_coverage_packet_record";
+pub const TEST_QUALITY_COVERAGE_PACKET_RECORD_KIND: &str = "test_quality_coverage_packet_record";
 
 /// Stable record-kind tag for the beta flaky-truth packet.
 pub const TEST_QUALITY_FLAKY_PACKET_RECORD_KIND: &str = "test_quality_flaky_packet_record";
 
 /// Stable record-kind tag for the beta snapshot-truth packet.
-pub const TEST_QUALITY_SNAPSHOT_PACKET_RECORD_KIND: &str =
-    "test_quality_snapshot_packet_record";
+pub const TEST_QUALITY_SNAPSHOT_PACKET_RECORD_KIND: &str = "test_quality_snapshot_packet_record";
 
 /// Stable record-kind tag for the beta baseline-truth packet.
-pub const TEST_QUALITY_BASELINE_PACKET_RECORD_KIND: &str =
-    "test_quality_baseline_packet_record";
+pub const TEST_QUALITY_BASELINE_PACKET_RECORD_KIND: &str = "test_quality_baseline_packet_record";
 
 /// Stable record-kind tag for the per-row truth roll-up.
 pub const TEST_QUALITY_ROW_TRUTH_RECORD_KIND: &str = "test_quality_row_truth_record";
@@ -68,8 +65,7 @@ pub const TEST_QUALITY_BETA_COVERAGE_MANIFEST_RECORD_KIND: &str =
     "test_quality_beta_coverage_manifest_record";
 
 /// Stable record-kind tag for the projection bundling every claimed packet.
-pub const TEST_QUALITY_BETA_PROJECTION_RECORD_KIND: &str =
-    "test_quality_beta_projection_record";
+pub const TEST_QUALITY_BETA_PROJECTION_RECORD_KIND: &str = "test_quality_beta_projection_record";
 
 /// Stable record-kind tag for the beta support-export packet.
 pub const TEST_QUALITY_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -614,22 +610,15 @@ impl TestQualityProjection {
                 test_session_ref: inline_row.test_session_ref.clone(),
                 framework,
                 framework_token: framework.as_str().to_owned(),
-                execution_context_ref: latest_attempt
-                    .map(|att| att.execution_context_ref.clone()),
+                execution_context_ref: latest_attempt.map(|att| att.execution_context_ref.clone()),
                 target_id: latest_attempt.map(|att| att.target_id.clone()),
             };
 
-            let coverage = build_coverage_packet(
-                &identity,
-                latest_attempt,
-                &projection.artifact_identities,
-            );
+            let coverage =
+                build_coverage_packet(&identity, latest_attempt, &projection.artifact_identities);
             let flaky = build_flaky_packet(&identity, &attempts);
-            let snapshot = build_snapshot_packet(
-                &identity,
-                latest_attempt,
-                &projection.artifact_identities,
-            );
+            let snapshot =
+                build_snapshot_packet(&identity, latest_attempt, &projection.artifact_identities);
             let baseline = build_baseline_packet(&identity, &attempts);
 
             let row_truth = TestQualityRowTruth {
@@ -802,10 +791,7 @@ impl TestQualityBetaSupportExport {
 
     /// Renders deterministic plaintext lines for support / CLI consumers.
     pub fn render_plaintext(&self) -> String {
-        let mut out = format!(
-            "Test quality support export: {}\n",
-            self.support_export_id
-        );
+        let mut out = format!("Test quality support export: {}\n", self.support_export_id);
         out.push_str(&format!("Workspace: {}\n", self.workspace_id));
         out.push_str(&format!("Generated at: {}\n", self.generated_at));
         out.push_str(&format!("Projection: {}\n", self.projection_ref));
@@ -828,7 +814,10 @@ impl TestQualityBetaSupportExport {
 fn canonical_refs_in_order(projection: &TestRunnerBetaProjection) -> Vec<String> {
     let mut refs: Vec<String> = Vec::new();
     for row in &projection.inline.rows {
-        if !refs.iter().any(|existing| existing == &row.canonical_test_item_ref) {
+        if !refs
+            .iter()
+            .any(|existing| existing == &row.canonical_test_item_ref)
+        {
             refs.push(row.canonical_test_item_ref.clone());
         }
     }
@@ -1419,7 +1408,9 @@ mod tests {
             .row_for_framework(TestRunnerBetaFramework::Pytest)
             .expect("pytest row");
         for kind in TestQualityKind::ALL {
-            assert!(row.claimed_quality_kind_tokens.contains(&kind.as_str().to_owned()));
+            assert!(row
+                .claimed_quality_kind_tokens
+                .contains(&kind.as_str().to_owned()));
         }
         assert!(row
             .backing_artifact_kind_tokens

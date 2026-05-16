@@ -151,7 +151,9 @@ fn support_export_quotes_every_closed_fidelity_and_reopen_token() {
     );
     for token in ["exact", "compatible", "layout_only"] {
         assert!(
-            export.fidelity_class_tokens_present.contains(&token.to_owned()),
+            export
+                .fidelity_class_tokens_present
+                .contains(&token.to_owned()),
             "fidelity coverage missing token '{token}'",
         );
     }

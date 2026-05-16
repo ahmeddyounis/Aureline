@@ -26,7 +26,8 @@ fn panel_projection_matches_canonical_snapshot_for_every_scenario() {
             .map(|field| field.field_path.as_str())
             .collect();
         assert_eq!(
-            panel_paths, snapshot_paths,
+            panel_paths,
+            snapshot_paths,
             "{}: panel field-path sequence must match snapshot",
             scenario.as_str()
         );
@@ -38,22 +39,22 @@ fn panel_projection_matches_canonical_snapshot_for_every_scenario() {
             .map(|field| field.label.as_str())
             .collect();
         assert_eq!(
-            panel_labels, snapshot_labels,
+            panel_labels,
+            snapshot_labels,
             "{}: panel labels must match snapshot",
             scenario.as_str()
         );
 
-        let panel_values: Vec<Option<&str>> = panel
-            .rows()
-            .map(|row| row.value_token.as_deref())
-            .collect();
+        let panel_values: Vec<Option<&str>> =
+            panel.rows().map(|row| row.value_token.as_deref()).collect();
         let snapshot_values: Vec<Option<&str>> = snapshot
             .core_fields
             .iter()
             .map(|field| field.value_token.as_deref())
             .collect();
         assert_eq!(
-            panel_values, snapshot_values,
+            panel_values,
+            snapshot_values,
             "{}: panel values must match snapshot",
             scenario.as_str()
         );
@@ -69,7 +70,8 @@ fn panel_projection_matches_canonical_snapshot_for_every_scenario() {
             .map(|label| label.severity)
             .collect();
         assert_eq!(
-            panel_severities, snapshot_severities,
+            panel_severities,
+            snapshot_severities,
             "{}: panel degradation severities must match snapshot",
             scenario.as_str()
         );
@@ -98,13 +100,15 @@ fn panel_projection_preserves_boundary_cue_posture() {
         let snapshot = seeded_env_inspect_snapshot(scenario);
         let panel = EnvInspectPanelProjection::from_snapshot(snapshot.clone());
         assert_eq!(
-            panel.boundary_cue_visible, snapshot.boundary_cue_visible,
+            panel.boundary_cue_visible,
+            snapshot.boundary_cue_visible,
             "{}: boundary cue must match",
             scenario.as_str()
         );
         let expects_cue = !matches!(scenario, EnvInspectSeededScenario::LocalTerminal);
         assert_eq!(
-            panel.boundary_cue_visible, expects_cue,
+            panel.boundary_cue_visible,
+            expects_cue,
             "{}: boundary cue posture mismatch",
             scenario.as_str()
         );

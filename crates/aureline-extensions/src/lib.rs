@@ -54,6 +54,9 @@
 //!   publisher continuity, lifecycle, moderation, revocation-ready, and
 //!   mirror-compatible catalog metadata from the publication lane into
 //!   discovery, support export, and mirror import consumers.
+//! - one [`marketplace_truth::MarketplaceTruthRowRecord`] row projection
+//!   that binds catalog descriptor truth to the current generated
+//!   compatibility report before any marketplace row can open install review.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -70,6 +73,7 @@
 pub mod collections;
 pub mod install_review;
 pub mod manifest_baseline;
+pub mod marketplace_truth;
 pub mod permission_manifest;
 pub mod publication;
 pub mod registry;
@@ -106,6 +110,16 @@ pub use manifest_baseline::{
     PublisherTrustTierClass, RedactionClass, SummaryFreshnessClass,
     EFFECTIVE_PERMISSION_BASELINE_RECORD_KIND, EXTENSION_MANIFEST_BASELINE_RECORD_KIND,
     EXTENSION_MANIFEST_BASELINE_SCHEMA_VERSION, MANIFEST_INSTALL_DECISION_RECORD_KIND,
+};
+pub use marketplace_truth::{
+    project_marketplace_truth_row, project_marketplace_truth_support_export,
+    validate_marketplace_truth_row, validate_marketplace_truth_support_export,
+    CompatibilityReportRow, CompatibilityReportSnapshot, CompatibilityReportSupportClass,
+    MarketplaceCompatibilityLabelClass, MarketplaceCompatibilityLabelSourceClass,
+    MarketplaceSupportChipClass, MarketplaceTrustChipClass, MarketplaceTruthBadgeClass,
+    MarketplaceTruthFinding, MarketplaceTruthRowInput, MarketplaceTruthRowRecord,
+    MarketplaceTruthSupportExportRecord, MARKETPLACE_TRUTH_ROW_RECORD_KIND,
+    MARKETPLACE_TRUTH_SCHEMA_VERSION, MARKETPLACE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use permission_manifest::{
     capability_class_for_scope, evaluate_permission_manifest_delta, project_permission_manifest,

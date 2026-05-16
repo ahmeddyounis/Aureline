@@ -76,12 +76,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             print_json(&export)?;
         }
         Some("ui-beta-page") => {
-            let page = project_settings_ui_beta_page(
-                &resolver,
-                &context,
-                "all",
-                "All settings",
-            )?;
+            let page = project_settings_ui_beta_page(&resolver, &context, "all", "All settings")?;
             print_json(&page)?;
         }
         Some("ui-beta-inspector") => {
@@ -257,9 +252,7 @@ fn sync_beta_review_artifacts(
                 revision_ref: "settings-rev:00517".to_owned(),
                 winning_scope: "workspace".to_owned(),
                 at: Some("2026-04-18T14:05:31Z".to_owned()),
-                mutation_journal_ref: Some(
-                    "mjr-laptop-primary-0001-000000000517".to_owned(),
-                ),
+                mutation_journal_ref: Some("mjr-laptop-primary-0001-000000000517".to_owned()),
             }),
             rollback_checkpoint_ref: None,
             approval_ticket_ref: None,
@@ -284,9 +277,7 @@ fn sync_beta_review_artifacts(
                 revision_ref: "settings-rev:00042".to_owned(),
                 winning_scope: "admin_policy_narrowing".to_owned(),
                 at: Some("2026-04-19T10:14:22Z".to_owned()),
-                mutation_journal_ref: Some(
-                    "mjr-admin-policy-bundle-v3-000000000042".to_owned(),
-                ),
+                mutation_journal_ref: Some("mjr-admin-policy-bundle-v3-000000000042".to_owned()),
             }),
             rollback_checkpoint_ref: None,
             approval_ticket_ref: None,

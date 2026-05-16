@@ -307,7 +307,10 @@ fn drift_invalidation_lights_boundary_cue_on_terminal_session_header() {
     ));
     let evaluation = evaluate_ticket_drift(&stored_binding, &fresh_context);
     assert!(evaluation.outcome.is_invalidated());
-    assert_eq!(evaluation.fresh_lane, ExecutionContextBetaLane::RemoteAttach);
+    assert_eq!(
+        evaluation.fresh_lane,
+        ExecutionContextBetaLane::RemoteAttach
+    );
 
     let mut host = PtyHost::new();
     let session_id = host.open_session(OpenSessionRequest {
@@ -388,8 +391,7 @@ fn beta_support_export_packet_round_trips_lane_samples_and_drift_evaluations() {
         .iter()
         .any(|eval| eval.outcome.is_invalidated()));
 
-    let lanes: Vec<ExecutionContextBetaLane> =
-        round.lane_samples.iter().map(|s| s.lane).collect();
+    let lanes: Vec<ExecutionContextBetaLane> = round.lane_samples.iter().map(|s| s.lane).collect();
     for lane in ExecutionContextBetaLane::ALL {
         assert!(
             lanes.contains(&lane),

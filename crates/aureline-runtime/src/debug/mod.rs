@@ -21,14 +21,16 @@ mod host;
 mod records;
 
 pub use host::{
-    DapHostSupervisor, DapHostSupervisorConfig, DapHostSupervisorError, DebugAdapterCapabilityRequest,
-    DebugAdapterCapabilityResponse, DebugAdapterNegotiationInput, DebugSessionLaunchSpec,
+    DapHostSupervisor, DapHostSupervisorConfig, DapHostSupervisorError,
+    DebugAdapterCapabilityRequest, DebugAdapterCapabilityResponse, DebugAdapterNegotiationInput,
+    DebugSessionLaunchSpec,
 };
 pub use records::{
-    DebugAdapterCapabilityClass, DebugAdapterNegotiationOutcome, DebugAdapterTransportClass,
-    DebugAdapterIdentity, DebugSessionEventClass, DebugSessionExitReasonClass,
+    DebugAdapterCapabilityClass, DebugAdapterIdentity, DebugAdapterNegotiationOutcome,
+    DebugAdapterTransportClass, DebugSessionEventClass, DebugSessionExitReasonClass,
     DebugSessionIdentity, DebugSessionLifecycleEvent, DebugSessionMode, DebugSessionRestartCause,
     DebugSessionSnapshot, DebugSessionStateClass, DebugSessionSupportPacket,
-    DebugSessionTargetIdentity, DEBUG_SESSION_EVENT_RECORD_KIND, DEBUG_SESSION_LIFECYCLE_SCHEMA_VERSION,
-    DEBUG_SESSION_RECORD_KIND, DEBUG_SESSION_SUPPORT_PACKET_RECORD_KIND,
+    DebugSessionTargetIdentity, DEBUG_SESSION_EVENT_RECORD_KIND,
+    DEBUG_SESSION_LIFECYCLE_SCHEMA_VERSION, DEBUG_SESSION_RECORD_KIND,
+    DEBUG_SESSION_SUPPORT_PACKET_RECORD_KIND,
 };

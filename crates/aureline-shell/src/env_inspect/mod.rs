@@ -20,13 +20,11 @@ use serde::{Deserialize, Serialize};
 
 use aureline_runtime::{
     EnvInspectCoreField, EnvInspectDegradationLabel, EnvInspectDegradationSeverity,
-    EnvInspectSection, EnvInspectSnapshot, EnvInspectSupportExport,
-    ENV_INSPECT_SCHEMA_VERSION,
+    EnvInspectSection, EnvInspectSnapshot, EnvInspectSupportExport, ENV_INSPECT_SCHEMA_VERSION,
 };
 
 pub use aureline_runtime::{
-    seeded_env_inspect_resolver as seeded_resolver,
-    seeded_env_inspect_snapshot as seeded_snapshot,
+    seeded_env_inspect_resolver as seeded_resolver, seeded_env_inspect_snapshot as seeded_snapshot,
     seeded_env_inspect_support_export as seeded_support_export, EnvInspectSeededScenario,
 };
 
@@ -35,8 +33,7 @@ pub const ENV_INSPECT_PANEL_PROJECTION_RECORD_KIND: &str =
     "shell_env_inspect_panel_projection_record";
 
 /// Stable record kind for [`EnvInspectPanelSection`] payloads.
-pub const ENV_INSPECT_PANEL_SECTION_RECORD_KIND: &str =
-    "shell_env_inspect_panel_section_record";
+pub const ENV_INSPECT_PANEL_SECTION_RECORD_KIND: &str = "shell_env_inspect_panel_section_record";
 
 /// One row inside a panel section. The row carries the same `field_path`,
 /// `label`, and `value_token` as the runtime core-field record so chrome
@@ -206,10 +203,7 @@ pub fn panel_support_export(
     generated_at: impl Into<String>,
     panels: &[EnvInspectPanelProjection],
 ) -> EnvInspectSupportExport {
-    let snapshots = panels
-        .iter()
-        .map(|panel| panel.snapshot.clone())
-        .collect();
+    let snapshots = panels.iter().map(|panel| panel.snapshot.clone()).collect();
     EnvInspectSupportExport::new(manifest_id, generated_at, snapshots)
 }
 

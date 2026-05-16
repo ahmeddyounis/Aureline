@@ -73,8 +73,7 @@ impl WorksetPortabilityLabel {
 
 /// Derives the closed [`WorksetPortabilityLabel`] from the durable artifact.
 pub fn derive_portability_label(artifact: &WorksetArtifactRecord) -> WorksetPortabilityLabel {
-    if artifact.scope_class == ScopeClass::PolicyLimitedView
-        || artifact.policy_limitation.is_some()
+    if artifact.scope_class == ScopeClass::PolicyLimitedView || artifact.policy_limitation.is_some()
     {
         if artifact.portability.portability_class == PortabilityClass::ManagedProviderLocked {
             return WorksetPortabilityLabel::ManagedProviderLocked;
@@ -511,7 +510,10 @@ pub fn project_switcher_row(
         .filter(|p| p.pattern_kind == crate::worksets::PatternKind::Exclude)
         .map(pattern_token)
         .collect();
-    let policy_overlay = artifact.policy_limitation.as_ref().map(PolicyOverlaySummary::from);
+    let policy_overlay = artifact
+        .policy_limitation
+        .as_ref()
+        .map(PolicyOverlaySummary::from);
     let hidden_result_summary = derive_hidden_summary(artifact);
     let mut offered_actions = derive_offered_actions(artifact, is_active, portability_label);
     if !is_active && !offered_actions.contains(&SwitcherRowAction::PreviewActivationDiff) {
@@ -692,14 +694,21 @@ impl std::fmt::Display for WorksetActivationPreviewError {
             ),
             Self::EmptyId(field) => write!(f, "{field} must not be empty"),
             Self::DiffIdentityMismatch => {
-                write!(f, "diff record must reference the preview base/candidate refs")
+                write!(
+                    f,
+                    "diff record must reference the preview base/candidate refs"
+                )
             }
             Self::DiffWidenError(err) => write!(f, "diff record invalid: {err}"),
             Self::SameIdentityHasBehavioralDrift => {
                 write!(f, "same_identity previews cannot carry behavioural drift")
             }
             Self::DriftClassMismatch(class) => {
-                write!(f, "scope_drift {} does not match the recorded changes", class.as_str())
+                write!(
+                    f,
+                    "scope_drift {} does not match the recorded changes",
+                    class.as_str()
+                )
             }
             Self::AdditionsRequireWideningDrift => {
                 write!(f, "root_additions require a widening or mixed scope_drift")
@@ -859,7 +868,12 @@ impl WorksetArtifactRecord {
         let diff = if same_identity {
             None
         } else {
-            Some(derive_widen_diff(self, candidate, diff_id, emitted_at.clone()))
+            Some(derive_widen_diff(
+                self,
+                candidate,
+                diff_id,
+                emitted_at.clone(),
+            ))
         };
         let explain_note = if same_identity {
             Some(format!(
@@ -997,12 +1011,8 @@ fn derive_widen_diff(
             note: "Only presentation (rename / subtitle) changed.".to_string(),
         });
     }
-    let widens = entries
-        .iter()
-        .any(|entry| entry.diff_class.widens_scope());
-    let narrows = entries
-        .iter()
-        .any(|entry| entry.diff_class.narrows_scope());
+    let widens = entries.iter().any(|entry| entry.diff_class.widens_scope());
+    let narrows = entries.iter().any(|entry| entry.diff_class.narrows_scope());
     let presentation_only = entries
         .iter()
         .all(|entry| entry.diff_class == ScopeDiffClass::PresentationOnly);
@@ -1080,9 +1090,16 @@ impl std::fmt::Display for WorksetReopenParityError {
                 "unsupported workset_reopen_parity schema_version {v}; this layer accepts 1"
             ),
             Self::EmptyId(field) => write!(f, "{field} must not be empty"),
-            Self::EmptyBindings => write!(f, "reopen-parity packet must include at least one consumer binding"),
+            Self::EmptyBindings => write!(
+                f,
+                "reopen-parity packet must include at least one consumer binding"
+            ),
             Self::DuplicateConsumer(class) => {
-                write!(f, "duplicate consumer class in bindings: {}", class.as_str())
+                write!(
+                    f,
+                    "duplicate consumer class in bindings: {}",
+                    class.as_str()
+                )
             }
             Self::IdentityDriftAcrossConsumers => write!(
                 f,
@@ -1216,10 +1233,9 @@ impl WorksetReopenParityPacket {
                 return Err(WorksetReopenParityError::DegradedReasonClassMismatch);
             }
         }
-        let identity_preserved = self
-            .bindings
-            .iter()
-            .all(|b| b.workset_ref == self.workset_ref && b.stable_scope_id == self.stable_scope_id);
+        let identity_preserved = self.bindings.iter().all(|b| {
+            b.workset_ref == self.workset_ref && b.stable_scope_id == self.stable_scope_id
+        });
         if identity_preserved != self.identity_preserved_across_consumers {
             return Err(WorksetReopenParityError::IdentityDriftAcrossConsumers);
         }
@@ -1646,19 +1662,18 @@ mod tests {
         );
         record.validate().expect("switcher must validate");
         assert_eq!(record.rows.len(), 2);
-        assert_eq!(record.active_row().unwrap().workset_ref, artifacts[0].workset_id);
+        assert_eq!(
+            record.active_row().unwrap().workset_ref,
+            artifacts[0].workset_id
+        );
     }
 
     #[test]
     fn activation_preview_records_root_additions_and_removals() {
         let base = sparse_artifact();
         let candidate = portable_artifact();
-        let preview = base.project_activation_preview(
-            &candidate,
-            "preview:0",
-            "diff:0",
-            "mono:preview",
-        );
+        let preview =
+            base.project_activation_preview(&candidate, "preview:0", "diff:0", "mono:preview");
         preview.validate().expect("preview must validate");
         assert!(!preview.same_identity);
         // sparse covers fs-r-0; portable covers fs-r-0 + fs-r-1 → purely widening.
@@ -1696,12 +1711,8 @@ mod tests {
     #[test]
     fn activation_preview_for_same_identity_marks_no_drift() {
         let artifact = portable_artifact();
-        let preview = artifact.project_activation_preview(
-            &artifact,
-            "preview:1",
-            "diff:1",
-            "mono:preview",
-        );
+        let preview =
+            artifact.project_activation_preview(&artifact, "preview:1", "diff:1", "mono:preview");
         preview.validate().expect("same-identity preview validates");
         assert!(preview.same_identity);
         assert_eq!(preview.scope_drift, ScopeDriftClass::SameIdentity);
@@ -1723,8 +1734,14 @@ mod tests {
         assert_eq!(packet.bindings.len(), 3);
         assert_eq!(packet.exact_consumer_classes.len(), 2);
         assert_eq!(packet.degraded.len(), 1);
-        assert_eq!(packet.degraded[0].consumer_class, WorksetScopeConsumerClass::RemoteUi);
-        assert_eq!(packet.degraded[0].reason, ScopeDegradedReason::RebindingRequired);
+        assert_eq!(
+            packet.degraded[0].consumer_class,
+            WorksetScopeConsumerClass::RemoteUi
+        );
+        assert_eq!(
+            packet.degraded[0].reason,
+            ScopeDegradedReason::RebindingRequired
+        );
     }
 
     #[test]
@@ -1743,7 +1760,9 @@ mod tests {
             ScopeReopenPosture::Exact,
             "mono:parity",
         ));
-        let err = packet.validate().expect_err("managed-locked support export forbidden");
+        let err = packet
+            .validate()
+            .expect_err("managed-locked support export forbidden");
         assert!(matches!(
             err,
             WorksetReopenParityError::PortabilityLabelInvalidForExport(
@@ -1754,7 +1773,11 @@ mod tests {
 
     #[test]
     fn support_export_bundles_switcher_previews_and_parity_packets() {
-        let artifacts = vec![portable_artifact(), sparse_artifact(), policy_limited_artifact()];
+        let artifacts = vec![
+            portable_artifact(),
+            sparse_artifact(),
+            policy_limited_artifact(),
+        ];
         let switcher = project_switcher_record(
             "switcher:bundle",
             "wksp:test",

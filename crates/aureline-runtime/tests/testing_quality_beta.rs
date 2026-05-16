@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use aureline_runtime::{
     CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
-    ExecutionContextResolverConfig, IdentityMode, PythonEnvironmentDetectorConfig,
-    PytestDiscoverer, PytestDiscovererConfig, ScopeClass, TargetClass, TestArtifactKind,
+    ExecutionContextResolverConfig, IdentityMode, PytestDiscoverer, PytestDiscovererConfig,
+    PythonEnvironmentDetectorConfig, ScopeClass, TargetClass, TestArtifactKind,
     TestQualityBetaCoverageManifest, TestQualityBetaSupportExport, TestQualityFreshness,
     TestQualityKind, TestQualityProjection, TestQualitySupportClass, TestRunnerBetaFramework,
     TestRunnerBetaProjection, TestRunnerBetaSupportExport, TrustState,
@@ -94,7 +94,10 @@ fn checked_in_coverage_manifest_matches_canonical_runtime_manifest() {
         fixture.record_kind,
         TEST_QUALITY_BETA_COVERAGE_MANIFEST_RECORD_KIND
     );
-    assert_eq!(fixture.schema_version, TEST_QUALITY_TRUTH_BETA_SCHEMA_VERSION);
+    assert_eq!(
+        fixture.schema_version,
+        TEST_QUALITY_TRUTH_BETA_SCHEMA_VERSION
+    );
 
     let canonical = TestQualityBetaCoverageManifest::canonical(
         fixture.manifest_id.clone(),
@@ -156,13 +159,11 @@ fn quality_projection_emits_four_packets_per_case_with_identity_parity() {
         assert_eq!(row.tree_row_ref, tree_case.tree_row_id);
         assert_eq!(row.inline_row_ref, inline_row.inline_row_id);
         assert_eq!(
-            row.identity.selector_ref,
-            inline_row.selector_ref,
+            row.identity.selector_ref, inline_row.selector_ref,
             "quality identity must reuse the inline selector ref"
         );
         assert_eq!(
-            row.identity.test_session_ref,
-            inline_row.test_session_ref,
+            row.identity.test_session_ref, inline_row.test_session_ref,
             "quality identity must reuse the inline session ref"
         );
         assert_eq!(row.identity.framework, projection.framework);
@@ -193,7 +194,10 @@ fn rows_without_current_packets_downgrade_away_from_stable_supported() {
     // Every baseline packet MUST flag the row as retest-pending because no
     // passing attempt has been recorded yet.
     for baseline in &quality.baseline_packets {
-        assert_eq!(baseline.record_kind, TEST_QUALITY_BASELINE_PACKET_RECORD_KIND);
+        assert_eq!(
+            baseline.record_kind,
+            TEST_QUALITY_BASELINE_PACKET_RECORD_KIND
+        );
         assert_eq!(
             baseline.support_class,
             TestQualitySupportClass::RetestPendingNoCurrentPacket
@@ -208,21 +212,21 @@ fn rows_without_current_packets_downgrade_away_from_stable_supported() {
     // Coverage rows MUST be labelled `out_of_scope` (CoverageMergeClass::
     // NotRequested) rather than implying current coverage truth.
     for coverage in &quality.coverage_packets {
-        assert_eq!(coverage.record_kind, TEST_QUALITY_COVERAGE_PACKET_RECORD_KIND);
         assert_eq!(
-            coverage.support_class,
-            TestQualitySupportClass::OutOfScope
+            coverage.record_kind,
+            TEST_QUALITY_COVERAGE_PACKET_RECORD_KIND
         );
+        assert_eq!(coverage.support_class, TestQualitySupportClass::OutOfScope);
     }
 
     // Snapshot rows MUST be labelled `out_of_scope` (SnapshotReviewState::
     // NotRequired).
     for snapshot in &quality.snapshot_packets {
-        assert_eq!(snapshot.record_kind, TEST_QUALITY_SNAPSHOT_PACKET_RECORD_KIND);
         assert_eq!(
-            snapshot.support_class,
-            TestQualitySupportClass::OutOfScope
+            snapshot.record_kind,
+            TEST_QUALITY_SNAPSHOT_PACKET_RECORD_KIND
         );
+        assert_eq!(snapshot.support_class, TestQualitySupportClass::OutOfScope);
     }
 
     // Flaky rows MUST report `unknown_requires_review` rather than asserting

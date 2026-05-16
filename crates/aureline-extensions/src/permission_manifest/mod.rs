@@ -442,8 +442,7 @@ pub fn evaluate_permission_manifest_delta(
         &prior_manifest.declared_permissions,
         &next_manifest.declared_permissions,
     );
-    let class_deltas =
-        compute_capability_class_deltas(&prior_manifest, &next_manifest, &entries);
+    let class_deltas = compute_capability_class_deltas(&prior_manifest, &next_manifest, &entries);
 
     let widening_count = entries
         .iter()
@@ -624,7 +623,10 @@ pub fn validate_permission_manifest_record(
             "permission_manifest_id must start with 'permission_manifest:'",
         ));
     }
-    if !record.manifest_baseline_ref.starts_with("manifest_baseline:") {
+    if !record
+        .manifest_baseline_ref
+        .starts_with("manifest_baseline:")
+    {
         findings.push(PermissionManifestFinding::new(
             "permission_manifest.manifest_baseline_ref_unprefixed",
             "manifest_baseline_ref must start with 'manifest_baseline:'",
@@ -783,8 +785,7 @@ pub fn validate_permission_manifest_delta_record(
         ReConsentDecisionClass::ReConsentRequiredWidening
             | ReConsentDecisionClass::ReConsentRequiredNewCapabilityClass
     ) && record.widening_count == 0
-        && record.re_consent_reason_class
-            != ReConsentReasonClass::WideningAddedNewCapabilityClass
+        && record.re_consent_reason_class != ReConsentReasonClass::WideningAddedNewCapabilityClass
     {
         findings.push(PermissionManifestFinding::new(
             "permission_manifest_delta.reconsent_without_widening",
@@ -795,9 +796,7 @@ pub fn validate_permission_manifest_delta_record(
     findings
 }
 
-fn capability_class_summary(
-    declared: &[CapabilityScopeEntry],
-) -> Vec<CapabilityClassSummaryEntry> {
+fn capability_class_summary(declared: &[CapabilityScopeEntry]) -> Vec<CapabilityClassSummaryEntry> {
     const ORDER: &[CapabilityClassClass] = &[
         CapabilityClassClass::Network,
         CapabilityClassClass::Filesystem,
@@ -829,17 +828,15 @@ fn compute_permission_delta_entries(
     let mut entries: Vec<PermissionDeltaEntry> = Vec::new();
 
     for next_entry in next {
-        match prior
-            .iter()
-            .find(|p| p.scope_class == next_entry.scope_class && p.scope_target == next_entry.scope_target)
-        {
+        match prior.iter().find(|p| {
+            p.scope_class == next_entry.scope_class && p.scope_target == next_entry.scope_target
+        }) {
             Some(prior_entry) => {
                 let constraint_delta = compare_constraints(
                     prior_entry.scope_constraint.as_deref(),
                     next_entry.scope_constraint.as_deref(),
                 );
-                let rationale_changed =
-                    prior_entry.rationale_label != next_entry.rationale_label;
+                let rationale_changed = prior_entry.rationale_label != next_entry.rationale_label;
                 let (delta_class, delta_reason_label) = match constraint_delta {
                     ConstraintDelta::Unchanged => {
                         if rationale_changed {
@@ -885,8 +882,8 @@ fn compute_permission_delta_entries(
                     next_constraint: next_entry.scope_constraint.clone(),
                     prior_rationale_label: None,
                     next_rationale_label: Some(next_entry.rationale_label.clone()),
-                    delta_reason_label:
-                        "scope pair not present in prior manifest; widening".to_string(),
+                    delta_reason_label: "scope pair not present in prior manifest; widening"
+                        .to_string(),
                 });
             }
         }

@@ -37,9 +37,15 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_scoreboard_is_bit_for_bit_equal_to_seed() {
     let on_disk: MigrationScoreboard = load_json("scoreboard.json");
     let seeded = seeded_migration_scoreboard();
-    assert_eq!(on_disk, seeded, "fixture scoreboard diverged from seeded scoreboard");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture scoreboard diverged from seeded scoreboard"
+    );
     assert_eq!(seeded.record_kind, MIGRATION_SCOREBOARD_RECORD_KIND);
-    assert_eq!(seeded.shared_contract_ref, MIGRATION_CORPUS_SHARED_CONTRACT_REF);
+    assert_eq!(
+        seeded.shared_contract_ref,
+        MIGRATION_CORPUS_SHARED_CONTRACT_REF
+    );
 }
 
 #[test]
@@ -123,7 +129,10 @@ fn fixture_rows_quote_wizard_mapping_report() {
     for section in &scoreboard.sections {
         for row in &section.rows {
             assert_eq!(&row.wizard_mapping_report_ref, report_ref);
-            assert_eq!(&row.rollback_checkpoint_ref, &scoreboard.rollback_checkpoint_ref);
+            assert_eq!(
+                &row.rollback_checkpoint_ref,
+                &scoreboard.rollback_checkpoint_ref
+            );
         }
     }
 }

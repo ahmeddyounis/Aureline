@@ -554,12 +554,7 @@ pub fn project_support_export(
     let redacted_value_count = page
         .rows
         .iter()
-        .filter(|row| {
-            !matches!(
-                row.redaction_class.as_str(),
-                "none" | "ui_string_only"
-            )
-        })
+        .filter(|row| !matches!(row.redaction_class.as_str(), "none" | "ui_string_only"))
         .count();
     let rollback_required_count = page
         .rows
@@ -854,10 +849,7 @@ mod tests {
         assert_eq!(row.sync_state, SyncStateClass::Synced);
         assert!(row.source_packet_ref.is_none());
         assert!(!row.rollback_decision.rollback_required);
-        assert_eq!(
-            row.rollback_decision.retry_state,
-            "no_retry_required"
-        );
+        assert_eq!(row.rollback_decision.retry_state, "no_retry_required");
         assert_eq!(row.conflict_class, "value_equal_no_op");
     }
 
@@ -884,9 +876,7 @@ mod tests {
                     revision_ref: "settings-rev:00517".to_owned(),
                     winning_scope: "user_global".to_owned(),
                     at: Some("2026-04-18T14:05:31Z".to_owned()),
-                    mutation_journal_ref: Some(
-                        "mjr-laptop-primary-0001-000000000517".to_owned(),
-                    ),
+                    mutation_journal_ref: Some("mjr-laptop-primary-0001-000000000517".to_owned()),
                 }),
                 rollback_checkpoint_ref: None,
                 approval_ticket_ref: None,

@@ -67,10 +67,7 @@ impl DebugSessionStateClass {
     pub const fn requires_disclosure(self) -> bool {
         !matches!(
             self,
-            Self::AttachedRunning
-                | Self::LaunchedRunning
-                | Self::Paused
-                | Self::Terminated
+            Self::AttachedRunning | Self::LaunchedRunning | Self::Paused | Self::Terminated
         )
     }
 

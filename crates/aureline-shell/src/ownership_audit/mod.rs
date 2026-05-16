@@ -38,8 +38,8 @@ pub fn load_seeded_ownership_audit_packet() -> Result<OwnershipAuditPacket, Stri
 }
 
 /// Returns the seeded packet's surface projection.
-pub fn seeded_ownership_audit_surface_projection(
-) -> Result<OwnershipAuditSurfaceProjection, String> {
+pub fn seeded_ownership_audit_surface_projection() -> Result<OwnershipAuditSurfaceProjection, String>
+{
     Ok(load_seeded_ownership_audit_packet()?.surface_projection())
 }
 

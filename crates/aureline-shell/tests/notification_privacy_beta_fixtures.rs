@@ -57,8 +57,7 @@ fn fixtures_round_trip_through_shared_types() {
             assert!(
                 matches!(
                     row.dedupe_key_scheme,
-                    DedupeKeyScheme::GroupedBurstId
-                        | DedupeKeyScheme::SubsystemPlusObjectPlusPhase
+                    DedupeKeyScheme::GroupedBurstId | DedupeKeyScheme::SubsystemPlusObjectPlusPhase
                 ),
                 "{} retry coalescing requires grouped_burst_id or subsystem_plus_object_plus_phase",
                 row.row_id
@@ -93,9 +92,10 @@ fn fixtures_round_trip_through_shared_types() {
             row.row_id
         );
         assert!(row.forbidden_shortcut_posture.exact_reopen_only);
-        assert!(row
-            .forbidden_shortcut_posture
-            .mutation_routes_through_review_path);
+        assert!(
+            row.forbidden_shortcut_posture
+                .mutation_routes_through_review_path
+        );
     }
 
     let badges: Vec<NotificationPrivacyBetaBadge> = load("badges.json");

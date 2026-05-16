@@ -488,8 +488,7 @@ impl RuntimeReplayPackSupportExport {
     ) -> Self {
         let summary_lines = packs.iter().map(|p| p.summary.clone()).collect();
         let any_pack_forbids_live_rerun = packs.iter().any(|p| p.forbids_live_rerun);
-        let any_pack_comparator_blocks_replay =
-            packs.iter().any(|p| p.comparator_blocks_replay);
+        let any_pack_comparator_blocks_replay = packs.iter().any(|p| p.comparator_blocks_replay);
         let every_pack_covers_required_artefact_classes =
             packs.iter().all(|p| p.covers_required_artefact_classes());
 
@@ -561,17 +560,23 @@ impl RuntimeReplayPackSupportExport {
                 pack.evidence_packet.lane_token,
                 pack.evidence_packet.evidence_kind_token,
             ));
-            out.push_str(&format!("  subject: {}\n", pack.evidence_packet.subject_ref));
+            out.push_str(&format!(
+                "  subject: {}\n",
+                pack.evidence_packet.subject_ref
+            ));
             out.push_str(&format!(
                 "  privilege: {} | forbids_live_rerun: {}\n",
                 pack.subject_privilege_token, pack.forbids_live_rerun,
             ));
             out.push_str(&format!(
                 "  evidence_packet: {} | comparator: {}\n",
-                pack.evidence_packet.evidence_packet_id,
-                pack.replay_comparison.compatibility_token,
+                pack.evidence_packet.evidence_packet_id, pack.replay_comparison.compatibility_token,
             ));
-            if !pack.replay_comparison.incompatibility_reason_tokens.is_empty() {
+            if !pack
+                .replay_comparison
+                .incompatibility_reason_tokens
+                .is_empty()
+            {
                 out.push_str(&format!(
                     "  comparator_reasons: {}\n",
                     pack.replay_comparison
@@ -627,16 +632,16 @@ impl RuntimeReplayPackSeededScenario {
             Self::LocalTaskExactReadOnly => "local_task_exact_read_only",
             Self::LocalTestCompatibleReadOnly => "local_test_compatible_read_only",
             Self::ContainerDebugLayoutOnlyMutating => "container_debug_layout_only_mutating",
-            Self::ManagedRuntimeLayoutOnlyPrivileged => {
-                "managed_runtime_layout_only_privileged"
-            }
+            Self::ManagedRuntimeLayoutOnlyPrivileged => "managed_runtime_layout_only_privileged",
         }
     }
 
     /// The runtime evidence-packet scenario this replay-pack scenario joins to.
     pub const fn runtime_scenario(self) -> RuntimeEvidencePacketSeededScenario {
         match self {
-            Self::LocalTaskExactReadOnly => RuntimeEvidencePacketSeededScenario::LocalTaskCompatible,
+            Self::LocalTaskExactReadOnly => {
+                RuntimeEvidencePacketSeededScenario::LocalTaskCompatible
+            }
             Self::LocalTestCompatibleReadOnly => {
                 RuntimeEvidencePacketSeededScenario::LocalTestPolicyAdvancedClean
             }
@@ -674,7 +679,9 @@ impl RuntimeReplayPackSeededScenario {
         match self {
             Self::LocalTaskExactReadOnly => ReplayReopenDecisionClass::AllowReplay,
             Self::LocalTestCompatibleReadOnly => ReplayReopenDecisionClass::AllowReplay,
-            Self::ContainerDebugLayoutOnlyMutating => ReplayReopenDecisionClass::AllowInspectNoRerun,
+            Self::ContainerDebugLayoutOnlyMutating => {
+                ReplayReopenDecisionClass::AllowInspectNoRerun
+            }
             Self::ManagedRuntimeLayoutOnlyPrivileged => {
                 ReplayReopenDecisionClass::AllowInspectNoRerun
             }
@@ -715,9 +722,7 @@ fn seeded_artefacts(scenario: RuntimeReplayPackSeededScenario) -> Vec<ReplayPack
 }
 
 /// Build the canonical seeded replay pack for one scenario.
-pub fn seeded_runtime_replay_pack(
-    scenario: RuntimeReplayPackSeededScenario,
-) -> RuntimeReplayPack {
+pub fn seeded_runtime_replay_pack(scenario: RuntimeReplayPackSeededScenario) -> RuntimeReplayPack {
     let (packet, comparison) = seeded_runtime_evidence_packet(scenario.runtime_scenario());
     let artefacts = seeded_artefacts(scenario);
     RuntimeReplayPack::new(
@@ -754,7 +759,10 @@ mod tests {
 
     #[test]
     fn fidelity_class_tokens_match_closed_vocabulary() {
-        let tokens: Vec<&str> = ReplayFidelityClass::ALL.iter().map(|f| f.as_str()).collect();
+        let tokens: Vec<&str> = ReplayFidelityClass::ALL
+            .iter()
+            .map(|f| f.as_str())
+            .collect();
         assert_eq!(
             tokens,
             vec!["exact", "compatible", "layout_only", "evidence_only"],
@@ -798,11 +806,13 @@ mod tests {
 
     #[test]
     fn local_task_scenario_resolves_to_exact_read_only_replay() {
-        let pack = seeded_runtime_replay_pack(
-            RuntimeReplayPackSeededScenario::LocalTaskExactReadOnly,
-        );
+        let pack =
+            seeded_runtime_replay_pack(RuntimeReplayPackSeededScenario::LocalTaskExactReadOnly);
         assert_eq!(pack.fidelity, ReplayFidelityClass::Exact);
-        assert_eq!(pack.subject_privilege, ReplaySubjectPrivilegeClass::ReadOnly);
+        assert_eq!(
+            pack.subject_privilege,
+            ReplaySubjectPrivilegeClass::ReadOnly
+        );
         assert_eq!(pack.reopen_decision, ReplayReopenDecisionClass::AllowReplay);
         assert!(!pack.forbids_live_rerun);
         assert!(!pack.comparator_blocks_replay);
@@ -829,7 +839,10 @@ mod tests {
             RuntimeReplayPackSeededScenario::ContainerDebugLayoutOnlyMutating,
         );
         assert_eq!(pack.fidelity, ReplayFidelityClass::LayoutOnly);
-        assert_eq!(pack.subject_privilege, ReplaySubjectPrivilegeClass::Mutating);
+        assert_eq!(
+            pack.subject_privilege,
+            ReplaySubjectPrivilegeClass::Mutating
+        );
         assert_eq!(
             pack.reopen_decision,
             ReplayReopenDecisionClass::AllowInspectNoRerun,
@@ -844,7 +857,10 @@ mod tests {
             RuntimeReplayPackSeededScenario::ManagedRuntimeLayoutOnlyPrivileged,
         );
         assert_eq!(pack.fidelity, ReplayFidelityClass::LayoutOnly);
-        assert_eq!(pack.subject_privilege, ReplaySubjectPrivilegeClass::Privileged);
+        assert_eq!(
+            pack.subject_privilege,
+            ReplaySubjectPrivilegeClass::Privileged
+        );
         assert_eq!(
             pack.reopen_decision,
             ReplayReopenDecisionClass::AllowInspectNoRerun,
@@ -889,7 +905,9 @@ mod tests {
         assert!(export.any_pack_comparator_blocks_replay);
         for token in ["exact", "compatible", "layout_only"] {
             assert!(
-                export.fidelity_class_tokens_present.contains(&token.to_owned()),
+                export
+                    .fidelity_class_tokens_present
+                    .contains(&token.to_owned()),
                 "missing fidelity token '{token}'",
             );
         }

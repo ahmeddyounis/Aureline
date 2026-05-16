@@ -112,8 +112,7 @@ fn fixture_path(name: &str) -> PathBuf {
 
 fn load_fixture(name: &str) -> Fixture {
     let path = fixture_path(name);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("read {path:?}: {err}"));
+    let body = std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
     serde_json::from_str(&body).unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
 }
 
@@ -290,12 +289,18 @@ fn replay(fixture: &Fixture) -> (DapHostSupervisor, String, Vec<DapHostSuperviso
 }
 
 fn check_packet(packet: &DebugSessionSupportPacket, fixture: &Fixture) {
-    assert_eq!(packet.record_kind, fixture.expect.support_packet_record_kind);
+    assert_eq!(
+        packet.record_kind,
+        fixture.expect.support_packet_record_kind
+    );
     assert_eq!(packet.record_kind, DEBUG_SESSION_SUPPORT_PACKET_RECORD_KIND);
     assert_eq!(packet.workspace_id, fixture.workspace_id);
     assert_eq!(packet.session_rows.len(), fixture.expect.session_count);
     let row = &packet.session_rows[0];
-    assert_eq!(row.state_class_token, fixture.expect.final_state_class_token);
+    assert_eq!(
+        row.state_class_token,
+        fixture.expect.final_state_class_token
+    );
     assert_eq!(
         row.negotiation_outcome_token.as_deref(),
         Some(fixture.expect.negotiation_outcome_token.as_str())
@@ -320,7 +325,10 @@ fn check_packet(packet: &DebugSessionSupportPacket, fixture: &Fixture) {
         row.last_exit_reason_token.as_deref(),
         Some(fixture.expect.last_exit_reason_token.as_str())
     );
-    assert_eq!(row.restart_strike_count, fixture.expect.restart_strike_count);
+    assert_eq!(
+        row.restart_strike_count,
+        fixture.expect.restart_strike_count
+    );
     if let Some(expected) = fixture.expect.reconnect_attempt_count {
         assert_eq!(row.reconnect_attempt_count, expected);
     }
@@ -376,7 +384,10 @@ fn adapter_crash_loop_drives_session_into_quarantine() {
         .event_lineage
         .iter()
         .any(|event| event.event_class_token == "restart_scheduled");
-    assert!(restart_scheduled, "restart scheduled events must precede quarantine");
+    assert!(
+        restart_scheduled,
+        "restart scheduled events must precede quarantine"
+    );
     assert!(row
         .event_lineage
         .iter()

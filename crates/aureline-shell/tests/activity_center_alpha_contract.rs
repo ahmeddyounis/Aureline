@@ -194,9 +194,9 @@ fn every_snapshot_row_carries_required_invariants() {
     let mut cancel_rows = 0usize;
 
     for (idx, row) in rows.iter().enumerate() {
-        let obj = row.as_object().unwrap_or_else(|| {
-            panic!("snapshot row {idx} must be an object")
-        });
+        let obj = row
+            .as_object()
+            .unwrap_or_else(|| panic!("snapshot row {idx} must be an object"));
 
         let row_id = nonempty_str(
             obj.get("activity_row_id").unwrap_or(&Value::Null),
@@ -261,9 +261,9 @@ fn every_snapshot_row_carries_required_invariants() {
         let impact_obj = obj.get("impact").and_then(Value::as_object);
         let sensitive = impact_obj
             .map(|impact| {
-                SENSITIVE_IMPACT_FLAGS.iter().any(|flag| {
-                    impact.get(*flag).and_then(Value::as_bool) == Some(true)
-                })
+                SENSITIVE_IMPACT_FLAGS
+                    .iter()
+                    .any(|flag| impact.get(*flag).and_then(Value::as_bool) == Some(true))
             })
             .unwrap_or(false);
         if sensitive {

@@ -61,10 +61,16 @@ pub fn render_switcher_row_lines(row: &WorksetSwitcherBetaRow) -> Vec<String> {
         .collect();
     lines.push(format!("  roots: {}", roots.join(", ")));
     if !row.include_patterns.is_empty() {
-        lines.push(format!("  include_patterns: {}", row.include_patterns.join(", ")));
+        lines.push(format!(
+            "  include_patterns: {}",
+            row.include_patterns.join(", ")
+        ));
     }
     if !row.exclude_patterns.is_empty() {
-        lines.push(format!("  exclude_patterns: {}", row.exclude_patterns.join(", ")));
+        lines.push(format!(
+            "  exclude_patterns: {}",
+            row.exclude_patterns.join(", ")
+        ));
     }
     if let Some(overlay) = row.policy_overlay.as_ref() {
         lines.push(format!(
@@ -236,8 +242,8 @@ mod tests {
     use aureline_workspace::{
         project_switcher_record, IncludedRootRef, MemberRef, MemberRefKind, MembershipPolicy,
         PartialTruthLabel, PortabilityMetadata, ReadinessMetadata, ReadinessState, ScopeClass,
-        ScopeDegradedReason, ScopeMode, ScopeReopenPosture, SourceClass, WorkspaceRootKind,
-        WorksetArtifactRecord, WorksetArtifactRecordKind, WorksetPortabilityClass,
+        ScopeDegradedReason, ScopeMode, ScopeReopenPosture, SourceClass, WorksetArtifactRecord,
+        WorksetArtifactRecordKind, WorksetPortabilityClass, WorkspaceRootKind,
         WORKSET_SWITCHER_BETA_SCHEMA_VERSION,
     };
 
@@ -318,7 +324,9 @@ mod tests {
         );
         let lines = render_switcher_beta_lines(&switcher);
         assert!(lines[0].starts_with("[switcher]"));
-        assert!(lines.iter().any(|l| l.contains("repo-a (local_repo_root, loaded)")));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("repo-a (local_repo_root, loaded)")));
         assert!(lines.iter().any(|l| l.contains("ACTIVE")));
         assert!(lines.iter().any(|l| l.contains("portable_with_rebinding")));
     }
@@ -335,12 +343,18 @@ mod tests {
         );
         let lines = render_reopen_parity_lines(&packet);
         assert!(lines[0].starts_with("[reopen_parity]"));
-        assert!(lines.iter().any(|l| l.contains("binding[local_ui] -> exact")));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("binding[local_ui] -> exact")));
         assert!(lines
             .iter()
             .any(|l| l.contains("binding[remote_ui] -> degraded[rebinding_required]")));
-        assert!(lines.iter().any(|l| l.contains("binding[headless] -> exact")));
-        assert!(lines.iter().any(|l| l.contains("downgrade: remote_ui -> rebinding_required")));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("binding[headless] -> exact")));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("downgrade: remote_ui -> rebinding_required")));
     }
 
     #[test]

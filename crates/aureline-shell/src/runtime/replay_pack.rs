@@ -73,7 +73,11 @@ impl RuntimeReplayPackPanelRow {
                 .iter()
                 .map(|a| a.artefact_class_token.clone())
                 .collect(),
-            artefact_refs: pack.artefacts.iter().map(|a| a.artefact_ref.clone()).collect(),
+            artefact_refs: pack
+                .artefacts
+                .iter()
+                .map(|a| a.artefact_ref.clone())
+                .collect(),
             summary: pack.summary.clone(),
         }
     }
@@ -172,7 +176,11 @@ impl RuntimeReplayPackPanel {
                     row.comparator_incompatibility_reason_tokens.join(","),
                 ));
             }
-            for (class, value) in row.artefact_class_tokens.iter().zip(row.artefact_refs.iter()) {
+            for (class, value) in row
+                .artefact_class_tokens
+                .iter()
+                .zip(row.artefact_refs.iter())
+            {
                 out.push_str(&format!("  Artefact[{class}]: {value}\n"));
             }
             out.push_str(&format!("  Summary: {}\n", row.summary));

@@ -39,7 +39,10 @@ fn fixture_page_matches_seeded_projection() {
     let fixture: LabsGovernanceBetaPage =
         serde_json::from_str(PAGE_FIXTURE).expect("page fixture parses");
     let seeded = build_default_labs_governance_beta_page().expect("seeded page builds");
-    assert_eq!(fixture, seeded, "checked-in page fixture drifted from the seed");
+    assert_eq!(
+        fixture, seeded,
+        "checked-in page fixture drifted from the seed"
+    );
     validate_labs_governance_beta_page(&fixture).expect("checked-in page validates");
 }
 
@@ -52,7 +55,10 @@ fn fixture_cli_and_support_export_share_lifecycle_tokens() {
     let export_fixture: LabsGovernanceBetaSupportExport =
         serde_json::from_str(SUPPORT_EXPORT_FIXTURE).expect("export fixture parses");
 
-    assert_eq!(cli_fixture.shared_contract_ref, LABS_GOVERNANCE_BETA_SHARED_CONTRACT_REF);
+    assert_eq!(
+        cli_fixture.shared_contract_ref,
+        LABS_GOVERNANCE_BETA_SHARED_CONTRACT_REF
+    );
     assert_eq!(
         export_fixture.shared_contract_ref,
         LABS_GOVERNANCE_BETA_SHARED_CONTRACT_REF

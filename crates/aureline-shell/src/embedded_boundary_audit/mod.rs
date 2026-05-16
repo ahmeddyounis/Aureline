@@ -184,9 +184,7 @@ impl EmbeddedBoundaryAuditDefectKind {
             Self::SystemBrowserNotBaselineOnIdentityOrRiskyWeb => {
                 "system_browser_not_baseline_on_identity_or_risky_web"
             }
-            Self::EmbeddedMintedNativeReservedSurface => {
-                "embedded_minted_native_reserved_surface"
-            }
+            Self::EmbeddedMintedNativeReservedSurface => "embedded_minted_native_reserved_surface",
             Self::SupportRowVocabularyDrift => "support_row_vocabulary_drift",
             Self::BoundaryStateInconsistentWithOriginVerification => {
                 "boundary_state_inconsistent_with_origin_verification"
@@ -636,7 +634,11 @@ pub fn audit_rows(
         // Native reserved high-risk surfaces must remain host-owned.
         let required_set = required_native_reserved_surface_tokens();
         for required in required_set {
-            if !row.native_reserved_surface_tokens.iter().any(|t| t == required) {
+            if !row
+                .native_reserved_surface_tokens
+                .iter()
+                .any(|t| t == required)
+            {
                 defects.push(EmbeddedBoundaryAuditDefect::new(
                     EmbeddedBoundaryAuditDefectKind::EmbeddedMintedNativeReservedSurface,
                     row.surface_family,
@@ -759,7 +761,12 @@ pub fn seeded_embedded_boundary_audit_page() -> EmbeddedBoundaryAuditPage {
     let build_id = "id:build:embedded-boundary-audit-beta:seed";
     let alpha = seeded_embedded_boundary_alpha_snapshot(build_id);
 
-    let mut audited_cards: Vec<(String, EmbeddedBoundaryCardRecord, EmbeddedBoundaryAlphaSurfaceRow, EmbeddedBoundaryAlphaSupportRow)> = Vec::new();
+    let mut audited_cards: Vec<(
+        String,
+        EmbeddedBoundaryCardRecord,
+        EmbeddedBoundaryAlphaSurfaceRow,
+        EmbeddedBoundaryAlphaSupportRow,
+    )> = Vec::new();
     let alpha_cards = alpha_card_rebuild(&alpha);
     for ((surface_row, support_row), card) in alpha
         .surface_rows
@@ -825,7 +832,9 @@ fn alpha_card_rebuild(alpha: &EmbeddedBoundaryAlphaSnapshot) -> Vec<EmbeddedBoun
     use crate::embedded::docs_help::seeded_docs_help_boundary_card;
     let _ = alpha; // alpha is kept for symmetry; the fixture loaders are deterministic.
     let mut cards: Vec<EmbeddedBoundaryCardRecord> = Vec::new();
-    cards.push(seeded_docs_help_boundary_card("id:build:embedded-boundary-audit-beta:seed"));
+    cards.push(seeded_docs_help_boundary_card(
+        "id:build:embedded-boundary-audit-beta:seed",
+    ));
     cards.push(rebuild_extension_webview_alpha_card());
     cards.push(rebuild_marketplace_account_alpha_card());
     cards
@@ -1416,9 +1425,7 @@ fn permission_class_token(value: PermissionClass) -> &'static str {
         PermissionClass::HostOwnedWithNativeStepUpRequired => {
             "host_owned_with_native_step_up_required"
         }
-        PermissionClass::EmbeddedLowerTrustSessionRefresh => {
-            "embedded_lower_trust_session_refresh"
-        }
+        PermissionClass::EmbeddedLowerTrustSessionRefresh => "embedded_lower_trust_session_refresh",
         PermissionClass::EmbeddedLowerTrustPasswordException => {
             "embedded_lower_trust_password_exception"
         }
@@ -1600,7 +1607,9 @@ mod tests {
         for row in &page.rows {
             for required in required_native_reserved_surface_tokens() {
                 assert!(
-                    row.native_reserved_surface_tokens.iter().any(|t| t == required),
+                    row.native_reserved_surface_tokens
+                        .iter()
+                        .any(|t| t == required),
                     "row {} must keep {} on host-owned set",
                     row.row_id,
                     required
@@ -1676,9 +1685,8 @@ mod tests {
         let mut page = seeded_embedded_boundary_audit_page();
         page.rows[0].browser_fallback_posture_token = "not_a_real_posture".to_owned();
         let defects = audit_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(
-            |d| d.defect_kind == EmbeddedBoundaryAuditDefectKind::MissingBrowserFallbackPostureToken
-        ));
+        assert!(defects.iter().any(|d| d.defect_kind
+            == EmbeddedBoundaryAuditDefectKind::MissingBrowserFallbackPostureToken));
     }
 
     #[test]
@@ -1740,8 +1748,10 @@ mod tests {
             .expect("auth row");
         row.auth_flow_class_token = None;
         let defects = audit_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == EmbeddedBoundaryAuditDefectKind::AuthConfirmationMissingFlowClass));
+        assert!(defects
+            .iter()
+            .any(|d| d.defect_kind
+                == EmbeddedBoundaryAuditDefectKind::AuthConfirmationMissingFlowClass));
     }
 
     #[test]

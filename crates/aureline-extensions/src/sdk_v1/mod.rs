@@ -375,12 +375,20 @@ pub fn host_contract_family_for_api_surface(
     surface: SdkV1ApiSurfaceClass,
 ) -> HostContractFamilyClass {
     match surface {
-        SdkV1ApiSurfaceClass::WasmComponentModelHostApi => HostContractFamilyClass::WasmComponentModel,
+        SdkV1ApiSurfaceClass::WasmComponentModelHostApi => {
+            HostContractFamilyClass::WasmComponentModel
+        }
         SdkV1ApiSurfaceClass::WasmCoreModuleHostApi => HostContractFamilyClass::WasmCoreModule,
-        SdkV1ApiSurfaceClass::ExternalHostSupervisedApi => HostContractFamilyClass::ExternalHostProcess,
+        SdkV1ApiSurfaceClass::ExternalHostSupervisedApi => {
+            HostContractFamilyClass::ExternalHostProcess
+        }
         SdkV1ApiSurfaceClass::HelperBinaryApi => HostContractFamilyClass::HelperBinary,
-        SdkV1ApiSurfaceClass::CompatibilityBridgeApi => HostContractFamilyClass::CompatibilityBridge,
-        SdkV1ApiSurfaceClass::RemoteSideComponentApi => HostContractFamilyClass::RemoteSideComponent,
+        SdkV1ApiSurfaceClass::CompatibilityBridgeApi => {
+            HostContractFamilyClass::CompatibilityBridge
+        }
+        SdkV1ApiSurfaceClass::RemoteSideComponentApi => {
+            HostContractFamilyClass::RemoteSideComponent
+        }
     }
 }
 
@@ -444,7 +452,8 @@ pub fn evaluate_sdk_v1_starter_pack(input: SdkV1StarterPackInput) -> SdkV1Starte
                 SamplePackEntryClass::ManifestAuthoringWalkthrough
             ) && matches!(
                 e.host_contract_family_class,
-                HostContractFamilyClass::WasmComponentModel | HostContractFamilyClass::WasmCoreModule
+                HostContractFamilyClass::WasmComponentModel
+                    | HostContractFamilyClass::WasmCoreModule
             )
         })
         .count() as u32;
@@ -567,7 +576,10 @@ pub fn validate_sdk_v1_api_surface_record(
             "api_surface_id must start with 'sdk_v1_api_surface:'",
         ));
     }
-    if !record.sdk_release_bundle_ref.starts_with("sdk_release_bundle:") {
+    if !record
+        .sdk_release_bundle_ref
+        .starts_with("sdk_release_bundle:")
+    {
         findings.push(SdkV1StarterPackFinding::new(
             "sdk_v1_api_surface.sdk_release_bundle_ref_unprefixed",
             "sdk_release_bundle_ref must start with 'sdk_release_bundle:'",
@@ -723,13 +735,19 @@ pub fn validate_sample_pack_extension_record(
             "sample_pack_id must start with 'sample_pack:'",
         ));
     }
-    if !record.manifest_baseline_ref.starts_with("manifest_baseline:") {
+    if !record
+        .manifest_baseline_ref
+        .starts_with("manifest_baseline:")
+    {
         findings.push(SdkV1StarterPackFinding::new(
             "sample_pack_extension.manifest_baseline_ref_unprefixed",
             "manifest_baseline_ref must start with 'manifest_baseline:'",
         ));
     }
-    if !record.permission_manifest_ref.starts_with("permission_manifest:") {
+    if !record
+        .permission_manifest_ref
+        .starts_with("permission_manifest:")
+    {
         findings.push(SdkV1StarterPackFinding::new(
             "sample_pack_extension.permission_manifest_ref_unprefixed",
             "permission_manifest_ref must start with 'permission_manifest:'",
@@ -741,7 +759,10 @@ pub fn validate_sample_pack_extension_record(
             "runtime_contract_ref must start with 'runtime_v1_beta:'",
         ));
     }
-    if !record.sdk_release_bundle_ref.starts_with("sdk_release_bundle:") {
+    if !record
+        .sdk_release_bundle_ref
+        .starts_with("sdk_release_bundle:")
+    {
         findings.push(SdkV1StarterPackFinding::new(
             "sample_pack_extension.sdk_release_bundle_ref_unprefixed",
             "sdk_release_bundle_ref must start with 'sdk_release_bundle:'",
@@ -874,7 +895,8 @@ pub fn validate_sdk_v1_starter_pack_record(
                 SamplePackEntryClass::ManifestAuthoringWalkthrough
             ) && matches!(
                 e.host_contract_family_class,
-                HostContractFamilyClass::WasmComponentModel | HostContractFamilyClass::WasmCoreModule
+                HostContractFamilyClass::WasmComponentModel
+                    | HostContractFamilyClass::WasmCoreModule
             )
         })
         .count() as u32;
@@ -942,7 +964,10 @@ fn decide_starter_pack(
         );
     }
     for surface in claimed_api_surfaces {
-        if !surface.sdk_release_bundle_ref.starts_with("sdk_release_bundle:") {
+        if !surface
+            .sdk_release_bundle_ref
+            .starts_with("sdk_release_bundle:")
+        {
             return (
                 SdkV1StarterPackDecisionClass::RefusedInconsistentInput,
                 SdkV1StarterPackReasonClass::RefusedSdkLineRefMissing,
@@ -964,7 +989,10 @@ fn decide_starter_pack(
         }
     }
     for sample in sample_pack_entries {
-        if !sample.manifest_baseline_ref.starts_with("manifest_baseline:") {
+        if !sample
+            .manifest_baseline_ref
+            .starts_with("manifest_baseline:")
+        {
             return (
                 SdkV1StarterPackDecisionClass::RefusedInconsistentInput,
                 SdkV1StarterPackReasonClass::RefusedSampleManifestRefUnprefixed,
@@ -974,7 +1002,10 @@ fn decide_starter_pack(
                 ),
             );
         }
-        if !sample.permission_manifest_ref.starts_with("permission_manifest:") {
+        if !sample
+            .permission_manifest_ref
+            .starts_with("permission_manifest:")
+        {
             return (
                 SdkV1StarterPackDecisionClass::RefusedInconsistentInput,
                 SdkV1StarterPackReasonClass::RefusedSamplePermissionManifestRefUnprefixed,
@@ -1066,9 +1097,10 @@ fn decide_starter_pack(
         );
     }
     for surface in claimed_api_surfaces {
-        let covered = authoring_guides
-            .iter()
-            .any(|g| g.covered_api_surface_classes.contains(&surface.api_surface_class));
+        let covered = authoring_guides.iter().any(|g| {
+            g.covered_api_surface_classes
+                .contains(&surface.api_surface_class)
+        });
         if !covered {
             return (
                 SdkV1StarterPackDecisionClass::RefusedInconsistentInput,

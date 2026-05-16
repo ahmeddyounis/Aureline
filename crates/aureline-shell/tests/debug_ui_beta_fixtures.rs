@@ -22,8 +22,8 @@ const FIXTURE_DIR: &str = concat!(
 
 fn load<T: serde::de::DeserializeOwned>(filename: &str) -> T {
     let path = format!("{}/{}", FIXTURE_DIR, filename);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
+    let body =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
     serde_json::from_str(&body).unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
 }
 
@@ -36,7 +36,10 @@ fn protected_walk_fixture_matches_seeded_builder() {
         "fixture must be a literal projection of the seeded module; regenerate via the headless bin"
     );
     assert_eq!(from_file.record_kind, DEBUG_UI_BETA_PROJECTION_RECORD_KIND);
-    assert_eq!(from_file.shared_contract_ref, DEBUG_UI_BETA_SHARED_CONTRACT_REF);
+    assert_eq!(
+        from_file.shared_contract_ref,
+        DEBUG_UI_BETA_SHARED_CONTRACT_REF
+    );
     validate_debug_ui_projection(&from_file).expect("protected walk validates");
 }
 
@@ -130,7 +133,10 @@ fn fixtures_cover_every_required_surface_in_canonical_order() {
 #[test]
 fn support_export_fixture_round_trips_through_typed_wrapper() {
     let from_file: DebugUiSupportExport = load("support_export.json");
-    assert_eq!(from_file.record_kind, DEBUG_UI_BETA_SUPPORT_EXPORT_RECORD_KIND);
+    assert_eq!(
+        from_file.record_kind,
+        DEBUG_UI_BETA_SUPPORT_EXPORT_RECORD_KIND
+    );
     assert!(from_file.raw_private_material_excluded);
     assert_eq!(from_file.projection, seeded_protected_walk_projection());
     assert_eq!(
@@ -154,16 +160,14 @@ fn drill_hidden_capability_downgrade_is_detected() {
     for row in projection.surfaces.iter_mut() {
         if row.surface_class_token == "breakpoints" {
             row.availability_class = DebugUiAvailabilityClass::Available;
-            row.availability_class_token =
-                DebugUiAvailabilityClass::Available.as_str().to_owned();
+            row.availability_class_token = DebugUiAvailabilityClass::Available.as_str().to_owned();
         }
     }
     let defects = validate_debug_ui_projection(&projection)
         .expect_err("validator must flag the hidden downgrade");
-    assert!(defects.iter().any(|d| matches!(
-        d.defect_kind,
-        DebugUiDefectKind::HiddenCapabilityDowngrade
-    )));
+    assert!(defects
+        .iter()
+        .any(|d| matches!(d.defect_kind, DebugUiDefectKind::HiddenCapabilityDowngrade)));
 }
 
 #[test]

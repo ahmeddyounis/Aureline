@@ -129,9 +129,7 @@ impl NotificationPrivacyBetaRowClass {
             Self::CoalescedRepeatedFailure => "coalesced_repeated_failure",
             Self::LockScreenSafeGenericPayload => "lock_screen_safe_generic_payload",
             Self::LockScreenSafeScopedPayload => "lock_screen_safe_scoped_payload",
-            Self::LockScreenForbiddenSecurityCritical => {
-                "lock_screen_forbidden_security_critical"
-            }
+            Self::LockScreenForbiddenSecurityCritical => "lock_screen_forbidden_security_critical",
             Self::QuietHoursHeld => "quiet_hours_held",
             Self::AdminPolicySuppressed => "admin_policy_suppressed",
             Self::CriticalSafetyEscalation => "critical_safety_escalation",
@@ -1014,9 +1012,11 @@ pub fn validate_notification_privacy_beta_page(
         if !row.cross_client_posture.sibling_scopes.is_empty()
             && !row.cross_client_posture.cross_client_dedupe_in_effect
         {
-            errors.push(NotificationPrivacyBetaValidationError::CrossClientDedupeMissing {
-                row_id: row.row_id.clone(),
-            });
+            errors.push(
+                NotificationPrivacyBetaValidationError::CrossClientDedupeMissing {
+                    row_id: row.row_id.clone(),
+                },
+            );
         }
         if row.cross_client_posture.cross_client_dedupe_in_effect
             && !matches!(
@@ -1024,9 +1024,11 @@ pub fn validate_notification_privacy_beta_page(
                 DedupeKeyScheme::CrossClientCanonicalEventId
             )
         {
-            errors.push(NotificationPrivacyBetaValidationError::CrossClientDedupeMissing {
-                row_id: row.row_id.clone(),
-            });
+            errors.push(
+                NotificationPrivacyBetaValidationError::CrossClientDedupeMissing {
+                    row_id: row.row_id.clone(),
+                },
+            );
         }
         let mut seen_scope_tokens: BTreeSet<&'static str> = BTreeSet::new();
         for scope in &row.cross_client_posture.sibling_scopes {
@@ -1062,10 +1064,13 @@ pub fn validate_notification_privacy_beta_page(
         } else if row.quiet_hours_posture.bypassed_by_critical_severity {
             // Non-critical rows must not claim a critical-safety
             // bypass.
-            errors.push(NotificationPrivacyBetaValidationError::PrivacyPostureDrift {
-                row_id: row.row_id.clone(),
-                reason: "bypassed_by_critical_severity=true but severity is not critical".to_owned(),
-            });
+            errors.push(
+                NotificationPrivacyBetaValidationError::PrivacyPostureDrift {
+                    row_id: row.row_id.clone(),
+                    reason: "bypassed_by_critical_severity=true but severity is not critical"
+                        .to_owned(),
+                },
+            );
         }
 
         // Forbidden-shortcut list must enumerate every required class.
@@ -1092,29 +1097,37 @@ pub fn validate_notification_privacy_beta_page(
             }),
             Some(badge) => {
                 if badge.badge_class != row.badge_class {
-                    errors.push(NotificationPrivacyBetaValidationError::BadgeRowParityDrift {
-                        row_id: row.row_id.clone(),
-                        field: "badge_class".to_owned(),
-                    });
+                    errors.push(
+                        NotificationPrivacyBetaValidationError::BadgeRowParityDrift {
+                            row_id: row.row_id.clone(),
+                            field: "badge_class".to_owned(),
+                        },
+                    );
                 }
                 if badge.severity_class != row.severity_class {
-                    errors.push(NotificationPrivacyBetaValidationError::BadgeRowParityDrift {
-                        row_id: row.row_id.clone(),
-                        field: "severity_class".to_owned(),
-                    });
+                    errors.push(
+                        NotificationPrivacyBetaValidationError::BadgeRowParityDrift {
+                            row_id: row.row_id.clone(),
+                            field: "severity_class".to_owned(),
+                        },
+                    );
                 }
                 if badge.privacy_class != row.privacy_class {
-                    errors.push(NotificationPrivacyBetaValidationError::BadgeRowParityDrift {
-                        row_id: row.row_id.clone(),
-                        field: "privacy_class".to_owned(),
-                    });
+                    errors.push(
+                        NotificationPrivacyBetaValidationError::BadgeRowParityDrift {
+                            row_id: row.row_id.clone(),
+                            field: "privacy_class".to_owned(),
+                        },
+                    );
                 }
                 let expected_os_visible = !row.quiet_hours_posture.os_app_icon_badge_suppressed;
                 if badge.os_app_icon_visible != expected_os_visible {
-                    errors.push(NotificationPrivacyBetaValidationError::BadgeRowParityDrift {
-                        row_id: row.row_id.clone(),
-                        field: "os_app_icon_visible".to_owned(),
-                    });
+                    errors.push(
+                        NotificationPrivacyBetaValidationError::BadgeRowParityDrift {
+                            row_id: row.row_id.clone(),
+                            field: "os_app_icon_visible".to_owned(),
+                        },
+                    );
                 }
             }
         }
@@ -1152,13 +1165,15 @@ pub fn validate_notification_privacy_beta_page(
         .map(|r| r.canonical_event_id.as_str())
         .collect();
     if (page.badge_projection.durable_count as usize) > distinct_events.len() {
-        errors.push(NotificationPrivacyBetaValidationError::BadgeProjectionDrift {
-            reason: format!(
-                "durable_count={} exceeds distinct canonical events {}",
-                page.badge_projection.durable_count,
-                distinct_events.len()
-            ),
-        });
+        errors.push(
+            NotificationPrivacyBetaValidationError::BadgeProjectionDrift {
+                reason: format!(
+                    "durable_count={} exceeds distinct canonical events {}",
+                    page.badge_projection.durable_count,
+                    distinct_events.len()
+                ),
+            },
+        );
     }
 
     if errors.is_empty() {
@@ -1338,13 +1353,12 @@ pub fn seeded_notification_privacy_beta_page() -> NotificationPrivacyBetaPage {
         // If the scenario simulates retry coalescing, route again so
         // the row observes a dedupe repeat. The badge stays at one
         // durable item.
-        let final_routed = if scenario.row_class
-            == NotificationPrivacyBetaRowClass::CoalescedRepeatedFailure
-        {
-            router.route(&envelope).expect("retry routing must succeed")
-        } else {
-            first.clone()
-        };
+        let final_routed =
+            if scenario.row_class == NotificationPrivacyBetaRowClass::CoalescedRepeatedFailure {
+                router.route(&envelope).expect("retry routing must succeed")
+            } else {
+                first.clone()
+            };
 
         let mut posture_snapshot = BetaQuietHoursPosture {
             active_modes: scenario.posture.active_modes_sorted(),
@@ -1364,8 +1378,10 @@ pub fn seeded_notification_privacy_beta_page() -> NotificationPrivacyBetaPage {
             }),
             os_app_icon_badge_suppressed: scenario.posture.suppresses_os_app_icon_badge(),
             lock_screen_summary_suppressed: scenario.posture.suppresses_lock_screen_summary(),
-            bypassed_by_critical_severity: matches!(envelope.severity_class, SeverityClass::Critical)
-                && scenario.posture.has_active_quiet_mode(),
+            bypassed_by_critical_severity: matches!(
+                envelope.severity_class,
+                SeverityClass::Critical
+            ) && scenario.posture.has_active_quiet_mode(),
         };
         // Critical severity always interrupts; the apply step has
         // already cleared `suppressed`, so the snapshot must reflect it.
@@ -1386,7 +1402,9 @@ pub fn seeded_notification_privacy_beta_page() -> NotificationPrivacyBetaPage {
             severity_class: envelope.severity_class,
             privacy_class: envelope.privacy_class,
             privacy_payload_class: envelope.privacy_payload_class,
-            lock_screen_posture: LockScreenPosture::from_payload_class(envelope.privacy_payload_class),
+            lock_screen_posture: LockScreenPosture::from_payload_class(
+                envelope.privacy_payload_class,
+            ),
             redaction_class: envelope.redaction_class,
             badge_class: scenario.badge_class,
             dedupe_key_scheme: envelope.dedupe_key_scheme,
@@ -1417,10 +1435,8 @@ pub fn seeded_notification_privacy_beta_page() -> NotificationPrivacyBetaPage {
     let badge_projection =
         DurableBadgeProjection::from_routed(&routed_for_badges, &QuietHoursPosture::none());
 
-    let badges: Vec<NotificationPrivacyBetaBadge> = rows
-        .iter()
-        .map(|row| make_badge_for_row(row))
-        .collect();
+    let badges: Vec<NotificationPrivacyBetaBadge> =
+        rows.iter().map(|row| make_badge_for_row(row)).collect();
 
     NotificationPrivacyBetaPage::new(
         "shell:notification-privacy:beta:page:default",
@@ -1616,8 +1632,7 @@ fn coalesced_repeated_failure() -> SeedScenario {
         "obj:test-runner:pytest-suite:01",
         "cmd:test_run.open_job_details",
     );
-    envelope.grouped_burst_id_ref =
-        Some("ux:burst:beta:coalesced-retry-burst:01".to_owned());
+    envelope.grouped_burst_id_ref = Some("ux:burst:beta:coalesced-retry-burst:01".to_owned());
     SeedScenario {
         case_id: "shell:notification-privacy:beta:coalesced-retry-burst:01",
         row_id: "ux:notification-privacy:beta:row:coalesced-retry-burst",
@@ -1924,9 +1939,7 @@ fn forbidden_shortcut_bypass_refused() -> SeedScenario {
 /// surface tied to a routed notification, in stable surface order. The
 /// shell uses this to verify that no external payload widens beyond
 /// the envelope's privacy posture.
-pub fn project_external_payloads(
-    routed: &RoutedNotification,
-) -> Vec<ExternalNotificationPayload> {
+pub fn project_external_payloads(routed: &RoutedNotification) -> Vec<ExternalNotificationPayload> {
     let mut payloads: Vec<ExternalNotificationPayload> = Vec::new();
     for surface in [
         FanoutSurfaceClass::OsNotification,
@@ -1947,8 +1960,7 @@ mod tests {
     #[test]
     fn seeded_page_passes_validation() {
         let page = seeded_notification_privacy_beta_page();
-        validate_notification_privacy_beta_page(&page)
-            .expect("seeded page must validate");
+        validate_notification_privacy_beta_page(&page).expect("seeded page must validate");
     }
 
     #[test]
@@ -1981,7 +1993,10 @@ mod tests {
             .iter()
             .filter(|r| r.quiet_hours_posture.bypassed_by_critical_severity)
             .count();
-        assert_eq!(page.summary.critical_safety_bypass_row_count, critical_bypass);
+        assert_eq!(
+            page.summary.critical_safety_bypass_row_count,
+            critical_bypass
+        );
     }
 
     #[test]
@@ -2065,7 +2080,10 @@ mod tests {
     #[test]
     fn validation_flags_forbidden_shortcut_list_incomplete() {
         let mut page = seeded_notification_privacy_beta_page();
-        page.rows[0].forbidden_shortcut_posture.forbidden_classes.pop();
+        page.rows[0]
+            .forbidden_shortcut_posture
+            .forbidden_classes
+            .pop();
         let errors = validate_notification_privacy_beta_page(&page)
             .expect_err("must flag forbidden shortcut list incomplete");
         assert!(errors.iter().any(|e| matches!(
@@ -2091,8 +2109,8 @@ mod tests {
         let mut page = seeded_notification_privacy_beta_page();
         let removed_row_id = page.rows[0].row_id.clone();
         page.badges.retain(|b| b.row_id != removed_row_id);
-        let errors = validate_notification_privacy_beta_page(&page)
-            .expect_err("must flag missing badge");
+        let errors =
+            validate_notification_privacy_beta_page(&page).expect_err("must flag missing badge");
         assert!(errors.iter().any(|e| matches!(
             e,
             NotificationPrivacyBetaValidationError::BadgeMissingForRow { .. }
@@ -2176,7 +2194,10 @@ mod tests {
                 )
             })
             .expect("seed has the coalesced row");
-        assert!(row.is_dedupe_repeat, "retry coalescing row must be a dedupe repeat");
+        assert!(
+            row.is_dedupe_repeat,
+            "retry coalescing row must be a dedupe repeat"
+        );
         assert_eq!(row.occurrence_count, 2);
         assert!(matches!(
             row.dedupe_key_scheme,

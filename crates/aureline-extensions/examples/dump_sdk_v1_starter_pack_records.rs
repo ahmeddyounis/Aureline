@@ -10,8 +10,7 @@
 //! ```
 
 use aureline_extensions::{
-    evaluate_sdk_v1_starter_pack, project_sdk_v1_starter_pack_support_export,
-    SdkV1StarterPackInput,
+    evaluate_sdk_v1_starter_pack, project_sdk_v1_starter_pack_support_export, SdkV1StarterPackInput,
 };
 use serde::Deserialize;
 
@@ -27,7 +26,10 @@ fn main() {
         let record = evaluate_sdk_v1_starter_pack(fixture.input);
         let export = project_sdk_v1_starter_pack_support_export(
             &record,
-            &format!("sdk_v1_starter_pack_support_export:{}", record.starter_pack_id),
+            &format!(
+                "sdk_v1_starter_pack_support_export:{}",
+                record.starter_pack_id
+            ),
         );
         println!("=== {name} / starter_pack ===");
         println!("{}", serde_json::to_string_pretty(&record).unwrap());

@@ -154,10 +154,7 @@ impl RuntimeEvidencePanel {
         out.push_str(&format!("Workspace: {}\n", self.workspace_id));
         out.push_str(&format!("Support export: {}\n", self.support_export_ref));
         out.push_str(&format!("Captured at: {}\n", self.generated_at));
-        out.push_str(&format!(
-            "Redaction: {}\n",
-            self.redaction_class_token
-        ));
+        out.push_str(&format!("Redaction: {}\n", self.redaction_class_token));
         out.push_str(&format!("Notice: {}\n", self.notice));
         out.push_str(&format!(
             "Rows: {} (blocks_replay={}, minor_drift={})\n",
@@ -188,9 +185,7 @@ impl RuntimeEvidencePanel {
             ));
             out.push_str(&format!(
                 "  Replay: {} (permits_replay={}, blocks={})\n",
-                row.compatibility_token,
-                row.permits_replay_without_review,
-                row.blocks_replay,
+                row.compatibility_token, row.permits_replay_without_review, row.blocks_replay,
             ));
             if !row.incompatibility_reason_tokens.is_empty() {
                 out.push_str(&format!(

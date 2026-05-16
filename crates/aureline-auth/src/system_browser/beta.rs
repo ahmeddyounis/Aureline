@@ -217,7 +217,9 @@ impl PasskeyStepUpPostureClass {
     pub const fn requires_step_up_block(self) -> bool {
         matches!(
             self,
-            Self::PasskeyRequired | Self::PasskeyCapableOffered | Self::PasskeyUnavailableWithFallback
+            Self::PasskeyRequired
+                | Self::PasskeyCapableOffered
+                | Self::PasskeyUnavailableWithFallback
         )
     }
 
@@ -761,7 +763,8 @@ pub fn audit_rows(
                 "explicit policy exception requires a plain-language label",
             ));
         }
-        if row.system_browser_default && row.browser_launch_policy_class_token == blocked_launch_token
+        if row.system_browser_default
+            && row.browser_launch_policy_class_token == blocked_launch_token
         {
             defects.push(SystemBrowserReturnPathBetaDefect::new(
                 SystemBrowserReturnPathBetaDefectKind::SystemBrowserDefaultInconsistentWithBlockedLaunch,
@@ -868,7 +871,9 @@ pub fn audit_rows(
                 || support.return_origin_validation_token
                     != row.return_path_label.return_origin_validation_token
                 || support.return_tenant_or_workspace_match_rule_token
-                    != row.return_path_label.return_tenant_or_workspace_match_rule_token
+                    != row
+                        .return_path_label
+                        .return_tenant_or_workspace_match_rule_token
                 || support.return_anchor_ref != row.return_path_label.return_anchor_ref
                 || support.workspace_label != row.return_path_label.workspace_label
                 || support.target_label != row.return_path_label.target_label
@@ -931,8 +936,8 @@ impl<'a> StageSystemBrowserReturnPathBetaRowRequest<'a> {
     /// alpha claimed-row truth and the passed return-path / passkey inputs.
     pub fn stage(self) -> SystemBrowserReturnPathBetaRow {
         let claimed = self.claimed_row;
-        let system_browser_default = claimed.default_action
-            == ClaimedIdentityDefaultActionClass::OpenSystemBrowser;
+        let system_browser_default =
+            claimed.default_action == ClaimedIdentityDefaultActionClass::OpenSystemBrowser;
         let return_path_label = ReturnPathLabel {
             workspace_label: self.return_workspace_label.to_owned(),
             target_label: self.return_target_label.to_owned(),
@@ -951,9 +956,7 @@ impl<'a> StageSystemBrowserReturnPathBetaRowRequest<'a> {
             fallback_retry_path_token: self
                 .passkey_fallback_retry_path
                 .map(|class| class.as_str().to_owned()),
-            fallback_retry_path_label: self
-                .passkey_fallback_retry_path_label
-                .map(str::to_owned),
+            fallback_retry_path_label: self.passkey_fallback_retry_path_label.map(str::to_owned),
         };
         let promised_axes = vec![
             SystemBrowserReturnPathBetaAxis::SystemBrowserDefaultUnlessExplicitException,
@@ -988,10 +991,7 @@ impl<'a> StageSystemBrowserReturnPathBetaRowRequest<'a> {
                 .as_str()
                 .to_owned(),
             return_path_label,
-            requested_authority_scope_token: self
-                .requested_authority_scope
-                .as_str()
-                .to_owned(),
+            requested_authority_scope_token: self.requested_authority_scope.as_str().to_owned(),
             granted_authority_scope_token: self.granted_authority_scope.as_str().to_owned(),
             authority_scope_summary_label: self.authority_scope_summary_label.to_owned(),
             passkey_capability_claimed: self.passkey_capability_claimed,
@@ -1086,7 +1086,8 @@ fn admin_locked_device_code_request() -> StageClaimedIdentityRowRequest<'static>
         local_continuity_label: "Local files and unsaved edits remain available.",
         preserved_local_work: PreservedLocalWork {
             posture_class: PreservedLocalWorkPostureClass::LocalWorkIntactWithManagedNarrowed,
-            note: "Browser launch is admin-blocked on this VDI; local work remains usable.".to_owned(),
+            note: "Browser launch is admin-blocked on this VDI; local work remains usable."
+                .to_owned(),
             retained_capabilities: vec![
                 "Edit local files.".to_owned(),
                 "Save local files.".to_owned(),
@@ -1331,15 +1332,18 @@ mod tests {
             .iter_mut()
             .find(|r| r.passkey_capability_claimed)
             .unwrap();
-        row.granted_authority_scope_token = AuthorityScopeClass::TenantAdminScope.as_str().to_owned();
+        row.granted_authority_scope_token =
+            AuthorityScopeClass::TenantAdminScope.as_str().to_owned();
         let support_rows: Vec<SystemBrowserReturnPathBetaSupportRow> = page
             .rows
             .iter()
             .map(SystemBrowserReturnPathBetaSupportRow::from_row)
             .collect();
         let defects = audit_rows(&page.rows, &support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == SystemBrowserReturnPathBetaDefectKind::ReturnWidensAuthorityScope));
+        assert!(defects
+            .iter()
+            .any(|d| d.defect_kind
+                == SystemBrowserReturnPathBetaDefectKind::ReturnWidensAuthorityScope));
     }
 
     #[test]
@@ -1396,8 +1400,10 @@ mod tests {
         support_rows[0].granted_authority_scope_token =
             AuthorityScopeClass::WorkspaceAdminScope.as_str().to_owned();
         let defects = audit_rows(&page.rows, &support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == SystemBrowserReturnPathBetaDefectKind::SupportRowVocabularyDrift));
+        assert!(defects
+            .iter()
+            .any(|d| d.defect_kind
+                == SystemBrowserReturnPathBetaDefectKind::SupportRowVocabularyDrift));
     }
 
     #[test]
@@ -1410,8 +1416,12 @@ mod tests {
             .map(SystemBrowserReturnPathBetaSupportRow::from_row)
             .collect();
         let defects = audit_rows(&page.rows, &support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == SystemBrowserReturnPathBetaDefectKind::ReturnPathTargetDrift));
+        assert!(
+            defects
+                .iter()
+                .any(|d| d.defect_kind
+                    == SystemBrowserReturnPathBetaDefectKind::ReturnPathTargetDrift)
+        );
     }
 
     #[test]
@@ -1422,8 +1432,9 @@ mod tests {
             .iter_mut()
             .find(|r| !r.passkey_capability_claimed)
             .unwrap();
-        row.passkey_step_up.posture_token =
-            PasskeyStepUpPostureClass::PasskeyRequired.as_str().to_owned();
+        row.passkey_step_up.posture_token = PasskeyStepUpPostureClass::PasskeyRequired
+            .as_str()
+            .to_owned();
         let support_rows: Vec<SystemBrowserReturnPathBetaSupportRow> = page
             .rows
             .iter()

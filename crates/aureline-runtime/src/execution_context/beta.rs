@@ -475,7 +475,11 @@ pub fn evaluate_ticket_drift(
             field: TicketDriftField::CapsuleDriftState,
             field_token: TicketDriftField::CapsuleDriftState.as_str().to_owned(),
             stored_value_token: stored.capsule_drift_state.as_str().to_owned(),
-            fresh_value_token: fresh.environment_capsule_ref.drift_state.as_str().to_owned(),
+            fresh_value_token: fresh
+                .environment_capsule_ref
+                .drift_state
+                .as_str()
+                .to_owned(),
         });
     }
     if stored.workset_scope_class != fresh.workset_scope_class {
@@ -828,22 +832,24 @@ mod tests {
         ));
         let stored_binding = TicketDriftBinding::from_context(&stored_context);
 
-        let mut request = ExecutionContextRequest::task_seed(
-            "task.run.beta",
-            TrustState::Trusted,
-            "mono:1",
-        );
+        let mut request =
+            ExecutionContextRequest::task_seed("task.run.beta", TrustState::Trusted, "mono:1");
         request.override_target_class = Some(TargetClass::SshRemote);
         let fresh_context = resolver.resolve(request);
 
         let evaluation = evaluate_ticket_drift(&stored_binding, &fresh_context);
         assert!(evaluation.outcome.is_invalidated());
         let rows = evaluation.outcome.drift_rows();
-        assert!(rows.iter().any(|row| row.field == TicketDriftField::TargetClass));
+        assert!(rows
+            .iter()
+            .any(|row| row.field == TicketDriftField::TargetClass));
         assert!(rows
             .iter()
             .any(|row| row.field == TicketDriftField::CanonicalTargetId));
-        assert_eq!(evaluation.fresh_lane, ExecutionContextBetaLane::RemoteAttach);
+        assert_eq!(
+            evaluation.fresh_lane,
+            ExecutionContextBetaLane::RemoteAttach
+        );
     }
 
     #[test]

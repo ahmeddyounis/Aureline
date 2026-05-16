@@ -159,10 +159,7 @@ impl EnvironmentVariableLayer {
     }
 
     /// Construct a secret-handle layer with no value token.
-    pub fn secret_handle(
-        variable_name: impl Into<String>,
-        source_ref: impl Into<String>,
-    ) -> Self {
+    pub fn secret_handle(variable_name: impl Into<String>, source_ref: impl Into<String>) -> Self {
         Self {
             variable_name: variable_name.into(),
             layer_kind: EnvironmentLayerKind::SecretHandle,
@@ -324,10 +321,7 @@ impl AuthProfile {
             strategy_kind_token: strategy_kind.as_str().to_owned(),
             credential_class,
             credential_class_token: credential_class.as_str().to_owned(),
-            broker_handle_refs: broker_handle_refs
-                .into_iter()
-                .map(Into::into)
-                .collect(),
+            broker_handle_refs: broker_handle_refs.into_iter().map(Into::into).collect(),
             refresh_metadata_ref,
         }
     }
@@ -771,9 +765,7 @@ impl SendInspectorReadiness {
     pub const fn blocks_dispatch(self) -> bool {
         matches!(
             self,
-            Self::BlockedMissingCredential
-                | Self::BlockedSchemaStale
-                | Self::BlockedPolicy
+            Self::BlockedMissingCredential | Self::BlockedSchemaStale | Self::BlockedPolicy
         )
     }
 }
@@ -1082,8 +1074,7 @@ impl RequestWorkspaceAlphaRecord {
         if readiness == SendInspectorReadiness::BlockedMissingCredential {
             banners.push(SendInspectorBanner {
                 banner_kind: "credential_blocked".to_owned(),
-                summary: "Raw inline credentials are not allowed; bind a broker handle"
-                    .to_owned(),
+                summary: "Raw inline credentials are not allowed; bind a broker handle".to_owned(),
             });
         }
         if readiness == SendInspectorReadiness::BlockedSchemaStale {
@@ -1232,14 +1223,26 @@ impl RequestWorkspaceSupportExport {
     pub fn render_plaintext(&self) -> String {
         let mut out = format!("request-workspace support export: {}\n", self.manifest_id);
         out.push_str(&format!("  generated_at: {}\n", self.generated_at));
-        out.push_str(&format!("  any_requires_review: {}\n", self.any_requires_review));
-        out.push_str(&format!("  any_blocks_dispatch: {}\n", self.any_blocks_dispatch));
+        out.push_str(&format!(
+            "  any_requires_review: {}\n",
+            self.any_requires_review
+        ));
+        out.push_str(&format!(
+            "  any_blocks_dispatch: {}\n",
+            self.any_blocks_dispatch
+        ));
         for report in &self.send_inspector_reports {
-            out.push_str(&format!("  - workspace_ref={} ", report.request_workspace_ref));
+            out.push_str(&format!(
+                "  - workspace_ref={} ",
+                report.request_workspace_ref
+            ));
             out.push_str(&report.summary_line);
             out.push('\n');
             for banner in &report.banners {
-                out.push_str(&format!("      [{}] {}\n", banner.banner_kind, banner.summary));
+                out.push_str(&format!(
+                    "      [{}] {}\n",
+                    banner.banner_kind, banner.summary
+                ));
             }
         }
         out
@@ -1352,10 +1355,7 @@ fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
                 "session:override:001",
                 "pay_demo_001",
             ),
-            EnvironmentVariableLayer::secret_handle(
-                "api_token",
-                "secret://payments/api-token",
-            ),
+            EnvironmentVariableLayer::secret_handle("api_token", "secret://payments/api-token"),
         ],
         effective_fingerprint: "env:fp:dev:read_only_get:01".to_owned(),
     };
@@ -1407,7 +1407,9 @@ fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
         preview_class: ResponsePreviewClass::JsonTree,
         preview_class_token: ResponsePreviewClass::JsonTree.as_str().to_owned(),
         redaction_class: ResponseRedactionClass::StructuredTokensOnly,
-        redaction_class_token: ResponseRedactionClass::StructuredTokensOnly.as_str().to_owned(),
+        redaction_class_token: ResponseRedactionClass::StructuredTokensOnly
+            .as_str()
+            .to_owned(),
         assertion_results: vec![
             AssertionResultRow {
                 assertion_ref: "assert:status_200".to_owned(),
@@ -1472,10 +1474,7 @@ fn remote_mutating_post_stale_schema_record() -> RequestWorkspaceAlphaRecord {
                 "profile:staging",
                 "https://api.staging.example.com",
             ),
-            EnvironmentVariableLayer::secret_handle(
-                "api_token",
-                "secret://payments/api-token",
-            ),
+            EnvironmentVariableLayer::secret_handle("api_token", "secret://payments/api-token"),
         ],
         effective_fingerprint: "env:fp:staging:mutating_post:01".to_owned(),
     };
@@ -1528,8 +1527,7 @@ fn remote_mutating_post_stale_schema_record() -> RequestWorkspaceAlphaRecord {
         schema_snapshot,
         expected_side_effects,
         response_artifact: None,
-        summary: "Mutating POST against staging refund endpoint, stale schema snapshot."
-            .to_owned(),
+        summary: "Mutating POST against staging refund endpoint, stale schema snapshot.".to_owned(),
     }
 }
 
@@ -1697,9 +1695,8 @@ mod tests {
 
     #[test]
     fn read_only_local_get_is_ready_to_send() {
-        let record = seeded_request_workspace_record(
-            RequestWorkspaceSeededScenario::LocalReadOnlyGet,
-        );
+        let record =
+            seeded_request_workspace_record(RequestWorkspaceSeededScenario::LocalReadOnlyGet);
         assert!(record.validation_issues().is_empty());
         let report = record.send_inspector_report();
         assert_eq!(report.readiness, SendInspectorReadiness::ReadyToSend);
@@ -1738,9 +1735,8 @@ mod tests {
 
     #[test]
     fn remote_graphql_no_auth_is_review_required_due_to_no_credentials() {
-        let record = seeded_request_workspace_record(
-            RequestWorkspaceSeededScenario::RemoteGraphqlNoAuth,
-        );
+        let record =
+            seeded_request_workspace_record(RequestWorkspaceSeededScenario::RemoteGraphqlNoAuth);
         let report = record.send_inspector_report();
         assert_eq!(report.readiness, SendInspectorReadiness::ReviewRequired);
         assert!(report
@@ -1751,9 +1747,8 @@ mod tests {
 
     #[test]
     fn raw_inline_credential_flags_violation_and_blocks_dispatch() {
-        let mut record = seeded_request_workspace_record(
-            RequestWorkspaceSeededScenario::LocalReadOnlyGet,
-        );
+        let mut record =
+            seeded_request_workspace_record(RequestWorkspaceSeededScenario::LocalReadOnlyGet);
         record.auth = AuthProfile::new(
             AuthStrategyKind::ApiKeyBroker,
             CredentialClass::RawInlineDisallowed,
@@ -1761,7 +1756,9 @@ mod tests {
             None,
         );
         let violations = record.validation_issues();
-        assert!(violations.iter().any(|v| v.code == "raw_inline_credentials"));
+        assert!(violations
+            .iter()
+            .any(|v| v.code == "raw_inline_credentials"));
         let report = record.send_inspector_report();
         assert_eq!(
             report.readiness,
@@ -1780,7 +1777,10 @@ mod tests {
         let round: RequestWorkspaceSupportExport =
             serde_json::from_str(&json).expect("deserialize");
         assert_eq!(round, export);
-        assert_eq!(round.records.len(), RequestWorkspaceSeededScenario::ALL.len());
+        assert_eq!(
+            round.records.len(),
+            RequestWorkspaceSeededScenario::ALL.len()
+        );
         assert_eq!(
             round.send_inspector_reports.len(),
             RequestWorkspaceSeededScenario::ALL.len()

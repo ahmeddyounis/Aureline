@@ -832,9 +832,7 @@ pub fn audit_migration_center_rows(
         }
 
         let claim = &entry.learnability_claim;
-        if claim.claim_class == ClaimClass::Beta
-            && claim.freshness_class.is_blocking_for_beta()
-        {
+        if claim.claim_class == ClaimClass::Beta && claim.freshness_class.is_blocking_for_beta() {
             defects.push(MigrationCenterDefect::new(
                 MigrationCenterDefectKind::FreshnessReviewOverdueOnClaimedRow,
                 &entry.entry_id,
@@ -1338,7 +1336,10 @@ fn build_entry(
     keyboard_reach: KeyboardReachClass,
     claim: &LearnabilityClaim,
 ) -> MigrationCenterEntryPoint {
-    let section_id = format!("shell:migration_center_beta:section:{}", section_kind.as_str());
+    let section_id = format!(
+        "shell:migration_center_beta:section:{}",
+        section_kind.as_str()
+    );
     let support_row_id = format!("{entry_id}::support");
     MigrationCenterEntryPoint {
         record_kind: MIGRATION_CENTER_BETA_ENTRY_RECORD_KIND.to_owned(),
@@ -1422,8 +1423,9 @@ mod tests {
         page.entries[0].requires_account_detour = true;
         let defects =
             audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == MigrationCenterDefectKind::EntryRequiresAccountDetour));
+        assert!(defects
+            .iter()
+            .any(|d| d.defect_kind == MigrationCenterDefectKind::EntryRequiresAccountDetour));
     }
 
     #[test]
@@ -1474,12 +1476,12 @@ mod tests {
     fn review_overdue_on_claimed_row_emits_defect() {
         let mut page = seeded_migration_center_page();
         page.entries[0].learnability_claim.freshness_class = FreshnessClass::ReviewOverdue;
-        page.entries[0]
-            .learnability_claim
-            .freshness_class_token = FreshnessClass::ReviewOverdue.as_str().to_owned();
+        page.entries[0].learnability_claim.freshness_class_token =
+            FreshnessClass::ReviewOverdue.as_str().to_owned();
         let defects =
             audit_migration_center_rows(&page.sections, &page.entries, &page.support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == MigrationCenterDefectKind::FreshnessReviewOverdueOnClaimedRow));
+        assert!(defects.iter().any(
+            |d| d.defect_kind == MigrationCenterDefectKind::FreshnessReviewOverdueOnClaimedRow
+        ));
     }
 }

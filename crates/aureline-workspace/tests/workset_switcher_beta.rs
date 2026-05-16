@@ -214,7 +214,10 @@ fn every_fixture_validates_switcher_preview_and_parity() {
             .validate()
             .unwrap_or_else(|err| panic!("switcher in {path:?} must validate: {err}"));
         assert_eq!(switcher.rows.len(), fixture.expect.row_count);
-        assert_eq!(switcher.active_workset_ref, fixture.expect.active_workset_ref);
+        assert_eq!(
+            switcher.active_workset_ref,
+            fixture.expect.active_workset_ref
+        );
 
         let active_row = switcher.active_row().expect("active row required");
         assert_eq!(
@@ -299,8 +302,7 @@ fn every_fixture_validates_switcher_preview_and_parity() {
             .validate()
             .unwrap_or_else(|err| panic!("parity in {path:?} must validate: {err}"));
         assert_eq!(
-            parity.identity_preserved_across_consumers,
-            fixture.expect.reopen_identity_preserved,
+            parity.identity_preserved_across_consumers, fixture.expect.reopen_identity_preserved,
             "parity identity preservation mismatch in {path:?}",
         );
         let exact_tokens: Vec<String> = parity
@@ -334,8 +336,11 @@ fn every_fixture_validates_switcher_preview_and_parity() {
         }
 
         // Identity contract: every binding shares the same stable_scope_id.
-        let scope_ids: std::collections::BTreeSet<_> =
-            parity.bindings.iter().map(|b| b.stable_scope_id.clone()).collect();
+        let scope_ids: std::collections::BTreeSet<_> = parity
+            .bindings
+            .iter()
+            .map(|b| b.stable_scope_id.clone())
+            .collect();
         assert_eq!(scope_ids.len(), 1, "parity scope_id drift in {path:?}");
     }
 }
@@ -360,8 +365,7 @@ fn every_fixture_round_trips_support_export_bundle() {
         bundle
             .validate()
             .unwrap_or_else(|err| panic!("bundle in {path:?} must validate: {err}"));
-        let payload =
-            serde_json::to_string(&bundle).expect("bundle must serialize to JSON");
+        let payload = serde_json::to_string(&bundle).expect("bundle must serialize to JSON");
         let parsed: WorksetSwitcherBetaSupportExport = serde_json::from_str(&payload)
             .unwrap_or_else(|err| panic!("bundle in {path:?} must round-trip: {err}"));
         assert_eq!(parsed, bundle, "bundle round-trip mismatch in {path:?}");
@@ -399,8 +403,7 @@ fn schema_exposes_every_record_kind() {
     let kinds = schema["$defs"]["record_kind"]["enum"]
         .as_array()
         .expect("record_kind enum must be present");
-    let kinds: std::collections::BTreeSet<&str> =
-        kinds.iter().filter_map(|v| v.as_str()).collect();
+    let kinds: std::collections::BTreeSet<&str> = kinds.iter().filter_map(|v| v.as_str()).collect();
     for kind in [
         "workset_switcher_beta_record",
         "workset_switcher_beta_row",

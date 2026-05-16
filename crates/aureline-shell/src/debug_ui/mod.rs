@@ -26,9 +26,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use aureline_runtime::{
-    DebugAdapterCapabilityClass, DebugSessionSnapshot, DebugSessionStateClass,
-};
+use aureline_runtime::{DebugAdapterCapabilityClass, DebugSessionSnapshot, DebugSessionStateClass};
 
 #[cfg(test)]
 mod tests;
@@ -138,9 +136,7 @@ impl DebugUiAvailabilityClass {
         match self {
             Self::Available => "available",
             Self::NarrowedByDroppedCapability => "narrowed_by_dropped_capability",
-            Self::UnavailableMissingRequiredCapability => {
-                "unavailable_missing_required_capability"
-            }
+            Self::UnavailableMissingRequiredCapability => "unavailable_missing_required_capability",
             Self::UnavailableDuringReconnect => "unavailable_during_reconnect",
             Self::UnavailableDuringQuarantine => "unavailable_during_quarantine",
             Self::UnavailableNoActiveSession => "unavailable_no_active_session",
@@ -699,29 +695,27 @@ pub fn project_debug_ui(input: DebugUiProjectionInput<'_>) -> DebugUiProjection 
         captured_at,
     } = input;
 
-    let (binding, posture, snapshot_requires_disclosure, dropped_caps, agreed_caps) =
-        match snapshot {
-            Some(s) => (
-                DebugUiActiveBinding::from_snapshot(s),
-                session_posture(s),
-                s.requires_shell_disclosure(),
-                s.dropped_capabilities.clone(),
-                s.agreed_capabilities.clone(),
-            ),
-            None => (
-                DebugUiActiveBinding::empty(workspace_id),
-                SessionPosture::NoSession,
-                false,
-                Vec::new(),
-                Vec::new(),
-            ),
-        };
+    let (binding, posture, snapshot_requires_disclosure, dropped_caps, agreed_caps) = match snapshot
+    {
+        Some(s) => (
+            DebugUiActiveBinding::from_snapshot(s),
+            session_posture(s),
+            s.requires_shell_disclosure(),
+            s.dropped_capabilities.clone(),
+            s.agreed_capabilities.clone(),
+        ),
+        None => (
+            DebugUiActiveBinding::empty(workspace_id),
+            SessionPosture::NoSession,
+            false,
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
 
     let surfaces: Vec<DebugUiSurfaceRow> = DebugUiSurfaceClass::required_surfaces()
         .into_iter()
-        .map(|class| {
-            build_surface_row(class, posture, &agreed_caps, &dropped_caps, &content)
-        })
+        .map(|class| build_surface_row(class, posture, &agreed_caps, &dropped_caps, &content))
         .collect();
 
     // Honesty marker fires when the runtime snapshot already requires
@@ -742,30 +736,33 @@ pub fn project_debug_ui(input: DebugUiProjectionInput<'_>) -> DebugUiProjection 
     // Content rows survive on Available / NarrowedByDroppedCapability
     // posture; anything else drops content so a paused snapshot does not
     // bleed across reconnect / quarantine / no-session boundaries.
-    let keep_content = matches!(
-        posture,
-        SessionPosture::Paused | SessionPosture::Running
-    );
-    let (breakpoints, call_stack_frames, variable_scopes, watch_expressions, evaluate_requests, console_lines) =
-        if keep_content {
-            (
-                content.breakpoints,
-                content.call_stack_frames,
-                content.variable_scopes,
-                content.watch_expressions,
-                content.evaluate_requests,
-                content.console_lines,
-            )
-        } else {
-            (
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-                Vec::new(),
-            )
-        };
+    let keep_content = matches!(posture, SessionPosture::Paused | SessionPosture::Running);
+    let (
+        breakpoints,
+        call_stack_frames,
+        variable_scopes,
+        watch_expressions,
+        evaluate_requests,
+        console_lines,
+    ) = if keep_content {
+        (
+            content.breakpoints,
+            content.call_stack_frames,
+            content.variable_scopes,
+            content.watch_expressions,
+            content.evaluate_requests,
+            content.console_lines,
+        )
+    } else {
+        (
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+    };
 
     let export_safe_summary = format_summary(&binding, &surfaces, posture);
 
@@ -863,10 +860,7 @@ fn build_surface_row(
         DebugUiSurfaceClass::Evaluate => content.evaluate_requests.len(),
         DebugUiSurfaceClass::DebugConsole => content.console_lines.len(),
     };
-    let content_row_count = if matches!(
-        posture,
-        SessionPosture::Paused | SessionPosture::Running
-    ) {
+    let content_row_count = if matches!(posture, SessionPosture::Paused | SessionPosture::Running) {
         content_row_count
     } else {
         0
@@ -1321,7 +1315,10 @@ fn validate_keyboard_routes(projection: &DebugUiProjection, defects: &mut Vec<De
                 DebugUiDefectKind::MissingKeyboardRoute,
                 row.surface_class_token.as_str(),
                 "keyboard_route_ref",
-                format!("surface {} is missing a keyboard route ref", row.surface_class_token),
+                format!(
+                    "surface {} is missing a keyboard route ref",
+                    row.surface_class_token
+                ),
             ));
         }
     }

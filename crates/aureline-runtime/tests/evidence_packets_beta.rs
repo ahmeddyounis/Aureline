@@ -111,8 +111,7 @@ fn every_seeded_scenario_fixture_replays_through_the_seed_builder() {
             "{fixture_name}: compatibility class mismatch"
         );
         assert_eq!(
-            comparison.permits_replay_without_review,
-            fixture.expect.permits_replay_without_review,
+            comparison.permits_replay_without_review, fixture.expect.permits_replay_without_review,
             "{fixture_name}: permits_replay_without_review"
         );
         assert_eq!(

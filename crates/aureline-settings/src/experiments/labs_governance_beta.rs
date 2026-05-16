@@ -542,7 +542,8 @@ pub fn build_default_labs_governance_beta_page(
     let inventory = load_default_inventory()?;
     let inspection = inspect_inventory(&inventory)?;
     Ok(build_labs_governance_beta_page_from_records(
-        &inventory, &inspection,
+        &inventory,
+        &inspection,
     ))
 }
 
@@ -615,10 +616,8 @@ fn build_row(
 }
 
 fn build_badge(row: &LabsGovernanceBetaRow) -> LabsGovernanceBetaBadge {
-    let counts_toward_attention_chip = !matches!(
-        row.effective_lifecycle_state.as_str(),
-        "Stable" | "Retired"
-    );
+    let counts_toward_attention_chip =
+        !matches!(row.effective_lifecycle_state.as_str(), "Stable" | "Retired");
     let badge_label = match row.effective_lifecycle_state.as_str() {
         "Labs" => "Labs",
         "Preview" => "Preview",
@@ -804,8 +803,7 @@ fn host_assignments_for(
             inspection_row.effective_lifecycle_state.as_str(),
             "Labs" | "Preview" | "Beta"
         ),
-        disclosure: "Labs tab opt-in surface; the tab itself is the visible marker."
-            .to_owned(),
+        disclosure: "Labs tab opt-in surface; the tab itself is the visible marker.".to_owned(),
     });
 
     out.push(HostSurfaceAssignment {
@@ -826,7 +824,8 @@ fn host_assignments_for(
         host_surface: HostSurfaceClass::SupportExportPacket,
         renders_row: true,
         disclosure:
-            "Support-export packet quotes the same lifecycle and kill-switch fields as the UI row.".to_owned(),
+            "Support-export packet quotes the same lifecycle and kill-switch fields as the UI row."
+                .to_owned(),
     });
 
     out
@@ -864,14 +863,18 @@ pub fn validate_labs_governance_beta_page(
         );
 
         if !row.kill_switch_path.disable_path_declared {
-            errors.push(LabsGovernanceBetaValidationError::KillSwitchPathUndeclared {
-                capability_id: row.capability_id.clone(),
-            });
+            errors.push(
+                LabsGovernanceBetaValidationError::KillSwitchPathUndeclared {
+                    capability_id: row.capability_id.clone(),
+                },
+            );
         }
         if row.kill_switch_path.summary.trim().is_empty() {
-            errors.push(LabsGovernanceBetaValidationError::KillSwitchSummaryMissing {
-                capability_id: row.capability_id.clone(),
-            });
+            errors.push(
+                LabsGovernanceBetaValidationError::KillSwitchSummaryMissing {
+                    capability_id: row.capability_id.clone(),
+                },
+            );
         }
         if row.effective_lifecycle_state == "DisabledByPolicy"
             && row.kill_switch_path.active_source_class.is_none()
@@ -951,9 +954,11 @@ pub fn validate_labs_governance_beta_page(
         "Retired",
     ] {
         if !page.lifecycle_counts.contains_key(state) {
-            errors.push(LabsGovernanceBetaValidationError::LifecycleCoverageIncomplete {
-                missing_state: state.to_owned(),
-            });
+            errors.push(
+                LabsGovernanceBetaValidationError::LifecycleCoverageIncomplete {
+                    missing_state: state.to_owned(),
+                },
+            );
         }
     }
 
@@ -1183,9 +1188,10 @@ mod tests {
 
         let errors =
             validate_labs_governance_beta_page(&page).expect_err("must flag hidden experiment");
-        assert!(errors
-            .iter()
-            .any(|e| matches!(e, LabsGovernanceBetaValidationError::VisibleMarkerMissing { .. })));
+        assert!(errors.iter().any(|e| matches!(
+            e,
+            LabsGovernanceBetaValidationError::VisibleMarkerMissing { .. }
+        )));
         assert!(errors.iter().any(|e| matches!(
             e,
             LabsGovernanceBetaValidationError::StableHostRendersHiddenExperiment { .. }
@@ -1228,15 +1234,24 @@ mod tests {
                 .iter()
                 .find(|r| r.capability_id == cli_row.capability_id)
                 .expect("page row exists for cli row");
-            assert_eq!(cli_row.effective_lifecycle_state, page_row.effective_lifecycle_state);
+            assert_eq!(
+                cli_row.effective_lifecycle_state,
+                page_row.effective_lifecycle_state
+            );
             assert_eq!(cli_row.visible_marker_token, page_row.visible_marker_token);
             let export_row = export
                 .rows
                 .iter()
                 .find(|r| r.capability_id == cli_row.capability_id)
                 .expect("export row exists");
-            assert_eq!(export_row.effective_lifecycle_state, cli_row.effective_lifecycle_state);
-            assert_eq!(export_row.visible_marker_token, cli_row.visible_marker_token);
+            assert_eq!(
+                export_row.effective_lifecycle_state,
+                cli_row.effective_lifecycle_state
+            );
+            assert_eq!(
+                export_row.visible_marker_token,
+                cli_row.visible_marker_token
+            );
         }
     }
 

@@ -38,10 +38,19 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_report_is_bit_for_bit_equal_to_seed() {
     let on_disk: BetaCommandParityDiffReport = load_json("report.json");
     let seeded = seeded_command_parity_diff_report();
-    assert_eq!(on_disk, seeded, "fixture report diverged from seeded report");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture report diverged from seeded report"
+    );
     assert_eq!(seeded.record_kind, COMMAND_PARITY_REPORT_RECORD_KIND);
-    assert_eq!(seeded.shared_contract_ref, COMMAND_PARITY_SHARED_CONTRACT_REF);
-    assert_eq!(seeded.published_report_ref, COMMAND_PARITY_PUBLISHED_REPORT_REF);
+    assert_eq!(
+        seeded.shared_contract_ref,
+        COMMAND_PARITY_SHARED_CONTRACT_REF
+    );
+    assert_eq!(
+        seeded.published_report_ref,
+        COMMAND_PARITY_PUBLISHED_REPORT_REF
+    );
 }
 
 #[test]
@@ -88,7 +97,9 @@ fn fixture_support_export_quotes_report_and_case_ids() {
             row.descriptor.command_id
         );
         assert!(
-            export.case_ids.contains(&row.descriptor.descriptor_revision_ref),
+            export
+                .case_ids
+                .contains(&row.descriptor.descriptor_revision_ref),
             "support export must quote descriptor revision {}",
             row.descriptor.descriptor_revision_ref
         );
@@ -130,8 +141,7 @@ fn published_doc_links_every_required_surface_and_artifact() {
 #[test]
 fn fixture_compact_lines_match_seed() {
     let compact_path = fixtures_root().join("compact.txt");
-    let on_disk = std::fs::read_to_string(&compact_path)
-        .expect("compact fixture must exist");
+    let on_disk = std::fs::read_to_string(&compact_path).expect("compact fixture must exist");
     let seeded = seeded_command_parity_diff_report();
     let mut rendered = seeded.compact_lines().join("\n");
     rendered.push('\n');

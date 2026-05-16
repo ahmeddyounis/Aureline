@@ -66,7 +66,10 @@ fn projection_renders_running_session_without_disclosure() {
     let packet = supervisor.support_packet("ws-test", "2026-05-13T00:00:03Z");
     let projection = DebuggerHostBetaProjection::project(&packet);
 
-    assert_eq!(projection.record_kind, DEBUGGER_HOST_BETA_PROJECTION_RECORD_KIND);
+    assert_eq!(
+        projection.record_kind,
+        DEBUGGER_HOST_BETA_PROJECTION_RECORD_KIND
+    );
     assert_eq!(projection.workspace_id, "ws-test");
     assert_eq!(projection.sessions.len(), 1);
     assert!(!projection.honesty_marker_present);

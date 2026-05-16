@@ -67,8 +67,7 @@ pub const ENVIRONMENT_CAPSULE_BETA_COVERAGE_MANIFEST_RECORD_KIND: &str =
 pub const ENVIRONMENT_CAPSULE_BETA_SCHEMA_VERSION: u32 = 1;
 
 /// Beta resolver implementation token recorded on every resolution.
-pub const ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION: &str =
-    "environment_capsule_resolver.beta.v1";
+pub const ENVIRONMENT_CAPSULE_BETA_RESOLVER_VERSION: &str = "environment_capsule_resolver.beta.v1";
 
 /// Closed source vocabulary the beta resolver classifies declarative inputs
 /// against. Every source the resolver inspects projects onto exactly one row.
@@ -544,7 +543,11 @@ impl EnvironmentCapsuleBetaCoverageManifest {
     /// represented by a coverage row.
     pub fn covers_every_source_class(&self) -> bool {
         for class in CapsuleBetaSourceClass::ALL {
-            if !self.source_classes.iter().any(|row| row.source_class == class) {
+            if !self
+                .source_classes
+                .iter()
+                .any(|row| row.source_class == class)
+            {
                 return false;
             }
         }
@@ -644,11 +647,13 @@ impl EnvironmentCapsuleBetaResolver {
         workspace_root: &Path,
         archetype_hint: ProjectArchetypeHint,
     ) -> EnvironmentCapsuleBetaResolution {
-        let alpha = self
-            .inner
-            .resolve_workspace(workspace_root, archetype_hint);
+        let alpha = self.inner.resolve_workspace(workspace_root, archetype_hint);
         let mut sources = parse_workspace_sources(workspace_root);
-        sources.sort_by(|a, b| a.source_class.precedence_rank().cmp(&b.source_class.precedence_rank()));
+        sources.sort_by(|a, b| {
+            a.source_class
+                .precedence_rank()
+                .cmp(&b.source_class.precedence_rank())
+        });
 
         let primary_source = sources
             .iter()
@@ -657,7 +662,11 @@ impl EnvironmentCapsuleBetaResolver {
         let conflict_notes = compute_conflict_notes(&sources, primary_source);
         if let Some(primary) = primary_source {
             for src in sources.iter_mut() {
-                if src.source_class != primary && !src.notes.contains(&CapsuleBetaSourceNote::OverriddenByHigherPrecedence) {
+                if src.source_class != primary
+                    && !src
+                        .notes
+                        .contains(&CapsuleBetaSourceNote::OverriddenByHigherPrecedence)
+                {
                     src.notes
                         .push(CapsuleBetaSourceNote::OverriddenByHigherPrecedence);
                 }
@@ -751,8 +760,7 @@ pub fn evaluate_capsule_drift(
                 });
             }
             Some(stored_row) => {
-                if stored_row.stored_content_digest.as_deref()
-                    != Some(src.content_digest.as_str())
+                if stored_row.stored_content_digest.as_deref() != Some(src.content_digest.as_str())
                 {
                     drift_rows.push(CapsuleBetaDriftRow {
                         source_class: *class,
@@ -838,21 +846,25 @@ fn parse_devcontainer(root: &Path) -> Option<CapsuleBetaSourceParse> {
             let body = String::from_utf8_lossy(&bytes).into_owned();
             let stripped = strip_jsonc_comments(&body);
             let mut notes = Vec::new();
-            let (parsed_fields, confidence) = match serde_json::from_str::<serde_json::Value>(&stripped) {
-                Ok(value) => {
-                    let parsed = parse_devcontainer_value(&value, &mut notes);
-                    let confidence = if notes.is_empty() {
-                        CapsuleBetaSourceConfidence::Imported
-                    } else {
-                        CapsuleBetaSourceConfidence::Heuristic
-                    };
-                    (parsed, confidence)
-                }
-                Err(_) => {
-                    notes.push(CapsuleBetaSourceNote::BodyUnparseable);
-                    (DevcontainerParsedFields::default(), CapsuleBetaSourceConfidence::Heuristic)
-                }
-            };
+            let (parsed_fields, confidence) =
+                match serde_json::from_str::<serde_json::Value>(&stripped) {
+                    Ok(value) => {
+                        let parsed = parse_devcontainer_value(&value, &mut notes);
+                        let confidence = if notes.is_empty() {
+                            CapsuleBetaSourceConfidence::Imported
+                        } else {
+                            CapsuleBetaSourceConfidence::Heuristic
+                        };
+                        (parsed, confidence)
+                    }
+                    Err(_) => {
+                        notes.push(CapsuleBetaSourceNote::BodyUnparseable);
+                        (
+                            DevcontainerParsedFields::default(),
+                            CapsuleBetaSourceConfidence::Heuristic,
+                        )
+                    }
+                };
             if parsed_fields.compose_file_ref.is_some() {
                 let compose_path = root.join(parsed_fields.compose_file_ref.as_deref().unwrap());
                 if !compose_path.is_file() {
@@ -958,11 +970,7 @@ fn parse_compose(root: &Path) -> Option<CapsuleBetaSourceParse> {
                 Ok(bytes) => bytes,
                 Err(_) => continue,
             };
-            let digest = digest_token(&[
-                "compose.body",
-                candidate,
-                bytes_digest(&bytes).as_str(),
-            ]);
+            let digest = digest_token(&["compose.body", candidate, bytes_digest(&bytes).as_str()]);
             let body = String::from_utf8_lossy(&bytes).into_owned();
             let mut notes = Vec::new();
             let parsed = parse_compose_body(&body, &mut notes);
@@ -1087,11 +1095,16 @@ fn parse_nix(root: &Path) -> Vec<CapsuleBetaSourceParse> {
 
 fn parse_node(root: &Path) -> Option<CapsuleBetaSourceParse> {
     let manifest_path = root.join("package.json");
-    let lockfiles: Vec<String> = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "npm-shrinkwrap.json"]
-        .into_iter()
-        .filter(|name| root.join(name).is_file())
-        .map(|name| name.to_owned())
-        .collect();
+    let lockfiles: Vec<String> = [
+        "package-lock.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "npm-shrinkwrap.json",
+    ]
+    .into_iter()
+    .filter(|name| root.join(name).is_file())
+    .map(|name| name.to_owned())
+    .collect();
     if !manifest_path.is_file() && lockfiles.is_empty() {
         return None;
     }
@@ -1263,9 +1276,7 @@ fn capsule_id_for_primary(
     archetype_hint: ProjectArchetypeHint,
 ) -> String {
     match primary {
-        Some(CapsuleBetaSourceClass::Devcontainer) => {
-            "capsule.beta.devcontainer.parsed".to_owned()
-        }
+        Some(CapsuleBetaSourceClass::Devcontainer) => "capsule.beta.devcontainer.parsed".to_owned(),
         Some(CapsuleBetaSourceClass::DockerCompose) => "capsule.beta.compose.parsed".to_owned(),
         Some(CapsuleBetaSourceClass::NixFlake) => "capsule.beta.nix_flake.metadata".to_owned(),
         Some(CapsuleBetaSourceClass::NixShell) => "capsule.beta.nix_shell.metadata".to_owned(),
@@ -1383,23 +1394,42 @@ mod tests {
         let resolution = EnvironmentCapsuleBetaResolver::default_read_only()
             .resolve_workspace(&root, ProjectArchetypeHint::WebApplication);
 
-        assert_eq!(resolution.primary_source, Some(CapsuleBetaSourceClass::Devcontainer));
-        assert_eq!(resolution.primary_source_token.as_deref(), Some("devcontainer"));
+        assert_eq!(
+            resolution.primary_source,
+            Some(CapsuleBetaSourceClass::Devcontainer)
+        );
+        assert_eq!(
+            resolution.primary_source_token.as_deref(),
+            Some("devcontainer")
+        );
         assert_eq!(resolution.drift_state, CapsuleDriftState::InSync);
-        assert_eq!(resolution.prebuild_reuse_state, PrebuildReuseState::Candidate);
+        assert_eq!(
+            resolution.prebuild_reuse_state,
+            PrebuildReuseState::Candidate
+        );
         let devcontainer = resolution
             .sources
             .iter()
             .find(|s| s.source_class == CapsuleBetaSourceClass::Devcontainer)
             .expect("devcontainer source");
-        assert_eq!(devcontainer.confidence, CapsuleBetaSourceConfidence::Imported);
+        assert_eq!(
+            devcontainer.confidence,
+            CapsuleBetaSourceConfidence::Imported
+        );
         assert!(devcontainer.notes.is_empty());
         match &devcontainer.parsed_fields {
             CapsuleBetaParsedFields::Devcontainer(parsed) => {
-                assert_eq!(parsed.image_ref.as_deref(), Some("mcr.microsoft.com/devcontainers/base:ubuntu"));
-                assert!(parsed.feature_keys.contains(&"ghcr.io/devcontainers/features/node:1".to_owned()));
+                assert_eq!(
+                    parsed.image_ref.as_deref(),
+                    Some("mcr.microsoft.com/devcontainers/base:ubuntu")
+                );
+                assert!(parsed
+                    .feature_keys
+                    .contains(&"ghcr.io/devcontainers/features/node:1".to_owned()));
                 assert_eq!(parsed.forward_port_count, 2);
-                assert!(parsed.lifecycle_hook_keys.contains(&"postCreateCommand".to_owned()));
+                assert!(parsed
+                    .lifecycle_hook_keys
+                    .contains(&"postCreateCommand".to_owned()));
             }
             _ => panic!("unexpected parsed fields"),
         }
@@ -1436,7 +1466,10 @@ mod tests {
         let resolution = EnvironmentCapsuleBetaResolver::default_read_only()
             .resolve_workspace(&root, ProjectArchetypeHint::BackendService);
 
-        assert_eq!(resolution.primary_source, Some(CapsuleBetaSourceClass::Devcontainer));
+        assert_eq!(
+            resolution.primary_source,
+            Some(CapsuleBetaSourceClass::Devcontainer)
+        );
         assert!(resolution
             .conflict_notes
             .contains(&CapsuleBetaSourceNote::OverriddenByHigherPrecedence));
@@ -1450,7 +1483,10 @@ mod tests {
             .contains(&CapsuleBetaSourceNote::OverriddenByHigherPrecedence));
         match &compose.parsed_fields {
             CapsuleBetaParsedFields::DockerCompose(parsed) => {
-                assert_eq!(parsed.service_keys, vec!["app".to_owned(), "worker".to_owned()]);
+                assert_eq!(
+                    parsed.service_keys,
+                    vec!["app".to_owned(), "worker".to_owned()]
+                );
                 assert!(parsed.has_image_service);
                 assert!(parsed.has_build_service);
             }
@@ -1471,14 +1507,19 @@ mod tests {
 
         let resolution = EnvironmentCapsuleBetaResolver::default_read_only()
             .resolve_workspace(&root, ProjectArchetypeHint::LibraryOrSdk);
-        assert_eq!(resolution.primary_source, Some(CapsuleBetaSourceClass::NixFlake));
+        assert_eq!(
+            resolution.primary_source,
+            Some(CapsuleBetaSourceClass::NixFlake)
+        );
         let nix = resolution
             .sources
             .iter()
             .find(|s| s.source_class == CapsuleBetaSourceClass::NixFlake)
             .expect("nix source");
         assert_eq!(nix.confidence, CapsuleBetaSourceConfidence::Unsupported);
-        assert!(nix.notes.contains(&CapsuleBetaSourceNote::UnsupportedBodyParse));
+        assert!(nix
+            .notes
+            .contains(&CapsuleBetaSourceNote::UnsupportedBodyParse));
         assert_eq!(resolution.drift_state, CapsuleDriftState::InSync);
         assert_eq!(
             resolution.environment_capsule_ref.capsule_id,
@@ -1501,7 +1542,10 @@ mod tests {
             resolution.environment_capsule_ref.capsule_id,
             "capsule.beta.unknown.uncertain"
         );
-        assert_eq!(resolution.prebuild_reuse_state, PrebuildReuseState::NotApplicable);
+        assert_eq!(
+            resolution.prebuild_reuse_state,
+            PrebuildReuseState::NotApplicable
+        );
         fs::remove_dir_all(root).ok();
     }
 
@@ -1514,7 +1558,8 @@ mod tests {
         )
         .expect("write");
         let resolver = EnvironmentCapsuleBetaResolver::default_read_only();
-        let baseline_resolution = resolver.resolve_workspace(&root, ProjectArchetypeHint::BackendService);
+        let baseline_resolution =
+            resolver.resolve_workspace(&root, ProjectArchetypeHint::BackendService);
         let baseline = CapsuleBetaSourceBaseline::from_resolution(&baseline_resolution);
 
         fs::write(
@@ -1546,7 +1591,8 @@ mod tests {
         )
         .expect("write");
         let resolver = EnvironmentCapsuleBetaResolver::default_read_only();
-        let baseline_resolution = resolver.resolve_workspace(&root, ProjectArchetypeHint::BackendService);
+        let baseline_resolution =
+            resolver.resolve_workspace(&root, ProjectArchetypeHint::BackendService);
         let baseline = CapsuleBetaSourceBaseline::from_resolution(&baseline_resolution);
 
         fs::write(
@@ -1556,8 +1602,13 @@ mod tests {
         .expect("write");
         let fresh = resolver.resolve_workspace(&root, ProjectArchetypeHint::BackendService);
         let evaluation = evaluate_capsule_drift(&baseline, &fresh);
-        assert_eq!(evaluation.outcome, CapsuleBetaDriftOutcome::ManuallyDiverged);
-        assert!(evaluation.added_sources.contains(&CapsuleBetaSourceClass::DockerCompose));
+        assert_eq!(
+            evaluation.outcome,
+            CapsuleBetaDriftOutcome::ManuallyDiverged
+        );
+        assert!(evaluation
+            .added_sources
+            .contains(&CapsuleBetaSourceClass::DockerCompose));
 
         fs::remove_dir_all(root).ok();
     }
@@ -1569,7 +1620,10 @@ mod tests {
             "2026-05-15T00:00:00Z",
         );
         assert!(manifest.covers_every_source_class());
-        assert_eq!(manifest.source_classes.len(), CapsuleBetaSourceClass::ALL.len());
+        assert_eq!(
+            manifest.source_classes.len(),
+            CapsuleBetaSourceClass::ALL.len()
+        );
         for (idx, row) in manifest.source_classes.iter().enumerate() {
             assert_eq!(row.rank as usize, idx);
         }

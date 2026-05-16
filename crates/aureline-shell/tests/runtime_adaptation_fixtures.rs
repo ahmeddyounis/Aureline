@@ -19,10 +19,9 @@ const FIXTURE_DIR: &str = concat!(
 
 fn load<T: serde::de::DeserializeOwned>(filename: &str) -> T {
     let path = format!("{}/{}", FIXTURE_DIR, filename);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
-    serde_json::from_str(&body)
-        .unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
+    let body =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
+    serde_json::from_str(&body).unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
 }
 
 #[test]
@@ -33,7 +32,10 @@ fn fixtures_round_trip_through_shared_types() {
         "posture fixtures must seed at least one row"
     );
     for record in &postures {
-        assert_eq!(record.shared_contract_ref, RUNTIME_ADAPTATION_SHARED_CONTRACT_REF);
+        assert_eq!(
+            record.shared_contract_ref,
+            RUNTIME_ADAPTATION_SHARED_CONTRACT_REF
+        );
         assert_eq!(record.schema_version, RUNTIME_ADAPTATION_SCHEMA_VERSION);
         assert!(
             record.foreground_responsiveness_preserved,
@@ -51,7 +53,10 @@ fn fixtures_round_trip_through_shared_types() {
     let mut has_windows = false;
     let mut has_linux = false;
     for record in &suspends {
-        assert_eq!(record.shared_contract_ref, RUNTIME_ADAPTATION_SHARED_CONTRACT_REF);
+        assert_eq!(
+            record.shared_contract_ref,
+            RUNTIME_ADAPTATION_SHARED_CONTRACT_REF
+        );
         assert!(
             record.no_silent_rerun_or_authority_reuse,
             "{} must forbid silent rerun",
@@ -95,9 +100,7 @@ fn fixtures_round_trip_through_shared_types() {
     );
     for record in &foreground {
         assert!(
-            record.remains_responsive
-                && record.no_input_event_drops
-                && record.no_blocking_dialog,
+            record.remains_responsive && record.no_input_event_drops && record.no_blocking_dialog,
             "{} must keep foreground actions responsive and unblocked",
             record.case_id
         );
@@ -112,8 +115,7 @@ fn fixtures_round_trip_through_shared_types() {
             record.case_id
         );
         assert!(
-            record.foreground_responsiveness_held
-                && record.no_silent_rerun_or_authority_reuse,
+            record.foreground_responsiveness_held && record.no_silent_rerun_or_authority_reuse,
             "{} must hold foreground and forbid silent rerun",
             record.case_id
         );
@@ -128,7 +130,10 @@ fn fixtures_round_trip_through_shared_types() {
     }
 
     let page: RuntimeAdaptationPage = load("page.json");
-    assert_eq!(page.shared_contract_ref, RUNTIME_ADAPTATION_SHARED_CONTRACT_REF);
+    assert_eq!(
+        page.shared_contract_ref,
+        RUNTIME_ADAPTATION_SHARED_CONTRACT_REF
+    );
     assert_eq!(page.power_posture_rows.len(), postures.len());
     assert_eq!(page.suspend_resume_rows.len(), suspends.len());
     assert_eq!(page.monitor_continuity_rows.len(), monitors.len());
@@ -137,7 +142,10 @@ fn fixtures_round_trip_through_shared_types() {
     validate_runtime_adaptation_page(&page).expect("seeded page must validate");
 
     let export: RuntimeAdaptationSupportExport = load("support_export.json");
-    assert_eq!(export.shared_contract_ref, RUNTIME_ADAPTATION_SHARED_CONTRACT_REF);
+    assert_eq!(
+        export.shared_contract_ref,
+        RUNTIME_ADAPTATION_SHARED_CONTRACT_REF
+    );
     let mut all_case_ids: Vec<String> = Vec::new();
     for r in &page.power_posture_rows {
         all_case_ids.push(r.case_id.clone());

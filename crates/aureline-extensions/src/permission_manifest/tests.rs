@@ -410,10 +410,10 @@ fn delta_constraint_widened_surfaces_widening_decision() {
         record.re_consent_reason_class,
         ReConsentReasonClass::WideningConstraintLoosened
     );
-    assert!(record.delta_entries.iter().any(|e| matches!(
-        e.delta_class,
-        PermissionDeltaClass::ScopeConstraintWidened
-    )));
+    assert!(record
+        .delta_entries
+        .iter()
+        .any(|e| matches!(e.delta_class, PermissionDeltaClass::ScopeConstraintWidened)));
 }
 
 #[test]

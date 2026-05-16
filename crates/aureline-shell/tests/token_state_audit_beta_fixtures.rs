@@ -43,7 +43,10 @@ fn fixtures_round_trip_through_shared_types() {
             "{} must name a motion preset reference",
             row.row_id
         );
-        if row.promised_semantics.contains(&SemanticPromise::FocusLegible) {
+        if row
+            .promised_semantics
+            .contains(&SemanticPromise::FocusLegible)
+        {
             assert!(
                 row.required_component_states
                     .contains(&ComponentStateClass::FocusVisible),

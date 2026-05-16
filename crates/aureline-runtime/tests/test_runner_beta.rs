@@ -2,12 +2,12 @@ use std::path::{Path, PathBuf};
 
 use aureline_runtime::{
     CapsuleDriftState, EnvironmentCapsuleRef, ExecutionContextRequest, ExecutionContextResolver,
-    ExecutionContextResolverConfig, IdentityMode, PythonEnvironmentDetectorConfig,
-    PytestDiscoverer, PytestDiscovererConfig, RerunLane, RerunLastLoop, RerunTargetMode,
-    ScopeClass, TargetClass, TestArtifactKind, TestRunnerBetaCoverageManifest,
-    TestRunnerBetaFramework, TestRunnerBetaParityState, TestRunnerBetaProjection,
-    TestRunnerBetaSupportExport, TestTreeRowKind, TrustState,
-    TEST_RUNNER_BETA_COVERAGE_MANIFEST_RECORD_KIND, TEST_RUNNER_BETA_SCHEMA_VERSION,
+    ExecutionContextResolverConfig, IdentityMode, PytestDiscoverer, PytestDiscovererConfig,
+    PythonEnvironmentDetectorConfig, RerunLane, RerunLastLoop, RerunTargetMode, ScopeClass,
+    TargetClass, TestArtifactKind, TestRunnerBetaCoverageManifest, TestRunnerBetaFramework,
+    TestRunnerBetaParityState, TestRunnerBetaProjection, TestRunnerBetaSupportExport,
+    TestTreeRowKind, TrustState, TEST_RUNNER_BETA_COVERAGE_MANIFEST_RECORD_KIND,
+    TEST_RUNNER_BETA_SCHEMA_VERSION,
 };
 
 fn fixture_dir() -> PathBuf {
@@ -76,7 +76,10 @@ fn checked_in_coverage_manifest_matches_canonical_runtime_manifest() {
         fixture.generated_at.clone(),
     );
     assert_eq!(canonical, fixture);
-    assert_eq!(canonical.frameworks.len(), TestRunnerBetaFramework::ALL.len());
+    assert_eq!(
+        canonical.frameworks.len(),
+        TestRunnerBetaFramework::ALL.len()
+    );
     let pytest = canonical
         .row_for_framework(TestRunnerBetaFramework::Pytest)
         .expect("pytest row");
@@ -310,7 +313,11 @@ fn artifact_identities_quote_the_same_session_and_canonical_id_as_the_attempt() 
             .attempt_packets
             .iter()
             .any(|packet| packet.session_plan.test_session_id == identity.test_session_ref);
-        assert!(session_match, "session ref {} not found", identity.test_session_ref);
+        assert!(
+            session_match,
+            "session ref {} not found",
+            identity.test_session_ref
+        );
     }
 
     let raw_event_count = projection
@@ -357,9 +364,9 @@ fn support_export_packet_round_trips_and_carries_manifest_and_parity_rows() {
         round.coverage_manifest.record_kind,
         TEST_RUNNER_BETA_COVERAGE_MANIFEST_RECORD_KIND
     );
-    assert!(round.coverage_manifest.covers_wedges(&[
-        aureline_runtime::TaskWedgeClass::Test
-    ]));
+    assert!(round
+        .coverage_manifest
+        .covers_wedges(&[aureline_runtime::TaskWedgeClass::Test]));
     assert_eq!(round.tree_projection_refs.len(), 1);
     assert_eq!(round.inline_projection_refs.len(), 1);
     assert_eq!(round.parity_rows.len(), discovery.test_items.len());

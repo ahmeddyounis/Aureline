@@ -42,7 +42,8 @@ use crate::execution_context::ExecutionContext;
 use crate::rerun::{RerunLane, RerunLastLaunch, RerunPreparedAttempt, RerunRunContract};
 use crate::tasks::TaskWedgeClass;
 use crate::tests::{
-    TestAttemptAlphaPacket, TestAttemptRecord, TestConsumerSurface, TEST_ATTEMPT_ALPHA_SCHEMA_VERSION,
+    TestAttemptAlphaPacket, TestAttemptRecord, TestConsumerSurface,
+    TEST_ATTEMPT_ALPHA_SCHEMA_VERSION,
 };
 
 /// Schema-version tag the beta layer republishes so downstream consumers can
@@ -72,8 +73,7 @@ pub const TEST_RUNNER_BETA_ARTIFACT_IDENTITY_RECORD_KIND: &str =
     "test_runner_beta_artifact_identity_record";
 
 /// Stable record-kind tag for one rerun-last parity row.
-pub const TEST_RUNNER_BETA_RERUN_PARITY_RECORD_KIND: &str =
-    "test_runner_beta_rerun_parity_record";
+pub const TEST_RUNNER_BETA_RERUN_PARITY_RECORD_KIND: &str = "test_runner_beta_rerun_parity_record";
 
 /// Stable record-kind tag for the beta support-export packet.
 pub const TEST_RUNNER_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -226,9 +226,7 @@ impl TestRunnerBetaParityState {
         match self {
             Self::RowsAgree => "rows_agree",
             Self::RerunLaneUnset => "rerun_lane_unset",
-            Self::SurfaceDisagreementRequiresReview => {
-                "surface_disagreement_requires_review"
-            }
+            Self::SurfaceDisagreementRequiresReview => "surface_disagreement_requires_review",
         }
     }
 }
@@ -353,11 +351,7 @@ impl TestRunnerBetaCoverageManifest {
     /// the manifest does not claim.
     pub fn covers_wedges(&self, wedges: &[TaskWedgeClass]) -> bool {
         for wedge in wedges {
-            if !self
-                .frameworks
-                .iter()
-                .any(|row| row.wedge == *wedge)
-            {
+            if !self.frameworks.iter().any(|row| row.wedge == *wedge) {
                 return false;
             }
         }
@@ -654,8 +648,10 @@ impl TestRunnerBetaRerunParity {
 
         match (last_launch, prepared) {
             (None, _) => {
-                if !matches!(agreement, TestRunnerBetaParityState::SurfaceDisagreementRequiresReview)
-                {
+                if !matches!(
+                    agreement,
+                    TestRunnerBetaParityState::SurfaceDisagreementRequiresReview
+                ) {
                     agreement = TestRunnerBetaParityState::RerunLaneUnset;
                 }
             }
@@ -666,8 +662,10 @@ impl TestRunnerBetaRerunParity {
                 rerun_last_prior_attempt_id = Some(launch.prior_attempt.attempt_id.clone());
                 if let Some(prepared) = prepared_opt {
                     rerun_dispatch_state_token = Some(prepared.dispatch_state_token.clone());
-                    rerun_last_prepared_attempt_id =
-                        prepared.next_attempt.as_ref().map(|next| next.attempt_id.clone());
+                    rerun_last_prepared_attempt_id = prepared
+                        .next_attempt
+                        .as_ref()
+                        .map(|next| next.attempt_id.clone());
                 }
             }
         }
@@ -767,13 +765,8 @@ impl TestRunnerBetaProjection {
             generated_at,
         );
         let artifact_identities = build_pytest_artifact_identities(framework, &attempt_packets);
-        let parity_rows = build_pytest_parity_rows(
-            framework,
-            &tree,
-            &inline,
-            last_launch,
-            prepared_rerun,
-        );
+        let parity_rows =
+            build_pytest_parity_rows(framework, &tree, &inline, last_launch, prepared_rerun);
         let _ = execution_context;
         Self {
             framework,
@@ -795,9 +788,9 @@ impl TestRunnerBetaProjection {
 
     /// Returns true when no parity row is in a review-required state.
     pub fn parity_rows_safe_to_dispatch(&self) -> bool {
-        self.parity_rows
-            .iter()
-            .all(|row| row.agreement_state != TestRunnerBetaParityState::SurfaceDisagreementRequiresReview)
+        self.parity_rows.iter().all(|row| {
+            row.agreement_state != TestRunnerBetaParityState::SurfaceDisagreementRequiresReview
+        })
     }
 }
 
@@ -1002,9 +995,7 @@ fn build_pytest_tree(
 
             let artifact_identity_refs = artifact_refs_for_canonical(attempt_packets, &canonical)
                 .into_iter()
-                .map(|art_ref| {
-                    artifact_identity_id(&workspace_id, &canonical, &art_ref)
-                })
+                .map(|art_ref| artifact_identity_id(&workspace_id, &canonical, &art_ref))
                 .collect();
 
             rows.push(TestTreeRow {
@@ -1130,7 +1121,9 @@ fn build_pytest_inline_projection(
         let tree_row_ref = tree
             .case_row_for_test_item(&canonical)
             .map(|row| row.tree_row_id.clone())
-            .unwrap_or_else(|| format!("test-tree-row:{}:case:unknown", stable_token(&workspace_id)));
+            .unwrap_or_else(|| {
+                format!("test-tree-row:{}:case:unknown", stable_token(&workspace_id))
+            });
         let artifact_identity_refs = artifact_refs_for_canonical(attempt_packets, &canonical)
             .into_iter()
             .map(|art_ref| artifact_identity_id(&workspace_id, &canonical, &art_ref))
@@ -1419,10 +1412,18 @@ mod tests {
         assert_eq!(pytest.wedge, TaskWedgeClass::Test);
         assert_eq!(pytest.rerun_lane, RerunLane::Test);
         assert_eq!(pytest.rerun_last_command_id, "cmd:test.rerun_last");
-        assert!(pytest.consumer_surface_tokens.contains(&"test_tree".to_owned()));
-        assert!(pytest.consumer_surface_tokens.contains(&"editor_inline".to_owned()));
-        assert!(pytest.claimed_artifact_kind_tokens.contains(&"run_report".to_owned()));
-        assert!(pytest.claimed_artifact_kind_tokens.contains(&"raw_event_envelope".to_owned()));
+        assert!(pytest
+            .consumer_surface_tokens
+            .contains(&"test_tree".to_owned()));
+        assert!(pytest
+            .consumer_surface_tokens
+            .contains(&"editor_inline".to_owned()));
+        assert!(pytest
+            .claimed_artifact_kind_tokens
+            .contains(&"run_report".to_owned()));
+        assert!(pytest
+            .claimed_artifact_kind_tokens
+            .contains(&"raw_event_envelope".to_owned()));
     }
 
     #[test]

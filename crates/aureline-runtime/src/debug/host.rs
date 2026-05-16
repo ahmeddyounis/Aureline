@@ -14,8 +14,7 @@ use super::records::{
 /// Stable fault-domain id used for every session.
 const SESSION_SCOPED_FAULT_DOMAIN_ID: &str = "session_scoped_execution_hosts";
 /// Stable restart-budget reference used for every session.
-const SESSION_RESTART_BUDGET_REF: &str =
-    "restart_budget:session_scoped_execution_hosts:debug:01";
+const SESSION_RESTART_BUDGET_REF: &str = "restart_budget:session_scoped_execution_hosts:debug:01";
 
 /// Launch request for a debug session.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,7 +206,10 @@ impl fmt::Display for DapHostSupervisorError {
                 "debug session {session_id} cannot {attempted} from state {state}",
                 state = from.as_str()
             ),
-            Self::NegotiationRequiredCapabilityMissing { session_id, missing } => {
+            Self::NegotiationRequiredCapabilityMissing {
+                session_id,
+                missing,
+            } => {
                 let tokens: Vec<&str> = missing.iter().map(|c| c.as_str()).collect();
                 write!(
                     f,
@@ -368,7 +370,10 @@ impl DapHostSupervisor {
         let observed_at = observed_at.into();
         {
             let snapshot = self.session(session_id)?;
-            if !matches!(snapshot.state_class, DebugSessionStateClass::LaunchRequested) {
+            if !matches!(
+                snapshot.state_class,
+                DebugSessionStateClass::LaunchRequested
+            ) {
                 return Err(DapHostSupervisorError::InvalidTransition {
                     session_id: session_id.into(),
                     from: snapshot.state_class,
@@ -416,10 +421,12 @@ impl DapHostSupervisor {
                         strike_count,
                         observed_at.clone(),
                     )?;
-                    return Err(DapHostSupervisorError::NegotiationRequiredCapabilityMissing {
-                        session_id: session_id.into(),
-                        missing: missing_required,
-                    });
+                    return Err(
+                        DapHostSupervisorError::NegotiationRequiredCapabilityMissing {
+                            session_id: session_id.into(),
+                            missing: missing_required,
+                        },
+                    );
                 }
 
                 let agreed: Vec<DebugAdapterCapabilityClass> = request
@@ -525,8 +532,7 @@ impl DapHostSupervisor {
             };
             let summary = format!(
                 "{} is debugging {}.",
-                snapshot.identity.adapter.adapter_label,
-                snapshot.identity.target.target_label
+                snapshot.identity.adapter.adapter_label, snapshot.identity.target.target_label
             );
             let event_class = match snapshot.state_class {
                 DebugSessionStateClass::Reconnecting => DebugSessionEventClass::SessionReconnected,
@@ -617,8 +623,7 @@ impl DapHostSupervisor {
             };
             let summary = format!(
                 "{} resumed debugging {}.",
-                snapshot.identity.adapter.adapter_label,
-                snapshot.identity.target.target_label
+                snapshot.identity.adapter.adapter_label, snapshot.identity.target.target_label
             );
             (state_after, summary)
         };
@@ -680,8 +685,11 @@ impl DapHostSupervisor {
         let exit_reason_class = Some(reason);
 
         if over_budget {
-            let quarantine_ref =
-                format!("quarantine:debug:{}:{}", sanitize_id(session_id), strike_count);
+            let quarantine_ref = format!(
+                "quarantine:debug:{}:{}",
+                sanitize_id(session_id),
+                strike_count
+            );
             let summary = format!(
                 "Debug session quarantined after {strike_count} adapter failures in the restart window."
             );
@@ -699,8 +707,7 @@ impl DapHostSupervisor {
             snapshot.restart_strike_count = strike_count;
             snapshot.reconnect_attempt_count += 1;
             snapshot.state_class = DebugSessionStateClass::Quarantined;
-            snapshot.state_class_token =
-                DebugSessionStateClass::Quarantined.as_str().to_owned();
+            snapshot.state_class_token = DebugSessionStateClass::Quarantined.as_str().to_owned();
             snapshot.quarantine_ref = Some(quarantine_ref);
             snapshot.last_exit_reason_class = exit_reason_class;
             snapshot.last_exit_reason_token = Some(exit_reason_token);
@@ -746,8 +753,7 @@ impl DapHostSupervisor {
             snapshot.restart_strike_count = strike_count;
             snapshot.reconnect_attempt_count += 1;
             snapshot.state_class = DebugSessionStateClass::Reconnecting;
-            snapshot.state_class_token =
-                DebugSessionStateClass::Reconnecting.as_str().to_owned();
+            snapshot.state_class_token = DebugSessionStateClass::Reconnecting.as_str().to_owned();
             snapshot.last_exit_reason_class = exit_reason_class;
             snapshot.last_exit_reason_token = Some(exit_reason_token);
             snapshot.last_state_change_at = observed_at;
@@ -771,8 +777,7 @@ impl DapHostSupervisor {
             });
             let snapshot = self.session_mut(session_id)?;
             snapshot.state_class = DebugSessionStateClass::Terminated;
-            snapshot.state_class_token =
-                DebugSessionStateClass::Terminated.as_str().to_owned();
+            snapshot.state_class_token = DebugSessionStateClass::Terminated.as_str().to_owned();
             snapshot.last_exit_reason_class = exit_reason_class;
             snapshot.last_exit_reason_token = Some(exit_reason_token);
             snapshot.last_state_change_at = observed_at;
@@ -910,10 +915,7 @@ impl DapHostSupervisor {
         Ok(())
     }
 
-    fn session(
-        &self,
-        session_id: &str,
-    ) -> Result<&DebugSessionSnapshot, DapHostSupervisorError> {
+    fn session(&self, session_id: &str) -> Result<&DebugSessionSnapshot, DapHostSupervisorError> {
         self.sessions
             .get(session_id)
             .ok_or_else(|| DapHostSupervisorError::UnknownSession(session_id.into()))

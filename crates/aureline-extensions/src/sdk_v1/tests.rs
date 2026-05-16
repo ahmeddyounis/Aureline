@@ -109,7 +109,8 @@ fn run_fixture(name: &str) {
         "claimed_api_surface_count mismatch for {name}"
     );
     assert_eq!(
-        record.available_in_beta_surface_count, fixture.meta.expected_available_in_beta_surface_count,
+        record.available_in_beta_surface_count,
+        fixture.meta.expected_available_in_beta_surface_count,
         "available_in_beta_surface_count mismatch for {name}"
     );
     assert_eq!(
@@ -137,7 +138,10 @@ fn run_fixture(name: &str) {
 
     let export = project_sdk_v1_starter_pack_support_export(
         &record,
-        &format!("sdk_v1_starter_pack_support_export:{}", record.starter_pack_id),
+        &format!(
+            "sdk_v1_starter_pack_support_export:{}",
+            record.starter_pack_id
+        ),
     );
     assert_eq!(
         export.record_kind,
@@ -263,7 +267,12 @@ fn refused_when_runnable_sample_marked_documentation_only() {
         .input
         .sample_pack_entries
         .iter_mut()
-        .find(|e| !matches!(e.sample_entry_class, SamplePackEntryClass::ManifestAuthoringWalkthrough))
+        .find(|e| {
+            !matches!(
+                e.sample_entry_class,
+                SamplePackEntryClass::ManifestAuthoringWalkthrough
+            )
+        })
         .expect("ready fixture must include a runnable sample");
     runnable.sample_validation_class = SamplePackValidationClass::DocumentationOnly;
     let record = evaluate_sdk_v1_starter_pack(fixture.input);
@@ -324,8 +333,9 @@ fn api_surface_validator_flags_wasm_surface_without_wit_world_refs() {
     wasm_surface.covered_wit_world_refs.clear();
     let findings = validate_sdk_v1_api_surface_record(&fixture.input.claimed_api_surfaces[0]);
     assert!(
-        findings.iter().any(|f| f.check_id
-            == "sdk_v1_api_surface.wasm_surface_must_cite_wit_world_refs"),
+        findings
+            .iter()
+            .any(|f| f.check_id == "sdk_v1_api_surface.wasm_surface_must_cite_wit_world_refs"),
         "validator must flag wasm surface without WIT world refs; got {findings:?}"
     );
 }

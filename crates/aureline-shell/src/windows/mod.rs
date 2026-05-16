@@ -1133,10 +1133,9 @@ mod tests {
         let split = page.split_intents.get_mut(0).expect("seed has a split");
         split.focus_owner_after_split = "pane:unrelated".to_owned();
         let errors = validate_windows_beta_page(&page).expect_err("must flag focus drift");
-        assert!(errors.iter().any(|e| matches!(
-            e,
-            WindowsBetaValidationError::SplitFocusOutOfTree { .. }
-        )));
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e, WindowsBetaValidationError::SplitFocusOutOfTree { .. })));
     }
 
     #[test]
@@ -1147,10 +1146,9 @@ mod tests {
             .expect("seed has a move")
             .canonical_workspace_truth_preserved = false;
         let errors = validate_windows_beta_page(&page).expect_err("must flag canonical truth loss");
-        assert!(errors.iter().any(|e| matches!(
-            e,
-            WindowsBetaValidationError::MoveLostCanonicalTruth { .. }
-        )));
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e, WindowsBetaValidationError::MoveLostCanonicalTruth { .. })));
     }
 
     #[test]
@@ -1162,10 +1160,9 @@ mod tests {
             .recovery_chrome
             .restore_details_reachable = false;
         let errors = validate_windows_beta_page(&page).expect_err("must flag hidden chrome");
-        assert!(errors.iter().any(|e| matches!(
-            e,
-            WindowsBetaValidationError::RecoveryChromeHidden { .. }
-        )));
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e, WindowsBetaValidationError::RecoveryChromeHidden { .. })));
     }
 
     #[test]
@@ -1187,10 +1184,9 @@ mod tests {
             .expect("terminal pane present");
         pane.requires_explicit_rerun = false;
         let errors = validate_windows_beta_page(&page).expect_err("must flag silent rerun");
-        assert!(errors.iter().any(|e| matches!(
-            e,
-            WindowsBetaValidationError::LiveSurfaceSilentRerun { .. }
-        )));
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e, WindowsBetaValidationError::LiveSurfaceSilentRerun { .. })));
     }
 
     #[test]

@@ -8,7 +8,10 @@ fn protected_walk_seeds_six_surfaces_with_two_narrowed() {
         "record kind matches the beta lane"
     );
     assert_eq!(projection.surfaces.len(), 6, "all six surfaces present");
-    assert_eq!(projection.shared_contract_ref, DEBUG_UI_BETA_SHARED_CONTRACT_REF);
+    assert_eq!(
+        projection.shared_contract_ref,
+        DEBUG_UI_BETA_SHARED_CONTRACT_REF
+    );
     assert!(!projection.active_binding.is_empty());
     let narrowed: Vec<&str> = projection
         .surfaces
@@ -26,7 +29,10 @@ fn protected_walk_seeds_six_surfaces_with_two_narrowed() {
     assert!(narrowed.contains(&"breakpoints"), "breakpoints narrows");
     assert!(narrowed.contains(&"debug_console"), "debug_console narrows");
     assert_eq!(narrowed.len(), 2, "only two surfaces narrow");
-    assert!(projection.honesty_marker_present, "narrowed surfaces light the marker");
+    assert!(
+        projection.honesty_marker_present,
+        "narrowed surfaces light the marker"
+    );
     validate_debug_ui_projection(&projection).expect("seeded protected walk validates");
 }
 
@@ -43,10 +49,7 @@ fn reconnect_drill_drops_all_content_and_surfaces() {
             row.surface_class_token
         );
         assert!(
-            matches!(
-                row.focus_return_class,
-                DebugUiFocusReturnClass::SessionCard
-            ),
+            matches!(row.focus_return_class, DebugUiFocusReturnClass::SessionCard),
             "surface {} must park focus on the session card",
             row.surface_class_token
         );
@@ -62,7 +65,10 @@ fn reconnect_drill_drops_all_content_and_surfaces() {
     assert!(projection.watch_expressions.is_empty());
     assert!(projection.evaluate_requests.is_empty());
     assert!(projection.console_lines.is_empty());
-    assert!(projection.honesty_marker_present, "reconnect lights the marker");
+    assert!(
+        projection.honesty_marker_present,
+        "reconnect lights the marker"
+    );
     validate_debug_ui_projection(&projection).expect("reconnect drill validates");
 }
 
@@ -110,16 +116,14 @@ fn validator_flags_hidden_capability_downgrade() {
     for row in projection.surfaces.iter_mut() {
         if row.surface_class_token == "breakpoints" {
             row.availability_class = DebugUiAvailabilityClass::Available;
-            row.availability_class_token =
-                DebugUiAvailabilityClass::Available.as_str().to_owned();
+            row.availability_class_token = DebugUiAvailabilityClass::Available.as_str().to_owned();
         }
     }
     let defects = validate_debug_ui_projection(&projection)
         .expect_err("validator must flag hidden downgrade");
-    assert!(defects.iter().any(|d| matches!(
-        d.defect_kind,
-        DebugUiDefectKind::HiddenCapabilityDowngrade
-    )));
+    assert!(defects
+        .iter()
+        .any(|d| matches!(d.defect_kind, DebugUiDefectKind::HiddenCapabilityDowngrade)));
 }
 
 #[test]
@@ -135,8 +139,8 @@ fn validator_flags_unsafe_source_jump_during_reconnect() {
                 DebugUiFocusReturnClass::InvokingSurface.as_str().to_owned();
         }
     }
-    let defects = validate_debug_ui_projection(&projection)
-        .expect_err("validator must flag unsafe posture");
+    let defects =
+        validate_debug_ui_projection(&projection).expect_err("validator must flag unsafe posture");
     assert!(defects.iter().any(|d| matches!(
         d.defect_kind,
         DebugUiDefectKind::UnsafeSourceJumpDuringNonSteadyState
@@ -156,7 +160,11 @@ fn support_export_counts_surface_availabilities() {
         projection,
     );
     assert!(export.raw_private_material_excluded);
-    let available = export.availability_counts.get("available").copied().unwrap_or_default();
+    let available = export
+        .availability_counts
+        .get("available")
+        .copied()
+        .unwrap_or_default();
     let narrowed = export
         .availability_counts
         .get("narrowed_by_dropped_capability")

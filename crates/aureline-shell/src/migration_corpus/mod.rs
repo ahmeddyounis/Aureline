@@ -393,10 +393,7 @@ impl MigrationScoreboard {
                     "- Aureline target: {}\n",
                     row.aureline_target_label
                 ));
-                out.push_str(&format!(
-                    "- Before/after: {}\n",
-                    row.before_after_summary
-                ));
+                out.push_str(&format!("- Before/after: {}\n", row.before_after_summary));
                 if let Some(caveat) = &row.caveat {
                     out.push_str(&format!("- Caveat: {caveat}\n"));
                 }
@@ -424,7 +421,9 @@ impl MigrationScoreboard {
 
         out.push_str("## Verification\n\n");
         out.push_str("```sh\n");
-        out.push_str("cargo run -q -p aureline-shell --bin aureline_shell_migration_corpus -- validate\n");
+        out.push_str(
+            "cargo run -q -p aureline-shell --bin aureline_shell_migration_corpus -- validate\n",
+        );
         out.push_str("cargo test -p aureline-shell --test migration_corpus_fixtures\n");
         out.push_str("```\n");
         out
@@ -545,9 +544,11 @@ pub fn validate_migration_scoreboard(
             .iter()
             .any(|section| section.ecosystem == required)
         {
-            errors.push(MigrationScoreboardValidationError::MissingRequiredEcosystem {
-                ecosystem: required.as_str().to_owned(),
-            });
+            errors.push(
+                MigrationScoreboardValidationError::MissingRequiredEcosystem {
+                    ecosystem: required.as_str().to_owned(),
+                },
+            );
         }
     }
 
@@ -559,11 +560,19 @@ pub fn validate_migration_scoreboard(
         }
         for row in &section.rows {
             if row.requires_downgrade_trigger() && row.downgrade_triggers.is_empty() {
-                errors.push(MigrationScoreboardValidationError::MissingDowngradeTrigger {
-                    flow_id: row.flow_id.clone(),
-                });
+                errors.push(
+                    MigrationScoreboardValidationError::MissingDowngradeTrigger {
+                        flow_id: row.flow_id.clone(),
+                    },
+                );
             }
-            if row.requires_caveat() && row.caveat.as_deref().map(str::trim).unwrap_or("").is_empty()
+            if row.requires_caveat()
+                && row
+                    .caveat
+                    .as_deref()
+                    .map(str::trim)
+                    .unwrap_or("")
+                    .is_empty()
             {
                 errors.push(MigrationScoreboardValidationError::MissingCaveat {
                     flow_id: row.flow_id.clone(),
@@ -1127,7 +1136,11 @@ fn flow_id(ecosystem: IncumbentEcosystem, slug: &str) -> String {
     format!("migration-corpus-flow:{}:{}", ecosystem.as_str(), slug)
 }
 
-fn build_row(seed: &FlowSeed, wizard_mapping_report_ref: &str, rollback_checkpoint_ref: &str) -> IncumbentFlowRow {
+fn build_row(
+    seed: &FlowSeed,
+    wizard_mapping_report_ref: &str,
+    rollback_checkpoint_ref: &str,
+) -> IncumbentFlowRow {
     IncumbentFlowRow {
         record_kind: INCUMBENT_FLOW_ROW_RECORD_KIND.to_owned(),
         schema_version: MIGRATION_CORPUS_SCHEMA_VERSION,
@@ -1141,10 +1154,22 @@ fn build_row(seed: &FlowSeed, wizard_mapping_report_ref: &str, rollback_checkpoi
         aureline_target_label: seed.aureline_target_label.to_owned(),
         before_after_summary: seed.before_after_summary.to_owned(),
         caveat: seed.caveat.map(str::to_owned),
-        downgrade_triggers: seed.downgrade_triggers.iter().map(|s| (*s).to_owned()).collect(),
+        downgrade_triggers: seed
+            .downgrade_triggers
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
         evidence_refs: seed.evidence_refs.iter().map(|s| (*s).to_owned()).collect(),
-        docs_help_refs: seed.docs_help_refs.iter().map(|s| (*s).to_owned()).collect(),
-        support_export_refs: seed.support_export_refs.iter().map(|s| (*s).to_owned()).collect(),
+        docs_help_refs: seed
+            .docs_help_refs
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
+        support_export_refs: seed
+            .support_export_refs
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
         wizard_mapping_report_ref: wizard_mapping_report_ref.to_owned(),
         rollback_checkpoint_ref: rollback_checkpoint_ref.to_owned(),
     }
@@ -1191,7 +1216,11 @@ pub fn seeded_migration_scoreboard() -> MigrationScoreboard {
     let sections: Vec<EcosystemScoreboardSection> = IncumbentEcosystem::required_ecosystems()
         .iter()
         .map(|ecosystem| {
-            build_section(*ecosystem, &wizard_mapping_report_ref, &rollback_checkpoint_ref)
+            build_section(
+                *ecosystem,
+                &wizard_mapping_report_ref,
+                &rollback_checkpoint_ref,
+            )
         })
         .collect();
 
@@ -1333,7 +1362,10 @@ mod tests {
             "support-export:migration-corpus:001",
             scoreboard.clone(),
         );
-        assert_eq!(export.shared_contract_ref, MIGRATION_CORPUS_SHARED_CONTRACT_REF);
+        assert_eq!(
+            export.shared_contract_ref,
+            MIGRATION_CORPUS_SHARED_CONTRACT_REF
+        );
         assert!(export.case_ids.contains(&scoreboard.scoreboard_id));
         for section in &scoreboard.sections {
             for row in &section.rows {

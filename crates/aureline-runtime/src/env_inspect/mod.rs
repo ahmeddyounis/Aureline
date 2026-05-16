@@ -804,7 +804,13 @@ fn build_core_fields(
         EnvInspectSection::Target,
         "target_identity.reachability_state",
         "Reachability",
-        Some(context.target_identity.reachability_state.as_str().to_owned()),
+        Some(
+            context
+                .target_identity
+                .reachability_state
+                .as_str()
+                .to_owned(),
+        ),
     ));
 
     let toolchain = &context.toolchain_identity;
@@ -922,7 +928,9 @@ fn build_core_fields(
         EnvInspectSection::Prebuild,
         "prebuild_metadata.invalidation_reason",
         "Prebuild invalidation",
-        prebuild.invalidation_reason.map(|reason| reason.as_str().to_owned()),
+        prebuild
+            .invalidation_reason
+            .map(|reason| reason.as_str().to_owned()),
     ));
 
     let mixed = &context.mixed_version_drift;
@@ -1134,11 +1142,9 @@ mod tests {
             "mono:0",
         ));
         let snapshot = EnvInspectSnapshot::from_context(&context);
-        assert!(snapshot
-            .degradation_labels
-            .iter()
-            .any(|label| label.reason == DegradedFieldReason::CapsuleDriftDetected
-                && label.severity == EnvInspectDegradationSeverity::Warning));
+        assert!(snapshot.degradation_labels.iter().any(|label| label.reason
+            == DegradedFieldReason::CapsuleDriftDetected
+            && label.severity == EnvInspectDegradationSeverity::Warning));
     }
 
     #[test]

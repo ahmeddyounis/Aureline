@@ -47,10 +47,7 @@ fn ui_beta_fixtures_round_trip_through_shared_types() {
         .source_chain
         .iter()
         .any(|row| row.relation == "winner" && row.relation_label == "Winning source"));
-    assert!(pane
-        .source_chain
-        .iter()
-        .any(|row| row.relation == "capped"));
+    assert!(pane.source_chain.iter().any(|row| row.relation == "capped"));
 
     let composer: SettingsUiBetaWriteComposer = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -59,7 +56,10 @@ fn ui_beta_fixtures_round_trip_through_shared_types() {
     .unwrap();
     assert_eq!(composer.verdict, "denied");
     assert!(composer.destination_preview.scope_explicit);
-    assert_eq!(composer.destination_preview.scope_broadening_verdict, "none");
+    assert_eq!(
+        composer.destination_preview.scope_broadening_verdict,
+        "none"
+    );
     let denial = composer
         .denial_explanation
         .as_ref()
@@ -79,7 +79,12 @@ fn ui_beta_fixtures_round_trip_through_shared_types() {
     .unwrap();
     assert_eq!(export.shared_contract_ref, "settings:ui_beta:v1");
     assert_eq!(export.page.shared_contract_ref, "settings:ui_beta:v1");
-    for row in export.page.groups.iter().flat_map(|group| group.rows.iter()) {
+    for row in export
+        .page
+        .groups
+        .iter()
+        .flat_map(|group| group.rows.iter())
+    {
         let matching = export
             .effective_settings
             .iter()

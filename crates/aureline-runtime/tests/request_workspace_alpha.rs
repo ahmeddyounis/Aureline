@@ -27,8 +27,8 @@
 use std::path::{Path, PathBuf};
 
 use aureline_runtime::{
-    seeded_request_workspace_record, seeded_request_workspace_support_export,
-    CredentialClass, AuthStrategyKind, RequestWorkspaceAlphaRecord, RequestWorkspaceSeededScenario,
+    seeded_request_workspace_record, seeded_request_workspace_support_export, AuthStrategyKind,
+    CredentialClass, RequestWorkspaceAlphaRecord, RequestWorkspaceSeededScenario,
     RequestWorkspaceSupportExport, SendInspectorReadiness, TargetClass,
     REQUEST_WORKSPACE_ALPHA_RECORD_KIND, REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION,
     REQUEST_WORKSPACE_SEND_INSPECTOR_RECORD_KIND, REQUEST_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND,
@@ -96,7 +96,10 @@ fn every_seeded_scenario_fixture_replays_through_canonical_send_inspector() {
         let fixture: CaseFixture = serde_json::from_str(&payload)
             .unwrap_or_else(|err| panic!("parse fixture {fixture_name}: {err}"));
         assert_eq!(fixture.record_kind, "request_workspace_alpha_case");
-        assert_eq!(fixture.schema_version, REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION);
+        assert_eq!(
+            fixture.schema_version,
+            REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION
+        );
 
         let scenario = scenario_for(&fixture.scenario);
         let record = seeded_request_workspace_record(scenario);
@@ -126,8 +129,14 @@ fn every_seeded_scenario_fixture_replays_through_canonical_send_inspector() {
         );
 
         let report = record.send_inspector_report();
-        assert_eq!(report.record_kind, REQUEST_WORKSPACE_SEND_INSPECTOR_RECORD_KIND);
-        assert_eq!(report.method_token, fixture.expect.method_token, "{fixture_name}: method");
+        assert_eq!(
+            report.record_kind,
+            REQUEST_WORKSPACE_SEND_INSPECTOR_RECORD_KIND
+        );
+        assert_eq!(
+            report.method_token, fixture.expect.method_token,
+            "{fixture_name}: method"
+        );
         assert_eq!(
             report.credential_class, fixture.expect.credential_class,
             "{fixture_name}: credential_class"
@@ -136,10 +145,12 @@ fn every_seeded_scenario_fixture_replays_through_canonical_send_inspector() {
             report.auth_strategy, fixture.expect.auth_strategy,
             "{fixture_name}: auth_strategy"
         );
-        assert_eq!(report.readiness, fixture.expect.readiness, "{fixture_name}: readiness");
         assert_eq!(
-            report.requires_review_before_dispatch,
-            fixture.expect.requires_review_before_dispatch,
+            report.readiness, fixture.expect.readiness,
+            "{fixture_name}: readiness"
+        );
+        assert_eq!(
+            report.requires_review_before_dispatch, fixture.expect.requires_review_before_dispatch,
             "{fixture_name}: requires_review_before_dispatch"
         );
         assert_eq!(
@@ -175,10 +186,10 @@ fn seeded_records_are_deterministic_across_calls() {
     // the fixture-pinned record byte-for-byte. The test serialises the
     // record twice and asserts character-identical output.
     for scenario in RequestWorkspaceSeededScenario::ALL {
-        let first =
-            serde_json::to_string(&seeded_request_workspace_record(scenario)).expect("serialize first");
-        let second =
-            serde_json::to_string(&seeded_request_workspace_record(scenario)).expect("serialize second");
+        let first = serde_json::to_string(&seeded_request_workspace_record(scenario))
+            .expect("serialize first");
+        let second = serde_json::to_string(&seeded_request_workspace_record(scenario))
+            .expect("serialize second");
         assert_eq!(
             first,
             second,
@@ -194,8 +205,14 @@ fn support_export_round_trips_and_bundles_every_scenario() {
         "request-workspace-alpha:test",
         "2026-05-15T00:00:00Z",
     );
-    assert_eq!(export.record_kind, REQUEST_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND);
-    assert_eq!(export.records.len(), RequestWorkspaceSeededScenario::ALL.len());
+    assert_eq!(
+        export.record_kind,
+        REQUEST_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND
+    );
+    assert_eq!(
+        export.records.len(),
+        RequestWorkspaceSeededScenario::ALL.len()
+    );
     assert_eq!(
         export.send_inspector_reports.len(),
         RequestWorkspaceSeededScenario::ALL.len()
@@ -265,8 +282,14 @@ fn support_export_plaintext_lists_every_seeded_scenario() {
 fn seeded_records_emit_canonical_lane_and_record_kind() {
     for scenario in RequestWorkspaceSeededScenario::ALL {
         let record: RequestWorkspaceAlphaRecord = seeded_request_workspace_record(scenario);
-        assert_eq!(record.lane_id, aureline_runtime::REQUEST_WORKSPACE_ALPHA_LANE_ID);
-        assert_eq!(record.schema_version, REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION);
+        assert_eq!(
+            record.lane_id,
+            aureline_runtime::REQUEST_WORKSPACE_ALPHA_LANE_ID
+        );
+        assert_eq!(
+            record.schema_version,
+            REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION
+        );
         assert_eq!(record.record_kind, REQUEST_WORKSPACE_ALPHA_RECORD_KIND);
     }
 }

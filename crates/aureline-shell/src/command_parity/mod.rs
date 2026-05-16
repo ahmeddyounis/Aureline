@@ -60,8 +60,7 @@ pub const COMMAND_PARITY_SCHEMA_VERSION: u32 = 1;
 pub const COMMAND_PARITY_SHARED_CONTRACT_REF: &str = "shell:command_parity_beta:v1";
 
 /// Stable record kind for [`BetaCommandParityDiffReport`] payloads.
-pub const COMMAND_PARITY_REPORT_RECORD_KIND: &str =
-    "shell_command_parity_beta_diff_report_record";
+pub const COMMAND_PARITY_REPORT_RECORD_KIND: &str = "shell_command_parity_beta_diff_report_record";
 
 /// Stable record kind for [`BetaCommandParityRow`] payloads.
 pub const COMMAND_PARITY_ROW_RECORD_KIND: &str = "shell_command_parity_beta_row_record";
@@ -676,12 +675,10 @@ impl BetaCommandParityDiffReport {
     pub fn every_required_surface_claimed(&self) -> bool {
         for family in BetaSurfaceFamily::required_surfaces() {
             let any_claimed = self.rows.iter().any(|row| {
-                row.surfaces
-                    .iter()
-                    .any(|projection| {
-                        projection.surface_family == family
-                            && projection.coverage_status == BetaCoverageStatus::Claimed
-                    })
+                row.surfaces.iter().any(|projection| {
+                    projection.surface_family == family
+                        && projection.coverage_status == BetaCoverageStatus::Claimed
+                })
             });
             if !any_claimed {
                 return false;
@@ -768,7 +765,11 @@ impl BetaCommandParityDiffReport {
         ));
         out.push_str(&format!(
             "- Status: **{}**\n",
-            if self.report_clean { "clean" } else { "blocked" }
+            if self.report_clean {
+                "clean"
+            } else {
+                "blocked"
+            }
         ));
         out.push_str(&format!("- Generated at: `{}`\n\n", self.generated_at));
 
@@ -1030,13 +1031,11 @@ fn compute_row_findings(
 
                 match projection.projected_preview_class {
                     Some(preview) if preview == descriptor.preview_class => {}
-                    Some(preview) => {
-                        findings.push(BetaParityBlockingFinding::PreviewClassDrift {
-                            command_id: descriptor.command_id.clone(),
-                            surface_family: family,
-                            projected_preview_class: preview,
-                        })
-                    }
+                    Some(preview) => findings.push(BetaParityBlockingFinding::PreviewClassDrift {
+                        command_id: descriptor.command_id.clone(),
+                        surface_family: family,
+                        projected_preview_class: preview,
+                    }),
                     None => findings.push(BetaParityBlockingFinding::MissingProjection {
                         command_id: descriptor.command_id.clone(),
                         surface_family: family,
@@ -1046,13 +1045,11 @@ fn compute_row_findings(
 
                 match projection.projected_disabled_reason_mode {
                     Some(mode) if mode == descriptor.disabled_reason_mode => {}
-                    Some(mode) => {
-                        findings.push(BetaParityBlockingFinding::DisabledReasonDrift {
-                            command_id: descriptor.command_id.clone(),
-                            surface_family: family,
-                            projected_disabled_reason_mode: mode,
-                        })
-                    }
+                    Some(mode) => findings.push(BetaParityBlockingFinding::DisabledReasonDrift {
+                        command_id: descriptor.command_id.clone(),
+                        surface_family: family,
+                        projected_disabled_reason_mode: mode,
+                    }),
                     None => findings.push(BetaParityBlockingFinding::MissingProjection {
                         command_id: descriptor.command_id.clone(),
                         surface_family: family,
@@ -1103,7 +1100,9 @@ fn compute_row_findings(
 
 /// Validates a finished report and returns the surface-coverage and
 /// per-class findings summaries, plus the row-level findings list.
-fn summarize_report(rows: &[BetaCommandParityRow]) -> (Vec<BetaSurfaceCoverageSummary>, BetaParityFindingSummary) {
+fn summarize_report(
+    rows: &[BetaCommandParityRow],
+) -> (Vec<BetaSurfaceCoverageSummary>, BetaParityFindingSummary) {
     let mut summary = BetaParityFindingSummary::empty();
     let mut coverage: Vec<BetaSurfaceCoverageSummary> = BetaSurfaceFamily::required_surfaces()
         .into_iter()
@@ -1185,10 +1184,7 @@ pub fn build_command_parity_diff_report(
 
     let claimed_command_count = rows.len();
     let high_risk_command_count = rows.iter().filter(|row| row.high_risk).count();
-    let surface_rows_checked = rows
-        .iter()
-        .map(|row| row.surfaces.len())
-        .sum::<usize>();
+    let surface_rows_checked = rows.iter().map(|row| row.surfaces.len()).sum::<usize>();
 
     let (surface_coverage, findings_summary) = summarize_report(&rows);
     let report_clean = findings_summary.total_blocking_findings == 0;
@@ -1266,9 +1262,11 @@ pub fn validate_command_parity_diff_report(
             })
         });
         if !any_claimed {
-            errors.push(BetaCommandParityValidationError::RequiredSurfaceNotClaimed {
-                surface_family: required.as_str().to_owned(),
-            });
+            errors.push(
+                BetaCommandParityValidationError::RequiredSurfaceNotClaimed {
+                    surface_family: required.as_str().to_owned(),
+                },
+            );
         }
     }
 
@@ -1605,7 +1603,11 @@ fn build_projection_from_seed(
             .then_some(descriptor.disabled_reason_mode),
         projected_docs_help_anchor_ref: projects_descriptor
             .then(|| descriptor.docs_help_anchor_ref.clone()),
-        projected_aliases: seed.projected_aliases.iter().map(|s| (*s).to_owned()).collect(),
+        projected_aliases: seed
+            .projected_aliases
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
         narrowing_reason: seed.narrowing_reason.map(str::to_owned),
         note: seed.note.map(str::to_owned),
     }
@@ -1665,7 +1667,11 @@ mod tests {
         assert!(report.report_clean);
         assert_eq!(report.findings_summary.total_blocking_findings, 0);
         for row in &report.rows {
-            assert!(row.blocking_findings.is_empty(), "row {} has blockers", row.descriptor.command_id);
+            assert!(
+                row.blocking_findings.is_empty(),
+                "row {} has blockers",
+                row.descriptor.command_id
+            );
         }
     }
 
@@ -1707,8 +1713,7 @@ mod tests {
         surface.projected_preview_class = None;
         surface.projected_disabled_reason_mode = None;
         surface.projected_docs_help_anchor_ref = None;
-        row.blocking_findings =
-            compute_row_findings(&row.descriptor, &row.surfaces, row.high_risk);
+        row.blocking_findings = compute_row_findings(&row.descriptor, &row.surfaces, row.high_risk);
         let errors = validate_command_parity_diff_report(&report)
             .expect_err("must flag unknown high-risk gap");
         assert!(errors.iter().any(|err| matches!(
@@ -1732,8 +1737,7 @@ mod tests {
             .find(|projection| projection.surface_family == BetaSurfaceFamily::CommandPalette)
             .expect("palette projection present");
         surface.projected_preview_class = Some(BetaPreviewClass::NoPreviewRequired);
-        row.blocking_findings =
-            compute_row_findings(&row.descriptor, &row.surfaces, row.high_risk);
+        row.blocking_findings = compute_row_findings(&row.descriptor, &row.surfaces, row.high_risk);
         let errors =
             validate_command_parity_diff_report(&report).expect_err("must flag preview drift");
         assert!(errors.iter().any(|err| matches!(
@@ -1757,8 +1761,7 @@ mod tests {
             .find(|projection| projection.surface_family == BetaSurfaceFamily::CliHeadless)
             .expect("cli projection present");
         surface.narrowing_reason = None;
-        row.blocking_findings =
-            compute_row_findings(&row.descriptor, &row.surfaces, row.high_risk);
+        row.blocking_findings = compute_row_findings(&row.descriptor, &row.surfaces, row.high_risk);
         let errors = validate_command_parity_diff_report(&report)
             .expect_err("must flag missing narrowing reason");
         assert!(errors.iter().any(|err| matches!(
@@ -1794,7 +1797,10 @@ mod tests {
             COMMAND_PARITY_SUPPORT_EXPORT_ID,
             report.clone(),
         );
-        assert_eq!(export.shared_contract_ref, COMMAND_PARITY_SHARED_CONTRACT_REF);
+        assert_eq!(
+            export.shared_contract_ref,
+            COMMAND_PARITY_SHARED_CONTRACT_REF
+        );
         for row in &report.rows {
             assert!(
                 export.case_ids.contains(&row.descriptor.command_id),
@@ -1802,7 +1808,9 @@ mod tests {
                 row.descriptor.command_id,
             );
             assert!(
-                export.case_ids.contains(&row.descriptor.descriptor_revision_ref),
+                export
+                    .case_ids
+                    .contains(&row.descriptor.descriptor_revision_ref),
                 "case ids must quote {}",
                 row.descriptor.descriptor_revision_ref,
             );

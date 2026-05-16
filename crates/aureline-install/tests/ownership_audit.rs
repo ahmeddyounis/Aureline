@@ -76,12 +76,11 @@ fn ownership_audit_fixture_passes_validation() {
 #[test]
 fn portable_rows_never_claim_ownership() {
     let packet = load_packet();
-    let portable_rows: Vec<_> = packet
-        .rows
-        .iter()
-        .filter(|row| row.is_portable())
-        .collect();
-    assert!(!portable_rows.is_empty(), "fixture must cover portable rows");
+    let portable_rows: Vec<_> = packet.rows.iter().filter(|row| row.is_portable()).collect();
+    assert!(
+        !portable_rows.is_empty(),
+        "fixture must cover portable rows"
+    );
 
     for row in portable_rows {
         assert_eq!(row.owner_verdict, OwnerVerdictClass::NotRegistered);
@@ -160,9 +159,15 @@ fn surface_projection_and_support_export_round_trip() {
     assert_eq!(projection.rows.len(), packet.rows.len());
 
     let export = packet.support_export_projection();
-    assert_eq!(export.record_kind, OWNERSHIP_AUDIT_SUPPORT_EXPORT_RECORD_KIND);
+    assert_eq!(
+        export.record_kind,
+        OWNERSHIP_AUDIT_SUPPORT_EXPORT_RECORD_KIND
+    );
     assert_eq!(export.schema_version, OWNERSHIP_AUDIT_SCHEMA_VERSION);
-    assert_eq!(export.shared_contract_ref, OWNERSHIP_AUDIT_SHARED_CONTRACT_REF);
+    assert_eq!(
+        export.shared_contract_ref,
+        OWNERSHIP_AUDIT_SHARED_CONTRACT_REF
+    );
     assert_eq!(export.redaction_class, "metadata_only_no_paths_or_secrets");
     assert_eq!(export.projection.rows.len(), packet.rows.len());
 
@@ -208,10 +213,7 @@ fn dispatching_row_dropping_in_product_parity_is_rejected() {
     let row = packet
         .rows
         .iter_mut()
-        .find(|row| {
-            row.handoff_surface_class
-                .participates_in_route_admission()
-        })
+        .find(|row| row.handoff_surface_class.participates_in_route_admission())
         .expect("dispatching row");
     row.in_product_invocation_uses_same_checks = false;
 
@@ -253,6 +255,7 @@ fn displaced_owner_row_must_reference_diagnostic() {
 
     let report = packet.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "ownership_audit.row.displaced_owner_diagnostic_missing"));
+    assert!(report.findings.iter().any(
+        |finding| finding.check_id == "ownership_audit.row.displaced_owner_diagnostic_missing"
+    ));
 }

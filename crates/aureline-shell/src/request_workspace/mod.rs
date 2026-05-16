@@ -26,8 +26,7 @@ use aureline_runtime::{
 
 pub use aureline_runtime::{
     seeded_request_workspace_record as seeded_record,
-    seeded_request_workspace_support_export as seeded_support_export,
-    seeded_send_inspector_report as seeded_send_inspector_report,
+    seeded_request_workspace_support_export as seeded_support_export, seeded_send_inspector_report,
     RequestWorkspaceSeededScenario,
 };
 
@@ -115,9 +114,7 @@ pub fn render_support_export_plaintext(export: &RequestWorkspaceSupportExport) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aureline_runtime::{
-        RequestWorkspaceSeededScenario, SendInspectorReadiness, TargetClass,
-    };
+    use aureline_runtime::{RequestWorkspaceSeededScenario, SendInspectorReadiness, TargetClass};
 
     #[test]
     fn local_read_only_panel_matches_runtime_report() {
@@ -165,10 +162,8 @@ mod tests {
 
     #[test]
     fn panel_support_export_plaintext_is_deterministic() {
-        let export = seeded_support_export(
-            "request-workspace-alpha:shell:test",
-            "2026-05-15T00:00:00Z",
-        );
+        let export =
+            seeded_support_export("request-workspace-alpha:shell:test", "2026-05-15T00:00:00Z");
         let first = render_support_export_plaintext(&export);
         let second = render_support_export_plaintext(&export);
         assert_eq!(first, second);

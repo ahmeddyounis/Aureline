@@ -15,8 +15,7 @@ use aureline_runtime::{
 };
 
 /// Stable record-kind tag carried in serialized debugger-host projections.
-pub const DEBUGGER_HOST_BETA_PROJECTION_RECORD_KIND: &str =
-    "debugger_host_beta_projection_record";
+pub const DEBUGGER_HOST_BETA_PROJECTION_RECORD_KIND: &str = "debugger_host_beta_projection_record";
 
 /// Schema version for the projection payload.
 pub const DEBUGGER_HOST_BETA_PROJECTION_SCHEMA_VERSION: u32 = 1;
@@ -106,11 +105,7 @@ impl DebuggerHostBetaSessionRow {
             quarantine_ref: snapshot.quarantine_ref.clone(),
             last_exit_reason_class: snapshot.last_exit_reason_class,
             last_exit_reason_token: snapshot.last_exit_reason_token.clone(),
-            event_lineage_summary: snapshot
-                .event_lineage
-                .iter()
-                .map(summarize_event)
-                .collect(),
+            event_lineage_summary: snapshot.event_lineage.iter().map(summarize_event).collect(),
             summary: snapshot.summary.clone(),
         }
     }
@@ -174,10 +169,7 @@ impl DebuggerHostBetaProjection {
                 "  Mode: {} | Adapter: {} ({})\n",
                 row.mode_token, row.adapter_label, row.adapter_id
             ));
-            out.push_str(&format!(
-                "  Transport: {}\n",
-                row.transport_class_token
-            ));
+            out.push_str(&format!("  Transport: {}\n", row.transport_class_token));
             out.push_str(&format!(
                 "  Target: {} [{}]\n",
                 row.target_label, row.canonical_target_id
@@ -203,9 +195,7 @@ impl DebuggerHostBetaProjection {
             }
             out.push_str(&format!(
                 "  Restart strikes: {}/{} (reconnects: {})\n",
-                row.restart_strike_count,
-                row.restart_budget_in_window,
-                row.reconnect_attempt_count
+                row.restart_strike_count, row.restart_budget_in_window, row.reconnect_attempt_count
             ));
             if let Some(quarantine) = &row.quarantine_ref {
                 out.push_str(&format!("  Quarantine: {quarantine}\n"));

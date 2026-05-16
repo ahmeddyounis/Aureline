@@ -90,10 +90,7 @@ fn materialize_with_palette_open() -> ShellA11yTreeRecord {
     )
 }
 
-fn find_node<'a>(
-    tree: &'a ShellA11yTreeRecord,
-    node_id: &str,
-) -> &'a AccessibilityTreeNodeRecord {
+fn find_node<'a>(tree: &'a ShellA11yTreeRecord, node_id: &str) -> &'a AccessibilityTreeNodeRecord {
     tree.nodes
         .iter()
         .find(|node| node.node_id == node_id)
@@ -125,8 +122,7 @@ fn assert_role_name_state(node: &AccessibilityTreeNodeRecord) {
     assert!(
         has_positive_state,
         "node {} ({:?}) must carry at least one explicit state signal",
-        node.node_id,
-        node.node_kind
+        node.node_id, node.node_kind
     );
 }
 
