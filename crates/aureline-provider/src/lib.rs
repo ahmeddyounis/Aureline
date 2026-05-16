@@ -1,19 +1,43 @@
-//! Connected-provider registry alpha, publish-later continuity, and approval-ticket records.
+//! Connected-provider registry alpha, publish-later continuity, approval-ticket
+//! records, and account-scope beta page.
 //!
 //! This crate owns the first consuming implementation for connected-provider
 //! alpha authority. It keeps code-host, issue, and CI/check provider descriptors
 //! on one typed contract, projects the publish-later queue through explicit
-//! freshness and dependency truth, and binds high-risk provider/helper mutations
-//! to export-safe approval-ticket or reviewed-scope lineage.
+//! freshness and dependency truth, binds high-risk provider/helper mutations
+//! to export-safe approval-ticket or reviewed-scope lineage, and (since the
+//! account-scope beta) separates connected-account, installation-grant, and
+//! delegated-credential authority on provider-linked rows while resolving the
+//! effective scope and surfacing scope-drift events that force reapproval or
+//! downgrade.
 
 #![doc(html_root_url = "https://docs.rs/aureline-provider/0.0.0")]
 
 pub use aureline_auth::{KeyMode, RegionMode, ResidencyMode};
 
+pub mod account_scope;
 pub mod approval_tickets;
 pub mod publish_later;
 pub mod registry;
 
+pub use account_scope::{
+    audit_account_scope_beta_page, seeded_account_scope_beta_page,
+    validate_account_scope_beta_page, AccountAuthSourceClass, AccountLifecycleStateClass,
+    AccountScopeBetaDefect, AccountScopeBetaDefectKind, AccountScopeBetaPage,
+    AccountScopeBetaProfileClass, AccountScopeBetaSummary, AccountScopeBetaSupportExport,
+    ActingIdentityClass, AuthorityDecisionClass, AuthorityDowngradeClass, ConnectedAccountRow,
+    ConnectedAccountSubject, DelegatedCredentialLifecycleStateClass, DelegatedCredentialRow,
+    EffectiveScopeResolutionRow, GrantResolutionReasonClass, InstallationGrantLifecycleStateClass,
+    InstallationGrantRow, ProviderHostBinding, ProviderTargetIdentity, ReapprovalRouteClass,
+    RequestedActionClass, ScopeDriftEvent, ScopeDriftTriggerClass,
+    ACCOUNT_SCOPE_BETA_CONNECTED_ACCOUNT_ROW_RECORD_KIND, ACCOUNT_SCOPE_BETA_DEFECT_RECORD_KIND,
+    ACCOUNT_SCOPE_BETA_DELEGATED_CREDENTIAL_ROW_RECORD_KIND,
+    ACCOUNT_SCOPE_BETA_EFFECTIVE_SCOPE_ROW_RECORD_KIND,
+    ACCOUNT_SCOPE_BETA_INSTALLATION_GRANT_ROW_RECORD_KIND, ACCOUNT_SCOPE_BETA_PAGE_RECORD_KIND,
+    ACCOUNT_SCOPE_BETA_SCHEMA_VERSION, ACCOUNT_SCOPE_BETA_SCOPE_DRIFT_EVENT_RECORD_KIND,
+    ACCOUNT_SCOPE_BETA_SHARED_CONTRACT_REF, ACCOUNT_SCOPE_BETA_SOURCE_MATRIX_REF,
+    ACCOUNT_SCOPE_BETA_SUMMARY_RECORD_KIND, ACCOUNT_SCOPE_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use approval_tickets::{
     ApprovalActorClass, ApprovalActorLineageEntry, ApprovalActorScope, ApprovalAuthSourceClass,
     ApprovalAuthorityKind, ApprovalIssuerClass, ApprovalRequestOriginClass,

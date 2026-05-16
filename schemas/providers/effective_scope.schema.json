@@ -1,0 +1,641 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/effective_scope.schema.json",
+  "title": "Aureline provider account-scope beta page (connected account, installation grant, delegated credential, effective-scope resolution, scope drift)",
+  "description": "Page-level beta schema for the providers_account_scope_beta_page_record. The page separates connected-account, installation-grant, and delegated-credential identity rows; binds each provider-linked row to one acting-identity class and a typed effective-scope resolution; and projects scope-drift events that force reapproval or downgrade instead of silently keeping mutation authority. The schema-of-record lives at /crates/aureline-provider/src/account_scope/mod.rs. The broader cross-tool boundary vocabulary lives in /schemas/providers/effective_scope_resolution.schema.json; this file is the per-page beta projection consumed by admin, support, shell, and reviewer surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "source_matrix_ref",
+    "connected_account_rows",
+    "installation_grant_rows",
+    "delegated_credential_rows",
+    "resolution_rows",
+    "scope_drift_events",
+    "defects",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "providers_account_scope_beta_page_record"
+    },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+    "source_matrix_ref": { "$ref": "#/$defs/non_empty_string" },
+    "connected_account_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/connected_account_row" }
+    },
+    "installation_grant_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/installation_grant_row" }
+    },
+    "delegated_credential_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/delegated_credential_row" }
+    },
+    "resolution_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resolution_row" }
+    },
+    "scope_drift_events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scope_drift_event" }
+    },
+    "defects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/defect" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "providers:account_scope_beta:v1"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "profile_token": {
+      "type": "string",
+      "enum": ["connected", "mirror_only", "offline", "enterprise_managed"]
+    },
+    "acting_identity_class_token": {
+      "type": "string",
+      "enum": [
+        "connected_account",
+        "installation_grant",
+        "delegated_credential"
+      ]
+    },
+    "auth_source_token": {
+      "type": "string",
+      "enum": [
+        "human_session",
+        "installation_grant",
+        "delegated_credential",
+        "project_scoped_grant",
+        "policy_injected_service"
+      ]
+    },
+    "account_lifecycle_state_token": {
+      "type": "string",
+      "enum": [
+        "active",
+        "reauth_required",
+        "revoked",
+        "suspended",
+        "unreachable"
+      ]
+    },
+    "installation_grant_lifecycle_state_token": {
+      "type": "string",
+      "enum": [
+        "installed",
+        "uninstalled",
+        "suspended",
+        "scope_narrowed",
+        "secret_expired"
+      ]
+    },
+    "delegated_credential_lifecycle_state_token": {
+      "type": "string",
+      "enum": [
+        "active",
+        "revoked",
+        "expired",
+        "scope_narrowed",
+        "delegator_lost_grant"
+      ]
+    },
+    "decision_token": {
+      "type": "string",
+      "enum": ["allowed", "denied", "browser_only", "local_draft_only"]
+    },
+    "resolution_reason_token": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "allowed_with_downgrade",
+        "allowed_with_browser_handoff",
+        "allowed_with_deferred_publish",
+        "denied_scope_missing",
+        "denied_policy_bundle",
+        "denied_workspace_trust",
+        "denied_actor_class_forbidden",
+        "denied_freshness_floor",
+        "denied_revoked",
+        "denied_suspended",
+        "denied_approval_ticket_missing",
+        "denied_step_up_required",
+        "denied_unknown_actor_class"
+      ]
+    },
+    "requested_action_token": {
+      "type": "string",
+      "enum": [
+        "read_only_inspection",
+        "human_authored_comment",
+        "review_decision_publish",
+        "issue_or_work_item_mutation",
+        "ci_run_or_check_mutation",
+        "release_publish",
+        "credential_projection"
+      ]
+    },
+    "reapproval_route_token": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "system_browser_reauth",
+        "step_up_authenticator",
+        "account_reselection",
+        "installation_grant_reconsent",
+        "delegated_credential_reissue",
+        "browser_handoff",
+        "publish_later_deferred",
+        "admin_review_or_trust_grant"
+      ]
+    },
+    "scope_drift_trigger_token": {
+      "type": "string",
+      "enum": [
+        "grant_revoked",
+        "grant_suspended",
+        "scope_narrowed",
+        "delegated_credential_expired",
+        "installation_secret_expired",
+        "actor_class_changed",
+        "host_mismatch_detected",
+        "tenant_or_org_membership_changed",
+        "policy_epoch_rolled",
+        "trust_state_downgraded",
+        "freshness_floor_drifted"
+      ]
+    },
+    "authority_downgrade_token": {
+      "type": "string",
+      "enum": [
+        "no_downgrade_required",
+        "force_inspect_only",
+        "force_local_draft_only",
+        "force_browser_handoff_only",
+        "force_step_up_authenticator",
+        "force_account_reselection",
+        "force_admin_review",
+        "force_disconnect_until_repair"
+      ]
+    },
+    "provider_host_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_host_ref", "tenant_or_org_scope_ref", "host_label"],
+      "properties": {
+        "canonical_host_ref": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "host_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "connected_account_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_ref", "subject_label", "capability_hash_ref"],
+      "properties": {
+        "subject_ref": { "$ref": "#/$defs/non_empty_string" },
+        "subject_label": { "$ref": "#/$defs/non_empty_string" },
+        "capability_hash_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "provider_target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_ref", "target_label", "provider_linked_row_ref"],
+      "properties": {
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_linked_row_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "connected_account_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "identity_row_id",
+        "display_label",
+        "profile",
+        "profile_token",
+        "acting_identity_class",
+        "acting_identity_class_token",
+        "subject",
+        "provider_host",
+        "auth_source",
+        "auth_source_token",
+        "lifecycle_state",
+        "lifecycle_state_token",
+        "lifecycle_note",
+        "observed_at",
+        "raw_token_material_present",
+        "public_endpoint_fallback_offered",
+        "local_editing_preserved"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "providers_account_scope_beta_connected_account_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "identity_row_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "#/$defs/profile_token" },
+        "profile_token": { "$ref": "#/$defs/profile_token" },
+        "acting_identity_class": { "const": "connected_account" },
+        "acting_identity_class_token": { "const": "connected_account" },
+        "subject": { "$ref": "#/$defs/connected_account_subject" },
+        "provider_host": { "$ref": "#/$defs/provider_host_binding" },
+        "auth_source": { "$ref": "#/$defs/auth_source_token" },
+        "auth_source_token": { "$ref": "#/$defs/auth_source_token" },
+        "lifecycle_state": { "$ref": "#/$defs/account_lifecycle_state_token" },
+        "lifecycle_state_token": { "$ref": "#/$defs/account_lifecycle_state_token" },
+        "lifecycle_note": { "type": "string" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "raw_token_material_present": { "type": "boolean", "const": false },
+        "public_endpoint_fallback_offered": { "type": "boolean", "const": false },
+        "local_editing_preserved": { "type": "boolean", "const": true }
+      }
+    },
+    "installation_grant_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "identity_row_id",
+        "display_label",
+        "profile",
+        "profile_token",
+        "acting_identity_class",
+        "acting_identity_class_token",
+        "installation_grant_ref",
+        "grant_label",
+        "issuer_ref",
+        "issuer_label",
+        "provider_host",
+        "bounded_target_scope_refs",
+        "auth_source",
+        "auth_source_token",
+        "lifecycle_state",
+        "lifecycle_state_token",
+        "lifecycle_note",
+        "observed_at",
+        "raw_token_material_present",
+        "public_endpoint_fallback_offered",
+        "local_editing_preserved"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "providers_account_scope_beta_installation_grant_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "identity_row_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "#/$defs/profile_token" },
+        "profile_token": { "$ref": "#/$defs/profile_token" },
+        "acting_identity_class": { "const": "installation_grant" },
+        "acting_identity_class_token": { "const": "installation_grant" },
+        "installation_grant_ref": { "$ref": "#/$defs/non_empty_string" },
+        "grant_label": { "$ref": "#/$defs/non_empty_string" },
+        "issuer_ref": { "$ref": "#/$defs/non_empty_string" },
+        "issuer_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/provider_host_binding" },
+        "bounded_target_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "auth_source": { "$ref": "#/$defs/auth_source_token" },
+        "auth_source_token": { "$ref": "#/$defs/auth_source_token" },
+        "lifecycle_state": { "$ref": "#/$defs/installation_grant_lifecycle_state_token" },
+        "lifecycle_state_token": {
+          "$ref": "#/$defs/installation_grant_lifecycle_state_token"
+        },
+        "lifecycle_note": { "type": "string" },
+        "managed_policy_bundle_ref": { "type": "string" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "secret_expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "raw_token_material_present": { "type": "boolean", "const": false },
+        "public_endpoint_fallback_offered": { "type": "boolean", "const": false },
+        "local_editing_preserved": { "type": "boolean", "const": true }
+      }
+    },
+    "delegated_credential_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "identity_row_id",
+        "display_label",
+        "profile",
+        "profile_token",
+        "acting_identity_class",
+        "acting_identity_class_token",
+        "delegation_ref",
+        "delegator_actor_ref",
+        "delegator_label",
+        "on_behalf_of_actor_ref",
+        "on_behalf_of_label",
+        "provider_host",
+        "delegated_scope_refs",
+        "auth_source",
+        "auth_source_token",
+        "lifecycle_state",
+        "lifecycle_state_token",
+        "lifecycle_note",
+        "observed_at",
+        "raw_token_material_present",
+        "public_endpoint_fallback_offered",
+        "local_editing_preserved"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "providers_account_scope_beta_delegated_credential_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "identity_row_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "#/$defs/profile_token" },
+        "profile_token": { "$ref": "#/$defs/profile_token" },
+        "acting_identity_class": { "const": "delegated_credential" },
+        "acting_identity_class_token": { "const": "delegated_credential" },
+        "delegation_ref": { "$ref": "#/$defs/non_empty_string" },
+        "delegator_actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "delegator_label": { "$ref": "#/$defs/non_empty_string" },
+        "on_behalf_of_actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "on_behalf_of_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/provider_host_binding" },
+        "delegated_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "auth_source": { "$ref": "#/$defs/auth_source_token" },
+        "auth_source_token": { "$ref": "#/$defs/auth_source_token" },
+        "lifecycle_state": {
+          "$ref": "#/$defs/delegated_credential_lifecycle_state_token"
+        },
+        "lifecycle_state_token": {
+          "$ref": "#/$defs/delegated_credential_lifecycle_state_token"
+        },
+        "lifecycle_note": { "type": "string" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "raw_token_material_present": { "type": "boolean", "const": false },
+        "public_endpoint_fallback_offered": { "type": "boolean", "const": false },
+        "local_editing_preserved": { "type": "boolean", "const": true }
+      }
+    },
+    "resolution_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "resolution_id",
+        "display_label",
+        "profile",
+        "profile_token",
+        "acting_identity_class",
+        "acting_identity_class_token",
+        "bound_identity_row_ref",
+        "requested_action",
+        "requested_action_token",
+        "target",
+        "provider_declared_scope_refs",
+        "resolved_scope_refs",
+        "decision",
+        "decision_token",
+        "resolution_reason",
+        "resolution_reason_token",
+        "decision_summary",
+        "reapproval_route",
+        "reapproval_route_token",
+        "reapproval_route_label",
+        "computed_at",
+        "raw_token_material_present",
+        "public_endpoint_fallback_taken",
+        "silent_mutation_authority_widened",
+        "local_editing_preserved"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "providers_account_scope_beta_effective_scope_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "resolution_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "#/$defs/profile_token" },
+        "profile_token": { "$ref": "#/$defs/profile_token" },
+        "acting_identity_class": { "$ref": "#/$defs/acting_identity_class_token" },
+        "acting_identity_class_token": { "$ref": "#/$defs/acting_identity_class_token" },
+        "bound_identity_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "requested_action": { "$ref": "#/$defs/requested_action_token" },
+        "requested_action_token": { "$ref": "#/$defs/requested_action_token" },
+        "target": { "$ref": "#/$defs/provider_target_identity" },
+        "provider_declared_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "resolved_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "decision": { "$ref": "#/$defs/decision_token" },
+        "decision_token": { "$ref": "#/$defs/decision_token" },
+        "resolution_reason": { "$ref": "#/$defs/resolution_reason_token" },
+        "resolution_reason_token": { "$ref": "#/$defs/resolution_reason_token" },
+        "decision_summary": { "$ref": "#/$defs/non_empty_string" },
+        "reapproval_route": { "$ref": "#/$defs/reapproval_route_token" },
+        "reapproval_route_token": { "$ref": "#/$defs/reapproval_route_token" },
+        "reapproval_route_label": { "type": "string" },
+        "remediation_path_ref": { "type": "string" },
+        "approval_ticket_ref": { "type": "string" },
+        "browser_handoff_packet_ref": { "type": "string" },
+        "publish_later_queue_item_ref": { "type": "string" },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "raw_token_material_present": { "type": "boolean", "const": false },
+        "public_endpoint_fallback_taken": { "type": "boolean", "const": false },
+        "silent_mutation_authority_widened": { "type": "boolean", "const": false },
+        "local_editing_preserved": { "type": "boolean", "const": true }
+      }
+    },
+    "scope_drift_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "event_id",
+        "profile",
+        "profile_token",
+        "originating_identity_row_ref",
+        "affected_resolution_row_ref",
+        "trigger",
+        "trigger_token",
+        "forced_downgrade",
+        "forced_downgrade_token",
+        "reapproval_route",
+        "reapproval_route_token",
+        "rationale_summary",
+        "observed_at",
+        "silent_mutation_authority_retained",
+        "local_editing_preserved"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "providers_account_scope_beta_scope_drift_event_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "event_id": { "$ref": "#/$defs/non_empty_string" },
+        "profile": { "$ref": "#/$defs/profile_token" },
+        "profile_token": { "$ref": "#/$defs/profile_token" },
+        "originating_identity_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "affected_resolution_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trigger": { "$ref": "#/$defs/scope_drift_trigger_token" },
+        "trigger_token": { "$ref": "#/$defs/scope_drift_trigger_token" },
+        "forced_downgrade": { "$ref": "#/$defs/authority_downgrade_token" },
+        "forced_downgrade_token": { "$ref": "#/$defs/authority_downgrade_token" },
+        "reapproval_route": { "$ref": "#/$defs/reapproval_route_token" },
+        "reapproval_route_token": { "$ref": "#/$defs/reapproval_route_token" },
+        "rationale_summary": { "$ref": "#/$defs/non_empty_string" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "silent_mutation_authority_retained": {
+          "type": "boolean",
+          "const": false
+        },
+        "local_editing_preserved": { "type": "boolean", "const": true }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_kind",
+        "defect_kind_token",
+        "subject_id",
+        "field",
+        "note"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "providers_account_scope_beta_defect_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "defect_kind": { "type": "string" },
+        "defect_kind_token": { "type": "string" },
+        "subject_id": { "$ref": "#/$defs/non_empty_string" },
+        "field": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "type": "string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page_record_kind",
+        "record_kind",
+        "connected_account_row_count",
+        "installation_grant_row_count",
+        "delegated_credential_row_count",
+        "resolution_row_count",
+        "scope_drift_event_count",
+        "profiles_present",
+        "identity_classes_present",
+        "decisions_present",
+        "resolution_reasons_present",
+        "drift_triggers_present",
+        "forced_downgrades_present",
+        "resolutions_by_decision",
+        "drift_events_by_trigger",
+        "defect_count",
+        "defect_counts_by_kind"
+      ],
+      "properties": {
+        "page_record_kind": {
+          "const": "providers_account_scope_beta_page_record"
+        },
+        "record_kind": {
+          "const": "providers_account_scope_beta_summary_record"
+        },
+        "connected_account_row_count": { "type": "integer", "minimum": 0 },
+        "installation_grant_row_count": { "type": "integer", "minimum": 0 },
+        "delegated_credential_row_count": { "type": "integer", "minimum": 0 },
+        "resolution_row_count": { "type": "integer", "minimum": 0 },
+        "scope_drift_event_count": { "type": "integer", "minimum": 0 },
+        "profiles_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/profile_token" }
+        },
+        "identity_classes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/acting_identity_class_token" }
+        },
+        "decisions_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/decision_token" }
+        },
+        "resolution_reasons_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resolution_reason_token" }
+        },
+        "drift_triggers_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_drift_trigger_token" }
+        },
+        "forced_downgrades_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_downgrade_token" }
+        },
+        "resolutions_by_decision": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "drift_events_by_trigger": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "defect_count": { "type": "integer", "minimum": 0 },
+        "defect_counts_by_kind": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
