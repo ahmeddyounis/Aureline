@@ -108,6 +108,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-auth/0.0.0")]
 
+pub mod approval_tickets;
 pub mod browser_callback;
 pub mod credential_state;
 pub mod identity_modes;
@@ -351,6 +352,24 @@ pub use network_trust::{
     NETWORK_TRUST_BETA_SCHEMA_VERSION, NETWORK_TRUST_BETA_SHARED_CONTRACT_REF,
     NETWORK_TRUST_BETA_SOURCE_MATRIX_REF, NETWORK_TRUST_BETA_SUMMARY_RECORD_KIND,
     NETWORK_TRUST_BETA_SUPPORT_EXPORT_RECORD_KIND, NETWORK_TRUST_BETA_SUPPORT_ROW_RECORD_KIND,
+};
+
+pub use approval_tickets::{
+    audit_approval_ticket_beta_page, seeded_approval_ticket_beta_page,
+    validate_approval_ticket_beta_page, ActorClass, ActorScope, ApprovalTicketBetaDefect,
+    ApprovalTicketBetaDefectKind, ApprovalTicketBetaPage, ApprovalTicketBetaProfileClass,
+    ApprovalTicketBetaSummary, ApprovalTicketBetaSupportExport, AuthSourceClass,
+    AuthorityRequirement, BetaGuardrails, CapabilityClass, CapabilityEnvelopeRow,
+    EvaluationOutcome, HighRiskActionClass, IssuedApprovalTicketRow, IssuerClass,
+    NativeReapprovalRoute, RequestOriginClass, SandboxProfileClass, SandboxProfileRow,
+    SideEffectClass, SpendAttemptEvent, TargetClass, TargetIdentity, UsePosture,
+    APPROVAL_TICKET_BETA_CAPABILITY_ENVELOPE_ROW_RECORD_KIND,
+    APPROVAL_TICKET_BETA_DEFECT_RECORD_KIND, APPROVAL_TICKET_BETA_PAGE_RECORD_KIND,
+    APPROVAL_TICKET_BETA_SANDBOX_PROFILE_ROW_RECORD_KIND, APPROVAL_TICKET_BETA_SCHEMA_VERSION,
+    APPROVAL_TICKET_BETA_SHARED_CONTRACT_REF, APPROVAL_TICKET_BETA_SOURCE_MATRIX_REF,
+    APPROVAL_TICKET_BETA_SPEND_ATTEMPT_EVENT_RECORD_KIND,
+    APPROVAL_TICKET_BETA_SUMMARY_RECORD_KIND,
+    APPROVAL_TICKET_BETA_SUPPORT_EXPORT_RECORD_KIND, APPROVAL_TICKET_BETA_TICKET_ROW_RECORD_KIND,
 };
 
 pub use workspace_trust::{
