@@ -26,6 +26,15 @@ Both surfaces read from
 freshness, provenance, or claim-posture truth of its own; refresh the
 manifest to update what users see in-product.
 
+Packaging, signing, update, rollback, policy, and schema-governance
+truth for beta artifacts is read through
+`artifacts/release/m3/artifact_graph.json` and the generated support
+projection at
+`artifacts/release/m3/artifact_graph_support_projection.json`. Help /
+About and support export surfaces may summarize those rows, but they
+quote graph node ids and generated projection fields rather than
+reconstructing artifact relationships from release copy.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -138,5 +147,13 @@ The projection is read-only and does not:
   named failure drills.
 - `artifacts/release/m3/claim_manifest.json` — the generated truth source
   consumed by both surfaces.
+- `artifacts/release/m3/artifact_graph.json` — the beta artifact graph
+  tying binaries, helpers, update metadata, policy, schemas, evidence,
+  support projection, and rollback refs into one release family.
+- `artifacts/release/m3/artifact_graph_support_projection.json` — the
+  generated support/export projection consumed by release and support
+  packets.
+- `tools/ci/m3/artifact_graph/` — headless validator and projection
+  generator.
 - `schemas/release/m3_claim_manifest.schema.json` — the canonical
   boundary schema enforced by `ci/check_m3_claim_manifest.py`.

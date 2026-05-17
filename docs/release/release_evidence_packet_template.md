@@ -7,6 +7,10 @@ pre-release seed packet.
 Related control artifacts:
 - docs/adr/0017-release-posture-artifact-families-and-promotion-gates.md
 - docs/release/release_artifact_graph.md
+- schemas/release/artifact_graph.schema.json
+- artifacts/release/m3/artifact_graph.json
+- artifacts/release/m3/artifact_graph_support_projection.json
+- docs/release/m3/packaging_and_signing_beta.md
 - docs/release/qualification_cadence.md
 - docs/governance/maintainer_coverage_policy.md
 - artifacts/release/artifact_graph_rules.yaml
@@ -43,6 +47,11 @@ This packet is intentionally structured around stable refs:
 exact_build_identity_ref, evidence_id, compat_row id, drill_id,
 source_anchor_ref, and waiver packet id. Do not substitute free-text
 "same build as..." naming where a stable ref exists.
+
+For beta packaging/signing rows, use the checked-in release artifact
+graph and generated support projection as the source for artifact node,
+policy, schema, digest, signature, provenance, and rollback refs. Do not
+rebuild those relationships manually inside a release packet.
 -->
 
 ## Shared packet header

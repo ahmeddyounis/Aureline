@@ -302,6 +302,14 @@ support leftovers. Shiproom and release packets therefore expect the
 bundle to preserve the same exact-build, known-limit, mirror/offline,
 and rollback joins those families carry in the release maps.
 
+Beta release packaging and signing support cases use the generated
+release artifact-graph projection at
+[`/artifacts/release/m3/artifact_graph_support_projection.json`](../../artifacts/release/m3/artifact_graph_support_projection.json).
+Support exports cite the projection's artifact node ids, computed
+digests, signature state, provenance state, policy refs, schema refs, and
+rollback target instead of reassembling those relationships from release
+notes, update metadata, or support prose.
+
 ## Example
 
 [`recovery_ladder_remote_connector_loss.json`](../../fixtures/support/support_bundle_examples/recovery_ladder_remote_connector_loss.json)

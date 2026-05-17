@@ -14,6 +14,20 @@ Companion artifacts:
   stable-facing promotion vetoes.
 - [`/artifacts/release/artifact_graph_rules.yaml`](../../artifacts/release/artifact_graph_rules.yaml)
   — machine-readable node-family and bundle-completeness rules.
+- [`/schemas/release/artifact_graph.schema.json`](../../schemas/release/artifact_graph.schema.json)
+  and
+  [`/artifacts/release/m3/artifact_graph.json`](../../artifacts/release/m3/artifact_graph.json)
+  — beta artifact-graph boundary schema and checked-in beta graph that
+  binds primary binaries, helpers, update metadata, policy bundles,
+  schema refs, docs/help truth, compatibility, benchmark evidence,
+  provenance hooks, support projection, and rollback target refs into
+  one auditable release family.
+- [`/tools/ci/m3/artifact_graph/`](../../tools/ci/m3/artifact_graph/)
+  and
+  [`/artifacts/release/m3/artifact_graph_support_projection.json`](../../artifacts/release/m3/artifact_graph_support_projection.json)
+  — headless validator and generated support/export projection for the
+  beta graph. Support packets cite this projection instead of
+  reconstructing graph relationships from prose.
 - [`/artifacts/release/artifact_family_map.yaml`](../../artifacts/release/artifact_family_map.yaml)
   — machine-readable map from exact-build artifact families to release
   posture, owner lane, rollback-atom membership, same-change-set
