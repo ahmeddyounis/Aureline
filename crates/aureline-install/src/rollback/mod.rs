@@ -29,6 +29,895 @@ pub const ROLLBACK_DRILL_PRE_STATE_RECORD_KIND: &str =
 /// Stable record-kind tag for [`RollbackDrillReport`].
 pub const ROLLBACK_DRILL_REPORT_RECORD_KIND: &str = "install_topology_rollback_drill_report";
 
+/// Schema version for update rollback-plan records.
+pub const UPDATE_ROLLBACK_PLAN_SCHEMA_VERSION: u32 = 1;
+
+/// Stable record-kind tag for [`UpdateRollbackPlan`].
+pub const UPDATE_ROLLBACK_PLAN_RECORD_KIND: &str = "update_rollback_plan_record";
+
+/// Stable record-kind tag for [`UpdateRollbackSupportExport`].
+pub const UPDATE_ROLLBACK_SUPPORT_EXPORT_RECORD_KIND: &str = "update_rollback_support_export";
+
+const REQUIRED_ROLLBACK_ARTIFACT_FAMILIES: &[RollbackArtifactFamilyClass] = &[
+    RollbackArtifactFamilyClass::IdeBinary,
+    RollbackArtifactFamilyClass::CliBinary,
+    RollbackArtifactFamilyClass::RemoteAgentTarball,
+    RollbackArtifactFamilyClass::UpdateMetadata,
+    RollbackArtifactFamilyClass::PolicyBundle,
+    RollbackArtifactFamilyClass::SchemaExport,
+    RollbackArtifactFamilyClass::DocsPack,
+    RollbackArtifactFamilyClass::SupportRunbookBundle,
+    RollbackArtifactFamilyClass::ReleaseEvidencePacket,
+];
+
+const REQUIRED_ROLLBACK_VOCABULARY_TERMS: &[&str] = &[
+    "retained_prior_artifact_set",
+    "schema_rollback_hook",
+    "downgrade_eligibility_state",
+    "exact_build_identity_ref",
+];
+
+/// Artifact family covered by a retained rollback atom.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RollbackArtifactFamilyClass {
+    /// Desktop shell binary.
+    IdeBinary,
+    /// Command-line binary.
+    CliBinary,
+    /// Remote agent tarball or image-layer bundle.
+    RemoteAgentTarball,
+    /// Signed update metadata and rollback target map.
+    UpdateMetadata,
+    /// Policy bundle required for the release family.
+    PolicyBundle,
+    /// Schema export required by support and migration readers.
+    SchemaExport,
+    /// Docs/help pack tied to the release family.
+    DocsPack,
+    /// Support runbook bundle.
+    SupportRunbookBundle,
+    /// Release evidence packet.
+    ReleaseEvidencePacket,
+    /// Debug symbols or source maps.
+    DebugSidecar,
+    /// SBOM or attestation sidecar.
+    SupplyChainProof,
+}
+
+impl RollbackArtifactFamilyClass {
+    /// Stable string token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::IdeBinary => "ide_binary",
+            Self::CliBinary => "cli_binary",
+            Self::RemoteAgentTarball => "remote_agent_tarball",
+            Self::UpdateMetadata => "update_metadata",
+            Self::PolicyBundle => "policy_bundle",
+            Self::SchemaExport => "schema_export",
+            Self::DocsPack => "docs_pack",
+            Self::SupportRunbookBundle => "support_runbook_bundle",
+            Self::ReleaseEvidencePacket => "release_evidence_packet",
+            Self::DebugSidecar => "debug_sidecar",
+            Self::SupplyChainProof => "supply_chain_proof",
+        }
+    }
+}
+
+/// Retention state for a prior artifact needed by rollback.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RetainedArtifactState {
+    /// Prior artifact is retained as an exact-build artifact.
+    RetainedExactBuild,
+    /// Only metadata is retained; not enough for automatic rollback.
+    RetainedMetadataOnly,
+    /// Artifact is absent and blocks rollback.
+    MissingBlocked,
+    /// Artifact retention is expired and requires manual reconstruction.
+    ExpiredManualReview,
+}
+
+impl RetainedArtifactState {
+    /// Returns true when the retained artifact can be used by an automatic rollback.
+    pub const fn is_exact_build_retained(self) -> bool {
+        matches!(self, Self::RetainedExactBuild)
+    }
+}
+
+/// Signature or trust state for a retained prior artifact.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RetainedArtifactVerificationState {
+    /// Signature and digest were verified for the retained artifact.
+    Verified,
+    /// Verification ref exists but was not checked by this packet.
+    PresentUnverified,
+    /// Artifact was revoked and cannot be a rollback target.
+    Revoked,
+    /// Verification is missing and blocks automatic rollback.
+    MissingBlocked,
+}
+
+impl RetainedArtifactVerificationState {
+    /// Returns true when the artifact is trusted enough for automatic rollback.
+    pub const fn is_verified(self) -> bool {
+        matches!(self, Self::Verified)
+    }
+}
+
+/// Compatibility class for a schema rollback hook.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SchemaRollbackCompatibilityClass {
+    /// Target can read the current schema without transformation.
+    BackwardReadable,
+    /// Additive migration can be reversed without data loss.
+    AdditiveCompatible,
+    /// Repair/export path is required before the target can read the state.
+    RepairRequired,
+    /// Unknown compatibility requires manual review before rollback.
+    UnknownManualReview,
+    /// Destructive state clear would be required and is blocked.
+    DestructiveBlocked,
+}
+
+impl SchemaRollbackCompatibilityClass {
+    /// Returns true when the compatibility state can run without manual review.
+    pub const fn automatic_allowed(self) -> bool {
+        matches!(self, Self::BackwardReadable | Self::AdditiveCompatible)
+    }
+}
+
+/// Flow class allowed to invoke a schema rollback hook.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RollbackReviewedFlowClass {
+    /// Interactive update center review.
+    UpdateCenterReview,
+    /// Headless CI or dry-run review.
+    HeadlessReview,
+    /// Managed fleet admin review.
+    ManagedFleetReview,
+    /// Support-assisted recovery review.
+    SupportAssistedReview,
+    /// Migration center restore or rollback review.
+    MigrationCenterReview,
+}
+
+/// Runtime state of a schema rollback hook.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SchemaRollbackHookState {
+    /// Hook is available and bound to a reviewed flow.
+    ReviewedFlowReady,
+    /// Hook was invoked by the named reviewed checkpoint.
+    InvokedThroughReviewedFlow,
+    /// Hook is visible but may only be used after manual review.
+    ManualReviewOnly,
+    /// Hook is blocked and cannot be used for the plan.
+    Blocked,
+}
+
+impl SchemaRollbackHookState {
+    /// Returns true when the hook is usable in a reviewed rollback flow.
+    pub const fn usable(self) -> bool {
+        matches!(
+            self,
+            Self::ReviewedFlowReady | Self::InvokedThroughReviewedFlow | Self::ManualReviewOnly
+        )
+    }
+}
+
+/// Downgrade eligibility state for a rollback plan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DowngradeEligibilityState {
+    /// All checks passed and policy permits automatic downgrade.
+    AutoEligible,
+    /// Checks passed but user or admin review is required.
+    EligibleWithReview,
+    /// Evidence is incomplete and manual review must choose repair/export/abort.
+    ManualReviewRequired,
+    /// Downgrade is blocked by trust, state, policy, helper skew, or missing artifacts.
+    Blocked,
+    /// Target is outside the supported downgrade window.
+    Unsupported,
+}
+
+impl DowngradeEligibilityState {
+    /// Returns true when the rollback plan may proceed after the required review.
+    pub const fn may_proceed(self) -> bool {
+        matches!(
+            self,
+            Self::AutoEligible | Self::EligibleWithReview | Self::ManualReviewRequired
+        )
+    }
+}
+
+/// Upstream references a rollback plan consumes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRollbackSourceRefs {
+    /// Release artifact graph that owns current artifact relationships.
+    pub artifact_graph_ref: String,
+    /// Update manifest for the attempted update.
+    pub update_manifest_ref: String,
+    /// Update-ready review emitted before mutation.
+    pub update_ready_review_ref: String,
+    /// Update sequence packet that owns checkpoint ids.
+    pub update_sequence_ref: String,
+    /// Install diagnostics packet that owns state-root ids.
+    pub install_diagnostics_ref: String,
+    /// Ring rollout packet that owns prior/candidate visibility.
+    pub ring_rollout_ref: String,
+    /// Compatibility report containing downgrade and skew evidence.
+    pub compatibility_report_ref: String,
+}
+
+/// Current or rollback-target build identity in an update rollback plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RollbackBuildRef {
+    /// Release candidate ref.
+    pub release_candidate_ref: String,
+    /// Exact-build identity ref.
+    pub exact_build_identity_ref: String,
+    /// Update manifest ref for this build.
+    pub update_manifest_ref: String,
+    /// Artifact bundle ref for this build.
+    pub artifact_bundle_ref: String,
+    /// Human-readable version label.
+    pub version: String,
+    /// Release channel class.
+    pub channel_class: ChannelClass,
+}
+
+/// Retained prior artifact used by a rollback target.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RetainedPriorArtifact {
+    /// Stable artifact ref.
+    pub artifact_ref: String,
+    /// Artifact family class.
+    pub family_class: RollbackArtifactFamilyClass,
+    /// Exact-build identity ref of the retained prior artifact.
+    pub exact_build_identity_ref: String,
+    /// Prior release candidate ref this artifact belongs to.
+    pub prior_release_candidate_ref: String,
+    /// Digest or content-address ref for the retained artifact.
+    pub digest_ref: String,
+    /// Signature or trust state for the retained artifact.
+    pub verification_state: RetainedArtifactVerificationState,
+    /// Retention state for the artifact bytes or metadata.
+    pub retention_state: RetainedArtifactState,
+    /// Retention owner or policy ref.
+    pub retention_owner_ref: String,
+    /// Support projection ref for this artifact.
+    pub support_ref: String,
+    /// True when this artifact participates in the coordinated rollback atom.
+    pub rollback_atom_member: bool,
+    /// Short caveat surfaced to update center and support.
+    pub caveat: String,
+}
+
+/// Schema/state rollback hook admitted by the rollback plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SchemaRollbackHook {
+    /// Stable hook id.
+    pub hook_id: String,
+    /// Durable state-root ref the hook covers.
+    pub state_root_ref: String,
+    /// Schema epoch the failed update wrote or attempted to write.
+    pub source_schema_epoch: String,
+    /// Schema epoch the rollback target must read.
+    pub target_schema_epoch: String,
+    /// Compatibility class for the rollback.
+    pub compatibility_class: SchemaRollbackCompatibilityClass,
+    /// Flow class that is allowed to invoke this hook.
+    pub reviewed_flow_class: RollbackReviewedFlowClass,
+    /// Stable review or approval ref that admitted the hook.
+    pub reviewed_flow_ref: String,
+    /// Update sequence checkpoint that invoked or will invoke the hook.
+    pub invoked_checkpoint_id: String,
+    /// Hook state.
+    pub hook_state: SchemaRollbackHookState,
+    /// Backup snapshot ref required by the hook.
+    pub backup_snapshot_ref: String,
+    /// Migration journal ref required by the hook.
+    pub migration_journal_ref: String,
+    /// Repair transaction ref when compatibility requires repair.
+    pub repair_transaction_ref: Option<String>,
+    /// Reviewer-facing caveat.
+    pub caveat: String,
+}
+
+/// Explicit downgrade truth carried by update, docs, and support surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DowngradeTruth {
+    /// Downgrade eligibility state.
+    pub eligibility_state: DowngradeEligibilityState,
+    /// Current source build ref.
+    pub source_build_ref: String,
+    /// Target rollback build ref.
+    pub target_build_ref: String,
+    /// Migration or downgrade caveats that must be shown verbatim.
+    pub migration_caveats: Vec<String>,
+    /// Manual review reason classes, when review is required.
+    pub manual_review_reason_classes: Vec<String>,
+    /// Blocked reason classes, when rollback cannot proceed.
+    pub blocked_reason_classes: Vec<String>,
+    /// State roots preserved by rollback.
+    pub preserved_state_root_refs: Vec<String>,
+    /// State roots intentionally not restored by rollback.
+    pub not_restored_state_root_refs: Vec<String>,
+    /// Support-safe summary.
+    pub support_summary: String,
+}
+
+/// Support projection settings embedded in the rollback plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RollbackPlanSupportProjection {
+    /// Support export projection path.
+    pub support_projection_ref: String,
+    /// Support bundle refs that quote this plan.
+    pub support_bundle_refs: Vec<String>,
+    /// Product, docs, and Help surfaces that must reuse the plan vocabulary.
+    pub consuming_surface_refs: Vec<String>,
+    /// Shared vocabulary terms required across surfaces.
+    pub vocabulary_terms: Vec<String>,
+    /// Redaction posture for the projection.
+    pub redaction_class: String,
+}
+
+/// Acceptance evidence for a rollback plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RollbackPlanAcceptance {
+    /// Commands that validate the plan.
+    pub validation_commands: Vec<String>,
+    /// Fixture manifest ref for the plan.
+    pub fixture_manifest_ref: String,
+    /// Accepted evidence states.
+    pub accepted_states: Vec<String>,
+}
+
+/// Governed beta update rollback plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRollbackPlan {
+    /// Stable record-kind discriminator.
+    pub record_kind: String,
+    /// Plan schema version.
+    pub schema_version: u32,
+    /// Stable plan id.
+    pub plan_id: String,
+    /// UTC generation timestamp.
+    pub generated_at: String,
+    /// Upstream source refs.
+    pub source_refs: UpdateRollbackSourceRefs,
+    /// Current build that failed or may fail after update.
+    pub current_build: RollbackBuildRef,
+    /// Prior build retained as rollback target.
+    pub rollback_target: RollbackBuildRef,
+    /// Prior artifacts retained for exact-build rollback.
+    pub retained_prior_artifacts: Vec<RetainedPriorArtifact>,
+    /// Schema/state rollback hooks admitted by reviewed flows.
+    pub schema_rollback_hooks: Vec<SchemaRollbackHook>,
+    /// Explicit downgrade and migration caveat truth.
+    pub downgrade_truth: DowngradeTruth,
+    /// Support projection contract for this plan.
+    pub support_projection: RollbackPlanSupportProjection,
+    /// Acceptance evidence for validators and release review.
+    pub acceptance: RollbackPlanAcceptance,
+}
+
+impl UpdateRollbackPlan {
+    /// Validates the rollback plan.
+    pub fn validate(&self) -> UpdateRollbackValidationReport {
+        let mut findings = Vec::new();
+
+        if self.record_kind != UPDATE_ROLLBACK_PLAN_RECORD_KIND {
+            push_plan_finding(
+                &mut findings,
+                "rollback_plan.record_kind",
+                &self.plan_id,
+                "record_kind must be update_rollback_plan_record",
+            );
+        }
+        if self.schema_version != UPDATE_ROLLBACK_PLAN_SCHEMA_VERSION {
+            push_plan_finding(
+                &mut findings,
+                "rollback_plan.schema_version",
+                &self.plan_id,
+                "schema_version must be 1",
+            );
+        }
+        validate_non_empty_ref(&mut findings, "plan_id", &self.plan_id, &self.plan_id);
+        validate_non_empty_ref(
+            &mut findings,
+            "current_build.release_candidate_ref",
+            &self.current_build.release_candidate_ref,
+            &self.plan_id,
+        );
+        validate_exact_build_ref(
+            &mut findings,
+            "current_build.exact_build_identity_ref",
+            &self.current_build.exact_build_identity_ref,
+            &self.plan_id,
+        );
+        validate_exact_build_ref(
+            &mut findings,
+            "rollback_target.exact_build_identity_ref",
+            &self.rollback_target.exact_build_identity_ref,
+            &self.plan_id,
+        );
+        if self.current_build.exact_build_identity_ref
+            == self.rollback_target.exact_build_identity_ref
+        {
+            push_plan_finding(
+                &mut findings,
+                "rollback_plan.same_current_and_target_exact_build",
+                &self.plan_id,
+                "current and rollback target exact-build refs must differ",
+            );
+        }
+        if self.current_build.release_candidate_ref == self.rollback_target.release_candidate_ref {
+            push_plan_finding(
+                &mut findings,
+                "rollback_plan.same_current_and_target_candidate",
+                &self.plan_id,
+                "current and rollback target release candidates must differ",
+            );
+        }
+
+        self.validate_retained_artifacts(&mut findings);
+        self.validate_schema_hooks(&mut findings);
+        self.validate_downgrade_truth(&mut findings);
+        self.validate_support_projection(&mut findings);
+
+        UpdateRollbackValidationReport {
+            record_kind: "update_rollback_validation_report".to_string(),
+            schema_version: UPDATE_ROLLBACK_PLAN_SCHEMA_VERSION,
+            plan_id: self.plan_id.clone(),
+            passed: findings.is_empty(),
+            coverage: self.coverage(),
+            findings,
+        }
+    }
+
+    /// Builds the support-export projection from the plan.
+    pub fn support_export_projection(&self) -> UpdateRollbackSupportExport {
+        UpdateRollbackSupportExport {
+            record_kind: UPDATE_ROLLBACK_SUPPORT_EXPORT_RECORD_KIND.to_string(),
+            schema_version: UPDATE_ROLLBACK_PLAN_SCHEMA_VERSION,
+            plan_id: self.plan_id.clone(),
+            generated_at: self.generated_at.clone(),
+            source_plan_ref: "artifacts/release/m3/update_rollback/rollback_plan.json".to_string(),
+            current_release_candidate_ref: self.current_build.release_candidate_ref.clone(),
+            current_exact_build_identity_ref: self.current_build.exact_build_identity_ref.clone(),
+            rollback_target_ref: self.rollback_target.release_candidate_ref.clone(),
+            rollback_exact_build_identity_ref: self
+                .rollback_target
+                .exact_build_identity_ref
+                .clone(),
+            downgrade_eligibility_state: self.downgrade_truth.eligibility_state,
+            migration_caveats: self.downgrade_truth.migration_caveats.clone(),
+            retained_artifacts: self
+                .retained_prior_artifacts
+                .iter()
+                .map(|artifact| UpdateRollbackSupportArtifactRow {
+                    artifact_ref: artifact.artifact_ref.clone(),
+                    family_class: artifact.family_class,
+                    exact_build_identity_ref: artifact.exact_build_identity_ref.clone(),
+                    retention_state: artifact.retention_state,
+                    verification_state: artifact.verification_state,
+                    rollback_atom_member: artifact.rollback_atom_member,
+                    support_ref: artifact.support_ref.clone(),
+                    caveat: artifact.caveat.clone(),
+                })
+                .collect(),
+            schema_hooks: self
+                .schema_rollback_hooks
+                .iter()
+                .map(|hook| UpdateRollbackSupportHookRow {
+                    hook_id: hook.hook_id.clone(),
+                    state_root_ref: hook.state_root_ref.clone(),
+                    compatibility_class: hook.compatibility_class,
+                    reviewed_flow_class: hook.reviewed_flow_class,
+                    invoked_checkpoint_id: hook.invoked_checkpoint_id.clone(),
+                    hook_state: hook.hook_state,
+                    caveat: hook.caveat.clone(),
+                })
+                .collect(),
+            support_bundle_refs: self.support_projection.support_bundle_refs.clone(),
+            vocabulary_terms: self.support_projection.vocabulary_terms.clone(),
+            redaction_class: self.support_projection.redaction_class.clone(),
+        }
+    }
+
+    fn validate_retained_artifacts(&self, findings: &mut Vec<UpdateRollbackValidationFinding>) {
+        if self.retained_prior_artifacts.is_empty() {
+            push_plan_finding(
+                findings,
+                "retained_artifacts.empty",
+                &self.plan_id,
+                "rollback plan must retain at least one prior artifact",
+            );
+            return;
+        }
+
+        let mut seen_refs = BTreeSet::new();
+        let mut families = BTreeSet::new();
+        for artifact in &self.retained_prior_artifacts {
+            validate_non_empty_ref(
+                findings,
+                "retained_artifacts.artifact_ref",
+                &artifact.artifact_ref,
+                &self.plan_id,
+            );
+            if !seen_refs.insert(artifact.artifact_ref.as_str()) {
+                push_plan_finding(
+                    findings,
+                    "retained_artifacts.duplicate_artifact_ref",
+                    &artifact.artifact_ref,
+                    "retained artifact refs must be unique",
+                );
+            }
+            families.insert(artifact.family_class);
+            if artifact.exact_build_identity_ref != self.rollback_target.exact_build_identity_ref {
+                push_plan_finding(
+                    findings,
+                    "retained_artifacts.exact_build_mismatch",
+                    &artifact.artifact_ref,
+                    "retained prior artifacts must use the rollback target exact-build ref",
+                );
+            }
+            if artifact.prior_release_candidate_ref != self.rollback_target.release_candidate_ref {
+                push_plan_finding(
+                    findings,
+                    "retained_artifacts.release_candidate_mismatch",
+                    &artifact.artifact_ref,
+                    "retained prior artifacts must belong to the rollback target candidate",
+                );
+            }
+            if !artifact.retention_state.is_exact_build_retained() {
+                push_plan_finding(
+                    findings,
+                    "retained_artifacts.not_exact_build_retained",
+                    &artifact.artifact_ref,
+                    "artifact bytes must be retained as an exact-build rollback artifact",
+                );
+            }
+            if !artifact.verification_state.is_verified() {
+                push_plan_finding(
+                    findings,
+                    "retained_artifacts.not_verified",
+                    &artifact.artifact_ref,
+                    "retained prior artifacts must have verified digest/signature state",
+                );
+            }
+            if !artifact.rollback_atom_member {
+                push_plan_finding(
+                    findings,
+                    "retained_artifacts.not_in_rollback_atom",
+                    &artifact.artifact_ref,
+                    "retained artifact must be part of the coordinated rollback atom",
+                );
+            }
+        }
+
+        for required in REQUIRED_ROLLBACK_ARTIFACT_FAMILIES {
+            if !families.contains(required) {
+                push_plan_finding(
+                    findings,
+                    "retained_artifacts.required_family_missing",
+                    required.as_str(),
+                    "rollback plan must retain every required prior artifact family",
+                );
+            }
+        }
+    }
+
+    fn validate_schema_hooks(&self, findings: &mut Vec<UpdateRollbackValidationFinding>) {
+        if self.schema_rollback_hooks.is_empty() {
+            push_plan_finding(
+                findings,
+                "schema_hooks.empty",
+                &self.plan_id,
+                "rollback plan must declare schema rollback hooks",
+            );
+            return;
+        }
+
+        let mut seen_hooks = BTreeSet::new();
+        for hook in &self.schema_rollback_hooks {
+            validate_non_empty_ref(
+                findings,
+                "schema_hooks.hook_id",
+                &hook.hook_id,
+                &self.plan_id,
+            );
+            if !seen_hooks.insert(hook.hook_id.as_str()) {
+                push_plan_finding(
+                    findings,
+                    "schema_hooks.duplicate_hook_id",
+                    &hook.hook_id,
+                    "schema rollback hook ids must be unique",
+                );
+            }
+            validate_non_empty_ref(
+                findings,
+                "schema_hooks.reviewed_flow_ref",
+                &hook.reviewed_flow_ref,
+                &hook.hook_id,
+            );
+            validate_non_empty_ref(
+                findings,
+                "schema_hooks.backup_snapshot_ref",
+                &hook.backup_snapshot_ref,
+                &hook.hook_id,
+            );
+            validate_non_empty_ref(
+                findings,
+                "schema_hooks.migration_journal_ref",
+                &hook.migration_journal_ref,
+                &hook.hook_id,
+            );
+            if !hook.invoked_checkpoint_id.starts_with("checkpoint.update.") {
+                push_plan_finding(
+                    findings,
+                    "schema_hooks.invoked_checkpoint_not_update_sequence",
+                    &hook.hook_id,
+                    "schema rollback hooks must bind to update sequence checkpoint ids",
+                );
+            }
+            if !hook.hook_state.usable() {
+                push_plan_finding(
+                    findings,
+                    "schema_hooks.blocked",
+                    &hook.hook_id,
+                    "blocked schema hooks cannot be part of an admitted rollback plan",
+                );
+            }
+            if !hook.compatibility_class.automatic_allowed()
+                && hook.repair_transaction_ref.is_none()
+                && self.downgrade_truth.eligibility_state == DowngradeEligibilityState::AutoEligible
+            {
+                push_plan_finding(
+                    findings,
+                    "schema_hooks.repair_ref_missing",
+                    &hook.hook_id,
+                    "non-automatic schema compatibility must carry repair evidence or downgrade truth must require review",
+                );
+            }
+        }
+    }
+
+    fn validate_downgrade_truth(&self, findings: &mut Vec<UpdateRollbackValidationFinding>) {
+        if self.downgrade_truth.source_build_ref != self.current_build.release_candidate_ref {
+            push_plan_finding(
+                findings,
+                "downgrade_truth.source_build_ref_mismatch",
+                &self.plan_id,
+                "downgrade source_build_ref must match the current release candidate",
+            );
+        }
+        if self.downgrade_truth.target_build_ref != self.rollback_target.release_candidate_ref {
+            push_plan_finding(
+                findings,
+                "downgrade_truth.target_build_ref_mismatch",
+                &self.plan_id,
+                "downgrade target_build_ref must match the rollback target candidate",
+            );
+        }
+        if !self.downgrade_truth.eligibility_state.may_proceed() {
+            push_plan_finding(
+                findings,
+                "downgrade_truth.not_admitted",
+                &self.plan_id,
+                "blocked or unsupported downgrade truth cannot back a beta rollback guarantee",
+            );
+        }
+        if self.downgrade_truth.migration_caveats.is_empty() {
+            push_plan_finding(
+                findings,
+                "downgrade_truth.caveats_missing",
+                &self.plan_id,
+                "rollback plan must expose explicit downgrade or migration caveats",
+            );
+        }
+        if self.downgrade_truth.eligibility_state == DowngradeEligibilityState::AutoEligible
+            && (!self.downgrade_truth.manual_review_reason_classes.is_empty()
+                || !self.downgrade_truth.blocked_reason_classes.is_empty())
+        {
+            push_plan_finding(
+                findings,
+                "downgrade_truth.auto_with_review_or_block_reasons",
+                &self.plan_id,
+                "auto-eligible downgrade truth must not carry manual-review or blocked reason classes",
+            );
+        }
+        if self.downgrade_truth.preserved_state_root_refs.is_empty() {
+            push_plan_finding(
+                findings,
+                "downgrade_truth.preserved_state_roots_missing",
+                &self.plan_id,
+                "downgrade truth must name preserved state roots",
+            );
+        }
+    }
+
+    fn validate_support_projection(&self, findings: &mut Vec<UpdateRollbackValidationFinding>) {
+        validate_non_empty_ref(
+            findings,
+            "support_projection.support_projection_ref",
+            &self.support_projection.support_projection_ref,
+            &self.plan_id,
+        );
+        if self.support_projection.support_bundle_refs.is_empty() {
+            push_plan_finding(
+                findings,
+                "support_projection.support_bundle_refs_missing",
+                &self.plan_id,
+                "rollback plan must project into at least one support bundle ref",
+            );
+        }
+        if self.support_projection.consuming_surface_refs.is_empty() {
+            push_plan_finding(
+                findings,
+                "support_projection.consuming_surface_refs_missing",
+                &self.plan_id,
+                "rollback plan must name consuming docs/help/support surfaces",
+            );
+        }
+        let terms = self
+            .support_projection
+            .vocabulary_terms
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        for required in REQUIRED_ROLLBACK_VOCABULARY_TERMS {
+            if !terms.contains(required) {
+                push_plan_finding(
+                    findings,
+                    "support_projection.required_vocabulary_missing",
+                    required,
+                    "support projection must carry the shared rollback vocabulary",
+                );
+            }
+        }
+    }
+
+    fn coverage(&self) -> UpdateRollbackCoverage {
+        UpdateRollbackCoverage {
+            retained_artifact_families: self
+                .retained_prior_artifacts
+                .iter()
+                .map(|artifact| artifact.family_class)
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
+            schema_hook_count: self.schema_rollback_hooks.len(),
+            downgrade_eligibility_state: self.downgrade_truth.eligibility_state,
+            support_surface_count: self.support_projection.consuming_surface_refs.len(),
+        }
+    }
+}
+
+/// Validation report for [`UpdateRollbackPlan`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRollbackValidationReport {
+    /// Stable record-kind discriminator.
+    pub record_kind: String,
+    /// Validation schema version.
+    pub schema_version: u32,
+    /// Plan id that was validated.
+    pub plan_id: String,
+    /// True when no findings were produced.
+    pub passed: bool,
+    /// Validation coverage summary.
+    pub coverage: UpdateRollbackCoverage,
+    /// Validation findings.
+    pub findings: Vec<UpdateRollbackValidationFinding>,
+}
+
+/// Coverage summary for update rollback validation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRollbackCoverage {
+    /// Retained artifact family classes found in the plan.
+    pub retained_artifact_families: Vec<RollbackArtifactFamilyClass>,
+    /// Number of schema rollback hooks.
+    pub schema_hook_count: usize,
+    /// Downgrade eligibility state.
+    pub downgrade_eligibility_state: DowngradeEligibilityState,
+    /// Count of consuming support/docs/help surfaces.
+    pub support_surface_count: usize,
+}
+
+/// One validation finding for update rollback plans.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRollbackValidationFinding {
+    /// Stable check id.
+    pub check_id: String,
+    /// Record or ref that failed.
+    pub ref_id: String,
+    /// Reviewer-facing message.
+    pub message: String,
+}
+
+/// Support-export projection for an update rollback plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRollbackSupportExport {
+    /// Stable record-kind discriminator.
+    pub record_kind: String,
+    /// Projection schema version.
+    pub schema_version: u32,
+    /// Plan id projected into support export.
+    pub plan_id: String,
+    /// UTC generation timestamp.
+    pub generated_at: String,
+    /// Repository-relative source plan ref.
+    pub source_plan_ref: String,
+    /// Current release candidate ref.
+    pub current_release_candidate_ref: String,
+    /// Current exact-build identity ref.
+    pub current_exact_build_identity_ref: String,
+    /// Rollback target release candidate ref.
+    pub rollback_target_ref: String,
+    /// Rollback target exact-build identity ref.
+    pub rollback_exact_build_identity_ref: String,
+    /// Downgrade eligibility state.
+    pub downgrade_eligibility_state: DowngradeEligibilityState,
+    /// Downgrade and migration caveats shown in support export.
+    pub migration_caveats: Vec<String>,
+    /// Retained prior artifact rows.
+    pub retained_artifacts: Vec<UpdateRollbackSupportArtifactRow>,
+    /// Schema rollback hook rows.
+    pub schema_hooks: Vec<UpdateRollbackSupportHookRow>,
+    /// Support bundle refs that quote the projection.
+    pub support_bundle_refs: Vec<String>,
+    /// Shared rollback vocabulary terms.
+    pub vocabulary_terms: Vec<String>,
+    /// Redaction posture for support export.
+    pub redaction_class: String,
+}
+
+/// Support-export row for one retained prior artifact.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRollbackSupportArtifactRow {
+    /// Stable artifact ref.
+    pub artifact_ref: String,
+    /// Artifact family class.
+    pub family_class: RollbackArtifactFamilyClass,
+    /// Exact-build identity ref.
+    pub exact_build_identity_ref: String,
+    /// Retention state.
+    pub retention_state: RetainedArtifactState,
+    /// Verification state.
+    pub verification_state: RetainedArtifactVerificationState,
+    /// True when this artifact is in the coordinated rollback atom.
+    pub rollback_atom_member: bool,
+    /// Support projection ref for this artifact.
+    pub support_ref: String,
+    /// Support-safe caveat.
+    pub caveat: String,
+}
+
+/// Support-export row for one schema rollback hook.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateRollbackSupportHookRow {
+    /// Stable hook id.
+    pub hook_id: String,
+    /// Durable state-root ref.
+    pub state_root_ref: String,
+    /// Compatibility class.
+    pub compatibility_class: SchemaRollbackCompatibilityClass,
+    /// Reviewed flow class.
+    pub reviewed_flow_class: RollbackReviewedFlowClass,
+    /// Update sequence checkpoint id.
+    pub invoked_checkpoint_id: String,
+    /// Hook state.
+    pub hook_state: SchemaRollbackHookState,
+    /// Support-safe caveat.
+    pub caveat: String,
+}
+
 /// Role a state root plays in the rollback drill.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1163,4 +2052,45 @@ fn now_nanos() -> u128 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos()
+}
+
+fn push_plan_finding(
+    findings: &mut Vec<UpdateRollbackValidationFinding>,
+    check_id: &str,
+    ref_id: &str,
+    message: &str,
+) {
+    findings.push(UpdateRollbackValidationFinding {
+        check_id: check_id.to_string(),
+        ref_id: ref_id.to_string(),
+        message: message.to_string(),
+    });
+}
+
+fn validate_non_empty_ref(
+    findings: &mut Vec<UpdateRollbackValidationFinding>,
+    check_id: &str,
+    value: &str,
+    owner_ref: &str,
+) {
+    if value.trim().is_empty() {
+        push_plan_finding(findings, check_id, owner_ref, "reference must not be empty");
+    }
+}
+
+fn validate_exact_build_ref(
+    findings: &mut Vec<UpdateRollbackValidationFinding>,
+    check_id: &str,
+    value: &str,
+    owner_ref: &str,
+) {
+    validate_non_empty_ref(findings, check_id, value, owner_ref);
+    if !value.starts_with("build-id:aureline:") {
+        push_plan_finding(
+            findings,
+            check_id,
+            owner_ref,
+            "exact-build identity refs must use the build-id:aureline namespace",
+        );
+    }
 }

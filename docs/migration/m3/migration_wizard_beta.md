@@ -28,6 +28,12 @@ Companion artifacts:
   — first-run import contract the wizard composes with.
 - [`docs/migration/migration_restore_and_shortcut_delta_packet.md`](../migration_restore_and_shortcut_delta_packet.md)
   — shortcut delta digest the wizard retains with the report.
+- [`docs/release/m3/update_rollback_beta.md`](../../release/m3/update_rollback_beta.md)
+  and
+  [`/artifacts/release/m3/update_rollback/rollback_plan.json`](../../../artifacts/release/m3/update_rollback/rollback_plan.json)
+  — update rollback plan that composes retained prior artifacts,
+  schema/state hooks, and downgrade caveats with the migration
+  rollback-checkpoint model.
 
 ## Contract surface
 
@@ -79,6 +85,25 @@ writes may appear before the wizard recorded
 `stage="checkpoint_ready"`. The validator
 (`validate_migration_wizard_page`) rejects any stage history that
 admits durable writes before the checkpoint.
+
+## Update Rollback Composition
+
+Migration rollback checkpoints and update rollback plans use separate
+records but the same review posture: a state-changing rollback must name
+the checkpoint or hook that owns the restore path before durable writes
+resume. The beta update rollback plan binds current exact build
+`build-id:aureline:beta:2.1.0-beta.1:aarch64-apple-darwin:release:b7ee32adb5eb`
+to rollback target `release_candidate:aureline.2_0_4_stable` and target
+`exact_build_identity_ref`
+`build-id:aureline:stable:2.0.4:aarch64-apple-darwin:release:1f40c9d2b4a1`.
+
+The wizard may surface update rollback caveats beside migration undo
+state, but it does not invoke update hooks directly. A
+`schema_rollback_hook` is usable only through the reviewed
+`checkpoint.update.*` flow named in the rollback plan. The shared
+rollback vocabulary that migration, Help, docs, and support quote is
+`retained_prior_artifact_set`, `schema_rollback_hook`,
+`downgrade_eligibility_state`, and `exact_build_identity_ref`.
 
 ## Acceptance posture
 

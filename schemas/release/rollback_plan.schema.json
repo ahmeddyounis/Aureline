@@ -1,0 +1,426 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/rollback_plan.schema.json",
+  "title": "Aureline update rollback plan",
+  "description": "Boundary schema for update_rollback_plan_record and update_rollback_support_export. The plan binds a failed or rollbackable update to a retained prior exact-build artifact set, schema rollback hooks, downgrade eligibility truth, update sequence checkpoints, support-export refs, docs/help surfaces, and compatibility caveats. Raw binaries, raw installer logs, raw state bodies, raw migration journals, raw support bundles, raw paths, and secrets never appear; records carry refs, typed states, closed vocabularies, and support-safe summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/update_rollback_plan_record" },
+    { "$ref": "#/$defs/update_rollback_support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "date_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "exact_build_identity_ref": {
+      "type": "string",
+      "pattern": "^build-id:aureline:"
+    },
+    "release_candidate_ref": {
+      "type": "string",
+      "pattern": "^release_candidate:"
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": ["stable", "preview", "beta", "lts", "portable_stable", "portable_preview"]
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "cli_binary",
+        "remote_agent_tarball",
+        "update_metadata",
+        "policy_bundle",
+        "schema_export",
+        "docs_pack",
+        "support_runbook_bundle",
+        "release_evidence_packet",
+        "debug_sidecar",
+        "supply_chain_proof"
+      ]
+    },
+    "retention_state": {
+      "type": "string",
+      "enum": [
+        "retained_exact_build",
+        "retained_metadata_only",
+        "missing_blocked",
+        "expired_manual_review"
+      ]
+    },
+    "verification_state": {
+      "type": "string",
+      "enum": ["verified", "present_unverified", "revoked", "missing_blocked"]
+    },
+    "schema_rollback_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "backward_readable",
+        "additive_compatible",
+        "repair_required",
+        "unknown_manual_review",
+        "destructive_blocked"
+      ]
+    },
+    "reviewed_flow_class": {
+      "type": "string",
+      "enum": [
+        "update_center_review",
+        "headless_review",
+        "managed_fleet_review",
+        "support_assisted_review",
+        "migration_center_review"
+      ]
+    },
+    "schema_rollback_hook_state": {
+      "type": "string",
+      "enum": [
+        "reviewed_flow_ready",
+        "invoked_through_reviewed_flow",
+        "manual_review_only",
+        "blocked"
+      ]
+    },
+    "downgrade_eligibility_state": {
+      "type": "string",
+      "enum": [
+        "auto_eligible",
+        "eligible_with_review",
+        "manual_review_required",
+        "blocked",
+        "unsupported"
+      ]
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_graph_ref",
+        "update_manifest_ref",
+        "update_ready_review_ref",
+        "update_sequence_ref",
+        "install_diagnostics_ref",
+        "ring_rollout_ref",
+        "compatibility_report_ref"
+      ],
+      "properties": {
+        "artifact_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+        "update_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "update_ready_review_ref": { "$ref": "#/$defs/non_empty_string" },
+        "update_sequence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "install_diagnostics_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ring_rollout_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_report_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "build_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_candidate_ref",
+        "exact_build_identity_ref",
+        "update_manifest_ref",
+        "artifact_bundle_ref",
+        "version",
+        "channel_class"
+      ],
+      "properties": {
+        "release_candidate_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/exact_build_identity_ref" },
+        "update_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_bundle_ref": { "$ref": "#/$defs/non_empty_string" },
+        "version": { "$ref": "#/$defs/non_empty_string" },
+        "channel_class": { "$ref": "#/$defs/channel_class" }
+      }
+    },
+    "retained_prior_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_ref",
+        "family_class",
+        "exact_build_identity_ref",
+        "prior_release_candidate_ref",
+        "digest_ref",
+        "verification_state",
+        "retention_state",
+        "retention_owner_ref",
+        "support_ref",
+        "rollback_atom_member",
+        "caveat"
+      ],
+      "properties": {
+        "artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/exact_build_identity_ref" },
+        "prior_release_candidate_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "digest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "verification_state": { "$ref": "#/$defs/verification_state" },
+        "retention_state": { "$ref": "#/$defs/retention_state" },
+        "retention_owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rollback_atom_member": { "type": "boolean" },
+        "caveat": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "schema_rollback_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hook_id",
+        "state_root_ref",
+        "source_schema_epoch",
+        "target_schema_epoch",
+        "compatibility_class",
+        "reviewed_flow_class",
+        "reviewed_flow_ref",
+        "invoked_checkpoint_id",
+        "hook_state",
+        "backup_snapshot_ref",
+        "migration_journal_ref",
+        "repair_transaction_ref",
+        "caveat"
+      ],
+      "properties": {
+        "hook_id": { "$ref": "#/$defs/non_empty_string" },
+        "state_root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_schema_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "target_schema_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_class": { "$ref": "#/$defs/schema_rollback_compatibility_class" },
+        "reviewed_flow_class": { "$ref": "#/$defs/reviewed_flow_class" },
+        "reviewed_flow_ref": { "$ref": "#/$defs/non_empty_string" },
+        "invoked_checkpoint_id": {
+          "type": "string",
+          "pattern": "^checkpoint\\.update\\."
+        },
+        "hook_state": { "$ref": "#/$defs/schema_rollback_hook_state" },
+        "backup_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "migration_journal_ref": { "$ref": "#/$defs/non_empty_string" },
+        "repair_transaction_ref": { "$ref": "#/$defs/nullable_string" },
+        "caveat": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "downgrade_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eligibility_state",
+        "source_build_ref",
+        "target_build_ref",
+        "migration_caveats",
+        "manual_review_reason_classes",
+        "blocked_reason_classes",
+        "preserved_state_root_refs",
+        "not_restored_state_root_refs",
+        "support_summary"
+      ],
+      "properties": {
+        "eligibility_state": { "$ref": "#/$defs/downgrade_eligibility_state" },
+        "source_build_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "target_build_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "migration_caveats": { "$ref": "#/$defs/non_empty_ref_array" },
+        "manual_review_reason_classes": { "$ref": "#/$defs/ref_array" },
+        "blocked_reason_classes": { "$ref": "#/$defs/ref_array" },
+        "preserved_state_root_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "not_restored_state_root_refs": { "$ref": "#/$defs/ref_array" },
+        "support_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_projection_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_projection_ref",
+        "support_bundle_refs",
+        "consuming_surface_refs",
+        "vocabulary_terms",
+        "redaction_class"
+      ],
+      "properties": {
+        "support_projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_bundle_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "consuming_surface_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "vocabulary_terms": { "$ref": "#/$defs/non_empty_ref_array" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_commands",
+        "fixture_manifest_ref",
+        "accepted_states"
+      ],
+      "properties": {
+        "validation_commands": { "$ref": "#/$defs/non_empty_ref_array" },
+        "fixture_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "accepted_states": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "update_rollback_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "plan_id",
+        "generated_at",
+        "source_refs",
+        "current_build",
+        "rollback_target",
+        "retained_prior_artifacts",
+        "schema_rollback_hooks",
+        "downgrade_truth",
+        "support_projection",
+        "acceptance"
+      ],
+      "properties": {
+        "record_kind": { "const": "update_rollback_plan_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "plan_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "current_build": { "$ref": "#/$defs/build_ref" },
+        "rollback_target": { "$ref": "#/$defs/build_ref" },
+        "retained_prior_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/retained_prior_artifact" }
+        },
+        "schema_rollback_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/schema_rollback_hook" }
+        },
+        "downgrade_truth": { "$ref": "#/$defs/downgrade_truth" },
+        "support_projection": { "$ref": "#/$defs/support_projection_contract" },
+        "acceptance": { "$ref": "#/$defs/acceptance" }
+      }
+    },
+    "support_artifact_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_ref",
+        "family_class",
+        "exact_build_identity_ref",
+        "retention_state",
+        "verification_state",
+        "rollback_atom_member",
+        "support_ref",
+        "caveat"
+      ],
+      "properties": {
+        "artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/exact_build_identity_ref" },
+        "retention_state": { "$ref": "#/$defs/retention_state" },
+        "verification_state": { "$ref": "#/$defs/verification_state" },
+        "rollback_atom_member": { "type": "boolean" },
+        "support_ref": { "$ref": "#/$defs/non_empty_string" },
+        "caveat": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_hook_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hook_id",
+        "state_root_ref",
+        "compatibility_class",
+        "reviewed_flow_class",
+        "invoked_checkpoint_id",
+        "hook_state",
+        "caveat"
+      ],
+      "properties": {
+        "hook_id": { "$ref": "#/$defs/non_empty_string" },
+        "state_root_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_class": { "$ref": "#/$defs/schema_rollback_compatibility_class" },
+        "reviewed_flow_class": { "$ref": "#/$defs/reviewed_flow_class" },
+        "invoked_checkpoint_id": {
+          "type": "string",
+          "pattern": "^checkpoint\\.update\\."
+        },
+        "hook_state": { "$ref": "#/$defs/schema_rollback_hook_state" },
+        "caveat": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "update_rollback_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "plan_id",
+        "generated_at",
+        "source_plan_ref",
+        "current_release_candidate_ref",
+        "current_exact_build_identity_ref",
+        "rollback_target_ref",
+        "rollback_exact_build_identity_ref",
+        "downgrade_eligibility_state",
+        "migration_caveats",
+        "retained_artifacts",
+        "schema_hooks",
+        "support_bundle_refs",
+        "vocabulary_terms",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "update_rollback_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "plan_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "source_plan_ref": { "$ref": "#/$defs/non_empty_string" },
+        "current_release_candidate_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "current_exact_build_identity_ref": { "$ref": "#/$defs/exact_build_identity_ref" },
+        "rollback_target_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "rollback_exact_build_identity_ref": { "$ref": "#/$defs/exact_build_identity_ref" },
+        "downgrade_eligibility_state": { "$ref": "#/$defs/downgrade_eligibility_state" },
+        "migration_caveats": { "$ref": "#/$defs/non_empty_ref_array" },
+        "retained_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_artifact_row" }
+        },
+        "schema_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_hook_row" }
+        },
+        "support_bundle_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "vocabulary_terms": { "$ref": "#/$defs/non_empty_ref_array" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

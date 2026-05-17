@@ -34,6 +34,17 @@ Companion artifacts:
   rollback-before-restart projection consumed by update center,
   release notes, migration, compatibility, support, and headless dry
   runs.
+- [`/docs/release/m3/update_rollback_beta.md`](./m3/update_rollback_beta.md),
+  [`/schemas/release/rollback_plan.schema.json`](../../schemas/release/rollback_plan.schema.json),
+  [`/artifacts/release/m3/update_rollback/rollback_plan.json`](../../artifacts/release/m3/update_rollback/rollback_plan.json),
+  and
+  [`/artifacts/release/m3/update_rollback/support_export_projection.json`](../../artifacts/release/m3/update_rollback/support_export_projection.json)
+  - beta rollback plan, retained prior artifact set, reviewed
+  schema/state rollback hooks, explicit downgrade truth, and generated
+  support projection for the current beta exact build
+  `build-id:aureline:beta:2.1.0-beta.1:aarch64-apple-darwin:release:b7ee32adb5eb`
+  and rollback target `release_candidate:aureline.2_0_4_stable`
+  (`build-id:aureline:stable:2.0.4:aarch64-apple-darwin:release:1f40c9d2b4a1`).
 - [`/docs/build/exact_build_identity_model.md`](../build/exact_build_identity_model.md)
   and
   [`/schemas/build/exact_build_identity.schema.json`](../../schemas/build/exact_build_identity.schema.json)

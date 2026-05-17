@@ -1,0 +1,79 @@
+# Beta update rollback gate.
+#
+# Validates the retained prior artifact rollback plan, generated support
+# projection, fixture mutations, docs/help consumers, and Rust contract tests.
+
+name: check_beta_update_rollback
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_update_rollback.yml"
+      - "tools/ci/m3/update_rollback/**"
+      - "artifacts/release/m3/update_rollback/**"
+      - "artifacts/release/m3/captures/update_rollback_validation_capture.json"
+      - "artifacts/release/m3/artifact_graph.json"
+      - "artifacts/release/m3/ring_rollout/packet.json"
+      - "artifacts/release/m3/install_diagnostics/**"
+      - "fixtures/release/update_rollback_plan_cases/**"
+      - "schemas/release/rollback_plan.schema.json"
+      - "docs/release/m3/update_rollback_beta.md"
+      - "docs/release/m3/packaging_and_signing_beta.md"
+      - "docs/release/update_and_rollback_contract.md"
+      - "docs/help/m3/release_truth_surfaces.md"
+      - "docs/migration/m3/migration_wizard_beta.md"
+      - "crates/aureline-install/src/rollback/**"
+      - "crates/aureline-install/src/lib.rs"
+      - "crates/aureline-install/tests/update_rollback_plan_beta.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-update-rollback-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update_rollback:
+    name: Beta update rollback
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run update rollback validator
+        run: |
+          python3 -m tools.ci.m3.update_rollback --repo-root . --check
+
+      - name: Run rollback plan contract tests
+        run: |
+          cargo test -p aureline-install --test update_rollback_plan_beta
+
+      - name: Upload update rollback validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-update-rollback-${{ github.run_id }}
+          path: artifacts/release/m3/captures/update_rollback_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

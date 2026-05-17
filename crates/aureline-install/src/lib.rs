@@ -28,12 +28,20 @@ pub use ownership_audit::{
 };
 
 pub use rollback::{
-    RollbackDrillDeltaClass, RollbackDrillDiff, RollbackDrillDiffKind, RollbackDrillDriver,
-    RollbackDrillEntry, RollbackDrillEntryKind, RollbackDrillError, RollbackDrillExpectedDelta,
-    RollbackDrillLayout, RollbackDrillPlan, RollbackDrillPreStateSnapshot, RollbackDrillReport,
-    RollbackDrillRoot, RollbackDrillRootPath, RollbackDrillRootRole,
+    DowngradeEligibilityState, DowngradeTruth, RetainedArtifactState,
+    RetainedArtifactVerificationState, RetainedPriorArtifact, RollbackArtifactFamilyClass,
+    RollbackBuildRef, RollbackDrillDeltaClass, RollbackDrillDiff, RollbackDrillDiffKind,
+    RollbackDrillDriver, RollbackDrillEntry, RollbackDrillEntryKind, RollbackDrillError,
+    RollbackDrillExpectedDelta, RollbackDrillLayout, RollbackDrillPlan,
+    RollbackDrillPreStateSnapshot, RollbackDrillReport, RollbackDrillRoot, RollbackDrillRootPath,
+    RollbackDrillRootRole, RollbackPlanAcceptance, RollbackPlanSupportProjection,
+    RollbackReviewedFlowClass, SchemaRollbackCompatibilityClass, SchemaRollbackHook,
+    SchemaRollbackHookState, UpdateRollbackCoverage, UpdateRollbackPlan, UpdateRollbackSourceRefs,
+    UpdateRollbackSupportArtifactRow, UpdateRollbackSupportExport, UpdateRollbackSupportHookRow,
+    UpdateRollbackValidationFinding, UpdateRollbackValidationReport,
     ROLLBACK_DRILL_PRE_STATE_RECORD_KIND, ROLLBACK_DRILL_REPORT_RECORD_KIND,
-    ROLLBACK_DRILL_SCHEMA_VERSION,
+    ROLLBACK_DRILL_SCHEMA_VERSION, UPDATE_ROLLBACK_PLAN_RECORD_KIND,
+    UPDATE_ROLLBACK_PLAN_SCHEMA_VERSION, UPDATE_ROLLBACK_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use topology::{

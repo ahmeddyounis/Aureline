@@ -1,0 +1,25 @@
+schema_version: 1
+record_kind: update_rollback_fixture_manifest
+canonical_plan_ref: artifacts/release/m3/update_rollback/rollback_plan.json
+canonical_schema_ref: schemas/release/rollback_plan.schema.json
+canonical_support_projection_ref: artifacts/release/m3/update_rollback/support_export_projection.json
+validator_ref: tools/ci/m3/update_rollback
+failure_drill_mutations:
+  - mutation_id: retained_metadata_only
+    target_ref: artifacts/release/m3/update_rollback/rollback_plan.json#retained_prior_artifacts.0.retention_state
+    payload_path: retained_prior_artifacts.0.retention_state
+    replacement: retained_metadata_only
+    expected_finding: retained_artifacts.not_exact_build_retained
+    summary: Prior artifacts must be retained as exact-build bytes, not metadata-only rows.
+  - mutation_id: schema_hook_unreviewed_checkpoint
+    target_ref: artifacts/release/m3/update_rollback/rollback_plan.json#schema_rollback_hooks.0.invoked_checkpoint_id
+    payload_path: schema_rollback_hooks.0.invoked_checkpoint_id
+    replacement: checkpoint.migration.rollback_triggered
+    expected_finding: schema_hooks.invoked_checkpoint_not_update_sequence
+    summary: Schema rollback hooks must bind to reviewed update checkpoints.
+  - mutation_id: blocked_downgrade_truth
+    target_ref: artifacts/release/m3/update_rollback/rollback_plan.json#downgrade_truth.eligibility_state
+    payload_path: downgrade_truth.eligibility_state
+    replacement: blocked
+    expected_finding: downgrade_truth.not_admitted
+    summary: Rollback support packets must not widen a blocked downgrade into an admitted rollback claim.

@@ -55,6 +55,21 @@ Managed and self-serve rollout lanes quote the same `canary`, `pilot`,
 rollback action preserves prior package visibility instead of leaving ambiguous
 channel state.
 
+Update rollback is published at
+[`/artifacts/release/m3/update_rollback/rollback_plan.json`](../../../artifacts/release/m3/update_rollback/rollback_plan.json)
+with generated support truth at
+[`/artifacts/release/m3/update_rollback/support_export_projection.json`](../../../artifacts/release/m3/update_rollback/support_export_projection.json)
+and the headless gate in
+[`/tools/ci/m3/update_rollback/`](../../../tools/ci/m3/update_rollback).
+The plan binds the current beta exact build
+`build-id:aureline:beta:2.1.0-beta.1:aarch64-apple-darwin:release:b7ee32adb5eb`
+to rollback target `release_candidate:aureline.2_0_4_stable` and
+target `exact_build_identity_ref`
+`build-id:aureline:stable:2.0.4:aarch64-apple-darwin:release:1f40c9d2b4a1`.
+Support, docs, Help, and migration rows use the same tokens:
+`retained_prior_artifact_set`, `schema_rollback_hook`,
+`downgrade_eligibility_state`, and `exact_build_identity_ref`.
+
 ## Promotion Rule
 
 The beta candidate may widen only when the graph validator passes:
@@ -79,12 +94,26 @@ state-root audit drifts from install diagnostics, if managed and self-serve
 lanes diverge on ring vocabulary, or if a promotion / rollback leaves more than
 one active package state for a channel.
 
+Rollback admission additionally requires:
+
+```bash
+python3 -m tools.ci.m3.update_rollback --repo-root . --check
+```
+
+This gate fails if retained prior artifacts are metadata-only, if schema
+rollback hooks are not bound to reviewed update checkpoints, if downgrade
+truth is blocked or implicit, or if docs/help/support surfaces stop
+quoting the same rollback vocabulary and exact-build refs.
+
 ## Rollback Rule
 
 Rollback targets the coordinated artifact set. Desktop, CLI, helper,
 update metadata, policy bundle, schemas, docs/help truth, support
-projection, and sidecars move together or stay blocked. A binary-only
-rollback is outside the beta contract.
+projection, and sidecars move together or stay blocked. The
+`retained_prior_artifact_set` must resolve to
+`build-id:aureline:stable:2.0.4:aarch64-apple-darwin:release:1f40c9d2b4a1`
+for every required family. A binary-only rollback is outside the beta
+contract.
 
 ## Schema And Policy Rule
 
@@ -96,7 +125,11 @@ requires updating:
 - [`/schemas/release/artifact_graph.schema.json`](../../../schemas/release/artifact_graph.schema.json);
 - [`/artifacts/release/m3/artifact_graph.json`](../../../artifacts/release/m3/artifact_graph.json);
 - [`/artifacts/release/m3/artifact_graph_support_projection.json`](../../../artifacts/release/m3/artifact_graph_support_projection.json);
+- [`/schemas/release/rollback_plan.schema.json`](../../../schemas/release/rollback_plan.schema.json);
+- [`/artifacts/release/m3/update_rollback/rollback_plan.json`](../../../artifacts/release/m3/update_rollback/rollback_plan.json);
+- [`/artifacts/release/m3/update_rollback/support_export_projection.json`](../../../artifacts/release/m3/update_rollback/support_export_projection.json);
 - [`/fixtures/release/artifact_graph_cases/manifest.yaml`](../../../fixtures/release/artifact_graph_cases/manifest.yaml);
+- [`/fixtures/release/update_rollback_plan_cases/manifest.yaml`](../../../fixtures/release/update_rollback_plan_cases/manifest.yaml);
 - this packet.
 
 ## Downgrade Behavior

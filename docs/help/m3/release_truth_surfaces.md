@@ -53,6 +53,20 @@ CLI, and support export may summarize rollout posture, but they must quote the
 same controlled ring vocabulary and the same post-action active package state
 that the headless rollout gate validates.
 
+Update rollback state is read through
+`artifacts/release/m3/update_rollback/rollback_plan.json` and the
+generated support projection at
+`artifacts/release/m3/update_rollback/support_export_projection.json`.
+Help / About, support export, release docs, and migration surfaces quote
+the same current exact build
+`build-id:aureline:beta:2.1.0-beta.1:aarch64-apple-darwin:release:b7ee32adb5eb`,
+rollback target `release_candidate:aureline.2_0_4_stable`, and rollback
+target `exact_build_identity_ref`
+`build-id:aureline:stable:2.0.4:aarch64-apple-darwin:release:1f40c9d2b4a1`.
+They also quote the shared rollback vocabulary:
+`retained_prior_artifact_set`, `schema_rollback_hook`,
+`downgrade_eligibility_state`, and `exact_build_identity_ref`.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -182,6 +196,11 @@ The projection is read-only and does not:
 - `artifacts/release/m3/ring_rollout/support_export_projection.json` —
   the generated support/export projection for managed and self-serve
   rollout actions.
+- `artifacts/release/m3/update_rollback/rollback_plan.json` — the beta
+  update rollback plan binding retained prior artifacts, schema hooks,
+  downgrade truth, and support/docs consumers.
+- `artifacts/release/m3/update_rollback/support_export_projection.json`
+  — the generated support/export projection for update rollback.
 - `artifacts/release/m3/state_root_audit.md` — generated state-root audit
   consumed by Help / About, CLI diagnostics, silent deployment summaries,
   and support export.
@@ -189,5 +208,8 @@ The projection is read-only and does not:
   generator.
 - `tools/ci/m3/ring_rollout/` — headless validator for beta rollout,
   silent deployment, state-root audit, and rollback-safe channel state.
+- `tools/ci/m3/update_rollback/` — headless validator for retained prior
+  artifacts, reviewed schema rollback hooks, explicit downgrade truth,
+  and support/docs vocabulary.
 - `schemas/release/m3_claim_manifest.schema.json` — the canonical
   boundary schema enforced by `ci/check_m3_claim_manifest.py`.
