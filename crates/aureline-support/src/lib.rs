@@ -38,6 +38,13 @@
 //! - The [`recovery_ladder`] alpha evaluator — consumes typed recovery
 //!   evidence and emits bounded safe-mode, quarantine, open-without-restore,
 //!   and cache/index repair decisions plus support/release projections.
+//! - The [`safe_mode`] beta evaluator — mints a typed
+//!   `safe_mode_profile_record` that declares which hosts, services, and
+//!   surfaces are disabled or narrowed and why, plus typed
+//!   `safe_mode_transition_record` rows for entry and exit that preserve
+//!   user-owned state. Bound to the boundary schema at
+//!   `/schemas/support/safe_mode_profile.schema.json` and the protected
+//!   fixture corpus at `/fixtures/recovery/m3/safe_mode/`.
 //! - The [`repair`] alpha preview compiler — consumes checked-in repair seed
 //!   cases and emits typed transaction, preview, outcome, and journal records
 //!   before any guided repair can apply.
@@ -88,4 +95,5 @@ pub mod repair;
 pub mod route_origin_alpha;
 pub mod runtime_evidence;
 pub mod runtime_health_alpha;
+pub mod safe_mode;
 pub mod scenario_scorecard;

@@ -1,0 +1,84 @@
+schema_version: 1
+record_kind: safe_mode_profile_record
+profile_id: safe_mode_profile:user_invoked:alpha_web
+profile_class: user_invoked_profile
+captured_at: "2026-05-15T09:30:00Z"
+doctor_finding_ref: doctor.finding.user_invoked.bounded_repro
+support_packet_ref: support:safe-mode-beta:user-invoked
+declared_hosts:
+  - host_id: safe_mode_host:extension_host:default
+    host_class: extension_host
+    disposition_class: disabled
+    reason_class: user_opt_in_request
+    narrowing_summary: User invoked safe mode to bound extension side effects while reproducing an issue.
+  - host_id: safe_mode_host:ai_runtime_host:default
+    host_class: ai_runtime_host
+    disposition_class: disabled
+    reason_class: user_opt_in_request
+    narrowing_summary: AI runtime host is disabled per the explicit safe-mode request.
+  - host_id: safe_mode_host:background_indexer_host:default
+    host_class: background_indexer_host
+    disposition_class: narrowed_to_local_only
+    reason_class: user_opt_in_request
+    narrowing_summary: Background indexer is bounded to local-only reads during the reproduction window.
+declared_services:
+  - service_id: safe_mode_service:extension_auto_activation
+    service_class: extension_auto_activation
+    disposition_class: disabled
+    reason_class: user_opt_in_request
+    narrowing_summary: Third-party extension auto-activation is suppressed for the duration of the safe-mode session.
+  - service_id: safe_mode_service:background_rebuild
+    service_class: background_rebuild
+    disposition_class: disabled
+    reason_class: user_opt_in_request
+    narrowing_summary: Background rebuild is paused so the reproduction stays repeatable.
+  - service_id: safe_mode_service:remote_auto_reattach
+    service_class: remote_auto_reattach
+    disposition_class: disabled
+    reason_class: user_opt_in_request
+    narrowing_summary: Remote auto-reattach is paused so the local repro is not perturbed by a remote rehydrate.
+  - service_id: safe_mode_service:telemetry_upload
+    service_class: telemetry_upload
+    disposition_class: narrowed_to_local_only
+    reason_class: user_opt_in_request
+    narrowing_summary: Telemetry upload is local-only while diagnostics are captured.
+declared_surfaces:
+  - surface_id: safe_mode_surface:ai_assistant_panel
+    surface_class: ai_assistant_panel
+    disposition_class: disabled
+    reason_class: user_opt_in_request
+    narrowing_summary: AI assistant panel is hidden so the repro is not biased by suggestions.
+preserved_capabilities:
+  - local_editing
+  - basic_navigation
+  - local_search
+  - local_git_operations
+  - local_diagnostics_export
+  - support_bundle_preview
+  - project_doctor_surfaces
+  - safe_mode_exit_action
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - session_restore_store
+  - support_export_store
+destructive_resets_present: false
+return_path:
+  fuller_mode_class: full_mode
+  return_action:
+    action_id: action:safe-mode.user-exit
+    requires_review: false
+    summary: User exits safe mode from the recovery surface to return to full mode.
+  restore_conditions:
+    - User explicitly chooses to exit safe mode.
+    - Reproduction artifacts (if any) have been exported to the support-bundle preview.
+evidence:
+  - evidence_ref: doctor.finding.user_invoked.bounded_repro
+    evidence_kind: project_doctor_finding
+    summary: Project Doctor opened a bounded-repro finding when the user invoked safe mode.
+  - evidence_ref: evidence:safe-mode:user-opt-in
+    evidence_kind: user_action
+    summary: User selected safe mode from the recovery surface; no startup failure was observed.

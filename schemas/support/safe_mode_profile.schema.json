@@ -1,0 +1,504 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/safe_mode_profile.schema.json",
+  "title": "Aureline safe-mode runtime profile and entry/exit transition contract",
+  "description": "Boundary schema for the safe_mode_profile_record and safe_mode_transition_record consumed by aureline-support's safe_mode module. A profile declares exactly which hosts, services, and surfaces are disabled or narrowed and why; a transition records that entering or leaving safe mode preserves user-owned state and avoids destructive resets. Both shapes use closed vocabularies so the chrome, headless export, and reviewer surfaces share one truth.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/safe_mode_profile_record"
+    },
+    {
+      "$ref": "#/$defs/safe_mode_transition_record"
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "profile_class": {
+      "type": "string",
+      "enum": [
+        "post_crash_loop_profile",
+        "user_invoked_profile",
+        "policy_forced_profile",
+        "diagnostics_profile"
+      ]
+    },
+    "host_class": {
+      "type": "string",
+      "enum": [
+        "extension_host",
+        "language_runtime_host",
+        "ai_runtime_host",
+        "remote_helper_host",
+        "background_indexer_host",
+        "docs_pack_fetcher_host"
+      ]
+    },
+    "service_class": {
+      "type": "string",
+      "enum": [
+        "telemetry_upload",
+        "background_rebuild",
+        "docs_pack_live_fetch",
+        "ai_inference_request",
+        "extension_marketplace_sync",
+        "session_restore_auto_replay",
+        "remote_auto_reattach",
+        "managed_policy_sync_push",
+        "extension_auto_activation"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "extension_marketplace_panel",
+        "ai_assistant_panel",
+        "remote_collaboration_panel",
+        "live_share_surface",
+        "auto_update_panel",
+        "managed_admin_panel"
+      ]
+    },
+    "disposition_class": {
+      "type": "string",
+      "enum": [
+        "disabled",
+        "narrowed_to_read_only",
+        "narrowed_to_local_only",
+        "narrowed_to_reviewer_view"
+      ]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "startup_crash_loop_detected",
+        "restart_budget_exceeded",
+        "compatibility_regression_suspected",
+        "unsafe_replay_detected",
+        "policy_forced_safe_mode",
+        "diagnostics_mode_requested",
+        "user_opt_in_request"
+      ]
+    },
+    "preserved_capability_class": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "basic_navigation",
+        "local_search",
+        "local_git_operations",
+        "local_diagnostics_export",
+        "support_bundle_preview",
+        "project_doctor_surfaces",
+        "safe_mode_exit_action"
+      ]
+    },
+    "preserved_state_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_files",
+        "open_buffer_selection",
+        "durable_workspace_indexes",
+        "workspace_trust_store",
+        "credential_store",
+        "session_restore_store",
+        "support_export_store"
+      ]
+    },
+    "fuller_mode_class": {
+      "type": "string",
+      "enum": [
+        "full_mode",
+        "restore_enabled_entry",
+        "lane_readmitted"
+      ]
+    },
+    "return_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "summary",
+        "requires_review"
+      ],
+      "properties": {
+        "action_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "requires_review": {
+          "type": "boolean"
+        }
+      }
+    },
+    "narrowed_host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_id",
+        "host_class",
+        "disposition_class",
+        "reason_class",
+        "narrowing_summary"
+      ],
+      "properties": {
+        "host_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "host_class": {
+          "$ref": "#/$defs/host_class"
+        },
+        "disposition_class": {
+          "$ref": "#/$defs/disposition_class"
+        },
+        "reason_class": {
+          "$ref": "#/$defs/reason_class"
+        },
+        "narrowing_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "narrowed_service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_id",
+        "service_class",
+        "disposition_class",
+        "reason_class",
+        "narrowing_summary"
+      ],
+      "properties": {
+        "service_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "service_class": {
+          "$ref": "#/$defs/service_class"
+        },
+        "disposition_class": {
+          "$ref": "#/$defs/disposition_class"
+        },
+        "reason_class": {
+          "$ref": "#/$defs/reason_class"
+        },
+        "narrowing_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "narrowed_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_id",
+        "surface_class",
+        "disposition_class",
+        "reason_class",
+        "narrowing_summary"
+      ],
+      "properties": {
+        "surface_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "surface_class": {
+          "$ref": "#/$defs/surface_class"
+        },
+        "disposition_class": {
+          "$ref": "#/$defs/disposition_class"
+        },
+        "reason_class": {
+          "$ref": "#/$defs/reason_class"
+        },
+        "narrowing_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_ref",
+        "evidence_kind",
+        "summary"
+      ],
+      "properties": {
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_kind": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "transition_class": {
+      "type": "string",
+      "enum": [
+        "enter",
+        "exit"
+      ]
+    },
+    "entry_reason_class": {
+      "type": "string",
+      "enum": [
+        "crash_loop_detected",
+        "restart_budget_exceeded",
+        "explicit_user_choice",
+        "policy_forced",
+        "unsafe_replay_detected",
+        "diagnostics_mode_requested"
+      ]
+    },
+    "exit_reason_class": {
+      "type": "string",
+      "enum": [
+        "user_confirmed_full_mode",
+        "doctor_finding_reviewed",
+        "policy_released",
+        "exported_evidence_and_exited"
+      ]
+    },
+    "safe_mode_profile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "profile_id",
+        "profile_class",
+        "captured_at",
+        "doctor_finding_ref",
+        "support_packet_ref",
+        "declared_hosts",
+        "declared_services",
+        "declared_surfaces",
+        "preserved_capabilities",
+        "preserved_state_classes",
+        "destructive_resets_present",
+        "return_path",
+        "evidence"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "safe_mode_profile_record"
+        },
+        "profile_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "profile_class": {
+          "$ref": "#/$defs/profile_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "doctor_finding_ref": {
+          "type": "string",
+          "pattern": "^doctor\\.finding\\."
+        },
+        "support_packet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "declared_hosts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/narrowed_host"
+          }
+        },
+        "declared_services": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/narrowed_service"
+          }
+        },
+        "declared_surfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/narrowed_surface"
+          }
+        },
+        "preserved_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_capability_class"
+          },
+          "contains": {
+            "const": "local_editing"
+          }
+        },
+        "preserved_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          },
+          "contains": {
+            "const": "user_authored_files"
+          }
+        },
+        "destructive_resets_present": {
+          "type": "boolean",
+          "const": false
+        },
+        "return_path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fuller_mode_class",
+            "return_action",
+            "restore_conditions"
+          ],
+          "properties": {
+            "fuller_mode_class": {
+              "$ref": "#/$defs/fuller_mode_class"
+            },
+            "return_action": {
+              "$ref": "#/$defs/return_action"
+            },
+            "restore_conditions": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/reviewable_sentence"
+              }
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence_ref"
+          }
+        }
+      }
+    },
+    "safe_mode_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "transition_id",
+        "transition_class",
+        "profile_ref",
+        "captured_at",
+        "preserved_state_classes_observed",
+        "user_owned_state_deleted",
+        "durable_state_deleted",
+        "support_packet_ref"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "safe_mode_transition_record"
+        },
+        "transition_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "transition_class": {
+          "$ref": "#/$defs/transition_class"
+        },
+        "profile_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "entry_reason_class": {
+          "$ref": "#/$defs/entry_reason_class"
+        },
+        "exit_reason_class": {
+          "$ref": "#/$defs/exit_reason_class"
+        },
+        "preserved_state_classes_observed": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          },
+          "contains": {
+            "const": "user_authored_files"
+          }
+        },
+        "user_owned_state_deleted": {
+          "type": "boolean",
+          "const": false
+        },
+        "durable_state_deleted": {
+          "type": "boolean",
+          "const": false
+        },
+        "support_packet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "transition_class": {
+                "const": "enter"
+              }
+            },
+            "required": [
+              "transition_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "entry_reason_class"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition_class": {
+                "const": "exit"
+              }
+            },
+            "required": [
+              "transition_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "exit_reason_class"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
