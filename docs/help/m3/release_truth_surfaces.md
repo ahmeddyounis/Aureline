@@ -91,6 +91,16 @@ Help / About, release docs, partner docs, and support exports quote the same
 compatibility row refs, skew case refs, out-of-window postures, and repair
 hints; unsupported windows never render as mutating support.
 
+Reproducible release-candidate state is read through
+`artifacts/release/m3/reproducible_rc_packet/packet.json`, the rebuilt
+artifact graph snapshot at
+`artifacts/release/m3/reproducible_rc_packet/rebuilt_artifact_graph.json`,
+and the support export projection at
+`artifacts/release/m3/reproducible_rc_packet/support_export_projection.json`.
+Help / About, release docs, support exports, and partner proof packets
+quote the same exact-build identity, clean-room rebuild evidence state,
+artifact-graph comparison rows, and blocking publication checks.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -236,6 +246,12 @@ The projection is read-only and does not:
   — the generated support/export projection for distributed compatibility rows.
 - `artifacts/release/m3/correction_train/support_export_projection.json`
   — the generated support/export projection for correction-train rows.
+- `artifacts/release/m3/reproducible_rc_packet/packet.json` — the beta
+  reproducible release-candidate packet binding the promoted artifact
+  graph, clean-room rebuild evidence, and exact-build publication checks.
+- `artifacts/release/m3/reproducible_rc_packet/support_export_projection.json`
+  — the generated support/export projection for clean-room rebuild and
+  exact-build publication checks.
 - `artifacts/release/m3/state_root_audit.md` — generated state-root audit
   consumed by Help / About, CLI diagnostics, silent deployment summaries,
   and support export.
@@ -249,5 +265,9 @@ The projection is read-only and does not:
 - `tools/ci/m3/correction_train/` — headless validator for correction
   packets, hotfix admission, backport decisions, generated support
   projection, and docs/help vocabulary.
+- `tools/ci/m3/clean_room_rebuild/` — headless validator for
+  clean-room rebuild evidence, rebuilt artifact graph comparison,
+  exact-build publication checks, generated support projection, and
+  support/export fixtures.
 - `schemas/release/m3_claim_manifest.schema.json` — the canonical
   boundary schema enforced by `ci/check_m3_claim_manifest.py`.

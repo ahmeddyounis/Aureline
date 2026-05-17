@@ -81,6 +81,11 @@
 //!   distributed compatibility support export so support packets quote the same
 //!   manifest rows, skew cases, unsupported postures, and repair hints as the
 //!   release packet.
+//! - The [`reproducible_rc`] beta projection — consumes the generated
+//!   reproducible release-candidate support export so release, security,
+//!   partner proof, and support packets quote the same clean-room rebuild
+//!   state, exact-build identity, rebuilt artifact graph checks, and blocking
+//!   publication checks.
 //! - The [`bundle::notice_digest_preview_item_seed`] projection — consumes the
 //!   typed `aureline-notices` bundle and inserts the dependency notice digest
 //!   into support-bundle previews as metadata-only evidence.
@@ -130,6 +135,7 @@ pub mod recovery_ladder;
 pub mod release_evidence;
 pub mod repair;
 pub mod repair_transactions;
+pub mod reproducible_rc;
 pub mod route_origin_alpha;
 pub mod runtime_evidence;
 pub mod runtime_health_alpha;

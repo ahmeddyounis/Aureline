@@ -82,6 +82,16 @@ correction row to `correction_scope`, `correction_risk`,
 `backport_decision`, `rollback_target`, and `known_issue_update` so
 release, support, and docs read the same packet form.
 
+Reproducible release-candidate evidence is published at
+[`/artifacts/release/m3/reproducible_rc_packet/packet.json`](../../../artifacts/release/m3/reproducible_rc_packet/packet.json)
+with generated support truth at
+[`/artifacts/release/m3/reproducible_rc_packet/support_export_projection.json`](../../../artifacts/release/m3/reproducible_rc_packet/support_export_projection.json)
+and the headless gate in
+[`/tools/ci/m3/clean_room_rebuild/`](../../../tools/ci/m3/clean_room_rebuild).
+The packet compares the promoted artifact graph to the clean-room
+rebuilt graph snapshot and blocks publication when exact-build identity,
+digest rows, or release-center candidate refs diverge.
+
 ## Promotion Rule
 
 The beta candidate may widen only when the graph validator passes:
@@ -128,6 +138,17 @@ an affected supported line lacks a `backport_decision`, if hotfix or
 backport rows omit `rollback_target` or `known_issue_update`, or if
 docs/help/support surfaces stop quoting the same correction vocabulary.
 
+Reproducible release-candidate admission additionally requires:
+
+```bash
+python3 -m tools.ci.m3.clean_room_rebuild --repo-root . --check
+```
+
+This gate fails if clean-room rebuild evidence is stale, if the rebuilt
+artifact graph no longer matches the promoted candidate graph, if exact-
+build identity refs diverge, or if support/export cannot consume the same
+metadata-only proof packet.
+
 ## Rollback Rule
 
 Rollback targets the coordinated artifact set. Desktop, CLI, helper,
@@ -151,7 +172,11 @@ requires updating:
 - [`/schemas/release/rollback_plan.schema.json`](../../../schemas/release/rollback_plan.schema.json);
 - [`/artifacts/release/m3/update_rollback/rollback_plan.json`](../../../artifacts/release/m3/update_rollback/rollback_plan.json);
 - [`/artifacts/release/m3/update_rollback/support_export_projection.json`](../../../artifacts/release/m3/update_rollback/support_export_projection.json);
+- [`/schemas/release/reproducible_rc_packet.schema.json`](../../../schemas/release/reproducible_rc_packet.schema.json);
+- [`/artifacts/release/m3/reproducible_rc_packet/packet.json`](../../../artifacts/release/m3/reproducible_rc_packet/packet.json);
+- [`/artifacts/release/m3/reproducible_rc_packet/support_export_projection.json`](../../../artifacts/release/m3/reproducible_rc_packet/support_export_projection.json);
 - [`/fixtures/release/artifact_graph_cases/manifest.yaml`](../../../fixtures/release/artifact_graph_cases/manifest.yaml);
+- [`/fixtures/release/m3/reproducible_rc/manifest.yaml`](../../../fixtures/release/m3/reproducible_rc/manifest.yaml);
 - [`/fixtures/release/update_rollback_plan_cases/manifest.yaml`](../../../fixtures/release/update_rollback_plan_cases/manifest.yaml);
 - this packet.
 
