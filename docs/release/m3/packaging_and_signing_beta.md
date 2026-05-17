@@ -70,6 +70,18 @@ Support, docs, Help, and migration rows use the same tokens:
 `retained_prior_artifact_set`, `schema_rollback_hook`,
 `downgrade_eligibility_state`, and `exact_build_identity_ref`.
 
+Correction train, hotfix, and backport triage is published at
+[`/artifacts/release/m3/correction_train/packet.json`](../../../artifacts/release/m3/correction_train/packet.json)
+with generated support truth at
+[`/artifacts/release/m3/correction_train/support_export_projection.json`](../../../artifacts/release/m3/correction_train/support_export_projection.json)
+and the headless gate in
+[`/tools/ci/m3/correction_train/`](../../../tools/ci/m3/correction_train).
+The packet id `correction.train.beta.release_control` binds each
+correction row to `correction_scope`, `correction_risk`,
+`correction_evidence`, `target_channels`, `triage_lane`,
+`backport_decision`, `rollback_target`, and `known_issue_update` so
+release, support, and docs read the same packet form.
+
 ## Promotion Rule
 
 The beta candidate may widen only when the graph validator passes:
@@ -104,6 +116,17 @@ This gate fails if retained prior artifacts are metadata-only, if schema
 rollback hooks are not bound to reviewed update checkpoints, if downgrade
 truth is blocked or implicit, or if docs/help/support surfaces stop
 quoting the same rollback vocabulary and exact-build refs.
+
+Correction-train admission additionally requires:
+
+```bash
+python3 -m tools.ci.m3.correction_train --repo-root . --check
+```
+
+This gate fails if a security or trust row is demoted out of `hotfix`, if
+an affected supported line lacks a `backport_decision`, if hotfix or
+backport rows omit `rollback_target` or `known_issue_update`, or if
+docs/help/support surfaces stop quoting the same correction vocabulary.
 
 ## Rollback Rule
 

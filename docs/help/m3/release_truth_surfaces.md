@@ -67,6 +67,19 @@ They also quote the shared rollback vocabulary:
 `retained_prior_artifact_set`, `schema_rollback_hook`,
 `downgrade_eligibility_state`, and `exact_build_identity_ref`.
 
+Correction-train state is read through
+`artifacts/release/m3/correction_train/packet.json` and the generated
+support projection at
+`artifacts/release/m3/correction_train/support_export_projection.json`.
+Help / About, release docs, support export, and release notes quote
+packet id `correction.train.beta.release_control` plus the same
+correction vocabulary: `correction_scope`, `correction_risk`,
+`correction_evidence`, `target_channels`, `triage_lane`,
+`backport_decision`, `rollback_target`, and `known_issue_update`.
+The only admitted `triage_lane` values are `hotfix`, `backport`,
+`correction_train_only`, and `next_cycle`; supported-line decisions use
+`backport_decision` values `yes`, `no`, `defer`, or `not_applicable`.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -201,6 +214,12 @@ The projection is read-only and does not:
   downgrade truth, and support/docs consumers.
 - `artifacts/release/m3/update_rollback/support_export_projection.json`
   — the generated support/export projection for update rollback.
+- `artifacts/release/m3/correction_train/packet.json` — the beta
+  correction-train packet joining hotfix, backport, train-only, and
+  next-cycle triage to scope, risk, evidence, target channels, rollback
+  targets, known-issue updates, and support/docs refs.
+- `artifacts/release/m3/correction_train/support_export_projection.json`
+  — the generated support/export projection for correction-train rows.
 - `artifacts/release/m3/state_root_audit.md` — generated state-root audit
   consumed by Help / About, CLI diagnostics, silent deployment summaries,
   and support export.
@@ -211,5 +230,8 @@ The projection is read-only and does not:
 - `tools/ci/m3/update_rollback/` — headless validator for retained prior
   artifacts, reviewed schema rollback hooks, explicit downgrade truth,
   and support/docs vocabulary.
+- `tools/ci/m3/correction_train/` — headless validator for correction
+  packets, hotfix admission, backport decisions, generated support
+  projection, and docs/help vocabulary.
 - `schemas/release/m3_claim_manifest.schema.json` — the canonical
   boundary schema enforced by `ci/check_m3_claim_manifest.py`.

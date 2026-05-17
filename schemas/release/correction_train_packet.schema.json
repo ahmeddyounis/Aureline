@@ -1,0 +1,566 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/correction_train_packet.schema.json",
+  "title": "Aureline correction train packet",
+  "description": "Boundary schema for correction-train packets and their support-export projection. The packet binds hotfix, backport, train-only, and next-cycle decisions to scope, risk, evidence, target channels, rollback targets, known-issue updates, and support/docs consumers. Raw logs, secrets, customer data, private ticket text, and unpublished exploit details are excluded; records carry stable refs and metadata-safe summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/correction_train_packet_record" },
+    { "$ref": "#/$defs/correction_train_support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "date_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "exact_build_identity_ref": {
+      "type": "string",
+      "pattern": "^build-id:aureline:"
+    },
+    "release_candidate_ref": {
+      "type": "string",
+      "pattern": "^release_candidate:"
+    },
+    "channel_class": {
+      "type": "string",
+      "enum": ["nightly", "preview", "beta", "stable", "lts", "mirror_only", "offline_bundle"]
+    },
+    "support_line_class": {
+      "type": "string",
+      "enum": ["preview", "beta", "stable", "lts", "unsupported", "not_applicable"]
+    },
+    "issue_class": {
+      "type": "string",
+      "enum": [
+        "security_policy_escape",
+        "data_loss_or_migration_breakage",
+        "trust_boundary_or_permission_failure",
+        "protected_path_regression",
+        "sdk_interface_or_extension_regression",
+        "non_protected_polish"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": ["current", "retest_pending", "aging", "stale", "waived_current"]
+    },
+    "workaround_state": {
+      "type": "string",
+      "enum": ["none", "safe_workaround_available", "mitigation_available", "claim_narrowing_required", "unknown"]
+    },
+    "lane_decision": {
+      "type": "string",
+      "enum": ["hotfix", "backport", "correction_train_only", "next_cycle"]
+    },
+    "decision_state": {
+      "type": "string",
+      "enum": ["triaged", "ready", "blocked", "closed", "deferred"]
+    },
+    "backport_decision": {
+      "type": "string",
+      "enum": ["yes", "no", "defer", "not_applicable"]
+    },
+    "target_disposition": {
+      "type": "string",
+      "enum": ["ship_hotfix", "ship_backport", "ship_train", "next_cycle", "hold_and_narrow_claim", "not_applicable"]
+    },
+    "packet_templates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correction_train_template_ref",
+        "hotfix_packet_template_ref",
+        "backport_packet_template_ref",
+        "shared_packet_format_terms"
+      ],
+      "properties": {
+        "correction_train_template_ref": { "$ref": "#/$defs/non_empty_string" },
+        "hotfix_packet_template_ref": { "$ref": "#/$defs/non_empty_string" },
+        "backport_packet_template_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shared_packet_format_terms": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_graph_ref",
+        "claim_manifest_ref",
+        "compatibility_report_ref",
+        "ring_rollout_ref",
+        "update_rollback_ref",
+        "release_notes_ref",
+        "correction_train_doc_ref"
+      ],
+      "properties": {
+        "artifact_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ring_rollout_ref": { "$ref": "#/$defs/non_empty_string" },
+        "update_rollback_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_notes_ref": { "$ref": "#/$defs/non_empty_string" },
+        "correction_train_doc_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "triage_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_ref",
+        "decision_vocabulary",
+        "backport_decision_vocabulary",
+        "default_rules"
+      ],
+      "properties": {
+        "policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "decision_vocabulary": { "$ref": "#/$defs/non_empty_ref_array" },
+        "backport_decision_vocabulary": { "$ref": "#/$defs/non_empty_ref_array" },
+        "default_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["issue_class", "default_lane", "backport_expectation", "release_rule"],
+            "properties": {
+              "issue_class": { "$ref": "#/$defs/issue_class" },
+              "default_lane": { "$ref": "#/$defs/lane_decision" },
+              "backport_expectation": { "$ref": "#/$defs/non_empty_string" },
+              "release_rule": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_claim_refs",
+        "affected_profile_refs",
+        "affected_artifact_refs",
+        "affected_release_lines",
+        "target_channel_refs",
+        "rollback_target_ref",
+        "compatibility_refs"
+      ],
+      "properties": {
+        "affected_claim_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "affected_profile_refs": { "$ref": "#/$defs/ref_array" },
+        "affected_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "affected_release_lines": { "$ref": "#/$defs/non_empty_ref_array" },
+        "target_channel_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "rollback_target_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "compatibility_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "risk_level",
+        "user_data_risk",
+        "security_or_trust_risk",
+        "migration_or_schema_risk",
+        "blast_radius",
+        "workaround_state",
+        "claim_narrowing_required",
+        "risk_summary"
+      ],
+      "properties": {
+        "risk_level": { "$ref": "#/$defs/risk_level" },
+        "user_data_risk": { "$ref": "#/$defs/non_empty_string" },
+        "security_or_trust_risk": { "$ref": "#/$defs/non_empty_string" },
+        "migration_or_schema_risk": { "$ref": "#/$defs/non_empty_string" },
+        "blast_radius": { "$ref": "#/$defs/non_empty_string" },
+        "workaround_state": { "$ref": "#/$defs/workaround_state" },
+        "claim_narrowing_required": { "type": "boolean" },
+        "risk_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_refs",
+        "protected_path_refs",
+        "rerun_refs",
+        "adjacent_sweep_refs",
+        "support_packet_refs",
+        "freshness_state",
+        "last_rerun_at"
+      ],
+      "properties": {
+        "evidence_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "protected_path_refs": { "$ref": "#/$defs/ref_array" },
+        "rerun_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "adjacent_sweep_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "freshness_state": { "$ref": "#/$defs/freshness_state" },
+        "last_rerun_at": { "$ref": "#/$defs/date_time" }
+      }
+    },
+    "triage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane_decision",
+        "decision_state",
+        "rationale",
+        "decision_owner",
+        "decided_at",
+        "target_train_ref",
+        "hotfix_packet_ref",
+        "correction_packet_ref",
+        "backport_matrix_ref"
+      ],
+      "properties": {
+        "lane_decision": { "$ref": "#/$defs/lane_decision" },
+        "decision_state": { "$ref": "#/$defs/decision_state" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" },
+        "decision_owner": { "$ref": "#/$defs/non_empty_string" },
+        "decided_at": { "$ref": "#/$defs/date_time" },
+        "target_train_ref": { "$ref": "#/$defs/non_empty_string" },
+        "hotfix_packet_ref": { "$ref": "#/$defs/nullable_string" },
+        "correction_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "backport_matrix_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "backport_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_line_ref",
+        "support_line_class",
+        "channel_class",
+        "affected",
+        "decision",
+        "rationale",
+        "decision_owner",
+        "decision_due_at",
+        "target_release_ref",
+        "rollback_target_ref",
+        "known_issue_ref",
+        "support_note_ref",
+        "docs_update_ref"
+      ],
+      "properties": {
+        "release_line_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_line_class": { "$ref": "#/$defs/support_line_class" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "affected": { "type": "boolean" },
+        "decision": { "$ref": "#/$defs/backport_decision" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" },
+        "decision_owner": { "$ref": "#/$defs/non_empty_string" },
+        "decision_due_at": { "$ref": "#/$defs/date_time" },
+        "target_release_ref": { "$ref": "#/$defs/nullable_string" },
+        "rollback_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "known_issue_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_note_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_update_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "target_channel_update": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel_ref",
+        "channel_class",
+        "disposition",
+        "exact_build_identity_ref",
+        "rollback_target_ref",
+        "known_issue_ref",
+        "docs_update_ref",
+        "support_note_ref"
+      ],
+      "properties": {
+        "channel_ref": { "$ref": "#/$defs/non_empty_string" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "disposition": { "$ref": "#/$defs/target_disposition" },
+        "exact_build_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/exact_build_identity_ref" }
+          ]
+        },
+        "rollback_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "known_issue_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_update_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_note_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "release_notes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "known_issue_statement_ref",
+        "claim_update_refs",
+        "support_comms_refs"
+      ],
+      "properties": {
+        "known_issue_statement_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_update_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_comms_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "correction_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "title",
+        "issue_class",
+        "severity_class",
+        "lifecycle_state",
+        "scope",
+        "risk",
+        "evidence",
+        "triage",
+        "backport_matrix",
+        "target_channel_updates",
+        "release_notes"
+      ],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "issue_class": { "$ref": "#/$defs/issue_class" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "lifecycle_state": { "$ref": "#/$defs/decision_state" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "risk": { "$ref": "#/$defs/risk" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "triage": { "$ref": "#/$defs/triage" },
+        "backport_matrix": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/backport_row" }
+        },
+        "target_channel_updates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/target_channel_update" }
+        },
+        "release_notes": { "$ref": "#/$defs/release_notes" }
+      }
+    },
+    "support_projection_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_projection_ref",
+        "support_bundle_refs",
+        "consuming_surface_refs",
+        "vocabulary_terms",
+        "redaction_class"
+      ],
+      "properties": {
+        "support_projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_bundle_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "consuming_surface_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "vocabulary_terms": { "$ref": "#/$defs/non_empty_ref_array" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_commands",
+        "fixture_manifest_ref",
+        "accepted_states"
+      ],
+      "properties": {
+        "validation_commands": { "$ref": "#/$defs/non_empty_ref_array" },
+        "fixture_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "accepted_states": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "correction_train_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "train_ref",
+        "release_candidate_ref",
+        "exact_build_identity_refs",
+        "packet_templates",
+        "source_refs",
+        "triage_policy",
+        "correction_items",
+        "support_projection",
+        "acceptance"
+      ],
+      "properties": {
+        "record_kind": { "const": "correction_train_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "train_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_candidate_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "exact_build_identity_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exact_build_identity_ref" },
+          "uniqueItems": true
+        },
+        "packet_templates": { "$ref": "#/$defs/packet_templates" },
+        "source_refs": { "$ref": "#/$defs/source_refs" },
+        "triage_policy": { "$ref": "#/$defs/triage_policy" },
+        "correction_items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/correction_item" }
+        },
+        "support_projection": { "$ref": "#/$defs/support_projection_contract" },
+        "acceptance": { "$ref": "#/$defs/acceptance" }
+      }
+    },
+    "support_backport_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_line_ref",
+        "support_line_class",
+        "channel_class",
+        "decision",
+        "target_release_ref",
+        "rollback_target_ref",
+        "known_issue_ref",
+        "support_note_ref"
+      ],
+      "properties": {
+        "release_line_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_line_class": { "$ref": "#/$defs/support_line_class" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "decision": { "$ref": "#/$defs/backport_decision" },
+        "target_release_ref": { "$ref": "#/$defs/nullable_string" },
+        "rollback_target_ref": { "$ref": "#/$defs/nullable_string" },
+        "known_issue_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_note_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_correction_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "title",
+        "issue_class",
+        "severity_class",
+        "lane_decision",
+        "decision_state",
+        "risk_level",
+        "target_channel_refs",
+        "rollback_target_ref",
+        "evidence_refs",
+        "backport_decisions"
+      ],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "issue_class": { "$ref": "#/$defs/issue_class" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "lane_decision": { "$ref": "#/$defs/lane_decision" },
+        "decision_state": { "$ref": "#/$defs/decision_state" },
+        "risk_level": { "$ref": "#/$defs/risk_level" },
+        "target_channel_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "rollback_target_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "evidence_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "backport_decisions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_backport_row" }
+        }
+      }
+    },
+    "correction_train_support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "source_packet_ref",
+        "train_ref",
+        "release_candidate_ref",
+        "exact_build_identity_refs",
+        "lane_summary",
+        "correction_items",
+        "support_bundle_refs",
+        "vocabulary_terms",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "correction_train_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "source_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "train_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_candidate_ref": { "$ref": "#/$defs/release_candidate_ref" },
+        "exact_build_identity_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exact_build_identity_ref" },
+          "uniqueItems": true
+        },
+        "lane_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hotfix", "backport", "correction_train_only", "next_cycle"],
+          "properties": {
+            "hotfix": { "type": "integer", "minimum": 0 },
+            "backport": { "type": "integer", "minimum": 0 },
+            "correction_train_only": { "type": "integer", "minimum": 0 },
+            "next_cycle": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "correction_items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_correction_item" }
+        },
+        "support_bundle_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "vocabulary_terms": { "$ref": "#/$defs/non_empty_ref_array" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

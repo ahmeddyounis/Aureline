@@ -40,6 +40,10 @@ machine-readable truth.
   [`docs/help/help_about_truth_source.md`](../../../docs/help/help_about_truth_source.md)
 - About / provenance contract:
   [`docs/about/about_provenance_and_boundary_contract.md`](../../../docs/about/about_provenance_and_boundary_contract.md)
+- Correction-train packet:
+  [`artifacts/release/m3/correction_train/packet.json`](correction_train/packet.json)
+- Correction-train support projection:
+  [`artifacts/release/m3/correction_train/support_export_projection.json`](correction_train/support_export_projection.json)
 
 ## What is published
 
@@ -98,6 +102,20 @@ every line back to the named row before sign-off.
   render as `translated` or `shimmed` with known limits; unsupported
   webview/private workbench runtime is refused explicitly rather than
   implied as future parity.
+
+### Correction-train
+
+- Packet id: `correction.train.beta.release_control`
+- Packet refs:
+  `artifacts/release/m3/correction_train/packet.json`,
+  `artifacts/release/m3/correction_train/support_export_projection.json`
+- Public-truth statement: post-beta corrections use one packet form for
+  release, support, and docs. Every row carries `correction_scope`,
+  `correction_risk`, `correction_evidence`, `target_channels`,
+  `triage_lane`, `backport_decision`, `rollback_target`, and
+  `known_issue_update`. The admitted triage lanes are `hotfix`,
+  `backport`, `correction_train_only`, and `next_cycle`; supported-line
+  decisions are `yes`, `no`, `defer`, or `not_applicable`.
 
 ### Launch wedge — TypeScript / web archetype
 
