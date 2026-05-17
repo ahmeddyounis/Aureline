@@ -1,0 +1,62 @@
+# Graph drift packets and support-export parity corpus.
+# Each packet binds one graph consumer surface (navigation, ai_context,
+# review, support_export) to one alpha graph fact cue packet ref and
+# captures the packet-level readiness state, freshness class, scope
+# class, and data-lane lineage in one metadata-safe object. The
+# drift_indicator is re-derived from (readiness, freshness, scope,
+# lineage) so prose cannot lie about drift, and a closed downgrade
+# label downgrades a failing row without inventing new vocabulary.
+
+schema_version: 1
+manifest_id: graph.drift_packets.beta.v1
+status: protected
+overview_page: docs/support/m3/graph_drift_packets_beta.md
+crate_consumer: crates/aureline-graph/src/drift_packets/mod.rs
+schema_ref: schemas/graph/drift_packet.schema.json
+report_ref: artifacts/support/m3/graph_drift_packets_report.md
+
+required_consumer_surfaces:
+  - navigation
+  - ai_context
+  - review
+  - support_export
+
+required_data_lane_lineages:
+  - exact_local_graph_lineage
+  - imported_provider_lineage
+  - inferred_derived_lineage
+  - partial_scope_lineage
+  - stale_cached_lineage
+  - warming_provider_lineage
+  - out_of_scope_lineage
+  - fallback_search_lineage
+
+packet_files:
+  - navigation_exact_local_aligned_packet.yaml
+  - review_imported_lineage_skew_packet.yaml
+  - ai_context_inferred_lineage_skew_packet.yaml
+  - support_export_partial_scope_skew_packet.yaml
+  - support_export_stale_warning_packet.yaml
+  - navigation_warming_warning_packet.yaml
+  - navigation_out_of_scope_blocked_packet.yaml
+  - ai_context_fallback_only_packet.yaml
+
+required_packet_assertions:
+  - every_required_consumer_surface_has_at_least_one_packet
+  - every_required_data_lane_lineage_appears_in_at_least_one_packet
+  - at_least_one_packet_declares_a_non_aligned_drift_indicator
+  - aligned_packets_declare_downgrade_label_none_and_no_open_gaps
+  - non_aligned_packets_declare_a_closed_downgrade_label_and_at_least_one_open_gap
+  - blocked_by_scope_packets_pin_downgrade_label_red_drift_blocks_beta_row
+  - fallback_only_packets_pin_downgrade_label_degraded_to_fallback_search_only
+  - evidence_export_preserves_readiness_freshness_scope_lineage_and_envelope_packet_ref
+  - safety_baseline_excludes_raw_private_material_and_ambient_authority
+  - downgrade_label_is_drawn_from_the_closed_drift_packet_vocabulary
+  - open_gaps_are_drawn_from_the_closed_drift_open_gap_class_vocabulary
+
+source_contract_refs:
+  schema: schemas/graph/drift_packet.schema.json
+  reviewer_doc: docs/support/m3/graph_drift_packets_beta.md
+  baseline_report: artifacts/support/m3/graph_drift_packets_report.md
+  alpha_module: crates/aureline-graph/src/readiness/mod.rs
+  beta_module: crates/aureline-graph/src/readiness/beta.rs

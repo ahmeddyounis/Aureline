@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/drift_packet.schema.json",
+  "title": "Aureline graph drift packet and support-export parity record",
+  "description": "Boundary schema for the graph_drift_packet_record and graph_drift_report_record consumed by aureline-graph's drift_packets module. A drift packet binds one graph consumer surface (navigation, ai_context, review, support_export) to one alpha graph fact cue packet ref and captures the packet-level readiness state, freshness class, scope class, and data-lane lineage in a single metadata-safe exportable object. The drift indicator is re-derived from (readiness, freshness, scope, lineage) so prose cannot lie about drift, and a closed downgrade_label downgrades a failing row without inventing new vocabulary. The report record folds every packet into per-surface and per-lineage summaries so support and docs can reference the same drift fields users see in-product, without re-running graph producers and without inferring freshness from timing alone.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/graph_drift_packet_record" },
+    { "$ref": "#/$defs/graph_drift_report_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": { "type": "string", "minLength": 1 },
+    "consumer_surface": {
+      "type": "string",
+      "enum": ["navigation", "ai_context", "review", "support_export"]
+    },
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "hot_set_ready",
+        "partial",
+        "warming",
+        "stale",
+        "unavailable",
+        "out_of_scope"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "hot_set",
+        "warming",
+        "cached",
+        "stale",
+        "replayed",
+        "imported",
+        "unknown"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "full_local",
+        "sparse_local",
+        "full_managed",
+        "sparse_managed",
+        "mixed_local_and_managed",
+        "out_of_scope"
+      ]
+    },
+    "data_lane_lineage": {
+      "type": "string",
+      "enum": [
+        "exact_local_graph_lineage",
+        "imported_provider_lineage",
+        "inferred_derived_lineage",
+        "partial_scope_lineage",
+        "stale_cached_lineage",
+        "warming_provider_lineage",
+        "out_of_scope_lineage",
+        "fallback_search_lineage"
+      ]
+    },
+    "drift_indicator": {
+      "type": "string",
+      "enum": [
+        "aligned",
+        "freshness_skew",
+        "scope_skew",
+        "lineage_skew",
+        "stale_warning",
+        "warming_warning",
+        "blocked_by_scope",
+        "fallback_only"
+      ]
+    },
+    "downgrade_label": {
+      "type": "string",
+      "enum": [
+        "none",
+        "red_drift_blocks_beta_row",
+        "yellow_freshness_skew",
+        "yellow_scope_skew",
+        "yellow_lineage_skew",
+        "degraded_to_fallback_search_only",
+        "stale_corpus_blocks_release_candidate"
+      ]
+    },
+    "open_gap_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "freshness_pending",
+        "scope_pending",
+        "lineage_pending",
+        "evidence_export_pending",
+        "fallback_truth_only",
+        "drift_blocked"
+      ]
+    },
+    "open_gap_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gap_class", "summary"],
+      "properties": {
+        "gap_class": { "$ref": "#/$defs/open_gap_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "evidence_export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves_readiness_token",
+        "preserves_freshness_token",
+        "preserves_scope_label",
+        "preserves_lineage_label",
+        "preserves_consumer_surface_label",
+        "preserves_envelope_packet_ref",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "preserves_readiness_token": { "type": "boolean", "const": true },
+        "preserves_freshness_token": { "type": "boolean", "const": true },
+        "preserves_scope_label": { "type": "boolean", "const": true },
+        "preserves_lineage_label": { "type": "boolean", "const": true },
+        "preserves_consumer_surface_label": { "type": "boolean", "const": true },
+        "preserves_envelope_packet_ref": { "type": "boolean", "const": true },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "preserves_user_authored_files": { "type": "boolean", "const": true }
+      }
+    },
+    "packet_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "destructive_resets_present",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "destructive_resets_present": { "type": "boolean", "const": false },
+        "preserves_user_authored_files": { "type": "boolean", "const": true }
+      }
+    },
+    "packet_references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_ref", "schema_ref", "report_ref"],
+      "properties": {
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/graph_drift_packets_beta.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/graph/drift_packet.schema.json"
+        },
+        "report_ref": {
+          "type": "string",
+          "const": "artifacts/support/m3/graph_drift_packets_report.md"
+        }
+      }
+    },
+    "graph_drift_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "title",
+        "consumer_surface",
+        "subject_ref",
+        "envelope_packet_ref",
+        "workspace_id",
+        "workspace_graph_id",
+        "readiness_state",
+        "freshness_class",
+        "scope_class",
+        "data_lane_lineage",
+        "drift_indicator",
+        "evidence_export",
+        "downgrade_label",
+        "safety",
+        "references",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "graph_drift_packet_record"
+        },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "subject_ref": { "$ref": "#/$defs/non_empty_string" },
+        "envelope_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_graph_id": { "$ref": "#/$defs/non_empty_string" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "data_lane_lineage": { "$ref": "#/$defs/data_lane_lineage" },
+        "drift_indicator": { "$ref": "#/$defs/drift_indicator" },
+        "evidence_export": { "$ref": "#/$defs/evidence_export_projection" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "open_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_gap_entry" }
+        },
+        "safety": { "$ref": "#/$defs/packet_safety" },
+        "references": { "$ref": "#/$defs/packet_references" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "report_matrix_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "consumer_surface",
+        "subject_ref",
+        "readiness_state",
+        "freshness_class",
+        "scope_class",
+        "data_lane_lineage",
+        "drift_indicator",
+        "downgrade_label",
+        "open_gap_classes"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "subject_ref": { "$ref": "#/$defs/non_empty_string" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "data_lane_lineage": { "$ref": "#/$defs/data_lane_lineage" },
+        "drift_indicator": { "$ref": "#/$defs/drift_indicator" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "open_gap_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/open_gap_class" }
+        }
+      }
+    },
+    "consumer_surface_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface",
+        "packet_count",
+        "aligned_count",
+        "drift_count",
+        "fallback_count",
+        "downgrade_required_count"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "packet_count": { "type": "integer", "minimum": 0 },
+        "aligned_count": { "type": "integer", "minimum": 0 },
+        "drift_count": { "type": "integer", "minimum": 0 },
+        "fallback_count": { "type": "integer", "minimum": 0 },
+        "downgrade_required_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "lineage_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_lane_lineage",
+        "packet_count",
+        "aligned_count",
+        "drift_count",
+        "downgrade_required_count"
+      ],
+      "properties": {
+        "data_lane_lineage": { "$ref": "#/$defs/data_lane_lineage" },
+        "packet_count": { "type": "integer", "minimum": 0 },
+        "aligned_count": { "type": "integer", "minimum": 0 },
+        "drift_count": { "type": "integer", "minimum": 0 },
+        "downgrade_required_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "graph_drift_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "report_id",
+        "captured_at",
+        "doc_ref",
+        "schema_ref",
+        "corpus_manifest_ref",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "required_consumer_surfaces",
+        "required_lineages",
+        "matrix_rows",
+        "consumer_surface_summaries",
+        "lineage_summaries"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "graph_drift_report_record"
+        },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/graph_drift_packets_beta.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/graph/drift_packet.schema.json"
+        },
+        "corpus_manifest_ref": {
+          "type": "string",
+          "const": "fixtures/graph/m3/drift_packets/manifest.yaml"
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "required_consumer_surfaces": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "required_lineages": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/data_lane_lineage" }
+        },
+        "matrix_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/report_matrix_row" }
+        },
+        "consumer_surface_summaries": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/consumer_surface_summary_row" }
+        },
+        "lineage_summaries": {
+          "type": "array",
+          "minItems": 8,
+          "items": { "$ref": "#/$defs/lineage_summary_row" }
+        }
+      }
+    }
+  }
+}

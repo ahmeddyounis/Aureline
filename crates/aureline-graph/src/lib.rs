@@ -5,6 +5,7 @@
 //! exposes a bounded query-family surface for launch-wedge symbols, imports,
 //! ownership edges, and the future impact/explainer packet lanes.
 
+pub mod drift_packets;
 pub mod explainers;
 pub mod journey_budget;
 mod query;
@@ -43,6 +44,20 @@ pub use readiness::beta::{
     GRAPH_READINESS_BETA_DOC_REF, GRAPH_READINESS_BETA_REPORT_RECORD_KIND,
     GRAPH_READINESS_BETA_REPORT_REF, GRAPH_READINESS_BETA_SCHEMA_REF,
     GRAPH_READINESS_BETA_SCHEMA_VERSION, REQUIRED_CONSUMER_SURFACES, REQUIRED_FACT_LANES,
+};
+pub use drift_packets::{
+    current_graph_drift_corpus, current_graph_drift_fixture_refs, load_graph_drift_packet,
+    DataLaneLineage, DriftConsumerSurface, DriftConsumerSurfaceSummaryRow,
+    DriftDowngradeLabel, DriftEvidenceExportProjection, DriftIndicator, DriftLineageSummaryRow,
+    DriftOpenGapClass, DriftOpenGapEntry, DriftPacketReferences, DriftPacketSafety,
+    DriftReportMatrixRow, FreshnessClass, GraphDriftCompileInput, GraphDriftCorpus,
+    GraphDriftCorpusEntry, GraphDriftPacket, GraphDriftPacketEvaluator, GraphDriftReport,
+    GraphDriftValidationReport, GraphDriftValidationViolation, ReadinessState, ScopeClass,
+    GRAPH_DRIFT_PACKET_CORPUS_DIR, GRAPH_DRIFT_PACKET_CORPUS_MANIFEST_REF,
+    GRAPH_DRIFT_PACKET_DOC_REF, GRAPH_DRIFT_PACKET_RECORD_KIND, GRAPH_DRIFT_PACKET_REPORT_REF,
+    GRAPH_DRIFT_PACKET_SCHEMA_REF, GRAPH_DRIFT_PACKET_SCHEMA_VERSION,
+    GRAPH_DRIFT_REPORT_RECORD_KIND, REQUIRED_DATA_LANE_LINEAGES,
+    REQUIRED_DRIFT_CONSUMER_SURFACES,
 };
 pub use store::{GraphStore, GraphStoreError};
 
