@@ -56,6 +56,7 @@ pub mod drift_truth;
 pub mod durable_attention_beta;
 pub mod efficiency;
 pub mod embedded;
+pub mod embedded_boundary;
 pub mod embedded_boundary_audit;
 pub mod enterprise_drill_baseline;
 pub mod env_inspect;

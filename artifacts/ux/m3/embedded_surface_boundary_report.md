@@ -51,12 +51,22 @@ and
 [`crates/aureline-shell/tests/embedded_boundary_audit_beta_fixtures.rs`](../../../crates/aureline-shell/tests/embedded_boundary_audit_beta_fixtures.rs)
 prove each defect kind surfaces when the matching field is broken.
 
+The reusable toolkit projection adds the render row, event-log, and
+support-export shape that product surfaces consume:
+
+[`fixtures/ux/m3/embedded_boundary/page.json`](../../../fixtures/ux/m3/embedded_boundary/page.json)
+
+Its seeded defect list is also empty:
+
+[`fixtures/ux/m3/embedded_boundary/defects.json`](../../../fixtures/ux/m3/embedded_boundary/defects.json)
+
 ## Reproduce locally
 
 Validate the seeded page (exits non-zero on any defect):
 
 ```sh
 cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_audit -- validate
+cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_toolkit -- validate
 ```
 
 Run the fixture replay test (proves the checked-in JSON cannot drift
@@ -64,6 +74,7 @@ from the seeded page):
 
 ```sh
 cargo test -p aureline-shell --test embedded_boundary_audit_beta_fixtures
+cargo test -p aureline-shell --test embedded_boundary_toolkit_fixtures
 ```
 
 Regenerate the fixture corpus from the seeded page (the inspector is
@@ -75,6 +86,11 @@ cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_audit -- r
 cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_audit -- support-rows  > fixtures/ux/m3/embedded_boundary_audit/support_rows.json
 cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_audit -- defects       > fixtures/ux/m3/embedded_boundary_audit/defects.json
 cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_audit -- support-export > fixtures/ux/m3/embedded_boundary_audit/support_export.json
+cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_toolkit -- page          > fixtures/ux/m3/embedded_boundary/page.json
+cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_toolkit -- rows          > fixtures/ux/m3/embedded_boundary/rows.json
+cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_toolkit -- events        > fixtures/ux/m3/embedded_boundary/event_log.json
+cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_toolkit -- defects       > fixtures/ux/m3/embedded_boundary/defects.json
+cargo run -q -p aureline-shell --bin aureline_shell_embedded_boundary_toolkit -- support-export > fixtures/ux/m3/embedded_boundary/support_export.json
 ```
 
 ## Failure drills (proves the lane fails loudly)
@@ -110,6 +126,12 @@ regression — the test fails the build.
 - Schema: [`schemas/ux/embedded_boundary_audit_beta.schema.json`](../../../schemas/ux/embedded_boundary_audit_beta.schema.json)
 - Integration test: [`crates/aureline-shell/tests/embedded_boundary_audit_beta_fixtures.rs`](../../../crates/aureline-shell/tests/embedded_boundary_audit_beta_fixtures.rs)
 - Companion doc: [`docs/ux/m3/embedded_boundary_beta.md`](../../../docs/ux/m3/embedded_boundary_beta.md)
+- Toolkit module: [`crates/aureline-shell/src/embedded_boundary/mod.rs`](../../../crates/aureline-shell/src/embedded_boundary/mod.rs)
+- Toolkit inspector: [`crates/aureline-shell/src/bin/aureline_shell_embedded_boundary_toolkit.rs`](../../../crates/aureline-shell/src/bin/aureline_shell_embedded_boundary_toolkit.rs)
+- Toolkit fixtures: [`fixtures/ux/m3/embedded_boundary/`](../../../fixtures/ux/m3/embedded_boundary/)
+- Toolkit doc: [`docs/ux/m3/embedded_boundary_toolkit.md`](../../../docs/ux/m3/embedded_boundary_toolkit.md)
+- Native approval review: [`artifacts/ux/m3/native_approval_boundary_review.md`](./native_approval_boundary_review.md)
+- System-browser auth drill: [`artifacts/ux/m3/system_browser_auth_drill.md`](./system_browser_auth_drill.md)
 
 ## Relationship to adjacent lanes
 
