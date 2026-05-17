@@ -7,9 +7,10 @@
 //! remain consistent across entry surfaces.
 
 use aureline_workspace::{
-    classify_recent_work_failure, is_remote_backed_target, normalized_recent_work_recovery_actions,
-    RecentWorkEntryRecord, RecentWorkFailureState, RecentWorkRegistry, RecentWorkTargetState,
-    RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState,
+    is_remote_backed_target, normalized_recent_work_recovery_actions,
+    project_searchable_recent_work_lists, RecentWorkEntryRecord, RecentWorkFailureState,
+    RecentWorkListRow, RecentWorkRegistry, RecentWorkTargetState, RestoreAvailability,
+    SafeRecoveryAction, TargetKind, TrustState,
 };
 
 use crate::restore::placeholders::{
@@ -19,17 +20,6 @@ use crate::restore::placeholders::{
 
 /// Presentation label rendered for workspace switcher surfaces.
 pub const WORKSPACE_SWITCHER_PRESENTATION_LABEL: &str = "Switch Project";
-
-fn normalize_query(query: &str) -> String {
-    query.trim().to_ascii_lowercase()
-}
-
-fn query_matches(haystack: &str, needle: &str) -> bool {
-    if needle.is_empty() {
-        return true;
-    }
-    haystack.to_ascii_lowercase().contains(needle)
-}
 
 /// One projected workspace switcher row backed by a recent-work entry.
 #[derive(Debug, Clone)]
@@ -90,15 +80,16 @@ impl WorkspaceSwitcherEntryClass {
 }
 
 impl WorkspaceSwitcherRow {
-    fn from_entry(entry: &RecentWorkEntryRecord) -> Self {
-        let failure_state = classify_recent_work_failure(entry);
-        let entry_classes = entry_classes_for(entry);
+    fn from_list_row(row: &RecentWorkListRow) -> Self {
+        let entry = row.to_entry_record();
+        let failure_state = row.failure_state;
+        let entry_classes = entry_classes_for(&entry);
         let placeholder_card =
-            recent_work_placeholder_card(entry, PlaceholderSurfaceClass::WorkspaceSwitcher);
+            recent_work_placeholder_card(&entry, PlaceholderSurfaceClass::WorkspaceSwitcher);
         let safe_recovery_actions = placeholder_card
             .as_ref()
             .map(|card| card.safe_recovery_actions.clone())
-            .unwrap_or_else(|| normalized_recent_work_recovery_actions(entry));
+            .unwrap_or_else(|| normalized_recent_work_recovery_actions(&entry));
         let switch_failure_actions = placeholder_card
             .as_ref()
             .map(|card| card.switch_recovery_actions.clone())
@@ -108,26 +99,7 @@ impl WorkspaceSwitcherRow {
                     WorkspaceSwitchRecoveryAction::ReopenPreviousWorkspace,
                 ]
             });
-        let mut searchable_terms = Vec::new();
-        searchable_terms.push(entry.presentation_label.to_ascii_lowercase());
-        if let Some(subtitle) = entry.presentation_subtitle.as_deref() {
-            searchable_terms.push(subtitle.to_ascii_lowercase());
-        }
-        searchable_terms.push(entry.target_kind.as_str().to_string());
-        searchable_terms.push(entry.target_kind.surface_label().to_ascii_lowercase());
-        searchable_terms.push(entry.trust_state.as_str().to_string());
-        searchable_terms.push(entry.target_state.as_str().to_string());
-        searchable_terms.push(failure_state.as_str().to_string());
-        searchable_terms.push(
-            match entry.restore_availability {
-                RestoreAvailability::Exact => "restore:exact",
-                RestoreAvailability::Compatible => "restore:compatible",
-                RestoreAvailability::LayoutOnly => "restore:layout_only",
-                RestoreAvailability::EvidenceOnly => "restore:evidence_only",
-                RestoreAvailability::None => "restore:none",
-            }
-            .to_string(),
-        );
+        let mut searchable_terms = row.searchable_terms.clone();
         for class in &entry_classes {
             searchable_terms.push(class.as_str().to_string());
         }
@@ -150,16 +122,6 @@ impl WorkspaceSwitcherRow {
             placeholder_card,
             searchable_terms,
         }
-    }
-
-    fn matches_query(&self, query: &str) -> bool {
-        let query = normalize_query(query);
-        if query.is_empty() {
-            return true;
-        }
-        self.searchable_terms
-            .iter()
-            .any(|term| query_matches(term, &query))
     }
 }
 
@@ -263,15 +225,11 @@ pub fn build_switcher_rows(
     registry: &RecentWorkRegistry,
     query: &str,
 ) -> Vec<WorkspaceSwitcherRow> {
-    let mut rows: Vec<_> = registry
-        .entries
+    project_searchable_recent_work_lists(registry, query)
+        .rows()
         .iter()
-        .map(WorkspaceSwitcherRow::from_entry)
-        .filter(|row| row.matches_query(query))
-        .collect();
-
-    rows.sort_by_key(|row| (!row.pinned, row.primary_label.to_ascii_lowercase()));
-    rows
+        .map(WorkspaceSwitcherRow::from_list_row)
+        .collect()
 }
 
 #[cfg(test)]

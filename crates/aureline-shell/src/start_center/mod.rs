@@ -12,9 +12,9 @@ use std::fmt;
 use aureline_commands::invocation::ArgumentProvenanceEntry;
 use aureline_commands::{CommandEnablementContext, CommandRegistry, PreflightDecision};
 use aureline_workspace::{
-    classify_recent_work_failure, normalized_recent_work_recovery_actions, RecentWorkEntryRecord,
-    RecentWorkFailureState, RecentWorkRegistry, RestoreAvailability, SafeRecoveryAction,
-    TargetKind, TrustState,
+    project_searchable_recent_work_lists, RecentWorkFailureState, RecentWorkListRow,
+    RecentWorkListSection, RecentWorkRegistry, RestoreAvailability, SafeRecoveryAction, TargetKind,
+    TrustState,
 };
 use serde::Deserialize;
 
@@ -23,6 +23,7 @@ use crate::restore::placeholders::{
 };
 
 pub mod admission_review;
+pub mod beta;
 pub mod bundles;
 pub mod first_useful_work;
 pub mod prebuild_fingerprints;
@@ -164,14 +165,17 @@ impl StartCenterRecentWorkPrivacyMode {
 /// Start Center projection of a canonical recent-work entry.
 #[derive(Debug, Clone)]
 pub struct StartCenterRecentWorkRow {
+    pub list_section: RecentWorkListSection,
     pub recent_work_id: String,
     pub primary_label: String,
     pub location_or_target_subtitle: Option<String>,
     pub target_kind: TargetKind,
     pub target_kind_label: &'static str,
+    pub target_state: aureline_workspace::RecentWorkTargetState,
     pub failure_state: RecentWorkFailureState,
     pub trust_state: TrustState,
     pub restore_availability: RestoreAvailability,
+    pub last_opened_at: String,
     pub pinned: bool,
     pub safe_recovery_actions: Vec<SafeRecoveryAction>,
     pub placeholder_card: Option<RecentWorkPlaceholderCard>,
@@ -182,7 +186,10 @@ pub struct StartCenterRecentWorkRow {
 #[derive(Debug, Clone)]
 pub struct StartCenterRecentWorkProjection {
     pub privacy_mode: StartCenterRecentWorkPrivacyMode,
+    pub query: String,
     pub rows: Vec<StartCenterRecentWorkRow>,
+    pub pinned_rows: Vec<StartCenterRecentWorkRow>,
+    pub recent_rows: Vec<StartCenterRecentWorkRow>,
     pub metadata_hidden: bool,
     pub local_open_still_available: bool,
     pub workspace_open_still_available: bool,
@@ -299,24 +306,50 @@ pub fn build_recent_work_rows(
     registry: &RecentWorkRegistry,
     privacy_mode: StartCenterRecentWorkPrivacyMode,
 ) -> StartCenterRecentWorkProjection {
+    build_searchable_recent_work_rows(registry, privacy_mode, "")
+}
+
+/// Builds searchable Start Center recent-work rows from the canonical registry.
+pub fn build_searchable_recent_work_rows(
+    registry: &RecentWorkRegistry,
+    privacy_mode: StartCenterRecentWorkPrivacyMode,
+    query: &str,
+) -> StartCenterRecentWorkProjection {
     let metadata_hidden = matches!(
         privacy_mode,
         StartCenterRecentWorkPrivacyMode::HideRecentWork
             | StartCenterRecentWorkPrivacyMode::HideAllExceptOpenAndClone
     );
-    let rows = if metadata_hidden {
-        Vec::new()
+
+    let (pinned_rows, recent_rows) = if metadata_hidden {
+        (Vec::new(), Vec::new())
     } else {
-        registry
-            .entries
-            .iter()
-            .map(|entry| start_center_recent_work_row(entry, privacy_mode))
-            .collect()
+        let lists = project_searchable_recent_work_lists(registry, query);
+        (
+            lists
+                .pinned
+                .iter()
+                .map(|row| start_center_recent_work_row(row, privacy_mode))
+                .collect(),
+            lists
+                .recent
+                .iter()
+                .map(|row| start_center_recent_work_row(row, privacy_mode))
+                .collect(),
+        )
     };
+    let rows = pinned_rows
+        .iter()
+        .chain(recent_rows.iter())
+        .cloned()
+        .collect();
 
     StartCenterRecentWorkProjection {
         privacy_mode,
+        query: query.trim().to_ascii_lowercase(),
         rows,
+        pinned_rows,
+        recent_rows,
         metadata_hidden,
         local_open_still_available: true,
         workspace_open_still_available: true,
@@ -326,28 +359,32 @@ pub fn build_recent_work_rows(
 }
 
 fn start_center_recent_work_row(
-    entry: &RecentWorkEntryRecord,
+    row: &RecentWorkListRow,
     privacy_mode: StartCenterRecentWorkPrivacyMode,
 ) -> StartCenterRecentWorkRow {
     let privacy_redaction_applied = privacy_mode == StartCenterRecentWorkPrivacyMode::HidePaths;
     let location_or_target_subtitle = if privacy_redaction_applied {
-        Some(entry.target_kind.surface_label().to_string())
+        Some(row.target_kind.surface_label().to_string())
     } else {
-        entry.presentation_subtitle.clone()
+        row.presentation_subtitle.clone()
     };
+    let entry = row.to_entry_record();
     StartCenterRecentWorkRow {
-        recent_work_id: entry.recent_work_id.clone(),
-        primary_label: entry.presentation_label.clone(),
+        list_section: row.section,
+        recent_work_id: row.recent_work_id.clone(),
+        primary_label: row.presentation_label.clone(),
         location_or_target_subtitle,
-        target_kind: entry.target_kind,
-        target_kind_label: entry.target_kind.surface_label(),
-        failure_state: classify_recent_work_failure(entry),
-        trust_state: entry.trust_state,
-        restore_availability: entry.restore_availability,
-        pinned: entry.pinned,
-        safe_recovery_actions: normalized_recent_work_recovery_actions(entry),
+        target_kind: row.target_kind,
+        target_kind_label: row.target_kind.surface_label(),
+        target_state: row.target_state,
+        failure_state: row.failure_state,
+        trust_state: row.trust_state,
+        restore_availability: row.restore_availability,
+        last_opened_at: row.last_opened_at.clone(),
+        pinned: row.pinned,
+        safe_recovery_actions: row.safe_recovery_actions.clone(),
         placeholder_card: recent_work_placeholder_card(
-            entry,
+            &entry,
             PlaceholderSurfaceClass::StartCenterRecentWork,
         ),
         privacy_redaction_applied,
@@ -1172,8 +1209,8 @@ mod tests {
 
     use aureline_commands::registry::seeded_registry;
     use aureline_workspace::{
-        PortabilityClass, RecentWorkEntryRecordKind, RecentWorkRegistryRecordKind,
-        RecentWorkTargetState,
+        PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind,
+        RecentWorkRegistryRecordKind, RecentWorkTargetState,
     };
     use std::path::Path;
 

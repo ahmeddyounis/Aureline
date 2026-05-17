@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/recent_work.schema.json",
+  "title": "Aureline recent-work registry and searchable entry projection",
+  "description": "Boundary schema for the workspace-owned recent-work model consumed by Start Center, Open Recent, workspace switchers, restore placeholders, CLI/headless inspectors, and support-export projections. The schema freezes the registry container, the searchable pinned/recent list projection, and the support-safe parity row that proves Start Center and switcher surfaces read the same workspace object model. Raw secrets and credential material never cross this boundary; path and host subtitles are redaction-aware and may be replaced by target-kind labels under privacy-reduced modes.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recent_work_registry_record" },
+    { "$ref": "#/$defs/searchable_recent_work_lists_record" },
+    { "$ref": "#/$defs/recent_work_surface_parity_record" }
+  ],
+  "$defs": {
+    "recent_work_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "local_repo_root",
+        "workspace_manifest",
+        "workset_manifest",
+        "remote_repository",
+        "ssh_workspace",
+        "container_workspace",
+        "devcontainer_workspace",
+        "managed_cloud_workspace",
+        "portable_state_package",
+        "handoff_packet",
+        "competitor_config_root",
+        "template_or_prebuild_snapshot",
+        "review_or_work_item_deep_link",
+        "recovery_checkpoint"
+      ]
+    },
+    "target_state": {
+      "type": "string",
+      "enum": [
+        "reachable",
+        "stale_metadata",
+        "missing_target",
+        "moved_target_detected",
+        "remote_unreachable",
+        "authority_expired",
+        "locked_by_other_instance",
+        "policy_blocked",
+        "quarantined",
+        "mode_downgraded",
+        "unknown"
+      ]
+    },
+    "failure_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "missing_path",
+        "moved_root",
+        "reconnect_required",
+        "inspect_only",
+        "blocked",
+        "unknown"
+      ]
+    },
+    "portability_class": {
+      "type": "string",
+      "enum": ["local_only", "synced", "imported", "provider_linked", "stale"]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"]
+    },
+    "restore_availability": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "evidence_only", "none"]
+    },
+    "safe_recovery_action": {
+      "type": "string",
+      "enum": [
+        "open",
+        "open_in_new_window",
+        "open_restricted",
+        "locate_missing_target",
+        "reconnect",
+        "reauth",
+        "open_read_only_cached_view",
+        "retry_later",
+        "compare_before_restore",
+        "open_without_restore",
+        "unpin",
+        "pin",
+        "remove_from_recents",
+        "reveal_in_explorer"
+      ]
+    },
+    "recent_work_list_section": {
+      "type": "string",
+      "enum": ["pinned", "recent"]
+    },
+    "recovery_checkpoint_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recovery_class", "checkpoint_ref"],
+      "properties": {
+        "recovery_class": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "recent_work_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_and_restore_schema_version",
+        "recent_work_id",
+        "presentation_label",
+        "target_kind",
+        "target_state",
+        "portability_class",
+        "trust_state",
+        "restore_availability",
+        "safe_recovery_actions",
+        "pinned",
+        "last_opened_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "recent_work_entry_record" },
+        "entry_and_restore_schema_version": { "$ref": "#/$defs/recent_work_schema_version" },
+        "recent_work_id": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_state": { "$ref": "#/$defs/target_state" },
+        "portability_class": { "$ref": "#/$defs/portability_class" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "restore_availability": { "$ref": "#/$defs/restore_availability" },
+        "safe_recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_recovery_action" }
+        },
+        "pinned": { "type": "boolean" },
+        "last_opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "filesystem_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "remote_target_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "recovery_checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_checkpoint_ref" }
+        }
+      }
+    },
+    "recent_work_registry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recent_work_registry_schema_version",
+        "updated_at",
+        "entries"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "recent_work_registry_record" },
+        "recent_work_registry_schema_version": { "$ref": "#/$defs/recent_work_schema_version" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recent_work_entry_record" }
+        }
+      }
+    },
+    "recent_work_list_row": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "section",
+        "recent_work_id",
+        "presentation_label",
+        "target_kind",
+        "target_state",
+        "failure_state",
+        "trust_state",
+        "restore_availability",
+        "last_opened_at",
+        "pinned",
+        "safe_recovery_actions",
+        "searchable_terms"
+      ],
+      "properties": {
+        "section": { "$ref": "#/$defs/recent_work_list_section" },
+        "recent_work_id": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_kind_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_state": { "$ref": "#/$defs/target_state" },
+        "failure_state": { "$ref": "#/$defs/failure_state" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "restore_availability": { "$ref": "#/$defs/restore_availability" },
+        "last_opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "pinned": { "type": "boolean" },
+        "safe_recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_recovery_action" }
+        },
+        "searchable_terms": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "searchable_recent_work_lists_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["query", "pinned", "recent", "total_matches"],
+      "properties": {
+        "query": { "type": "string" },
+        "pinned": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recent_work_list_row" }
+        },
+        "recent": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recent_work_list_row" }
+        },
+        "total_matches": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "recent_work_surface_parity_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "recent_work_entry_ref",
+        "start_center_row_id",
+        "workspace_switcher_row_id",
+        "target_kind",
+        "target_state",
+        "failure_state",
+        "trust_state",
+        "restore_availability",
+        "start_center_action_ids",
+        "workspace_switcher_action_ids",
+        "switch_failure_actions",
+        "metadata_only_cleanup"
+      ],
+      "properties": {
+        "recent_work_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "start_center_row_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_switcher_row_id": { "$ref": "#/$defs/opaque_id" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_state": { "$ref": "#/$defs/target_state" },
+        "failure_state": { "$ref": "#/$defs/failure_state" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "restore_availability": { "$ref": "#/$defs/restore_availability" },
+        "start_center_action_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_recovery_action" }
+        },
+        "workspace_switcher_action_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/safe_recovery_action" }
+        },
+        "switch_failure_actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["cancel_switch", "reopen_previous_workspace"]
+          }
+        },
+        "metadata_only_cleanup": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}

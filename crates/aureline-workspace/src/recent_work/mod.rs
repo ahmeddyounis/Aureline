@@ -173,6 +173,19 @@ pub enum RestoreAvailability {
     None,
 }
 
+impl RestoreAvailability {
+    /// Returns the stable string vocabulary for this restore availability.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Exact => "exact",
+            Self::Compatible => "compatible",
+            Self::LayoutOnly => "layout_only",
+            Self::EvidenceOnly => "evidence_only",
+            Self::None => "none",
+        }
+    }
+}
+
 /// Safe recovery actions exposed for a recent-work entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -211,6 +224,26 @@ impl SafeRecoveryAction {
             Self::Pin => "pin",
             Self::RemoveFromRecents => "remove_from_recents",
             Self::RevealInExplorer => "reveal_in_explorer",
+        }
+    }
+
+    /// Returns the compact label shared by Start Center and switcher rows.
+    pub const fn surface_label(self) -> &'static str {
+        match self {
+            Self::Open => "Open",
+            Self::OpenInNewWindow => "Open in new window",
+            Self::OpenRestricted => "Open restricted",
+            Self::LocateMissingTarget => "Locate",
+            Self::Reconnect => "Reconnect",
+            Self::Reauth => "Reauthorize",
+            Self::OpenReadOnlyCachedView => "Open read-only cached view",
+            Self::RetryLater => "Retry later",
+            Self::CompareBeforeRestore => "Compare before restore",
+            Self::OpenWithoutRestore => "Open anyway",
+            Self::Unpin => "Unpin",
+            Self::Pin => "Pin",
+            Self::RemoveFromRecents => "Remove from list",
+            Self::RevealInExplorer => "Reveal",
         }
     }
 }
@@ -259,6 +292,182 @@ pub struct RecentWorkRegistry {
     pub recent_work_registry_schema_version: u32,
     pub updated_at: String,
     pub entries: Vec<RecentWorkEntryRecord>,
+}
+
+/// Section a recent-work entry belongs to after pinned/recent partitioning.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecentWorkListSection {
+    /// User-pinned entries, still ordered by the registry's recent order.
+    Pinned,
+    /// Non-pinned entries ordered by the registry's recent order.
+    Recent,
+}
+
+impl RecentWorkListSection {
+    /// Returns the stable string vocabulary for this section.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pinned => "pinned",
+            Self::Recent => "recent",
+        }
+    }
+}
+
+/// One searchable row shared by Start Center, `Open Recent`, and switchers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecentWorkListRow {
+    /// Section used to render a visible pinned versus recent distinction.
+    pub section: RecentWorkListSection,
+    /// Stable upstream recent-work entry id.
+    pub recent_work_id: String,
+    /// Project, workspace, or target label.
+    pub presentation_label: String,
+    /// Redaction-aware path, host, provider, or target subtitle.
+    pub presentation_subtitle: Option<String>,
+    /// Canonical target kind from the workspace entry model.
+    pub target_kind: TargetKind,
+    /// Compact target-kind label used by shell rows.
+    pub target_kind_label: String,
+    /// Raw target state captured for this entry.
+    pub target_state: RecentWorkTargetState,
+    /// Portability posture for this entry.
+    pub portability_class: PortabilityClass,
+    /// Shared unavailable-target classification.
+    pub failure_state: RecentWorkFailureState,
+    /// Workspace trust posture shown before activation.
+    pub trust_state: TrustState,
+    /// Restore availability shown before activation.
+    pub restore_availability: RestoreAvailability,
+    /// Stable last-opened timestamp from the registry.
+    pub last_opened_at: String,
+    /// Whether this row is pinned.
+    pub pinned: bool,
+    /// Normalized actions available before activation.
+    pub safe_recovery_actions: Vec<SafeRecoveryAction>,
+    /// Filesystem identity reference for local targets, when present.
+    pub filesystem_identity_ref: Option<String>,
+    /// Remote target descriptor reference for remote-backed targets, when present.
+    pub remote_target_descriptor_ref: Option<String>,
+    /// Artifact descriptor reference for import, handoff, or package targets.
+    pub artifact_descriptor_ref: Option<String>,
+    /// Recovery checkpoints tied to this row.
+    pub recovery_checkpoint_refs: Option<Vec<RecoveryCheckpointRef>>,
+    /// Lowercase indexed terms used by keyboard-first search.
+    pub searchable_terms: Vec<String>,
+}
+
+impl RecentWorkListRow {
+    /// Projects a canonical recent-work entry into a searchable list row.
+    pub fn from_entry(entry: &RecentWorkEntryRecord) -> Self {
+        let failure_state = classify_recent_work_failure(entry);
+        let mut searchable_terms = searchable_terms_for(entry, failure_state);
+        searchable_terms.sort();
+        searchable_terms.dedup();
+
+        Self {
+            section: if entry.pinned {
+                RecentWorkListSection::Pinned
+            } else {
+                RecentWorkListSection::Recent
+            },
+            recent_work_id: entry.recent_work_id.clone(),
+            presentation_label: entry.presentation_label.clone(),
+            presentation_subtitle: entry.presentation_subtitle.clone(),
+            target_kind: entry.target_kind,
+            target_kind_label: entry.target_kind.surface_label().to_string(),
+            target_state: entry.target_state,
+            portability_class: entry.portability_class,
+            failure_state,
+            trust_state: entry.trust_state,
+            restore_availability: entry.restore_availability,
+            last_opened_at: entry.last_opened_at.clone(),
+            pinned: entry.pinned,
+            safe_recovery_actions: normalized_recent_work_recovery_actions(entry),
+            filesystem_identity_ref: entry.filesystem_identity_ref.clone(),
+            remote_target_descriptor_ref: entry.remote_target_descriptor_ref.clone(),
+            artifact_descriptor_ref: entry.artifact_descriptor_ref.clone(),
+            recovery_checkpoint_refs: entry.recovery_checkpoint_refs.clone(),
+            searchable_terms,
+        }
+    }
+
+    /// Reconstructs the canonical entry shape represented by this row.
+    pub fn to_entry_record(&self) -> RecentWorkEntryRecord {
+        RecentWorkEntryRecord {
+            record_kind: RecentWorkEntryRecordKind::RecentWorkEntryRecord,
+            entry_and_restore_schema_version: 1,
+            recent_work_id: self.recent_work_id.clone(),
+            presentation_label: self.presentation_label.clone(),
+            presentation_subtitle: self.presentation_subtitle.clone(),
+            target_kind: self.target_kind,
+            target_state: self.target_state,
+            portability_class: self.portability_class,
+            trust_state: self.trust_state,
+            restore_availability: self.restore_availability,
+            safe_recovery_actions: self.safe_recovery_actions.clone(),
+            pinned: self.pinned,
+            last_opened_at: self.last_opened_at.clone(),
+            filesystem_identity_ref: self.filesystem_identity_ref.clone(),
+            remote_target_descriptor_ref: self.remote_target_descriptor_ref.clone(),
+            artifact_descriptor_ref: self.artifact_descriptor_ref.clone(),
+            recovery_checkpoint_refs: self.recovery_checkpoint_refs.clone(),
+        }
+    }
+}
+
+/// Search result partition used by entry surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchableRecentWorkLists {
+    /// Normalized lowercase query used for this projection.
+    pub query: String,
+    /// Pinned entries matching the query.
+    pub pinned: Vec<RecentWorkListRow>,
+    /// Non-pinned recent entries matching the query.
+    pub recent: Vec<RecentWorkListRow>,
+    /// Number of matching entries across both sections.
+    pub total_matches: usize,
+}
+
+impl SearchableRecentWorkLists {
+    /// Returns all rows in rendered pinned-then-recent order.
+    pub fn rows(&self) -> Vec<RecentWorkListRow> {
+        self.pinned
+            .iter()
+            .chain(self.recent.iter())
+            .cloned()
+            .collect()
+    }
+}
+
+/// Projects recent work into searchable pinned and recent lists.
+pub fn project_searchable_recent_work_lists(
+    registry: &RecentWorkRegistry,
+    query: &str,
+) -> SearchableRecentWorkLists {
+    let query = normalize_recent_work_query(query);
+    let mut pinned = Vec::new();
+    let mut recent = Vec::new();
+
+    for entry in &registry.entries {
+        let row = RecentWorkListRow::from_entry(entry);
+        if !recent_work_row_matches_query(&row, &query) {
+            continue;
+        }
+        if row.pinned {
+            pinned.push(row);
+        } else {
+            recent.push(row);
+        }
+    }
+
+    let total_matches = pinned.len() + recent.len();
+    SearchableRecentWorkLists {
+        query,
+        pinned,
+        recent,
+        total_matches,
+    }
 }
 
 impl RecentWorkRegistry {
@@ -311,6 +520,44 @@ impl RecentWorkRegistry {
     }
 }
 
+fn normalize_recent_work_query(query: &str) -> String {
+    query.trim().to_ascii_lowercase()
+}
+
+fn recent_work_row_matches_query(row: &RecentWorkListRow, query: &str) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+    row.searchable_terms.iter().any(|term| term.contains(query))
+}
+
+fn searchable_terms_for(
+    entry: &RecentWorkEntryRecord,
+    failure_state: RecentWorkFailureState,
+) -> Vec<String> {
+    let mut terms = vec![
+        entry.presentation_label.to_ascii_lowercase(),
+        entry.target_kind.as_str().to_string(),
+        entry.target_kind.surface_label().to_ascii_lowercase(),
+        entry.target_state.as_str().to_string(),
+        entry.trust_state.as_str().to_string(),
+        entry.restore_availability.as_str().to_string(),
+        failure_state.as_str().to_string(),
+        if entry.pinned { "pinned" } else { "recent" }.to_string(),
+    ];
+
+    if let Some(subtitle) = entry.presentation_subtitle.as_deref() {
+        terms.push(subtitle.to_ascii_lowercase());
+    }
+
+    for action in normalized_recent_work_recovery_actions(entry) {
+        terms.push(action.as_str().to_string());
+        terms.push(action.surface_label().to_ascii_lowercase());
+    }
+
+    terms
+}
+
 /// Errors returned by recent-work registry load/save operations.
 #[derive(Debug)]
 pub enum RecentWorkRegistryError {
@@ -355,5 +602,67 @@ mod tests {
         assert_eq!(fixture.target_kind, TargetKind::LocalRepoRoot);
         assert_eq!(fixture.target_state, RecentWorkTargetState::MissingTarget);
         assert!(!fixture.safe_recovery_actions.is_empty());
+    }
+
+    #[test]
+    fn searchable_lists_split_pinned_and_recent_entries() {
+        let registry = RecentWorkRegistry {
+            record_kind: RecentWorkRegistryRecordKind::RecentWorkRegistryRecord,
+            recent_work_registry_schema_version: 1,
+            updated_at: "mono:test".to_string(),
+            entries: vec![
+                RecentWorkEntryRecord {
+                    record_kind: RecentWorkEntryRecordKind::RecentWorkEntryRecord,
+                    entry_and_restore_schema_version: 1,
+                    recent_work_id: "recent:pinned".to_string(),
+                    presentation_label: "platform".to_string(),
+                    presentation_subtitle: Some("SSH workspace".to_string()),
+                    target_kind: TargetKind::SshWorkspace,
+                    target_state: RecentWorkTargetState::RemoteUnreachable,
+                    portability_class: PortabilityClass::ProviderLinked,
+                    trust_state: TrustState::PendingEvaluation,
+                    restore_availability: RestoreAvailability::EvidenceOnly,
+                    safe_recovery_actions: vec![SafeRecoveryAction::Reconnect],
+                    pinned: true,
+                    last_opened_at: "mono:1".to_string(),
+                    filesystem_identity_ref: None,
+                    remote_target_descriptor_ref: Some("remote:platform".to_string()),
+                    artifact_descriptor_ref: None,
+                    recovery_checkpoint_refs: None,
+                },
+                RecentWorkEntryRecord {
+                    record_kind: RecentWorkEntryRecordKind::RecentWorkEntryRecord,
+                    entry_and_restore_schema_version: 1,
+                    recent_work_id: "recent:local".to_string(),
+                    presentation_label: "docs".to_string(),
+                    presentation_subtitle: Some("~/Code/docs".to_string()),
+                    target_kind: TargetKind::LocalFolder,
+                    target_state: RecentWorkTargetState::Reachable,
+                    portability_class: PortabilityClass::LocalOnly,
+                    trust_state: TrustState::Trusted,
+                    restore_availability: RestoreAvailability::None,
+                    safe_recovery_actions: vec![SafeRecoveryAction::Open],
+                    pinned: false,
+                    last_opened_at: "mono:2".to_string(),
+                    filesystem_identity_ref: None,
+                    remote_target_descriptor_ref: None,
+                    artifact_descriptor_ref: None,
+                    recovery_checkpoint_refs: None,
+                },
+            ],
+        };
+
+        let all = project_searchable_recent_work_lists(&registry, "");
+        assert_eq!(all.pinned.len(), 1);
+        assert_eq!(all.recent.len(), 1);
+        assert_eq!(all.total_matches, 2);
+
+        let remote = project_searchable_recent_work_lists(&registry, "reconnect");
+        assert_eq!(remote.pinned.len(), 1);
+        assert!(remote.recent.is_empty());
+        assert_eq!(
+            remote.pinned[0].failure_state,
+            RecentWorkFailureState::ReconnectRequired
+        );
     }
 }
