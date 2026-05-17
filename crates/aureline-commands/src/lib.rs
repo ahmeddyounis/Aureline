@@ -24,7 +24,8 @@ pub use alpha::{
     AlphaDiscoverabilityConsumerRef, AlphaRegistryError, AlphaSurfaceParityRecord,
 };
 pub use descriptor::{
-    CommandDescriptorRecord, CommandId, CommandRevisionRef, OpaqueId, PolicyContext, RepairHookRef,
+    CommandDescriptorRecord, CommandId, CommandOriginMetadata, CommandRevisionRef, OpaqueId,
+    PolicyContext, RepairHookRef,
 };
 pub use enablement::{
     CommandEnablementContext, DisabledReasonCode, DisabledReasonRecord, EnablementDecisionClass,
@@ -34,6 +35,6 @@ pub use invocation::{
     CommandInvocationSession, CommandResultPacketRecord, InvocationSessionPacketRecord,
 };
 pub use registry::{
-    CommandPreviewGateMetadata, CommandRegistry, CommandRegistryEntryRecord,
-    CommandRegistrySeedRecord, RegistryError,
+    CommandDescriptorPublicContractRecord, CommandPreviewGateMetadata, CommandRegistry,
+    CommandRegistryEntryRecord, CommandRegistrySeedRecord, RegistryError,
 };

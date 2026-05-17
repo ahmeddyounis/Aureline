@@ -162,6 +162,12 @@ pub struct InvocationSessionPacketRecord {
     pub invocation_session_id: OpaqueId,
     pub command_id: CommandId,
     pub command_revision_ref: CommandRevisionRef,
+    /// Dotted canonical verb resolved from the descriptor at invocation time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_verb: Option<String>,
+    /// Alias block that records how the caller reached the canonical command.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alias_used: Option<AliasUsedBlock>,
 
     pub issuing_surface: String,
     pub authority_class: String,
@@ -383,6 +389,8 @@ impl CommandInvocationSession {
             invocation_session_id: self.invocation_session_id.clone(),
             command_id: self.canonical_command_id.clone(),
             command_revision_ref: self.command_revision_ref.clone(),
+            canonical_verb: Some(self.canonical_verb.clone()),
+            alias_used: Some(self.alias_used.clone()),
             issuing_surface: self.issuing_surface.clone(),
             authority_class: self.authority_class.clone(),
             argument_provenance_map: self.argument_provenance_map.clone(),
@@ -441,6 +449,7 @@ impl CommandInvocationSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::descriptor::CommandDescriptorRecord;
 
     fn read_fixture(path: &str) -> String {
         let base = concat!(env!("CARGO_MANIFEST_DIR"), "/../../");
@@ -483,6 +492,64 @@ mod tests {
         assert_eq!(record.result_packet_schema_version, 1);
         assert!(!record.result_packet_id.trim().is_empty());
         assert!(!record.invocation.invocation_session_id.trim().is_empty());
+    }
+
+    #[test]
+    fn parses_descriptor_and_packet_contract_fixtures() {
+        let descriptor_payload = read_fixture(
+            "fixtures/commands/m3/descriptor_and_invocation/workspace_open_folder.descriptor.json",
+        );
+        let descriptor: CommandDescriptorRecord =
+            serde_json::from_str(&descriptor_payload).expect("descriptor fixture must parse");
+        assert_eq!(descriptor.command_id, "cmd:workspace.open_folder");
+        assert_eq!(
+            descriptor.invocation_schema_ref.as_deref(),
+            Some("schemas/commands/command_invocation_session.schema.json")
+        );
+        assert_eq!(
+            descriptor.result_schema_ref.as_deref(),
+            Some("schemas/commands/command_result_packet.schema.json")
+        );
+        assert!(!descriptor.category_refs.is_empty());
+        assert!(!descriptor.discoverability_record_refs.is_empty());
+        assert!(!descriptor.automation_labels.is_empty());
+        assert!(descriptor
+            .aliases
+            .iter()
+            .all(|alias| alias.canonical_command_id.as_deref()
+                == Some(descriptor.command_id.as_str())));
+
+        let invocation_payload = read_fixture(
+            "fixtures/commands/m3/descriptor_and_invocation/palette_open_folder.invocation.json",
+        );
+        let invocation: InvocationSessionPacketRecord =
+            serde_json::from_str(&invocation_payload).expect("invocation fixture must parse");
+        assert_eq!(
+            invocation.canonical_verb.as_deref(),
+            Some("workspace.open_folder")
+        );
+        assert_eq!(
+            invocation
+                .alias_used
+                .as_ref()
+                .map(|alias| alias.resolves_to_canonical_command_id.as_str()),
+            Some("cmd:workspace.open_folder")
+        );
+
+        for path in [
+            "fixtures/commands/m3/descriptor_and_invocation/palette_open_folder.result.json",
+            "fixtures/commands/m3/descriptor_and_invocation/deprecated_cli_alias.result.json",
+        ] {
+            let payload = read_fixture(path);
+            let result: CommandResultPacketRecord =
+                serde_json::from_str(&payload).expect("result fixture must parse");
+            assert_eq!(result.record_kind, "command_result_packet_record");
+            assert_eq!(
+                result.invocation.canonical_command_id,
+                "cmd:workspace.open_folder"
+            );
+            assert_eq!(result.invocation.canonical_verb, "workspace.open_folder");
+        }
     }
 
     #[test]

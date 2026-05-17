@@ -8575,18 +8575,8 @@ fn dispatch_registry_entry(
         "cmd:workspace.clone_repository" => "apply_after_preview",
         "cmd:workspace.restore_from_checkpoint" => "apply_after_preview",
         "cmd:workspace.import_profile" => "apply_after_preview",
-        "cmd:explorer.toggle" => "focus_structural_navigation",
-        "cmd:terminal.toggle" => "run_interactive_terminal",
-        "cmd:editor.save" => "save_active_editor",
-        "cmd:editor.copy" => "copy_editor_selection",
-        "cmd:editor.cut" => "cut_editor_selection",
-        "cmd:editor.paste" => "paste_into_editor",
-        "cmd:editor.undo" => "undo_editor_edit",
-        "cmd:editor.redo" => "redo_editor_edit",
-        "cmd:editor.find_next" => "navigate_search_match",
-        "cmd:editor.find_previous" => "navigate_search_match",
-        "cmd:quick_open.toggle" => "open_quick_open",
-        "cmd:settings.open" => "open_settings_overlay",
+        "cmd:editor.save" | "cmd:editor.cut" | "cmd:editor.paste" | "cmd:editor.undo"
+        | "cmd:editor.redo" => "apply_direct_trusted_path",
         _ => "query_only_no_mutation",
     };
 
@@ -9554,6 +9544,37 @@ fn dispatch_find_navigation_command(
     true
 }
 
+fn canonical_simple_outcome(outcome_code: &str) -> (String, Vec<String>, Vec<String>) {
+    match outcome_code {
+        "succeeded"
+        | "succeeded_with_warnings"
+        | "denied_by_enablement"
+        | "denied_by_preview"
+        | "denied_by_approval"
+        | "cancelled_by_user"
+        | "failed_with_typed_error"
+        | "rolled_back_after_apply"
+        | "partially_applied_and_halted"
+        | "scheduled_pending_background" => (outcome_code.to_string(), Vec::new(), Vec::new()),
+        "failed" => (
+            "failed_with_typed_error".to_string(),
+            Vec::new(),
+            vec!["typed_runtime_failure".to_string()],
+        ),
+        "review_required" => (
+            "denied_by_preview".to_string(),
+            Vec::new(),
+            vec!["preview_required_not_shown".to_string()],
+        ),
+        "no_op" => ("succeeded".to_string(), Vec::new(), Vec::new()),
+        _ => (
+            "succeeded_with_warnings".to_string(),
+            vec!["partial_evidence_retained".to_string()],
+            Vec::new(),
+        ),
+    }
+}
+
 fn invocation_and_result_denied(
     session: &CommandInvocationSession,
     disabled_reason_code: DisabledReasonCode,
@@ -9610,10 +9631,11 @@ fn invocation_and_result_simple_success(
     session: &CommandInvocationSession,
     outcome_code: &str,
 ) -> RecordedCommandInvocation {
+    let (outcome_code, warning_codes, error_codes) = canonical_simple_outcome(outcome_code);
     let outcome = InvocationOutcomeBlock {
         outcome_class: outcome_code.to_string(),
         disabled_reason_code: None,
-        warnings_summary_refs: Vec::new(),
+        warnings_summary_refs: warning_codes.clone(),
         partially_applied_artifact_refs: Vec::new(),
         unapplied_artifact_refs: Vec::new(),
     };
@@ -9621,8 +9643,8 @@ fn invocation_and_result_simple_success(
 
     let result = ResultBodyBlock {
         outcome_code: outcome_code.to_string(),
-        warning_codes: Vec::new(),
-        error_codes: Vec::new(),
+        warning_codes,
+        error_codes,
         created_artifact_refs: Vec::new(),
         notification_refs: Vec::new(),
         activity_refs: Vec::new(),
@@ -9804,9 +9826,9 @@ fn invocation_and_result_clone_succeeded(
                 artifact_role: "side_effect_record".to_string(),
             },
             ArtifactRefEntry {
-                result_contract_class: "workspace_opened_ref".to_string(),
+                result_contract_class: "artifact_created_ref".to_string(),
                 artifact_ref,
-                artifact_role: "workspace_root".to_string(),
+                artifact_role: "primary_result".to_string(),
             },
         ],
         notification_refs: Vec::new(),
@@ -9845,7 +9867,7 @@ fn invocation_and_result_clone_succeeded(
 
 fn invocation_and_result_clone_failed(
     session: &CommandInvocationSession,
-    error: &CloneError,
+    _error: &CloneError,
 ) -> RecordedCommandInvocation {
     let preview_ref = session
         .preview_posture
@@ -9875,7 +9897,7 @@ fn invocation_and_result_clone_failed(
     let result = ResultBodyBlock {
         outcome_code: "failed_with_typed_error".to_string(),
         warning_codes: Vec::new(),
-        error_codes: vec![error.class.as_str().to_string()],
+        error_codes: vec!["typed_runtime_failure".to_string()],
         created_artifact_refs: vec![ArtifactRefEntry {
             result_contract_class: "preview_record_emitted_ref".to_string(),
             artifact_ref: preview_ref.clone(),
@@ -9922,24 +9944,25 @@ fn invocation_and_result_restore_from_checkpoint(
     let outcome_ref = session
         .invocation_session_id
         .replacen("inv:", "restore-outcome:", 1);
-    let outcome_code = if outcome.is_empty() {
-        "no_op"
-    } else if outcome.manual_repair_required || !outcome.dirty_buffer_failures.is_empty() {
-        "completed_with_warnings"
-    } else {
-        "succeeded"
-    };
+    let outcome_code =
+        if outcome.manual_repair_required || !outcome.dirty_buffer_failures.is_empty() {
+            "succeeded_with_warnings"
+        } else {
+            "succeeded"
+        };
 
     let mut warning_codes = Vec::new();
     if outcome.manual_repair_required {
-        warning_codes.push("manual_repair_required".to_string());
+        warning_codes.push("partial_evidence_retained".to_string());
     }
     if !outcome.dirty_buffer_failures.is_empty() {
-        warning_codes.push("dirty_buffer_replay_partial".to_string());
+        warning_codes.push("partial_evidence_retained".to_string());
     }
     if outcome.blocked_side_effectful_count() > 0 {
-        warning_codes.push("side_effectful_surfaces_restored_inactive".to_string());
+        warning_codes.push("rollback_window_limited".to_string());
     }
+    warning_codes.sort();
+    warning_codes.dedup();
 
     let outcome_block = InvocationOutcomeBlock {
         outcome_class: outcome_code.to_string(),
@@ -9955,11 +9978,11 @@ fn invocation_and_result_restore_from_checkpoint(
     let session_packet = session.invocation_session_packet(
         outcome_block,
         vec![InvocationCreatedArtifactRefEntry {
-            result_contract_class: "restore_outcome_ref".to_string(),
+            result_contract_class: "journal_entry_appended_ref".to_string(),
             artifact_ref: outcome_ref.clone(),
         }],
         vec![EvidenceRefEntry {
-            evidence_ref_class: "restore_outcome_ref".to_string(),
+            evidence_ref_class: "support_export_row_ref".to_string(),
             evidence_id: outcome_ref.clone(),
         }],
     );
@@ -9969,9 +9992,9 @@ fn invocation_and_result_restore_from_checkpoint(
         warning_codes,
         error_codes: Vec::new(),
         created_artifact_refs: vec![ArtifactRefEntry {
-            result_contract_class: "restore_outcome_ref".to_string(),
+            result_contract_class: "journal_entry_appended_ref".to_string(),
             artifact_ref: outcome_ref.clone(),
-            artifact_role: "restore_execution_record".to_string(),
+            artifact_role: "side_effect_record".to_string(),
         }],
         notification_refs: Vec::new(),
         activity_refs: Vec::new(),
@@ -9981,7 +10004,7 @@ fn invocation_and_result_restore_from_checkpoint(
         },
         checkpoint_refs: Vec::new(),
         evidence_refs: vec![EvidenceRefEntry {
-            evidence_ref_class: "restore_outcome_ref".to_string(),
+            evidence_ref_class: "support_export_row_ref".to_string(),
             evidence_id: outcome_ref,
         }],
         export_posture: ExportPostureBlock {
@@ -10009,7 +10032,7 @@ fn invocation_and_result_restore_from_checkpoint(
 
 fn invocation_and_result_restore_from_checkpoint_failed(
     session: &CommandInvocationSession,
-    error_detail: String,
+    _error_detail: String,
 ) -> RecordedCommandInvocation {
     let outcome = InvocationOutcomeBlock {
         outcome_class: "failed_with_typed_error".to_string(),
@@ -10023,7 +10046,7 @@ fn invocation_and_result_restore_from_checkpoint_failed(
     let result = ResultBodyBlock {
         outcome_code: "failed_with_typed_error".to_string(),
         warning_codes: Vec::new(),
-        error_codes: vec!["restore_execution_failed".to_string(), error_detail],
+        error_codes: vec!["typed_runtime_failure".to_string()],
         created_artifact_refs: Vec::new(),
         notification_refs: Vec::new(),
         activity_refs: Vec::new(),
@@ -10128,7 +10151,7 @@ fn invocation_and_result_docs_open_in_browser_succeeded(
 fn invocation_and_result_docs_open_in_browser_failed(
     session: &CommandInvocationSession,
     browser_handoff_packet_ref: &str,
-    error_detail: String,
+    _error_detail: String,
 ) -> RecordedCommandInvocation {
     let outcome = InvocationOutcomeBlock {
         outcome_class: "failed_with_typed_error".to_string(),
@@ -10149,7 +10172,7 @@ fn invocation_and_result_docs_open_in_browser_failed(
     let result = ResultBodyBlock {
         outcome_code: "failed_with_typed_error".to_string(),
         warning_codes: Vec::new(),
-        error_codes: vec!["browser_handoff_launch_failed".to_string(), error_detail],
+        error_codes: vec!["typed_runtime_failure".to_string()],
         created_artifact_refs: Vec::new(),
         notification_refs: Vec::new(),
         activity_refs: Vec::new(),
@@ -11854,13 +11877,15 @@ fn invocation_and_result_import_profile_review_recorded(
         .shortcut_delta_report_id
         .clone();
     let activity_ref = format!("ux:event:import-review:{import_review_ref}");
-    let mut warning_codes = vec!["import_diff_review_packet_retained".to_string()];
+    let mut warning_codes = vec!["partial_evidence_retained".to_string()];
     if review.decision_class == ImportReviewDecisionClass::Defer {
-        warning_codes.push("import_deferred_source_unrecognized".to_string());
+        warning_codes.push("partial_evidence_retained".to_string());
     }
     if diff_review.apply_gate_class == "requires_manual_review" {
-        warning_codes.push("import_requires_manual_review_before_apply".to_string());
+        warning_codes.push("rollback_window_limited".to_string());
     }
+    warning_codes.sort();
+    warning_codes.dedup();
 
     let outcome = InvocationOutcomeBlock {
         outcome_class: "succeeded_with_warnings".to_string(),
@@ -11874,19 +11899,19 @@ fn invocation_and_result_import_profile_review_recorded(
         outcome,
         vec![
             InvocationCreatedArtifactRefEntry {
-                result_contract_class: "import_review_record_emitted_ref".to_string(),
+                result_contract_class: "journal_entry_appended_ref".to_string(),
                 artifact_ref: import_review_ref.clone(),
             },
             InvocationCreatedArtifactRefEntry {
-                result_contract_class: "first_run_import_diff_preview_ref".to_string(),
+                result_contract_class: "preview_record_emitted_ref".to_string(),
                 artifact_ref: import_diff_preview_ref.clone(),
             },
             InvocationCreatedArtifactRefEntry {
-                result_contract_class: "migration_report_retained_ref".to_string(),
+                result_contract_class: "artifact_created_ref".to_string(),
                 artifact_ref: migration_report_ref.clone(),
             },
             InvocationCreatedArtifactRefEntry {
-                result_contract_class: "shortcut_delta_digest_ref".to_string(),
+                result_contract_class: "artifact_created_ref".to_string(),
                 artifact_ref: shortcut_delta_ref.clone(),
             },
         ],
@@ -11896,11 +11921,11 @@ fn invocation_and_result_import_profile_review_recorded(
                 evidence_id: preview_ref.clone(),
             },
             EvidenceRefEntry {
-                evidence_ref_class: "import_review_record_ref".to_string(),
+                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
                 evidence_id: import_review_ref.clone(),
             },
             EvidenceRefEntry {
-                evidence_ref_class: "import_diff_preview_ref".to_string(),
+                evidence_ref_class: "preview_record_ref".to_string(),
                 evidence_id: import_diff_preview_ref.clone(),
             },
             EvidenceRefEntry {
@@ -11908,11 +11933,11 @@ fn invocation_and_result_import_profile_review_recorded(
                 evidence_id: checkpoint_ref.clone(),
             },
             EvidenceRefEntry {
-                evidence_ref_class: "migration_report_ref".to_string(),
+                evidence_ref_class: "support_export_row_ref".to_string(),
                 evidence_id: migration_report_ref.clone(),
             },
             EvidenceRefEntry {
-                evidence_ref_class: "shortcut_delta_digest_ref".to_string(),
+                evidence_ref_class: "support_export_row_ref".to_string(),
                 evidence_id: shortcut_delta_ref.clone(),
             },
         ],
@@ -11924,41 +11949,41 @@ fn invocation_and_result_import_profile_review_recorded(
         error_codes: Vec::new(),
         created_artifact_refs: vec![
             ArtifactRefEntry {
-                result_contract_class: "import_review_record_emitted_ref".to_string(),
+                result_contract_class: "journal_entry_appended_ref".to_string(),
                 artifact_ref: import_review_ref.clone(),
-                artifact_role: "import_review_record".to_string(),
+                artifact_role: "side_effect_record".to_string(),
             },
             ArtifactRefEntry {
-                result_contract_class: "first_run_import_diff_preview_ref".to_string(),
+                result_contract_class: "preview_record_emitted_ref".to_string(),
                 artifact_ref: import_diff_preview_ref.clone(),
-                artifact_role: "import_diff_preview".to_string(),
+                artifact_role: "preview_record".to_string(),
             },
             ArtifactRefEntry {
-                result_contract_class: "first_run_import_rollback_checkpoint_ref".to_string(),
+                result_contract_class: "rollback_ticket_emitted_ref".to_string(),
                 artifact_ref: checkpoint_ref.clone(),
-                artifact_role: "rollback_checkpoint".to_string(),
+                artifact_role: "rollback_ticket".to_string(),
             },
             ArtifactRefEntry {
-                result_contract_class: "migration_report_retained_ref".to_string(),
+                result_contract_class: "artifact_created_ref".to_string(),
                 artifact_ref: migration_report_ref.clone(),
-                artifact_role: "migration_report".to_string(),
+                artifact_role: "support_export_row".to_string(),
             },
             ArtifactRefEntry {
-                result_contract_class: "shortcut_delta_digest_ref".to_string(),
+                result_contract_class: "artifact_created_ref".to_string(),
                 artifact_ref: shortcut_delta_ref.clone(),
-                artifact_role: "shortcut_delta_digest".to_string(),
+                artifact_role: "support_export_row".to_string(),
             },
         ],
         notification_refs: vec![NotificationRefEntry {
             notification_ref: format!("ux:notif-env:import-review:{import_review_ref}"),
-            delivery_posture: "routed_to_activity_center".to_string(),
+            delivery_posture: "delivered".to_string(),
         }],
         activity_refs: vec![ActivityRefEntry {
             activity_ref,
-            activity_role: "durable_import_review_row".to_string(),
+            activity_role: "history_row".to_string(),
         }],
         rollback_handle_ref: RollbackHandleRefBlock {
-            rollback_handle_posture: "handle_available_pre_apply_checkpoint".to_string(),
+            rollback_handle_posture: "handle_available".to_string(),
             rollback_handle_id: Some(format!(
                 "rollback-handle:workspace.import_profile:{import_review_ref}"
             )),
@@ -11973,11 +11998,11 @@ fn invocation_and_result_import_profile_review_recorded(
                 evidence_id: preview_ref,
             },
             EvidenceRefEntry {
-                evidence_ref_class: "import_review_record_ref".to_string(),
+                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
                 evidence_id: import_review_ref,
             },
             EvidenceRefEntry {
-                evidence_ref_class: "import_diff_preview_ref".to_string(),
+                evidence_ref_class: "preview_record_ref".to_string(),
                 evidence_id: import_diff_preview_ref,
             },
             EvidenceRefEntry {
@@ -11985,11 +12010,11 @@ fn invocation_and_result_import_profile_review_recorded(
                 evidence_id: checkpoint_ref,
             },
             EvidenceRefEntry {
-                evidence_ref_class: "migration_report_ref".to_string(),
+                evidence_ref_class: "support_export_row_ref".to_string(),
                 evidence_id: migration_report_ref,
             },
             EvidenceRefEntry {
-                evidence_ref_class: "shortcut_delta_digest_ref".to_string(),
+                evidence_ref_class: "support_export_row_ref".to_string(),
                 evidence_id: shortcut_delta_ref,
             },
         ],

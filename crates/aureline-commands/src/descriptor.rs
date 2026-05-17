@@ -49,10 +49,42 @@ pub struct ShortcutNarrationHint {
     pub chord_class_hint: String,
 }
 
+/// Origin metadata that lets surfaces disclose where a command came from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommandOriginMetadata {
+    /// Stable origin class such as `core`, `built_in_extension`, or `policy_provided`.
+    pub origin_class: String,
+    /// Optional source record backing this command origin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_ref: Option<String>,
+    /// Optional publisher or policy bundle reference for non-core commands.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publisher_ref: Option<String>,
+}
+
+fn vec_is_empty<T>(value: &[T]) -> bool {
+    value.is_empty()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommandAlias {
     pub alias_id: String,
     pub alias_kind: String,
+    /// Canonical command id this alias resolves to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical_command_id: Option<CommandId>,
+    /// Opaque note that explains whether the alias is a replacement or refinement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replacement_note_ref: Option<String>,
+    /// Version or release ref that introduced the alias.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub introduced_version: Option<String>,
+    /// Active, deprecated, or retired state for migration and support surfaces.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecation_state: Option<String>,
+    /// Version or release ref when the alias retires.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retirement_version: Option<String>,
 }
 
 /// One typed argument declared by a command descriptor.
@@ -108,6 +140,28 @@ pub struct CommandDescriptorRecord {
     pub shortcut_narration_hint: ShortcutNarrationHint,
 
     pub aliases: Vec<CommandAlias>,
+
+    /// Category refs shared by palette grouping, docs, onboarding, and support search.
+    #[serde(default, skip_serializing_if = "vec_is_empty")]
+    pub category_refs: Vec<String>,
+    /// Source metadata surfaces disclose when origin affects trust or support posture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<CommandOriginMetadata>,
+    /// Schema ref for invocation-session packets emitted by this command.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invocation_schema_ref: Option<String>,
+    /// Schema ref for structured result packets emitted by this command.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_schema_ref: Option<String>,
+    /// Enablement-rule or disabled-reason refs shared by all command surfaces.
+    #[serde(default, skip_serializing_if = "vec_is_empty")]
+    pub enablement_rule_refs: Vec<String>,
+    /// Discoverability projection refs shared by palette, menu, keybinding, CLI, and AI surfaces.
+    #[serde(default, skip_serializing_if = "vec_is_empty")]
+    pub discoverability_record_refs: Vec<String>,
+    /// Automation labels such as `recipe_safe`, `headless_safe`, or `ui_only`.
+    #[serde(default, skip_serializing_if = "vec_is_empty")]
+    pub automation_labels: Vec<String>,
 
     pub typed_arguments: Vec<TypedArgument>,
 

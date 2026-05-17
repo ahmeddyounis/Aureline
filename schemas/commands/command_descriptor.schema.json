@@ -30,6 +30,24 @@
       "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests. Raw command bodies, raw argument values, raw paths, raw URLs, raw prompt text, and raw credential material never appear here."
     },
 
+    "canonical_verb": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dotted snake_case canonical verb ('workspace.open_folder', 'git.commit', 'ai.apply_patch'). Used by CLI surfaces, AI-tool surfaces, and automation recipes. Stable across descriptor revisions."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Optional worked-example prelude carried by checked-in fixtures."
+    },
+
     "monotonic_timestamp": {
       "type": "string",
       "format": "date-time",
@@ -49,7 +67,13 @@
         "automation_recipe_surface",
         "scripted_invocation_surface",
         "remote_agent_surface",
-        "extension_invocation_surface"
+        "extension_invocation_surface",
+        "start_center",
+        "onboarding_surface",
+        "voice_surface",
+        "browser_companion_surface",
+        "mobile_companion_surface",
+        "policy_import_surface"
       ],
       "description": "Frozen issuing-surface vocabulary. Names which surface minted the invocation-session packet. A surface that cannot resolve its issuing class MUST deny with issuing_surface_unresolved rather than defaulting to command_palette."
     },
@@ -321,6 +345,11 @@
         "support_export_row_ref",
         "browser_handoff_packet_ref",
         "rollback_ticket_ref",
+        "rollback_handle_ref",
+        "checkpoint_ref",
+        "command_result_packet_ref",
+        "notification_event_ref",
+        "activity_event_ref",
         "docs_citation_anchor_ref"
       ],
       "description": "Frozen evidence-ref vocabulary. Every invocation-session packet that applied any non-trivial scope MUST carry at least one evidence_ref that points into the broker-owned evidence registry; bare apply without an evidence_ref is non-conforming and denies with basis_snapshot_drifted on replay."
@@ -415,8 +444,10 @@
           "description": "ADR-0001 workspace-trust state at the moment the record was minted."
         },
         "execution_context_id": {
-          "type": "string",
-          "minLength": 1,
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
           "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Null when minted outside an execution context."
         }
       },
@@ -677,6 +708,59 @@
       "description": "Result-contract slot on a command descriptor. Declares what a successful invocation emits; the invocation-session packet enumerates actual refs under created_artifact_refs / evidence_refs and MUST satisfy every evidence_ref_class_required entry."
     },
 
+    "alias_used_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alias_kind",
+        "alias_id",
+        "alias_state",
+        "resolves_to_canonical_command_id",
+        "migration_trace_ref",
+        "support_window_ref"
+      ],
+      "properties": {
+        "alias_kind": {
+          "type": "string",
+          "enum": [
+            "canonical",
+            "legacy_command_id",
+            "alternate_palette_phrasing",
+            "alternate_cli_verb",
+            "ai_tool_handle",
+            "keybinding_target",
+            "voice_phrase",
+            "companion_handoff_token",
+            "imported_bridge_alias"
+          ]
+        },
+        "alias_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "alias_state": {
+          "type": "string",
+          "enum": ["not_applicable", "active", "deprecated", "retired"]
+        },
+        "resolves_to_canonical_command_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_trace_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "support_window_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "description": "Alias the user, automation, AI, voice recognizer, or companion handoff used. Canonical invocation records alias_kind = canonical so support and automation never infer identity from the surface."
+    },
+
     "command_descriptor_record": {
       "type": "object",
       "additionalProperties": false,
@@ -709,6 +793,8 @@
         "minted_at"
       ],
       "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
         "record_kind": { "const": "command_descriptor_record" },
         "command_descriptor_schema_version": {
           "$ref": "#/$defs/command_descriptor_schema_version"
@@ -721,12 +807,7 @@
           "$ref": "#/$defs/opaque_id",
           "description": "Opaque pin to this descriptor revision. Invocation-session packets cite this ref so a replay can prove the command shape it saw."
         },
-        "canonical_verb": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
-          "description": "Dotted snake_case canonical verb ('workspace.open_folder', 'git.commit', 'ai.apply_patch'). Used by CLI surfaces, AI-tool surfaces, and automation recipes. Stable across descriptor revisions."
-        },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
         "primary_label_ref": {
           "$ref": "#/$defs/opaque_id",
           "description": "Opaque pin to the primary user-visible label string. Label text is resolved by the docs / localisation pipeline; raw label strings never cross this boundary."
@@ -749,12 +830,87 @@
                   "alternate_palette_phrasing",
                   "alternate_cli_verb",
                   "ai_tool_handle",
-                  "keybinding_target"
+                  "keybinding_target",
+                  "voice_phrase",
+                  "companion_handoff_token",
+                  "imported_bridge_alias"
+                ]
+              },
+              "canonical_command_id": { "$ref": "#/$defs/opaque_id" },
+              "replacement_note_ref": { "$ref": "#/$defs/opaque_id" },
+              "introduced_version": { "$ref": "#/$defs/opaque_id" },
+              "deprecation_state": {
+                "type": "string",
+                "enum": ["active", "deprecated", "retired"]
+              },
+              "retirement_version": {
+                "oneOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/opaque_id" }
                 ]
               }
             }
           },
           "description": "Closed set of alias shapes. alias_kind = legacy_command_id is the migration bridge when a command is renamed; the legacy id resolves to this descriptor for one major cycle."
+        },
+        "category_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Category refs shared by palette grouping, docs, onboarding, support search, and export tooling."
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origin_class"],
+          "properties": {
+            "origin_class": {
+              "type": "string",
+              "enum": [
+                "core",
+                "built_in_extension",
+                "marketplace_extension",
+                "workspace_extension",
+                "policy_provided",
+                "imported_profile"
+              ]
+            },
+            "source_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ]
+            },
+            "publisher_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ]
+            }
+          },
+          "description": "Source metadata that surfaces disclose when origin changes trust, policy, or support posture."
+        },
+        "invocation_schema_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Schema ref for invocation sessions that carry canonical identity, argument provenance, context, preflight, and outcome metadata."
+        },
+        "result_schema_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Schema ref for structured command result packets consumed by support, telemetry, automation, and export tooling."
+        },
+        "enablement_rule_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to enablement rules or disabled-reason records every surface must evaluate consistently."
+        },
+        "discoverability_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to palette, menu, keybinding, CLI, AI, and docs projections derived from the same command object."
+        },
+        "automation_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Automation admission labels such as recipe-safe, headless-safe, or UI-only."
         },
         "typed_arguments": {
           "type": "array",
@@ -918,6 +1074,8 @@
         "minted_at"
       ],
       "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
         "record_kind": { "const": "invocation_session_packet_record" },
         "command_descriptor_schema_version": {
           "$ref": "#/$defs/command_descriptor_schema_version"
@@ -931,6 +1089,8 @@
           "$ref": "#/$defs/opaque_id",
           "description": "The descriptor revision the invocation saw. A replay against a different revision reopens the preview / approval posture."
         },
+        "canonical_verb": { "$ref": "#/$defs/canonical_verb" },
+        "alias_used": { "$ref": "#/$defs/alias_used_block" },
         "issuing_surface": { "$ref": "#/$defs/issuing_surface" },
         "authority_class": { "$ref": "#/$defs/authority_class" },
         "argument_provenance_map": {

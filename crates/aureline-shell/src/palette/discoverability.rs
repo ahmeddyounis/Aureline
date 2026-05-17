@@ -531,7 +531,7 @@ pub fn materialize_invocation_session_for_review(
         execution_intent: if preview_required {
             "apply_after_preview".to_string()
         } else {
-            "run_after_preflight".to_string()
+            "apply_direct_trusted_path".to_string()
         },
         policy_context: entry.descriptor.policy_context.clone(),
         redaction_class: entry.descriptor.redaction_class.clone(),
