@@ -1,0 +1,519 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/support_center_beta.schema.json",
+  "title": "Aureline Support Center beta shell surface, claim/degraded truth, and export-routing contract",
+  "description": "Boundary schema for the shell-side Support Center beta surface. Defines support_center_beta_surface_record (the keyboard-reachable surface that launches safe mode, doctor, bisect, repair preview, and export actions from one place), support_center_launch_action_row_record (one launchable lane row), support_center_claim_truth_row_record (one claimed beta-lane row), support_center_degraded_truth_row_record (one active degraded-state row), support_center_export_route_row_record (one export action and its destination packet), and support_center_beta_support_packet_record (the metadata-safe projection the support-export pipeline consumes). Reuses the closed beta-lane vocabulary from crates/aureline-support/src/m3_scenario_corpus/mod.rs and the IA module/symptom/deployment vocabulary from schemas/support/support_center_capability_card.schema.json rather than minting parallel tokens. The surface is bounded to actions reachable on a local-only install; managed control planes never gate the recovery-ladder entry path.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/support_center_beta_surface_record" },
+    { "$ref": "#/$defs/support_center_launch_action_row_record" },
+    { "$ref": "#/$defs/support_center_claim_truth_row_record" },
+    { "$ref": "#/$defs/support_center_degraded_truth_row_record" },
+    { "$ref": "#/$defs/support_center_export_route_row_record" },
+    { "$ref": "#/$defs/support_center_beta_support_packet_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewer-facing sentence safe for shell panels, CLI/headless output, and support-export rows. MUST NOT carry milestone or task identifiers."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "beta_lane_class": {
+      "type": "string",
+      "enum": [
+        "safe_mode",
+        "extension_bisect",
+        "repair_transaction_preview",
+        "doctor_probe_packs",
+        "project_doctor_finding_contract",
+        "records_governance",
+        "runtime_replay_packets",
+        "recovery_ladder",
+        "support_bundle",
+        "crash_triage"
+      ],
+      "description": "Closed Support Center beta-lane class. Reuses the seven M3 beta lanes plus the three Support Center cards (recovery_ladder, support_bundle, crash_triage) that launch from the same surface."
+    },
+    "launch_action_class": {
+      "type": "string",
+      "enum": [
+        "enter_safe_mode",
+        "open_project_doctor",
+        "start_extension_bisect",
+        "open_repair_preview",
+        "open_recovery_ladder",
+        "open_crash_triage",
+        "preview_support_bundle",
+        "export_support_bundle",
+        "export_object_handoff_packet",
+        "export_escalation_packet_draft"
+      ],
+      "description": "Closed set of launch actions reachable from the Support Center beta surface. Every action MUST resolve to an in-product command id; no action MAY require account creation or a hosted service to be launched."
+    },
+    "keyboard_reach_class": {
+      "type": "string",
+      "enum": [
+        "palette_command",
+        "default_keyboard_shortcut",
+        "panel_focus_chord",
+        "start_center_entry"
+      ],
+      "description": "Closed keyboard-reach vocabulary. Every action row MUST declare at least one keyboard-reach class so the surface is reachable without pointer input."
+    },
+    "account_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_account_required",
+        "managed_admin_account_required_for_apply",
+        "managed_admin_account_required_for_handoff"
+      ],
+      "description": "Closed set of account-requirement classes. Local-only recovery lanes MUST declare no_account_required."
+    },
+    "service_dependency_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "optional_mirror_cache",
+        "optional_managed_policy_sync",
+        "requires_managed_control_plane",
+        "requires_hosted_intake"
+      ],
+      "description": "Closed set of service-dependency classes. Local-only recovery lanes MUST declare local_only or optional_mirror_cache; requires_* MUST NOT appear on local-only lanes."
+    },
+    "claim_state_class": {
+      "type": "string",
+      "enum": [
+        "green_claim_proven",
+        "yellow_aging_evidence",
+        "red_blocks_claim",
+        "not_claimed_in_this_milestone",
+        "degraded_local_only"
+      ],
+      "description": "Closed claim-state vocabulary. Mirrors the M3 claim-downgrade contract from crates/aureline-support/src/m3_scenario_corpus/mod.rs without re-deriving truth."
+    },
+    "degraded_truth_class": {
+      "type": "string",
+      "enum": [
+        "none_degraded",
+        "safe_mode_active",
+        "extension_quarantined",
+        "cache_or_index_repair_pending",
+        "restricted_fallback_active",
+        "session_restore_skipped",
+        "crash_loop_containment_active"
+      ],
+      "description": "Closed degraded-truth vocabulary describing visible system state the Support Center surface MUST quote (rather than letting it stay buried in unrelated panels)."
+    },
+    "export_route_destination_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle_preview_local_first",
+        "doctor_finding_record_export",
+        "recovery_ladder_support_packet",
+        "object_handoff_packet_draft",
+        "escalation_packet_draft",
+        "no_export_destination"
+      ],
+      "description": "Closed export-route destination vocabulary. Every export-route row MUST declare exactly one destination class; no_export_destination MUST be the only entry on read-only rows that produce no export."
+    },
+    "deployment_context_class": {
+      "type": "string",
+      "enum": ["local_only", "managed", "self_hosted", "mirrored", "offline"],
+      "description": "Re-exported from schemas/support/support_center_capability_card.schema.json so the shell-side surface uses the same deployment-context vocabulary as the IA cards and routes."
+    },
+    "preserved_state_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_files",
+        "open_buffer_selection",
+        "durable_workspace_indexes",
+        "workspace_trust_store",
+        "credential_store",
+        "session_restore_store",
+        "support_export_store"
+      ],
+      "description": "Closed preserved-state vocabulary. Mirrors crates/aureline-support/src/recovery_ladder/mod.rs so the Support Center surface never claims a launch action that would delete user-owned state."
+    },
+    "support_center_launch_action_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "row_id",
+        "beta_lane_class",
+        "launch_action_class",
+        "command_id",
+        "keyboard_reach_classes",
+        "account_requirement_class",
+        "service_dependency_class",
+        "preserved_state_classes",
+        "label",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_launch_action_row_record"
+        },
+        "row_id": { "$ref": "#/$defs/stable_ref_id" },
+        "beta_lane_class": { "$ref": "#/$defs/beta_lane_class" },
+        "launch_action_class": { "$ref": "#/$defs/launch_action_class" },
+        "command_id": {
+          "type": "string",
+          "pattern": "^cmd:[a-z0-9_.]+$",
+          "description": "Stable command id the chrome routes when the action is invoked. MUST be a non-empty cmd:* id; an action that cannot be launched MUST be omitted rather than carry a fake command."
+        },
+        "keyboard_reach_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/keyboard_reach_class" },
+          "description": "Closed list of keyboard-reach classes the action supports."
+        },
+        "account_requirement_class": { "$ref": "#/$defs/account_requirement_class" },
+        "service_dependency_class": { "$ref": "#/$defs/service_dependency_class" },
+        "preserved_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/preserved_state_class" },
+          "description": "Closed list of state classes the launch action MUST preserve. user_authored_files MUST appear in every row."
+        },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_center_claim_truth_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "row_id",
+        "beta_lane_class",
+        "claim_state_class",
+        "scorecard_target",
+        "evidence_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_claim_truth_row_record"
+        },
+        "row_id": { "$ref": "#/$defs/stable_ref_id" },
+        "beta_lane_class": { "$ref": "#/$defs/beta_lane_class" },
+        "claim_state_class": { "$ref": "#/$defs/claim_state_class" },
+        "scorecard_target": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable scorecard target id (for example m3.beta_lane.safe_mode) the claim is bound to."
+        },
+        "evidence_packet_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative ref to the metadata-safe support packet that proves (or fails) the claim. Used by the surface so the user can open the underlying evidence rather than infer state from prose."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_center_degraded_truth_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "row_id",
+        "degraded_truth_class",
+        "active",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_degraded_truth_row_record"
+        },
+        "row_id": { "$ref": "#/$defs/stable_ref_id" },
+        "degraded_truth_class": { "$ref": "#/$defs/degraded_truth_class" },
+        "active": { "type": "boolean" },
+        "exit_command_id": {
+          "type": "string",
+          "pattern": "^cmd:[a-z0-9_.]+$",
+          "description": "Optional stable command id the user can invoke to leave the degraded state. MUST be omitted when degraded_truth_class is none_degraded."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "degraded_truth_class": { "const": "none_degraded" }
+            },
+            "required": ["degraded_truth_class"]
+          },
+          "then": {
+            "properties": {
+              "active": { "const": false }
+            },
+            "not": { "required": ["exit_command_id"] }
+          }
+        }
+      ]
+    },
+    "support_center_export_route_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "row_id",
+        "launch_action_class",
+        "destination_class",
+        "destination_schema_ref",
+        "local_first_path_named",
+        "upload_required_for_first_action",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_export_route_row_record"
+        },
+        "row_id": { "$ref": "#/$defs/stable_ref_id" },
+        "launch_action_class": { "$ref": "#/$defs/launch_action_class" },
+        "destination_class": { "$ref": "#/$defs/export_route_destination_class" },
+        "destination_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative ref to the boundary schema for the destination packet (for example schemas/support/support_bundle_manifest.schema.json). When destination_class is no_export_destination the field MUST hold the literal token 'no_destination_schema'."
+        },
+        "local_first_path_named": {
+          "type": "boolean",
+          "description": "MUST be true on every row. The export route MUST name a local-first preview path before any upload."
+        },
+        "upload_required_for_first_action": {
+          "type": "boolean",
+          "description": "MUST be false on every row. A row whose first action requires an upload is non-conforming and MUST be replaced by a local-first preview destination."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_center_beta_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "surface_id",
+        "title",
+        "summary",
+        "deployment_context_class",
+        "primary_command_id",
+        "primary_keyboard_reach_class",
+        "launch_action_rows",
+        "claim_truth_rows",
+        "degraded_truth_rows",
+        "export_route_rows",
+        "no_account_required_for_local_only",
+        "no_hidden_service_required_for_local_only",
+        "ia_capability_card_refs",
+        "ia_route_refs",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_beta_surface_record"
+        },
+        "surface_id": { "$ref": "#/$defs/stable_ref_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "deployment_context_class": { "$ref": "#/$defs/deployment_context_class" },
+        "primary_command_id": {
+          "type": "string",
+          "pattern": "^cmd:[a-z0-9_.]+$",
+          "description": "Stable command id that opens the Support Center surface itself. MUST be reachable from the command palette so the surface is keyboard-accessible without a pointer."
+        },
+        "primary_keyboard_reach_class": { "$ref": "#/$defs/keyboard_reach_class" },
+        "launch_action_rows": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/support_center_launch_action_row_record" },
+          "description": "MUST contain at least one row each for enter_safe_mode, open_project_doctor, start_extension_bisect, open_repair_preview, and an export action (export_support_bundle or preview_support_bundle) so the acceptance contract is provable on the row set."
+        },
+        "claim_truth_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_center_claim_truth_row_record" }
+        },
+        "degraded_truth_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_center_degraded_truth_row_record" }
+        },
+        "export_route_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_center_export_route_row_record" }
+        },
+        "no_account_required_for_local_only": {
+          "type": "boolean",
+          "description": "MUST be true. A surface that requires account creation for any local-only recovery lane is non-conforming."
+        },
+        "no_hidden_service_required_for_local_only": {
+          "type": "boolean",
+          "description": "MUST be true. A surface that hides a hosted-service availability gate behind a local-only recovery lane is non-conforming."
+        },
+        "ia_capability_card_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_ref_id" },
+          "description": "Stable capability_card_id references from artifacts/support/support_center_routes.yaml that this shell surface aligns with."
+        },
+        "ia_route_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_ref_id" },
+          "description": "Stable route_id references from artifacts/support/support_center_routes.yaml that resolve into this shell surface."
+        },
+        "governance_bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "support_center_concept_ref",
+            "support_center_ia_ref",
+            "support_center_routes_ref",
+            "m3_scenario_corpus_ref",
+            "recovery_ladder_doc_ref",
+            "safe_mode_doc_ref",
+            "extension_bisect_doc_ref",
+            "repair_transaction_doc_ref",
+            "project_doctor_doc_ref",
+            "support_bundle_contract_ref"
+          ],
+          "properties": {
+            "support_center_concept_ref": {
+              "type": "string",
+              "const": "docs/support/support_center_concept.md"
+            },
+            "support_center_ia_ref": {
+              "type": "string",
+              "const": "docs/support/support_center_information_architecture.md"
+            },
+            "support_center_routes_ref": {
+              "type": "string",
+              "const": "artifacts/support/support_center_routes.yaml"
+            },
+            "m3_scenario_corpus_ref": {
+              "type": "string",
+              "const": "docs/support/m3/support_scenario_corpus.md"
+            },
+            "recovery_ladder_doc_ref": {
+              "type": "string",
+              "const": "docs/support/recovery_ladder_alpha.md"
+            },
+            "safe_mode_doc_ref": {
+              "type": "string",
+              "const": "docs/support/m3/safe_mode_beta.md"
+            },
+            "extension_bisect_doc_ref": {
+              "type": "string",
+              "const": "docs/support/m3/extension_bisect_beta.md"
+            },
+            "repair_transaction_doc_ref": {
+              "type": "string",
+              "const": "docs/support/m3/repair_transaction_beta.md"
+            },
+            "project_doctor_doc_ref": {
+              "type": "string",
+              "const": "docs/support/m3/project_doctor_beta.md"
+            },
+            "support_bundle_contract_ref": {
+              "type": "string",
+              "const": "docs/support/support_bundle_contract.md"
+            }
+          }
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "support_center_beta_support_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "surface_ref",
+        "launch_action_row_refs",
+        "claim_truth_row_refs",
+        "degraded_truth_row_refs",
+        "export_route_row_refs",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_beta_support_packet_record"
+        },
+        "packet_id": { "$ref": "#/$defs/stable_ref_id" },
+        "surface_ref": { "$ref": "#/$defs/stable_ref_id" },
+        "launch_action_row_refs": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/stable_ref_id" }
+        },
+        "claim_truth_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_ref_id" }
+        },
+        "degraded_truth_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_ref_id" }
+        },
+        "export_route_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_ref_id" }
+        },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "description": "MUST be true on every packet. The Support Center beta projection never carries raw private material into a support export."
+        },
+        "ambient_authority_excluded": {
+          "type": "boolean",
+          "description": "MUST be true on every packet. The Support Center beta projection never carries ambient authority into a support export."
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

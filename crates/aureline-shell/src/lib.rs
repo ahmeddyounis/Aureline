@@ -117,6 +117,7 @@ pub mod start_center;
 pub mod state_cards;
 pub mod status;
 pub mod status_bar;
+pub mod support_center;
 pub mod support_matrix_beta;
 pub mod support_seed;
 pub mod system_browser_return_paths;
