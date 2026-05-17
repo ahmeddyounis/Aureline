@@ -25,7 +25,18 @@ pub use checkpoints::{
 pub use local_history::{
     ActorLineageClass, ActorLineageRow, GitMutationLineageInput, HistoryArtifactExportSafety,
     HistoryExportMode, LocalHistoryAlphaPacket, LocalHistoryAlphaValidationError,
-    LocalHistoryConsumerSurface, RestoreCheckpointAlpha, ReviewApplyLineageInput,
+    LocalHistoryConsumerSurface, LocalHistoryTimelineAction,
+    LocalHistoryTimelineActionAvailability, LocalHistoryTimelineActionClass,
+    LocalHistoryTimelineAlphaPacket, LocalHistoryTimelineCase, LocalHistoryTimelineCompareBasis,
+    LocalHistoryTimelineConsumerSurface, LocalHistoryTimelineCorpus,
+    LocalHistoryTimelineCorpusEntry, LocalHistoryTimelineEvaluator,
+    LocalHistoryTimelineFidelityLabel, LocalHistoryTimelineFidelitySummaryRow,
+    LocalHistoryTimelineNoRerunGuard, LocalHistoryTimelineReferences, LocalHistoryTimelineReport,
+    LocalHistoryTimelineReportRow, LocalHistoryTimelineRestoreLevel,
+    LocalHistoryTimelineResumptionPosture, LocalHistoryTimelineRow,
+    LocalHistoryTimelineSupportExportProjection, LocalHistoryTimelineTargetPosture,
+    LocalHistoryTimelineValidationReport, LocalHistoryTimelineViolation, RestoreCheckpointAlpha,
+    ReviewApplyLineageInput,
 };
 pub use mutation_journal::{
     producers::{

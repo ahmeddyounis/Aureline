@@ -6,6 +6,26 @@
 //! history, recovery, Git, apply, and support surfaces can inspect lineage
 //! without widening data export.
 
+pub mod timeline;
+
+pub use timeline::{
+    current_local_history_timeline_corpus, current_local_history_timeline_fixture_refs,
+    load_local_history_timeline_case, LocalHistoryTimelineAction,
+    LocalHistoryTimelineActionAvailability, LocalHistoryTimelineActionClass,
+    LocalHistoryTimelineAlphaPacket, LocalHistoryTimelineCase, LocalHistoryTimelineCompareBasis,
+    LocalHistoryTimelineConsumerSurface, LocalHistoryTimelineCorpus,
+    LocalHistoryTimelineCorpusEntry, LocalHistoryTimelineEvaluator,
+    LocalHistoryTimelineFidelityLabel, LocalHistoryTimelineFidelitySummaryRow,
+    LocalHistoryTimelineNoRerunGuard, LocalHistoryTimelineReferences, LocalHistoryTimelineReport,
+    LocalHistoryTimelineReportRow, LocalHistoryTimelineRestoreLevel,
+    LocalHistoryTimelineResumptionPosture, LocalHistoryTimelineRow,
+    LocalHistoryTimelineSupportExportProjection, LocalHistoryTimelineTargetPosture,
+    LocalHistoryTimelineValidationReport, LocalHistoryTimelineViolation,
+    LOCAL_HISTORY_TIMELINE_CORPUS_DIR, LOCAL_HISTORY_TIMELINE_CORPUS_MANIFEST_REF,
+    LOCAL_HISTORY_TIMELINE_DOC_REF, LOCAL_HISTORY_TIMELINE_REPORT_REF,
+    LOCAL_HISTORY_TIMELINE_SCHEMA_REF,
+};
+
 use serde::{Deserialize, Serialize};
 
 use crate::checkpoints::{

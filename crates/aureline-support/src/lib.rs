@@ -89,6 +89,10 @@
 //!   typed records-governance packet per artifact so support exports
 //!   carry artifact-class, hold-state, retention-owner, chain-of-custody,
 //!   and destruction-caveat truth instead of implying it.
+//! - The [`local_history_timeline`] support projection — consumes the
+//!   checked-in local-history timeline corpus and emits metadata-only support
+//!   rows that quote the same exact, compatible, layout-only, and evidence-only
+//!   fidelity labels as the timeline and restore-preview surfaces.
 //!
 //! ## Failure-drill posture
 //!
@@ -109,6 +113,7 @@ pub mod fitness;
 pub mod generated_lineage;
 pub mod graph_drift;
 pub mod incident_workspace_beta;
+pub mod local_history_timeline;
 pub mod m3_scenario_corpus;
 pub mod mutation_journal;
 pub mod project_doctor;

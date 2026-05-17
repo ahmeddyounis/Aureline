@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/local_history_timeline_alpha.schema.json",
+  "title": "Aureline local-history timeline alpha packet",
+  "description": "Boundary schema for local-history compare, restore, and export timeline rows. Rows carry the same exact, compatible, layout-only, and evidence-only fidelity labels across timeline UI, restore preview, CLI/headless inspection, and support export. Raw snapshot bodies, private material, and live authority handles do not cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/local_history_timeline_alpha_case" },
+    { "$ref": "#/$defs/local_history_timeline_alpha_packet" },
+    { "$ref": "#/$defs/local_history_timeline_alpha_report" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for support exports and compare handles. Raw paths, raw payload bodies, credentials, live authority tokens, and object-store body refs do not appear here."
+    },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "redaction_aware_text": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "consumer_surface": {
+      "type": "string",
+      "enum": ["timeline_ui", "restore_preview", "support_export", "cli_headless"]
+    },
+    "actor_lineage_class": {
+      "type": "string",
+      "enum": [
+        "typing",
+        "import",
+        "git_mutation",
+        "formatter",
+        "ai_apply",
+        "review_apply",
+        "restore_checkpoint",
+        "automation",
+        "repair",
+        "external_change",
+        "other"
+      ]
+    },
+    "fidelity_label": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "evidence_only"],
+      "description": "Closed label rendered on compare, restore, export, timeline, and support rows."
+    },
+    "restore_level": {
+      "type": "string",
+      "enum": ["exact_restore", "compatible_restore", "layout_only", "evidence_only"]
+    },
+    "target_posture": {
+      "type": "string",
+      "enum": [
+        "same_object_current",
+        "compatible_logical_document",
+        "layout_metadata_only",
+        "evidence_metadata_only"
+      ]
+    },
+    "compare_basis": {
+      "type": "string",
+      "enum": ["byte_snapshot", "compatible_snapshot", "layout_topology", "evidence_manifest"]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": ["compare", "restore", "export"]
+    },
+    "action_availability": {
+      "type": "string",
+      "enum": ["available", "review_required", "disabled_compare_only", "disabled_export_only"]
+    },
+    "resumption_posture": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "context_restored_not_live",
+        "static_evidence_only",
+        "authority_verified_no_rerun"
+      ]
+    },
+    "support_export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "includes_row_id",
+        "includes_checkpoint_refs",
+        "includes_fidelity_label",
+        "includes_action_vocabulary",
+        "raw_payload_excluded",
+        "raw_private_material_excluded",
+        "live_authority_excluded"
+      ],
+      "properties": {
+        "includes_row_id": { "const": true },
+        "includes_checkpoint_refs": { "const": true },
+        "includes_fidelity_label": { "const": true },
+        "includes_action_vocabulary": { "const": true },
+        "raw_payload_excluded": { "const": true },
+        "raw_private_material_excluded": { "const": true },
+        "live_authority_excluded": { "const": true }
+      }
+    },
+    "no_rerun_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resumption_posture",
+        "live_session_resumed",
+        "privileged_run_resumed",
+        "rerun_required_label_visible",
+        "evidence_only_label_visible",
+        "summary"
+      ],
+      "properties": {
+        "resumption_posture": { "$ref": "#/$defs/resumption_posture" },
+        "live_session_resumed": { "type": "boolean" },
+        "privileged_run_resumed": { "type": "boolean" },
+        "rerun_required_label_visible": { "type": "boolean" },
+        "evidence_only_label_visible": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "timeline_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "command_id",
+        "availability_class",
+        "fidelity_label",
+        "restore_level",
+        "writes_new_checkpoint"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "command_id": { "type": "string", "minLength": 1 },
+        "availability_class": { "$ref": "#/$defs/action_availability" },
+        "fidelity_label": { "$ref": "#/$defs/fidelity_label" },
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "writes_new_checkpoint": { "type": "boolean" },
+        "support_export_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "timeline_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "display_label",
+        "consumer_surface",
+        "source_entry_ref",
+        "actor_lineage_class",
+        "snapshot_class",
+        "target_posture",
+        "compare_basis",
+        "fidelity_label",
+        "restore_level",
+        "body_available_locally",
+        "actions",
+        "no_rerun_guard",
+        "support_export"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "source_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_group_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "mutation_journal_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "actor_lineage_class": { "$ref": "#/$defs/actor_lineage_class" },
+        "snapshot_class": { "type": "string", "minLength": 1 },
+        "target_posture": { "$ref": "#/$defs/target_posture" },
+        "compare_basis": { "$ref": "#/$defs/compare_basis" },
+        "fidelity_label": { "$ref": "#/$defs/fidelity_label" },
+        "restore_level": { "$ref": "#/$defs/restore_level" },
+        "body_available_locally": { "type": "boolean" },
+        "new_checkpoint_on_restore_ref": { "$ref": "#/$defs/opaque_id" },
+        "actions": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/timeline_action" }
+        },
+        "no_rerun_guard": { "$ref": "#/$defs/no_rerun_guard" },
+        "support_export": { "$ref": "#/$defs/support_export_projection" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "fidelity_label": { "const": "evidence_only" } } },
+          "then": {
+            "properties": {
+              "restore_level": { "const": "evidence_only" },
+              "target_posture": { "const": "evidence_metadata_only" },
+              "compare_basis": { "const": "evidence_manifest" },
+              "no_rerun_guard": {
+                "properties": {
+                  "resumption_posture": { "const": "static_evidence_only" },
+                  "live_session_resumed": { "const": false },
+                  "privileged_run_resumed": { "const": false },
+                  "evidence_only_label_visible": { "const": true }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_ref", "schema_ref", "report_ref"],
+      "properties": {
+        "doc_ref": { "const": "docs/state/m3/local_history_timeline_alpha.md" },
+        "schema_ref": { "const": "schemas/state/local_history_timeline_alpha.schema.json" },
+        "report_ref": { "const": "artifacts/support/m3/local_history_timeline_alpha_report.md" }
+      }
+    },
+    "local_history_timeline_alpha_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "case_id",
+        "title",
+        "timeline_row",
+        "references",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": { "const": "local_history_timeline_alpha_case" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/redaction_aware_text" },
+        "timeline_row": { "$ref": "#/$defs/timeline_row" },
+        "references": { "$ref": "#/$defs/references" },
+        "captured_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "local_history_timeline_alpha_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "produced_at",
+        "consumer_surface",
+        "rows",
+        "raw_payload_excluded",
+        "raw_private_material_excluded",
+        "live_authority_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "local_history_timeline_alpha_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "produced_at": { "$ref": "#/$defs/timestamp" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timeline_row" }
+        },
+        "raw_payload_excluded": { "const": true },
+        "raw_private_material_excluded": { "const": true },
+        "live_authority_excluded": { "const": true }
+      }
+    },
+    "local_history_timeline_alpha_report": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "report_id",
+        "captured_at",
+        "doc_ref",
+        "schema_ref",
+        "corpus_manifest_ref",
+        "raw_payload_excluded",
+        "raw_private_material_excluded",
+        "live_authority_excluded",
+        "matrix_rows",
+        "fidelity_summaries"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": { "const": "local_history_timeline_alpha_report" },
+        "report_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "doc_ref": { "const": "docs/state/m3/local_history_timeline_alpha.md" },
+        "schema_ref": { "const": "schemas/state/local_history_timeline_alpha.schema.json" },
+        "corpus_manifest_ref": { "const": "fixtures/recovery/m3/local_history_timeline/manifest.yaml" },
+        "raw_payload_excluded": { "const": true },
+        "raw_private_material_excluded": { "const": true },
+        "live_authority_excluded": { "const": true },
+        "matrix_rows": { "type": "array", "minItems": 1 },
+        "fidelity_summaries": { "type": "array", "minItems": 1 }
+      }
+    }
+  }
+}
