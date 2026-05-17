@@ -122,6 +122,10 @@ of the program. Do not invent "verified" or "stable" copy.
 
 - Generated compatibility report (markdown):
   [`artifacts/compat/m3/compatibility_report.md`](../../../artifacts/compat/m3/compatibility_report.md)
+- Reference-workspace report:
+  [`artifacts/compat/m3/reference_workspace_report.md`](../../../artifacts/compat/m3/reference_workspace_report.md)
+- Reference-workspace badge projection:
+  [`artifacts/compat/m3/reference_workspace_badges.json`](../../../artifacts/compat/m3/reference_workspace_badges.json)
 - Certified-archetype scorecard index:
   [`artifacts/compat/m3/archetype_scorecards/scorecard_index.yaml`](../../../artifacts/compat/m3/archetype_scorecards/scorecard_index.yaml)
 - Public-proof review packet template:

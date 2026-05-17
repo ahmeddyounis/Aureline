@@ -26,6 +26,8 @@ minimum_mode_matrix:
   - local_plus_one_remote_mode
 evidence_refs:
   - artifacts/compat/reference_workspace_rows.yaml#archetype_row:ts_web_app_or_service
+  - artifacts/compat/m3/reference_workspace_report.json#reference_workspace_report_row:ts_web_app_or_service
+  - artifacts/compat/m3/reference_workspace_badges.json#reference_workspace_badge:ts_web_app_or_service
   - artifacts/certification/m2_archetype_seed_rows.yaml#archetype_certification_seed:ts_web_app_or_service
   - artifacts/milestones/m2/alpha_wedge_matrix.yaml#alpha_wedge:typescript_javascript
   - docs/release/certified_archetype_report_template.md
@@ -62,6 +64,8 @@ This scorecard is the reviewer-facing readiness summary for
 `archetype_row:ts_web_app_or_service` in the M3 beta admission lane.
 Tooling consumes the YAML front matter above and the derived register at
 `artifacts/milestones/m3/captures/cohort_archetype_scorecard_register.json`.
+Its effective support class is capped by the current reference-workspace
+report at `artifacts/compat/m3/reference_workspace_report.json`.
 
 ## Definition of green
 
@@ -79,7 +83,7 @@ Expired evidence and open waivers automatically move this row to
 
 | Trigger | Auto-state | Propagation |
 |---|---|---|
-| Reference-workspace report stale | `retest_pending` | `docs/release/certified_archetype_report_template.md` |
+| Reference-workspace report stale or not-run | `retest_pending` | `artifacts/compat/m3/reference_workspace_report.json`, `docs/release/certified_archetype_report_template.md` |
 | Archetype seed evidence stale | `evidence_stale` | `docs/release/certified_archetype_report_template.md` |
 | Regression on certified archetype | `limited` | `artifacts/feedback/external_alpha_known_limits.md` |
 

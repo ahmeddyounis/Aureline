@@ -50,6 +50,9 @@ DEFAULT_CLAIMED_SURFACE_REGISTER_REL = (
     "artifacts/milestones/m3/claimed_surface_register.json"
 )
 DEFAULT_COHORT_GUARDRAILS_REL = "artifacts/milestones/m3/cohort_guardrails.yaml"
+DEFAULT_REFERENCE_WORKSPACE_REPORT_REL = (
+    "artifacts/compat/m3/reference_workspace_report.json"
+)
 
 REQUIRED_COHORT_SCORECARD_IDS = {
     "cohort_scorecard:design_partner",
@@ -120,6 +123,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--cohort-guardrails",
         default=DEFAULT_COHORT_GUARDRAILS_REL,
+    )
+    parser.add_argument(
+        "--reference-workspace-report",
+        default=DEFAULT_REFERENCE_WORKSPACE_REPORT_REL,
     )
     parser.add_argument("--register", default=DEFAULT_REGISTER_REL)
     parser.add_argument("--report", default=DEFAULT_REPORT_REL)
@@ -473,6 +480,31 @@ def derive_effective_state(
         "evidence_age_days": evidence_age_days,
         "triggers": triggers,
     }
+
+
+def support_rank(value: str) -> int:
+    """Return a monotonic support-class rank where larger is more restrictive."""
+
+    ranks = {
+        "certified": 0,
+        "supported": 1,
+        "limited": 2,
+        "experimental": 3,
+        "community": 3,
+        "preview": 3,
+        "retest_pending": 4,
+        "evidence_stale": 5,
+        "unsupported": 6,
+    }
+    return ranks.get(value, 99)
+
+
+def stricter_support_class(left: str, right: str) -> str:
+    """Return the stricter of two support classes."""
+
+    if support_rank(right) > support_rank(left):
+        return right
+    return left
 
 
 def validate_common_scorecard(
@@ -868,6 +900,7 @@ def validate_archetype_scorecards(
     index_as_of: dt.date,
     known_archetype_refs: set[str],
     automation: dict[str, Any],
+    reference_report_index: dict[str, dict[str, Any]],
     findings: list[Finding],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -980,6 +1013,72 @@ def validate_archetype_scorecards(
         derivation = derive_effective_state(
             scorecard, automation, index_as_of, findings
         )
+        reference_report = reference_report_index.get(archetype_ref)
+        reference_workspace_report: dict[str, Any] | None = None
+        effective_support_class = derivation["effective_support_class"]
+        freshness_derivation = derivation["freshness_derivation"]
+        triggers = list(derivation["triggers"])
+        if reference_report is not None:
+            report_support = ensure_str(
+                ensure_dict(
+                    reference_report.get("support_class"),
+                    f"{scorecard_id}.reference_workspace_report.support_class",
+                ).get("effective"),
+                f"{scorecard_id}.reference_workspace_report.support_class.effective",
+            )
+            report_freshness = ensure_str(
+                ensure_dict(
+                    reference_report.get("freshness"),
+                    f"{scorecard_id}.reference_workspace_report.freshness",
+                ).get("evidence_state"),
+                f"{scorecard_id}.reference_workspace_report.freshness.evidence_state",
+            )
+            original_effective = effective_support_class
+            effective_support_class = stricter_support_class(
+                effective_support_class,
+                report_support,
+            )
+            if effective_support_class != original_effective:
+                trigger = f"reference_workspace_report:{report_freshness}"
+                if triggers == ["none"]:
+                    triggers = []
+                if trigger not in triggers:
+                    triggers.append(trigger)
+            if report_freshness in {"retest_pending", "evidence_stale"}:
+                freshness_derivation = report_freshness
+            reference_workspace_report = {
+                "report_ref": "artifacts/compat/m3/reference_workspace_report.json",
+                "report_row_ref": ensure_str(
+                    reference_report.get("report_row_id"),
+                    f"{scorecard_id}.reference_workspace_report.report_row_id",
+                ),
+                "reference_workspace_id": reference_report.get(
+                    "reference_workspace_id"
+                ),
+                "support_class": report_support,
+                "freshness_state": report_freshness,
+                "workflow_result_counts": reference_report.get(
+                    "workflow_result_counts",
+                    {},
+                ),
+            }
+        else:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="archetype_scorecard.reference_workspace_report_missing",
+                    message=(
+                        f"{scorecard_id} has no matching reference-workspace "
+                        "report row"
+                    ),
+                    remediation=(
+                        "Regenerate artifacts/compat/m3/reference_workspace_report.json "
+                        "from the current reference-workspace register."
+                    ),
+                    ref=scorecard_id,
+                )
+            )
+
         rows.append(
             {
                 "scorecard_id": scorecard_id,
@@ -994,11 +1093,9 @@ def validate_archetype_scorecards(
                 "declared_support_class": scorecard.get(
                     "declared_support_class"
                 ),
-                "freshness_derivation": derivation["freshness_derivation"],
+                "freshness_derivation": freshness_derivation,
                 "waiver_derivation": derivation["waiver_derivation"],
-                "effective_support_class": derivation[
-                    "effective_support_class"
-                ],
+                "effective_support_class": effective_support_class,
                 "target_support_class_at_beta_exit": scorecard.get(
                     "target_support_class_at_beta_exit"
                 ),
@@ -1009,9 +1106,10 @@ def validate_archetype_scorecards(
                     "display_lifecycle_label"
                 ),
                 "open_waivers": scorecard.get("open_waivers", []),
-                "downgrade_triggers_fired": derivation["triggers"],
+                "downgrade_triggers_fired": triggers,
                 "consuming_surfaces": scorecard.get("consuming_surfaces", []),
                 "owner_handoff_path": scorecard.get("owner_handoff_path", {}),
+                "reference_workspace_report": reference_workspace_report,
             }
         )
 
@@ -1129,6 +1227,16 @@ def collect_register_archetype_refs(register: dict[str, Any]) -> set[str]:
     }
 
 
+def index_reference_workspace_report(
+    report: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    return {
+        ensure_str(row.get("archetype_row_ref"), "reference_report.archetype_row_ref"): row
+        for row in ensure_list(report.get("rows"), "reference_report.rows")
+        if isinstance(row, dict)
+    }
+
+
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
@@ -1149,9 +1257,16 @@ def main() -> int:
         render_yaml_as_json(repo_root / args.cohort_guardrails),
         "cohort_guardrails",
     )
+    reference_workspace_report = ensure_dict(
+        load_json(repo_root / args.reference_workspace_report),
+        "reference_workspace_report",
+    )
     known_cohort_ids = collect_cohort_ids(cohort_guardrails)
     known_surface_ids = collect_register_surfaces(claimed_register)
     known_archetype_refs = collect_register_archetype_refs(claimed_register)
+    reference_report_index = index_reference_workspace_report(
+        reference_workspace_report
+    )
 
     automation = ensure_dict(
         cohort_index.get("downgrade_automation"),
@@ -1172,6 +1287,7 @@ def main() -> int:
         archetype_as_of,
         known_archetype_refs,
         automation,
+        reference_report_index,
         findings,
     )
 

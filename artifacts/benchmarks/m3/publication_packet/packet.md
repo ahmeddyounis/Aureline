@@ -249,6 +249,8 @@ artifact_links:
   source_anchor_refs:
     - artifacts/milestones/m3/public_proof_index.md
     - artifacts/compat/m3/reference_workspace_register.yaml
+    - artifacts/compat/m3/reference_workspace_report.json
+    - artifacts/compat/m3/reference_workspace_badges.json
     - docs/governance/m3/publication_shelf_life_policy.md
     - docs/benchmarks/benchmark_publication_pack_template.md
     - artifacts/benchmarks/m3/benchmark_council_notes.md

@@ -29,10 +29,21 @@ and pass/fail harness entries before it can back a beta claim.
 
 - Register: `artifacts/compat/m3/reference_workspace_register.yaml`
 - Reviewer doc: `docs/compat/m3/reference_workspaces_beta.md`
+- Generated report (JSON): `artifacts/compat/m3/reference_workspace_report.json`
+- Generated report (Markdown): `artifacts/compat/m3/reference_workspace_report.md`
+- Badge projection: `artifacts/compat/m3/reference_workspace_badges.json`
 - Workspace packets: `fixtures/reference_workspaces/m3/`
 - Validator: `ci/check_m3_reference_workspace_register.py`
+- Report generator and publication gate: `ci/check_m3_reference_workspace_report.py`
 - Latest validation capture:
   `artifacts/compat/m3/captures/reference_workspace_register_validation_capture.json`
+- Latest report validation capture:
+  `artifacts/compat/m3/captures/reference_workspace_report_validation_capture.json`
+
+The generated report caps archetype support classes before they enter the
+scorecard register and claim manifest. A beta archetype whose report row is
+missing, stale, failed, blocked, or not run is rendered as downgraded rather
+than retaining a greener badge.
 
 ## Beta compatibility report
 

@@ -30,6 +30,14 @@ Both surfaces read from
 freshness, provenance, or claim-posture truth of its own; refresh the
 manifest to update what users see in-product.
 
+Archetype support-class truth is capped upstream by the generated
+reference-workspace report at
+`artifacts/compat/m3/reference_workspace_report.json` and by the badge
+projection at `artifacts/compat/m3/reference_workspace_badges.json`.
+Help / About and service health render those caps through the generated
+claim manifest; a not-run, stale, failed, blocked, or missing
+reference-workspace row must appear as downgraded rather than as supported.
+
 Packaging, signing, update, rollback, policy, and schema-governance
 truth for beta artifacts is read through
 `artifacts/release/m3/artifact_graph.json` and the generated support

@@ -40,7 +40,10 @@ Related control artifacts:
 - docs/benchmarks/fitness_function_catalog.md
 - docs/compat/compatibility_row_seed.md
 - artifacts/compat/m3/reference_workspace_register.yaml
+- artifacts/compat/m3/reference_workspace_report.json
+- artifacts/compat/m3/reference_workspace_badges.json
 - docs/compat/m3/reference_workspaces_beta.md
+- docs/release/m3/reference_workspace_claim_integration.md
 - docs/deployment/drill_catalog_seed.md
 - schemas/release/waiver_packet.schema.json
 - artifacts/evidence/evidence_metadata_fields.yaml
@@ -208,9 +211,14 @@ preview-only, or claim-narrowed.
 - **Reference-workspace corpus register:**
   - Beta register:
     `artifacts/compat/m3/reference_workspace_register.yaml`
+  - Generated report:
+    `artifacts/compat/m3/reference_workspace_report.json`
+  - Badge projection:
+    `artifacts/compat/m3/reference_workspace_badges.json`
   - Any beta archetype claim cited above SHOULD name the register row,
     workspace packet, harness, and corpus refs that supply its
-    reproducible workspace proof.
+    reproducible workspace proof. The cited claim and badge state
+    SHOULD NOT be greener than the generated report row.
 
 ## Test quarantine and mute debt
 

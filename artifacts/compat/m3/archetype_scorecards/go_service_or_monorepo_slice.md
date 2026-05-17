@@ -26,6 +26,8 @@ minimum_mode_matrix:
 evidence_refs:
   - artifacts/compat/reference_workspace_rows.yaml#archetype_row:go_service_or_monorepo_slice
   - artifacts/compat/m3/reference_workspace_register.yaml#m3_reference_workspace:go_service
+  - artifacts/compat/m3/reference_workspace_report.json#reference_workspace_report_row:go_service
+  - artifacts/compat/m3/reference_workspace_badges.json#reference_workspace_badge:go_service_or_monorepo_slice
   - fixtures/reference_workspaces/m3/go_service/workspace.yaml
   - fixtures/reference_workspaces/m3/go_service/harness.yaml
   - docs/compat/m3/reference_workspaces_beta.md
@@ -68,6 +70,8 @@ consuming_surfaces:
 
 This scorecard is the reviewer-facing readiness summary for
 `archetype_row:go_service_or_monorepo_slice` in the M3 beta admission lane.
+Its effective support class is capped by the current reference-workspace
+report at `artifacts/compat/m3/reference_workspace_report.json`.
 
 ## Definition of green
 
@@ -86,7 +90,7 @@ state until current workflow captures land.
 
 | Trigger | Auto-state | Propagation |
 |---|---|---|
-| Reference-workspace report stale | `retest_pending` | `docs/release/certified_archetype_report_template.md` |
+| Reference-workspace report stale or not-run | `retest_pending` | `artifacts/compat/m3/reference_workspace_report.json`, `docs/release/certified_archetype_report_template.md` |
 | Archetype seed evidence stale | `evidence_stale` | `docs/release/certified_archetype_report_template.md` |
 | Regression on certified archetype | `limited` | `artifacts/feedback/external_alpha_known_limits.md` |
 

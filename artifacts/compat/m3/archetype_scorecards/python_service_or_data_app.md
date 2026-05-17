@@ -26,6 +26,8 @@ minimum_mode_matrix:
   - local_plus_devcontainer_or_container
 evidence_refs:
   - artifacts/compat/reference_workspace_rows.yaml#archetype_row:python_service_or_data_app
+  - artifacts/compat/m3/reference_workspace_report.json#reference_workspace_report_row:python_service_or_data_app
+  - artifacts/compat/m3/reference_workspace_badges.json#reference_workspace_badge:python_service_or_data_app
   - artifacts/certification/m2_archetype_seed_rows.yaml#archetype_certification_seed:python_service_or_data_app
   - artifacts/milestones/m2/alpha_wedge_matrix.yaml#alpha_wedge:python
   - docs/release/certified_archetype_report_template.md
@@ -59,6 +61,8 @@ consuming_surfaces:
 
 This scorecard is the reviewer-facing readiness summary for
 `archetype_row:python_service_or_data_app` in the M3 beta admission lane.
+Its effective support class is capped by the current reference-workspace
+report at `artifacts/compat/m3/reference_workspace_report.json`.
 
 ## Definition of green
 
@@ -77,7 +81,7 @@ Expired evidence and open waivers automatically move this row to
 
 | Trigger | Auto-state | Propagation |
 |---|---|---|
-| Reference-workspace report stale | `retest_pending` | `docs/release/certified_archetype_report_template.md` |
+| Reference-workspace report stale or not-run | `retest_pending` | `artifacts/compat/m3/reference_workspace_report.json`, `docs/release/certified_archetype_report_template.md` |
 | Archetype seed evidence stale | `evidence_stale` | `docs/release/certified_archetype_report_template.md` |
 | Regression on certified archetype | `limited` | `artifacts/feedback/external_alpha_known_limits.md` |
 

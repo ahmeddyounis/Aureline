@@ -150,7 +150,7 @@ Recommended object types:
 | **Extension or runtime host** | extension/host id, version, permission or runtime class, quarantine/bisect state, exact build |
 | **Route or remote target** | origin/target/route/exposure classes, target identity ref, approval or authority linkage, drift or expiry state |
 | **Docs/help or known-limit row** | docs-pack ref, docs/help version-match state, page or citation ref, exact build |
-| **Benchmark or compatibility claim** | packet/report ref, freshness timestamp, exact build, known-limit ref, docs-version truth |
+| **Benchmark or compatibility claim** | packet/report ref, reference-workspace report row ref when applicable, freshness timestamp, exact build, known-limit ref, docs-version truth |
 | **Crash or repair object** | crash id or repair id, checkpoint refs, reversal class, symbol/source-map fidelity state |
 
 The goal is not to auto-classify everything perfectly. The goal is to
@@ -196,8 +196,8 @@ Minimum build and docs truth surfaces:
 - docs-pack or help-manifest revision;
 - docs/help version-match state;
 - known-limit refs that already cover the current behavior;
-- proof refs for benchmark, compatibility, or migration claims when the
-  issue touches a claim-bearing surface.
+- proof refs for benchmark, compatibility, reference-workspace, or
+  migration claims when the issue touches a claim-bearing surface.
 
 This lets the Center answer "is the product broken?" separately from "is
 the current docs/help truth stale?".
@@ -220,8 +220,9 @@ minimum path needed to reconstruct what happened:
 6. **What the user tried next:** recovery rung entered, repair IDs,
    checkpoint refs, and reversal class.
 7. **What proof or claim context mattered:** benchmark packet,
-   compatibility report, compatibility-row refs, migration session /
-   outcome packet / report refs, or claim packet refs when relevant.
+   compatibility report, reference-workspace report row,
+   compatibility-row refs, migration session / outcome packet / report
+   refs, or claim packet refs when relevant.
 
 If any field is unknown, the packet should carry a typed unknown value
 and the export path should stay honest about that gap.
