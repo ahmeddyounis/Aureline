@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/recorded_macro.schema.json",
+  "title": "Aureline recorded-macro alpha: typed macro definitions, replay dispositions, audit events, and support/activity attributions bound to the command graph, mode state, and trust policy",
+  "description": "Shell-side boundary schema for the alpha recorded-macro record family. Every recorded macro a user can replay is projected through one recorded_macro_alpha_page_record so reviewers, support exports, activity history, and the keyboard/palette surfaces read one truth before any replay is admitted. Composes with — and never forks — the command descriptor boundary (/schemas/commands/command_descriptor.schema.json), the shareability and automation boundary (/schemas/commands/shareability_metadata.schema.json), the recipe / macro manifest boundary (/schemas/automation/recipe_manifest.schema.json), and the run-record boundary (/schemas/automation/run_record.schema.json). Records carry opaque refs and structured fields only; raw keystroke bytes, raw editor buffer bytes, raw shell fragments, raw URLs, and raw credential material never cross this boundary. Adding a new step_command_lineage_class, mode_requirement_class, write_class, replay_limitation_class, trust_gate_class, replay_disposition_class, audit_event_class, or attribution_surface_class value is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new contract row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recorded_macro_alpha_page_record" },
+    { "$ref": "#/$defs/recorded_macro_alpha_definition_record" },
+    { "$ref": "#/$defs/recorded_macro_alpha_replay_disposition_record" },
+    { "$ref": "#/$defs/recorded_macro_alpha_audit_event_record" },
+    { "$ref": "#/$defs/recorded_macro_alpha_attribution_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this alpha export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "commands:recorded_macro_alpha:v1",
+      "description": "Stable shared contract id consumed by every record in this family."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests and support bundles. Raw keystroke bytes, raw editor buffer bytes, raw shell fragments, raw URLs, and raw credential material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on the keyboard/palette UI, support exports, and admin-audit surfaces. Never contains raw keystroke bytes, raw editor buffer bytes, raw shell fragments, raw URLs, or raw credential material."
+    },
+    "step_command_lineage_class": {
+      "type": "string",
+      "enum": [
+        "core_command",
+        "imported_command",
+        "extension_command",
+        "ai_tool_handle",
+        "cli_verb",
+        "unmapped_keystroke_denied"
+      ],
+      "description": "Frozen step-command-lineage vocabulary. Every recorded macro step resolves to exactly one class against a stable command_id on the command graph; an unmapped keystroke is recorded as unmapped_keystroke_denied and forces the bound definition to a denied or promote-to-recipe disposition. A macro step is never resolved heuristically from a raw key chord."
+    },
+    "mode_requirement_class": {
+      "type": "string",
+      "enum": [
+        "editor_normal_mode_required",
+        "editor_insert_mode_required",
+        "editor_visual_mode_required",
+        "editor_any_mode_admissible",
+        "palette_mode_required",
+        "terminal_mode_denied"
+      ],
+      "description": "Frozen mode-requirement vocabulary. Each recorded macro step pins the editor or shell mode state the replay MUST observe before dispatching. terminal_mode_denied is a closed denial class: a recorded macro never replays raw terminal input."
+    },
+    "write_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "editor_buffer_mutation",
+        "editor_multi_file_mutation",
+        "settings_mutation_denied",
+        "network_mutation_denied",
+        "process_mutation_denied",
+        "credential_mutation_denied"
+      ],
+      "description": "Frozen write-class vocabulary. Every write surface a recorded macro replay would touch resolves to exactly one class. The _denied classes are closed denial markers: recording a step that would touch settings, network, process, or credential surfaces is non-conforming and forces the definition to a denied or promote-to-recipe disposition."
+    },
+    "replay_limitation_class": {
+      "type": "string",
+      "enum": [
+        "single_buffer_safe",
+        "multi_buffer_requires_preview",
+        "crosses_workspace_boundary_requires_recipe_promotion",
+        "non_replayable_unstable_timing",
+        "denied_unmapped_command_present"
+      ],
+      "description": "Frozen replay-limitation vocabulary. Every macro definition resolves to exactly one limitation class which the replay surface MUST surface before any execution. Anything other than single_buffer_safe forces the matching disposition class."
+    },
+    "trust_gate_class": {
+      "type": "string",
+      "enum": [
+        "restricted_workspace_admissible",
+        "trusted_workspace_required",
+        "admin_policy_observed",
+        "managed_only_denied"
+      ],
+      "description": "Frozen trust-gate vocabulary. Mirrors the trust posture rows the workspace-trust contract publishes; managed_only_denied is a closed denial class because recorded macros are never admissible on the managed-only channel (see /docs/automation/recipe_and_macro_contract.md)."
+    },
+    "replay_disposition_class": {
+      "type": "string",
+      "enum": [
+        "proceed_local_editor_only",
+        "preview_required_before_apply",
+        "downgraded_to_observer_no_mutation",
+        "promoted_to_declarative_recipe",
+        "denied_unsafe_replay"
+      ],
+      "description": "Frozen replay-disposition vocabulary. Every replay attempt resolves to exactly one disposition; an unsafe or high-risk replay never silently proceeds — it must transition to preview_required_before_apply, downgraded_to_observer_no_mutation, promoted_to_declarative_recipe, or denied_unsafe_replay."
+    },
+    "audit_event_class": {
+      "type": "string",
+      "enum": [
+        "macro_recorded",
+        "macro_replay_requested",
+        "macro_replay_admitted",
+        "macro_replay_denied",
+        "macro_replay_preview_required",
+        "macro_replay_downgraded",
+        "macro_replay_promoted_to_recipe",
+        "macro_attribution_minted"
+      ],
+      "description": "Frozen audit-event vocabulary on the recorded-macro lifecycle stream. Denial events MUST cite a denial_reason_label; disposition-bound events MUST cite a replay_disposition_ref; attribution events MUST cite an attribution_ref."
+    },
+    "attribution_surface_class": {
+      "type": "string",
+      "enum": [
+        "support_export",
+        "activity_history",
+        "admin_audit_export"
+      ],
+      "description": "Frozen attribution-surface vocabulary. Every replay attempt mints an attribution row on at least support_export and activity_history; an organization with an admin-audit export consumer additionally mints admin_audit_export."
+    },
+    "command_lineage_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "step_command_lineage",
+        "command_id",
+        "command_revision_ref",
+        "mode_requirement",
+        "write_classes",
+        "display_label"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_command_lineage": { "$ref": "#/$defs/step_command_lineage_class" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "mode_requirement": { "$ref": "#/$defs/mode_requirement_class" },
+        "write_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/write_class" },
+          "description": "All write classes this step touches; resolved against the command descriptor's authority and shareability rows. A step that would touch settings, network, process, or credential surfaces records the corresponding _denied class and forces the definition to a denied or promote-to-recipe disposition."
+        },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "shareability_record_ref": { "type": "string" },
+        "ai_tool_handle_ref": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "ai_tool_handle steps must cite an ai_tool_handle_ref.",
+          "if": {
+            "properties": { "step_command_lineage": { "const": "ai_tool_handle" } },
+            "required": ["step_command_lineage"]
+          },
+          "then": {
+            "properties": { "ai_tool_handle_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["ai_tool_handle_ref"]
+          }
+        }
+      ],
+      "description": "One step in a recorded-macro definition. Resolves to a stable command_id and command_revision_ref on the command graph; raw keystroke bytes, raw editor buffer bytes, and raw shell fragments never appear."
+    },
+    "contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_descriptor_schema_ref",
+        "shareability_metadata_schema_ref",
+        "recipe_manifest_schema_ref",
+        "run_record_schema_ref",
+        "trust_state_matrix_ref"
+      ],
+      "properties": {
+        "command_descriptor_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shareability_metadata_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "recipe_manifest_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_record_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state_matrix_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Upstream contracts this alpha page composes with by reference. Never forked."
+    },
+    "recorded_macro_alpha_definition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "definition_id",
+        "macro_id",
+        "macro_revision_ref",
+        "display_label",
+        "author_identity_ref",
+        "trust_gate",
+        "replay_limitation",
+        "steps",
+        "lineage_summary",
+        "raw_keystroke_bytes_present",
+        "raw_buffer_bytes_present",
+        "raw_shell_fragment_present",
+        "raw_credential_present",
+        "silent_authority_widening_taken",
+        "support_attribution_minted",
+        "activity_attribution_minted",
+        "recorded_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recorded_macro_alpha_definition_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "definition_id": { "$ref": "#/$defs/opaque_id" },
+        "macro_id": { "$ref": "#/$defs/non_empty_string" },
+        "macro_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "author_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_gate": { "$ref": "#/$defs/trust_gate_class" },
+        "replay_limitation": { "$ref": "#/$defs/replay_limitation_class" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_lineage_step" }
+        },
+        "lineage_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "raw_keystroke_bytes_present": { "const": false },
+        "raw_buffer_bytes_present": { "const": false },
+        "raw_shell_fragment_present": { "const": false },
+        "raw_credential_present": { "const": false },
+        "silent_authority_widening_taken": { "const": false },
+        "support_attribution_minted": { "const": true },
+        "activity_attribution_minted": { "const": true },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Typed recorded-macro definition. Names the macro id, revision, ordered command-lineage steps, mode requirements, write classes, trust gate, and replay limitation; raw key/buffer/shell/credential material never crosses this boundary, and support/activity attribution is recorded as a closed invariant."
+    },
+    "recorded_macro_alpha_replay_disposition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "disposition_id",
+        "display_label",
+        "definition_ref",
+        "macro_id",
+        "macro_revision_ref",
+        "disposition",
+        "rationale_summary",
+        "trust_gate_observed",
+        "audit_event_refs",
+        "support_attribution_ref",
+        "activity_attribution_ref",
+        "silent_authority_widening_taken",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recorded_macro_alpha_replay_disposition_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "disposition_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "definition_ref": { "$ref": "#/$defs/non_empty_string" },
+        "macro_id": { "$ref": "#/$defs/non_empty_string" },
+        "macro_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "disposition": { "$ref": "#/$defs/replay_disposition_class" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "trust_gate_observed": { "$ref": "#/$defs/trust_gate_class" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "support_attribution_ref": { "$ref": "#/$defs/non_empty_string" },
+        "activity_attribution_ref": { "$ref": "#/$defs/non_empty_string" },
+        "preview_required_reason_label": { "type": "string" },
+        "downgrade_target_label": { "type": "string" },
+        "promoted_recipe_ref": { "type": "string" },
+        "denial_reason_label": { "type": "string" },
+        "silent_authority_widening_taken": { "const": false },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "preview_required_before_apply dispositions must cite a preview_required_reason_label.",
+          "if": {
+            "properties": { "disposition": { "const": "preview_required_before_apply" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": { "preview_required_reason_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["preview_required_reason_label"]
+          }
+        },
+        {
+          "description": "downgraded_to_observer_no_mutation dispositions must cite a downgrade_target_label.",
+          "if": {
+            "properties": { "disposition": { "const": "downgraded_to_observer_no_mutation" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": { "downgrade_target_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["downgrade_target_label"]
+          }
+        },
+        {
+          "description": "promoted_to_declarative_recipe dispositions must cite a promoted_recipe_ref.",
+          "if": {
+            "properties": { "disposition": { "const": "promoted_to_declarative_recipe" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": { "promoted_recipe_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["promoted_recipe_ref"]
+          }
+        },
+        {
+          "description": "denied_unsafe_replay dispositions must cite a denial_reason_label.",
+          "if": {
+            "properties": { "disposition": { "const": "denied_unsafe_replay" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": { "denial_reason_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["denial_reason_label"]
+          }
+        }
+      ],
+      "description": "Typed replay-disposition row for one attempted replay against a recorded-macro definition. proceed_local_editor_only is the only disposition that silently dispatches; every other class forces preview, downgrade, recipe promotion, or denial."
+    },
+    "recorded_macro_alpha_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "audit_event_id",
+        "display_label",
+        "definition_ref",
+        "event_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recorded_macro_alpha_audit_event_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "audit_event_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "definition_ref": { "$ref": "#/$defs/non_empty_string" },
+        "replay_disposition_ref": { "type": "string" },
+        "attribution_ref": { "type": "string" },
+        "event_class": { "$ref": "#/$defs/audit_event_class" },
+        "denial_reason_label": { "type": "string" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Denial audit events must cite a denial_reason_label.",
+          "if": {
+            "properties": { "event_class": { "const": "macro_replay_denied" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "denial_reason_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["denial_reason_label"]
+          }
+        },
+        {
+          "description": "Disposition-bound audit events must cite a replay_disposition_ref.",
+          "if": {
+            "properties": {
+              "event_class": {
+                "enum": [
+                  "macro_replay_admitted",
+                  "macro_replay_denied",
+                  "macro_replay_preview_required",
+                  "macro_replay_downgraded",
+                  "macro_replay_promoted_to_recipe"
+                ]
+              }
+            },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "replay_disposition_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["replay_disposition_ref"]
+          }
+        },
+        {
+          "description": "Attribution audit events must cite an attribution_ref.",
+          "if": {
+            "properties": { "event_class": { "const": "macro_attribution_minted" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "attribution_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["attribution_ref"]
+          }
+        }
+      ],
+      "description": "Audit-event row on the recorded-macro lifecycle stream."
+    },
+    "recorded_macro_alpha_attribution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "attribution_id",
+        "display_label",
+        "definition_ref",
+        "replay_disposition_ref",
+        "attribution_surface",
+        "support_export_summary",
+        "raw_payload_exported",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recorded_macro_alpha_attribution_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "attribution_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "definition_ref": { "$ref": "#/$defs/non_empty_string" },
+        "replay_disposition_ref": { "$ref": "#/$defs/non_empty_string" },
+        "attribution_surface": { "$ref": "#/$defs/attribution_surface_class" },
+        "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "raw_payload_exported": { "const": false },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Attribution row binding a replay disposition to a support-export, activity-history, or admin-audit surface. raw_payload_exported is pinned false; attribution carries opaque refs and reviewable summaries only."
+    },
+    "recorded_macro_alpha_page_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "contract_refs",
+        "definitions",
+        "support_export_summary"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "scenario"],
+          "properties": {
+            "name": { "$ref": "#/$defs/non_empty_string" },
+            "scenario": { "$ref": "#/$defs/reviewable_sentence" }
+          }
+        },
+        "record_kind": { "const": "recorded_macro_alpha_page_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/opaque_id" },
+        "contract_refs": { "$ref": "#/$defs/contract_refs" },
+        "definitions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recorded_macro_alpha_definition_record" }
+        },
+        "replay_dispositions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recorded_macro_alpha_replay_disposition_record" }
+        },
+        "audit_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recorded_macro_alpha_audit_event_record" }
+        },
+        "attributions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recorded_macro_alpha_attribution_record" }
+        },
+        "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Top-level recorded-macro alpha page: a redaction-safe wrapper that binds definitions, replay dispositions, audit events, and attribution rows under one workspace surface."
+    }
+  }
+}

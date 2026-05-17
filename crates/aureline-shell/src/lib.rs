@@ -72,6 +72,7 @@ pub mod install_review_fact_grid;
 pub mod keybindings;
 pub mod layout;
 pub mod learning_tour_alpha;
+pub mod macros;
 pub mod managed_boundary;
 pub mod managed_truth;
 pub mod managed_workspace_labels;
