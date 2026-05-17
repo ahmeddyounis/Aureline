@@ -13,6 +13,7 @@
 pub mod admission;
 pub mod archetype_detection;
 pub mod archetypes;
+pub mod bundles;
 pub mod entry;
 pub mod entry_flows;
 pub mod generated_artifacts;
@@ -143,6 +144,30 @@ pub use archetypes::{
     ARCHETYPE_DETECTION_MATRIX_REF, ARCHETYPE_SCORECARD_INDEX_REF,
     MIXED_WORKSPACE_BOUNDARY_CHOICES, REQUIRED_DETECTION_OUTCOMES, REQUIRED_READINESS_BUCKETS,
     SETUP_RECOMMENDATION_BYPASSES,
+};
+
+pub use bundles::{
+    project_workflow_bundle_review, WorkflowBundleCertificationReview, WorkflowBundleContentItem,
+    WorkflowBundleDetail, WorkflowBundleDiffEntry, WorkflowBundleDriftEntry,
+    WorkflowBundleDriftOverrideReview, WorkflowBundleIdentity, WorkflowBundleInstallUpdateReview,
+    WorkflowBundleMirrorOfflineReview, WorkflowBundleRemovableAsset,
+    WorkflowBundleRemoveRollbackReview, WorkflowBundleResolveAction,
+    WorkflowBundleRetainedOverride, WorkflowBundleReviewAction, WorkflowBundleReviewError,
+    WorkflowBundleReviewGuardrails, WorkflowBundleReviewInvariants, WorkflowBundleReviewProjection,
+    WorkflowBundleReviewRecord, WorkflowBundleReviewValidationError,
+    WorkflowBundleRollbackCheckpoint, WorkflowBundleSideEffect,
+    WorkflowBundleSourceClassDisclosure, WorkflowBundleSupportExport,
+    WORKFLOW_BUNDLE_ACTION_RENDERED_STATES, WORKFLOW_BUNDLE_ASSET_OWNERSHIP_CLASSES,
+    WORKFLOW_BUNDLE_CERTIFICATION_STATE_CLASSES, WORKFLOW_BUNDLE_CHANGE_KINDS,
+    WORKFLOW_BUNDLE_CLASSES, WORKFLOW_BUNDLE_CONSUMER_SURFACES, WORKFLOW_BUNDLE_DIFF_AXES,
+    WORKFLOW_BUNDLE_EFFECTIVE_BADGE_CLASSES, WORKFLOW_BUNDLE_EVIDENCE_FRESHNESS_CLASSES,
+    WORKFLOW_BUNDLE_MIRROR_OFFLINE_POSTURE_CLASSES, WORKFLOW_BUNDLE_REDACTION_CLASSES,
+    WORKFLOW_BUNDLE_REQUIRED_DIFF_AXES, WORKFLOW_BUNDLE_RESOLVE_ACTION_IDS,
+    WORKFLOW_BUNDLE_REVIEW_ACTION_IDS, WORKFLOW_BUNDLE_REVIEW_BETA_RECORD_KIND,
+    WORKFLOW_BUNDLE_REVIEW_BETA_SCHEMA_VERSION, WORKFLOW_BUNDLE_ROLLBACK_LINKAGE_CLASSES,
+    WORKFLOW_BUNDLE_ROLLBACK_PATH_CLASSES, WORKFLOW_BUNDLE_SAFE_TO_REMOVE_CLASSES,
+    WORKFLOW_BUNDLE_SOURCE_CLASSES, WORKFLOW_BUNDLE_STATUS_CLASSES,
+    WORKFLOW_BUNDLE_SUPPORT_CLAIM_CLASSES, WORKFLOW_BUNDLE_SUPPORT_CLASSES,
 };
 
 pub use save::{
