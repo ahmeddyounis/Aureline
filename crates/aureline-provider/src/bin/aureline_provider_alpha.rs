@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use aureline_provider::{
-    ApprovalTicketAlphaPacket, ConnectedProviderAlphaPacket, ProviderObjectModelAlphaPage,
+    ApprovalTicketAlphaPacket, ConnectedProviderAlphaPacket, ProviderBrowserHandoffAlphaPage,
+    ProviderObjectModelAlphaPage,
 };
 
 fn main() {
@@ -14,7 +15,7 @@ fn main() {
         Err(message) => {
             eprintln!("{message}");
             eprintln!(
-                "usage: aureline_provider_alpha [--fixture PATH] [--approval-ticket-alpha | --provider-object-alpha] [--validate-only]"
+                "usage: aureline_provider_alpha [--fixture PATH] [--approval-ticket-alpha | --provider-object-alpha | --browser-handoff-alpha] [--validate-only]"
             );
             process::exit(2);
         }
@@ -41,6 +42,39 @@ fn main() {
         ProviderAlphaMode::ProviderObject => {
             run_provider_object_alpha(&payload, &fixture_path, options.validate_only)
         }
+        ProviderAlphaMode::BrowserHandoff => {
+            run_browser_handoff_alpha(&payload, &fixture_path, options.validate_only)
+        }
+    }
+}
+
+fn run_browser_handoff_alpha(payload: &str, fixture_path: &Path, validate_only: bool) {
+    let page: ProviderBrowserHandoffAlphaPage = match serde_json::from_str(payload) {
+        Ok(page) => page,
+        Err(error) => {
+            eprintln!("failed to parse {}: {error}", fixture_path.display());
+            process::exit(2);
+        }
+    };
+
+    let report = page.validate();
+    if !report.passed {
+        let output = serde_json::to_string_pretty(&report).expect("validation report serializes");
+        eprintln!("{output}");
+        process::exit(1);
+    }
+
+    if validate_only {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).expect("report serializes")
+        );
+    } else {
+        let projection = page.support_export_projection();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&projection).expect("projection serializes")
+        );
     }
 }
 
@@ -139,6 +173,7 @@ enum ProviderAlphaMode {
     ConnectedProvider,
     ApprovalTicket,
     ProviderObject,
+    BrowserHandoff,
 }
 
 struct ProviderAlphaOptions {
@@ -167,6 +202,9 @@ fn parse_options(args: &[String]) -> Result<ProviderAlphaOptions, String> {
             "--provider-object-alpha" => {
                 mode = ProviderAlphaMode::ProviderObject;
             }
+            "--browser-handoff-alpha" => {
+                mode = ProviderAlphaMode::BrowserHandoff;
+            }
             "--validate-only" => {
                 validate_only = true;
             }
@@ -191,6 +229,9 @@ fn default_fixture_path(mode: ProviderAlphaMode) -> PathBuf {
         }
         ProviderAlphaMode::ProviderObject => {
             manifest_dir.join("../../fixtures/providers/provider_object_alpha/page.json")
+        }
+        ProviderAlphaMode::BrowserHandoff => {
+            manifest_dir.join("../../fixtures/providers/m3/browser_handoff/page.json")
         }
     }
 }

@@ -17,6 +17,7 @@ pub use aureline_auth::{KeyMode, RegionMode, ResidencyMode};
 
 pub mod account_scope;
 pub mod approval_tickets;
+pub mod browser_handoff;
 pub mod object_model;
 pub mod publish_later;
 pub mod registry;
@@ -56,6 +57,27 @@ pub use approval_tickets::{
     APPROVAL_TICKET_SUPPORT_ADMIN_PACKET_RECORD_KIND, MUTATION_AUTHORITY_BINDING_RECORD_KIND,
     REVIEWED_SCOPE_ALPHA_RECORD_KIND,
 };
+pub use browser_handoff::{
+    BrowserHandoffPacket, BrowserHandoffPacketSummary, HandoffContinuityObservation,
+    HandoffContinuityObservationSummary, HandoffDestinationClass, HandoffDestinationDisclosure,
+    HandoffFollowUpActionClass, HandoffOriginClass, HandoffOriginDisclosure,
+    HandoffPacketStateClass, HandoffPlaceholderClass, ImportSessionRecord, ImportSessionStateClass,
+    ImportSessionSummary, ProviderBrowserHandoffAlphaContractRefs,
+    ProviderBrowserHandoffAlphaCoverage, ProviderBrowserHandoffAlphaFinding,
+    ProviderBrowserHandoffAlphaFindingSeverity, ProviderBrowserHandoffAlphaFixtureMetadata,
+    ProviderBrowserHandoffAlphaPage, ProviderBrowserHandoffAlphaSupportExport,
+    ProviderBrowserHandoffAlphaValidationReport, ProviderReconnectFlow,
+    ProviderReconnectFlowSummary, ReconnectOutcomeClass,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_CONTINUITY_OBSERVATION_RECORD_KIND,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_IMPORT_SESSION_RECORD_KIND,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_PACKET_RECORD_KIND,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_PAGE_RECORD_KIND,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_RECONNECT_FLOW_RECORD_KIND,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_SCHEMA_VERSION,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_SHARED_CONTRACT_REF,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
+    PROVIDER_BROWSER_HANDOFF_ALPHA_VALIDATION_REPORT_RECORD_KIND,
+};
 pub use object_model::{
     ContinuityObservationClass, DegradedActionClass, ObjectModeClass, ObjectPublishStateClass,
     ObjectSource, ObjectSourceClass, ProviderObjectContinuityObservation,
@@ -75,21 +97,6 @@ pub use publish_later::{
     QueueActionKind, QueueDependency, QueueNextSafeActionClass, QueueState, ReauthRequirementClass,
     RescopeRequirementClass,
 };
-pub use route_resolution::{
-    audit_route_resolution_beta_page, seeded_route_resolution_beta_page,
-    validate_route_resolution_beta_page, AuthorityTruthPanel, AuthorityTruthState,
-    BrowserHandoffPanel, BrowserHandoffReasonClass, FallbackDescriptor, GrantDescriptor,
-    LaneClass, RouteActionClass, RouteChoiceClass, RouteDegradedStateClass, RouteDescriptor,
-    RouteFreshness, RouteOwnerClass, RouteOwnerDescriptor, RouteResolutionBetaDefect,
-    RouteResolutionBetaDefectKind, RouteResolutionBetaPage, RouteResolutionBetaSummary,
-    RouteResolutionBetaSupportExport, RouteResolutionRow,
-    ROUTE_RESOLUTION_BETA_AUTHORITY_TRUTH_PANEL_RECORD_KIND,
-    ROUTE_RESOLUTION_BETA_BROWSER_HANDOFF_PANEL_RECORD_KIND,
-    ROUTE_RESOLUTION_BETA_DEFECT_RECORD_KIND, ROUTE_RESOLUTION_BETA_PAGE_RECORD_KIND,
-    ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND, ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
-    ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF, ROUTE_RESOLUTION_BETA_SOURCE_MATRIX_REF,
-    ROUTE_RESOLUTION_BETA_SUMMARY_RECORD_KIND, ROUTE_RESOLUTION_BETA_SUPPORT_EXPORT_RECORD_KIND,
-};
 pub use registry::{
     validate_provider_capability_lifecycle_claim, ActorScope, ArtifactTrustClass,
     ClaimedProviderSurface, ConnectedProviderAlphaPacket, ConnectedProviderDescriptor,
@@ -106,4 +113,19 @@ pub use registry::{
     PIPELINE_OVERLAY_DESCRIPTOR_RECORD_KIND, PROVIDER_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
     PROVIDER_ALPHA_VALIDATION_REPORT_RECORD_KIND, PROVIDER_SURFACE_CLAIM_RECORD_KIND,
     RUN_CONTROL_DESCRIPTOR_RECORD_KIND,
+};
+pub use route_resolution::{
+    audit_route_resolution_beta_page, seeded_route_resolution_beta_page,
+    validate_route_resolution_beta_page, AuthorityTruthPanel, AuthorityTruthState,
+    BrowserHandoffPanel, BrowserHandoffReasonClass, FallbackDescriptor, GrantDescriptor, LaneClass,
+    RouteActionClass, RouteChoiceClass, RouteDegradedStateClass, RouteDescriptor, RouteFreshness,
+    RouteOwnerClass, RouteOwnerDescriptor, RouteResolutionBetaDefect,
+    RouteResolutionBetaDefectKind, RouteResolutionBetaPage, RouteResolutionBetaSummary,
+    RouteResolutionBetaSupportExport, RouteResolutionRow,
+    ROUTE_RESOLUTION_BETA_AUTHORITY_TRUTH_PANEL_RECORD_KIND,
+    ROUTE_RESOLUTION_BETA_BROWSER_HANDOFF_PANEL_RECORD_KIND,
+    ROUTE_RESOLUTION_BETA_DEFECT_RECORD_KIND, ROUTE_RESOLUTION_BETA_PAGE_RECORD_KIND,
+    ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND, ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
+    ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF, ROUTE_RESOLUTION_BETA_SOURCE_MATRIX_REF,
+    ROUTE_RESOLUTION_BETA_SUMMARY_RECORD_KIND, ROUTE_RESOLUTION_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
