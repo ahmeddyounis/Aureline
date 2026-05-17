@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/restore_provenance.schema.json",
+  "title": "Aureline workspace restore-provenance beta card",
+  "description": "Workspace-facing restore-provenance card for portable-state imports and remembered-state restore. The card names source, producer, schema outcome, restore fidelity, missing-surface placeholders, intentional exclusions, and the diagnostics/support/crash-recovery refs that keep restore truth visible.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "card_id",
+    "source_event",
+    "source_artifact_ref",
+    "producer_ref",
+    "schema_outcome",
+    "resulting_fidelity",
+    "diagnostics_ref",
+    "support_export_ref",
+    "crash_recovery_ref",
+    "missing_surface_placeholders",
+    "intentional_exclusion_refs",
+    "notes"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "card_id": { "$ref": "#/$defs/opaque_id" },
+    "source_event": { "$ref": "#/$defs/source_event" },
+    "source_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+    "producer_ref": { "$ref": "#/$defs/opaque_id" },
+    "schema_outcome": { "$ref": "#/$defs/schema_outcome" },
+    "resulting_fidelity": { "$ref": "#/$defs/restore_fidelity" },
+    "diagnostics_ref": { "$ref": "#/$defs/opaque_id" },
+    "support_export_ref": { "$ref": "#/$defs/opaque_id" },
+    "crash_recovery_ref": { "$ref": "#/$defs/opaque_id" },
+    "compare_ref": { "$ref": "#/$defs/opaque_id" },
+    "export_ref": { "$ref": "#/$defs/opaque_id" },
+    "missing_surface_placeholders": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/missing_surface_placeholder" }
+    },
+    "intentional_exclusion_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "notes": { "$ref": "#/$defs/redaction_aware_text" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "resulting_fidelity": { "const": "exact_restore" } },
+        "required": ["resulting_fidelity"]
+      },
+      "then": {
+        "properties": {
+          "missing_surface_placeholders": { "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "schema_outcome": { "const": "manual_review" } },
+        "required": ["schema_outcome"]
+      },
+      "then": {
+        "required": ["compare_ref", "export_ref"]
+      }
+    }
+  ],
+  "$defs": {
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier. Raw paths, hosts, credentials, command lines, source content, and live authority handles never appear here."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "source_event": {
+      "type": "string",
+      "enum": ["auto_checkpoint", "manual_export", "backup", "sync", "import"]
+    },
+    "schema_outcome": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "manual_review"]
+    },
+    "restore_fidelity": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only"
+      ]
+    },
+    "missing_surface_dependency": {
+      "type": "string",
+      "enum": [
+        "missing_extension",
+        "missing_remote",
+        "missing_provider",
+        "revoked_permission",
+        "missing_workspace_authority",
+        "non_reentrant_live_surface",
+        "display_topology_mismatch",
+        "schema_equivalence_missing"
+      ]
+    },
+    "review_action": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "export",
+        "compare",
+        "clear",
+        "confirm_export",
+        "cancel_export",
+        "confirm_import",
+        "cancel_import",
+        "open_details",
+        "install_extension",
+        "reconnect",
+        "reauthenticate",
+        "open_without",
+        "export_evidence",
+        "remove_pane",
+        "rerun_explicitly",
+        "manual_review"
+      ]
+    },
+    "missing_surface_placeholder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "placeholder_id",
+        "preserved_pane_id",
+        "dependency",
+        "original_role",
+        "original_surface_class",
+        "last_known_provenance_label",
+        "safe_actions",
+        "notes"
+      ],
+      "properties": {
+        "placeholder_id": { "$ref": "#/$defs/opaque_id" },
+        "preserved_pane_id": { "$ref": "#/$defs/opaque_id" },
+        "dependency": { "$ref": "#/$defs/missing_surface_dependency" },
+        "original_role": { "$ref": "#/$defs/redaction_aware_text" },
+        "original_surface_class": { "$ref": "#/$defs/redaction_aware_text" },
+        "last_known_provenance_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "safe_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_action" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    }
+  }
+}

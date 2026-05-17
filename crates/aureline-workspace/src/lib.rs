@@ -26,6 +26,7 @@ pub mod recent_work;
 pub mod roots;
 pub mod save;
 pub mod scope_propagation;
+pub mod serialization;
 pub mod state_packages;
 pub mod templates;
 pub mod workset_switcher;
@@ -70,6 +71,20 @@ pub use state_packages::{
     RememberedStateInspectorRow, RestoreCandidateClass, SerializedStateClass, StateSchemaBinding,
     SurfaceRestorePosture, TopologyAdjustment, PANE_TREE_SCHEMA_REF, PORTABLE_PROFILE_SCHEMA_REF,
     PORTABLE_STATE_ALPHA_SCHEMA_REF, PORTABLE_STATE_ALPHA_SCHEMA_VERSION,
+};
+
+pub use serialization::{
+    ActionEffectScope, ChecksumState, ExclusionSubstitute, MissingSurfaceDependency,
+    MissingSurfacePlaceholder, PortableStateExclusion, PortableStateExclusionReason,
+    PortableStateReviewSheet, RememberedStateInspection, RememberedStateInspectionRow,
+    RestoreSourceEvent, ReviewSheetPurpose, SerializedPaneState, SignatureState,
+    WorkspaceActionRecord, WorkspaceExportMode, WorkspacePersistenceClass,
+    WorkspacePortableStatePackage, WorkspaceRedactionManifest, WorkspaceRestoreFidelity,
+    WorkspaceRestoreProvenanceCard, WorkspaceSchemaBinding, WorkspaceSchemaOutcome,
+    WorkspaceSerializationBetaError, WorkspaceSerializationRecordKind, WorkspaceStateLayer,
+    WorkspaceStateLayerRecord, WORKSPACE_PANE_TREE_SCHEMA_REF,
+    WORKSPACE_PORTABLE_STATE_PACKAGE_SCHEMA_REF, WORKSPACE_RESTORE_PROVENANCE_SCHEMA_REF,
+    WORKSPACE_SERIALIZATION_BETA_SCHEMA_VERSION,
 };
 
 pub use entry_flows::{
