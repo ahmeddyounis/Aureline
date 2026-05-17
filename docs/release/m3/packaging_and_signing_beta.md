@@ -43,6 +43,18 @@ Those rows bind install mode, channel, updater owner, state roots,
 managed-package reports, and the same exact-build identity refs used by
 the artifact graph.
 
+Ring rollout, silent deployment, and rollback-safe package promotion are
+published at
+[`/artifacts/release/m3/ring_rollout/packet.json`](../../../artifacts/release/m3/ring_rollout/packet.json)
+with the headless gate in
+[`/tools/ci/m3/ring_rollout/`](../../../tools/ci/m3/ring_rollout). The packet
+joins exact-build install diagnostics, silent deployment result records,
+state-root audit rows, support-export projection, and ring-history evidence.
+Managed and self-serve rollout lanes quote the same `canary`, `pilot`,
+`broad`, and `lts` operational ring vocabulary, and every promotion or
+rollback action preserves prior package visibility instead of leaving ambiguous
+channel state.
+
 ## Promotion Rule
 
 The beta candidate may widen only when the graph validator passes:
@@ -55,6 +67,17 @@ The validator checks graph shape, repo refs, policy/schema pins, required
 artifact families, bundle completeness, rollback coverage, release-center
 ids, support-projection fields, and the support-export fixture under
 [`/fixtures/release/artifact_graph_cases/`](../../../fixtures/release/artifact_graph_cases).
+
+Rollout promotion additionally requires:
+
+```bash
+python3 -m tools.ci.m3.ring_rollout --repo-root . --check
+```
+
+This gate fails if silent deployment rows omit exact-build diagnostics, if the
+state-root audit drifts from install diagnostics, if managed and self-serve
+lanes diverge on ring vocabulary, or if a promotion / rollback leaves more than
+one active package state for a channel.
 
 ## Rollback Rule
 

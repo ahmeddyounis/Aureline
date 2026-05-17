@@ -1,0 +1,66 @@
+# Beta ring rollout, silent deployment, and state-root audit gate.
+#
+# Validates the ring rollout packet, generated support projection,
+# generated state-root audit, silent deployment result packet, and
+# validation capture together.
+
+name: check_beta_ring_rollout
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_ring_rollout.yml"
+      - "tools/ci/m3/ring_rollout/**"
+      - "artifacts/release/m3/ring_rollout/**"
+      - "artifacts/release/m3/state_root_audit.md"
+      - "artifacts/release/m3/captures/ring_rollout_validation_capture.json"
+      - "artifacts/release/m3/install_diagnostics/**"
+      - "artifacts/release/m3/artifact_graph.json"
+      - "artifacts/release/state_root_map.yaml"
+      - "artifacts/release/install_topology_matrix.yaml"
+      - "fixtures/release/ring_rollout_cases/**"
+      - "docs/release/m3/ring_rollout_beta.md"
+      - "docs/release/m3/packaging_and_signing_beta.md"
+      - "docs/help/m3/release_truth_surfaces.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-ring-rollout-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ring_rollout:
+    name: Beta ring rollout
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run ring rollout validator
+        run: |
+          python3 -m tools.ci.m3.ring_rollout --repo-root . --check
+
+      - name: Upload ring rollout validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-ring-rollout-${{ github.run_id }}
+          path: artifacts/release/m3/captures/ring_rollout_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

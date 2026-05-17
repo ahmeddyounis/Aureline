@@ -44,6 +44,15 @@ Help / About may render this as an install card, and CLI/support export
 may render it as structured diagnostics, but both quote the same
 diagnostic row fingerprints.
 
+Managed and self-serve beta rollout state is read through
+`artifacts/release/m3/ring_rollout/packet.json`, the generated support
+projection at
+`artifacts/release/m3/ring_rollout/support_export_projection.json`, and the
+state-root audit at `artifacts/release/m3/state_root_audit.md`. Help / About,
+CLI, and support export may summarize rollout posture, but they must quote the
+same controlled ring vocabulary and the same post-action active package state
+that the headless rollout gate validates.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -167,7 +176,18 @@ The projection is read-only and does not:
   side-by-side, and fleet rollout rows.
 - `artifacts/release/m3/install_diagnostics/support_export_projection.json`
   — the generated support/export projection for install diagnostics.
+- `artifacts/release/m3/ring_rollout/packet.json` — the beta ring
+  rollout packet joining silent deployment, rollback-safe promotion,
+  state-root audit, and ring-history evidence.
+- `artifacts/release/m3/ring_rollout/support_export_projection.json` —
+  the generated support/export projection for managed and self-serve
+  rollout actions.
+- `artifacts/release/m3/state_root_audit.md` — generated state-root audit
+  consumed by Help / About, CLI diagnostics, silent deployment summaries,
+  and support export.
 - `tools/ci/m3/artifact_graph/` — headless validator and projection
   generator.
+- `tools/ci/m3/ring_rollout/` — headless validator for beta rollout,
+  silent deployment, state-root audit, and rollback-safe channel state.
 - `schemas/release/m3_claim_manifest.schema.json` — the canonical
   boundary schema enforced by `ci/check_m3_claim_manifest.py`.
