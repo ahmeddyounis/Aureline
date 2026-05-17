@@ -40,6 +40,7 @@ pub mod graduation;
 pub mod registry;
 pub mod routing;
 pub mod routing_policy;
+pub mod tainted_context;
 
 pub use composer::beta::{
     current_beta_composer_context_evidence_support_export,
@@ -129,4 +130,18 @@ pub use routing_policy::{
     SpendAttributionDimensionClass, SpendAttributionValueRow, SpendPolicyContext,
     SpendReceiptRecord, WasChargedToUserClass, COST_ROUTING_BETA_PACKET_RECORD_KIND,
     COST_ROUTING_BETA_SCHEMA_VERSION, SPEND_RECEIPT_RECORD_KIND, SPEND_RECEIPT_SCHEMA_VERSION,
+};
+pub use tainted_context::{
+    current_beta_tainted_context_support_export, suspicious_detector_tokens,
+    TaintedContextApprovalFenceRow, TaintedContextApprovalRequirementClass,
+    TaintedContextBetaArtifactError, TaintedContextBetaInput, TaintedContextBetaPacket,
+    TaintedContextBetaViolation, TaintedContextInputSourceClass,
+    TaintedContextNarrowingDecisionRow, TaintedContextOriginLocusClass,
+    TaintedContextPolicyContext, TaintedContextPolicyNarrowingClass,
+    TaintedContextPromotionGateClass, TaintedContextReasonClass, TaintedContextRetrievalTruthClass,
+    TaintedContextRunModeClass, TaintedContextSourceRow, TaintedContextSurfaceClass,
+    TaintedContextSurfaceRow, TaintedContextTaintClass, TAINTED_CONTEXT_BETA_AI_DOC_REF,
+    TAINTED_CONTEXT_BETA_ARTIFACT_REF, TAINTED_CONTEXT_BETA_FIXTURE_DIR,
+    TAINTED_CONTEXT_BETA_PACKET_RECORD_KIND, TAINTED_CONTEXT_BETA_SCHEMA_REF,
+    TAINTED_CONTEXT_BETA_SCHEMA_VERSION,
 };
