@@ -1,0 +1,367 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/crash_symbolication_manifest_alpha.schema.json",
+  "title": "Aureline crash symbolication alpha: exact-build symbol manifest and crash-envelope binding records",
+  "description": "Boundary schema for the alpha crash symbolication lane consumed by aureline-crash's envelope module. A symbol_manifest_record is the release-side declaration of per-module symbol/source-map identities tied to one exact-build identity. A crash_envelope_symbol_binding_record is the support-side projection that joins a runtime crash envelope to that manifest, names the binding state (linked, partial, missing_manifest, build_mismatch), and refuses to claim exact symbolication when build identities disagree. Both records are metadata-safe: no raw dump bytes, no raw stack bodies, no absolute paths, no ambient authority.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/symbol_manifest_record"
+    },
+    {
+      "$ref": "#/$defs/crash_envelope_symbol_binding_record"
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "module_kind_class": {
+      "type": "string",
+      "enum": ["native_binary", "web_bundle"]
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "support_helper_binary",
+        "source_map_bundle"
+      ]
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": ["alpha", "preview", "beta"]
+    },
+    "manifest_storage_class": {
+      "type": "string",
+      "enum": ["metadata_only_no_symbol_bytes"]
+    },
+    "manifest_redaction_class": {
+      "type": "string",
+      "enum": ["metadata_safe_default"]
+    },
+    "binding_state_class": {
+      "type": "string",
+      "enum": [
+        "linked",
+        "partial",
+        "missing_manifest",
+        "build_mismatch"
+      ]
+    },
+    "module_binding_state_class": {
+      "type": "string",
+      "enum": [
+        "linked",
+        "missing_from_manifest",
+        "extra_in_envelope",
+        "identity_mismatch"
+      ]
+    },
+    "support_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "local_inspection_only"
+      ]
+    },
+    "symbol_manifest_module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module_id",
+        "module_kind",
+        "artifact_family_class",
+        "exact_build_identity_ref",
+        "symbolication_identity_ref",
+        "storage_class",
+        "notes"
+      ],
+      "properties": {
+        "module_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "module_kind": {
+          "$ref": "#/$defs/module_kind_class"
+        },
+        "artifact_family_class": {
+          "$ref": "#/$defs/artifact_family_class"
+        },
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "symbolication_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_archive_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "code_file_name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "build_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "debug_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "bundle_revision_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source_map_digest": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "generated_asset_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "storage_class": {
+          "$ref": "#/$defs/manifest_storage_class"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "symbol_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "manifest_id",
+        "generated_at",
+        "release_channel_class",
+        "primary_exact_build_identity_ref",
+        "workspace_version",
+        "target_triple",
+        "profile",
+        "commit_short",
+        "modules",
+        "redaction_class",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "notes"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "symbol_manifest_record"
+        },
+        "manifest_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "release_channel_class": {
+          "$ref": "#/$defs/release_channel_class"
+        },
+        "primary_exact_build_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "workspace_version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "target_triple": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "profile": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "commit_short": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "release_evidence_packet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "retention_seed_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "modules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/symbol_manifest_module"
+          }
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/manifest_redaction_class"
+        },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "ambient_authority_excluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "module_binding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module_id",
+        "module_kind",
+        "envelope_exact_build_identity_ref",
+        "binding_state"
+      ],
+      "properties": {
+        "module_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "module_kind": {
+          "$ref": "#/$defs/module_kind_class"
+        },
+        "envelope_exact_build_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "manifest_symbolication_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "manifest_support_archive_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "binding_state": {
+          "$ref": "#/$defs/module_binding_state_class"
+        },
+        "mismatch_reason": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "crash_envelope_symbol_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "binding_id",
+        "generated_at",
+        "crash_envelope_ref",
+        "primary_exact_build_identity_ref",
+        "binding_state",
+        "module_bindings",
+        "support_export_posture",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "raw_dump_exported",
+        "doc_ref",
+        "schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "crash_envelope_symbol_binding_record"
+        },
+        "binding_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "crash_envelope_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "symbol_manifest_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "symbolication_report_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "support_bundle_manifest_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "primary_exact_build_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "manifest_primary_exact_build_identity_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "binding_state": {
+          "$ref": "#/$defs/binding_state_class"
+        },
+        "module_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/module_binding_row"
+          }
+        },
+        "support_export_posture": {
+          "$ref": "#/$defs/support_export_posture_class"
+        },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "ambient_authority_excluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "raw_dump_exported": {
+          "type": "boolean",
+          "const": false
+        },
+        "doc_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "honesty_notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "binding_state": {
+                "const": "missing_manifest"
+              }
+            },
+            "required": ["binding_state"]
+          },
+          "then": {
+            "not": {
+              "required": ["symbol_manifest_ref"]
+            }
+          },
+          "else": {
+            "required": ["symbol_manifest_ref"]
+          }
+        }
+      ]
+    }
+  }
+}

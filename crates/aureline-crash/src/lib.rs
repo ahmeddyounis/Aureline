@@ -8,9 +8,18 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-crash/0.0.0")]
 
+pub mod envelope;
 pub mod incident_trail;
 pub mod symbolication;
 
+pub use envelope::{
+    bind_crash_envelope, CrashEnvelopeBindingInputs, CrashEnvelopeSymbolBinding,
+    ManifestArtifactFamilyClass, ManifestModuleKind, ManifestRedactionClass, ManifestStorageClass,
+    ModuleBindingRow, ModuleBindingState, ReleaseChannelClass, SupportExportPostureClass,
+    SymbolBindingState, SymbolManifest, SymbolManifestModule,
+    CRASH_ENVELOPE_SYMBOL_BINDING_RECORD_KIND, SYMBOL_MANIFEST_DOC_REF,
+    SYMBOL_MANIFEST_RECORD_KIND, SYMBOL_MANIFEST_SCHEMA_REF, SYMBOL_MANIFEST_SCHEMA_VERSION,
+};
 pub use incident_trail::{
     CrashDumpManifest, CrashEnvelope, CrashFrame, CrashIncidentTrail, CrashIncidentTrailInputs,
     CrashModule, CrashModuleIdentity, IncidentEvidenceKind, IncidentEvidenceRef,
