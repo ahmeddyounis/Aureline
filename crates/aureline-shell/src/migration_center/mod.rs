@@ -36,6 +36,10 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use crate::docs_browser::{seeded_truth_wiring_report, SurfaceTruthBinding, TruthSurfaceClass};
+use crate::help_packs::onboarding_beta::{
+    seeded_onboarding_help_pack_beta_manifest, OnboardingHelpPackBetaManifest,
+    ONBOARDING_HELP_PACK_BETA_FIXTURE_REF, ONBOARDING_HELP_PACK_BETA_SUPPORT_EXPORT_FIXTURE_REF,
+};
 use crate::migration_corpus::{
     seeded_migration_scoreboard, MIGRATION_CORPUS_SHARED_CONTRACT_REF, MIGRATION_SCOREBOARD_ID,
 };
@@ -426,6 +430,18 @@ pub struct MigrationCenterEntryPoint {
     /// Documented keymap chord ref, when applicable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub keyboard_chord_ref: Option<String>,
+    /// Help-pack id that backs this migration-center entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_pack_id: Option<String>,
+    /// Help-pack item ref that backs this migration-center entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_pack_item_ref: Option<String>,
+    /// Active help-pack version ref for support/export reconstruction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_pack_version_ref: Option<String>,
+    /// Fallback token inherited from the help-pack item.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_pack_fallback_state_token: Option<String>,
 
     /// Keyboard-reach posture for the entry.
     pub keyboard_reach: KeyboardReachClass,
@@ -468,6 +484,14 @@ pub struct MigrationCenterSupportRow {
     pub known_limit_ref: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovery_route_class_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_pack_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_pack_item_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_pack_version_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub help_pack_fallback_state_token: Option<String>,
     pub raw_body_exported: bool,
 }
 
@@ -490,6 +514,10 @@ impl MigrationCenterSupportRow {
             migration_report_ref: entry.migration_report_ref.clone(),
             known_limit_ref: entry.known_limit_ref.clone(),
             recovery_route_class_token: entry.recovery_route_class_token.clone(),
+            help_pack_id: entry.help_pack_id.clone(),
+            help_pack_item_ref: entry.help_pack_item_ref.clone(),
+            help_pack_version_ref: entry.help_pack_version_ref.clone(),
+            help_pack_fallback_state_token: entry.help_pack_fallback_state_token.clone(),
             raw_body_exported: false,
         }
     }
@@ -534,6 +562,8 @@ pub enum MigrationCenterDefectKind {
     SupportRowVocabularyDrift,
     /// Support row's entry id does not resolve to a live entry.
     SupportRowUnknownEntry,
+    /// Claimed row is missing the help-pack item ref that backs guidance.
+    HelpPackItemRefMissing,
 }
 
 impl MigrationCenterDefectKind {
@@ -557,6 +587,7 @@ impl MigrationCenterDefectKind {
             Self::ClaimLifecycleFreshnessDrift => "claim_lifecycle_freshness_drift",
             Self::SupportRowVocabularyDrift => "support_row_vocabulary_drift",
             Self::SupportRowUnknownEntry => "support_row_unknown_entry",
+            Self::HelpPackItemRefMissing => "help_pack_item_ref_missing",
         }
     }
 }
@@ -659,6 +690,10 @@ pub struct MigrationCenterUpstreamRefs {
     pub wizard_shared_contract_ref: String,
     pub corpus_scoreboard_ref: String,
     pub corpus_shared_contract_ref: String,
+    pub help_pack_manifest_ref: String,
+    pub help_pack_manifest_id: String,
+    pub help_pack_version_ref: String,
+    pub help_pack_support_export_ref: String,
 }
 
 /// Support-export wrapper for the migration-center page.
@@ -742,6 +777,16 @@ pub fn audit_migration_center_rows(
                 &entry.entry_id,
                 "requires_marketplace_detour",
                 "claimed beta entry must not require hidden marketplace install",
+            ));
+        }
+        if entry.learnability_claim.claim_class == ClaimClass::Beta
+            && option_empty(&entry.help_pack_item_ref)
+        {
+            defects.push(MigrationCenterDefect::new(
+                MigrationCenterDefectKind::HelpPackItemRefMissing,
+                &entry.entry_id,
+                "help_pack_item_ref",
+                "claimed beta entry must resolve to a versioned help-pack item",
             ));
         }
 
@@ -911,6 +956,11 @@ pub fn audit_migration_center_rows(
                     || support.migration_report_ref != entry.migration_report_ref
                     || support.known_limit_ref != entry.known_limit_ref
                     || support.recovery_route_class_token != entry.recovery_route_class_token
+                    || support.help_pack_id != entry.help_pack_id
+                    || support.help_pack_item_ref != entry.help_pack_item_ref
+                    || support.help_pack_version_ref != entry.help_pack_version_ref
+                    || support.help_pack_fallback_state_token
+                        != entry.help_pack_fallback_state_token
                 {
                     defects.push(MigrationCenterDefect::new(
                         MigrationCenterDefectKind::SupportRowVocabularyDrift,
@@ -961,6 +1011,7 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
 
     let wizard = seeded_migration_wizard_page();
     let scoreboard = seeded_migration_scoreboard();
+    let help_pack = seeded_onboarding_help_pack_beta_manifest();
 
     let mapping_report_ref = wizard.mapping_report.mapping_report_id.clone();
     let checkpoint_ref = wizard.rollback_checkpoint.checkpoint_ref.clone();
@@ -978,7 +1029,7 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
         .map(|row| row.flow_id.clone())
         .unwrap_or_else(|| first_known_limit_ref.clone());
 
-    let entries = vec![
+    let mut entries = vec![
         build_entry(
             "shell:migration_center_beta:entry:first_run_overview_docs",
             SectionKind::DocsHelpAnchors,
@@ -1205,6 +1256,8 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
         ),
     ];
 
+    attach_help_pack_refs(&mut entries, &help_pack);
+
     let sections = build_sections(&entries);
     let support_rows: Vec<MigrationCenterSupportRow> = entries
         .iter()
@@ -1218,6 +1271,11 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
         wizard_shared_contract_ref: MIGRATION_WIZARD_SHARED_CONTRACT_REF.to_owned(),
         corpus_scoreboard_ref: MIGRATION_SCOREBOARD_ID.to_owned(),
         corpus_shared_contract_ref: MIGRATION_CORPUS_SHARED_CONTRACT_REF.to_owned(),
+        help_pack_manifest_ref: ONBOARDING_HELP_PACK_BETA_FIXTURE_REF.to_owned(),
+        help_pack_manifest_id: help_pack.manifest_id.clone(),
+        help_pack_version_ref: help_pack.manifest_version_ref.clone(),
+        help_pack_support_export_ref: ONBOARDING_HELP_PACK_BETA_SUPPORT_EXPORT_FIXTURE_REF
+            .to_owned(),
     };
 
     let defects = audit_migration_center_rows(&sections, &entries, &support_rows);
@@ -1371,6 +1429,10 @@ fn build_entry(
         recovery_route_class,
         recovery_route_class_token: recovery_route_class.map(|c| c.as_str().to_owned()),
         keyboard_chord_ref,
+        help_pack_id: None,
+        help_pack_item_ref: None,
+        help_pack_version_ref: None,
+        help_pack_fallback_state_token: None,
         keyboard_reach,
         keyboard_reach_token: keyboard_reach.as_str().to_owned(),
         requires_account_detour: false,
@@ -1378,6 +1440,59 @@ fn build_entry(
         learnability_claim: claim.clone(),
         support_row_id,
     }
+}
+
+fn attach_help_pack_refs(
+    entries: &mut [MigrationCenterEntryPoint],
+    manifest: &OnboardingHelpPackBetaManifest,
+) {
+    for entry in entries {
+        let Some(item_id) = help_pack_item_for_entry(&entry.entry_id) else {
+            continue;
+        };
+        if let Some(item) = manifest.item(item_id) {
+            entry.help_pack_id = Some(item.pack_id.clone());
+            entry.help_pack_item_ref = Some(item.item_id.clone());
+            entry.help_pack_version_ref = Some(item.pack_version_ref.clone());
+            entry.help_pack_fallback_state_token =
+                Some(item.source_language_fallback.fallback_class.clone());
+        }
+    }
+}
+
+fn help_pack_item_for_entry(entry_id: &str) -> Option<&'static str> {
+    let item = match entry_id {
+        "shell:migration_center_beta:entry:first_run_overview_docs"
+        | "shell:migration_center_beta:entry:first_run_settings_open" => {
+            "ohp:item:first_run.open_folder"
+        }
+        "shell:migration_center_beta:entry:open_docs_browser_command" => {
+            "ohp:item:offline.docs_browser_mirror"
+        }
+        "shell:migration_center_beta:entry:glossary_pack_truth_terms" => {
+            "ohp:item:glossary.release_truth"
+        }
+        "shell:migration_center_beta:entry:glossary_pack_migration_terms"
+        | "shell:migration_center_beta:entry:known_limits_vs_code_command_palette"
+        | "shell:migration_center_beta:entry:known_limits_jetbrains_keymap" => {
+            "ohp:item:glossary.migration_outcomes"
+        }
+        "shell:migration_center_beta:entry:reopen_wizard_mapping_report"
+        | "shell:migration_center_beta:entry:first_run_command_palette"
+        | "shell:migration_center_beta:entry:keymap_reference_chord" => {
+            "ohp:item:keymap_bridge.command_palette"
+        }
+        "shell:migration_center_beta:entry:reopen_rollback_checkpoint"
+        | "shell:migration_center_beta:entry:recovery_safe_mode"
+        | "shell:migration_center_beta:entry:recovery_restore_checkpoint" => {
+            "ohp:item:recovery.restore_checkpoint"
+        }
+        "shell:migration_center_beta:entry:recovery_support_export" => {
+            "ohp:item:recovery.support_export"
+        }
+        _ => return None,
+    };
+    Some(item)
 }
 
 fn option_empty(value: &Option<String>) -> bool {

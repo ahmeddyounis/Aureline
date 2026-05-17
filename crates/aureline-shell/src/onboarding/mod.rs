@@ -17,12 +17,12 @@ use aureline_telemetry::onboarding::OnboardingEventName;
 use aureline_workspace::{
     build_admission_checkpoint_route, review_non_widening_import, AdmissionCheckpointBuildRequest,
     AdmissionCheckpointRouteRecord, AdmissionClass, AdmissionSourceSurface, ArchetypeTruth,
-    BlockedReasonClass, ContinueWithoutClass, DetectionConfidenceClass, DetectionOutcome,
-    DetectionSignal, DetectionSignalSourceClass, DetectorState, EntryVerb, ExecutionBoundary,
-    FirstUsefulEntrySource, ImportApplyRequest, ImportApplyReview, ReadinessBucket,
-    ReadinessBuckets, ReadinessTask, ReadinessTaskClass, ReadinessTaskState, ResultingMode,
-    SideEffectClass, SignalMaterialEffect, StateSourcePosture, SupportClaimClass, TargetKind,
-    TrustReviewClass, TrustState, WideningVector,
+    BlockedReasonClass, ContinueWithoutClass, DetectionConfidenceClass, DetectionEvidenceFreshness,
+    DetectionOutcome, DetectionSignal, DetectionSignalSourceClass, DetectorState, EntryVerb,
+    ExecutionBoundary, FirstUsefulEntrySource, ImportApplyRequest, ImportApplyReview,
+    ReadinessBucket, ReadinessBuckets, ReadinessTask, ReadinessTaskClass, ReadinessTaskState,
+    ResultingMode, SideEffectClass, SignalFreshnessClass, SignalMaterialEffect, StateSourcePosture,
+    SupportClaimClass, TargetKind, TrustReviewClass, TrustState, WideningVector,
 };
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +35,10 @@ use crate::help::onboarding_help_pack::{
     OnboardingHelpPackAlphaManifest, OnboardingHelpPackCommandMetadataSource,
     OnboardingHelpPackFallbackClass, OnboardingHelpPackInstallState, OnboardingHelpPackItemKind,
     OnboardingHelpPackLocaleAvailability, OnboardingHelpPackOfflinePosture,
+};
+use crate::help_packs::onboarding_beta::{
+    seeded_onboarding_help_pack_beta_manifest, OnboardingHelpPackBetaItem,
+    OnboardingHelpPackBetaManifest,
 };
 use crate::import::{
     materialize_import_diff_review_packet, CompetitorConfigClassifier, ImportDiffReviewPacket,
@@ -872,6 +876,18 @@ pub struct OnboardingPackState {
     pub offline_posture: OfflinePosture,
     /// Whether pack citations can be exported.
     pub citations_exportable: bool,
+    /// Source class token inherited from release-truth badges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_class_token: Option<String>,
+    /// Freshness token inherited from release-truth badges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub freshness_class_token: Option<String>,
+    /// Version-match token inherited from release-truth badges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_match_state_token: Option<String>,
+    /// Mirror or docs-pack posture visible on offline rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_posture_token: Option<String>,
 }
 
 /// One help-search result or contextual help item.
@@ -910,6 +926,33 @@ pub struct OnboardingHelpSearchItem {
     /// Exact reopen ref preserving pack revision and locale.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exact_reopen_ref: Option<String>,
+    /// Active help-pack version ref recorded for support export.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_help_pack_version_ref: Option<String>,
+    /// Source class token inherited from release-truth badges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_class_token: Option<String>,
+    /// Freshness token inherited from release-truth badges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub freshness_class_token: Option<String>,
+    /// Version-match token inherited from release-truth badges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_match_state_token: Option<String>,
+    /// Mirror or docs-pack posture visible on offline rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_posture_token: Option<String>,
+    /// Export-safe support pack item id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub support_pack_item_id: Option<String>,
+    /// Diagnostics row ref that reconstructs fallback state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostics_row_ref: Option<String>,
+    /// Dismissed state ref captured in bounded diagnostics.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dismissed_state_ref: Option<String>,
+    /// Helpful state ref captured in bounded diagnostics.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub helpful_state_ref: Option<String>,
 }
 
 /// Portable user/profile state projected by onboarding.
@@ -1179,6 +1222,10 @@ pub enum HelpSurfaceClass {
     HelpSearch,
     /// Contextual tip result.
     ContextualTip,
+    /// Contextual why-now card.
+    ContextualWhyNow,
+    /// Recovery-first help entry.
+    RecoveryFirst,
     /// Source-language fallback result.
     SourceLanguageFallback,
 }
@@ -1400,6 +1447,12 @@ fn build_open_entry_route(
             "Local entry target was selected from first-run onboarding.",
         )],
     )
+    .with_evidence_freshness(vec![DetectionEvidenceFreshness::new(
+        "evidence:onboarding.local_entry.reviewed_route",
+        SignalFreshnessClass::FreshCurrent,
+        "Local entry route evidence is sourced from the reviewed first-run contract.",
+    )
+    .with_review_window(Some("2026-05-17".to_string()), Some("P21D".to_string()))])
     .with_detected_fact_refs(vec!["fact:onboarding.local_entry.selected".to_string()]);
     let admission_checkpoint_route = build_admission_checkpoint_route(
         AdmissionCheckpointBuildRequest::new(
@@ -1494,6 +1547,15 @@ fn import_route_truth(
                 "Import diff review and retained migration report are ready before apply.",
             )],
         )
+        .with_evidence_freshness(vec![DetectionEvidenceFreshness::new(
+            format!(
+                "evidence:onboarding.import.reviewed_route:{}",
+                packet.import_diff_preview_ref
+            ),
+            SignalFreshnessClass::FreshCurrent,
+            "Import route evidence is sourced from the retained diff review packet.",
+        )
+        .with_review_window(Some("2026-05-17".to_string()), Some("P21D".to_string()))])
         .with_recommendation_refs(vec![packet
             .retained_migration_report
             .migration_report_id
@@ -1663,6 +1725,7 @@ pub fn build_onboarding_alpha_surface(
     let registry = seeded_registry();
     let alpha_registry = alpha_command_registry();
     let docs_manifest = current_docs_pack_manifest().ok();
+    let onboarding_help_beta_manifest = seeded_onboarding_help_pack_beta_manifest();
     let onboarding_help_manifest = current_onboarding_help_pack_alpha_manifest().ok();
     OnboardingAlphaSurfaceRecord {
         record_kind: "onboarding_alpha_surface_record".to_string(),
@@ -1683,6 +1746,7 @@ pub fn build_onboarding_alpha_surface(
         help_search: help_search_projection(
             registry,
             docs_manifest.as_ref(),
+            Some(&onboarding_help_beta_manifest),
             onboarding_help_manifest.as_ref(),
         ),
         portable_state: portable_state_projection(),
@@ -1946,8 +2010,15 @@ fn teaching_cards(registry: &CommandRegistry) -> Vec<OnboardingTeachingCard> {
 fn help_search_projection(
     registry: &CommandRegistry,
     docs_manifest: Option<&DocsPackAlphaManifest>,
+    onboarding_help_beta_manifest: Option<&OnboardingHelpPackBetaManifest>,
     onboarding_help_manifest: Option<&OnboardingHelpPackAlphaManifest>,
 ) -> OnboardingHelpSearchProjection {
+    if let Some(projection) =
+        onboarding_help_pack_beta_projection(registry, onboarding_help_beta_manifest)
+    {
+        return projection;
+    }
+
     if let Some(projection) = onboarding_help_pack_projection(registry, onboarding_help_manifest) {
         return projection;
     }
@@ -1972,6 +2043,10 @@ fn help_search_projection(
                 locale_availability: LocaleAvailability::LocaleAvailableReviewed,
                 offline_posture: OfflinePosture::FullyAvailableOfflineLocalBuild,
                 citations_exportable: true,
+                source_class_token: None,
+                freshness_class_token: None,
+                version_match_state_token: None,
+                mirror_posture_token: None,
             },
             OnboardingPackState {
                 pack_id: "pack:onboarding_alpha:migration_cached".to_string(),
@@ -1981,6 +2056,10 @@ fn help_search_projection(
                 locale_availability: LocaleAvailability::LocaleMissingFallbackToPrimary,
                 offline_posture: OfflinePosture::CachedSnapshotOffline,
                 citations_exportable: true,
+                source_class_token: None,
+                freshness_class_token: None,
+                version_match_state_token: None,
+                mirror_posture_token: None,
             },
             OnboardingPackState {
                 pack_id: "pack:onboarding_alpha:learning_digest".to_string(),
@@ -1990,6 +2069,10 @@ fn help_search_projection(
                 locale_availability: LocaleAvailability::LocaleMissingNotInstalled,
                 offline_posture: OfflinePosture::NotAvailableOffline,
                 citations_exportable: false,
+                source_class_token: None,
+                freshness_class_token: None,
+                version_match_state_token: None,
+                mirror_posture_token: None,
             },
         ],
         items: vec![
@@ -2009,6 +2092,15 @@ fn help_search_projection(
                 source_strip_ref: None,
                 citation_drawer_ref: None,
                 exact_reopen_ref: None,
+                active_help_pack_version_ref: None,
+                source_class_token: None,
+                freshness_class_token: None,
+                version_match_state_token: None,
+                mirror_posture_token: None,
+                support_pack_item_id: None,
+                diagnostics_row_ref: None,
+                dismissed_state_ref: None,
+                helpful_state_ref: None,
             },
             OnboardingHelpSearchItem {
                 item_id: "help:onboarding_alpha:keymap_source_language_fallback".to_string(),
@@ -2029,6 +2121,15 @@ fn help_search_projection(
                 source_strip_ref: None,
                 citation_drawer_ref: None,
                 exact_reopen_ref: None,
+                active_help_pack_version_ref: None,
+                source_class_token: None,
+                freshness_class_token: None,
+                version_match_state_token: None,
+                mirror_posture_token: None,
+                support_pack_item_id: None,
+                diagnostics_row_ref: None,
+                dismissed_state_ref: None,
+                helpful_state_ref: None,
             },
             OnboardingHelpSearchItem {
                 item_id: "help:onboarding_alpha:learning_digest_not_installed".to_string(),
@@ -2050,6 +2151,15 @@ fn help_search_projection(
                 source_strip_ref: None,
                 citation_drawer_ref: None,
                 exact_reopen_ref: None,
+                active_help_pack_version_ref: None,
+                source_class_token: None,
+                freshness_class_token: None,
+                version_match_state_token: None,
+                mirror_posture_token: None,
+                support_pack_item_id: None,
+                diagnostics_row_ref: None,
+                dismissed_state_ref: None,
+                helpful_state_ref: None,
             },
         ],
         support_export_reconstructable: true,
@@ -2105,6 +2215,171 @@ fn onboarding_help_pack_projection(
     })
 }
 
+fn onboarding_help_pack_beta_projection(
+    registry: &CommandRegistry,
+    manifest: Option<&OnboardingHelpPackBetaManifest>,
+) -> Option<OnboardingHelpSearchProjection> {
+    let manifest = manifest?;
+    let pack_states = manifest
+        .packs
+        .iter()
+        .map(onboarding_pack_state_from_beta_pack)
+        .collect::<Vec<_>>();
+    let items = manifest
+        .items
+        .iter()
+        .filter(|item| item.content_render_state != "blocked_not_installed")
+        .map(|item| onboarding_help_item_from_beta_help_pack_item(item, registry))
+        .collect::<Vec<_>>();
+
+    Some(OnboardingHelpSearchProjection {
+        projection_id: "discoverability:onboarding_help_pack_beta:first_run".to_string(),
+        help_search_command: OnboardingCommandAnchor::alpha_owned(
+            "cmd:help.search",
+            "Cmd/Ctrl+Shift+H",
+            "docs:anchor:onboarding_beta:help_search",
+        ),
+        pack_states,
+        items,
+        support_export_reconstructable: true,
+    })
+}
+
+fn onboarding_pack_state_from_beta_pack(
+    pack: &crate::help_packs::onboarding_beta::OnboardingHelpPackBetaPack,
+) -> OnboardingPackState {
+    OnboardingPackState {
+        pack_id: pack.pack_id.clone(),
+        pack_role: match pack.pack_role.as_str() {
+            "first_run_starter_pack" => PackRole::FirstRunStarterPack,
+            "glossary_bundle" => PackRole::GlossaryBundle,
+            "recovery_first_pack" | "guided_content_pack" => PackRole::GuidedContentPack,
+            _ => PackRole::MigrationWelcomePack,
+        },
+        source_version_ref: pack.pack_version_ref.clone(),
+        install_state: pack_install_state_from_beta(&pack.install_state),
+        locale_availability: if pack
+            .available_locales
+            .iter()
+            .any(|locale| locale == "es-MX")
+        {
+            LocaleAvailability::LocaleAvailableReviewed
+        } else {
+            LocaleAvailability::LocaleMissingFallbackToPrimary
+        },
+        offline_posture: offline_posture_from_beta(&pack.offline_posture),
+        citations_exportable: pack.citation_availability == "available",
+        source_class_token: Some(pack.source_class.clone()),
+        freshness_class_token: Some(pack.freshness_class.clone()),
+        version_match_state_token: Some(pack.version_match_state.clone()),
+        mirror_posture_token: Some(pack.mirror_posture.clone()),
+    }
+}
+
+fn onboarding_help_item_from_beta_help_pack_item(
+    item: &OnboardingHelpPackBetaItem,
+    registry: &CommandRegistry,
+) -> OnboardingHelpSearchItem {
+    OnboardingHelpSearchItem {
+        item_id: item.item_id.clone(),
+        pack_id: item.pack_id.clone(),
+        surface_class: surface_class_from_beta_item(item),
+        command: command_anchor_from_beta_help_pack_item(item, registry),
+        requested_locale: item.locale.requested_locale.clone(),
+        effective_locale: item.locale.effective_locale.clone(),
+        source_language_fallback_class: source_language_fallback_from_beta(item),
+        pack_install_state: pack_install_state_from_beta(
+            &item.offline_fallback.content_availability,
+        ),
+        citation_refs: item.source_truth.citation_refs.clone(),
+        docs_node_id: Some(item.docs_node_id.clone()),
+        source_pack_revision_ref: Some(item.pack_version_ref.clone()),
+        source_strip_ref: Some(item.source_truth.source_strip_ref.clone()),
+        citation_drawer_ref: Some(item.source_truth.citation_drawer_ref.clone()),
+        exact_reopen_ref: Some(item.exact_reopen_ref.clone()),
+        active_help_pack_version_ref: Some(item.pack_version_ref.clone()),
+        source_class_token: Some(item.source_truth.source_class.clone()),
+        freshness_class_token: Some(item.source_truth.freshness_class.clone()),
+        version_match_state_token: Some(item.source_truth.version_match_state.clone()),
+        mirror_posture_token: Some(item.offline_fallback.mirror_posture.clone()),
+        support_pack_item_id: Some(item.support_export_identity.support_pack_item_id.clone()),
+        diagnostics_row_ref: Some(item.support_export_identity.diagnostics_row_ref.clone()),
+        dismissed_state_ref: Some(item.state_refs.dismissed_state_ref.clone()),
+        helpful_state_ref: Some(item.state_refs.helpful_state_ref.clone()),
+    }
+}
+
+fn surface_class_from_beta_item(item: &OnboardingHelpPackBetaItem) -> HelpSurfaceClass {
+    if item.source_language_fallback.fallback_class.as_str()
+        == "fallback_to_source_language_disclosed"
+    {
+        return HelpSurfaceClass::SourceLanguageFallback;
+    }
+    if item
+        .surface_refs
+        .iter()
+        .any(|surface| surface == "surface:recovery_first:onboarding")
+    {
+        return HelpSurfaceClass::RecoveryFirst;
+    }
+    if item
+        .surface_refs
+        .iter()
+        .any(|surface| surface == "surface:contextual_why_now:onboarding")
+    {
+        return HelpSurfaceClass::ContextualWhyNow;
+    }
+    HelpSurfaceClass::HelpSearch
+}
+
+fn command_anchor_from_beta_help_pack_item(
+    item: &OnboardingHelpPackBetaItem,
+    registry: &CommandRegistry,
+) -> OnboardingCommandAnchor {
+    let entry = registry.get(&item.command_hint.command_id);
+    OnboardingCommandAnchor {
+        command_id: item.command_hint.command_id.clone(),
+        keyboard_route: item.command_hint.keyboard_route.clone(),
+        anchor_source: if entry.is_some() {
+            CommandAnchorSource::SeededCommandRegistry
+        } else {
+            CommandAnchorSource::OnboardingAlphaOwned
+        },
+        registry_entry_id: entry.map(|entry| entry.registry_entry_id.clone()),
+        docs_anchor_ref: Some(item.command_hint.help_anchor_id.clone()),
+    }
+}
+
+fn pack_install_state_from_beta(install_state: &str) -> PackInstallState {
+    match install_state {
+        "local_only_starter" | "fully_available_offline_local_build" => {
+            PackInstallState::LocalOnlyStarter
+        }
+        "not_installed" | "not_available_offline" => PackInstallState::NotInstalled,
+        _ => PackInstallState::CachedSnapshotCurrent,
+    }
+}
+
+fn offline_posture_from_beta(offline_posture: &str) -> OfflinePosture {
+    match offline_posture {
+        "fully_available_offline_local_build" => OfflinePosture::FullyAvailableOfflineLocalBuild,
+        "not_available_offline" => OfflinePosture::NotAvailableOffline,
+        _ => OfflinePosture::CachedSnapshotOffline,
+    }
+}
+
+fn source_language_fallback_from_beta(
+    item: &OnboardingHelpPackBetaItem,
+) -> SourceLanguageFallbackClass {
+    match item.source_language_fallback.fallback_class.as_str() {
+        "fallback_to_source_language_disclosed" => {
+            SourceLanguageFallbackClass::FallbackToSourceLanguageDisclosed
+        }
+        "fallback_blocked_pack_missing" => SourceLanguageFallbackClass::FallbackBlockedPackMissing,
+        _ => SourceLanguageFallbackClass::NoFallbackPrimaryLocaleOnly,
+    }
+}
+
 fn onboarding_pack_state_from_help_pack_item(
     manifest: &OnboardingHelpPackAlphaManifest,
     item: &OnboardingHelpPackAlphaItem,
@@ -2127,6 +2402,10 @@ fn onboarding_pack_state_from_help_pack_item(
         citations_exportable: item.citation.availability
             == crate::help::onboarding_help_pack::OnboardingHelpPackCitationAvailability::Available
             && !item.citation.citation_refs.is_empty(),
+        source_class_token: None,
+        freshness_class_token: None,
+        version_match_state_token: None,
+        mirror_posture_token: None,
     })
 }
 
@@ -2150,6 +2429,15 @@ fn onboarding_help_item_from_help_pack_item(
         source_strip_ref: item.citation.source_strip_ref.clone(),
         citation_drawer_ref: item.citation.citation_drawer_ref.clone(),
         exact_reopen_ref: Some(item.exact_reopen_ref.clone()),
+        active_help_pack_version_ref: Some(item.pack_revision_ref.clone()),
+        source_class_token: None,
+        freshness_class_token: None,
+        version_match_state_token: None,
+        mirror_posture_token: None,
+        support_pack_item_id: Some(item.support_export_identity.support_pack_item_id.clone()),
+        diagnostics_row_ref: None,
+        dismissed_state_ref: Some(item.progress_state_ref.clone()),
+        helpful_state_ref: None,
     }
 }
 
@@ -2307,6 +2595,10 @@ fn onboarding_pack_state_from_node(
         locale_availability: locale_availability_from_docs_node(node),
         offline_posture: offline_posture_from_docs_node(node),
         citations_exportable: node.has_citation_anchor(),
+        source_class_token: None,
+        freshness_class_token: None,
+        version_match_state_token: None,
+        mirror_posture_token: None,
     }
 }
 
@@ -2331,6 +2623,15 @@ fn onboarding_help_item_from_node(
         source_strip_ref: Some(node.source_strip_ref.clone()),
         citation_drawer_ref: Some(node.citation_drawer_ref.clone()),
         exact_reopen_ref: Some(node.exact_reopen_ref.clone()),
+        active_help_pack_version_ref: Some(node.source_pack_revision_ref.clone()),
+        source_class_token: None,
+        freshness_class_token: None,
+        version_match_state_token: None,
+        mirror_posture_token: None,
+        support_pack_item_id: None,
+        diagnostics_row_ref: None,
+        dismissed_state_ref: None,
+        helpful_state_ref: None,
     }
 }
 

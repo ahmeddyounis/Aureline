@@ -65,6 +65,7 @@ pub mod git_changes;
 pub mod graph_state_card;
 pub mod help;
 pub mod help_about;
+pub mod help_packs;
 pub mod host_boundary_cues;
 pub mod import;
 pub mod inspectors;

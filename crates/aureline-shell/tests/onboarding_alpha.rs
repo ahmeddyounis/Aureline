@@ -135,11 +135,19 @@ fn help_search_fixture_proves_locale_fallback_and_pack_posture() {
     );
     assert_eq!(
         fallback.source_pack_revision_ref.as_deref(),
-        Some("pack-rev:project:aureline:2026.05.13-01")
+        Some("pack-rev:onboarding-help:migration:2026.05.17-01")
     );
     assert_eq!(
         fallback.citation_drawer_ref.as_deref(),
-        Some("citation-drawer:docs-pack:onboarding.keymap-bridge")
+        Some("citation-drawer:docs-node:onboarding.keymap-bridge")
+    );
+    assert_eq!(
+        fallback.active_help_pack_version_ref.as_deref(),
+        Some("pack-rev:onboarding-help:migration:2026.05.17-01")
+    );
+    assert_eq!(
+        fallback.support_pack_item_id.as_deref(),
+        Some("support:keymap_bridge.command_palette")
     );
 
     let pack_states = surface
