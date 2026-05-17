@@ -132,6 +132,7 @@ pub mod incident_workspace_beta;
 pub mod local_history_timeline;
 pub mod m3_scenario_corpus;
 pub mod mutation_journal;
+pub mod policy_simulation;
 pub mod project_doctor;
 pub mod publication_dry_run;
 pub mod recovery_ladder;

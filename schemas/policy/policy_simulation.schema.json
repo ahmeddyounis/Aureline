@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/policy/policy_simulation.schema.json",
+  "title": "Aureline policy simulation beta records",
+  "description": "Boundary schema for pre-apply policy and settings-lock simulations. Simulation records expose affected personas, action families, command ids, degraded modes, protected-path changes, overlapping exception or waiver refs, remembered-decision refs, and action-time policy state for support/admin exports. Raw policy bundle bodies, raw rule text, raw identities, raw hostnames, raw paths, credentials, and secret material never cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/policy_simulation_beta_page_record" },
+    { "$ref": "#/$defs/policy_simulation_record" },
+    { "$ref": "#/$defs/policy_simulation_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "policy:simulation_exception_memory_beta:v1"
+    },
+    "policy_change_class": {
+      "type": "string",
+      "enum": ["policy_bundle_change", "settings_lock_change"]
+    },
+    "scope_kind": {
+      "type": "string",
+      "enum": ["workspace", "root", "workset", "session", "tenant", "fleet"]
+    },
+    "persona_class": {
+      "type": "string",
+      "enum": [
+        "end_user",
+        "workspace_admin",
+        "organization_admin",
+        "support_operator",
+        "automation_principal"
+      ]
+    },
+    "action_family": {
+      "type": "string",
+      "enum": [
+        "connected_provider_mutation",
+        "ai_apply_mutation",
+        "settings_write",
+        "support_export",
+        "records_lifecycle"
+      ]
+    },
+    "degraded_mode": {
+      "type": "string",
+      "enum": [
+        "full_access",
+        "preview_only",
+        "read_only",
+        "requires_reapproval",
+        "blocked_by_policy",
+        "paused_until_refresh"
+      ]
+    },
+    "protected_path_change": {
+      "type": "string",
+      "enum": [
+        "none",
+        "writes_narrowed",
+        "writes_denied",
+        "egress_narrowed",
+        "evidence_export_narrowed",
+        "managed_setting_locked"
+      ]
+    },
+    "actor_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stable_id", "role"],
+      "properties": {
+        "stable_id": { "$ref": "#/$defs/non_empty" },
+        "role": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_id"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/non_empty" },
+        "subject_id": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_kind_token", "scope_id"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/scope_kind" },
+        "scope_kind_token": { "$ref": "#/$defs/scope_kind" },
+        "scope_id": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "policy_context_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "bundle_ref",
+        "bundle_version",
+        "source_class",
+        "effective_at"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty" },
+        "bundle_ref": { "$ref": "#/$defs/non_empty" },
+        "bundle_version": { "$ref": "#/$defs/non_empty" },
+        "source_class": { "$ref": "#/$defs/non_empty" },
+        "effective_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "policy_simulation_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "simulation_id",
+        "change_class",
+        "change_class_token",
+        "baseline_ref",
+        "proposed_ref",
+        "scope",
+        "requested_by",
+        "evaluated_at",
+        "effective_from"
+      ],
+      "properties": {
+        "simulation_id": { "$ref": "#/$defs/non_empty" },
+        "change_class": { "$ref": "#/$defs/policy_change_class" },
+        "change_class_token": { "$ref": "#/$defs/policy_change_class" },
+        "baseline_ref": { "$ref": "#/$defs/non_empty" },
+        "proposed_ref": { "$ref": "#/$defs/non_empty" },
+        "scope": { "$ref": "#/$defs/scope_ref" },
+        "requested_by": { "$ref": "#/$defs/actor_ref" },
+        "evaluated_at": { "$ref": "#/$defs/timestamp" },
+        "effective_from": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "affected_policy_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "affected_surface_id",
+        "surface_ref",
+        "affected_persona",
+        "affected_persona_token",
+        "action_family",
+        "action_family_token",
+        "command_ids",
+        "degraded_mode",
+        "degraded_mode_token",
+        "protected_path_change",
+        "protected_path_change_token",
+        "consequence",
+        "policy_state_before",
+        "policy_state_after"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_simulation_affected_surface_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "affected_surface_id": { "$ref": "#/$defs/non_empty" },
+        "surface_ref": { "$ref": "#/$defs/subject_ref" },
+        "affected_persona": { "$ref": "#/$defs/persona_class" },
+        "affected_persona_token": { "$ref": "#/$defs/persona_class" },
+        "action_family": { "$ref": "#/$defs/action_family" },
+        "action_family_token": { "$ref": "#/$defs/action_family" },
+        "command_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty" }
+        },
+        "degraded_mode": { "$ref": "#/$defs/degraded_mode" },
+        "degraded_mode_token": { "$ref": "#/$defs/degraded_mode" },
+        "protected_path_change": { "$ref": "#/$defs/protected_path_change" },
+        "protected_path_change_token": { "$ref": "#/$defs/protected_path_change" },
+        "consequence": { "$ref": "#/$defs/non_empty" },
+        "policy_state_before": { "$ref": "#/$defs/policy_context_snapshot" },
+        "policy_state_after": { "$ref": "#/$defs/policy_context_snapshot" }
+      }
+    },
+    "policy_simulation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "request",
+        "affected_surfaces",
+        "exception_preview_refs",
+        "remembered_decision_preview_refs",
+        "audit_export_required_fields"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_simulation_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "request": { "$ref": "#/$defs/policy_simulation_request" },
+        "affected_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/affected_policy_surface_record" }
+        },
+        "exception_preview_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty" }
+        },
+        "remembered_decision_preview_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty" }
+        },
+        "audit_export_required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty" }
+        }
+      }
+    },
+    "policy_state_at_action_time_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "action_id",
+        "action_family",
+        "action_family_token",
+        "actor",
+        "object",
+        "policy_context_at_action_time",
+        "policy_context_at_export_time",
+        "decision_refs",
+        "exception_refs",
+        "source_chain_refs",
+        "audit_event_refs",
+        "preserves_historical_truth",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_state_at_action_time_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "action_id": { "$ref": "#/$defs/non_empty" },
+        "action_family": { "$ref": "#/$defs/action_family" },
+        "action_family_token": { "$ref": "#/$defs/action_family" },
+        "actor": { "$ref": "#/$defs/actor_ref" },
+        "object": { "$ref": "#/$defs/subject_ref" },
+        "policy_context_at_action_time": { "$ref": "#/$defs/policy_context_snapshot" },
+        "policy_context_at_export_time": { "$ref": "#/$defs/policy_context_snapshot" },
+        "decision_refs": { "type": "array", "items": { "$ref": "#/$defs/non_empty" } },
+        "exception_refs": { "type": "array", "items": { "$ref": "#/$defs/non_empty" } },
+        "source_chain_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/non_empty" } },
+        "audit_event_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/non_empty" } },
+        "preserves_historical_truth": { "const": true },
+        "raw_private_material_excluded": { "const": true }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "simulation_count",
+        "affected_surface_count",
+        "exception_count",
+        "remembered_decision_count",
+        "action_time_policy_state_count",
+        "change_classes_present"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_simulation_summary_record" },
+        "simulation_count": { "type": "integer", "minimum": 1 },
+        "affected_surface_count": { "type": "integer", "minimum": 1 },
+        "exception_count": { "type": "integer", "minimum": 0 },
+        "remembered_decision_count": { "type": "integer", "minimum": 0 },
+        "action_time_policy_state_count": { "type": "integer", "minimum": 1 },
+        "change_classes_present": {
+          "type": "array",
+          "allOf": [
+            { "contains": { "const": "policy_bundle_change" } },
+            { "contains": { "const": "settings_lock_change" } }
+          ]
+        }
+      }
+    },
+    "policy_simulation_beta_page_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "verification_packet_ref",
+        "simulations",
+        "exceptions",
+        "remembered_decisions",
+        "action_time_policy_states",
+        "defects",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_simulation_beta_page_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "verification_packet_ref": { "$ref": "#/$defs/non_empty" },
+        "simulations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/policy_simulation_record" }
+        },
+        "exceptions": { "type": "array" },
+        "remembered_decisions": { "type": "array" },
+        "action_time_policy_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/policy_state_at_action_time_record" }
+        },
+        "defects": { "type": "array" },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    },
+    "policy_simulation_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "exported_at",
+        "page",
+        "action_time_policy_states",
+        "preserves_historical_truth",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_simulation_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/non_empty" },
+        "exported_at": { "$ref": "#/$defs/timestamp" },
+        "page": { "$ref": "#/$defs/policy_simulation_beta_page_record" },
+        "defect_kinds_present": { "type": "array" },
+        "defect_counts_by_kind": { "type": "object" },
+        "action_time_policy_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/policy_state_at_action_time_record" }
+        },
+        "preserves_historical_truth": { "const": true },
+        "raw_private_material_excluded": { "const": true }
+      }
+    }
+  }
+}

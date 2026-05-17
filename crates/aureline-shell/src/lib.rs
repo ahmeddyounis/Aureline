@@ -99,6 +99,7 @@ pub mod passkey_step_up_beta;
 pub mod path_truth;
 pub mod permission_prompts;
 pub mod policy_pack_beta;
+pub mod policy_simulation_beta;
 pub mod previews;
 pub mod profiling_alpha;
 pub mod recovery;
