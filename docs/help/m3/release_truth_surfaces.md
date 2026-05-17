@@ -110,6 +110,21 @@ the same candidate exact-build identity, artifact graph refs, symbol
 manifest refs, SBOM/attestation links, advisory pivots, compatibility
 pivots, and blocking completeness checks.
 
+## Release-control rehearsals
+
+Publish, rollback, revocation, and advisory rehearsal state is read
+through `artifacts/release/m3/rehearsals/packet.json`, the generated
+support projection at
+`artifacts/release/m3/rehearsals/support_export_projection.json`, and
+the capture at
+`artifacts/release/m3/rehearsals/captures/publish_rollback_revocation_rehearsal_validation_capture.json`.
+Help / About, release docs, and support exports quote the same
+`flow_class`, `result_state`, `decision_class`, `mirror_state`, and
+`offline_state` values. Any result that is blocked or downgraded must
+also quote its release decision refs, so stale mirror propagation,
+offline import requirements, and held channel widening remain visible
+instead of being rediscovered during publication.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -267,6 +282,10 @@ The projection is read-only and does not:
 - `artifacts/release/m3/release_center_pack/support_export_projection.json`
   — the generated support/export projection for release-center support and
   security pivots.
+- `artifacts/release/m3/rehearsals/packet.json` — the beta release-control
+  rehearsal packet for publish, rollback, revocation, and advisory flows.
+- `artifacts/release/m3/rehearsals/support_export_projection.json` — the
+  generated support/export projection for release-control rehearsal rows.
 - `artifacts/release/m3/state_root_audit.md` — generated state-root audit
   consumed by Help / About, CLI diagnostics, silent deployment summaries,
   and support export.
@@ -284,5 +303,8 @@ The projection is read-only and does not:
   clean-room rebuild evidence, rebuilt artifact graph comparison,
   exact-build publication checks, generated support projection, and
   support/export fixtures.
+- `tools/ci/m3/rehearsals/` — headless validator for publish, rollback,
+  revocation, advisory, mirror/offline implications, and release-control
+  downgrade or blocker decisions.
 - `schemas/release/m3_claim_manifest.schema.json` — the canonical
   boundary schema enforced by `ci/check_m3_claim_manifest.py`.

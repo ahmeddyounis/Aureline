@@ -103,6 +103,16 @@ symbol manifest, SBOM/attestation links, claim and compatibility refs,
 rollback refs, advisory refs, and support pivots into one inspectable
 release-center packet.
 
+Publish, rollback, revocation, and advisory rehearsals are published at
+[`/artifacts/release/m3/rehearsals/packet.json`](../../../artifacts/release/m3/rehearsals/packet.json)
+with generated support truth at
+[`/artifacts/release/m3/rehearsals/support_export_projection.json`](../../../artifacts/release/m3/rehearsals/support_export_projection.json)
+and the headless gate in
+[`/tools/ci/m3/rehearsals/`](../../../tools/ci/m3/rehearsals). The packet
+binds each operational drill to the current beta artifact graph, fixture
+input, support/export row, mirror/offline implication, and downgrade or
+blocker decision.
+
 ## Promotion Rule
 
 The beta candidate may widen only when the graph validator passes:
@@ -172,6 +182,17 @@ SBOM/attestation links are absent, if support and security pivots require
 private path lookup, or if the generated support projection and capture
 are stale.
 
+Release-control rehearsal admission additionally requires:
+
+```bash
+python3 -m tools.ci.m3.rehearsals --repo-root . --check
+```
+
+This gate fails if any required publish, rollback, revocation, or
+advisory flow is absent; if a fixture input no longer matches the
+canonical packet; if mirror/offline implications are missing; or if a
+non-green result lacks a downgrade, hold, or blocker decision.
+
 ## Rollback Rule
 
 Rollback targets the coordinated artifact set. Desktop, CLI, helper,
@@ -201,9 +222,13 @@ requires updating:
 - [`/schemas/release/release_center.schema.json`](../../../schemas/release/release_center.schema.json);
 - [`/artifacts/release/m3/release_center_pack/pack.json`](../../../artifacts/release/m3/release_center_pack/pack.json);
 - [`/artifacts/release/m3/release_center_pack/support_export_projection.json`](../../../artifacts/release/m3/release_center_pack/support_export_projection.json);
+- [`/schemas/release/rehearsal_packet.schema.json`](../../../schemas/release/rehearsal_packet.schema.json);
+- [`/artifacts/release/m3/rehearsals/packet.json`](../../../artifacts/release/m3/rehearsals/packet.json);
+- [`/artifacts/release/m3/rehearsals/support_export_projection.json`](../../../artifacts/release/m3/rehearsals/support_export_projection.json);
 - [`/fixtures/release/artifact_graph_cases/manifest.yaml`](../../../fixtures/release/artifact_graph_cases/manifest.yaml);
 - [`/fixtures/release/m3/reproducible_rc/manifest.yaml`](../../../fixtures/release/m3/reproducible_rc/manifest.yaml);
 - [`/fixtures/release/m3/release_center_pack/manifest.yaml`](../../../fixtures/release/m3/release_center_pack/manifest.yaml);
+- [`/fixtures/release/m3/rehearsal_inputs/manifest.yaml`](../../../fixtures/release/m3/rehearsal_inputs/manifest.yaml);
 - [`/fixtures/release/update_rollback_plan_cases/manifest.yaml`](../../../fixtures/release/update_rollback_plan_cases/manifest.yaml);
 - this packet.
 

@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/rehearsal_packet.schema.json",
+  "title": "Aureline release rehearsal packet",
+  "description": "Boundary schema for release_rehearsal_packet records. The packet binds publish, rollback, revocation, and advisory dry runs to one release artifact graph, exact-build identity, fixture set, mirror/offline implication set, support projection, and explicit downgrade or blocker decisions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "generated_at",
+    "owner",
+    "status",
+    "source_refs",
+    "release_scope",
+    "flows",
+    "support_projection",
+    "acceptance"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "release_rehearsal_packet" },
+    "packet_id": { "$ref": "#/$defs/opaque_id" },
+    "generated_at": { "$ref": "#/$defs/date_time" },
+    "owner": { "$ref": "#/$defs/non_empty_string" },
+    "status": {
+      "type": "string",
+      "enum": ["current", "current_with_limits", "blocked", "superseded"]
+    },
+    "source_refs": { "$ref": "#/$defs/source_refs" },
+    "release_scope": { "$ref": "#/$defs/release_scope" },
+    "flows": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/rehearsal_flow" }
+    },
+    "support_projection": { "$ref": "#/$defs/support_projection" },
+    "acceptance": { "$ref": "#/$defs/acceptance" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "date_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "flow_class": {
+      "type": "string",
+      "enum": ["publish", "rollback", "revocation", "advisory"]
+    },
+    "result_state": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "passed_with_limits",
+        "passed_with_downgrade",
+        "blocked_with_decision"
+      ]
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": ["current", "current_with_limits", "degraded_current", "blocked_current"]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "no_gap",
+        "claim_downgrade",
+        "promotion_blocker",
+        "support_blocker",
+        "hold_channel"
+      ]
+    },
+    "mirror_state": {
+      "type": "string",
+      "enum": ["verified", "current", "stale", "pending_import", "blocked", "not_applicable"]
+    },
+    "offline_state": {
+      "type": "string",
+      "enum": ["verified", "current", "export_required", "pending_import", "blocked", "not_applicable"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "release_center",
+        "headless_dry_run_output",
+        "support_export",
+        "docs_help",
+        "mirror_offline_review",
+        "update_center",
+        "security_advisory"
+      ]
+    },
+    "source_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_graph_ref",
+        "release_center_pack_ref",
+        "rollback_plan_ref",
+        "correction_train_ref",
+        "claim_manifest_ref",
+        "compatibility_report_ref",
+        "benchmark_snapshot_ref",
+        "docs_truth_report_ref",
+        "release_notes_ref"
+      ],
+      "properties": {
+        "artifact_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_center_pack_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rollback_plan_ref": { "$ref": "#/$defs/non_empty_string" },
+        "correction_train_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "benchmark_snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_truth_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_notes_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "release_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_candidate_ref",
+        "version",
+        "channel_class",
+        "stage_class",
+        "artifact_graph_id",
+        "artifact_bundle_ref",
+        "exact_build_identity_refs",
+        "rollback_target_ref"
+      ],
+      "properties": {
+        "release_candidate_ref": { "$ref": "#/$defs/non_empty_string" },
+        "version": { "$ref": "#/$defs/non_empty_string" },
+        "channel_class": { "$ref": "#/$defs/non_empty_string" },
+        "stage_class": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_graph_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_bundle_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_identity_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "rollback_target_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "gap_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_class",
+        "decision_refs",
+        "owner_ref",
+        "rationale",
+        "blocks_channel_widening"
+      ],
+      "properties": {
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "decision_refs": { "$ref": "#/$defs/ref_array" },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" },
+        "blocks_channel_widening": { "type": "boolean" }
+      }
+    },
+    "mirror_offline_implications": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_state",
+        "offline_state",
+        "implication_refs",
+        "continuity_note"
+      ],
+      "properties": {
+        "mirror_state": { "$ref": "#/$defs/mirror_state" },
+        "offline_state": { "$ref": "#/$defs/offline_state" },
+        "implication_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "continuity_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_class", "projection_ref", "rendered_fields"],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rendered_fields": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "rehearsal_flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_id",
+        "flow_class",
+        "title",
+        "input_fixture_ref",
+        "exact_build_identity_ref",
+        "primary_artifact_refs",
+        "release_center_refs",
+        "validation_refs",
+        "result_state",
+        "evidence_state",
+        "gap_decision",
+        "mirror_offline_implications",
+        "surface_projections",
+        "support_ref",
+        "notes"
+      ],
+      "properties": {
+        "flow_id": { "$ref": "#/$defs/non_empty_string" },
+        "flow_class": { "$ref": "#/$defs/flow_class" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "input_fixture_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "primary_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "release_center_refs": { "$ref": "#/$defs/ref_array" },
+        "validation_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "result_state": { "$ref": "#/$defs/result_state" },
+        "evidence_state": { "$ref": "#/$defs/evidence_state" },
+        "gap_decision": { "$ref": "#/$defs/gap_decision" },
+        "mirror_offline_implications": { "$ref": "#/$defs/mirror_offline_implications" },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "support_ref": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projection_id", "output_ref", "consumer_refs", "required_fields"],
+      "properties": {
+        "projection_id": { "$ref": "#/$defs/non_empty_string" },
+        "output_ref": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "required_fields": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_commands",
+        "fixture_manifest_ref",
+        "required_flow_classes",
+        "accepted_result_states"
+      ],
+      "properties": {
+        "validation_commands": { "$ref": "#/$defs/non_empty_ref_array" },
+        "fixture_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "required_flow_classes": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/flow_class" },
+          "uniqueItems": true
+        },
+        "accepted_result_states": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    }
+  }
+}
