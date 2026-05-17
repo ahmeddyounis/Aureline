@@ -1,0 +1,106 @@
+schema_version: 1
+record_kind: extension_bisect_session_record
+session_id: extension_bisect_session:post_crash_loop:alpha_web
+session_class: post_crash_loop_session
+entry_reason_class: crash_loop_detected
+captured_at: "2026-05-15T08:30:00Z"
+doctor_finding_ref: doctor.finding.extension_host_crash_loop_quarantined
+support_packet_ref: support:extension-bisect-beta:post-crash-loop
+blast_radius_class: cohort_only
+review_gate_class: user_confirmation_required
+candidate_extensions:
+  - extension_id: extension:vendor.linter
+    extension_class: third_party_marketplace
+    prior_state_class: enabled
+    display_label: Vendor linter extension
+  - extension_id: extension:vendor.formatter
+    extension_class: third_party_marketplace
+    prior_state_class: enabled
+    display_label: Vendor formatter extension
+  - extension_id: extension:vendor.test-runner
+    extension_class: third_party_marketplace
+    prior_state_class: enabled
+    display_label: Vendor test-runner extension
+  - extension_id: extension:vendor.broken-serializer
+    extension_class: third_party_marketplace
+    prior_state_class: enabled
+    display_label: Vendor serializer extension
+disabled_capability_classes:
+  - extension_auto_activation
+  - extension_host_launch
+  - session_restore_auto_replay
+  - background_rebuild
+preserved_capability_classes:
+  - local_editing
+  - basic_navigation
+  - local_search
+  - local_git_operations
+  - local_diagnostics_export
+  - support_bundle_preview
+  - project_doctor_surfaces
+  - extension_bisect_exit_action
+preserved_state_classes:
+  - user_authored_files
+  - open_buffer_selection
+  - durable_workspace_indexes
+  - workspace_trust_store
+  - credential_store
+  - session_restore_store
+  - support_export_store
+  - extension_prior_state_snapshot
+tested_states:
+  - tested_state_id: tested_state:post_crash_loop:baseline
+    cohort_id: cohort:baseline
+    cohort_member_refs: []
+    activation_result_class: no_failure_observed
+    reviewer_summary: Baseline launch with no third-party cohort active completes without the crash loop.
+  - tested_state_id: tested_state:post_crash_loop:cohort_a
+    cohort_id: cohort:a
+    cohort_member_refs:
+      - extension:vendor.linter
+      - extension:vendor.formatter
+    activation_result_class: no_failure_observed
+    reviewer_summary: Cohort A activation (linter + formatter) launches cleanly; cohort cleared.
+  - tested_state_id: tested_state:post_crash_loop:cohort_b
+    cohort_id: cohort:b
+    cohort_member_refs:
+      - extension:vendor.test-runner
+      - extension:vendor.broken-serializer
+    activation_result_class: reproduces_failure
+    reviewer_summary: Cohort B activation reproduces the crash loop; suspect narrowed to cohort B members.
+suspected_extension_sets:
+  - suspect_set_id: suspect_set:post_crash_loop:cohort_b
+    confidence_class: narrow_set_suspected
+    member_extension_refs:
+      - extension:vendor.test-runner
+      - extension:vendor.broken-serializer
+    narrowing_summary: Cohort B reproduces the crash; suspicion narrowed to the two members of cohort B.
+  - suspect_set_id: suspect_set:post_crash_loop:broken_serializer
+    confidence_class: single_suspect_isolated
+    member_extension_refs:
+      - extension:vendor.broken-serializer
+    narrowing_summary: Individual activation pinpointed the serializer extension as the offender.
+findings:
+  - finding_id: finding:post_crash_loop:single_extension_suspected
+    finding_class: single_extension_suspected
+    user_visible_summary: The serializer extension is attributed as the cause of the startup crash loop.
+restore_plan:
+  prior_state_snapshot_ref: snapshot:extension-state:post_crash_loop:alpha_web
+  restore_action:
+    action_id: action:extension-bisect.exit-and-quarantine-suspect
+    requires_review: true
+    summary: Exit the bisect, restore the prior state, and keep the attributed extension quarantined.
+  restore_conditions:
+    - User reviews the attributed suspect before quarantine is confirmed.
+    - Prior extension state snapshot still references the same workspace.
+    - No mutation widens workspace trust during restore.
+evidence:
+  - evidence_ref: doctor.finding.extension_host_crash_loop_quarantined
+    evidence_kind: project_doctor_finding
+    summary: Project Doctor flagged the extension host as crash-loop quarantined.
+  - evidence_ref: evidence:extension-bisect:host-strikes
+    evidence_kind: restart_budget
+    summary: Extension host reached its strike budget within the active recovery window.
+destructive_resets_present: false
+user_owned_state_deleted: false
+durable_state_deleted: false

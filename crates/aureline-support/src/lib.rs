@@ -45,6 +45,14 @@
 //!   user-owned state. Bound to the boundary schema at
 //!   `/schemas/support/safe_mode_profile.schema.json` and the protected
 //!   fixture corpus at `/fixtures/recovery/m3/safe_mode/`.
+//! - The [`extension_bisect`] beta evaluator — mints typed
+//!   `extension_bisect_session_record`, `extension_bisect_step_record`,
+//!   `extension_bisect_finding_record`, and `extension_bisect_restore_record`
+//!   rows that log tested states, suspected extension sets, user-visible
+//!   findings, and the restore of the prior extension state plus a
+//!   metadata-safe support packet. Bound to the boundary schema at
+//!   `/schemas/support/extension_bisect.schema.json` and the protected
+//!   fixture corpus at `/fixtures/recovery/m3/extension_bisect/`.
 //! - The [`repair`] alpha preview compiler — consumes checked-in repair seed
 //!   cases and emits typed transaction, preview, outcome, and journal records
 //!   before any guided repair can apply.
@@ -86,6 +94,7 @@
 pub mod advisory_baseline;
 pub mod bundle;
 pub mod capabilities;
+pub mod extension_bisect;
 pub mod fitness;
 pub mod project_doctor;
 pub mod publication_dry_run;

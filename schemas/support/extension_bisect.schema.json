@@ -1,0 +1,801 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/extension_bisect.schema.json",
+  "title": "Aureline extension-bisect orchestration session, step, finding, restore, and support-packet contract",
+  "description": "Boundary schema for the extension_bisect_session_record, extension_bisect_step_record, extension_bisect_finding_record, and extension_bisect_restore_record consumed by aureline-support's extension_bisect module. A session logs every tested state and suspected extension set as typed rows; a step records one cohort activation result and its verdict; a finding names the user-visible attribution; a restore record pins the prior-state restoration without deleting user-owned or durable state.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/extension_bisect_session_record"
+    },
+    {
+      "$ref": "#/$defs/extension_bisect_step_record"
+    },
+    {
+      "$ref": "#/$defs/extension_bisect_finding_record"
+    },
+    {
+      "$ref": "#/$defs/extension_bisect_restore_record"
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "session_class": {
+      "type": "string",
+      "enum": [
+        "post_crash_loop_session",
+        "regression_suspected_session",
+        "user_invoked_session",
+        "policy_forced_session"
+      ]
+    },
+    "entry_reason_class": {
+      "type": "string",
+      "enum": [
+        "crash_loop_detected",
+        "extension_regression_suspected",
+        "extension_restart_budget_exceeded",
+        "explicit_user_choice",
+        "policy_forced",
+        "manual_review_required"
+      ]
+    },
+    "blast_radius_class": {
+      "type": "string",
+      "enum": [
+        "single_extension_lane",
+        "cohort_only",
+        "all_third_party_extensions",
+        "full_extension_host"
+      ]
+    },
+    "prior_state_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled",
+        "quarantined",
+        "not_installed"
+      ]
+    },
+    "extension_class": {
+      "type": "string",
+      "enum": [
+        "first_party_repo_owned",
+        "first_party_marketplace",
+        "third_party_marketplace",
+        "third_party_offline_bundle"
+      ]
+    },
+    "disabled_capability_class": {
+      "type": "string",
+      "enum": [
+        "extension_auto_activation",
+        "extension_host_launch",
+        "extension_marketplace_sync",
+        "session_restore_auto_replay",
+        "remote_helper_attach",
+        "ai_runtime_access",
+        "background_rebuild"
+      ]
+    },
+    "preserved_capability_class": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "basic_navigation",
+        "local_search",
+        "local_git_operations",
+        "local_diagnostics_export",
+        "support_bundle_preview",
+        "project_doctor_surfaces",
+        "safe_mode_exit_action",
+        "extension_bisect_exit_action"
+      ]
+    },
+    "preserved_state_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_files",
+        "open_buffer_selection",
+        "durable_workspace_indexes",
+        "workspace_trust_store",
+        "credential_store",
+        "session_restore_store",
+        "support_export_store",
+        "extension_prior_state_snapshot"
+      ]
+    },
+    "step_class": {
+      "type": "string",
+      "enum": [
+        "initial_baseline_check",
+        "cohort_activation",
+        "cohort_verification",
+        "exit_baseline_check"
+      ]
+    },
+    "cohort_activation_result_class": {
+      "type": "string",
+      "enum": [
+        "reproduces_failure",
+        "no_failure_observed",
+        "inconclusive_evidence",
+        "aborted_by_user",
+        "aborted_by_policy"
+      ]
+    },
+    "step_verdict_class": {
+      "type": "string",
+      "enum": [
+        "cohort_suspect_narrowed",
+        "cohort_cleared",
+        "cohort_inconclusive",
+        "cohort_run_aborted"
+      ]
+    },
+    "suspect_confidence_class": {
+      "type": "string",
+      "enum": [
+        "single_suspect_isolated",
+        "narrow_set_suspected",
+        "broad_set_suspected",
+        "no_suspect_identified"
+      ]
+    },
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "single_extension_suspected",
+        "multi_extension_suspected",
+        "no_extension_suspected",
+        "environmental_factor_suspected",
+        "bisect_aborted_no_finding"
+      ]
+    },
+    "restore_disposition_class": {
+      "type": "string",
+      "enum": [
+        "prior_state_restored_exact",
+        "prior_state_restored_with_quarantine",
+        "prior_state_unchanged",
+        "restore_deferred_pending_review"
+      ]
+    },
+    "review_gate_class": {
+      "type": "string",
+      "enum": [
+        "user_confirmation_required",
+        "admin_signed_review_required",
+        "no_review_required"
+      ]
+    },
+    "escalation_action_class": {
+      "type": "string",
+      "enum": [
+        "escalate_to_extension_quarantine",
+        "escalate_to_safe_mode",
+        "escalate_to_rollback_reinstall_candidate",
+        "export_escalation_packet"
+      ]
+    },
+    "support_attribution_surface_class": {
+      "type": "string",
+      "enum": [
+        "support_export",
+        "activity_history",
+        "recovery_ladder_packet"
+      ]
+    },
+    "candidate_extension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extension_id",
+        "extension_class",
+        "prior_state_class",
+        "display_label"
+      ],
+      "properties": {
+        "extension_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "extension_class": {
+          "$ref": "#/$defs/extension_class"
+        },
+        "prior_state_class": {
+          "$ref": "#/$defs/prior_state_class"
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "tested_state_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tested_state_id",
+        "cohort_id",
+        "cohort_member_refs",
+        "activation_result_class",
+        "reviewer_summary"
+      ],
+      "properties": {
+        "tested_state_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "cohort_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "cohort_member_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "activation_result_class": {
+          "$ref": "#/$defs/cohort_activation_result_class"
+        },
+        "reviewer_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "suspect_set_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suspect_set_id",
+        "confidence_class",
+        "member_extension_refs",
+        "narrowing_summary"
+      ],
+      "properties": {
+        "suspect_set_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "confidence_class": {
+          "$ref": "#/$defs/suspect_confidence_class"
+        },
+        "member_extension_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "narrowing_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "user_visible_finding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "finding_class",
+        "user_visible_summary"
+      ],
+      "properties": {
+        "finding_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "finding_class": {
+          "$ref": "#/$defs/finding_class"
+        },
+        "user_visible_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "restore_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "summary",
+        "requires_review"
+      ],
+      "properties": {
+        "action_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "requires_review": {
+          "type": "boolean"
+        }
+      }
+    },
+    "restore_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prior_state_snapshot_ref",
+        "restore_action",
+        "restore_conditions"
+      ],
+      "properties": {
+        "prior_state_snapshot_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "restore_action": {
+          "$ref": "#/$defs/restore_action"
+        },
+        "restore_conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reviewable_sentence"
+          }
+        }
+      }
+    },
+    "restored_extension_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "extension_id",
+        "prior_state_class",
+        "restored_state_class",
+        "reviewer_summary"
+      ],
+      "properties": {
+        "extension_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "prior_state_class": {
+          "$ref": "#/$defs/prior_state_class"
+        },
+        "restored_state_class": {
+          "$ref": "#/$defs/prior_state_class"
+        },
+        "reviewer_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_ref",
+        "evidence_kind",
+        "summary"
+      ],
+      "properties": {
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_kind": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "extension_bisect_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "session_id",
+        "session_class",
+        "entry_reason_class",
+        "captured_at",
+        "doctor_finding_ref",
+        "support_packet_ref",
+        "blast_radius_class",
+        "review_gate_class",
+        "candidate_extensions",
+        "disabled_capability_classes",
+        "preserved_capability_classes",
+        "preserved_state_classes",
+        "tested_states",
+        "suspected_extension_sets",
+        "findings",
+        "restore_plan",
+        "evidence",
+        "destructive_resets_present",
+        "user_owned_state_deleted",
+        "durable_state_deleted"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "extension_bisect_session_record"
+        },
+        "session_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "session_class": {
+          "$ref": "#/$defs/session_class"
+        },
+        "entry_reason_class": {
+          "$ref": "#/$defs/entry_reason_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "doctor_finding_ref": {
+          "type": "string",
+          "pattern": "^doctor\\.finding\\."
+        },
+        "support_packet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "blast_radius_class": {
+          "$ref": "#/$defs/blast_radius_class"
+        },
+        "review_gate_class": {
+          "$ref": "#/$defs/review_gate_class"
+        },
+        "candidate_extensions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/candidate_extension"
+          }
+        },
+        "disabled_capability_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/disabled_capability_class"
+          },
+          "contains": {
+            "const": "extension_auto_activation"
+          }
+        },
+        "preserved_capability_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_capability_class"
+          },
+          "contains": {
+            "const": "local_editing"
+          }
+        },
+        "preserved_state_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          },
+          "contains": {
+            "const": "user_authored_files"
+          }
+        },
+        "tested_states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tested_state_row"
+          }
+        },
+        "suspected_extension_sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/suspect_set_row"
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/user_visible_finding_row"
+          }
+        },
+        "restore_plan": {
+          "$ref": "#/$defs/restore_plan"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence_ref"
+          }
+        },
+        "destructive_resets_present": {
+          "type": "boolean",
+          "const": false
+        },
+        "user_owned_state_deleted": {
+          "type": "boolean",
+          "const": false
+        },
+        "durable_state_deleted": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "extension_bisect_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "step_id",
+        "step_class",
+        "session_ref",
+        "captured_at",
+        "cohort_id",
+        "cohort_member_refs",
+        "activation_result_class",
+        "verdict_class",
+        "reviewer_summary",
+        "evidence_refs",
+        "user_owned_state_deleted",
+        "durable_state_deleted"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "extension_bisect_step_record"
+        },
+        "step_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "step_class": {
+          "$ref": "#/$defs/step_class"
+        },
+        "session_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "cohort_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "cohort_member_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "activation_result_class": {
+          "$ref": "#/$defs/cohort_activation_result_class"
+        },
+        "verdict_class": {
+          "$ref": "#/$defs/step_verdict_class"
+        },
+        "reviewer_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "user_owned_state_deleted": {
+          "type": "boolean",
+          "const": false
+        },
+        "durable_state_deleted": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "step_class": {
+                "const": "initial_baseline_check"
+              }
+            },
+            "required": [
+              "step_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "cohort_member_refs": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "step_class": {
+                "const": "cohort_activation"
+              }
+            },
+            "required": [
+              "step_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "cohort_member_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "extension_bisect_finding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "finding_id",
+        "finding_class",
+        "session_ref",
+        "captured_at",
+        "suspect_extension_refs",
+        "user_visible_summary",
+        "support_packet_ref",
+        "escalation_actions"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "extension_bisect_finding_record"
+        },
+        "finding_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "finding_class": {
+          "$ref": "#/$defs/finding_class"
+        },
+        "session_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "suspect_extension_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "user_visible_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "support_packet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "escalation_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/escalation_action_class"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "finding_class": {
+                "enum": [
+                  "single_extension_suspected",
+                  "multi_extension_suspected"
+                ]
+              }
+            },
+            "required": [
+              "finding_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suspect_extension_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "extension_bisect_restore_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "restore_id",
+        "session_ref",
+        "captured_at",
+        "restore_disposition_class",
+        "prior_state_snapshot_ref",
+        "restored_extensions",
+        "preserved_state_classes_observed",
+        "user_owned_state_deleted",
+        "durable_state_deleted",
+        "support_packet_ref"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "extension_bisect_restore_record"
+        },
+        "restore_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "session_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "restore_disposition_class": {
+          "$ref": "#/$defs/restore_disposition_class"
+        },
+        "prior_state_snapshot_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "restored_extensions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/restored_extension_row"
+          }
+        },
+        "preserved_state_classes_observed": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/preserved_state_class"
+          },
+          "contains": {
+            "const": "user_authored_files"
+          }
+        },
+        "user_owned_state_deleted": {
+          "type": "boolean",
+          "const": false
+        },
+        "durable_state_deleted": {
+          "type": "boolean",
+          "const": false
+        },
+        "support_packet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    }
+  }
+}
