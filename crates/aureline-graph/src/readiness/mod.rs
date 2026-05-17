@@ -4,6 +4,8 @@
 //! navigation, AI context selection, review seeds, and support exports need
 //! in order to show graph truth without exposing raw graph internals.
 
+pub mod beta;
+
 use serde::{Deserialize, Serialize};
 
 use aureline_graph_proto::{EdgeEvidenceState, Freshness};
