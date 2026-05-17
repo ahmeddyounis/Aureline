@@ -26,16 +26,20 @@ other archetypes.
 
 ## Evidence already on file
 
-- Reference workspace: `reservation:fixtures/workspaces/reference/java_kotlin_service_archetype_seed.json`.
-- Corpus scenarios: `reservation:archetype.java_kotlin_service_first_open`,
-  `reservation:workflow.first_useful_edit_java_kotlin_service`.
+- Reference workspace: `refws.java_kotlin_service_archetype_seed`
+  ([fixture](../../workspaces/reference/java_kotlin_service_archetype_seed.json)).
+- Beta packet and harness:
+  `fixtures/reference_workspaces/m3/jvm_service/workspace.yaml`,
+  `fixtures/reference_workspaces/m3/jvm_service/harness.yaml`.
+- Corpus scenarios: `corpus.reference.java_kotlin_service_archetype_seed`,
+  `corpus.archetype.java_kotlin_service_seed`,
+  `corpus.workflow.first_useful_edit_java_kotlin_service`.
 - Design-partner input class: `sanitised_repo_admissible`.
 
 ## Open evidence questions
 
-- Materialise the reservation slot for the synthetic seed workspace
-  before any graduation step. The slot exists so the row can be cited
-  by tooling without a renaming churn when the fixture lands.
+- Capture current pass/fail results for the seeded workflow harness
+  before any graduation step.
 - Decide whether the certified path requires both Gradle and Maven
   evidence, or whether one of them stays at supported.
 - Capture the wrapper-trust posture (workspace trust, run-on-open

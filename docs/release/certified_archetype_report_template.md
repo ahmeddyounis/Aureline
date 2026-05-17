@@ -8,6 +8,8 @@ Related control artifacts:
 - artifacts/compat/qualification_matrix_seed.yaml
 - artifacts/compat/version_skew_register.yaml
 - artifacts/compat/m3/skew_window_matrix.yaml
+- artifacts/compat/m3/reference_workspace_register.yaml
+- docs/compat/m3/reference_workspaces_beta.md
 - artifacts/compat/m3/compatibility_report.md
 - artifacts/compat/m3/compatibility_report.json
 - schemas/governance/compatibility_report.schema.json
@@ -19,6 +21,7 @@ Related control artifacts:
 - artifacts/governance/evidence_rerun_triggers.yaml
 - fixtures/benchmarks/corpus_manifest.yaml
 - fixtures/workspaces/reference/
+- fixtures/reference_workspaces/m3/
 - artifacts/perf/reference_laptop_matrix.yaml
 - artifacts/platform/claimed_desktop_profiles.yaml
 - docs/platform/desktop_platform_conformance_matrix.md
@@ -71,6 +74,10 @@ Every certified-archetype report SHOULD:
   are current, caveated, retest-pending, or stale
 - **Linked compatibility report refs:** packet ids or repo-relative
   paths
+- **Linked reference-workspace register refs:** packet ids or
+  repo-relative paths, including
+  `artifacts/compat/m3/reference_workspace_register.yaml` when the
+  report makes a beta archetype claim
 
 ## Required matrices
 

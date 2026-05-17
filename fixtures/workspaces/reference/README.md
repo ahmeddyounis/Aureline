@@ -55,6 +55,9 @@ Each fixture is a JSON document that:
 | [`small_rust_self_host_slice.json`](./small_rust_self_host_slice.json) | `refws.small_rust_self_host_slice`              | `rust_workspace_self_host` | `small`    | `live_repo_slice`   |
 | [`ts_web_app_archetype_seed.json`](./ts_web_app_archetype_seed.json)   | `refws.ts_web_app_archetype_seed`               | `ts_web_app`               | `tiny`     | `described_bytes`   |
 | [`python_data_app_archetype_seed.json`](./python_data_app_archetype_seed.json) | `refws.python_data_app_archetype_seed`   | `python_data_app`          | `tiny`     | `described_bytes`   |
+| [`java_kotlin_service_archetype_seed.json`](./java_kotlin_service_archetype_seed.json) | `refws.java_kotlin_service_archetype_seed` | `java_or_kotlin_service` | `tiny`     | `described_bytes`   |
+| [`go_service_archetype_seed.json`](./go_service_archetype_seed.json)   | `refws.go_service_archetype_seed`               | `go_service_or_monorepo_slice` | `tiny` | `described_bytes`   |
+| [`c_cpp_native_archetype_seed.json`](./c_cpp_native_archetype_seed.json) | `refws.c_cpp_native_archetype_seed`           | `c_or_cpp_native_project` | `tiny`     | `described_bytes`   |
 | [`misc_folder_unknown_archetype.json`](./misc_folder_unknown_archetype.json) | `refws.misc_folder_unknown_archetype`      | `misc_folder`              | `micro`    | `described_bytes`   |
 | [`partially_ready_restore_seed.json`](./partially_ready_restore_seed.json)   | `refws.partially_ready_restore_seed`       | `misc_folder`              | `tiny`     | `described_bytes`   |
 

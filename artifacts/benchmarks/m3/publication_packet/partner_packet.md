@@ -10,6 +10,8 @@ Current posture:
 - `methodology-only`
 - `not_yet_comparable`
 - corpus and reference hardware metadata are publishable
+- beta reference-workspace corpus rows are named in
+  `artifacts/compat/m3/reference_workspace_register.yaml`
 - thresholds and freshness/rerun triggers are inspectable
 - public result-table copy is withheld until the required reruns complete
 

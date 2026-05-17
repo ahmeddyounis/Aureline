@@ -39,6 +39,8 @@ Related control artifacts:
 - artifacts/bench/protected_metrics.yaml
 - docs/benchmarks/fitness_function_catalog.md
 - docs/compat/compatibility_row_seed.md
+- artifacts/compat/m3/reference_workspace_register.yaml
+- docs/compat/m3/reference_workspaces_beta.md
 - docs/deployment/drill_catalog_seed.md
 - schemas/release/waiver_packet.schema.json
 - artifacts/evidence/evidence_metadata_fields.yaml
@@ -203,6 +205,12 @@ preview-only, or claim-narrowed.
     `ci/check_cohort_archetype_scorecards.py` and inherits owner,
     freshness date, open waivers, and downgrade policy from each
     scorecard.
+- **Reference-workspace corpus register:**
+  - Beta register:
+    `artifacts/compat/m3/reference_workspace_register.yaml`
+  - Any beta archetype claim cited above SHOULD name the register row,
+    workspace packet, harness, and corpus refs that supply its
+    reproducible workspace proof.
 
 ## Test quarantine and mute debt
 

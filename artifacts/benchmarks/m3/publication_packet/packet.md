@@ -105,6 +105,37 @@ corpus_pins:
     fixture_packet_ref: fixtures/reference_workspaces/m2/python_service_data_workflows.yaml
     privacy_decision: admit_public
     repeatability_note: synthetic_descriptor_no_private_bytes
+  - fixture_register_row_ref: m3_reference_workspace:jvm_service
+    corpus_refs:
+      - corpus.reference.java_kotlin_service_archetype_seed
+      - corpus.archetype.java_kotlin_service_seed
+      - corpus.workflow.first_useful_edit_java_kotlin_service
+    fixture_packet_ref: fixtures/reference_workspaces/m3/jvm_service/workspace.yaml
+    privacy_decision: admit_public
+    repeatability_note: synthetic_descriptor_no_private_bytes
+  - fixture_register_row_ref: m3_reference_workspace:rust_workspace
+    corpus_refs:
+      - corpus.reference.small_rust_self_host_slice
+      - corpus.workflow.first_useful_edit_rust_self_host
+    fixture_packet_ref: fixtures/reference_workspaces/m3/rust_workspace/workspace.yaml
+    privacy_decision: admit_public
+    repeatability_note: live_repo_slice_records_commit_and_resolved_files
+  - fixture_register_row_ref: m3_reference_workspace:go_service
+    corpus_refs:
+      - corpus.reference.go_service_archetype_seed
+      - corpus.archetype.go_service_seed
+      - corpus.workflow.first_useful_edit_go_service
+    fixture_packet_ref: fixtures/reference_workspaces/m3/go_service/workspace.yaml
+    privacy_decision: admit_public
+    repeatability_note: synthetic_descriptor_no_private_bytes
+  - fixture_register_row_ref: m3_reference_workspace:cpp_native
+    corpus_refs:
+      - corpus.reference.c_cpp_native_archetype_seed
+      - corpus.archetype.c_cpp_native_seed
+      - corpus.workflow.first_useful_edit_c_cpp_native
+    fixture_packet_ref: fixtures/reference_workspaces/m3/cpp_native/workspace.yaml
+    privacy_decision: admit_public
+    repeatability_note: synthetic_descriptor_no_private_bytes
 
 reference_hardware_pins:
   manifest_ref: artifacts/perf/reference_hardware_manifest.yaml
@@ -217,6 +248,7 @@ artifact_links:
   fixture_register_ref: artifacts/benchmarks/m2_fixture_register.yaml
   source_anchor_refs:
     - artifacts/milestones/m3/public_proof_index.md
+    - artifacts/compat/m3/reference_workspace_register.yaml
     - docs/governance/m3/publication_shelf_life_policy.md
     - docs/benchmarks/benchmark_publication_pack_template.md
     - artifacts/benchmarks/m3/benchmark_council_notes.md

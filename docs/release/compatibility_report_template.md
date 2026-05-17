@@ -17,6 +17,8 @@ Related control artifacts:
 - docs/migration/compatibility_scorecard_contract.md
 - schemas/migration/compatibility_scorecard.schema.json
 - artifacts/migration/top_imported_workflow_rows.yaml
+- artifacts/compat/m3/reference_workspace_register.yaml
+- docs/compat/m3/reference_workspaces_beta.md
 - docs/release/certified_archetype_report_template.md
 - docs/release/release_evidence_packet_template.md
 - docs/governance/dogfood_issue_taxonomy.md
@@ -58,8 +60,9 @@ Every compatibility report SHOULD:
   `version_skew_register_ref` exactly as they appear in
   `artifacts/compat/qualification_matrix_seed.yaml`; and
 - link any certified-workspace or launch-language claims back to
-  `docs/release/certified_archetype_report_template.md` instead of
-  restating them locally.
+  `docs/release/certified_archetype_report_template.md` and the
+  current reference-workspace register instead of restating them
+  locally.
 
 ## Report metadata
 

@@ -25,16 +25,20 @@ the certified row at first stable.
 
 ## Evidence already on file
 
-- Reference workspace: `reservation:fixtures/workspaces/reference/c_cpp_native_archetype_seed.json`.
-- Corpus scenarios: `reservation:archetype.c_cpp_native_first_open`,
-  `reservation:workflow.first_useful_edit_c_cpp_native`.
+- Reference workspace: `refws.c_cpp_native_archetype_seed`
+  ([fixture](../../workspaces/reference/c_cpp_native_archetype_seed.json)).
+- Beta packet and harness:
+  `fixtures/reference_workspaces/m3/cpp_native/workspace.yaml`,
+  `fixtures/reference_workspaces/m3/cpp_native/harness.yaml`.
+- Corpus scenarios: `corpus.reference.c_cpp_native_archetype_seed`,
+  `corpus.archetype.c_cpp_native_seed`,
+  `corpus.workflow.first_useful_edit_c_cpp_native`.
 - Design-partner input class: `sanitised_repo_admissible`.
 
 ## Open evidence questions
 
-- Materialise the reservation slot for the synthetic seed workspace
-  before any graduation step. The row currently has no inspectable
-  reference workspace.
+- Capture current pass/fail results for the seeded workflow harness
+  before any graduation step.
 - Decide whether `clangd` is the only certified language-server path
   or whether the row admits an alternate analyzer with caveats.
 - Capture the debugger trust posture: `lldb` and `gdb` differ on

@@ -25,12 +25,16 @@ minimum_mode_matrix:
   - local_only
 evidence_refs:
   - artifacts/compat/reference_workspace_rows.yaml#archetype_row:java_or_kotlin_service
+  - artifacts/compat/m3/reference_workspace_register.yaml#m3_reference_workspace:jvm_service
+  - fixtures/reference_workspaces/m3/jvm_service/workspace.yaml
+  - fixtures/reference_workspaces/m3/jvm_service/harness.yaml
+  - docs/compat/m3/reference_workspaces_beta.md
   - docs/release/certified_archetype_report_template.md
 open_waivers:
   - waiver_id: waiver:archetype.java_or_kotlin_service.first_beta_seed
     state: active
     expires_on: "2026-06-30"
-    impact: "Reference workspace fixture is reservation-only at M3 entry; the row holds a Limited claim until the workspace and capture land."
+    impact: "Reference workspace fixture and pass/fail harness are seeded; the row holds a Limited claim until current workflow captures land."
     propagation_refs:
       - artifacts/feedback/external_alpha_known_limits.md
       - docs/release/certified_archetype_report_template.md
@@ -54,6 +58,7 @@ owner_handoff_path:
   escalation_ref: docs/governance/decision_rights_and_signoff_matrix.md
 consuming_surfaces:
   - docs/milestones/m3/beta_admission_matrix.md
+  - docs/compat/m3/reference_workspaces_beta.md
   - docs/release/certified_archetype_report_template.md
   - docs/release/compatibility_report_template.md
   - docs/migration/compatibility_scorecard_contract.md
@@ -69,13 +74,13 @@ This scorecard is the reviewer-facing readiness summary for
 The archetype row holds its declared support class while:
 
 - a reference workspace, toolchain matrix, and benchmark corpus row are
-  current for Gradle, Maven, and the named JVM toolchain;
+  current for Gradle/Kotlin and the named JVM toolchain;
 - the seeded workflow set boots, opens, searches, renames, runs tests, and
   supports debug on the current beta build; and
 - no open waiver narrows the public claim past the declared class.
 
 The first-beta waiver is active; the validator derives a `limited` effective
-state until the reference workspace and capture land.
+state until current workflow captures land.
 
 ## Downgrade triggers
 

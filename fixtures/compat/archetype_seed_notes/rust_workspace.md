@@ -27,6 +27,9 @@ than a vendored copy.
 
 - Reference workspace: `refws.small_rust_self_host_slice`
   ([fixture](../../workspaces/reference/small_rust_self_host_slice.json)).
+- Beta packet and harness:
+  `fixtures/reference_workspaces/m3/rust_workspace/workspace.yaml`,
+  `fixtures/reference_workspaces/m3/rust_workspace/harness.yaml`.
 - Corpus scenarios:
   `workflow.startup_rust_self_host_slice`,
   `workflow.first_useful_edit_rust_self_host`,

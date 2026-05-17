@@ -25,6 +25,10 @@ minimum_mode_matrix:
   - local_only
 evidence_refs:
   - artifacts/compat/reference_workspace_rows.yaml#archetype_row:rust_workspace
+  - artifacts/compat/m3/reference_workspace_register.yaml#m3_reference_workspace:rust_workspace
+  - fixtures/reference_workspaces/m3/rust_workspace/workspace.yaml
+  - fixtures/reference_workspaces/m3/rust_workspace/harness.yaml
+  - docs/compat/m3/reference_workspaces_beta.md
   - docs/release/certified_archetype_report_template.md
 open_waivers: []
 downgrade_policy:
@@ -47,6 +51,7 @@ owner_handoff_path:
   escalation_ref: docs/governance/decision_rights_and_signoff_matrix.md
 consuming_surfaces:
   - docs/milestones/m3/beta_admission_matrix.md
+  - docs/compat/m3/reference_workspaces_beta.md
   - docs/release/certified_archetype_report_template.md
   - docs/release/compatibility_report_template.md
   - docs/migration/compatibility_scorecard_contract.md

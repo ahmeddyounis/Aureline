@@ -18,6 +18,9 @@ Companion artifacts:
   — per-archetype seed rows for the v1.0 inventory plus explicit
   exclusion rows for archetypes intentionally outside the foundations
   scope.
+- [`/artifacts/compat/m3/reference_workspace_register.yaml`](../../artifacts/compat/m3/reference_workspace_register.yaml)
+  — beta reference-workspace corpus register with owners, toolchain
+  pins, privacy/license posture, workflow harnesses, and consumer refs.
 - [`/fixtures/compat/archetype_seed_notes/`](../../fixtures/compat/archetype_seed_notes/)
   — one short notes file per archetype row recording the representative
   stack, the required-mode rationale, and any open evidence questions.
@@ -103,10 +106,10 @@ archetype rows. Each row binds to
 |---|---|---|---|---|---|
 | `archetype_row:ts_web_app_or_service` | `ts_web_app` | `experimental` | `certified` | `first_stable` | `refws.ts_web_app_archetype_seed` |
 | `archetype_row:python_service_or_data_app` | `python_data_app` | `experimental` | `certified` | `first_stable` | `refws.python_data_app_archetype_seed` |
-| `archetype_row:java_or_kotlin_service` | `java_or_kotlin_service` | `experimental` | `certified` | `first_stable` | reservation under `fixtures/workspaces/reference/` |
+| `archetype_row:java_or_kotlin_service` | `java_or_kotlin_service` | `experimental` | `certified` | `first_stable` | `refws.java_kotlin_service_archetype_seed` |
 | `archetype_row:rust_workspace` | `rust_workspace_self_host` | `supported` | `certified` | `foundations` | `refws.small_rust_self_host_slice` |
-| `archetype_row:go_service_or_monorepo_slice` | `go_service_or_monorepo_slice` | `experimental` | `certified` | `first_stable` | reservation under `fixtures/workspaces/reference/` |
-| `archetype_row:c_or_cpp_native_project` | `c_or_cpp_native_project` | `experimental` | `certified` | `first_stable` | reservation under `fixtures/workspaces/reference/` |
+| `archetype_row:go_service_or_monorepo_slice` | `go_service_or_monorepo_slice` | `experimental` | `certified` | `first_stable` | `refws.go_service_archetype_seed` |
+| `archetype_row:c_or_cpp_native_project` | `c_or_cpp_native_project` | `experimental` | `certified` | `first_stable` | `refws.c_cpp_native_archetype_seed` |
 | `archetype_row:dotnet_service_or_app` | `dotnet_service_or_app` | `experimental` | `supported` | `first_beta` | reservation under `fixtures/workspaces/reference/` |
 | `archetype_row:notebook_first_data_workflow` | `notebook_first_data_workflow` | `experimental` | `supported` | `first_beta` | reservation under `fixtures/workspaces/reference/` |
 

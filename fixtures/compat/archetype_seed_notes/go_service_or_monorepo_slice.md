@@ -25,18 +25,23 @@ shapes share the same workflow set.
 
 ## Evidence already on file
 
-- Reference workspace: `reservation:fixtures/workspaces/reference/go_service_archetype_seed.json`.
-- Corpus scenarios: `reservation:archetype.go_service_first_open`,
-  `reservation:workflow.first_useful_edit_go_service`.
+- Reference workspace: `refws.go_service_archetype_seed`
+  ([fixture](../../workspaces/reference/go_service_archetype_seed.json)).
+- Beta packet and harness:
+  `fixtures/reference_workspaces/m3/go_service/workspace.yaml`,
+  `fixtures/reference_workspaces/m3/go_service/harness.yaml`.
+- Corpus scenarios: `corpus.reference.go_service_archetype_seed`,
+  `corpus.archetype.go_service_seed`,
+  `corpus.workflow.first_useful_edit_go_service`.
 - Design-partner input class: `sanitised_repo_admissible`.
 
 ## Open evidence questions
 
-- Materialise the reservation slot for the synthetic seed workspace
+- Capture current pass/fail results for the seeded workflow harness
   before the row may move out of `experimental`.
 - Decide whether the certified path requires both go-modules and
   go-workspaces evidence rows or whether a workspace is the canonical
   shape with module support inheriting through it.
 - Capture the dependency-view workflow shape; the row mentions it but
-  the corpus reservation does not yet name a scenario that exercises
-  it end to end.
+  the seeded harness does not yet carry a dedicated dependency-view
+  pass/fail capture.

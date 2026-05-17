@@ -18,6 +18,22 @@ rules.
 - Beta admission validator: `ci/check_beta_admission.py`
 - Latest validation capture: `artifacts/milestones/m3/captures/beta_admission_validation_capture.json`
 
+## Beta reference-workspace corpus
+
+The beta reference-workspace corpus names the exact JVM, Rust, Go, and
+C/C++ workspaces that archetype scorecards, compatibility evidence,
+benchmark packets, migration probes, and support exports may cite. The
+register is versioned and owner-backed; a row must carry toolchain pins,
+privacy/license clearance, OS/arch and mode scope, workflow coverage,
+and pass/fail harness entries before it can back a beta claim.
+
+- Register: `artifacts/compat/m3/reference_workspace_register.yaml`
+- Reviewer doc: `docs/compat/m3/reference_workspaces_beta.md`
+- Workspace packets: `fixtures/reference_workspaces/m3/`
+- Validator: `ci/check_m3_reference_workspace_register.py`
+- Latest validation capture:
+  `artifacts/compat/m3/captures/reference_workspace_register_validation_capture.json`
+
 ## Beta compatibility report
 
 The beta compatibility report is generated from the checked-in

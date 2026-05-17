@@ -213,6 +213,15 @@ is checked in today.
 - `python_interpreter_declared_only` — the fixture's package
   manifest declares an interpreter; no virtual environment is
   required by the fixture itself.
+- `jvm_toolchain_declared_only` — the fixture's JDK/build manifest
+  declares exact versions; no wrapper, dependency cache, or build
+  output is required by the fixture itself.
+- `go_toolchain_declared_only` — the fixture's module or workspace
+  manifest declares the Go version; no module cache is required by the
+  fixture itself.
+- `c_cpp_toolchain_declared_only` — the fixture's CMake or preset
+  manifest declares the native tools; generated host paths and build
+  output are populated out of band.
 
 ## 8. Archetype placeholder tags and support classes
 
@@ -223,7 +232,10 @@ compatibility scoreboards compose against one vocabulary:
 
 - `ts_web_app`
 - `python_data_app`
+- `java_or_kotlin_service`
 - `rust_workspace_self_host`
+- `go_service_or_monorepo_slice`
+- `c_or_cpp_native_project`
 - `misc_folder`
 - `not_archetype_bound` — the fixture is not archetype-sensitive
   (microbenchmarks, boundary cases).
