@@ -6,7 +6,7 @@
 //! artifact, the same governance truth the record-class registry pins:
 //!
 //! - which [`ArtifactClass`] the row falls into (local-only, managed-copy,
-//!   held, queued-for-delete, or export-only);
+//!   held, queued-for-delete, deleted, retained-for-evidence, or export-only);
 //! - the current [`HoldState`] plus any [`HoldClass`] that gates the row;
 //! - the [`RetentionOwnerClass`] and the local/managed owner refs that
 //!   inherit from the registry row;
@@ -78,6 +78,12 @@ pub enum ArtifactClass {
     /// A delete request has been accepted but has not completed; the
     /// row carries delete-state truth instead of pretending it is gone.
     QueuedForDelete,
+    /// A delete request completed and no managed, held, receipt-only,
+    /// or exported evidence copy remains in scope.
+    Deleted,
+    /// The payload was deleted, skipped, or narrowed while evidence
+    /// metadata remains for audit, support, or policy review.
+    RetainedForEvidence,
     /// The artifact only ever existed as a generated export packet
     /// (e.g. usage export, offboarding exit packet, destruction
     /// receipt). There is no durable in-product row to keep.
@@ -92,6 +98,8 @@ impl ArtifactClass {
             Self::ManagedCopy => "managed_copy",
             Self::Held => "held",
             Self::QueuedForDelete => "queued_for_delete",
+            Self::Deleted => "deleted",
+            Self::RetainedForEvidence => "retained_for_evidence",
             Self::ExportOnly => "export_only",
         }
     }
@@ -103,6 +111,8 @@ impl ArtifactClass {
             Self::ManagedCopy => "Managed copy retained",
             Self::Held => "Held — destructive actions blocked",
             Self::QueuedForDelete => "Queued for delete — not yet gone",
+            Self::Deleted => "Deleted — no remaining in-scope copy",
+            Self::RetainedForEvidence => "Retained for evidence",
             Self::ExportOnly => "Export packet — no durable in-product row",
         }
     }
@@ -641,11 +651,11 @@ pub fn evaluate_records_governance_packet(
     }
 
     let registry = current_registry()?;
-    let row = registry
-        .row(inputs.record_class_id)
-        .ok_or(RecordsGovernanceError::RecordClassUnregistered {
+    let row = registry.row(inputs.record_class_id).ok_or(
+        RecordsGovernanceError::RecordClassUnregistered {
             record_class_id: inputs.record_class_id,
-        })?;
+        },
+    )?;
 
     // Hold-state shape validation. Eligibility is checked first so a
     // hold-ineligible class never reports a less-precise "hold class
@@ -841,12 +851,29 @@ fn derive_artifact_class(
         return ArtifactClass::QueuedForDelete;
     }
 
-    // Export-only classes: the class scope is export_packet or receipt
-    // — there's no durable in-product row, only the generated packet.
-    if matches!(
-        row.class_scope,
-        RecordClassScope::ExportPacket | RecordClassScope::Receipt
-    ) {
+    let has_receipt_evidence = chain.iter().any(|event| {
+        matches!(event.action_class, CustodyActionClass::ReceiptIssued)
+            || matches!(
+                event.location_class,
+                CustodyLocationClass::DestructionReceiptOnly
+                    | CustodyLocationClass::ManagedArchivePolicyRetained
+            )
+    }) || matches!(row.class_scope, RecordClassScope::Receipt);
+
+    if has_delete_requested && has_delete_completed {
+        if has_receipt_evidence || !matches!(caveat, DestructionCaveatClass::None) {
+            return ArtifactClass::RetainedForEvidence;
+        }
+        return ArtifactClass::Deleted;
+    }
+
+    if has_receipt_evidence {
+        return ArtifactClass::RetainedForEvidence;
+    }
+
+    // Export-only classes: the class scope is export_packet, so there's
+    // no durable in-product row, only the generated packet.
+    if matches!(row.class_scope, RecordClassScope::ExportPacket) {
         return ArtifactClass::ExportOnly;
     }
 
@@ -878,8 +905,12 @@ fn derived_class_reason(derived: ArtifactClass) -> &'static str {
         ArtifactClass::QueuedForDelete => {
             "a delete was requested but not completed in the custody chain"
         }
+        ArtifactClass::Deleted => "a delete completed with no retained evidence location",
+        ArtifactClass::RetainedForEvidence => {
+            "a receipt, policy-retained location, or destruction caveat remains"
+        }
         ArtifactClass::ExportOnly => {
-            "the registry class scope is export_packet or receipt with no durable in-product row"
+            "the registry class scope is export_packet with no durable in-product row"
         }
         ArtifactClass::ManagedCopy => {
             "the registry scope, destruction caveat, or custody chain indicates a managed copy"
@@ -1160,7 +1191,10 @@ mod tests {
             evaluate_records_governance_packet(local_only_inputs()).expect("packet evaluates");
         let seed = records_governance_preview_item_seed(&packet);
         assert_eq!(seed.data_class, DiagnosticDataClass::MetadataOnly);
-        assert_eq!(seed.high_risk_content_class, HighRiskContentClass::NotApplicable);
+        assert_eq!(
+            seed.high_risk_content_class,
+            HighRiskContentClass::NotApplicable
+        );
         assert_eq!(
             seed.support_pack_item_id,
             SUPPORT_ITEM_RECORDS_GOVERNANCE_PACKET

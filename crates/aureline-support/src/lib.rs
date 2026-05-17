@@ -89,6 +89,9 @@
 //!   typed records-governance packet per artifact so support exports
 //!   carry artifact-class, hold-state, retention-owner, chain-of-custody,
 //!   and destruction-caveat truth instead of implying it.
+//! - The [`bundle::deletion_and_hold`] projection — adds held-record
+//!   selectors, stable deletion-honesty labels, and metadata-only
+//!   destruction receipt rows to the same support-bundle preview path.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only

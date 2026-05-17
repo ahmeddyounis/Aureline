@@ -15,11 +15,14 @@
 //! - [`preview`] — [`SupportBundlePreviewBuilder`] and
 //!   [`SupportBundlePreview`]: the live local-preview projection the
 //!   chrome renders before any export step.
+//! - [`deletion_and_hold`] — shared deletion-honesty labels, held-record
+//!   selectors, and support destruction-receipt rows.
 //! - [`crash_linkage`] — support preview row generation for
 //!   [`aureline_crash::CrashIncidentTrail`].
 //! - [`notices`] — metadata-only notice digest preview row generation.
 
 pub mod crash_linkage;
+pub mod deletion_and_hold;
 pub mod exact_build;
 pub mod manifest;
 pub mod notices;
@@ -39,6 +42,19 @@ pub use aureline_crash::{
 pub use crash_linkage::{
     crash_incident_trail_preview, crash_incident_trail_seed, crash_symbolicated_frame_projections,
     SUPPORT_ITEM_CRASH_INCIDENT_TRAIL,
+};
+pub use deletion_and_hold::{
+    add_destruction_receipt_preview_item, deletion_honesty_disclosure_for_packet,
+    destruction_receipt_preview_item_seed, evaluate_support_destruction_receipt,
+    held_record_selectors_for_beta_contractual_classes, select_held_records, DeletionHoldError,
+    DeletionHonestyDisclosure, DeletionHonestyState, DestructionActionClass,
+    DestructionLocalityClass, DestructionReasonClass, DestructionReceiptCounts,
+    DestructionReceiptPolicyContext, DestructionReceiptState, DestructionResultClass,
+    DestructionScopeRef, HeldRecordSelector, SupportDestructionReceiptInputs,
+    SupportDestructionReceiptRecord, DELETION_HOLD_TRUTH_DOC_REF,
+    GOVERNANCE_DESTRUCTION_RECEIPT_SCHEMA_REF, SUPPORT_DESTRUCTION_RECEIPT_RECORD_KIND,
+    SUPPORT_DESTRUCTION_RECEIPT_REDACTION_CLASS, SUPPORT_DESTRUCTION_RECEIPT_SCHEMA_REF,
+    SUPPORT_DESTRUCTION_RECEIPT_SCHEMA_VERSION, SUPPORT_ITEM_DESTRUCTION_RECEIPT,
 };
 pub use exact_build::ExactBuildCapture;
 pub use manifest::{

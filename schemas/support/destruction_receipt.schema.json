@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/destruction_receipt.schema.json",
+  "title": "Aureline support destruction-receipt projection",
+  "description": "Boundary schema for the metadata-only destruction-receipt row carried by support and repair exports. The row states whether requested data was deleted, held, retained for evidence, outside platform scope, or waiting on manual local action. It reuses the governance destruction-receipt vocabulary while keeping support exports free of raw payloads, raw credentials, raw policy bodies, raw prompts, raw paths, and raw hold-justification bytes.",
+  "$ref": "#/$defs/support_destruction_receipt_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "support_destruction_receipt_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewer-safe prose. No raw payload bodies, raw paths, raw credentials, raw hold justifications, raw policy payloads, or private identifiers."
+    },
+    "record_class_id": {
+      "type": "string",
+      "enum": [
+        "durable_workspace_state",
+        "portable_state_package",
+        "support_bundle_archive",
+        "managed_copy_index_entry",
+        "managed_workspace_lifecycle_copy",
+        "entitlement_usage_export_packet",
+        "offboarding_exit_packet",
+        "destruction_receipt_record",
+        "ai_retained_evidence_packet"
+      ]
+    },
+    "receipt_state": {
+      "type": "string",
+      "enum": [
+        "available",
+        "pending_after_hold_clear",
+        "pending_policy_floor",
+        "not_available_outside_scope",
+        "manual_local_action_required",
+        "omitted_by_redaction"
+      ]
+    },
+    "result_class": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "partial",
+        "blocked_by_hold",
+        "policy_retained",
+        "outside_platform_scope",
+        "manual_local_capture_required",
+        "omitted_by_redaction",
+        "not_found"
+      ]
+    },
+    "executed_action_class": {
+      "type": "string",
+      "enum": [
+        "delete",
+        "cleanup",
+        "offboarding_delete",
+        "redaction_delete",
+        "archive_compaction",
+        "export_delete"
+      ]
+    },
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "archived",
+        "held",
+        "receipt_only",
+        "outside_platform_scope",
+        "redacted_boundary"
+      ]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "destroyed",
+        "skipped_held",
+        "policy_retained",
+        "outside_platform_scope",
+        "manual_local_capture_required",
+        "omitted_by_redaction",
+        "receipt_only_metadata",
+        "not_found"
+      ]
+    },
+    "deletion_honesty_state": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "managed_copy",
+        "held",
+        "queued_for_deletion",
+        "deleted",
+        "retained_for_evidence",
+        "export_only"
+      ]
+    },
+    "destruction_caveat_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "receipt_retained",
+        "retained_subset_remains",
+        "hold_blocks_completion",
+        "legal_hold_prevents",
+        "retention_minimum_applies",
+        "exported_local_copy_remains",
+        "outside_platform_scope",
+        "provider_backlog"
+      ]
+    },
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "record_class_id",
+        "locality_class",
+        "result_class",
+        "reason_class",
+        "summary"
+      ],
+      "properties": {
+        "ref": { "$ref": "#/$defs/stable_ref" },
+        "record_class_id": { "$ref": "#/$defs/record_class_id" },
+        "locality_class": { "$ref": "#/$defs/locality_class" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_version",
+        "policy_source_ref",
+        "retention_owner_ref"
+      ],
+      "properties": {
+        "policy_version": { "$ref": "#/$defs/stable_ref" },
+        "policy_source_ref": { "$ref": "#/$defs/stable_ref" },
+        "retention_owner_ref": { "$ref": "#/$defs/stable_ref" }
+      }
+    },
+    "artifact_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_ref_count",
+        "destroyed_ref_count",
+        "retained_ref_count",
+        "skipped_held_ref_count",
+        "outside_scope_ref_count",
+        "manual_local_capture_count",
+        "omitted_by_redaction_count"
+      ],
+      "properties": {
+        "requested_ref_count": { "type": "integer", "minimum": 0 },
+        "destroyed_ref_count": { "type": "integer", "minimum": 0 },
+        "retained_ref_count": { "type": "integer", "minimum": 0 },
+        "skipped_held_ref_count": { "type": "integer", "minimum": 0 },
+        "outside_scope_ref_count": { "type": "integer", "minimum": 0 },
+        "manual_local_capture_count": { "type": "integer", "minimum": 0 },
+        "omitted_by_redaction_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "deletion_honesty_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_class",
+        "label",
+        "reason",
+        "destruction_caveat_class",
+        "destruction_caveat_note",
+        "exported_copy_remains_local"
+      ],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/deletion_honesty_state" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "destruction_caveat_class": { "$ref": "#/$defs/destruction_caveat_class" },
+        "destruction_caveat_note": {
+          "type": "string",
+          "description": "Empty only when destruction_caveat_class is none."
+        },
+        "exported_copy_remains_local": { "type": "boolean" }
+      }
+    },
+    "support_destruction_receipt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "receipt_record_id",
+        "schema_ref",
+        "governance_schema_ref",
+        "doc_ref",
+        "receipt_state",
+        "result_class",
+        "executed_action_class",
+        "request_ref",
+        "record_class_refs",
+        "scope_summary",
+        "policy_context",
+        "destroyed_refs",
+        "retained_refs",
+        "skipped_held_refs",
+        "outside_scope_refs",
+        "manual_local_capture_refs",
+        "omitted_by_redaction_refs",
+        "artifact_counts",
+        "deletion_honesty_disclosure",
+        "custody_event_refs",
+        "source_packet_refs",
+        "verifier_refs",
+        "mirror_or_lag_note",
+        "support_export_refs",
+        "offboarding_packet_refs",
+        "linked_records_governance_packet_refs",
+        "redaction_class",
+        "raw_content_exported",
+        "reviewer_summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "receipt_record_id": { "$ref": "#/$defs/stable_ref" },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/support/destruction_receipt.schema.json"
+        },
+        "governance_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/destruction_receipt_alpha.schema.json"
+        },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/deletion_hold_truth_beta.md"
+        },
+        "emitted_receipt_ref": { "$ref": "#/$defs/stable_ref" },
+        "receipt_state": { "$ref": "#/$defs/receipt_state" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "executed_action_class": { "$ref": "#/$defs/executed_action_class" },
+        "request_ref": { "$ref": "#/$defs/stable_ref" },
+        "record_class_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/record_class_id" }
+        },
+        "scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "executed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "destroyed_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_ref" }
+        },
+        "retained_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_ref" }
+        },
+        "skipped_held_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_ref" }
+        },
+        "outside_scope_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_ref" }
+        },
+        "manual_local_capture_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_ref" }
+        },
+        "omitted_by_redaction_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_ref" }
+        },
+        "artifact_counts": { "$ref": "#/$defs/artifact_counts" },
+        "deletion_honesty_disclosure": { "$ref": "#/$defs/deletion_honesty_disclosure" },
+        "custody_event_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "source_packet_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "verifier_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "mirror_or_lag_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "support_export_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "offboarding_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "linked_records_governance_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "redaction_class": {
+          "type": "string",
+          "const": "metadata_safe_default"
+        },
+        "raw_content_exported": {
+          "type": "boolean",
+          "const": false
+        },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "receipt_state": { "const": "available" } },
+            "required": ["receipt_state"]
+          },
+          "then": {
+            "required": ["emitted_receipt_ref", "executed_at"]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                { "required": ["emitted_receipt_ref"] },
+                { "required": ["executed_at"] }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "deletion_honesty_disclosure": {
+                "properties": {
+                  "destruction_caveat_class": { "const": "none" }
+                },
+                "required": ["destruction_caveat_class"]
+              }
+            },
+            "required": ["deletion_honesty_disclosure"]
+          },
+          "else": {
+            "properties": {
+              "deletion_honesty_disclosure": {
+                "properties": {
+                  "destruction_caveat_note": { "minLength": 1 }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

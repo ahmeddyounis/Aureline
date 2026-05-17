@@ -12,6 +12,8 @@ vocabulary:
 | `managed_copy_index.json` | `managed_copy` | `managed_copy_index_entry` | `none` | `retained_subset_remains` |
 | `held_support_bundle.json` | `held` | `support_bundle_archive` | `on_hold` | `legal_hold_prevents` |
 | `queued_for_delete_offboarding.json` | `queued_for_delete` | `offboarding_exit_packet` | `none` | `provider_backlog` |
+| `deleted_support_bundle_archive.json` | `deleted` | `support_bundle_archive` | `none` | `none` |
+| `retained_destruction_receipt.json` | `retained_for_evidence` | `destruction_receipt_record` | `none` | `receipt_retained` |
 | `export_only_usage_packet.json` | `export_only` | `entitlement_usage_export_packet` | `none` | `none` |
 
 These fixtures are also the canonical replay set for

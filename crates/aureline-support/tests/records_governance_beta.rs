@@ -80,11 +80,11 @@ fn local_only_workspace_state_round_trips_and_classifies_as_local_only() {
     assert_eq!(packet.artifact_class, ArtifactClass::LocalOnly);
     assert_eq!(packet.hold_state, HoldState::None);
     assert!(packet.hold_classes.is_empty());
+    assert_eq!(packet.retention_owner_class, RetentionOwnerClass::LocalUser);
     assert_eq!(
-        packet.retention_owner_class,
-        RetentionOwnerClass::LocalUser
+        packet.destruction_caveat_class,
+        DestructionCaveatClass::None
     );
-    assert_eq!(packet.destruction_caveat_class, DestructionCaveatClass::None);
     assert_eq!(packet.custody_event_count(), 1);
     assert!(!packet.exported_copy_remains_local);
     let chain = &packet.chain_of_custody[0];
@@ -164,6 +164,37 @@ fn export_only_usage_packet_round_trips_and_declares_export_only_class() {
         .chain_of_custody
         .iter()
         .any(|event| matches!(event.action_class, CustodyActionClass::ExportedLocally)));
+}
+
+#[test]
+fn deleted_support_bundle_round_trips_and_declares_completed_delete() {
+    let packet = rebuild_packet("deleted_support_bundle_archive.json");
+    assert_eq!(packet.artifact_class, ArtifactClass::Deleted);
+    assert_eq!(
+        packet.destruction_caveat_class,
+        DestructionCaveatClass::None
+    );
+    assert!(!packet.exported_copy_remains_local);
+    assert!(packet
+        .chain_of_custody
+        .iter()
+        .any(|event| matches!(event.action_class, CustodyActionClass::DeleteCompleted)));
+}
+
+#[test]
+fn retained_destruction_receipt_round_trips_and_declares_evidence_retention() {
+    let packet = rebuild_packet("retained_destruction_receipt.json");
+    assert_eq!(packet.artifact_class, ArtifactClass::RetainedForEvidence);
+    assert_eq!(
+        packet.destruction_caveat_class,
+        DestructionCaveatClass::ReceiptRetained
+    );
+    assert!(packet.has_destruction_caveat());
+    assert!(packet.exported_copy_remains_local);
+    assert!(packet
+        .chain_of_custody
+        .iter()
+        .any(|event| matches!(event.action_class, CustodyActionClass::ReceiptIssued)));
 }
 
 #[test]

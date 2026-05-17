@@ -12,7 +12,7 @@ A packet projects six facts onto closed-vocabulary tokens:
 
 | Fact | Closed vocabulary |
 | ---- | ----------------- |
-| Artifact class | `local_only`, `managed_copy`, `held`, `queued_for_delete`, `export_only` |
+| Artifact class | `local_only`, `managed_copy`, `held`, `queued_for_delete`, `deleted`, `retained_for_evidence`, `export_only` |
 | Hold state | `none`, `on_hold`, `release_pending` |
 | Hold classes (when on hold) | `administrative_legal`, `support_investigation`, `retention_minimum`, `export_pending` |
 | Retention owner | `local_user`, `operator_admin`, `support_export`, `governance_packets`, `mixed` |
@@ -42,11 +42,12 @@ prompts, or raw hold-justification bytes.
   on a `SupportBundlePreviewBuilder`. The row participates in the
   preview's redaction report, classification summary, and preview/export
   parity rules verbatim.
-- Five canonical fixtures under
+- Seven canonical fixtures under
   [`/fixtures/support/records_governance/`](../../../fixtures/support/records_governance/)
   covering every acceptance class: `local_only_workspace_state`,
   `managed_copy_index`, `held_support_bundle`,
-  `queued_for_delete_offboarding`, `export_only_usage_packet`.
+  `queued_for_delete_offboarding`, `deleted_support_bundle_archive`,
+  `retained_destruction_receipt`, `export_only_usage_packet`.
 - A producer record-kind binding registered with `aureline-records`
   so `records_governance_packet_record` is a governed record kind
   bound to the `support_bundle_archive` lifecycle.
@@ -120,5 +121,8 @@ The evaluator fails closed before widening authority:
 - [Records-chronology and delete-honesty packet](../../../artifacts/governance/records_chronology_delete_packet.md)
   — the composition layer that ties retention/delete states to the
   chronology and remaining-location vocabularies this packet narrows.
+- [Deletion, hold, and destruction-receipt truth](deletion_hold_truth_beta.md)
+  — the support projection that adds held-record selectors, destruction
+  receipt rows, and stable deletion-honesty labels to this packet.
 - [Support-bundle contract](../support_bundle_contract.md) — the
   parent contract for every preview row.
