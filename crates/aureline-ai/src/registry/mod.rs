@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::graduation::{AiGraduationState, AiGraduationSurfaceSupportSummary};
 use crate::routing::{
     AiRouteCandidate, AiRouteProviderClass, AiRoutingPacket, CostEnvelopeClass,
     CostVisibilityClass, ExecutionLocusClass, ExhaustionStateClass, LatencyCostEnvelope,
@@ -1350,6 +1351,7 @@ impl ProviderModelRegistryPacket {
                 .map(ExternalToolRegistrySupportSummary::from)
                 .collect(),
             surface_summaries,
+            graduation_summaries: Vec::new(),
             validation_violation_tokens: self
                 .validate()
                 .into_iter()
@@ -1358,6 +1360,29 @@ impl ProviderModelRegistryPacket {
             source_contract_refs: self.source_contract_refs.clone(),
             minted_at: self.minted_at.clone(),
         }
+    }
+
+    /// Projects an export-safe support packet with graduation-gate state.
+    pub fn support_export_projection_with_graduation(
+        &self,
+        graduation_state: &AiGraduationState,
+    ) -> ProviderModelRegistrySupportExport {
+        let mut export = self.support_export_projection();
+        export.graduation_summaries = graduation_state.support_summaries_for_registry(self);
+        for source_contract_ref in &graduation_state.source_contract_refs {
+            if !export.source_contract_refs.contains(source_contract_ref) {
+                export
+                    .source_contract_refs
+                    .push(source_contract_ref.clone());
+            }
+        }
+        export.validation_violation_tokens.extend(
+            graduation_state
+                .validate(self)
+                .into_iter()
+                .map(|violation| violation.as_str().to_owned()),
+        );
+        export
     }
 
     /// Builds the existing routing packet from the registry-selected route.
@@ -1925,6 +1950,9 @@ pub struct ProviderModelRegistrySupportExport {
     /// Surface summaries.
     #[serde(default)]
     pub surface_summaries: Vec<RegistrySurfaceSupportSummary>,
+    /// AI graduation summaries projected from the same support export.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub graduation_summaries: Vec<AiGraduationSurfaceSupportSummary>,
     /// Validation violation tokens present on the source registry.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub validation_violation_tokens: Vec<String>,

@@ -5,13 +5,16 @@
 //! [`composer::ComposerDraft`] object plus typed mention, attachment,
 //! slash-command, and route-placeholder vocabularies. The registry lane exposes
 //! one [`registry::ProviderModelRegistryPacket`] object for provider/model,
-//! external-tool, execution-location, and route-policy truth. The routing lane
-//! exposes one [`routing::AiRoutingPacket`] object for provider/model identity,
-//! quota explainability, latency/cost envelopes, and visible route-change
-//! lineage on claimed hosted-model paths. The evidence lane exposes one
+//! external-tool, execution-location, and route-policy truth. The graduation
+//! lane exposes one [`graduation::AiGraduationState`] object for packet
+//! freshness, eval-threshold, owner, cost-profile, and kill-switch gates on
+//! claimed beta AI surfaces. The routing lane exposes one
+//! [`routing::AiRoutingPacket`] object for provider/model identity, quota
+//! explainability, latency/cost envelopes, and visible route-change lineage on
+//! claimed hosted-model paths. The evidence lane exposes one
 //! [`evidence::AiMutationEvidencePacket`] object for review-first mutation
-//! packets that preserve cited-source truth, tainted-context fences,
-//! route/spend refs, and approval lineage before apply.
+//! packets that preserve cited-source truth, tainted-context fences, route/spend
+//! refs, and approval lineage before apply.
 //!
 //! These records carry no credential bodies, raw provider payloads, raw
 //! endpoint URLs, exact token counts, exact cost amounts, or raw diff bodies.
@@ -33,6 +36,7 @@
 pub mod composer;
 pub mod context_inspector;
 pub mod evidence;
+pub mod graduation;
 pub mod registry;
 pub mod routing;
 
@@ -68,6 +72,15 @@ pub use evidence::{
     TaintUsageConstraint, TaintedContextFence, TaintedEvidenceSourceClass, ValidationOutcomeClass,
     AI_MUTATION_EVIDENCE_PACKET_RECORD_KIND, AI_MUTATION_EVIDENCE_REVIEW_ROW_RECORD_KIND,
     AI_MUTATION_EVIDENCE_SCHEMA_VERSION, AI_MUTATION_EVIDENCE_SUPPORT_PACKET_RECORD_KIND,
+};
+pub use graduation::{
+    current_beta_graduation_packet_artifacts, current_beta_graduation_state,
+    AiGraduationConsumerProjection, AiGraduationConsumerSurfaceClass, AiGraduationEvidenceEntry,
+    AiGraduationFreshnessClass, AiGraduationGateState, AiGraduationPacket,
+    AiGraduationPolicyContext, AiGraduationRollbackPlan, AiGraduationState,
+    AiGraduationSupportClass, AiGraduationSurfaceStatus, AiGraduationSurfaceSupportSummary,
+    AiGraduationViolation, AI_GRADUATION_PACKET_RECORD_KIND, AI_GRADUATION_STATE_RECORD_KIND,
+    AI_GRADUATION_STATE_SCHEMA_VERSION, REQUIRED_BETA_EVIDENCE_KINDS,
 };
 pub use registry::{
     AiFeatureClass, ClaimedAiSurface, ExternalToolExecutionLocusClass, ExternalToolRegistryEntry,

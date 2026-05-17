@@ -153,6 +153,8 @@ A `graduation_packet_record` MUST carry at minimum:
 | `target_rollout_state_class`         | The rollout state the packet asks to pin.                                  |
 | `provider_entry_ref` / `model_entry_ref` | The provider and model entries the packet binds (from the registry contract). |
 | `prompt_pack_manifest_ref` / `tool_pack_manifest_ref` | The prompt-pack and tool-pack manifests the packet binds (from the prompt-composer contract). |
+| `eval_set_ref` / `eval_thresholds_ref` | The eval set and threshold artifact the packet was judged against. |
+| `cost_profile_ref` / `kill_switch_ref` / `owner_ref` | The cost profile, revocation lever, and accountable owner for packet renewal or rollback. |
 | `eval_evidence_entries`              | Eval / red-team / latency / cost evidence rows.                            |
 | `latency_envelope_class`             | Coarse latency-envelope bucket the workflow is admitted under.             |
 | `cost_envelope_class`                | Coarse cost-envelope bucket the workflow is admitted under.                |

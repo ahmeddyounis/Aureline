@@ -42,6 +42,13 @@ so current routing exports can disclose provider/model identity,
 execution location, route reason, quota state, latency/cost envelope, and
 visible route-change lineage without duplicating registry facts.
 
+`ProviderModelRegistryPacket::support_export_projection_with_graduation()`
+adds the checked-in beta graduation state from
+`artifacts/ai/m3/graduation_packets/graduation_state.json`. Support exports
+therefore show the packet freshness, eval set, threshold set, cost profile,
+kill switch, owner, and downgrade token read from the same state as docs and
+release truth.
+
 ## Promotion guards
 
 Validation blocks claimed beta rows when:
@@ -55,6 +62,10 @@ Validation blocks claimed beta rows when:
 - retrieval/index state is partial without a visible label;
 - UI, docs/help, and support-export projections point at different registry
   state refs;
+- the selected registry route lacks a current matching graduation packet;
+- the packet is stale, points at a different provider/model, lacks owner,
+  eval-set, threshold, cost-profile, or kill-switch refs, or misses required
+  protected eval, red-team, latency, or cost evidence kinds;
 - exportable registry fields contain raw boundary material such as endpoint
   URLs or credential tokens.
 
@@ -77,4 +88,5 @@ covers:
 
 ```sh
 cargo test -p aureline-ai registry --no-fail-fast
+cargo test -p aureline-ai graduation --no-fail-fast
 ```
