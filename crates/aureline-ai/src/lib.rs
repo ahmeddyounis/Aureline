@@ -39,6 +39,7 @@ pub mod evidence;
 pub mod graduation;
 pub mod registry;
 pub mod routing;
+pub mod routing_policy;
 
 pub use composer::{
     AttachmentKind, AttachmentStatusClass, BlockReason, ComposerAttachment, ComposerDraft,
@@ -110,4 +111,12 @@ pub use routing::{
     RoutingRunStateClass, SelectedOutcomeClass, TokenCeilingClass, ToolCallCeilingClass,
     WallTimeCeilingClass, AI_ROUTING_PACKET_RECORD_KIND, AI_ROUTING_SCHEMA_VERSION,
     AI_ROUTING_SUPPORT_PACKET_RECORD_KIND,
+};
+pub use routing_policy::{
+    current_beta_cost_routing_packet, BudgetScopeClass, BudgetScopeOutcomeClass,
+    BudgetScopeOutcomeRow, CostRoutingBetaArtifactError, CostRoutingBetaPacket,
+    CostRoutingBetaViolation, CostRoutingSurfaceRow, RedactionClass,
+    SpendAttributionDimensionClass, SpendAttributionValueRow, SpendPolicyContext,
+    SpendReceiptRecord, WasChargedToUserClass, COST_ROUTING_BETA_PACKET_RECORD_KIND,
+    COST_ROUTING_BETA_SCHEMA_VERSION, SPEND_RECEIPT_RECORD_KIND, SPEND_RECEIPT_SCHEMA_VERSION,
 };

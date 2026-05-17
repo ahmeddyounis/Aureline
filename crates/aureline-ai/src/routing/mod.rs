@@ -444,6 +444,25 @@ impl CostEnvelopeClass {
     pub const fn is_verified(self) -> bool {
         !matches!(self, Self::EnvelopeUnknownUnverifiedCost)
     }
+
+    /// Lower-is-cheaper rank used by budget-routing policy checks.
+    pub const fn cost_rank(self) -> u16 {
+        match self {
+            Self::BundledNoIncrementalCost => 0,
+            Self::FreeTierRateLimited => 1,
+            Self::FlatFeeSubscriptionBand => 2,
+            Self::VendorHostedEntitlementBand => 3,
+            Self::EnterprisePooledQuotaBand => 4,
+            Self::MeteredPerRequestLowVolumeBand => 10,
+            Self::MeteredPerTokenLowVolumeBand => 11,
+            Self::MeteredPerRequestMediumVolumeBand => 20,
+            Self::MeteredPerTokenMediumVolumeBand => 21,
+            Self::MeteredPerRequestHighVolumeBand => 30,
+            Self::MeteredPerTokenHighVolumeBand => 31,
+            Self::EstimatedUnverifiedBand => 90,
+            Self::EnvelopeUnknownUnverifiedCost => 100,
+        }
+    }
 }
 
 /// Coarse latency envelope the route is admitted under.

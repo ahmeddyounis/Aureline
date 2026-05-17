@@ -1456,6 +1456,13 @@ impl ProviderModelRegistryPacket {
                     .provider_entries
                     .iter()
                     .find(|provider| &provider.provider_entry_id == provider_ref)?;
+                if !policy.allowed_execution_locus_classes.is_empty()
+                    && !policy
+                        .allowed_execution_locus_classes
+                        .contains(&provider.execution_locus_class)
+                {
+                    return None;
+                }
                 let model = provider
                     .model_entry_refs
                     .iter()
@@ -2135,21 +2142,7 @@ fn cheapest_index(indices: &[usize], candidates: &[RegistryRouteCandidate]) -> O
 }
 
 fn cost_rank(cost: CostEnvelopeClass) -> u16 {
-    match cost {
-        CostEnvelopeClass::BundledNoIncrementalCost => 0,
-        CostEnvelopeClass::FreeTierRateLimited => 1,
-        CostEnvelopeClass::FlatFeeSubscriptionBand => 2,
-        CostEnvelopeClass::VendorHostedEntitlementBand => 3,
-        CostEnvelopeClass::EnterprisePooledQuotaBand => 4,
-        CostEnvelopeClass::MeteredPerRequestLowVolumeBand => 10,
-        CostEnvelopeClass::MeteredPerTokenLowVolumeBand => 11,
-        CostEnvelopeClass::MeteredPerRequestMediumVolumeBand => 20,
-        CostEnvelopeClass::MeteredPerTokenMediumVolumeBand => 21,
-        CostEnvelopeClass::MeteredPerRequestHighVolumeBand => 30,
-        CostEnvelopeClass::MeteredPerTokenHighVolumeBand => 31,
-        CostEnvelopeClass::EstimatedUnverifiedBand => 90,
-        CostEnvelopeClass::EnvelopeUnknownUnverifiedCost => 100,
-    }
+    cost.cost_rank()
 }
 
 fn route_eligibility_for(
