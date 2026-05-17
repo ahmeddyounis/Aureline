@@ -11,6 +11,10 @@ a local support packet.
 - Claim manifest: `artifacts/release/m3/claim_manifest.json`
 - Compatibility report: `artifacts/compat/m3/compatibility_report.json`
 - Wiring report: `artifacts/docs/m3/truth_wiring_report.md`
+- Open-project beta packet:
+  `artifacts/milestones/m3/open_project_beta_packet.md`
+- Beta issue/RFC routing entrypoint:
+  `docs/community/m3/issue_rfc_routing_beta.md`
 - Inspector: `cargo run -q -p aureline-shell --bin aureline_shell_truth_wiring -- markdown`
 
 ## Route classes
@@ -54,6 +58,23 @@ bypass reports, or anything that would create disclosure risk in public. Use the
 private support channel for workspace, tenant, account, or live-device context.
 Those lanes are authenticated and require a redacted local packet before data
 leaves the product boundary.
+
+## Canonical routing map
+
+Product-local handoff classes are interaction hints. Before a destination opens,
+they map back to canonical issue-routing classes from
+`artifacts/governance/issue_routing.yaml`:
+
+| Product-local class | Canonical issue class | Route |
+|---|---|---|
+| `docs_truth_mismatch` | `docs_truth_defect` | `public_issue_tracker` |
+| `migration_compatibility_regression` | `compatibility_regression` | `public_issue_tracker` |
+| `design_proposal` | `rfc` | `public_rfc_forum` |
+| `security_sensitive` | `security_issue` | `private_security_channel` |
+| `private_workspace_support` | `supportability_escalation` | `private_support_channel` |
+
+The canonical route controls privacy, disclosure, redaction, and summary
+posture. The product-local class never creates a private/public lane on its own.
 
 ## Failure visibility
 

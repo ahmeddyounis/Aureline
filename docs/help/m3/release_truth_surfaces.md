@@ -254,6 +254,13 @@ The projection is read-only and does not:
   claim-manifest, compatibility-report, and community-handoff wiring report.
 - `docs/help/m3/community_handoff_beta.md` — public/private handoff lane
   vocabulary and context-preservation rules.
+- `docs/community/m3/issue_rfc_routing_beta.md` — beta public/private issue
+  and RFC routing entrypoint consumed by Help/About handoff.
+- `docs/governance/m3/standards_interchange_matrix.md` — beta standards and
+  interchange publication matrix consumed by release-truth docs.
+- `artifacts/milestones/m3/open_project_beta_packet.md` — governed packet that
+  binds standards/interchange and issue/RFC routing to the same beta truth
+  vocabulary.
 - `artifacts/docs/m3/truth_wiring_report.md` — checked-in truth-wiring
   report for the current claim and compatibility artifacts.
 - `fixtures/release/beta_truth_cases/*.json` — protected walk plus the

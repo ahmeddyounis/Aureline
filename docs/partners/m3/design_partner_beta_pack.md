@@ -39,7 +39,7 @@ this doc MUST be updated in the same change set.
    on partner hardware before a beta build is asked to carry partner
    workload.
 5. File partner-class reports through the private routes named in
-   [`docs/community/m3/public_private_issue_routing.md`](../../community/m3/public_private_issue_routing.md).
+   [`docs/community/m3/issue_rfc_routing_beta.md`](../../community/m3/issue_rfc_routing_beta.md).
 
 ## Cohort guardrails
 

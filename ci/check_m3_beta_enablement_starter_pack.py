@@ -8,7 +8,7 @@ real:
   - artifacts/milestones/m3/beta_enablement_starter_pack.yaml
   - docs/extensions/m3/beta_starter_pack.md
   - docs/partners/m3/design_partner_beta_pack.md
-  - docs/community/m3/public_private_issue_routing.md
+  - docs/community/m3/issue_rfc_routing_beta.md
 
 The validator parses the canonical YAML, cross-checks every cohort,
 surface, and issue-class ref against the upstream canonical sources
@@ -811,7 +811,9 @@ def validate_change_control(
         "artifacts/milestones/m3/dependency_graph.mmd",
         "docs/extensions/m3/beta_starter_pack.md",
         "docs/partners/m3/design_partner_beta_pack.md",
-        "docs/community/m3/public_private_issue_routing.md",
+        "docs/community/m3/issue_rfc_routing_beta.md",
+        "artifacts/milestones/m3/open_project_beta_packet.md",
+        "docs/governance/m3/standards_interchange_matrix.md",
     }
     missing = required - addition
     if missing:
@@ -826,7 +828,8 @@ def validate_change_control(
                 remediation=(
                     "Add the starter-pack YAML, claimed-surface register, "
                     "cohort guardrails, beta admission matrix, dependency "
-                    "graph, and the three entrypoint docs."
+                    "graph, the three entrypoint docs, and the open-project "
+                    "beta packet/standards publication docs."
                 ),
                 details={"missing": sorted(missing)},
             )

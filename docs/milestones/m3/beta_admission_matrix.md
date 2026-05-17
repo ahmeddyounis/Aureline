@@ -150,7 +150,7 @@ surfaces consume it by lane id rather than restating links.
 - Design-partner / managed-pilot entrypoint:
   `docs/partners/m3/design_partner_beta_pack.md`
 - Community / public-private routing entrypoint:
-  `docs/community/m3/public_private_issue_routing.md`
+  `docs/community/m3/issue_rfc_routing_beta.md`
 - Validator: `ci/check_m3_beta_enablement_starter_pack.py`
 - Latest validation capture:
   `artifacts/milestones/m3/captures/beta_enablement_starter_pack_validation_capture.json`

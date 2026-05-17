@@ -198,7 +198,7 @@ maintainers route the same way.
 
 Sensitive cases (security, partner identity, support exports with
 live field content) MUST route through their own lanes — read
-[`docs/community/m3/public_private_issue_routing.md`](../../community/m3/public_private_issue_routing.md)
+[`docs/community/m3/issue_rfc_routing_beta.md`](../../community/m3/issue_rfc_routing_beta.md)
 for the full matrix before filing.
 
 ## Escalation
