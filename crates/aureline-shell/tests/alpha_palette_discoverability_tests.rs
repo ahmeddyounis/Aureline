@@ -225,6 +225,16 @@ fn assert_row_contract_is_complete(case_id: &str, rows: &[AlphaPaletteResultRow]
         );
         if row.row_kind.as_str() == "command" || row.command_id.is_some() {
             assert!(
+                !row.automation_labels.is_empty(),
+                "case {case_id} command row {} must expose automation labels",
+                row.row_id
+            );
+            assert!(
+                !row.automation_cues.is_empty(),
+                "case {case_id} command row {} must expose automation cues",
+                row.row_id
+            );
+            assert!(
                 row.action_footer.copy_command_id.enabled,
                 "case {case_id} command row {} must allow copy command id",
                 row.row_id

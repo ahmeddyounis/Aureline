@@ -185,10 +185,16 @@ pub struct AlphaPaletteResultRow {
     pub category_or_path: String,
     /// Origin/source badge exposed on the row.
     pub origin_source_badge: String,
-    /// Current winning keybinding or `unassigned`.
+    /// Current winning keybinding or `Unassigned`.
     pub winning_keybinding: String,
     /// Dominant side-effect cue surfaced before invocation or insertion.
     pub dominant_side_effect_class: String,
+    /// Descriptor-owned automation labels surfaced on command rows.
+    #[serde(default)]
+    pub automation_labels: Vec<String>,
+    /// Human-facing automation cues derived from [`Self::automation_labels`].
+    #[serde(default)]
+    pub automation_cues: Vec<String>,
     /// Availability class derived from command preflight or target readiness.
     pub availability_class: String,
     /// Structured disabled reason when the row is not directly invocable.
@@ -577,8 +583,10 @@ fn recent_action_row(
         label: recent.label.clone(),
         category_or_path: recent.category_or_path.clone(),
         origin_source_badge: "recent_history".to_string(),
-        winning_keybinding: "unassigned".to_string(),
+        winning_keybinding: "Unassigned".to_string(),
         dominant_side_effect_class: "restores_existing_context".to_string(),
+        automation_labels: Vec::new(),
+        automation_cues: Vec::new(),
         availability_class: "enabled".to_string(),
         disabled_reason_code: None,
         command_id: None,
@@ -620,6 +628,8 @@ fn command_result_row(
         origin_source_badge: origin_badge(entry),
         winning_keybinding: winning_keybinding(inputs.shortcuts_by_command_id, &command_id),
         dominant_side_effect_class: entry.dominant_side_effect_class.clone(),
+        automation_labels: entry.automation_labels.clone(),
+        automation_cues: automation_cues(entry),
         availability_class,
         disabled_reason_code,
         command_id: Some(command_id.clone()),
@@ -651,8 +661,10 @@ fn symbol_result_row(
         label: symbol.symbol_name.clone(),
         category_or_path: format!("{} · {}", symbol.symbol_kind, symbol.relative_path),
         origin_source_badge: symbol.origin_source_badge.clone(),
-        winning_keybinding: "unassigned".to_string(),
+        winning_keybinding: "Unassigned".to_string(),
         dominant_side_effect_class: "opens_existing_target".to_string(),
+        automation_labels: Vec::new(),
+        automation_cues: Vec::new(),
         availability_class: "enabled".to_string(),
         disabled_reason_code: None,
         command_id: None,
@@ -688,8 +700,10 @@ fn file_result_row(file: &AlphaFileCandidate, normalized_query: &str) -> AlphaPa
         label,
         category_or_path: file.relative_path.clone(),
         origin_source_badge: file.origin_source_badge.clone(),
-        winning_keybinding: "unassigned".to_string(),
+        winning_keybinding: "Unassigned".to_string(),
         dominant_side_effect_class: "opens_existing_target".to_string(),
+        automation_labels: Vec::new(),
+        automation_cues: Vec::new(),
         availability_class: "enabled".to_string(),
         disabled_reason_code: None,
         command_id: None,
@@ -726,7 +740,7 @@ fn command_action_footer(
         .automation_labels
         .iter()
         .any(|label| label == "recipe_safe");
-    let automation_known = !entry.automation_labels.is_empty();
+    let why_not_automatable = why_not_automatable_reason(entry);
 
     AlphaPaletteActionFooter {
         default_action: AlphaPaletteFooterAction {
@@ -772,14 +786,17 @@ fn command_action_footer(
         add_to_recipe: AlphaPaletteFooterAction {
             action_class: "add_to_recipe".to_string(),
             enabled: recipe_safe,
-            unavailable_reason: (!recipe_safe).then(|| why_not_automatable_reason(entry)),
+            unavailable_reason: (!recipe_safe).then(|| {
+                why_not_automatable_reason(entry).unwrap_or_else(|| "not_recipe_safe".to_string())
+            }),
             copy_payload: None,
         },
         inspect_why_not_automatable: AlphaPaletteFooterAction {
             action_class: "inspect_why_not_automatable".to_string(),
-            enabled: automation_known,
-            unavailable_reason: (!automation_known)
-                .then(|| "automation_metadata_missing".to_string()),
+            enabled: why_not_automatable.is_some(),
+            unavailable_reason: why_not_automatable
+                .is_none()
+                .then(|| "command_is_automation_safe".to_string()),
             copy_payload: None,
         },
         command_diagnostics_sheet_available: preflight_blocks_primary,
@@ -1021,7 +1038,7 @@ fn winning_keybinding(
         .get(command_id)
         .and_then(|shortcuts| shortcuts.first())
         .cloned()
-        .unwrap_or_else(|| "unassigned".to_string())
+        .unwrap_or_else(|| "Unassigned".to_string())
 }
 
 fn command_scope_summary(entry: &CommandRegistryEntryRecord) -> String {
@@ -1081,16 +1098,68 @@ fn supports_alternate_open(entry: &CommandRegistryEntryRecord) -> bool {
     )
 }
 
-fn why_not_automatable_reason(entry: &CommandRegistryEntryRecord) -> String {
+fn why_not_automatable_reason(entry: &CommandRegistryEntryRecord) -> Option<String> {
     if entry
+        .automation_labels
+        .iter()
+        .any(|label| label == "unknown_automation_support")
+    {
+        Some("unknown_automation_support".to_string())
+    } else if entry
         .automation_labels
         .iter()
         .any(|label| label == "ui_only")
     {
-        "ui_only".to_string()
+        Some("ui_only".to_string())
+    } else if entry
+        .automation_labels
+        .iter()
+        .any(|label| label == "approval_required")
+        || entry.descriptor.approval_posture_class != "no_approval_required"
+    {
+        Some("approval_required".to_string())
+    } else if !entry
+        .automation_labels
+        .iter()
+        .any(|label| label == "recipe_safe")
+    {
+        Some("not_recipe_safe".to_string())
+    } else if !entry
+        .automation_labels
+        .iter()
+        .any(|label| label == "headless_safe")
+    {
+        Some("not_headless_safe".to_string())
+    } else if !entry
+        .automation_labels
+        .iter()
+        .any(|label| label == "macro_safe")
+    {
+        Some("not_macro_safe".to_string())
     } else {
-        "not_recipe_safe".to_string()
+        None
     }
+}
+
+fn automation_cues(entry: &CommandRegistryEntryRecord) -> Vec<String> {
+    if entry.automation_labels.is_empty() {
+        return vec!["Unknown automation support".to_string()];
+    }
+
+    entry
+        .automation_labels
+        .iter()
+        .map(|label| match label.as_str() {
+            "macro_safe" => "Macro-safe",
+            "recipe_safe" => "Recipe-safe",
+            "headless_safe" => "Headless-safe",
+            "ui_only" => "UI-only",
+            "approval_required" => "Approval required",
+            "unknown_automation_support" => "Unknown automation support",
+            other => other,
+        })
+        .map(str::to_string)
+        .collect()
 }
 
 fn normalize_query(query: &str) -> String {
