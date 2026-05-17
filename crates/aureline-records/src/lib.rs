@@ -591,6 +591,10 @@ pub const PRODUCER_RECORD_KIND_BINDINGS: &[RecordKindBinding] = &[
         record_kind: "support_destruction_receipt_record",
         record_class_id: RecordClassId::DestructionReceiptRecord,
     },
+    RecordKindBinding {
+        record_kind: "evidence_timeline_packet_record",
+        record_class_id: RecordClassId::SupportBundleArchive,
+    },
 ];
 
 static CURRENT_REGISTRY: OnceLock<Result<RecordClassRegistry, RecordRegistryError>> =

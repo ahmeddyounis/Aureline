@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/evidence_timeline.schema.json",
+  "title": "Aureline support evidence-timeline packet",
+  "description": "Boundary schema for the metadata-only evidence-timeline packet carried by support, operator, and headless exports. The packet preserves requested deletion, queued deletion, held data, retained evidence, and completed deletion as distinct states while exporting source timestamps, timezone context, source/display order, and actor ordering. Raw payloads, raw paths, raw prompts, raw credentials, raw policy bodies, and raw hold-justification bytes never appear in this packet.",
+  "$ref": "#/$defs/evidence_timeline_packet_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "packet_record_kind": {
+      "type": "string",
+      "const": "evidence_timeline_packet_record"
+    },
+    "event_record_kind": {
+      "type": "string",
+      "const": "evidence_timeline_event_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 360,
+      "description": "Short reviewer-safe prose. No raw payload bodies, raw paths, raw credentials, raw prompt text, raw policy bodies, or raw hold justifications."
+    },
+    "rfc3339_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp. The source offset is preserved on event rows instead of rewriting every row to the exporter's local display order."
+    },
+    "state_class": {
+      "type": "string",
+      "enum": [
+        "requested_deletion",
+        "queued_deletion",
+        "held_data",
+        "retained_evidence",
+        "completed_deletion"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "admin_operator",
+        "support_agent",
+        "automated_retention_job",
+        "ai_tool",
+        "review_surface",
+        "search_indexer",
+        "content_safety_scanner",
+        "system"
+      ]
+    },
+    "evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "live_system_truth",
+        "live_with_bounded_skew",
+        "mirrored_managed_surface",
+        "imported_remote_agent",
+        "imported_extension",
+        "imported_external_audit_trail",
+        "offline_local_evidence_packet",
+        "support_bundle_replay",
+        "recovery_snapshot_replay",
+        "synthetic_fixture_only"
+      ],
+      "description": "Mirrors the chronology-context evidence_source_class vocabulary."
+    },
+    "current_state_class": {
+      "type": "string",
+      "enum": [
+        "live_current_system_state",
+        "retained_artifact_managed_authoritative",
+        "retained_artifact_imported_origin",
+        "retained_artifact_offline_local",
+        "retained_artifact_support_replay",
+        "retained_artifact_recovery_replay",
+        "retained_artifact_synthetic_fixture"
+      ],
+      "description": "Mirrors the chronology-context current_state_class vocabulary."
+    },
+    "timezone_basis_class": {
+      "type": "string",
+      "enum": [
+        "canonical_utc",
+        "device_local_iana",
+        "deployment_pinned_iana",
+        "observer_skew_labeled",
+        "imported_origin_zone_labeled",
+        "not_rendered_canonical_utc_only"
+      ]
+    },
+    "hold_class": {
+      "type": "string",
+      "enum": [
+        "administrative_legal",
+        "support_investigation",
+        "retention_minimum",
+        "export_pending"
+      ]
+    },
+    "location_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "local_export_copy",
+        "managed_archive_active",
+        "managed_archive_held",
+        "managed_archive_policy_retained",
+        "managed_archive_replicated_pending_purge",
+        "destruction_receipt_only",
+        "import_source_origin",
+        "outside_platform_scope",
+        "no_remaining_location"
+      ]
+    },
+    "retained_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "destruction_receipt",
+        "policy_retention",
+        "support_investigation",
+        "redaction_omission",
+        "outside_platform_scope"
+      ]
+    },
+    "time_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timezone_basis_class",
+        "utc_offset",
+        "local_time_label"
+      ],
+      "properties": {
+        "timezone_basis_class": { "$ref": "#/$defs/timezone_basis_class" },
+        "display_time_zone_iana": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required by the Rust evaluator when timezone_basis_class names a real IANA zone."
+        },
+        "utc_offset": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Offset rendered by the source row, for example Z, -04:00, or +03:00."
+        },
+        "local_time_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "state_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_deletion",
+        "queued_deletion",
+        "held_data",
+        "retained_evidence",
+        "completed_deletion"
+      ],
+      "properties": {
+        "requested_deletion": { "type": "integer", "minimum": 0 },
+        "queued_deletion": { "type": "integer", "minimum": 0 },
+        "held_data": { "type": "integer", "minimum": 0 },
+        "retained_evidence": { "type": "integer", "minimum": 0 },
+        "completed_deletion": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "evidence_timeline_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "event_id",
+        "source_display_order",
+        "chronology_order",
+        "actor_order",
+        "state_class",
+        "label",
+        "actor_class",
+        "actor_ref",
+        "subject_ref",
+        "source_ref",
+        "occurred_at",
+        "time_context",
+        "evidence_source_class",
+        "current_state_class",
+        "hold_classes",
+        "remaining_location_classes",
+        "retained_reason_class",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/event_record_kind" },
+        "event_id": { "$ref": "#/$defs/stable_ref" },
+        "source_display_order": { "type": "integer", "minimum": 0 },
+        "chronology_order": { "type": "integer", "minimum": 0 },
+        "actor_order": { "type": "integer", "minimum": 0 },
+        "state_class": { "$ref": "#/$defs/state_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_ref": { "$ref": "#/$defs/stable_ref" },
+        "subject_ref": { "$ref": "#/$defs/stable_ref" },
+        "source_ref": { "$ref": "#/$defs/stable_ref" },
+        "occurred_at": { "$ref": "#/$defs/rfc3339_timestamp" },
+        "time_context": { "$ref": "#/$defs/time_context" },
+        "evidence_source_class": { "$ref": "#/$defs/evidence_source_class" },
+        "current_state_class": { "$ref": "#/$defs/current_state_class" },
+        "chronology_context_ref": { "$ref": "#/$defs/stable_ref" },
+        "delete_request_ref": { "$ref": "#/$defs/stable_ref" },
+        "records_governance_packet_ref": { "$ref": "#/$defs/stable_ref" },
+        "destruction_receipt_ref": { "$ref": "#/$defs/stable_ref" },
+        "hold_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hold_class" },
+          "uniqueItems": true
+        },
+        "remaining_location_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/location_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "retained_reason_class": { "$ref": "#/$defs/retained_reason_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "evidence_timeline_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "title",
+        "generated_at",
+        "schema_ref",
+        "doc_ref",
+        "artifact_ref",
+        "controlled_vocabulary_ref",
+        "support_export_refs",
+        "state_counts",
+        "chronology_order_basis",
+        "events",
+        "redaction_class",
+        "raw_content_exported",
+        "reviewer_summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": { "$ref": "#/$defs/packet_record_kind" },
+        "packet_id": {
+          "type": "string",
+          "pattern": "^evidence_timeline_packet:[a-z0-9][a-z0-9._:/-]*$"
+        },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/rfc3339_timestamp" },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/support/evidence_timeline.schema.json"
+        },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/chronology_and_delete_honesty_beta.md"
+        },
+        "artifact_ref": {
+          "type": "string",
+          "const": "artifacts/support/m3/evidence_timeline_packet.md"
+        },
+        "controlled_vocabulary_ref": {
+          "type": "string",
+          "const": "docs/support/m3/chronology_and_delete_honesty_beta.md#controlled-vocabulary"
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_ref" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "state_counts": { "$ref": "#/$defs/state_counts" },
+        "chronology_order_basis": {
+          "type": "string",
+          "const": "occurred_at_rfc3339_then_actor_order_then_source_display_order"
+        },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_timeline_event_record" },
+          "minItems": 1
+        },
+        "redaction_class": {
+          "type": "string",
+          "const": "metadata_safe_default"
+        },
+        "raw_content_exported": {
+          "type": "boolean",
+          "const": false
+        },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}

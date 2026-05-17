@@ -17,12 +17,15 @@
 //!   chrome renders before any export step.
 //! - [`deletion_and_hold`] — shared deletion-honesty labels, held-record
 //!   selectors, and support destruction-receipt rows.
+//! - [`evidence_timeline`] — chronology-ordered delete/hold evidence
+//!   timeline packets for support export and headless review.
 //! - [`crash_linkage`] — support preview row generation for
 //!   [`aureline_crash::CrashIncidentTrail`].
 //! - [`notices`] — metadata-only notice digest preview row generation.
 
 pub mod crash_linkage;
 pub mod deletion_and_hold;
+pub mod evidence_timeline;
 pub mod exact_build;
 pub mod manifest;
 pub mod notices;
@@ -55,6 +58,19 @@ pub use deletion_and_hold::{
     GOVERNANCE_DESTRUCTION_RECEIPT_SCHEMA_REF, SUPPORT_DESTRUCTION_RECEIPT_RECORD_KIND,
     SUPPORT_DESTRUCTION_RECEIPT_REDACTION_CLASS, SUPPORT_DESTRUCTION_RECEIPT_SCHEMA_REF,
     SUPPORT_DESTRUCTION_RECEIPT_SCHEMA_VERSION, SUPPORT_ITEM_DESTRUCTION_RECEIPT,
+};
+pub use evidence_timeline::{
+    add_evidence_timeline_preview_item, evaluate_evidence_timeline_packet,
+    evidence_timeline_preview_item_seed, EvidenceTimelineActorClass,
+    EvidenceTimelineCurrentStateClass, EvidenceTimelineError, EvidenceTimelineEvent,
+    EvidenceTimelineEventInput, EvidenceTimelineLocationClass, EvidenceTimelinePacket,
+    EvidenceTimelinePacketInput, EvidenceTimelineRetainedReasonClass, EvidenceTimelineSourceClass,
+    EvidenceTimelineStateClass, EvidenceTimelineStateCounts, EvidenceTimelineTimeContext,
+    EvidenceTimelineTimezoneBasisClass, EVIDENCE_TIMELINE_ARTIFACT_REF, EVIDENCE_TIMELINE_DOC_REF,
+    EVIDENCE_TIMELINE_EVENT_RECORD_KIND, EVIDENCE_TIMELINE_PACKET_RECORD_KIND,
+    EVIDENCE_TIMELINE_REDACTION_CLASS, EVIDENCE_TIMELINE_SCHEMA_REF,
+    EVIDENCE_TIMELINE_SCHEMA_VERSION, EVIDENCE_TIMELINE_VOCABULARY_REF,
+    SUPPORT_ITEM_EVIDENCE_TIMELINE_PACKET,
 };
 pub use exact_build::ExactBuildCapture;
 pub use manifest::{

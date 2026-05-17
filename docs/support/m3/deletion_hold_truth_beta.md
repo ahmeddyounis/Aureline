@@ -13,6 +13,10 @@ three inspectable additions:
 - stable deletion-honesty labels that prevent support exports from
   saying "deleted" while data is held, queued, policy-retained, or
   outside the platform delete scope.
+- a chronology-focused companion packet at
+  [`/schemas/support/evidence_timeline.schema.json`](../../../schemas/support/evidence_timeline.schema.json)
+  that splits request receipt from queue acceptance while preserving
+  source timezone and actor ordering.
 
 ## Shared vocabulary
 
@@ -23,6 +27,14 @@ three inspectable additions:
 | `deleted` | `Delete completed` | Delete completion is recorded and no in-scope managed, held, receipt-only, or exported copy remains. |
 | `retained_for_evidence` | `Policy retention` | Receipt metadata, policy-retained subsets, support evidence, or redaction/omission evidence remains. |
 | `export_only` | `Exported copy remains local` | The artifact is generated output under user/device control rather than a durable in-product row. |
+
+The companion evidence-timeline packet uses the same operator labels
+and adds per-event state tokens for chronology exports:
+`requested_deletion`, `queued_deletion`, `held_data`,
+`retained_evidence`, and `completed_deletion`. Use the timeline packet
+when the operator needs to inspect whether a request was merely received,
+accepted into the queue, blocked by hold, narrowed to retained evidence,
+or completed.
 
 The lower-level records-governance packet still exposes
 `local_only` and `managed_copy` when no delete lifecycle is in
@@ -73,4 +85,5 @@ The evaluator refuses a receipt when:
 
 ```bash
 cargo test -p aureline-support records_governance_beta deletion_and_hold_beta
+cargo test -p aureline-support evidence_timeline_beta
 ```

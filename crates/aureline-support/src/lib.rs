@@ -101,6 +101,9 @@
 //! - The [`bundle::deletion_and_hold`] projection — adds held-record
 //!   selectors, stable deletion-honesty labels, and metadata-only
 //!   destruction receipt rows to the same support-bundle preview path.
+//! - The [`bundle::evidence_timeline`] projection — exports delete-request,
+//!   queue, hold, retained-evidence, and completion chronology with source
+//!   timezone and actor ordering preserved for support/operator packets.
 //! - The [`local_history_timeline`] support projection — consumes the
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
