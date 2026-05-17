@@ -38,6 +38,7 @@ pub mod content_integrity;
 pub mod detector;
 pub mod records;
 pub mod representation_copy_export;
+pub mod representation_labels;
 pub mod suspicious_content;
 pub mod suspicious_text;
 pub mod transfer;
@@ -67,6 +68,22 @@ pub use representation_copy_export::{
     PROTECTED_COPY_EXPORT_SURFACES, REPRESENTATION_COPY_EXPORT_ALPHA_PACKET_RECORD_KIND,
     REPRESENTATION_COPY_EXPORT_ALPHA_SCHEMA_VERSION,
     REPRESENTATION_COPY_EXPORT_VALIDATION_REPORT_RECORD_KIND,
+};
+pub use representation_labels::{
+    LabeledRepresentationClass, RepresentationActionKind, RepresentationActionPosture,
+    RepresentationExportRecord, RepresentationLabelsActionInput,
+    RepresentationLabelsActionProjection, RepresentationLabelsBetaCase,
+    RepresentationLabelsBetaGateStatus, RepresentationLabelsBetaPacket,
+    RepresentationLabelsBetaValidationReport, RepresentationLabelsBetaViolation,
+    RepresentationLabelsSurfaceInput, RepresentationLabelsSurfaceRow, RepresentationOmissionReason,
+    RepresentationOriginClass, RepresentationScopeClass, RepresentationSurfaceKind,
+    RepresentationTransformKind, RiskyContentClass, REPRESENTATION_EXPORT_RECORD_KIND,
+    REPRESENTATION_EXPORT_SCHEMA_REF, REPRESENTATION_LABELS_BETA_DOC_REF,
+    REPRESENTATION_LABELS_BETA_FIXTURE_DIR, REPRESENTATION_LABELS_BETA_PACKET_RECORD_KIND,
+    REPRESENTATION_LABELS_BETA_SCHEMA_VERSION,
+    REPRESENTATION_LABELS_BETA_VALIDATION_REPORT_RECORD_KIND,
+    REPRESENTATION_LABELS_REQUIRED_ACTIONS, REPRESENTATION_LABELS_REQUIRED_CONTENT_CLASSES,
+    REPRESENTATION_LABELS_REQUIRED_REPRESENTATIONS, REPRESENTATION_LABELS_REQUIRED_SURFACES,
 };
 pub use suspicious_content::{
     current_content_integrity_beta_packet, ContentIntegrityBetaArtifactError,
