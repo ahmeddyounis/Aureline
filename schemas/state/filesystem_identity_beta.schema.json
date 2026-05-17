@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/filesystem_identity_beta.schema.json",
+  "title": "Aureline filesystem-identity hardened beta case and support-packet contract",
+  "description": "Boundary schema for the filesystem_identity_beta_case_record and filesystem_identity_beta_support_packet_record consumed by aureline-vfs's identity_beta module. A case record exercises one difficult filesystem-identity scenario (symlink, junction, hardlink, case-only drift, Unicode normalization, bind/container/archive overlay, remote alias) and binds presentation/canonical/logical identity, alias inspection, save-target review, conflict resolution, and support-export refs into one row. The support packet projection folds the corpus into a metadata-safe export that excludes raw private material and ambient authority while preserving the same filesystem_identity_ref the save and conflict-resolution flows used.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/filesystem_identity_beta_case_record"
+    },
+    {
+      "$ref": "#/$defs/filesystem_identity_beta_support_packet_record"
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "vfs_uri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "difficulty_class": {
+      "type": "string",
+      "enum": [
+        "symlink_alias",
+        "junction_alias",
+        "hardlink_sibling",
+        "case_only_drift",
+        "unicode_normalization",
+        "bind_mount_overlay",
+        "container_mount_overlay",
+        "archive_inner_overlay",
+        "remote_agent_overlay"
+      ]
+    },
+    "root_class": {
+      "type": "string",
+      "enum": [
+        "local_posix_like",
+        "local_windows_like",
+        "remote_agent_mount",
+        "container_mount",
+        "virtual_generated_document",
+        "archive_like_view"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted",
+        "pending_evaluation"
+      ]
+    },
+    "alias_kind": {
+      "type": "string",
+      "enum": [
+        "symlink",
+        "junction",
+        "hardlink_sibling",
+        "case_only_variant",
+        "unicode_normalization_variant",
+        "remote_alias",
+        "bind_mount_alias",
+        "container_mount_alias",
+        "archive_inner_alias"
+      ]
+    },
+    "path_truth_class": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "direct_with_known_aliases",
+        "via_symlink",
+        "via_junction",
+        "via_hardlink_sibling",
+        "via_case_only_variant",
+        "via_unicode_normalization_variant",
+        "via_remote_alias",
+        "via_bind_mount_alias",
+        "via_container_mount_alias",
+        "via_archive_inner_alias",
+        "divergent_unknown"
+      ]
+    },
+    "atomic_write_mode": {
+      "type": "string",
+      "enum": [
+        "atomic_replace",
+        "in_place_write",
+        "conditional_remote_write",
+        "blocked"
+      ]
+    },
+    "save_token_kind": {
+      "type": "string",
+      "enum": [
+        "file_id_generation",
+        "device_inode_generation",
+        "windows_object_id",
+        "provider_object_id_revision",
+        "inode_mtime_size",
+        "remote_revision_token",
+        "content_hash"
+      ]
+    },
+    "save_target_review_blocker": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "policy_constrained",
+        "review_required_before_save",
+        "review_required_before_rename",
+        "not_writable_per_snapshot",
+        "atomic_write_mode_blocked",
+        "divergent_unknown_alias",
+        "untrusted_workspace"
+      ]
+    },
+    "compare_outcome": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "external_change_detected",
+        "save_conflict",
+        "wrong_target_prevented",
+        "current_bytes_unavailable"
+      ]
+    },
+    "resolution_action": {
+      "type": "string",
+      "enum": [
+        "write",
+        "compare",
+        "reload_external",
+        "merge",
+        "save_as",
+        "recompare",
+        "open_alias_details",
+        "cancel"
+      ]
+    },
+    "alias_inspection_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alias_uri",
+        "alias_kind",
+        "resolution_chain",
+        "is_canonical",
+        "is_presentation"
+      ],
+      "properties": {
+        "alias_uri": { "$ref": "#/$defs/vfs_uri" },
+        "alias_kind": { "$ref": "#/$defs/alias_kind" },
+        "resolution_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "is_canonical": { "type": "boolean" },
+        "is_presentation": { "type": "boolean" }
+      }
+    },
+    "alias_inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presentation_uri",
+        "canonical_uri",
+        "logical_uri",
+        "display_label",
+        "root_badge",
+        "entries",
+        "distinct_alias_kinds",
+        "presentation_alias_missing"
+      ],
+      "properties": {
+        "presentation_uri": { "$ref": "#/$defs/vfs_uri" },
+        "canonical_uri": { "$ref": "#/$defs/vfs_uri" },
+        "logical_uri": { "$ref": "#/$defs/vfs_uri" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "root_badge": { "$ref": "#/$defs/non_empty_string" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/alias_inspection_entry" }
+        },
+        "distinct_alias_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/alias_kind" }
+        },
+        "presentation_alias_missing": { "type": "boolean" }
+      }
+    },
+    "save_target_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "writes_to_canonical_uri",
+        "path_truth_class",
+        "atomic_write_mode",
+        "save_token_kind",
+        "save_token_value",
+        "save_redirects_target",
+        "review_required_before_save",
+        "review_required_before_rename",
+        "blockers"
+      ],
+      "properties": {
+        "writes_to_canonical_uri": { "$ref": "#/$defs/vfs_uri" },
+        "path_truth_class": { "$ref": "#/$defs/path_truth_class" },
+        "opens_via_alias_kind": { "$ref": "#/$defs/alias_kind" },
+        "atomic_write_mode": { "$ref": "#/$defs/atomic_write_mode" },
+        "save_token_kind": { "$ref": "#/$defs/save_token_kind" },
+        "save_token_value": { "$ref": "#/$defs/non_empty_string" },
+        "save_redirects_target": { "type": "boolean" },
+        "review_required_before_save": { "type": "boolean" },
+        "review_required_before_rename": { "type": "boolean" },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/save_target_review_blocker" }
+        }
+      }
+    },
+    "conflict_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compare_outcome",
+        "review_required",
+        "silent_overwrite_forbidden",
+        "resolution_actions"
+      ],
+      "properties": {
+        "compare_outcome": { "$ref": "#/$defs/compare_outcome" },
+        "review_required": { "type": "boolean" },
+        "silent_overwrite_forbidden": { "type": "boolean" },
+        "resolution_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resolution_action" }
+        }
+      }
+    },
+    "support_export_alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filesystem_identity_ref",
+        "editor_file_identity_ref",
+        "git_file_identity_ref",
+        "restore_file_identity_ref",
+        "mutation_file_identity_ref",
+        "support_export_file_identity_ref",
+        "all_refs_agree"
+      ],
+      "properties": {
+        "filesystem_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "editor_file_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "git_file_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "restore_file_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "mutation_file_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export_file_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "all_refs_agree": { "type": "boolean", "const": true }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "destructive_resets_present",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "destructive_resets_present": { "type": "boolean", "const": false },
+        "preserves_user_authored_files": { "type": "boolean", "const": true }
+      }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adr_ref",
+        "vocabulary_doc_ref",
+        "beta_doc_ref"
+      ],
+      "properties": {
+        "adr_ref": { "$ref": "#/$defs/non_empty_string" },
+        "vocabulary_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "beta_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "alpha_fixture_ref": { "$ref": "#/$defs/non_empty_string" },
+        "recovery_ladder_alpha_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "filesystem_identity_beta_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "case_id",
+        "title",
+        "difficulty_class",
+        "root_class",
+        "trust_state",
+        "alias_inspection",
+        "save_target_review",
+        "conflict_resolution",
+        "support_export_alignment",
+        "safety",
+        "references",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "filesystem_identity_beta_case_record"
+        },
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "difficulty_class": { "$ref": "#/$defs/difficulty_class" },
+        "root_class": { "$ref": "#/$defs/root_class" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "alias_inspection": { "$ref": "#/$defs/alias_inspection" },
+        "save_target_review": { "$ref": "#/$defs/save_target_review" },
+        "conflict_resolution": { "$ref": "#/$defs/conflict_resolution" },
+        "support_export_alignment": { "$ref": "#/$defs/support_export_alignment" },
+        "safety": { "$ref": "#/$defs/safety" },
+        "references": { "$ref": "#/$defs/references" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_packet_case_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "difficulty_class",
+        "presentation_uri",
+        "canonical_uri",
+        "logical_uri",
+        "writes_to_canonical_uri",
+        "path_truth_class",
+        "save_token_kind",
+        "compare_outcome",
+        "filesystem_identity_ref",
+        "all_refs_agree",
+        "distinct_alias_kinds"
+      ],
+      "properties": {
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "difficulty_class": { "$ref": "#/$defs/difficulty_class" },
+        "presentation_uri": { "$ref": "#/$defs/vfs_uri" },
+        "canonical_uri": { "$ref": "#/$defs/vfs_uri" },
+        "logical_uri": { "$ref": "#/$defs/vfs_uri" },
+        "writes_to_canonical_uri": { "$ref": "#/$defs/vfs_uri" },
+        "path_truth_class": { "$ref": "#/$defs/path_truth_class" },
+        "opens_via_alias_kind": { "$ref": "#/$defs/alias_kind" },
+        "save_token_kind": { "$ref": "#/$defs/save_token_kind" },
+        "compare_outcome": { "$ref": "#/$defs/compare_outcome" },
+        "filesystem_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "all_refs_agree": { "type": "boolean", "const": true },
+        "distinct_alias_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/alias_kind" }
+        }
+      }
+    },
+    "filesystem_identity_beta_support_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "captured_at",
+        "doc_ref",
+        "schema_ref",
+        "corpus_manifest_ref",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "required_difficulty_classes",
+        "cases"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "filesystem_identity_beta_support_packet_record"
+        },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "corpus_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "required_difficulty_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/difficulty_class" }
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_packet_case_row" }
+        }
+      }
+    }
+  }
+}

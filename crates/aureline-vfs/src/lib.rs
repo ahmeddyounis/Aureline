@@ -63,6 +63,7 @@ pub mod capabilities;
 pub mod harness;
 pub mod hooks;
 pub mod identity;
+pub mod identity_beta;
 pub mod roots;
 pub mod save;
 pub mod synthetic;
