@@ -1,0 +1,123 @@
+schema_version: 1
+record_kind: m3_support_scenario_record
+scenario_id: support.m3.scenario.safe_mode.post_crash_loop_entry_and_exit
+title: Safe-mode entry and exit after a startup crash loop
+beta_lane_class: safe_mode
+
+beta_lane_refs:
+  doc_ref: docs/support/m3/safe_mode_beta.md
+  schema_ref: schemas/support/safe_mode_profile.schema.json
+  crate_consumer: crates/aureline-support/src/safe_mode/mod.rs
+  integration_test: crates/aureline-support/tests/safe_mode_beta.rs
+
+drill_class: failure_recovery_drill
+drill_owner_lane: support_export
+
+starting_condition:
+  state_ref: state:safe_mode.post_crash_loop_strike_budget_exhausted
+  summary: >
+    The host hit the startup crash-loop strike budget and the recovery
+    ladder has routed the user into a typed safe-mode profile bound to
+    the originating Project Doctor finding.
+
+drill_steps:
+  - step_id: safe_mode.step.bind_doctor_finding
+    step_class: bind_doctor_finding
+    summary: >
+      Bind the post-crash-loop profile to a stable Project Doctor finding
+      ref so safe mode never claims a narrowing without an attributable
+      cause.
+    expected_artifact_kind: safe_mode_profile_record
+    expected_artifact_ref: safe_mode_profile:post_crash_loop:default
+  - step_id: safe_mode.step.enter_profile
+    step_class: enter_safe_mode
+    summary: >
+      Apply the declared narrowing rows for the post-crash-loop profile;
+      preserve local editing, basic navigation, diagnostics export, and
+      the explicit exit action.
+    expected_artifact_kind: safe_mode_transition_record
+    expected_artifact_ref: safe_mode_transition:post_crash_loop:enter
+  - step_id: safe_mode.step.exit_to_full_mode
+    step_class: exit_safe_mode
+    summary: >
+      Exit the profile only after the user reviewed the finding and
+      confirmed a return path; transition pins user-owned and durable
+      state as undeleted.
+    expected_artifact_kind: safe_mode_transition_record
+    expected_artifact_ref: safe_mode_transition:post_crash_loop:exit
+  - step_id: safe_mode.step.export_support_packet
+    step_class: export_support_packet
+    summary: >
+      Project the bound profile and its enter/exit transitions into a
+      metadata-safe support packet for the support-export pipeline.
+    expected_artifact_kind: safe_mode_support_packet_record
+    expected_artifact_ref: support.packet.safe_mode.post_crash_loop.entry_and_exit
+
+expected_first_actionable_artifact:
+  artifact_kind: safe_mode_profile_record
+  artifact_ref: safe_mode_profile:post_crash_loop:default
+  recovery_action_class: enter_safe_mode
+  reviewer_summary: >
+    A typed safe-mode profile names every narrowed host, service, and
+    surface plus the Project Doctor finding behind the entry; the
+    blocked user can keep editing, run Doctor, build a support-bundle
+    preview, and then explicitly exit safe mode.
+
+primary_fixture_refs:
+  - fixtures/recovery/m3/safe_mode/post_crash_loop_profile.yaml
+  - fixtures/recovery/m3/safe_mode/post_crash_loop_enter.yaml
+  - fixtures/recovery/m3/safe_mode/post_crash_loop_exit.yaml
+  - fixtures/recovery/m3/safe_mode/manifest.yaml
+
+scorecard_contribution:
+  scorecard_target: m3.beta_lane.safe_mode
+  coverage_class: lane_lifecycle
+  expected_state: green
+  contributes_to_release_gate: true
+
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    downgrade_class: stale_corpus_blocks_release_candidate
+    reviewer_note: >
+      Required safe-mode fixture is absent; the beta lane cannot prove
+      the entry/exit lifecycle and downgrades the release candidate.
+  - trigger_class: drill_step_unproven
+    downgrade_class: yellow_aging_drill_evidence
+    reviewer_note: >
+      A declared drill step has no proving artifact reference; the
+      scorecard ages out to yellow until evidence is restored.
+  - trigger_class: drill_proves_regression
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Drill replay produced a record that the evaluator refused;
+      the safe-mode beta claim is blocked until the regression is
+      reverted or rescoped.
+  - trigger_class: raw_private_material_present
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Support packet leaked raw private material; the beta lane fails
+      the metadata-safe contract.
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - workspace_trust_store
+    - credential_store
+    - installed_extension_marketplace_state
+
+references:
+  beta_lane_doc_ref: docs/support/m3/safe_mode_beta.md
+  recovery_ladder_alpha_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+
+emitted_at: 2026-05-16T00:00:00Z

@@ -1,0 +1,128 @@
+schema_version: 1
+record_kind: m3_support_scenario_record
+scenario_id: support.m3.scenario.repair_transaction_preview.extension_quarantine_comparison
+title: Repair preview compares the extension-quarantine skeleton before any apply path
+beta_lane_class: repair_transaction_preview
+
+beta_lane_refs:
+  doc_ref: docs/support/m3/repair_transaction_beta.md
+  schema_ref: schemas/support/repair_transaction_preview_skeleton.schema.json
+  crate_consumer: crates/aureline-support/src/repair_transactions/mod.rs
+  integration_test: crates/aureline-support/tests/repair_transaction_preview_beta.rs
+
+drill_class: repair_preview_drill
+drill_owner_lane: support_export
+
+starting_condition:
+  state_ref: state:repair_transaction_preview.extension_quarantine_compensating
+  summary: >
+    Project Doctor proposed an extension-quarantine repair after an
+    extension-bisect attribution. The beta surface compiles a typed
+    preview skeleton from the alpha repair transaction, names a
+    compensation class distinct from reversal, and binds it to a
+    cancellable comparison before any apply path can run.
+
+drill_steps:
+  - step_id: repair_preview.step.compile_skeleton
+    step_class: compile_repair_skeleton
+    summary: >
+      Compile the beta preview skeleton from the alpha repair
+      transaction; preserve the alpha transaction id and reversal
+      class verbatim and derive blast radius from the impacted object
+      classes.
+    expected_artifact_kind: repair_preview_skeleton_record
+    expected_artifact_ref: repair_preview_skeleton:extension_quarantine
+  - step_id: repair_preview.step.bind_comparison
+    step_class: compare_repair_skeleton
+    summary: >
+      Bind the skeleton to a typed comparison record so a reviewer can
+      continue, cancel, or accept the comparison before any durable
+      state mutates.
+    expected_artifact_kind: repair_preview_comparison_record
+    expected_artifact_ref: repair_preview_comparison:extension_quarantine.blast_radius
+  - step_id: repair_preview.step.refuse_authorized_for_apply_without_comparison
+    step_class: compare_repair_skeleton
+    summary: >
+      Confirm the evaluator refuses an authorized-for-apply disposition
+      under a compensating compensation class when no prior comparison
+      exists, keeping compare-before-apply mandatory for non-exact
+      repairs.
+    expected_artifact_kind: repair_preview_comparison_record
+    expected_artifact_ref: repair_preview_comparison:extension_quarantine.blast_radius
+  - step_id: repair_preview.step.export_support_packet
+    step_class: export_support_packet
+    summary: >
+      Project the bound skeleton and its comparison into a
+      metadata-safe support packet that quotes the alpha transaction id
+      and reversal class on every row.
+    expected_artifact_kind: repair_preview_skeleton_support_packet_record
+    expected_artifact_ref: support.packet.repair_preview.extension_quarantine
+
+expected_first_actionable_artifact:
+  artifact_kind: repair_preview_skeleton_record
+  artifact_ref: repair_preview_skeleton:extension_quarantine
+  recovery_action_class: open_repair_preview
+  reviewer_summary: >
+    A typed preview skeleton declares blast radius, compensation class,
+    affected object classes, and checkpoint disposition bound to the
+    alpha transaction id; a paired comparison lets the reviewer cancel
+    before any apply path runs.
+
+primary_fixture_refs:
+  - fixtures/recovery/m3/repair_transaction_preview/extension_quarantine_skeleton.yaml
+  - fixtures/recovery/m3/repair_transaction_preview/extension_quarantine_comparison_blast_radius.yaml
+  - fixtures/recovery/m3/repair_transaction_preview/manifest.yaml
+
+scorecard_contribution:
+  scorecard_target: m3.beta_lane.repair_transaction_preview
+  coverage_class: lane_lifecycle
+  expected_state: green
+  contributes_to_release_gate: true
+
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    downgrade_class: stale_corpus_blocks_release_candidate
+    reviewer_note: >
+      Repair preview skeleton or comparison fixture is absent; the
+      beta lane cannot prove compare-before-apply and the release
+      candidate is blocked.
+  - trigger_class: drill_step_unproven
+    downgrade_class: yellow_aging_drill_evidence
+    reviewer_note: >
+      Skeleton or comparison evidence is missing; the scorecard ages
+      to yellow until proving artifacts return.
+  - trigger_class: drill_proves_regression
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Drill replay produced a skeleton or comparison the evaluator
+      refused; the repair-preview beta claim is blocked.
+  - trigger_class: recovery_action_unsafe
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Authorize-for-apply was admitted without a prior comparison on a
+      compensating or manual compensation class; beta lane fails the
+      compare-before-apply contract.
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - workspace_trust_store
+    - credential_store
+    - installed_extension_marketplace_state
+
+references:
+  beta_lane_doc_ref: docs/support/m3/repair_transaction_beta.md
+  recovery_ladder_alpha_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+
+emitted_at: 2026-05-16T00:00:00Z

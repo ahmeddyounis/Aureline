@@ -1,0 +1,118 @@
+schema_version: 1
+record_kind: m3_support_scenario_record
+scenario_id: support.m3.scenario.records_governance.held_support_bundle_chain
+title: Held support-bundle archive carries records-governance chain through export
+beta_lane_class: records_governance
+
+beta_lane_refs:
+  doc_ref: docs/support/m3/records_governance_beta.md
+  schema_ref: schemas/support/record_class.schema.json
+  crate_consumer: crates/aureline-support/src/bundle/records/mod.rs
+  integration_test: crates/aureline-support/tests/records_governance_beta.rs
+
+drill_class: governance_chain_drill
+drill_owner_lane: support_export
+
+starting_condition:
+  state_ref: state:records_governance.support_bundle_under_legal_hold
+  summary: >
+    A support-bundle archive is placed on hold pending an
+    administrative-legal review. Every export and reopen must carry a
+    typed records-governance packet that exposes the hold class, the
+    chain of custody, and the destruction caveat instead of implying
+    them.
+
+drill_steps:
+  - step_id: records_governance.step.mint_packet
+    step_class: mint_records_governance_packet
+    summary: >
+      Mint a records-governance packet for the held support bundle;
+      assert artifact_class=held, hold_state=on_hold, and at least one
+      hold_class drawn from the registry-allowed set.
+    expected_artifact_kind: records_governance_packet_record
+    expected_artifact_ref: records_governance_packet:held_support_bundle
+  - step_id: records_governance.step.refuse_class_mismatch
+    step_class: mint_records_governance_packet
+    summary: >
+      Refuse a packet whose asserted artifact_class disagrees with the
+      hold state, custody chain, or registry row; the chip can never
+      say "local only" when a managed mirror or pending delete is on
+      the chain.
+    expected_artifact_kind: records_governance_packet_record
+    expected_artifact_ref: records_governance_packet:held_support_bundle
+  - step_id: records_governance.step.export_packet
+    step_class: export_support_packet
+    summary: >
+      Queue the packet as a metadata-only governance row on the
+      support-bundle preview; raw_content_exported pinned to false and
+      no raw payload, credential, or hold-justification bytes embedded.
+    expected_artifact_kind: records_governance_support_preview_item
+    expected_artifact_ref: support.item.records_governance_packet.held_support_bundle
+
+expected_first_actionable_artifact:
+  artifact_kind: records_governance_packet_record
+  artifact_ref: records_governance_packet:held_support_bundle
+  recovery_action_class: handoff_to_support
+  reviewer_summary: >
+    A typed records-governance packet shows hold class, custody
+    timeline, and destruction caveat with reviewer notes; the support
+    bundle reopen never exposes raw payload bytes.
+
+primary_fixture_refs:
+  - fixtures/support/records_governance/held_support_bundle.json
+  - fixtures/support/records_governance/managed_copy_index.json
+  - fixtures/support/records_governance/queued_for_delete_offboarding.json
+  - fixtures/support/records_governance/local_only_workspace_state.json
+  - fixtures/support/records_governance/export_only_usage_packet.json
+
+scorecard_contribution:
+  scorecard_target: m3.beta_lane.records_governance
+  coverage_class: artifact_class_coverage
+  expected_state: green
+  contributes_to_release_gate: true
+
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    downgrade_class: stale_corpus_blocks_release_candidate
+    reviewer_note: >
+      A records-governance fixture is absent; artifact-class coverage
+      cannot be proven and the release candidate is blocked.
+  - trigger_class: drill_step_unproven
+    downgrade_class: yellow_aging_drill_evidence
+    reviewer_note: >
+      Hold or chain-of-custody evidence is missing; the governance
+      scorecard ages to yellow.
+  - trigger_class: drill_proves_regression
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      A packet was admitted whose asserted artifact_class disagrees
+      with the derived class; records-governance beta claim is blocked.
+  - trigger_class: raw_private_material_present
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Packet leaked raw payload, credential, or hold-justification
+      bytes; the records-governance beta claim fails.
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - workspace_trust_store
+    - credential_store
+    - support_export_store
+
+references:
+  beta_lane_doc_ref: docs/support/m3/records_governance_beta.md
+  recovery_ladder_alpha_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+
+emitted_at: 2026-05-16T00:00:00Z

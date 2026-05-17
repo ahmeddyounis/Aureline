@@ -1,0 +1,131 @@
+schema_version: 1
+record_kind: m3_support_scenario_record
+scenario_id: support.m3.scenario.doctor_probe_packs.entry_open_routing
+title: Entry probe pack routes target-unavailable findings to a governed locate path
+beta_lane_class: doctor_probe_packs
+
+beta_lane_refs:
+  doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+  schema_ref: schemas/support/doctor_probe_pack.schema.json
+  crate_consumer: crates/aureline-support/src/project_doctor/probe_pack_coverage.rs
+  integration_test: crates/aureline-support/tests/doctor_probe_pack_coverage_beta.rs
+
+drill_class: diagnosis_routing_drill
+drill_owner_lane: support_export
+
+starting_condition:
+  state_ref: state:doctor_probe_packs.catalog_loaded_with_seven_families
+  summary: >
+    The beta probe-pack catalog is loaded with one pack per failure
+    family; a user opens a recent workspace whose target is not
+    available and Doctor must route the finding through a governed
+    locate-or-handoff path.
+
+drill_steps:
+  - step_id: doctor_probe_packs.step.evaluate_catalog
+    step_class: evaluate_doctor_probe_pack
+    summary: >
+      Load the catalog and confirm every beta failure family has one
+      named pack with prerequisites, outputs, and unsupported-state
+      handling.
+    expected_artifact_kind: doctor_probe_pack_catalog_record
+    expected_artifact_ref: doctor.probe_pack.catalog.beta.read_only_baseline
+  - step_id: doctor_probe_packs.step.route_entry_open_finding
+    step_class: emit_doctor_beta_finding
+    summary: >
+      Evaluate the entry probe pack against an admission manifest that
+      names a missing target; the pack must emit the typed
+      target-unavailable finding routed to locate_missing_target rather
+      than silently failing the open.
+    expected_artifact_kind: doctor_probe_pack_record
+    expected_artifact_ref: doctor.probe_pack.entry.v1
+  - step_id: doctor_probe_packs.step.refuse_without_evidence
+    step_class: evaluate_doctor_probe_pack
+    summary: >
+      When neither the admission manifest nor the entry-intent record
+      is available, the pack must refuse to guess and hand off to the
+      governed support escalation packet.
+    expected_artifact_kind: doctor_probe_pack_record
+    expected_artifact_ref: doctor.probe_pack.entry.v1
+  - step_id: doctor_probe_packs.step.score_coverage
+    step_class: evaluate_doctor_probe_pack
+    summary: >
+      Project the catalog into the metadata-safe coverage scorecard;
+      every failure family must report at least one pack with mapped
+      finding codes and recovery actions.
+    expected_artifact_kind: doctor_probe_pack_coverage_scorecard
+    expected_artifact_ref: support.packet.doctor_probe_pack.coverage.beta
+  - step_id: doctor_probe_packs.step.export_support_packet
+    step_class: export_support_packet
+    summary: >
+      Export the catalog-coverage scorecard as the metadata-safe
+      support packet downstream supportability scoreboards quote
+      verbatim instead of reading raw catalog rows.
+    expected_artifact_kind: doctor_probe_pack_coverage_scorecard
+    expected_artifact_ref: support.packet.doctor_probe_pack.coverage.beta
+
+expected_first_actionable_artifact:
+  artifact_kind: doctor_probe_pack_record
+  artifact_ref: doctor.probe_pack.entry.v1
+  recovery_action_class: locate_missing_target
+  reviewer_summary: >
+    The entry probe pack emits a stable doctor.finding.entry_open.* code
+    routed to a typed locate-or-handoff path; the catalog scorecard
+    reports every beta failure family as covered with named
+    prerequisites, outputs, and unsupported-state handling.
+
+primary_fixture_refs:
+  - fixtures/support/m3/doctor_probe_packs/manifest.yaml
+  - fixtures/support/m3/doctor_probe_packs/catalog.yaml
+  - fixtures/support/m3/doctor_probe_packs/entry_pack.yaml
+
+scorecard_contribution:
+  scorecard_target: m3.beta_lane.doctor_probe_packs
+  coverage_class: family_catalog_coverage
+  expected_state: green
+  contributes_to_release_gate: true
+
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    downgrade_class: stale_corpus_blocks_release_candidate
+    reviewer_note: >
+      Probe-pack catalog or entry-pack fixture is absent; the catalog
+      cannot prove family coverage and the release candidate is blocked.
+  - trigger_class: drill_step_unproven
+    downgrade_class: yellow_aging_drill_evidence
+    reviewer_note: >
+      A declared probe-pack step has no proving artifact reference; the
+      coverage scorecard ages to yellow.
+  - trigger_class: drill_proves_regression
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      The catalog validator refused a pack; the probe-pack beta claim
+      is blocked.
+  - trigger_class: recovery_action_unsafe
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      An output routed to an action outside the closed recovery-action
+      vocabulary; beta lane fails the governed-routing contract.
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - workspace_trust_store
+    - credential_store
+
+references:
+  beta_lane_doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+  recovery_ladder_alpha_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+
+emitted_at: 2026-05-16T00:00:00Z

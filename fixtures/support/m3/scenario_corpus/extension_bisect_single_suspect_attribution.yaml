@@ -1,0 +1,134 @@
+schema_version: 1
+record_kind: m3_support_scenario_record
+scenario_id: support.m3.scenario.extension_bisect.single_suspect_attribution
+title: Extension bisect attributes a single suspect after a crash loop
+beta_lane_class: extension_bisect
+
+beta_lane_refs:
+  doc_ref: docs/support/m3/extension_bisect_beta.md
+  schema_ref: schemas/support/extension_bisect.schema.json
+  crate_consumer: crates/aureline-support/src/extension_bisect/mod.rs
+  integration_test: crates/aureline-support/tests/extension_bisect_beta.rs
+
+drill_class: failure_recovery_drill
+drill_owner_lane: support_export
+
+starting_condition:
+  state_ref: state:extension_bisect.post_crash_loop_quarantine_required
+  summary: >
+    A safe-mode session is active after a startup crash loop and
+    Project Doctor has routed the user into a bounded extension-bisect
+    session to attribute the offender by progressive cohort activation.
+
+drill_steps:
+  - step_id: extension_bisect.step.bind_doctor_finding
+    step_class: bind_doctor_finding
+    summary: >
+      Bind the bisect session to the originating Project Doctor finding
+      so attribution never starts without a typed cause record.
+    expected_artifact_kind: extension_bisect_session_record
+    expected_artifact_ref: extension_bisect_session:post_crash_loop:default
+  - step_id: extension_bisect.step.start_session
+    step_class: start_extension_bisect
+    summary: >
+      Open the bisect session with a candidate set; preserve local
+      editing, the explicit exit action, user-authored files, and the
+      prior-state snapshot. Disable extension auto-activation.
+    expected_artifact_kind: extension_bisect_step_record
+    expected_artifact_ref: extension_bisect_step:post_crash_loop:baseline
+  - step_id: extension_bisect.step.activate_cohort_a
+    step_class: start_extension_bisect
+    summary: >
+      Activate the first cohort and record the typed verification step
+      that observes the activation result and the cohort verdict.
+    expected_artifact_kind: extension_bisect_step_record
+    expected_artifact_ref: extension_bisect_step:post_crash_loop:cohort_a
+  - step_id: extension_bisect.step.emit_finding
+    step_class: emit_doctor_beta_finding
+    summary: >
+      Emit a typed user-visible finding naming the single suspect
+      extension and the confidence class behind the attribution.
+    expected_artifact_kind: extension_bisect_finding_record
+    expected_artifact_ref: extension_bisect_finding:post_crash_loop:single_suspect
+  - step_id: extension_bisect.step.restore_prior_state
+    step_class: restore_extension_state
+    summary: >
+      Restore the prior extension state recorded at session start;
+      restore pins user-owned and durable state as undeleted.
+    expected_artifact_kind: extension_bisect_restore_record
+    expected_artifact_ref: extension_bisect_restore:post_crash_loop:single_suspect
+  - step_id: extension_bisect.step.export_support_packet
+    step_class: export_support_packet
+    summary: >
+      Project the session, steps, finding, and restore into a
+      metadata-safe support packet for the support-export pipeline.
+    expected_artifact_kind: extension_bisect_support_packet_record
+    expected_artifact_ref: support.packet.extension_bisect.post_crash_loop.single_suspect
+
+expected_first_actionable_artifact:
+  artifact_kind: extension_bisect_finding_record
+  artifact_ref: extension_bisect_finding:post_crash_loop:single_suspect
+  recovery_action_class: start_extension_bisect
+  reviewer_summary: >
+    A typed user-visible bisect finding names a single suspect and the
+    bisect's restore plan returns the prior extension state without
+    deleting user-owned or durable state.
+
+primary_fixture_refs:
+  - fixtures/recovery/m3/extension_bisect/post_crash_loop_single_suspect_session.yaml
+  - fixtures/recovery/m3/extension_bisect/post_crash_loop_single_suspect_step_baseline.yaml
+  - fixtures/recovery/m3/extension_bisect/post_crash_loop_single_suspect_step_cohort_a.yaml
+  - fixtures/recovery/m3/extension_bisect/post_crash_loop_single_suspect_finding.yaml
+  - fixtures/recovery/m3/extension_bisect/post_crash_loop_single_suspect_restore.yaml
+  - fixtures/recovery/m3/extension_bisect/manifest.yaml
+
+scorecard_contribution:
+  scorecard_target: m3.beta_lane.extension_bisect
+  coverage_class: lane_lifecycle
+  expected_state: green
+  contributes_to_release_gate: true
+
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    downgrade_class: stale_corpus_blocks_release_candidate
+    reviewer_note: >
+      Required bisect fixture is absent; bisect cannot prove the
+      cohort-activation lifecycle and the release candidate is blocked.
+  - trigger_class: drill_step_unproven
+    downgrade_class: yellow_aging_drill_evidence
+    reviewer_note: >
+      Cohort or restore evidence is missing; the bisect scorecard ages
+      to yellow until the proving artifact returns.
+  - trigger_class: drill_proves_regression
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Drill replay produced a session or restore record that the
+      evaluator refused; the extension-bisect beta claim is blocked.
+  - trigger_class: recovery_action_unsafe
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      A drill step proposed re-enabling a quarantined extension without
+      a typed preview; the beta lane fails the safe-recovery contract.
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - credential_store
+    - installed_extension_marketplace_state
+
+references:
+  beta_lane_doc_ref: docs/support/m3/extension_bisect_beta.md
+  recovery_ladder_alpha_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+
+emitted_at: 2026-05-16T00:00:00Z

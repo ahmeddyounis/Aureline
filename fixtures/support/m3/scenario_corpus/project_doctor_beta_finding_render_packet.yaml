@@ -1,0 +1,118 @@
+schema_version: 1
+record_kind: m3_support_scenario_record
+scenario_id: support.m3.scenario.project_doctor_finding_contract.beta_finding_render_packet
+title: Project Doctor beta finding renders the same packet across UI, CLI, and support export
+beta_lane_class: project_doctor_finding_contract
+
+beta_lane_refs:
+  doc_ref: docs/support/m3/project_doctor_beta.md
+  schema_ref: schemas/support/project_doctor.schema.json
+  crate_consumer: crates/aureline-support/src/project_doctor/beta.rs
+  integration_test: crates/aureline-support/tests/project_doctor_beta_support.rs
+
+drill_class: diagnosis_routing_drill
+drill_owner_lane: support_export
+
+starting_condition:
+  state_ref: state:project_doctor_finding_contract.beta_catalog_loaded
+  summary: >
+    The beta Project Doctor catalog is loaded with versioned,
+    read-only-by-default probe packs. A finding has been emitted with
+    a stable doctor.finding.* code, attribution to its pack, and an
+    evidence list; every render surface must reconstruct the same
+    packet from the same record.
+
+drill_steps:
+  - step_id: project_doctor_finding_contract.step.bind_doctor_finding
+    step_class: bind_doctor_finding
+    summary: >
+      Bind the beta finding to its declared probe pack via the
+      probe_pack_ref attribution; refuse a finding without a
+      probe_pack_ref attribution row or an unknown pack ref.
+    expected_artifact_kind: project_doctor_finding_record
+    expected_artifact_ref: finding:project_doctor:beta:entry_target_unavailable
+  - step_id: project_doctor_finding_contract.step.emit_finding
+    step_class: emit_doctor_beta_finding
+    summary: >
+      Emit the finding under the headless support context and confirm
+      the pack's headless admission allows it; render surfaces must
+      include the headless JSON row.
+    expected_artifact_kind: project_doctor_finding_record
+    expected_artifact_ref: finding:project_doctor:beta:entry_target_unavailable
+  - step_id: project_doctor_finding_contract.step.export_support_packet
+    step_class: export_support_packet
+    summary: >
+      Fold the catalog and bound findings into a metadata-safe support
+      packet that pins raw_private_material_excluded and
+      ambient_authority_excluded and quotes doc and schema refs
+      verbatim.
+    expected_artifact_kind: project_doctor_beta_support_packet
+    expected_artifact_ref: support.packet.project_doctor.beta.entry_target_unavailable
+
+expected_first_actionable_artifact:
+  artifact_kind: project_doctor_finding_record
+  artifact_ref: finding:project_doctor:beta:entry_target_unavailable
+  recovery_action_class: locate_missing_target
+  reviewer_summary: >
+    The typed beta finding carries a stable doctor.finding.* code, a
+    closed severity and confidence class, a probe_pack_ref attribution
+    row, and a non-empty render-surface list; UI, CLI, and support
+    export reconstruct the same packet from the same record.
+
+primary_fixture_refs:
+  - fixtures/support/project_doctor_beta/manifest.yaml
+  - fixtures/support/project_doctor_beta/catalog.yaml
+  - fixtures/support/project_doctor_beta/finding_entry_target_unavailable.yaml
+
+scorecard_contribution:
+  scorecard_target: m3.beta_lane.project_doctor_finding_contract
+  coverage_class: finding_contract_render_packet
+  expected_state: green
+  contributes_to_release_gate: true
+
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    downgrade_class: stale_corpus_blocks_release_candidate
+    reviewer_note: >
+      Project Doctor catalog or finding fixture is absent; the finding
+      contract cannot be proven and the release candidate is blocked.
+  - trigger_class: drill_step_unproven
+    downgrade_class: yellow_aging_drill_evidence
+    reviewer_note: >
+      A finding-contract step has no proving artifact reference; the
+      scorecard ages to yellow until evidence returns.
+  - trigger_class: drill_proves_regression
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      A finding was emitted that the evaluator refused (missing pack
+      attribution, mis-prefixed code, denied admission); the
+      finding-contract beta claim is blocked.
+  - trigger_class: raw_private_material_present
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Support packet exported raw private material or ambient
+      authority; the finding-contract beta claim fails the
+      metadata-safe contract.
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - workspace_trust_store
+    - credential_store
+
+references:
+  beta_lane_doc_ref: docs/support/m3/project_doctor_beta.md
+  recovery_ladder_alpha_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+
+emitted_at: 2026-05-16T00:00:00Z

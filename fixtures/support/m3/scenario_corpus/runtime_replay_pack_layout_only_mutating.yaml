@@ -1,0 +1,125 @@
+schema_version: 1
+record_kind: m3_support_scenario_record
+scenario_id: support.m3.scenario.runtime_replay_packets.layout_only_mutating
+title: Runtime replay pack downgrades a mutating subject to inspect-no-rerun
+beta_lane_class: runtime_replay_packets
+
+beta_lane_refs:
+  doc_ref: docs/support/m3/runtime_replay_packets.md
+  schema_ref: schemas/runtime/runtime_replay_pack.schema.json
+  crate_consumer: crates/aureline-support/src/runtime_evidence/mod.rs
+  integration_test: crates/aureline-support/tests/runtime_replay_packs.rs
+
+drill_class: replay_decision_drill
+drill_owner_lane: support_export
+
+starting_condition:
+  state_ref: state:runtime_replay_packets.container_debug_capsule_drift
+  summary: >
+    A runtime evidence packet captures a containerised debug session
+    whose replay context drifted on the environment capsule; the
+    captured action is a mutating debug launch. The pack must compute
+    a typed fidelity and a typed reopen decision so the reviewer never
+    silently reruns a mutating action.
+
+drill_steps:
+  - step_id: runtime_replay_packets.step.bind_evidence_packet
+    step_class: bind_doctor_finding
+    summary: >
+      Bind the replay pack to its underlying runtime evidence packet
+      and comparator outcome; pack inherits metadata_safe_default
+      redaction and carries only opaque artefact refs.
+    expected_artifact_kind: runtime_replay_pack
+    expected_artifact_ref: container_debug_layout_only_mutating
+  - step_id: runtime_replay_packets.step.compute_decision
+    step_class: compute_replay_decision
+    summary: >
+      Derive ReplayFidelityClass=layout_only from the comparator
+      outcome and downgrade the reopen decision to
+      allow_inspect_no_rerun because the captured subject is mutating;
+      privilege gating MUST override fidelity here.
+    expected_artifact_kind: runtime_replay_pack
+    expected_artifact_ref: container_debug_layout_only_mutating
+  - step_id: runtime_replay_packets.step.refuse_replay_for_mutating
+    step_class: compute_replay_decision
+    summary: >
+      Refuse a replay decision of allow_replay for any mutating or
+      privileged subject regardless of fidelity; reopen is always
+      narrowed to inspect-no-rerun or evidence-only-view.
+    expected_artifact_kind: runtime_replay_pack
+    expected_artifact_ref: container_debug_layout_only_mutating
+  - step_id: runtime_replay_packets.step.export_support_packet
+    step_class: export_support_packet
+    summary: >
+      Serialise the pack into the support export and confirm no raw
+      secret markers appear in the JSON; artefact refs remain opaque
+      and the closed vocabulary tokens render verbatim.
+    expected_artifact_kind: runtime_replay_pack_support_export
+    expected_artifact_ref: support.export.runtime_replay_pack.container_debug_layout_only_mutating
+
+expected_first_actionable_artifact:
+  artifact_kind: runtime_replay_pack
+  artifact_ref: container_debug_layout_only_mutating
+  recovery_action_class: handoff_to_support
+  reviewer_summary: >
+    A typed replay pack carries one fidelity label and one reopen
+    decision; the mutating subject is gated to allow_inspect_no_rerun
+    regardless of fidelity, so no reopen flow can silently rerun a
+    mutating action.
+
+primary_fixture_refs:
+  - fixtures/runtime/m3/replay_packets/container_debug_layout_only_mutating.json
+  - fixtures/runtime/m3/replay_packets/managed_runtime_layout_only_privileged.json
+  - fixtures/runtime/m3/replay_packets/local_task_exact_read_only.json
+  - fixtures/runtime/m3/replay_packets/local_test_compatible_read_only.json
+
+scorecard_contribution:
+  scorecard_target: m3.beta_lane.runtime_replay_packets
+  coverage_class: replay_decision_matrix
+  expected_state: green
+  contributes_to_release_gate: true
+
+claim_downgrade_rules:
+  - trigger_class: fixture_missing
+    downgrade_class: stale_corpus_blocks_release_candidate
+    reviewer_note: >
+      A replay-pack fixture is absent; the fidelity/privilege matrix
+      cannot be proven and the release candidate is blocked.
+  - trigger_class: drill_step_unproven
+    downgrade_class: yellow_aging_drill_evidence
+    reviewer_note: >
+      A replay-decision drill step has no proving artifact reference;
+      the replay scorecard ages to yellow.
+  - trigger_class: drill_proves_regression
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Replay decision admitted allow_replay for a mutating or
+      privileged subject; replay-pack beta claim is blocked.
+  - trigger_class: raw_private_material_present
+    downgrade_class: red_blocks_beta_claim
+    reviewer_note: >
+      Support export carried raw secret markers; replay-pack beta
+      claim fails the metadata-safe contract.
+
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+  forbidden_fix_classes:
+    - destructive_reset_without_preview
+    - widen_workspace_trust
+    - publish_route
+    - reenable_quarantined_extension_without_preview
+    - run_repo_owned_hook_for_diagnosis
+  no_touch_boundary_set:
+    - user_authored_files
+    - credential_store
+    - support_export_store
+
+references:
+  beta_lane_doc_ref: docs/support/m3/runtime_replay_packets.md
+  recovery_ladder_alpha_ref: docs/support/recovery_ladder_alpha.md
+  diagnosis_latency_scorecard_ref: artifacts/support/diagnosis_latency_scorecard_alpha.yaml
+
+emitted_at: 2026-05-16T00:00:00Z
