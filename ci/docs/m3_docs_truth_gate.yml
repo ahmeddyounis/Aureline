@@ -1,7 +1,7 @@
 # M3 docs / public-truth CI gate manifest.
 #
 # This file is the canonical machine-readable description of the M3
-# beta docs-and-public-truth CI gate. The gate composes three
+# beta docs-and-public-truth CI gate. The gate composes four
 # validators:
 #
 #   - tools/ci/m3/docs_freshness_gate.py — verifies that every
@@ -15,6 +15,9 @@
 #   - tools/ci/m3/docs_public_proof_gate/ — joins the docs captures,
 #     stale-example capture, public-proof downgrade matrix, and
 #     Help/About freshness badge vocabulary for marketed beta rows.
+#   - ci/check_m3_public_benchmark_beta.py — blocks unsupported public
+#     benchmark wording while the benchmark packet remains
+#     methodology-only.
 #
 # The gate is fail-close: any error from any validator stops a
 # beta publication. Advisory downgrade is allowed only via the
@@ -35,6 +38,7 @@ source_map_ref: artifacts/ci/m3_docs_truth_source_map.yaml
 freshness_gate_entrypoint: tools/ci/m3/docs_freshness_gate.py
 stale_example_entrypoint: tools/ci/m3/stale_example_checker.py
 docs_public_proof_gate_entrypoint: tools/ci/m3/docs_public_proof_gate/
+public_benchmark_gate_entrypoint: ci/check_m3_public_benchmark_beta.py
 shell_entrypoint: ci/check_m3_docs_truth.sh
 validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
 
@@ -56,6 +60,12 @@ protected_paths:
   - docs/help/help_about_truth_source.md
   - docs/about/about_provenance_and_boundary_contract.md
   - docs/governance/m3/stale_example_policy.md
+  - docs/release/m3/public_benchmark_beta.md
+  - artifacts/benchmarks/m3/publication_packet/packet.md
+  - artifacts/benchmarks/m3/publication_packet/partner_packet.md
+  - artifacts/benchmarks/m3/benchmark_council_notes.md
+  - artifacts/benchmarks/m3/publication_packet/captures/public_benchmark_beta_validation_capture.json
+  - ci/check_m3_public_benchmark_beta.py
   - tools/ci/m3/docs_freshness_gate.py
   - tools/ci/m3/stale_example_checker.py
   - tools/ci/m3/docs_public_proof_gate/__main__.py
@@ -86,6 +96,12 @@ commands:
       and capture.
     command: >-
       python3 -m tools.ci.m3.docs_public_proof_gate --repo-root .
+  public_benchmark_beta_only:
+    description: >
+      Run the public benchmark copy gate independently; refreshes the
+      benchmark beta validation capture and blocks unsupported public copy.
+    command: >-
+      python3 ci/check_m3_public_benchmark_beta.py --repo-root .
 
 artifact_outputs:
   docs_truth_report_ref: artifacts/docs/m3/docs_truth_report.md
@@ -93,6 +109,7 @@ artifact_outputs:
   freshness_capture_ref: artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json
   stale_example_capture_ref: artifacts/docs/m3/captures/m3_stale_example_validation_capture.json
   docs_public_proof_parity_capture_ref: artifacts/docs/m3/captures/m3_docs_public_proof_parity_capture.json
+  public_benchmark_beta_capture_ref: artifacts/benchmarks/m3/publication_packet/captures/public_benchmark_beta_validation_capture.json
 
 failure_outputs:
   pinpointed_failure_class:
@@ -119,6 +136,9 @@ failure_outputs:
       - marketed_row.badge_wider_than_public_proof
       - public_proof_capture.current_outputs_mismatch
       - docs_public_proof.required_output_missing
+      - packet.public_proof_row_mismatch
+      - surface.blocked_phrase_present
+      - council_notes.decision_too_wide
 
 rollback_lever:
   description: >
@@ -134,6 +154,7 @@ rollback_lever:
 refresh_policy:
   refresh_required_when_any_of_the_following_change:
     - artifacts/ci/m3_docs_truth_source_map.yaml
+    - ci/check_m3_public_benchmark_beta.py
     - tools/ci/m3/docs_freshness_gate.py
     - tools/ci/m3/stale_example_checker.py
     - tools/ci/m3/docs_public_proof_gate/__main__.py
@@ -142,4 +163,7 @@ refresh_policy:
     - artifacts/release/m3/claim_manifest_matrix.yaml
     - artifacts/compat/m3/compatibility_report.json
     - artifacts/release/m3/release_notes_draft.md
+    - artifacts/benchmarks/m3/publication_packet/packet.md
+    - artifacts/benchmarks/m3/benchmark_council_notes.md
+    - docs/release/m3/public_benchmark_beta.md
     - docs/milestones/m3/beta_admission_matrix.md

@@ -47,7 +47,7 @@ into them.
 |---|---|---|---|---|
 | `boundary_truth` | `artifacts/release/m3/claim_manifest.md` (boundary rows) | @ahmeddyounis | P14D | `docs_truth_stale` |
 | `exact_build_identity` | `artifacts/release/m3/claim_manifest.md` (build-identity rows) | @ahmeddyounis | P14D | `claim_narrow_and_hold` |
-| `benchmark_publication` | `artifacts/benchmarks/m3/dashboard_snapshot.json` | @ahmeddyounis | P14D | `claim_narrow_and_hold` |
+| `benchmark_publication` | `artifacts/benchmarks/m3/publication_packet/packet.md` | @ahmeddyounis | P14D | `claim_narrow_and_hold` |
 | `docs_freshness` | `artifacts/docs/m3/docs_truth_report.md` | @ahmeddyounis | P14D | `docs_truth_stale` |
 | `version_skew_truth` | `artifacts/compat/m3/compatibility_report.md` | @ahmeddyounis | P14D | `compatibility_retest_pending` |
 | `launch_wedge` | `artifacts/compat/m3/archetype_scorecards/scorecard_index.yaml` | @ahmeddyounis | P14D | `compatibility_retest_pending` |
@@ -206,7 +206,7 @@ rows:
     claim_family: benchmark_publication
     title: M3 protected-fitness benchmark-publication lane
     owner_dri: "@ahmeddyounis"
-    canonical_packet_ref: artifacts/benchmarks/m3/dashboard_snapshot.json
+    canonical_packet_ref: artifacts/benchmarks/m3/publication_packet/packet.md
     signoff_packet_ref: artifacts/milestones/m3/review_packet_template.md
     proof_class_id: benchmark_publication_proof
     visibility_class: public
@@ -215,12 +215,18 @@ rows:
       freshness_class: warm_cached
       stale_propagation_profile: claim_narrow_and_hold
     current_outputs:
+      - artifacts/benchmarks/m3/publication_packet/packet.md
+      - artifacts/benchmarks/m3/publication_packet/partner_packet.md
+      - artifacts/benchmarks/m3/publication_packet/captures/public_benchmark_beta_validation_capture.json
+      - artifacts/benchmarks/m3/benchmark_council_notes.md
       - artifacts/benchmarks/m3/dashboard_snapshot.json
       - artifacts/benchmarks/m3/protected_fitness_catalog.yaml
       - artifacts/milestones/m3/waiver_register.yaml
     supporting_evidence_refs:
       - docs/milestones/m3/protected_fitness_catalog.md
       - artifacts/benchmarks/m3/publication_dry_run/packet.md
+      - docs/release/m3/public_benchmark_beta.md
+      - ci/check_m3_public_benchmark_beta.py
       - artifacts/milestones/m3/proof_consumption_walkthrough.md
     exact_build_identity_ref: artifacts/build/build_identity.json
     rerun_trigger_refs:
@@ -229,9 +235,9 @@ rows:
       - protected_metrics_or_fitness_catalog_changed
       - exact_build_identity_chain_changed
     latest_capture:
-      captured_at: "2026-05-15T20:39:50Z"
-      command: python3 ci/check_m3_protected_fitness_catalog.py --repo-root .
-      report_ref: artifacts/benchmarks/m3/captures/protected_fitness_catalog_validation_capture.json
+      captured_at: "2026-05-17T18:00:00Z"
+      command: python3 ci/check_m3_public_benchmark_beta.py --repo-root .
+      report_ref: artifacts/benchmarks/m3/publication_packet/captures/public_benchmark_beta_validation_capture.json
 
   - row_id: m3_public_proof:docs_freshness
     claim_family: docs_freshness

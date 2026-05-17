@@ -35,6 +35,8 @@ than restate them.
 | Publication shelf-life policy | `docs/governance/m3/publication_shelf_life_policy.md` |
 | Review-packet template | `artifacts/milestones/m3/review_packet_template.md` |
 | Claim manifest (M3 beta rows) | `artifacts/release/m3/claim_manifest.md` |
+| Public benchmark beta packet | `artifacts/benchmarks/m3/publication_packet/packet.md` |
+| Benchmark council notes | `artifacts/benchmarks/m3/benchmark_council_notes.md` |
 | Benchmark publication dry-run packet | `artifacts/benchmarks/m3/publication_dry_run/packet.md` |
 | Clean-room rebuild rehearsal packet | `artifacts/release/m3/clean_room_rebuild_rehearsal/packet.md` |
 | Shared build identity | `artifacts/build/build_identity.json` |
@@ -49,7 +51,10 @@ than restate them.
 2. Pick a row by `row_id` (for example
    `m3_public_proof:benchmark_publication`).
 3. Resolve `canonical_packet_ref` to the packet that speaks for that
-   claim family. For the dry run, the two new packets are:
+   claim family. For the benchmark lane, the beta packet is:
+   - public benchmark beta packet →
+     `artifacts/benchmarks/m3/publication_packet/packet.md`
+   The earlier rehearsal packets remain linked as supporting evidence:
    - benchmark publication →
      `artifacts/benchmarks/m3/publication_dry_run/packet.md`
    - clean-room rebuild rehearsal →
@@ -66,6 +71,7 @@ than restate them.
    claimed.
 6. (Optional) Re-run the validator yourself:
    ```sh
+   python3 ci/check_m3_public_benchmark_beta.py --repo-root .
    python3 ci/check_m3_publication_rehearsal.py --repo-root .
    ```
    A passing run means every row, ref, and freshness window in the
@@ -88,10 +94,12 @@ team. That outcome is the acceptance state for this milestone task.
    ceiling and the per-family rerun-trigger set. A docs page that
    quotes a public-proof row MUST quote it by id and MUST NOT widen
    the freshness window or omit a rerun trigger.
-4. The two new dry-run packets do NOT widen any docs wording. They
-   add:
+4. The beta public benchmark packet and the dry-run packets do NOT
+   widen any docs wording. They add:
    - the methodology + known-limits set for the benchmark publication
-     lane; and
+     lane, governed by
+     `artifacts/benchmarks/m3/publication_packet/packet.md` and
+     `artifacts/benchmarks/m3/benchmark_council_notes.md`; and
    - the rebuild artifact-family map for the exact-build identity
      lane.
    Both are sourced from already-published rows (the protected-fitness
@@ -114,14 +122,15 @@ team. That outcome is the acceptance state for this milestone task.
      resolve through the claim manifest and the clean-room rebuild
      rehearsal packet.
    - `benchmark_publication`, `launch_wedge` → resolve through the
-     dashboard snapshot, the protected-fitness catalog, and the
-     benchmark publication dry-run packet.
+     public benchmark beta packet, dashboard snapshot, protected-fitness
+     catalog, and benchmark publication dry-run packet.
    - `version_skew_truth` → resolve through the compatibility report.
 3. Quote the row's `canonical_packet_ref` and the row's freshness
    window to the customer. Do NOT paraphrase the row prose; cite the
    ref and let the customer read the canonical block.
 4. If a customer reports that a tile or row appears stale, run:
    ```sh
+   python3 ci/check_m3_public_benchmark_beta.py --repo-root .
    python3 ci/check_m3_publication_rehearsal.py --repo-root .
    python3 ci/check_m3_public_proof_index.py --repo-root .
    ```
@@ -150,12 +159,16 @@ only while these statements remain true:
   packet id and one freshness window without contacting the core team.
 - The validator (`ci/check_m3_publication_rehearsal.py`) passes on the
   current tree.
+- The public benchmark copy gate
+  (`ci/check_m3_public_benchmark_beta.py`) passes on the current tree.
 
 ## Refresh trigger
 
 Refresh this walkthrough when any of these change:
 
 - `artifacts/milestones/m3/public_proof_index.md`
+- `artifacts/benchmarks/m3/publication_packet/packet.md`
+- `artifacts/benchmarks/m3/benchmark_council_notes.md`
 - `artifacts/benchmarks/m3/publication_dry_run/packet.md`
 - `artifacts/release/m3/clean_room_rebuild_rehearsal/packet.md`
 - `docs/governance/m3/publication_shelf_life_policy.md`
