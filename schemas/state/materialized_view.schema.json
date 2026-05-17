@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/materialized_view.schema.json",
+  "title": "Aureline reactive-state and materialized-view invalidation beta",
+  "description": "Boundary schema for the materialized_view_case_record and materialized_view_report_record consumed by aureline-reactive-state's reactive_views module. A case record binds one materialized view to its closed view_class (ephemeral_projection, durable_local_materialization, exportable_snapshot, managed_replicated_view), its authority label, its current authority_epoch, one subscriber_epoch entry per required consumer surface (shell, search, graph, ai, review, support), an epoch_parity_state derived from the subscribers, a metadata-safe support_export projection that preserves epoch state without re-running producers, and a closed downgrade_label for failing rows. The report record folds every case into a view_class summary so support and export pipelines can audit cross-surface epoch parity without reimplementing view logic.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/materialized_view_case_record" },
+    { "$ref": "#/$defs/materialized_view_report_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "epoch_value": { "type": "integer", "minimum": 0 },
+    "view_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_projection",
+        "durable_local_materialization",
+        "exportable_snapshot",
+        "managed_replicated_view"
+      ]
+    },
+    "authority_label": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ]
+    },
+    "surface_kind": {
+      "type": "string",
+      "enum": ["shell", "search", "graph", "ai", "review", "support"]
+    },
+    "subscriber_freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "cached",
+        "stale",
+        "imported",
+        "warming",
+        "unavailable"
+      ]
+    },
+    "invalidation_cause_class": {
+      "type": "string",
+      "enum": [
+        "authority_write",
+        "derived_recompute",
+        "policy_change",
+        "provider_overlay_change",
+        "external_change",
+        "imported_bundle_swap",
+        "resync_required"
+      ]
+    },
+    "epoch_parity_state": {
+      "type": "string",
+      "enum": [
+        "aligned",
+        "drift_detected",
+        "awaiting_resync",
+        "terminal_unavailable"
+      ]
+    },
+    "support_export_posture": {
+      "type": "string",
+      "enum": ["local_only", "metadata_safe_export", "held_record"]
+    },
+    "downgrade_label": {
+      "type": "string",
+      "enum": [
+        "none",
+        "red_blocks_beta_row",
+        "yellow_surface_partial",
+        "yellow_authority_skew",
+        "degraded_to_authority_only",
+        "stale_corpus_blocks_release_candidate"
+      ]
+    },
+    "open_gap_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "subscriber_pending",
+        "replication_pending",
+        "support_export_pending",
+        "drift_recovery_manual"
+      ]
+    },
+    "open_gap_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gap_class", "summary"],
+      "properties": {
+        "gap_class": { "$ref": "#/$defs/open_gap_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "subscriber_epoch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_kind",
+        "observed_epoch",
+        "observed_freshness",
+        "last_invalidation_cause",
+        "observed_at"
+      ],
+      "properties": {
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "observed_epoch": { "$ref": "#/$defs/epoch_value" },
+        "observed_freshness": { "$ref": "#/$defs/subscriber_freshness" },
+        "last_invalidation_cause": { "$ref": "#/$defs/invalidation_cause_class" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "support_export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture",
+        "includes_view_class",
+        "includes_authority_label",
+        "includes_authority_epoch",
+        "includes_subscriber_epochs",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "posture": { "$ref": "#/$defs/support_export_posture" },
+        "includes_view_class": { "type": "boolean", "const": true },
+        "includes_authority_label": { "type": "boolean", "const": true },
+        "includes_authority_epoch": { "type": "boolean", "const": true },
+        "includes_subscriber_epochs": { "type": "boolean", "const": true },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "preserves_user_authored_files": { "type": "boolean", "const": true }
+      }
+    },
+    "case_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "destructive_resets_present",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "destructive_resets_present": { "type": "boolean", "const": false },
+        "preserves_user_authored_files": { "type": "boolean", "const": true }
+      }
+    },
+    "case_references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_ref", "schema_ref", "report_ref"],
+      "properties": {
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/state/m3/reactive_state_beta.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/state/materialized_view.schema.json"
+        },
+        "report_ref": {
+          "type": "string",
+          "const": "artifacts/support/m3/reactive_state_beta_report.md"
+        }
+      }
+    },
+    "materialized_view_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "view_id",
+        "title",
+        "view_class",
+        "authority_label",
+        "authority_epoch",
+        "subscriber_epochs",
+        "parity_state",
+        "support_export",
+        "downgrade_label",
+        "safety",
+        "references",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "materialized_view_case_record"
+        },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "authority_label": { "$ref": "#/$defs/authority_label" },
+        "authority_epoch": { "$ref": "#/$defs/epoch_value" },
+        "subscriber_epochs": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/subscriber_epoch" }
+        },
+        "parity_state": { "$ref": "#/$defs/epoch_parity_state" },
+        "support_export": { "$ref": "#/$defs/support_export_projection" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "open_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_gap_entry" }
+        },
+        "safety": { "$ref": "#/$defs/case_safety" },
+        "references": { "$ref": "#/$defs/case_references" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "report_matrix_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "view_class",
+        "authority_label",
+        "authority_epoch",
+        "parity_state",
+        "min_subscriber_epoch",
+        "max_subscriber_epoch",
+        "support_export_posture",
+        "downgrade_label",
+        "open_gap_classes"
+      ],
+      "properties": {
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "authority_label": { "$ref": "#/$defs/authority_label" },
+        "authority_epoch": { "$ref": "#/$defs/epoch_value" },
+        "parity_state": { "$ref": "#/$defs/epoch_parity_state" },
+        "min_subscriber_epoch": { "$ref": "#/$defs/epoch_value" },
+        "max_subscriber_epoch": { "$ref": "#/$defs/epoch_value" },
+        "support_export_posture": { "$ref": "#/$defs/support_export_posture" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "open_gap_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/open_gap_class" }
+        }
+      }
+    },
+    "view_class_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_class",
+        "case_count",
+        "aligned_count",
+        "drift_detected_count",
+        "awaiting_resync_count",
+        "terminal_unavailable_count",
+        "downgrade_required_count"
+      ],
+      "properties": {
+        "view_class": { "$ref": "#/$defs/view_class" },
+        "case_count": { "type": "integer", "minimum": 0 },
+        "aligned_count": { "type": "integer", "minimum": 0 },
+        "drift_detected_count": { "type": "integer", "minimum": 0 },
+        "awaiting_resync_count": { "type": "integer", "minimum": 0 },
+        "terminal_unavailable_count": { "type": "integer", "minimum": 0 },
+        "downgrade_required_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "materialized_view_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "report_id",
+        "captured_at",
+        "doc_ref",
+        "schema_ref",
+        "corpus_manifest_ref",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "required_view_classes",
+        "required_surface_kinds",
+        "matrix_rows",
+        "view_class_summaries"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "materialized_view_report_record"
+        },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/state/m3/reactive_state_beta.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/state/materialized_view.schema.json"
+        },
+        "corpus_manifest_ref": {
+          "type": "string",
+          "const": "fixtures/state/reactive_views_beta/manifest.yaml"
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "required_view_classes": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/view_class" }
+        },
+        "required_surface_kinds": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/surface_kind" }
+        },
+        "matrix_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/report_matrix_row" }
+        },
+        "view_class_summaries": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/view_class_summary_row" }
+        }
+      }
+    }
+  }
+}

@@ -62,6 +62,7 @@ pub mod harness;
 pub mod hooks;
 pub mod producers;
 pub mod query_envelope;
+pub mod reactive_views;
 pub mod runtime;
 pub mod store;
 pub mod trace;
