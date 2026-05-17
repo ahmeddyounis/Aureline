@@ -43,6 +43,19 @@ Those rows bind install mode, channel, updater owner, state roots,
 managed-package reports, and the same exact-build identity refs used by
 the artifact graph.
 
+Third-party import and notice truth is published at
+[`/artifacts/release/m3/third_party_import_manifest.json`](../../../artifacts/release/m3/third_party_import_manifest.json),
+with generated notice output at
+[`/artifacts/release/m3/notice_generation_report.md`](../../../artifacts/release/m3/notice_generation_report.md),
+red-risk review output at
+[`/artifacts/security/m3/red_risk_dependency_review.md`](../../../artifacts/security/m3/red_risk_dependency_review.md),
+and support/export projection at
+[`/artifacts/release/m3/third_party_imports/support_export_projection.json`](../../../artifacts/release/m3/third_party_imports/support_export_projection.json).
+The headless gate is
+[`/tools/ci/m3/third_party_imports/`](../../../tools/ci/m3/third_party_imports).
+The SBOM/notice node cites this manifest rather than a hand-maintained
+notice list.
+
 Ring rollout, silent deployment, and rollback-safe package promotion are
 published at
 [`/artifacts/release/m3/ring_rollout/packet.json`](../../../artifacts/release/m3/ring_rollout/packet.json)

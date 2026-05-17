@@ -114,6 +114,16 @@ the same candidate exact-build identity, artifact graph refs, symbol
 manifest refs, SBOM/attestation links, advisory pivots, compatibility
 pivots, and blocking completeness checks.
 
+Third-party import and notice state is read through
+`artifacts/release/m3/third_party_import_manifest.json`, the generated
+notice report at `artifacts/release/m3/notice_generation_report.md`, the
+red-risk review packet at `artifacts/security/m3/red_risk_dependency_review.md`,
+and the support projection at
+`artifacts/release/m3/third_party_imports/support_export_projection.json`.
+Help / About, release docs, release-center pivots, and support exports quote
+the same source ids, license classes, versions, owner refs, notice targets, and
+red-risk promotion effects. They do not maintain a separate notice table.
+
 ## Release-control rehearsals
 
 Publish, rollback, revocation, and advisory rehearsal state is read

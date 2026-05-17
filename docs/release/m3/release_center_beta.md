@@ -23,14 +23,15 @@ The generated support/export projection lives at
 - The exact-build symbol manifest for shell, CLI, and renderer source-map
   support.
 - SBOM, signed-attestation, provenance, clean-room rebuild, and release
-  evidence links.
+  evidence links, including the beta third-party import manifest,
+  generated notice report, and red-risk dependency review.
 - Compatibility, claim-manifest, benchmark, docs/help, rollback, advisory,
   and distributed-compatibility pivots.
 
 The support projection is the first consuming surface. Support and
 security reviewers can pivot from the pack to crash symbolication,
-advisory, compatibility, SBOM/attestation, rollback, and docs/help refs
-without private path lookup or raw package bytes.
+advisory, compatibility, SBOM/attestation, third-party import, rollback,
+and docs/help refs without private path lookup or raw package bytes.
 
 ## Promotion gate
 

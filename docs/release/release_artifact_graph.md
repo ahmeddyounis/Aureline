@@ -120,6 +120,14 @@ Companion artifacts:
   mirror-continuity, trust-root-rotation, and exception-policy posture
   for release, update, extension, policy, docs, model, symbol, support,
   and release-control artifact families.
+- [`/artifacts/release/m3/third_party_import_manifest.json`](../../artifacts/release/m3/third_party_import_manifest.json),
+  [`/artifacts/release/m3/notice_generation_report.md`](../../artifacts/release/m3/notice_generation_report.md),
+  [`/artifacts/security/m3/red_risk_dependency_review.md`](../../artifacts/security/m3/red_risk_dependency_review.md),
+  and
+  [`/artifacts/release/m3/third_party_imports/support_export_projection.json`](../../artifacts/release/m3/third_party_imports/support_export_projection.json)
+  — beta third-party import, notice-generation, and red-risk review lane
+  consumed by the SBOM/provenance node, release-center pivots, Help /
+  About, and support exports.
 - [`/docs/release/update_and_rollback_contract.md`](./update_and_rollback_contract.md),
   [`/schemas/release/update_manifest.schema.json`](../../schemas/release/update_manifest.schema.json),
   and

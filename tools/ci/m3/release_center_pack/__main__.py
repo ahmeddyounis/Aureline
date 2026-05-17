@@ -565,17 +565,20 @@ def build_support_pivots(
             "pivot:sbom_or_attestation",
             "sbom_or_attestation",
             "SBOM and provenance proof links",
-            "artifacts/governance/build/dependency_notice_draft.json",
+            "artifacts/release/m3/third_party_import_manifest.json",
             "artifacts/release/m3/reproducible_rc_packet/support_export_projection.json",
             [
-                "artifacts/governance/build/dependency_notice_draft.json",
-                "artifacts/governance/build/dependency_notice_draft.md",
+                "artifacts/release/m3/third_party_import_manifest.json",
+                "artifacts/release/m3/notice_generation_report.md",
+                "artifacts/security/m3/red_risk_dependency_review.md",
+                "artifacts/release/m3/third_party_imports/support_export_projection.json",
                 "artifacts/release/provenance_capture_seed.json",
                 "artifacts/release/m3/clean_room_rebuild_rehearsal/packet.md",
             ],
             [
                 "docs/release/supply_chain_trust_framework_matrix.md",
                 "docs/release/m3/release_center_beta.md",
+                "docs/help/m3/release_truth_surfaces.md",
             ],
         ),
     ]
