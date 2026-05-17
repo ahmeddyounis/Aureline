@@ -72,6 +72,7 @@ pub mod host_boundary_cues;
 pub mod import;
 pub mod inspectors;
 pub mod install_review_fact_grid;
+pub mod interaction_integrity;
 pub mod keybindings;
 pub mod layout;
 pub mod learning_mode;
