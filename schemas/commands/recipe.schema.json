@@ -1,0 +1,601 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/recipe.schema.json",
+  "title": "Aureline declarative recipe alpha: typed recipe definitions, step approval fences, run dispositions, audit events, and support attributions",
+  "description": "Boundary schema for the alpha declarative-recipe record family. A recipe is a reusable, declarative workflow expressed as an ordered sequence of typed steps where each step resolves to a stable command_id, command_revision_ref, and approval_class on the shared command graph. Reviewers, support exports, and the activity history read one truth: recipe definitions are diffable, steps reuse the same approval and preview classes as direct user actions, mutating or provider-facing steps preserve preview and approval behavior at run time, and every run resolves to exactly one disposition in proceed_local_editor_only, proceed_after_recipe_approval, preview_required_before_apply, downgraded_to_observer_no_mutation, promoted_to_full_recipe_run, or denied_unsafe_recipe. The boundary composes with — and never forks — the command-descriptor boundary (/schemas/commands/command_descriptor.schema.json), the recorded-macro boundary (/schemas/commands/recorded_macro.schema.json), the approval-ticket boundary (/schemas/runtime/approval_ticket.schema.json), and the shareability-metadata boundary (/schemas/commands/shareability_metadata.schema.json). Raw branch/worktree mutation, raw provider payload, raw credential material, raw keystroke bytes, raw shell fragments, and raw remote endpoint never cross this boundary. Adding a new step_command_lineage, approval_class, preview_requirement, write_class, trust_gate, step_disposition, run_disposition, audit_event_class, or attribution_surface value is additive-minor and bumps schema-version; repurposing an existing value is breaking and requires a new contract row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recipe_alpha_page_record" },
+    { "$ref": "#/$defs/recipe_alpha_definition_record" },
+    { "$ref": "#/$defs/recipe_alpha_run_record" },
+    { "$ref": "#/$defs/recipe_alpha_audit_event_record" },
+    { "$ref": "#/$defs/recipe_alpha_attribution_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this alpha export. Current value is 1."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "commands:recipe_alpha:v1",
+      "description": "Stable shared contract id consumed by every record in this family."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles. Raw paths, raw branch names, raw provider endpoints, and raw user identifiers never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on the session UI, support exports, and admin surfaces."
+    },
+    "step_command_lineage_class": {
+      "type": "string",
+      "enum": [
+        "core_command",
+        "imported_command",
+        "extension_command",
+        "ai_tool_handle",
+        "cli_verb",
+        "provider_action",
+        "unmapped_command_denied"
+      ],
+      "description": "Frozen step-command lineage vocabulary. Every step MUST resolve to one closed lineage class; unmapped_command_denied is the typed refusal lane for steps whose command_id does not resolve on the command graph."
+    },
+    "mode_requirement_class": {
+      "type": "string",
+      "enum": [
+        "editor_normal_mode_required",
+        "editor_any_mode_admissible",
+        "palette_mode_required",
+        "terminal_mode_denied",
+        "background_admissible"
+      ],
+      "description": "Frozen mode-requirement vocabulary. terminal_mode_denied is the closed refusal lane: recipes never execute raw terminal text without an explicit cli_verb step."
+    },
+    "write_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "editor_buffer_mutation",
+        "editor_multi_file_mutation",
+        "branch_mutation",
+        "worktree_mutation",
+        "provider_mutation",
+        "settings_mutation",
+        "network_mutation",
+        "process_mutation",
+        "credential_mutation_denied"
+      ],
+      "description": "Frozen write-scope vocabulary. credential_mutation_denied is the closed refusal lane: recipes never mutate credential material from a recipe step."
+    },
+    "approval_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "single_step_approval_required",
+        "recipe_approval_required",
+        "admin_signed_approval_required",
+        "approval_denied_unsafe"
+      ],
+      "description": "Frozen approval-class vocabulary. Steps reuse the same approval-class taxonomy as direct user actions on the command graph; approval_denied_unsafe is the closed refusal lane."
+    },
+    "preview_requirement_class": {
+      "type": "string",
+      "enum": [
+        "no_preview_required",
+        "preview_required_before_apply",
+        "preview_optional_local_only",
+        "preview_required_provider_mutation",
+        "preview_required_branch_mutation",
+        "preview_required_worktree_mutation"
+      ],
+      "description": "Frozen preview-requirement vocabulary. Mutating and provider-facing steps must carry one of the preview_required_* values; this preserves preview behavior when executed from a recipe."
+    },
+    "trust_gate_class": {
+      "type": "string",
+      "enum": [
+        "restricted_workspace_admissible",
+        "trusted_workspace_required",
+        "admin_policy_observed",
+        "managed_only_denied"
+      ],
+      "description": "Frozen workspace-trust posture vocabulary. managed_only_denied is the closed refusal lane."
+    },
+    "step_disposition_class": {
+      "type": "string",
+      "enum": [
+        "proceed_no_approval",
+        "proceed_after_preview",
+        "proceed_after_approval",
+        "preview_required_before_apply",
+        "downgraded_to_observer_no_mutation",
+        "denied_unsafe_step"
+      ],
+      "description": "Frozen per-step disposition vocabulary observed during a run. Unsafe steps never silently proceed; they downgrade to observer or are denied."
+    },
+    "run_disposition_class": {
+      "type": "string",
+      "enum": [
+        "proceed_local_editor_only",
+        "proceed_after_recipe_approval",
+        "preview_required_before_apply",
+        "downgraded_to_observer_no_mutation",
+        "promoted_to_full_recipe_run",
+        "denied_unsafe_recipe"
+      ],
+      "description": "Frozen per-recipe-run disposition vocabulary. Every run resolves to exactly one disposition; mutating or provider-facing recipes never silently proceed without preview or approval."
+    },
+    "audit_event_class": {
+      "type": "string",
+      "enum": [
+        "recipe_admitted",
+        "recipe_denied",
+        "recipe_step_preview_minted",
+        "recipe_step_approval_minted",
+        "recipe_step_admitted",
+        "recipe_step_denied",
+        "recipe_run_started",
+        "recipe_run_completed",
+        "recipe_run_aborted",
+        "recipe_run_promoted_to_approved_run",
+        "attribution_minted",
+        "audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event vocabulary on the recipe-alpha audit stream."
+    },
+    "attribution_surface_class": {
+      "type": "string",
+      "enum": [
+        "support_export",
+        "activity_history",
+        "admin_audit_export"
+      ],
+      "description": "Frozen attribution-surface vocabulary. Every recipe definition and run binds attribution rows on support_export and activity_history; admin_audit_export is available when admin-signed approval was minted."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "unmapped_command_denied",
+        "credential_mutation_denied",
+        "terminal_mode_denied",
+        "managed_only_denied",
+        "admin_policy_denied",
+        "preview_missing_for_mutation",
+        "approval_missing_for_provider_mutation",
+        "approval_missing_for_branch_mutation",
+        "approval_missing_for_worktree_mutation",
+        "trust_gate_narrowed",
+        "remote_attach_degraded_unmasked"
+      ],
+      "description": "Frozen denial-reason vocabulary. remote_attach_degraded_unmasked is the closed refusal lane for recipes that would mask remote-attach degraded state."
+    },
+    "contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_descriptor_schema_ref",
+        "recorded_macro_schema_ref",
+        "approval_ticket_schema_ref",
+        "shareability_metadata_schema_ref"
+      ],
+      "properties": {
+        "command_descriptor_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "recorded_macro_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approval_ticket_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shareability_metadata_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "provider_object_schema_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Upstream schemas this recipe-alpha page composes with."
+    },
+    "recipe_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "step_command_lineage",
+        "command_id",
+        "command_revision_ref",
+        "display_label",
+        "mode_requirement",
+        "write_classes",
+        "approval_class",
+        "preview_requirement",
+        "shareability_record_ref"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_command_lineage": { "$ref": "#/$defs/step_command_lineage_class" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "mode_requirement": { "$ref": "#/$defs/mode_requirement_class" },
+        "write_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/write_class" }
+        },
+        "approval_class": { "$ref": "#/$defs/approval_class" },
+        "preview_requirement": { "$ref": "#/$defs/preview_requirement_class" },
+        "shareability_record_ref": { "$ref": "#/$defs/non_empty_string" },
+        "ai_tool_handle_ref": { "type": "string" },
+        "provider_action_ref": { "type": "string" },
+        "rationale_summary": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "ai_tool_handle lineage MUST cite an ai_tool_handle_ref.",
+          "if": {
+            "properties": { "step_command_lineage": { "const": "ai_tool_handle" } },
+            "required": ["step_command_lineage"]
+          },
+          "then": {
+            "properties": { "ai_tool_handle_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["ai_tool_handle_ref"]
+          }
+        },
+        {
+          "description": "provider_action lineage MUST cite a provider_action_ref.",
+          "if": {
+            "properties": { "step_command_lineage": { "const": "provider_action" } },
+            "required": ["step_command_lineage"]
+          },
+          "then": {
+            "properties": { "provider_action_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["provider_action_ref"]
+          }
+        }
+      ],
+      "description": "One typed step in a declarative recipe. Resolves to a stable command_id and approval_class on the shared command graph. Mutating or provider-facing steps preserve preview and approval behavior."
+    },
+    "recipe_alpha_definition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "definition_id",
+        "recipe_id",
+        "recipe_revision_ref",
+        "display_label",
+        "author_identity_ref",
+        "trust_gate",
+        "steps",
+        "declared_write_classes",
+        "declared_approval_classes",
+        "lineage_summary",
+        "raw_branch_mutation_present",
+        "raw_worktree_mutation_present",
+        "raw_provider_payload_present",
+        "raw_credential_present",
+        "silent_authority_widening_taken",
+        "remote_attach_degraded_state_masked",
+        "support_attribution_minted",
+        "activity_attribution_minted",
+        "recorded_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_alpha_definition_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "definition_id": { "$ref": "#/$defs/opaque_id" },
+        "recipe_id": { "$ref": "#/$defs/non_empty_string" },
+        "recipe_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "author_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_gate": { "$ref": "#/$defs/trust_gate_class" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recipe_step_record" }
+        },
+        "declared_write_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/write_class" },
+          "description": "Union of every step's write_classes. Reviewers diff this to see the recipe's total write scope without scanning steps."
+        },
+        "declared_approval_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/approval_class" },
+          "description": "Union of every step's approval_class."
+        },
+        "lineage_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "raw_branch_mutation_present": { "const": false },
+        "raw_worktree_mutation_present": { "const": false },
+        "raw_provider_payload_present": { "const": false },
+        "raw_credential_present": { "const": false },
+        "silent_authority_widening_taken": { "const": false },
+        "remote_attach_degraded_state_masked": { "const": false },
+        "support_attribution_minted": { "const": true },
+        "activity_attribution_minted": { "const": true },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Typed declarative-recipe definition. References stable command IDs, schemas, and approval classes rather than bespoke automation shortcuts."
+    },
+    "recipe_alpha_run_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "run_id",
+        "definition_ref",
+        "display_label",
+        "actor_identity_ref",
+        "trust_gate_observed",
+        "run_disposition",
+        "step_dispositions",
+        "audit_event_refs",
+        "support_attribution_minted",
+        "activity_attribution_minted",
+        "silent_authority_widening_taken",
+        "remote_attach_degraded_state_masked",
+        "started_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_alpha_run_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "definition_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "actor_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trust_gate_observed": { "$ref": "#/$defs/trust_gate_class" },
+        "run_disposition": { "$ref": "#/$defs/run_disposition_class" },
+        "approval_ticket_ref": { "type": "string" },
+        "preview_ticket_ref": { "type": "string" },
+        "promoted_run_ref": { "type": "string" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason_class" },
+        "denial_reason_label": { "type": "string" },
+        "downgrade_target_label": { "type": "string" },
+        "step_dispositions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["step_ref", "step_disposition"],
+            "properties": {
+              "step_ref": { "$ref": "#/$defs/non_empty_string" },
+              "step_disposition": { "$ref": "#/$defs/step_disposition_class" },
+              "denial_reason": { "$ref": "#/$defs/denial_reason_class" },
+              "rationale_summary": { "type": "string" }
+            }
+          }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "support_attribution_minted": { "const": true },
+        "activity_attribution_minted": { "const": true },
+        "silent_authority_widening_taken": { "const": false },
+        "remote_attach_degraded_state_masked": { "const": false },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resolved_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "proceed_after_recipe_approval runs MUST cite an approval_ticket_ref.",
+          "if": {
+            "properties": { "run_disposition": { "const": "proceed_after_recipe_approval" } },
+            "required": ["run_disposition"]
+          },
+          "then": { "required": ["approval_ticket_ref"] }
+        },
+        {
+          "description": "preview_required_before_apply runs MUST cite a preview_ticket_ref.",
+          "if": {
+            "properties": { "run_disposition": { "const": "preview_required_before_apply" } },
+            "required": ["run_disposition"]
+          },
+          "then": { "required": ["preview_ticket_ref"] }
+        },
+        {
+          "description": "downgraded_to_observer_no_mutation runs MUST cite a downgrade_target_label.",
+          "if": {
+            "properties": { "run_disposition": { "const": "downgraded_to_observer_no_mutation" } },
+            "required": ["run_disposition"]
+          },
+          "then": {
+            "properties": { "downgrade_target_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["downgrade_target_label"]
+          }
+        },
+        {
+          "description": "promoted_to_full_recipe_run runs MUST cite a promoted_run_ref.",
+          "if": {
+            "properties": { "run_disposition": { "const": "promoted_to_full_recipe_run" } },
+            "required": ["run_disposition"]
+          },
+          "then": { "required": ["promoted_run_ref"] }
+        },
+        {
+          "description": "denied_unsafe_recipe runs MUST cite a denial_reason and denial_reason_label.",
+          "if": {
+            "properties": { "run_disposition": { "const": "denied_unsafe_recipe" } },
+            "required": ["run_disposition"]
+          },
+          "then": {
+            "properties": { "denial_reason_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["denial_reason", "denial_reason_label"]
+          }
+        }
+      ],
+      "description": "One typed recipe-run record. Every run resolves to exactly one run_disposition; mutating or provider-facing recipes never silently proceed without preview or approval."
+    },
+    "recipe_alpha_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "audit_event_id",
+        "display_label",
+        "event_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_alpha_audit_event_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "audit_event_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "event_class": { "$ref": "#/$defs/audit_event_class" },
+        "definition_ref": { "type": "string" },
+        "run_ref": { "type": "string" },
+        "attribution_ref": { "type": "string" },
+        "denial_reason_label": { "type": "string" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Recipe-denied and audit-denial events MUST cite a denial_reason_label.",
+          "if": {
+            "properties": {
+              "event_class": {
+                "enum": ["recipe_denied", "recipe_step_denied", "audit_denial_emitted"]
+              }
+            },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "denial_reason_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["denial_reason_label"]
+          }
+        },
+        {
+          "description": "Run-bound audit events MUST cite a run_ref.",
+          "if": {
+            "properties": {
+              "event_class": {
+                "enum": [
+                  "recipe_run_started",
+                  "recipe_run_completed",
+                  "recipe_run_aborted",
+                  "recipe_run_promoted_to_approved_run"
+                ]
+              }
+            },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "run_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["run_ref"]
+          }
+        },
+        {
+          "description": "Attribution-minted events MUST cite an attribution_ref.",
+          "if": {
+            "properties": { "event_class": { "const": "attribution_minted" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "attribution_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["attribution_ref"]
+          }
+        }
+      ],
+      "description": "Audit-event row on the recipe-alpha audit stream."
+    },
+    "recipe_alpha_attribution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "attribution_id",
+        "display_label",
+        "attribution_surface",
+        "definition_ref",
+        "rationale_summary",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "recipe_alpha_attribution_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "attribution_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "attribution_surface": { "$ref": "#/$defs/attribution_surface_class" },
+        "definition_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_ref": { "type": "string" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One redaction-safe attribution row binding a recipe definition (and optionally a run) to a closed attribution surface."
+    },
+    "recipe_alpha_page_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "contract_refs",
+        "definitions",
+        "runs",
+        "audit_events",
+        "attributions",
+        "support_export_summary"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "scenario"],
+          "properties": {
+            "name": { "$ref": "#/$defs/non_empty_string" },
+            "scenario": { "$ref": "#/$defs/reviewable_sentence" }
+          }
+        },
+        "record_kind": { "const": "recipe_alpha_page_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/opaque_id" },
+        "contract_refs": { "$ref": "#/$defs/contract_refs" },
+        "definitions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recipe_alpha_definition_record" }
+        },
+        "runs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recipe_alpha_run_record" }
+        },
+        "audit_events": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recipe_alpha_audit_event_record" }
+        },
+        "attributions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recipe_alpha_attribution_record" }
+        },
+        "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Top-level recipe-alpha page: a redaction-safe wrapper binding recipe definitions, runs, audit events, and attributions under one workspace surface."
+    }
+  }
+}

@@ -39,6 +39,7 @@ pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod packages;
 pub mod provenance;
+pub mod recipes;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
 pub mod rerun;
@@ -246,6 +247,21 @@ pub use provenance::{
     ExecutionProvenanceEventClass, ExecutionProvenanceInputDecision,
     ExecutionProvenanceRedactionClass, EXECUTION_EVENT_PROVENANCE_RECORD_KIND,
     EXECUTION_EVENT_PROVENANCE_SCHEMA_VERSION, EXECUTION_PROVENANCE_EVENT_RECORD_KIND,
+};
+pub use recipes::{
+    RecipeAlphaContractRefs, RecipeAlphaCoverage, RecipeAlphaFinding, RecipeAlphaFindingSeverity,
+    RecipeAlphaFixtureMetadata, RecipeAlphaPage, RecipeAlphaSupportExport,
+    RecipeAlphaValidationReport, RecipeApprovalClass, RecipeAttribution,
+    RecipeAttributionSummary, RecipeAttributionSurfaceClass, RecipeAuditEvent,
+    RecipeAuditEventClass, RecipeAuditEventSummary, RecipeDefinition, RecipeDefinitionSummary,
+    RecipeDenialReasonClass, RecipePreviewRequirementClass, RecipeRun, RecipeRunDispositionClass,
+    RecipeRunSummary, RecipeStep, RecipeStepDisposition, RecipeStepDispositionClass,
+    RecipeTrustGateClass, RecipeWriteClass, StepCommandLineageClass, StepModeRequirementClass,
+    RECIPE_ALPHA_ATTRIBUTION_RECORD_KIND, RECIPE_ALPHA_AUDIT_EVENT_RECORD_KIND,
+    RECIPE_ALPHA_DEFINITION_RECORD_KIND, RECIPE_ALPHA_PAGE_RECORD_KIND,
+    RECIPE_ALPHA_RUN_RECORD_KIND, RECIPE_ALPHA_SCHEMA_VERSION,
+    RECIPE_ALPHA_SHARED_CONTRACT_REF, RECIPE_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
+    RECIPE_ALPHA_VALIDATION_REPORT_RECORD_KIND,
 };
 pub use request_workspace::{
     seeded_request_workspace_record, seeded_request_workspace_support_export,
