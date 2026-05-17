@@ -12,6 +12,7 @@
 
 pub mod admission;
 pub mod archetype_detection;
+pub mod archetypes;
 pub mod entry;
 pub mod entry_flows;
 pub mod generated_artifacts;
@@ -105,14 +106,14 @@ pub use admission::checkpoint::{
     build_admission_checkpoint_route, AdmissionCheckpointBuildRequest,
     AdmissionCheckpointRouteRecord, AdmissionCheckpointRouteRecordKind, AdmissionClass,
     ArchetypeRecommendationSourceClass, ArchetypeTruth, BlockedReasonClass, ContinueWithoutClass,
-    DetectionConfidenceClass, DetectionOutcome, DetectionSignal, DetectionSignalSourceClass,
-    DetectorState, ExecutionBoundary, FirstUsefulEntrySource, FirstUsefulWorkRoute, LandingSurface,
-    MixedWorkspaceBoundaryChoice, OptionalReasonClass, ReadinessBucket, ReadinessBucketSummary,
-    ReadinessBuckets, ReadinessTask, ReadinessTaskClass, ReadinessTaskState,
-    RememberedRoutingEffect, RootIdentityClass, RouteReasonClass, RouteSwitchOption,
-    SetupLocationClass, SideEffectClass, SignalMaterialEffect, SupportClaimClass, TrustReviewClass,
-    WorkspaceAdmissionCheckpoint, ADMISSION_CHECKPOINT_ROUTE_SCHEMA_VERSION,
-    WORKSPACE_ADMISSION_CHECKPOINT_SCHEMA_VERSION,
+    DetectionConfidenceClass, DetectionEvidenceFreshness, DetectionOutcome, DetectionSignal,
+    DetectionSignalSourceClass, DetectorState, ExecutionBoundary, FirstUsefulEntrySource,
+    FirstUsefulWorkRoute, LandingSurface, MixedWorkspaceBoundaryChoice, OptionalReasonClass,
+    ReadinessBucket, ReadinessBucketSummary, ReadinessBuckets, ReadinessTask, ReadinessTaskClass,
+    ReadinessTaskState, RememberedRoutingEffect, RootIdentityClass, RouteReasonClass,
+    RouteSwitchOption, SetupLocationClass, SideEffectClass, SignalFreshnessClass,
+    SignalMaterialEffect, SupportClaimClass, TrustReviewClass, WorkspaceAdmissionCheckpoint,
+    ADMISSION_CHECKPOINT_ROUTE_SCHEMA_VERSION, WORKSPACE_ADMISSION_CHECKPOINT_SCHEMA_VERSION,
 };
 
 pub use archetype_detection::{
@@ -120,7 +121,13 @@ pub use archetype_detection::{
     detect_workspace_archetype_with_catalog, load_archetype_seed_catalog,
     propose_workspace_archetype, ArchetypeDetectionError, ArchetypeDetectionOutcome,
     ArchetypeDetectionReport, ArchetypeDetectionSignal, ArchetypeProposal, ArchetypeSeedCatalog,
-    ArchetypeSeedRow, LaunchArchetypeFamily,
+    ArchetypeSeedFreshness, ArchetypeSeedRow, LaunchArchetypeFamily,
+};
+
+pub use archetypes::{
+    ARCHETYPE_DETECTION_MATRIX_REF, ARCHETYPE_SCORECARD_INDEX_REF,
+    MIXED_WORKSPACE_BOUNDARY_CHOICES, REQUIRED_DETECTION_OUTCOMES, REQUIRED_READINESS_BUCKETS,
+    SETUP_RECOMMENDATION_BYPASSES,
 };
 
 pub use save::{

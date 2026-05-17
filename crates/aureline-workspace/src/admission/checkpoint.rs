@@ -199,6 +199,36 @@ impl_as_str!(DetectorState {
     Unknown => "unknown",
 });
 
+/// Freshness class for detection evidence used by support or route language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SignalFreshnessClass {
+    /// Evidence was verified in the current review window.
+    FreshCurrent,
+    /// Cached evidence is still current enough for routing or scoped recommendations.
+    CachedCurrentEnough,
+    /// Evidence is stale and requires retest before stronger claims.
+    StaleRetestNeeded,
+    /// Evidence came from an imported snapshot.
+    ImportedSnapshot,
+    /// Policy evidence is current for the active policy epoch.
+    PolicyEpochCurrent,
+    /// Policy evidence exists but its epoch is not known.
+    PolicyEpochUnknown,
+    /// Freshness is not known.
+    UnknownFreshness,
+}
+
+impl_as_str!(SignalFreshnessClass {
+    FreshCurrent => "fresh_current",
+    CachedCurrentEnough => "cached_current_enough",
+    StaleRetestNeeded => "stale_retest_needed",
+    ImportedSnapshot => "imported_snapshot",
+    PolicyEpochCurrent => "policy_epoch_current",
+    PolicyEpochUnknown => "policy_epoch_unknown",
+    UnknownFreshness => "unknown_freshness",
+});
+
 /// Source class for a detection signal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -280,6 +310,9 @@ pub struct DetectionSignal {
     pub source_class: DetectionSignalSourceClass,
     /// Why the signal materially affects the route or checkpoint.
     pub material_effects: Vec<SignalMaterialEffect>,
+    /// Freshness of the signal when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub freshness_class: Option<SignalFreshnessClass>,
     /// Redacted reviewer-facing summary.
     pub summary: String,
 }
@@ -296,8 +329,60 @@ impl DetectionSignal {
             signal_ref: signal_ref.into(),
             source_class,
             material_effects,
+            freshness_class: None,
             summary: summary.into(),
         }
+    }
+
+    /// Adds a freshness class for this signal.
+    pub const fn with_freshness_class(mut self, freshness_class: SignalFreshnessClass) -> Self {
+        self.freshness_class = Some(freshness_class);
+        self
+    }
+}
+
+/// Evidence freshness attached to an archetype support claim.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DetectionEvidenceFreshness {
+    /// Evidence packet, scorecard, or matrix row reference.
+    pub evidence_ref: String,
+    /// Freshness class for the evidence.
+    pub freshness_class: SignalFreshnessClass,
+    /// Date the evidence was reviewed, when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewed_on: Option<String>,
+    /// Duration or review window after which the evidence must be retested.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stale_after: Option<String>,
+    /// Redacted reviewer-facing summary.
+    pub summary: String,
+}
+
+impl DetectionEvidenceFreshness {
+    /// Builds an evidence-freshness row.
+    pub fn new(
+        evidence_ref: impl Into<String>,
+        freshness_class: SignalFreshnessClass,
+        summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            evidence_ref: evidence_ref.into(),
+            freshness_class,
+            reviewed_on: None,
+            stale_after: None,
+            summary: summary.into(),
+        }
+    }
+
+    /// Adds review age fields to the evidence-freshness row.
+    pub fn with_review_window(
+        mut self,
+        reviewed_on: Option<String>,
+        stale_after: Option<String>,
+    ) -> Self {
+        self.reviewed_on = reviewed_on;
+        self.stale_after = stale_after;
+        self
     }
 }
 
@@ -318,6 +403,9 @@ pub struct ArchetypeTruth {
     pub compatible_bundle_refs: Vec<String>,
     /// Source-labeled signals that explain the outcome.
     pub signals: Vec<DetectionSignal>,
+    /// Evidence freshness rows that support certified or probable wording.
+    #[serde(default)]
+    pub evidence_freshness: Vec<DetectionEvidenceFreshness>,
     /// Opaque fact references surfaced by detection.
     pub detected_fact_refs: Vec<String>,
     /// Opaque recommendation references derived from facts.
@@ -345,6 +433,7 @@ impl ArchetypeTruth {
             archetype_ref: None,
             compatible_bundle_refs: Vec::new(),
             signals,
+            evidence_freshness: Vec::new(),
             detected_fact_refs: Vec::new(),
             recommendation_refs: Vec::new(),
             policy_block_refs: Vec::new(),
@@ -361,6 +450,12 @@ impl ArchetypeTruth {
     /// Sets compatible bundle references.
     pub fn with_compatible_bundle_refs(mut self, refs: Vec<String>) -> Self {
         self.compatible_bundle_refs = refs;
+        self
+    }
+
+    /// Sets evidence freshness rows.
+    pub fn with_evidence_freshness(mut self, rows: Vec<DetectionEvidenceFreshness>) -> Self {
+        self.evidence_freshness = rows;
         self
     }
 
@@ -1475,6 +1570,16 @@ impl AdmissionCheckpointRouteRecord {
                 }
             }
         }
+        if matches!(
+            self.archetype.outcome,
+            DetectionOutcome::CertifiedArchetypeMatch | DetectionOutcome::ProbableArchetype
+        ) && self.archetype.evidence_freshness.is_empty()
+        {
+            findings.push(
+                "certified and probable archetype states must expose evidence freshness"
+                    .to_string(),
+            );
+        }
         if self.archetype.outcome == DetectionOutcome::MixedOrAmbiguousWorkspace {
             for required in [
                 MixedWorkspaceBoundaryChoice::OpenWholeRepo,
@@ -1513,6 +1618,21 @@ impl AdmissionCheckpointRouteRecord {
             .map(|signal| signal.source_class.as_str())
             .collect::<Vec<_>>()
             .join(" + ");
+        let evidence = self
+            .archetype
+            .evidence_freshness
+            .iter()
+            .map(|row| {
+                let reviewed = row.reviewed_on.as_deref().unwrap_or("unknown_review_date");
+                format!(
+                    "{}:{}:reviewed_on={}",
+                    row.evidence_ref,
+                    row.freshness_class.as_str(),
+                    reviewed
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
         let bypasses = self
             .same_weight_bypass_actions
             .iter()
@@ -1545,6 +1665,7 @@ impl AdmissionCheckpointRouteRecord {
                 self.archetype.detector_state.as_str(),
                 signal_sources
             ),
+            format!("evidence_freshness: [{}]", evidence),
             format!(
                 "readiness: blocking_now={} recommended_soon={} optional_later={} continue_without={}",
                 self.checkpoint.readiness_bucket_summary.blocking_now_total,
@@ -2081,6 +2202,12 @@ mod tests {
         )
         .with_archetype_ref("archetype.ts_web_app.certified")
         .with_compatible_bundle_refs(vec!["bundle.web.fullstack.current".to_string()])
+        .with_evidence_freshness(vec![DetectionEvidenceFreshness::new(
+            "evidence.web.certified_scorecard",
+            SignalFreshnessClass::FreshCurrent,
+            "Certified web archetype evidence is current.",
+        )
+        .with_review_window(Some("2026-05-15".to_string()), Some("P21D".to_string()))])
         .with_detected_fact_refs(vec!["fact.web.manifest_present".to_string()])
         .with_recommendation_refs(vec!["rec.web.compare_bundle".to_string()]);
         let readiness = ReadinessBuckets::new()

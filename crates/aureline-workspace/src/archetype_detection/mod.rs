@@ -11,15 +11,16 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 use crate::admission::checkpoint::{
-    ArchetypeTruth, DetectionConfidenceClass, DetectionOutcome, DetectionSignal,
-    DetectionSignalSourceClass, DetectorState, SignalMaterialEffect, SupportClaimClass,
+    ArchetypeTruth, DetectionConfidenceClass, DetectionEvidenceFreshness, DetectionOutcome,
+    DetectionSignal, DetectionSignalSourceClass, DetectorState, SignalFreshnessClass,
+    SignalMaterialEffect, SupportClaimClass,
 };
 
 const ARCHETYPE_SEED_ROWS: (&str, &str) = (
-    "artifacts/certification/m2_archetype_seed_rows.yaml",
+    "artifacts/compat/m3/archetype_detection_matrix.yaml",
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../artifacts/certification/m2_archetype_seed_rows.yaml"
+        "/../../artifacts/compat/m3/archetype_detection_matrix.yaml"
     )),
 );
 
@@ -37,6 +38,12 @@ pub enum LaunchArchetypeFamily {
     PythonServiceOrDataApp,
     /// Rust workspace.
     RustWorkspace,
+    /// Go service or monorepo slice.
+    GoServiceOrMonorepoSlice,
+    /// Java or Kotlin service.
+    JavaOrKotlinService,
+    /// C or C++ native project.
+    COrCppNativeProject,
 }
 
 impl LaunchArchetypeFamily {
@@ -46,6 +53,9 @@ impl LaunchArchetypeFamily {
             Self::TypeScriptJavaScriptWeb => "typescript_javascript_web",
             Self::PythonServiceOrDataApp => "python_service_or_data_app",
             Self::RustWorkspace => "rust_workspace",
+            Self::GoServiceOrMonorepoSlice => "go_service_or_monorepo_slice",
+            Self::JavaOrKotlinService => "java_or_kotlin_service",
+            Self::COrCppNativeProject => "c_or_cpp_native_project",
         }
     }
 }
@@ -85,6 +95,9 @@ pub struct ArchetypeSeedRow {
     pub certification_state: String,
     /// Evidence packet opened from archetype badges.
     pub evidence_packet_ref: String,
+    /// Freshness fields used to expose evidence age on certified/probable states.
+    #[serde(default)]
+    pub freshness: Option<ArchetypeSeedFreshness>,
 }
 
 impl ArchetypeSeedRow {
@@ -100,8 +113,28 @@ impl ArchetypeSeedRow {
             }
             LaunchArchetypeFamily::PythonServiceOrDataApp => text.contains("python"),
             LaunchArchetypeFamily::RustWorkspace => text.contains("rust"),
+            LaunchArchetypeFamily::GoServiceOrMonorepoSlice => {
+                text.contains("go service") || text.contains("monorepo slice")
+            }
+            LaunchArchetypeFamily::JavaOrKotlinService => {
+                text.contains("java") || text.contains("kotlin")
+            }
+            LaunchArchetypeFamily::COrCppNativeProject => {
+                text.contains("c / c++") || text.contains("c++") || text.contains("native")
+            }
         }
     }
+}
+
+/// Freshness metadata for an archetype seed or scorecard row.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ArchetypeSeedFreshness {
+    /// Source freshness state.
+    pub state: String,
+    /// Date the evidence row was reviewed.
+    pub reviewed_on: String,
+    /// Review window or stale-after duration.
+    pub stale_after: String,
 }
 
 /// Outcome of one read-only archetype detection pass.
@@ -166,6 +199,12 @@ pub struct ArchetypeProposal {
     pub certification_state: String,
     /// Evidence packet reference loaded from the seed rows artifact.
     pub evidence_packet_ref: String,
+    /// Evidence freshness class derived from the seed or scorecard row.
+    pub evidence_freshness_class: SignalFreshnessClass,
+    /// Date the evidence was reviewed, when declared by the source row.
+    pub evidence_reviewed_on: Option<String>,
+    /// Review window after which the evidence must be retested, when declared.
+    pub evidence_stale_after: Option<String>,
 }
 
 impl ArchetypeProposal {
@@ -185,6 +224,15 @@ impl ArchetypeProposal {
             current_support_class: row.current_support_class.clone(),
             certification_state: row.certification_state.clone(),
             evidence_packet_ref: row.evidence_packet_ref.clone(),
+            evidence_freshness_class: evidence_freshness_class_for(row),
+            evidence_reviewed_on: row
+                .freshness
+                .as_ref()
+                .map(|freshness| freshness.reviewed_on.clone()),
+            evidence_stale_after: row
+                .freshness
+                .as_ref()
+                .map(|freshness| freshness.stale_after.clone()),
         }
     }
 }
@@ -211,20 +259,17 @@ impl ArchetypeDetectionReport {
     pub fn to_archetype_truth(&self) -> ArchetypeTruth {
         match (&self.outcome, &self.proposal) {
             (ArchetypeDetectionOutcome::Proposed, Some(proposal)) => {
-                let confidence = if proposal.confidence_score >= 85 {
-                    DetectionConfidenceClass::HighProbable
-                } else {
-                    DetectionConfidenceClass::MediumProbable
-                };
+                let support_claim = support_claim_for(proposal);
                 ArchetypeTruth::new(
-                    DetectionOutcome::ProbableArchetype,
-                    confidence,
-                    support_claim_for(proposal),
-                    DetectorState::ReadyEnough,
+                    detection_outcome_for(proposal),
+                    confidence_for(proposal, support_claim),
+                    support_claim,
+                    detector_state_for(proposal),
                     self.checkpoint_signals(),
                 )
                 .with_archetype_ref(proposal.archetype_row_ref.clone())
                 .with_compatible_bundle_refs(vec![proposal.bundle_ref.clone()])
+                .with_evidence_freshness(vec![evidence_freshness_row(proposal)])
                 .with_detected_fact_refs(self.detected_fact_refs())
                 .with_recommendation_refs(vec![format!(
                     "recommendation.archetype.{:016x}",
@@ -261,7 +306,8 @@ impl ArchetypeDetectionReport {
                 DetectionSignalSourceClass::FilesystemLayout,
                 vec![SignalMaterialEffect::DiagnosticOnly],
                 "No recognized archetype markers were found in the workspace root.",
-            )];
+            )
+            .with_freshness_class(SignalFreshnessClass::FreshCurrent)];
         }
 
         self.signals
@@ -276,6 +322,7 @@ impl ArchetypeDetectionReport {
                     ],
                     signal.summary.clone(),
                 )
+                .with_freshness_class(SignalFreshnessClass::FreshCurrent)
             })
             .collect()
     }
@@ -408,6 +455,9 @@ pub fn detect_workspace_archetype_with_catalog(
     score_tsjs(root, &marker_names, &extension_cues, &mut scores);
     score_python(root, &marker_names, &extension_cues, &mut scores);
     score_rust(root, &marker_names, &extension_cues, &mut scores);
+    score_go(root, &marker_names, &extension_cues, &mut scores);
+    score_java_kotlin(&marker_names, &extension_cues, &mut scores);
+    score_c_cpp(&marker_names, &extension_cues, &mut scores);
 
     let mut ranked = scores
         .iter()
@@ -786,6 +836,166 @@ fn score_rust(
     }
 }
 
+fn score_go(
+    root: &Path,
+    marker_names: &BTreeSet<String>,
+    extension_cues: &BTreeSet<String>,
+    scores: &mut BTreeMap<LaunchArchetypeFamily, FamilyScore>,
+) {
+    let family = LaunchArchetypeFamily::GoServiceOrMonorepoSlice;
+    if marker_names.contains("go.mod") {
+        add_signal(
+            scores,
+            family,
+            "go.mod",
+            DetectionSignalSourceClass::Manifest,
+            58,
+            "go.mod is present.",
+        );
+        if read_marker(root, "go.mod").is_some_and(|payload| payload.contains("module ")) {
+            add_signal(
+                scores,
+                family,
+                "go.mod#module",
+                DetectionSignalSourceClass::Manifest,
+                18,
+                "go.mod declares a Go module.",
+            );
+        }
+    }
+    if marker_names.contains("go.sum") {
+        add_signal(
+            scores,
+            family,
+            "go.sum",
+            DetectionSignalSourceClass::Lockfile,
+            12,
+            "go.sum is present.",
+        );
+    }
+    if extension_cues.contains("go") {
+        add_signal(
+            scores,
+            family,
+            "bounded_extension_scan",
+            DetectionSignalSourceClass::FilesystemLayout,
+            10,
+            "Bounded scan found Go source files.",
+        );
+    }
+}
+
+fn score_java_kotlin(
+    marker_names: &BTreeSet<String>,
+    extension_cues: &BTreeSet<String>,
+    scores: &mut BTreeMap<LaunchArchetypeFamily, FamilyScore>,
+) {
+    let family = LaunchArchetypeFamily::JavaOrKotlinService;
+    for (marker, delta, summary) in [
+        ("pom.xml", 55, "Maven project file is present."),
+        ("build.gradle", 52, "Gradle build file is present."),
+        (
+            "build.gradle.kts",
+            52,
+            "Gradle Kotlin build file is present.",
+        ),
+        ("settings.gradle", 16, "Gradle settings file is present."),
+        (
+            "settings.gradle.kts",
+            16,
+            "Gradle Kotlin settings file is present.",
+        ),
+        (
+            "gradle.properties",
+            10,
+            "Gradle properties file is present.",
+        ),
+        ("mvnw", 8, "Maven wrapper is present."),
+        ("gradlew", 8, "Gradle wrapper is present."),
+    ] {
+        if marker_names.contains(marker) {
+            add_signal(
+                scores,
+                family,
+                marker,
+                DetectionSignalSourceClass::Manifest,
+                delta,
+                summary,
+            );
+        }
+    }
+    if ["java", "kt", "kts"]
+        .iter()
+        .any(|extension| extension_cues.contains(*extension))
+    {
+        add_signal(
+            scores,
+            family,
+            "bounded_extension_scan",
+            DetectionSignalSourceClass::FilesystemLayout,
+            10,
+            "Bounded scan found Java or Kotlin source files.",
+        );
+    }
+}
+
+fn score_c_cpp(
+    marker_names: &BTreeSet<String>,
+    extension_cues: &BTreeSet<String>,
+    scores: &mut BTreeMap<LaunchArchetypeFamily, FamilyScore>,
+) {
+    let family = LaunchArchetypeFamily::COrCppNativeProject;
+    for (marker, delta, summary, source_class) in [
+        (
+            "CMakeLists.txt",
+            58,
+            "CMake project file is present.",
+            DetectionSignalSourceClass::Manifest,
+        ),
+        (
+            "compile_commands.json",
+            35,
+            "Compilation database is present.",
+            DetectionSignalSourceClass::Manifest,
+        ),
+        (
+            "meson.build",
+            42,
+            "Meson build file is present.",
+            DetectionSignalSourceClass::Manifest,
+        ),
+        (
+            "Makefile",
+            26,
+            "Makefile is present.",
+            DetectionSignalSourceClass::Manifest,
+        ),
+        (
+            "vcpkg.json",
+            18,
+            "vcpkg manifest is present.",
+            DetectionSignalSourceClass::Manifest,
+        ),
+    ] {
+        if marker_names.contains(marker) {
+            add_signal(scores, family, marker, source_class, delta, summary);
+        }
+    }
+    if ["c", "cc", "cpp", "cxx", "h", "hh", "hpp", "hxx"]
+        .iter()
+        .any(|extension| extension_cues.contains(*extension))
+    {
+        add_signal(
+            scores,
+            family,
+            "bounded_extension_scan",
+            DetectionSignalSourceClass::FilesystemLayout,
+            10,
+            "Bounded scan found C or C++ source files.",
+        );
+    }
+}
+
 fn add_signal(
     scores: &mut BTreeMap<LaunchArchetypeFamily, FamilyScore>,
     family: LaunchArchetypeFamily,
@@ -900,13 +1110,77 @@ fn family_ref_for(catalog: &ArchetypeSeedCatalog, family: LaunchArchetypeFamily)
         .unwrap_or_else(|| family.as_str().to_string())
 }
 
+fn detection_outcome_for(proposal: &ArchetypeProposal) -> DetectionOutcome {
+    if support_claim_for(proposal) == SupportClaimClass::CertifiedCurrent {
+        DetectionOutcome::CertifiedArchetypeMatch
+    } else {
+        DetectionOutcome::ProbableArchetype
+    }
+}
+
+fn confidence_for(
+    proposal: &ArchetypeProposal,
+    support_claim: SupportClaimClass,
+) -> DetectionConfidenceClass {
+    if support_claim == SupportClaimClass::CertifiedCurrent {
+        DetectionConfidenceClass::CertifiedExact
+    } else if proposal.confidence_score >= 85 {
+        DetectionConfidenceClass::HighProbable
+    } else {
+        DetectionConfidenceClass::MediumProbable
+    }
+}
+
+fn detector_state_for(proposal: &ArchetypeProposal) -> DetectorState {
+    match proposal.certification_state.as_str() {
+        "retest_pending" | "evidence_stale" => DetectorState::RetestNeeded,
+        _ => DetectorState::ReadyEnough,
+    }
+}
+
+fn evidence_freshness_row(proposal: &ArchetypeProposal) -> DetectionEvidenceFreshness {
+    DetectionEvidenceFreshness::new(
+        proposal.evidence_packet_ref.clone(),
+        proposal.evidence_freshness_class,
+        format!(
+            "{} evidence for {} is {}.",
+            proposal.evidence_packet_ref,
+            proposal.archetype_row_ref,
+            proposal.evidence_freshness_class.as_str()
+        ),
+    )
+    .with_review_window(
+        proposal.evidence_reviewed_on.clone(),
+        proposal.evidence_stale_after.clone(),
+    )
+}
+
+fn evidence_freshness_class_for(row: &ArchetypeSeedRow) -> SignalFreshnessClass {
+    match (
+        row.certification_state.as_str(),
+        row.freshness
+            .as_ref()
+            .map(|freshness| freshness.state.as_str()),
+    ) {
+        ("certified", Some("current" | "current_seed")) => SignalFreshnessClass::FreshCurrent,
+        ("retest_pending" | "evidence_stale", _)
+        | (_, Some("retest_pending" | "evidence_stale")) => SignalFreshnessClass::StaleRetestNeeded,
+        (_, Some("current" | "current_seed")) => SignalFreshnessClass::CachedCurrentEnough,
+        _ => SignalFreshnessClass::UnknownFreshness,
+    }
+}
+
 fn support_claim_for(proposal: &ArchetypeProposal) -> SupportClaimClass {
-    match proposal.current_support_class.as_str() {
-        "certified" if proposal.certification_state == "certified" => {
-            SupportClaimClass::CertifiedCurrent
+    match (
+        proposal.current_support_class.as_str(),
+        proposal.certification_state.as_str(),
+    ) {
+        ("certified", "certified") => SupportClaimClass::CertifiedCurrent,
+        ("certified", "retest_pending" | "evidence_stale") => {
+            SupportClaimClass::CertifiedRetestPending
         }
-        "supported" => SupportClaimClass::SupportedScoped,
-        "community" => SupportClaimClass::CommunityOrExtensionPath,
+        ("supported", _) => SupportClaimClass::SupportedScoped,
+        ("community", _) => SupportClaimClass::CommunityOrExtensionPath,
         _ => SupportClaimClass::ExperimentalPreview,
     }
 }

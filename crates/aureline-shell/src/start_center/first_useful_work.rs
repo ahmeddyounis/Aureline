@@ -34,6 +34,8 @@ pub struct StartCenterFirstUsefulWorkSurface {
     pub confidence_token: String,
     /// Source labels that explain the detection result.
     pub detection_sources: Vec<String>,
+    /// Evidence freshness rows backing certified or probable wording.
+    pub evidence_freshness: Vec<String>,
     /// Landing surface token.
     pub landing_surface: String,
     /// Route reason token.
@@ -61,11 +63,14 @@ impl StartCenterFirstUsefulWorkSurface {
                 self.confidence_token,
                 self.detection_sources.join(" + ")
             ),
-            format!(
-                "Landing: {} because {}",
-                self.landing_surface, self.route_reason
-            ),
         ];
+        if !self.evidence_freshness.is_empty() {
+            lines.push(format!("Evidence: {}", self.evidence_freshness.join(", ")));
+        }
+        lines.push(format!(
+            "Landing: {} because {}",
+            self.landing_surface, self.route_reason
+        ));
         for group in &self.readiness_groups {
             lines.push(format!("{}: {}", group.bucket.as_str(), group.task_count));
             for summary in &group.task_summaries {
@@ -105,6 +110,20 @@ pub fn start_center_first_useful_work_surface(
             .signals
             .iter()
             .map(|signal| signal.source_class.as_str().to_string())
+            .collect(),
+        evidence_freshness: record
+            .archetype
+            .evidence_freshness
+            .iter()
+            .map(|row| {
+                let reviewed = row.reviewed_on.as_deref().unwrap_or("unknown_review_date");
+                format!(
+                    "{}:{}:reviewed_on={}",
+                    row.evidence_ref,
+                    row.freshness_class.as_str(),
+                    reviewed
+                )
+            })
             .collect(),
         landing_surface: route.landing_surface.as_str().to_string(),
         route_reason: route.route_reason_class.as_str().to_string(),
@@ -175,11 +194,12 @@ mod tests {
     use aureline_workspace::{
         build_admission_checkpoint_route, AdmissionCheckpointBuildRequest, AdmissionClass,
         AdmissionReviewRequest, AdmissionSourceSurface, ArchetypeTruth, BlockedReasonClass,
-        DetectionConfidenceClass, DetectionOutcome, DetectionSignal, DetectionSignalSourceClass,
-        DetectorState, EntryVerb, ExecutionBoundary, FirstUsefulEntrySource,
-        MixedWorkspaceBoundaryChoice, ReadinessBucket, ReadinessBuckets, ReadinessTask,
-        ReadinessTaskClass, ReadinessTaskState, ResultingMode, SideEffectClass,
-        SignalMaterialEffect, SupportClaimClass, TargetKind, TrustReviewClass,
+        DetectionConfidenceClass, DetectionEvidenceFreshness, DetectionOutcome, DetectionSignal,
+        DetectionSignalSourceClass, DetectorState, EntryVerb, ExecutionBoundary,
+        FirstUsefulEntrySource, MixedWorkspaceBoundaryChoice, ReadinessBucket, ReadinessBuckets,
+        ReadinessTask, ReadinessTaskClass, ReadinessTaskState, ResultingMode, SideEffectClass,
+        SignalFreshnessClass, SignalMaterialEffect, SupportClaimClass, TargetKind,
+        TrustReviewClass,
     };
 
     #[test]
@@ -190,6 +210,9 @@ mod tests {
         assert!(
             text.contains("Archetype: Certified (certified_exact) via manifest + bundle_marker")
         );
+        assert!(text.contains(
+            "Evidence: evidence.web.certified_scorecard:fresh_current:reviewed_on=2026-05-15"
+        ));
         assert!(text.contains("blocking_now: 0"));
         assert!(text.contains("recommended_soon: 1"));
         assert!(text.contains("optional_later: 1"));
@@ -244,6 +267,12 @@ mod tests {
                 ),
             ],
         )
+        .with_evidence_freshness(vec![DetectionEvidenceFreshness::new(
+            "evidence.web.certified_scorecard",
+            SignalFreshnessClass::FreshCurrent,
+            "Certified web archetype evidence is current.",
+        )
+        .with_review_window(Some("2026-05-15".to_string()), Some("P21D".to_string()))])
         .with_recommendation_refs(vec!["rec.web.compare_bundle".to_string()]);
         let readiness = ReadinessBuckets::new()
             .with_task(ReadinessTask::new(

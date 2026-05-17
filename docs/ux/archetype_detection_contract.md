@@ -16,6 +16,7 @@ The machine-readable schema lives at:
 The worked fixtures live under:
 
 - [`/fixtures/workspace/entry_routes/`](../../fixtures/workspace/entry_routes/)
+- [`/fixtures/workspace/m3/archetype_detection/`](../../fixtures/workspace/m3/archetype_detection/)
 
 This document is normative at the UX, schema, support-export, and
 CLI/headless boundary. Where it disagrees with the PRD, architecture,
@@ -94,6 +95,11 @@ not replace the required labels above. Signal summaries must be redacted
 and export-safe; raw absolute paths, raw URLs with credentials, raw
 manifest bodies, command lines, secrets, or package-lock contents do not
 cross this boundary.
+
+Certified and probable states also carry `evidence_freshness` rows. Each
+row names the scorecard or packet ref, freshness class, reviewed date
+when available, stale-after window, and redacted summary so support
+language cannot outrun current evidence.
 
 ## Readiness Buckets
 
