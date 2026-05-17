@@ -42,6 +42,7 @@ pub mod provenance;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
 pub mod rerun;
+pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
 pub mod support_matrix_beta;
 pub mod target_discovery;
@@ -258,6 +259,21 @@ pub use request_workspace::{
     SendInspectorReport, SideEffectClass, REQUEST_WORKSPACE_ALPHA_LANE_ID,
     REQUEST_WORKSPACE_ALPHA_RECORD_KIND, REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION,
     REQUEST_WORKSPACE_SEND_INSPECTOR_RECORD_KIND, REQUEST_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use shared_debug_alpha::{
+    LocalDebugContinuityClass, LocalDebugContinuityObservation,
+    LocalDebugContinuityObservationSummary, SharedDebugAlphaContractRefs,
+    SharedDebugAlphaCoverage, SharedDebugAlphaFinding, SharedDebugAlphaFindingSeverity,
+    SharedDebugAlphaFixtureMetadata, SharedDebugAlphaPage, SharedDebugAlphaSupportExport,
+    SharedDebugAlphaValidationReport, SharedDebugAuditEvent, SharedDebugAuditEventClass,
+    SharedDebugAuditEventSummary, SharedDebugBinding, SharedDebugControlState,
+    SharedDebugControlStateClass, SharedDebugControlStateSummary,
+    SHARED_DEBUG_ALPHA_AUDIT_EVENT_RECORD_KIND,
+    SHARED_DEBUG_ALPHA_CONTINUITY_OBSERVATION_RECORD_KIND,
+    SHARED_DEBUG_ALPHA_CONTROL_STATE_RECORD_KIND, SHARED_DEBUG_ALPHA_PAGE_RECORD_KIND,
+    SHARED_DEBUG_ALPHA_PRESENTER_HANDOFF_RECORD_KIND, SHARED_DEBUG_ALPHA_SCHEMA_VERSION,
+    SHARED_DEBUG_ALPHA_SHARED_CONTRACT_REF, SHARED_DEBUG_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
+    SHARED_DEBUG_ALPHA_VALIDATION_REPORT_RECORD_KIND,
 };
 pub use shared_terminal_alpha::{
     ControlRevocationCauseClass, LocalContinuityClass, LocalTerminalContinuityObservation,

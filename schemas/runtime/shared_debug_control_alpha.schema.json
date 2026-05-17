@@ -1,0 +1,491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/shared_debug_control_alpha.schema.json",
+  "title": "Aureline shared-debug control-channel alpha: typed view, follow, request-control, active, and revoked states with presenter handoff events, audit events, and local-debug continuity observations",
+  "description": "Runtime-side boundary schema for the alpha shared-debug control-channel record family. Every shared debug session that any other actor can observe, follow, or drive is projected through one shared_debug_control_alpha_page_record so reviewers, support exports, and the session UI read one truth. Composes with — and never forks — the collaboration control-grant boundary (/schemas/collaboration/control_grant.schema.json), the shared-object boundary (/schemas/collaboration/shared_object.schema.json), the session-state boundary (/schemas/collaboration/session_state.schema.json), the follow-and-presenter-state boundary (/schemas/collaboration/follow_and_presenter_state.schema.json), and the session-policy-manifest boundary (/schemas/collaboration/session_policy_manifest.schema.json). Records carry opaque refs and structured fields only; raw stack frames, raw variable payloads, raw source paths, raw breakpoint expressions, raw user identifiers, and raw debugger-adapter payloads never cross this boundary. Adding a new control_state, participant_role, presenter_handoff_outcome, audit_event_class, or continuity_class value is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new contract row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/shared_debug_control_alpha_page_record" },
+    { "$ref": "#/$defs/shared_debug_control_alpha_state_record" },
+    { "$ref": "#/$defs/shared_debug_control_alpha_presenter_handoff_record" },
+    { "$ref": "#/$defs/shared_debug_control_alpha_audit_event_record" },
+    { "$ref": "#/$defs/shared_debug_control_alpha_continuity_observation_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this alpha export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "runtime:shared_debug_control_alpha:v1",
+      "description": "Stable shared contract id consumed by every record in this family."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests and support bundles. Raw stack frames, raw variable payloads, raw source paths, raw breakpoint expressions, and raw user identifiers never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on the session UI, support exports, and admin-collaboration surfaces. Never contains raw stack frames, raw variable payloads, raw source paths, raw breakpoint expressions, or raw credential material."
+    },
+    "control_state_class": {
+      "type": "string",
+      "enum": [
+        "view_only_observer",
+        "follow_presenter_observer",
+        "request_control_pending",
+        "active_control_grantee",
+        "control_revoked"
+      ],
+      "description": "Frozen control-state vocabulary distinguishing the five typed states the alpha row admits: passive view, active follow of the presenter's debugger view, request pending, active control, and revoked. Control is never inferred from presence, follow state, or presenter state; active_control_grantee and control_revoked MUST cite a control_grant_ref bound on the upstream control-grant contract. follow_presenter_observer MUST cite a follow_target_actor_ref and never carries input or breakpoint-mutation authority."
+    },
+    "participant_role_class": {
+      "type": "string",
+      "enum": [
+        "session_owner",
+        "participant",
+        "approver",
+        "admin"
+      ],
+      "description": "Frozen participant-role vocabulary for the actor whose state is observed."
+    },
+    "presenter_handoff_outcome_class": {
+      "type": "string",
+      "enum": [
+        "presenter_role_accepted",
+        "presenter_role_declined",
+        "presenter_role_auto_observer",
+        "presenter_role_revoked",
+        "presenter_role_expired_session_end"
+      ],
+      "description": "Frozen presenter-handoff-outcome vocabulary. accepted requires destination_actor_ref; declined requires decline_reason_label; revoked requires revocation_cause_label. auto_observer captures the presenter stepping away and the role downgrading to view-only without silent stepping or breakpoint injection on the grantee's local pane."
+    },
+    "audit_event_class": {
+      "type": "string",
+      "enum": [
+        "control_requested",
+        "control_request_admitted",
+        "control_request_denied",
+        "control_active_started",
+        "control_active_ended",
+        "control_revoked",
+        "control_expired_session_end",
+        "follow_engaged",
+        "follow_released",
+        "presenter_handoff_initiated",
+        "presenter_handoff_resolved",
+        "audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event vocabulary on the shared-debug control stream. Mirrors the upstream control_grant_audit_event_id shape and adds follow-state and presenter-handoff events. Denial events MUST cite a denial_reason_label; presenter-handoff events MUST cite a presenter_handoff_ref; state-bound events (control_* and follow_*) MUST cite a control_state_ref."
+    },
+    "continuity_class": {
+      "type": "string",
+      "enum": [
+        "owner_debug_authority_preserved_after_grantee_revoked",
+        "grantee_demoted_observer_no_step_injection",
+        "follow_observer_decoupled_after_relay_outage",
+        "local_debug_authority_restored_after_session_end",
+        "local_debug_authority_restored_after_expiry"
+      ],
+      "description": "Frozen continuity-observation vocabulary naming how local debug authority is preserved when shared control ends or degrades. Closed list: every observation MUST resolve to exactly one class and MUST NOT replay in-flight stepping, breakpoint mutation, or evaluate-request input against a revoked or degraded grant."
+    },
+    "revocation_cause_class": {
+      "type": "string",
+      "enum": [
+        "owner_revoked",
+        "approver_revoked",
+        "policy_revoked",
+        "admin_signed_revocation",
+        "session_ended_auto_revocation",
+        "approval_ticket_expired",
+        "workspace_trust_narrowed",
+        "relay_outage_non_replayable",
+        "grantee_released_voluntary",
+        "session_transport_dropped_non_replayable"
+      ],
+      "description": "Frozen revocation-cause vocabulary. Mirrors the upstream control_grant_revocation_cause_class verbatim so this row reads the same answer as the collaboration audit stream."
+    },
+    "shared_debug_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session_ref",
+        "shared_object_ref",
+        "debug_session_ref",
+        "execution_context_ref",
+        "host_identity_ref"
+      ],
+      "properties": {
+        "session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shared_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "debug_session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "host_identity_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Binding for one shared debug session to its collaboration session, shared-object, debug-session, execution-context, and host-identity. Raw source paths, raw breakpoint expressions, raw stack frames, raw variable payloads, and raw remote endpoint never cross this boundary."
+    },
+    "contract_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_grant_schema_ref",
+        "shared_object_schema_ref",
+        "session_state_schema_ref",
+        "follow_and_presenter_state_schema_ref",
+        "session_policy_manifest_schema_ref",
+        "debug_session_schema_ref"
+      ],
+      "properties": {
+        "control_grant_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shared_object_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "session_state_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "follow_and_presenter_state_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "session_policy_manifest_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "debug_session_schema_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Upstream schemas this alpha page composes with."
+    },
+    "shared_debug_control_alpha_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "state_id",
+        "display_label",
+        "binding",
+        "participant_actor_ref",
+        "participant_role",
+        "control_state",
+        "audit_event_refs",
+        "rationale_summary",
+        "raw_stack_frames_present",
+        "raw_variable_payload_present",
+        "raw_breakpoint_expression_present",
+        "silent_authority_widening_taken",
+        "local_debug_continuity_preserved",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shared_debug_control_alpha_state_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "state_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "binding": { "$ref": "#/$defs/shared_debug_binding" },
+        "participant_actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "participant_role": { "$ref": "#/$defs/participant_role_class" },
+        "control_state": { "$ref": "#/$defs/control_state_class" },
+        "control_grant_ref": { "type": "string" },
+        "revocation_ref": { "type": "string" },
+        "revocation_cause": { "$ref": "#/$defs/revocation_cause_class" },
+        "pending_request_ref": { "type": "string" },
+        "follow_target_actor_ref": { "type": "string" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "continuity_observation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "raw_stack_frames_present": { "const": false },
+        "raw_variable_payload_present": { "const": false },
+        "raw_breakpoint_expression_present": { "const": false },
+        "silent_authority_widening_taken": { "const": false },
+        "local_debug_continuity_preserved": { "const": true },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "active_control_grantee rows must cite a control_grant_ref.",
+          "if": {
+            "properties": { "control_state": { "const": "active_control_grantee" } },
+            "required": ["control_state"]
+          },
+          "then": {
+            "properties": { "control_grant_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["control_grant_ref"]
+          }
+        },
+        {
+          "description": "control_revoked rows must cite a control_grant_ref, revocation_ref, and revocation_cause.",
+          "if": {
+            "properties": { "control_state": { "const": "control_revoked" } },
+            "required": ["control_state"]
+          },
+          "then": {
+            "properties": {
+              "control_grant_ref": { "$ref": "#/$defs/non_empty_string" },
+              "revocation_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["control_grant_ref", "revocation_ref", "revocation_cause"]
+          }
+        },
+        {
+          "description": "request_control_pending rows must cite a pending_request_ref.",
+          "if": {
+            "properties": { "control_state": { "const": "request_control_pending" } },
+            "required": ["control_state"]
+          },
+          "then": {
+            "properties": { "pending_request_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["pending_request_ref"]
+          }
+        },
+        {
+          "description": "follow_presenter_observer rows must cite a follow_target_actor_ref and never carry a control_grant_ref.",
+          "if": {
+            "properties": { "control_state": { "const": "follow_presenter_observer" } },
+            "required": ["control_state"]
+          },
+          "then": {
+            "properties": { "follow_target_actor_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["follow_target_actor_ref"]
+          }
+        }
+      ],
+      "description": "Typed per-participant control-state row on one shared debug session. Distinguishes view-only, follow, request-pending, active, and revoked states; control is never inferred from presence, follow state, or presenter state."
+    },
+    "shared_debug_control_alpha_presenter_handoff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "handoff_id",
+        "display_label",
+        "session_ref",
+        "shared_object_ref",
+        "initiating_actor_ref",
+        "outcome",
+        "presenter_state_ref",
+        "audit_event_refs",
+        "support_export_summary",
+        "silent_authority_widening_taken",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shared_debug_control_alpha_presenter_handoff_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "handoff_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shared_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "initiating_actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "destination_actor_ref": { "type": "string" },
+        "outcome": { "$ref": "#/$defs/presenter_handoff_outcome_class" },
+        "decline_reason_label": { "type": "string" },
+        "revocation_cause_label": { "type": "string" },
+        "presenter_state_ref": { "$ref": "#/$defs/non_empty_string" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "silent_authority_widening_taken": { "const": false },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "resolved_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "presenter_role_accepted outcomes must cite a destination_actor_ref.",
+          "if": {
+            "properties": { "outcome": { "const": "presenter_role_accepted" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": { "destination_actor_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["destination_actor_ref"]
+          }
+        },
+        {
+          "description": "presenter_role_declined outcomes must cite a decline_reason_label.",
+          "if": {
+            "properties": { "outcome": { "const": "presenter_role_declined" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": { "decline_reason_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["decline_reason_label"]
+          }
+        },
+        {
+          "description": "presenter_role_revoked outcomes must cite a revocation_cause_label.",
+          "if": {
+            "properties": { "outcome": { "const": "presenter_role_revoked" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": { "revocation_cause_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["revocation_cause_label"]
+          }
+        }
+      ],
+      "description": "Typed presenter-handoff event for a shared debug session. Records the outcome of a handoff invitation against the bound presenter_state_record."
+    },
+    "shared_debug_control_alpha_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "audit_event_id",
+        "display_label",
+        "session_ref",
+        "shared_object_ref",
+        "event_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shared_debug_control_alpha_audit_event_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "audit_event_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "session_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shared_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "event_class": { "$ref": "#/$defs/audit_event_class" },
+        "control_state_ref": { "type": "string" },
+        "presenter_handoff_ref": { "type": "string" },
+        "upstream_audit_event_ref": { "type": "string" },
+        "denial_reason_label": { "type": "string" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Denial audit events must cite a denial_reason_label.",
+          "if": {
+            "properties": {
+              "event_class": { "enum": ["control_request_denied", "audit_denial_emitted"] }
+            },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "denial_reason_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["denial_reason_label"]
+          }
+        },
+        {
+          "description": "Presenter-handoff audit events must cite a presenter_handoff_ref.",
+          "if": {
+            "properties": {
+              "event_class": {
+                "enum": ["presenter_handoff_initiated", "presenter_handoff_resolved"]
+              }
+            },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "presenter_handoff_ref": { "$ref": "#/$defs/non_empty_string" } },
+            "required": ["presenter_handoff_ref"]
+          }
+        }
+      ],
+      "description": "Audit-event row on the shared-debug control stream."
+    },
+    "shared_debug_control_alpha_continuity_observation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "observation_id",
+        "display_label",
+        "bound_state_ref",
+        "continuity_class",
+        "rationale_summary",
+        "silent_authority_widening_taken",
+        "local_debug_continuity_preserved",
+        "in_flight_debug_input_replayed",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "shared_debug_control_alpha_continuity_observation_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "observation_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "bound_state_ref": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_class": { "$ref": "#/$defs/continuity_class" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "silent_authority_widening_taken": { "const": false },
+        "local_debug_continuity_preserved": { "const": true },
+        "in_flight_debug_input_replayed": { "const": false },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Local-debug continuity observation. Names how local debug authority is preserved when shared control ends or degrades, and pins the no-replay invariant for in-flight stepping, breakpoint mutation, or evaluate-request input."
+    },
+    "shared_debug_control_alpha_page_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "contract_refs",
+        "control_states",
+        "support_export_summary"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "scenario"],
+          "properties": {
+            "name": { "$ref": "#/$defs/non_empty_string" },
+            "scenario": { "$ref": "#/$defs/reviewable_sentence" }
+          }
+        },
+        "record_kind": { "const": "shared_debug_control_alpha_page_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/opaque_id" },
+        "contract_refs": { "$ref": "#/$defs/contract_refs" },
+        "control_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/shared_debug_control_alpha_state_record" }
+        },
+        "presenter_handoffs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shared_debug_control_alpha_presenter_handoff_record" }
+        },
+        "audit_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shared_debug_control_alpha_audit_event_record" }
+        },
+        "continuity_observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/shared_debug_control_alpha_continuity_observation_record"
+          }
+        },
+        "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Top-level shared-debug control-channel alpha page: a redaction-safe wrapper that binds control-state rows, presenter-handoff events, audit events, and continuity observations under one debug session."
+    }
+  }
+}
