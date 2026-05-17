@@ -4,9 +4,11 @@ use std::path::{Path, PathBuf};
 
 use aureline_review::{
     project_review_workspace_beta_packet, DiffFileInput, DiffOpenTarget, DiffViewSurfacePacket,
-    ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket, ReviewWorkspaceSeedInput,
+    ReviewWorkspaceBetaInput, ReviewWorkspaceBetaPacket, ReviewWorkspaceSearchOperatorTruthExport,
+    ReviewWorkspaceSearchOperatorTruthExportViolation, ReviewWorkspaceSeedInput,
     ReviewWorkspaceSeedPacket,
 };
+use aureline_search::{current_beta_search_operator_truth_packet, SearchOperatorConsumerSurface};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -163,6 +165,41 @@ fn assert_expected(packet: &ReviewWorkspaceBetaPacket, expected: &ExpectedReview
         packet.inspection.stale_check_blocks_operator_truth,
         expected.stale_check_blocks_operator_truth
     );
+}
+
+#[test]
+fn review_workspace_operator_truth_export_preserves_search_packet() {
+    let packet = current_beta_search_operator_truth_packet().expect("operator-truth packet loads");
+    let export = ReviewWorkspaceSearchOperatorTruthExport::from_packet(
+        "review-export:operator-truth:payments",
+        "review.workspace:payments",
+        "2026-05-17T15:02:00Z",
+        packet.clone(),
+    );
+
+    assert!(export.validate().is_empty());
+    assert_eq!(export.operator_truth_packet, packet);
+    assert!(export.operator_truth_findings().is_empty());
+}
+
+#[test]
+fn review_workspace_operator_truth_export_requires_review_projection() {
+    let mut packet =
+        current_beta_search_operator_truth_packet().expect("operator-truth packet loads");
+    packet.consumer_projections.retain(|projection| {
+        projection.consumer_surface != SearchOperatorConsumerSurface::ReviewWorkspace
+    });
+    let export = ReviewWorkspaceSearchOperatorTruthExport::from_packet(
+        "review-export:operator-truth:payments",
+        "review.workspace:payments",
+        "2026-05-17T15:02:00Z",
+        packet,
+    );
+
+    let violations = export.validate();
+    assert!(violations.iter().any(|violation| {
+        *violation == ReviewWorkspaceSearchOperatorTruthExportViolation::MissingReviewProjection
+    }));
 }
 
 #[test]

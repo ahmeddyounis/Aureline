@@ -17,7 +17,8 @@ use serde::{Deserialize, Serialize};
 use aureline_graph::GraphFactCuePacket;
 use aureline_search::{
     RetrievalConsumerSurface, RetrievalInspectorFinding, RetrievalInspectorPacket,
-    RETRIEVAL_INSPECTOR_SCHEMA_VERSION,
+    SearchOperatorConsumerSurface, SearchOperatorTruthFinding, SearchOperatorTruthPacket,
+    RETRIEVAL_INSPECTOR_SCHEMA_VERSION, SEARCH_OPERATOR_TRUTH_SCHEMA_VERSION,
 };
 
 use crate::composer::{
@@ -38,6 +39,13 @@ pub const AI_CONTEXT_RETRIEVAL_EXPORT_RECORD_KIND: &str = "ai_context_retrieval_
 
 /// Schema version for AI retrieval-inspector export payloads.
 pub const AI_CONTEXT_RETRIEVAL_EXPORT_SCHEMA_VERSION: u32 = 1;
+
+/// Stable record-kind tag carried on AI operator-truth export payloads.
+pub const AI_CONTEXT_OPERATOR_TRUTH_EXPORT_RECORD_KIND: &str =
+    "ai_context_search_operator_truth_export_record";
+
+/// Schema version for AI operator-truth export payloads.
+pub const AI_CONTEXT_OPERATOR_TRUTH_EXPORT_SCHEMA_VERSION: u32 = 1;
 
 /// Schema version shared by the alpha context snapshot and evidence handoff.
 pub const COMPOSER_CONTEXT_ALPHA_SCHEMA_VERSION: u32 = 1;
@@ -141,6 +149,111 @@ impl AiContextRetrievalExportViolation {
             Self::MissingIdentity => "missing_identity",
             Self::MissingAiContextProjection => "missing_ai_context_projection",
             Self::RetrievalPacketInvalid => "retrieval_packet_invalid",
+        }
+    }
+}
+
+/// AI-side wrapper proving the context surface exports the same search operator-truth packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiContextSearchOperatorTruthExport {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version for this wrapper.
+    pub schema_version: u32,
+    /// Stable export id.
+    pub export_id: String,
+    /// Composer context snapshot that displayed the operator-truth state.
+    pub composer_context_snapshot_ref: String,
+    /// Request workspace ref for the AI turn.
+    pub request_workspace_ref: String,
+    /// Export timestamp.
+    pub exported_at: String,
+    /// Exact search operator-truth packet shown in the product surface.
+    pub operator_truth_packet: SearchOperatorTruthPacket,
+}
+
+impl AiContextSearchOperatorTruthExport {
+    /// Builds an AI export wrapper around the exact search operator-truth packet.
+    pub fn from_packet(
+        export_id: impl Into<String>,
+        composer_context_snapshot_ref: impl Into<String>,
+        request_workspace_ref: impl Into<String>,
+        exported_at: impl Into<String>,
+        operator_truth_packet: SearchOperatorTruthPacket,
+    ) -> Self {
+        Self {
+            record_kind: AI_CONTEXT_OPERATOR_TRUTH_EXPORT_RECORD_KIND.to_owned(),
+            schema_version: AI_CONTEXT_OPERATOR_TRUTH_EXPORT_SCHEMA_VERSION,
+            export_id: export_id.into(),
+            composer_context_snapshot_ref: composer_context_snapshot_ref.into(),
+            request_workspace_ref: request_workspace_ref.into(),
+            exported_at: exported_at.into(),
+            operator_truth_packet,
+        }
+    }
+
+    /// Validates that the AI export preserves a valid AI-context operator-truth packet.
+    pub fn validate(&self) -> Vec<AiContextSearchOperatorTruthExportViolation> {
+        let mut violations = Vec::new();
+        if self.record_kind != AI_CONTEXT_OPERATOR_TRUTH_EXPORT_RECORD_KIND {
+            violations.push(AiContextSearchOperatorTruthExportViolation::WrongRecordKind);
+        }
+        if self.schema_version != AI_CONTEXT_OPERATOR_TRUTH_EXPORT_SCHEMA_VERSION {
+            violations.push(AiContextSearchOperatorTruthExportViolation::WrongSchemaVersion);
+        }
+        if self.export_id.trim().is_empty()
+            || self.composer_context_snapshot_ref.trim().is_empty()
+            || self.request_workspace_ref.trim().is_empty()
+        {
+            violations.push(AiContextSearchOperatorTruthExportViolation::MissingIdentity);
+        }
+        if !self
+            .operator_truth_packet
+            .has_projection_for(SearchOperatorConsumerSurface::AiContext)
+        {
+            violations
+                .push(AiContextSearchOperatorTruthExportViolation::MissingAiContextProjection);
+        }
+        if self.operator_truth_packet.schema_version != SEARCH_OPERATOR_TRUTH_SCHEMA_VERSION
+            || !self.operator_truth_packet.validate().is_empty()
+        {
+            violations
+                .push(AiContextSearchOperatorTruthExportViolation::OperatorTruthPacketInvalid);
+        }
+        violations
+    }
+
+    /// Returns the operator-truth validation findings from the embedded packet.
+    pub fn operator_truth_findings(&self) -> Vec<SearchOperatorTruthFinding> {
+        self.operator_truth_packet.validate()
+    }
+}
+
+/// Closed validation vocabulary for [`AiContextSearchOperatorTruthExport`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiContextSearchOperatorTruthExportViolation {
+    /// Wrapper has the wrong record kind.
+    WrongRecordKind,
+    /// Wrapper has the wrong schema version.
+    WrongSchemaVersion,
+    /// Wrapper identity fields are incomplete.
+    MissingIdentity,
+    /// Embedded packet lacks an AI-context projection preserving the same packet.
+    MissingAiContextProjection,
+    /// Embedded operator-truth packet is invalid.
+    OperatorTruthPacketInvalid,
+}
+
+impl AiContextSearchOperatorTruthExportViolation {
+    /// Stable token used in tests and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WrongRecordKind => "wrong_record_kind",
+            Self::WrongSchemaVersion => "wrong_schema_version",
+            Self::MissingIdentity => "missing_identity",
+            Self::MissingAiContextProjection => "missing_ai_context_projection",
+            Self::OperatorTruthPacketInvalid => "operator_truth_packet_invalid",
         }
     }
 }

@@ -63,6 +63,7 @@ pub mod index_scheduler;
 pub mod lexical;
 pub mod planner;
 pub mod query_session;
+pub mod ranking_reason;
 pub mod readiness;
 pub mod remap;
 pub mod result_id;
@@ -144,6 +145,19 @@ pub use planner::{
 pub use query_session::{
     stable_query_hash, QueryTextMode, SearchQuerySession, SearchSurface,
     SEARCH_QUERY_SESSION_SCHEMA_VERSION,
+};
+
+pub use ranking_reason::{
+    current_beta_search_operator_truth_packet, PartialIndexDrillPacket, PartialIndexDrillRow,
+    PartialIndexDrillState, RankingReasonSignal, SearchOperatorConsumerSurface,
+    SearchOperatorDowngradeState, SearchOperatorPromotionState, SearchOperatorTruthArtifactError,
+    SearchOperatorTruthFinding, SearchOperatorTruthFindingKind, SearchOperatorTruthFindingSeverity,
+    SearchOperatorTruthPacket, SearchOperatorTruthPacketInput, SearchOperatorTruthProjection,
+    SearchOperatorTruthRow, SearchOperatorTruthSupportExport,
+    PARTIAL_INDEX_DRILL_PACKET_RECORD_KIND, SEARCH_OPERATOR_TRUTH_DOC_REF,
+    SEARCH_OPERATOR_TRUTH_FIXTURE_DIR, SEARCH_OPERATOR_TRUTH_PACKET_ARTIFACT_REF,
+    SEARCH_OPERATOR_TRUTH_PACKET_RECORD_KIND, SEARCH_OPERATOR_TRUTH_SCHEMA_REF,
+    SEARCH_OPERATOR_TRUTH_SCHEMA_VERSION, SEARCH_OPERATOR_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use readiness::{

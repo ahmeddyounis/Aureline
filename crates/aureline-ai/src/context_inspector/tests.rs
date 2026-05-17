@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use aureline_graph::{GraphCueSurface, GraphFactCuePacket};
+use aureline_search::{current_beta_search_operator_truth_packet, SearchOperatorConsumerSurface};
 use serde::Deserialize;
 
 use crate::composer::{
@@ -171,6 +172,43 @@ fn pinned_docs_context_item() -> ComposerContextItem {
         source_mention_ref: Some("mention.docs.retry-policy".to_owned()),
         docs_identity: Some(docs_identity()),
     }
+}
+
+#[test]
+fn ai_context_operator_truth_export_preserves_search_packet() {
+    let packet = current_beta_search_operator_truth_packet().expect("operator-truth packet loads");
+    let export = AiContextSearchOperatorTruthExport::from_packet(
+        "ai-context-export:operator-truth:payments",
+        "context-snapshot:composer-context:0001",
+        "request-workspace:composer-context:0001",
+        "2026-05-17T15:01:00Z",
+        packet.clone(),
+    );
+
+    assert!(export.validate().is_empty());
+    assert_eq!(export.operator_truth_packet, packet);
+    assert!(export.operator_truth_findings().is_empty());
+}
+
+#[test]
+fn ai_context_operator_truth_export_requires_ai_projection() {
+    let mut packet =
+        current_beta_search_operator_truth_packet().expect("operator-truth packet loads");
+    packet.consumer_projections.retain(|projection| {
+        projection.consumer_surface != SearchOperatorConsumerSurface::AiContext
+    });
+    let export = AiContextSearchOperatorTruthExport::from_packet(
+        "ai-context-export:operator-truth:payments",
+        "context-snapshot:composer-context:0001",
+        "request-workspace:composer-context:0001",
+        "2026-05-17T15:01:00Z",
+        packet,
+    );
+
+    let violations = export.validate();
+    assert!(violations.iter().any(|violation| {
+        *violation == AiContextSearchOperatorTruthExportViolation::MissingAiContextProjection
+    }));
 }
 
 #[test]

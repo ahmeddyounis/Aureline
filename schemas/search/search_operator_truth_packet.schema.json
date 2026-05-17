@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/search_operator_truth_packet.schema.json",
+  "title": "Aureline search operator-truth beta packet",
+  "description": "Boundary schema for metadata-only ranking-reason, readiness, partial-index drill, and consumer-projection packets shared by search, graph, AI, review, CLI/headless, and support surfaces.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "workflow_or_surface_id",
+    "query_session_id_ref",
+    "planner_pass_id_ref",
+    "partial_index_drill",
+    "rows",
+    "consumer_projections",
+    "generated_at",
+    "promotion_state",
+    "validation_findings"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "search_operator_truth_beta_packet"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "packet_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "workflow_or_surface_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "query_session_id_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "planner_pass_id_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "retrieval_packet_id_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "retrieval_promotion_state_token": {
+      "enum": ["promotable", "needs_review", "blocked"]
+    },
+    "retrieval_validation_finding_tokens": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "graph_cue_packet_refs": {
+      "$ref": "#/$defs/ref_array"
+    },
+    "partial_index_drill": {
+      "$ref": "#/$defs/partial_index_drill_packet"
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/operator_truth_row" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "source_contract_refs": {
+      "$ref": "#/$defs/ref_array"
+    },
+    "generated_at": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "promotion_state": {
+      "enum": ["promotable", "needs_review", "blocked"]
+    },
+    "validation_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_finding" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "readiness_state": {
+      "enum": [
+        "ready",
+        "hot_set_ready",
+        "partial",
+        "warming",
+        "stale",
+        "unavailable",
+        "out_of_scope"
+      ]
+    },
+    "result_truth_class": {
+      "enum": ["exact", "imported", "heuristic", "cached", "graph_backed", "hybrid"]
+    },
+    "ranking_reason_signal": {
+      "enum": [
+        "exact_name_match",
+        "lexical_prefix_match",
+        "lexical_substring_match",
+        "lexical_path_match",
+        "vector_semantic_similarity",
+        "graph_expansion",
+        "graph_exact_entity",
+        "recency_boost",
+        "partial_index",
+        "local_fallback",
+        "remote_route",
+        "policy_limited",
+        "hidden_scope",
+        "stale_shard"
+      ]
+    },
+    "drill_state": {
+      "enum": ["current", "partial_index", "stale_shard", "hidden_scope", "failing", "warming"]
+    },
+    "downgrade_state": {
+      "enum": [
+        "none",
+        "yellow_partial_index",
+        "yellow_stale_shard",
+        "yellow_hidden_scope",
+        "fallback_search_only",
+        "red_blocks_beta_promotion"
+      ]
+    },
+    "consumer_surface": {
+      "enum": [
+        "search_results",
+        "graph_overlay",
+        "ai_context",
+        "review_workspace",
+        "support_export",
+        "cli_headless"
+      ]
+    },
+    "partial_index_drill_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "drill_id",
+        "generated_at",
+        "rows",
+        "support_packet_ref",
+        "reusable_support_packet",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "partial_index_drill_beta_packet" },
+        "schema_version": { "const": 1 },
+        "drill_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" },
+        "source_lane_state_refs": { "$ref": "#/$defs/ref_array" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/partial_index_drill_row" }
+        },
+        "support_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "reusable_support_packet": { "const": true },
+        "raw_private_material_excluded": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "partial_index_drill_row": {
+      "type": "object",
+      "required": [
+        "row_id",
+        "affected_result_ref",
+        "state",
+        "downgrade_state",
+        "reason_tokens",
+        "blocked_actions"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "affected_result_ref": { "$ref": "#/$defs/non_empty_string" },
+        "state": { "$ref": "#/$defs/drill_state" },
+        "downgrade_state": { "$ref": "#/$defs/downgrade_state" },
+        "reason_tokens": { "$ref": "#/$defs/ref_array" },
+        "blocked_actions": { "$ref": "#/$defs/ref_array" }
+      },
+      "additionalProperties": false
+    },
+    "operator_truth_row": {
+      "type": "object",
+      "required": [
+        "row_id",
+        "rendered_result_ref",
+        "target_ref",
+        "display_title",
+        "result_truth_class",
+        "readiness_state",
+        "readiness_label",
+        "ranking_reasons",
+        "scope_label",
+        "freshness_label",
+        "source_packet_refs",
+        "downgrade_state",
+        "row_blocks_beta_promotion",
+        "why_this_result",
+        "safe_actions",
+        "blocked_actions",
+        "private_debug_weights_excluded"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "rendered_result_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_title": { "$ref": "#/$defs/non_empty_string" },
+        "result_truth_class": { "$ref": "#/$defs/result_truth_class" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "readiness_label": { "$ref": "#/$defs/non_empty_string" },
+        "ranking_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ranking_reason_signal" },
+          "uniqueItems": true
+        },
+        "partial_truth_causes": { "$ref": "#/$defs/ref_array" },
+        "scope_label": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_label": { "$ref": "#/$defs/non_empty_string" },
+        "source_packet_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "downgrade_state": { "$ref": "#/$defs/downgrade_state" },
+        "row_blocks_beta_promotion": { "type": "boolean" },
+        "why_this_result": { "$ref": "#/$defs/non_empty_string" },
+        "safe_actions": { "$ref": "#/$defs/ref_array" },
+        "blocked_actions": { "$ref": "#/$defs/ref_array" },
+        "private_debug_weights_excluded": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "consumer_projection": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "projection_ref",
+        "operator_truth_packet_id_ref",
+        "rendered_at",
+        "preserves_same_packet",
+        "preserves_ranking_reasons",
+        "preserves_readiness_label",
+        "preserves_partial_index_drill_ref",
+        "supports_json_export",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "operator_truth_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rendered_at": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_same_packet": { "const": true },
+        "preserves_ranking_reasons": { "const": true },
+        "preserves_readiness_label": { "const": true },
+        "preserves_partial_index_drill_ref": { "const": true },
+        "supports_json_export": { "const": true },
+        "raw_private_material_excluded": { "const": true },
+        "ambient_authority_excluded": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "validation_finding": {
+      "type": "object",
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/non_empty_string" },
+        "severity": { "enum": ["info", "warning", "blocker"] },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

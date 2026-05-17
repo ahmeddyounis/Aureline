@@ -12,6 +12,10 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use aureline_graph::GraphFactCuePacket;
+use aureline_search::{
+    SearchOperatorConsumerSurface, SearchOperatorTruthFinding, SearchOperatorTruthPacket,
+    SEARCH_OPERATOR_TRUTH_SCHEMA_VERSION,
+};
 
 use crate::diff::{DiffLineKind, DiffLineView, DiffViewSurfacePacket};
 
@@ -56,6 +60,10 @@ pub const REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str =
 /// Stable record-kind tag for [`ReviewWorkspaceBetaInspectionRecord`].
 pub const REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND: &str =
     "review_workspace_beta_inspection_record";
+
+/// Stable record-kind tag for [`ReviewWorkspaceSearchOperatorTruthExport`].
+pub const REVIEW_WORKSPACE_SEARCH_OPERATOR_TRUTH_EXPORT_RECORD_KIND: &str =
+    "review_workspace_search_operator_truth_export_record";
 
 /// Schema version for beta review-workspace packets.
 pub const REVIEW_WORKSPACE_BETA_SCHEMA_VERSION: u32 = 1;
@@ -909,6 +917,108 @@ pub struct ReviewWorkspaceSupportExportPacket {
     pub redaction_class: String,
     /// Reviewable summary safe for support/export surfaces.
     pub summary_label: String,
+}
+
+/// Review-side wrapper proving the workspace consumes the same search operator-truth packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceSearchOperatorTruthExport {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version for this wrapper.
+    pub schema_version: u32,
+    /// Stable export id.
+    pub export_id: String,
+    /// Review workspace that displayed the operator-truth state.
+    pub review_workspace_id_ref: String,
+    /// Export timestamp.
+    pub exported_at: String,
+    /// Exact search operator-truth packet shown in the product surface.
+    pub operator_truth_packet: SearchOperatorTruthPacket,
+}
+
+impl ReviewWorkspaceSearchOperatorTruthExport {
+    /// Builds a review export wrapper around the exact search operator-truth packet.
+    pub fn from_packet(
+        export_id: impl Into<String>,
+        review_workspace_id_ref: impl Into<String>,
+        exported_at: impl Into<String>,
+        operator_truth_packet: SearchOperatorTruthPacket,
+    ) -> Self {
+        Self {
+            record_kind: REVIEW_WORKSPACE_SEARCH_OPERATOR_TRUTH_EXPORT_RECORD_KIND.to_owned(),
+            schema_version: REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+            export_id: export_id.into(),
+            review_workspace_id_ref: review_workspace_id_ref.into(),
+            exported_at: exported_at.into(),
+            operator_truth_packet,
+        }
+    }
+
+    /// Validates that the review export preserves a valid review-workspace packet projection.
+    pub fn validate(&self) -> Vec<ReviewWorkspaceSearchOperatorTruthExportViolation> {
+        let mut violations = Vec::new();
+        if self.record_kind != REVIEW_WORKSPACE_SEARCH_OPERATOR_TRUTH_EXPORT_RECORD_KIND {
+            violations.push(ReviewWorkspaceSearchOperatorTruthExportViolation::WrongRecordKind);
+        }
+        if self.schema_version != REVIEW_WORKSPACE_BETA_SCHEMA_VERSION {
+            violations.push(ReviewWorkspaceSearchOperatorTruthExportViolation::WrongSchemaVersion);
+        }
+        if self.export_id.trim().is_empty()
+            || self.review_workspace_id_ref.trim().is_empty()
+            || self.exported_at.trim().is_empty()
+        {
+            violations.push(ReviewWorkspaceSearchOperatorTruthExportViolation::MissingIdentity);
+        }
+        if !self
+            .operator_truth_packet
+            .has_projection_for(SearchOperatorConsumerSurface::ReviewWorkspace)
+        {
+            violations
+                .push(ReviewWorkspaceSearchOperatorTruthExportViolation::MissingReviewProjection);
+        }
+        if self.operator_truth_packet.schema_version != SEARCH_OPERATOR_TRUTH_SCHEMA_VERSION
+            || !self.operator_truth_packet.validate().is_empty()
+        {
+            violations.push(
+                ReviewWorkspaceSearchOperatorTruthExportViolation::OperatorTruthPacketInvalid,
+            );
+        }
+        violations
+    }
+
+    /// Returns the operator-truth validation findings from the embedded packet.
+    pub fn operator_truth_findings(&self) -> Vec<SearchOperatorTruthFinding> {
+        self.operator_truth_packet.validate()
+    }
+}
+
+/// Closed validation vocabulary for [`ReviewWorkspaceSearchOperatorTruthExport`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewWorkspaceSearchOperatorTruthExportViolation {
+    /// Wrapper has the wrong record kind.
+    WrongRecordKind,
+    /// Wrapper has the wrong schema version.
+    WrongSchemaVersion,
+    /// Wrapper identity fields are incomplete.
+    MissingIdentity,
+    /// Embedded packet lacks a review-workspace projection preserving the same packet.
+    MissingReviewProjection,
+    /// Embedded operator-truth packet is invalid.
+    OperatorTruthPacketInvalid,
+}
+
+impl ReviewWorkspaceSearchOperatorTruthExportViolation {
+    /// Stable token used in tests and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WrongRecordKind => "wrong_record_kind",
+            Self::WrongSchemaVersion => "wrong_schema_version",
+            Self::MissingIdentity => "missing_identity",
+            Self::MissingReviewProjection => "missing_review_projection",
+            Self::OperatorTruthPacketInvalid => "operator_truth_packet_invalid",
+        }
+    }
 }
 
 /// Inspection row used by fixtures, support/export, and shell rows.
