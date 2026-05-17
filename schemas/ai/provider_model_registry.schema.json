@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/provider_model_registry.schema.json",
+  "title": "Aureline beta provider/model registry with route policy and support projection truth",
+  "description": "Boundary schema for the provider_model_registry_beta_packet shape owned by aureline_ai::registry. The packet joins provider rows, model rows, external-tool rows, claimed AI surfaces, route policies, and consumer projection refs so UI, docs/help, CLI/headless, and support exports read the same registry state. Raw endpoint URLs, credential bodies, provider payloads, model weights, request/response bodies, and unredacted hostnames are not allowed in this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "registry_id",
+    "policy_context",
+    "route_policies",
+    "provider_entries",
+    "model_entries",
+    "external_tool_entries",
+    "claimed_surfaces",
+    "consumer_projections",
+    "source_contract_refs",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "provider_model_registry_beta_packet" },
+    "schema_version": { "const": 1 },
+    "registry_id": { "$ref": "#/$defs/opaque_ref" },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "route_policies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/route_policy" }
+    },
+    "provider_entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/provider_entry" }
+    },
+    "model_entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/model_entry" }
+    },
+    "external_tool_entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/external_tool_entry" }
+    },
+    "claimed_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claimed_surface" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "source_contract_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" }
+    },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "://|api_key|oauth_token|Bearer " }
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch_ref", "trust_state", "deployment_profile_class"],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": { "enum": ["trusted", "restricted"] },
+        "deployment_profile_class": {
+          "enum": ["individual_local", "self_hosted", "managed_cloud", "managed_fleet", "air_gapped"]
+        },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "routing_policy_class": {
+      "enum": ["local_first_then_cheapest", "cheapest_qualifying", "policy_pinned", "manual_only", "disabled"]
+    },
+    "feature_class": {
+      "enum": [
+        "chat_completion",
+        "chat_with_tool_calls",
+        "code_completion_single_line",
+        "code_completion_multi_line",
+        "fill_in_middle",
+        "structured_output_json_schema",
+        "embeddings_text",
+        "reranking"
+      ]
+    },
+    "provider_class": {
+      "enum": [
+        "first_party_self_hosted",
+        "first_party_managed",
+        "connected_provider_vendor",
+        "connected_provider_self_hosted",
+        "extension_provided_provider",
+        "mocked_test_provider",
+        "disabled_no_provider"
+      ]
+    },
+    "execution_locus_class": {
+      "enum": [
+        "local_in_process",
+        "local_sandbox_process",
+        "local_companion_service",
+        "byok_remote_vendor_direct",
+        "byok_remote_self_hosted_direct",
+        "enterprise_gateway_brokered",
+        "vendor_hosted_first_party_managed",
+        "extension_provided_locus",
+        "mocked_test_locus",
+        "disabled_no_locus"
+      ]
+    },
+    "route_origin_class": {
+      "enum": ["stayed_local", "byok_user_credential", "enterprise_gateway", "vendor_hosted_managed", "extension_provided", "mocked_test", "disabled_no_route"]
+    },
+    "region_posture_class": {
+      "enum": ["local_device_only", "single_region_pinned", "multi_region_pinned", "region_failover_bounded_set", "region_unpinned_vendor_default", "region_unknown_unverified", "region_policy_blocked"]
+    },
+    "retention_stance_class": {
+      "enum": ["no_retention_local_only", "no_retention_promised_body_discarded", "bounded_retention_operator_access_only", "bounded_retention_with_user_export", "bounded_retention_with_legal_hold_only", "unbounded_retention_not_used_for_training", "unbounded_retention_used_for_training", "retention_unknown_unverified", "retention_policy_blocked"]
+    },
+    "quota_family_class": {
+      "enum": ["per_user_local_no_limit", "per_user_local_soft_throttle", "per_user_byok_vendor_quota", "per_user_byok_organization_quota", "enterprise_gateway_pooled_quota", "vendor_hosted_entitlement_quota", "free_tier_rate_limited", "paid_tier_metered", "policy_enforced_quota_override", "quota_unknown_unverified"]
+    },
+    "quota_state_class": {
+      "enum": ["within_limit", "warning", "exhausted", "grace", "paused_by_policy", "stale", "unknown_unverified"]
+    },
+    "quota_scope_class": {
+      "enum": ["personal", "workspace", "organisation", "deployment_profile", "byok_provider", "enterprise_pool", "vendor_hosted_entitlement", "local_device"]
+    },
+    "cost_visibility_class": {
+      "enum": ["metered_per_request", "metered_per_token", "flat_fee_subscription", "bundled_no_incremental_cost", "estimated_unverified", "undisclosed_by_provider"]
+    },
+    "cost_envelope_class": {
+      "enum": ["bundled_no_incremental_cost", "free_tier_rate_limited", "metered_per_request_low_volume_band", "metered_per_request_medium_volume_band", "metered_per_request_high_volume_band", "metered_per_token_low_volume_band", "metered_per_token_medium_volume_band", "metered_per_token_high_volume_band", "flat_fee_subscription_band", "enterprise_pooled_quota_band", "vendor_hosted_entitlement_band", "estimated_unverified_band", "envelope_unknown_unverified_cost"]
+    },
+    "latency_envelope_class": {
+      "enum": ["p50_under_50ms_p99_under_250ms", "p50_under_250ms_p99_under_1000ms", "p50_under_1s_p99_under_5s", "p50_under_5s_p99_under_30s", "p50_over_5s_long_running", "streaming_first_token_under_500ms", "streaming_first_token_over_500ms", "interactive_envelope_unspecified", "background_envelope_unspecified", "envelope_unknown_unverified"]
+    },
+    "token_ceiling_class": {
+      "enum": ["tokens_under_2k", "tokens_under_8k", "tokens_under_32k", "tokens_under_128k", "tokens_over_128k", "tokens_no_explicit_ceiling", "tokens_unknown_unverified"]
+    },
+    "tool_call_ceiling_class": {
+      "enum": ["no_tool_calls_admitted", "bounded_tool_calls_under_4", "bounded_tool_calls_under_16", "bounded_tool_calls_under_64", "unbounded_tool_calls_admin_only", "tool_calls_unknown_unverified"]
+    },
+    "wall_time_ceiling_class": {
+      "enum": ["wall_time_under_5s", "wall_time_under_30s", "wall_time_under_5m", "wall_time_under_30m", "wall_time_long_running_admin_only", "wall_time_unknown_unverified"]
+    },
+    "transport_class": {
+      "enum": ["in_process_call", "local_http_loopback", "remote_https", "remote_grpc_over_tls", "extension_mediated_transport", "disabled_no_transport"]
+    },
+    "auth_mode_class": {
+      "enum": ["no_auth_local_only", "signed_manifest_only_local_pack", "byok_api_key", "enterprise_gateway_managed_credential", "vendor_hosted_first_party_managed_credential", "extension_provided_auth", "disabled_no_auth"]
+    },
+    "approval_posture_class": {
+      "enum": ["allowed_without_prompt", "allowed_with_per_session_prompt", "allowed_with_per_invocation_prompt", "requires_admin_approval", "denied_by_policy"]
+    },
+    "lifecycle_state_class": {
+      "enum": ["preview_admitted", "generally_admitted", "soft_deprecated_still_admitted", "hard_deprecated_denies_new_sessions", "withdrawn", "quarantined_pending_review", "mocked_test_only"]
+    },
+    "route_eligibility_class": {
+      "enum": ["eligible", "policy_denied", "quota_blocked", "capability_blocked", "lifecycle_blocked", "workspace_trust_blocked", "shadow_only"]
+    },
+    "data_class": {
+      "enum": ["workspace_code_slice_allowed", "workspace_symbol_allowed", "workspace_search_result_allowed", "docs_pack_excerpt_allowed", "user_supplied_text_allowed", "ai_prior_turn_context_allowed", "credential_handle_denied_always", "secret_projection_denied_always"]
+    },
+    "disclosure_kind": {
+      "enum": ["provider_identity_chip", "model_identity_chip", "execution_location_chip", "region_posture_chip", "retention_stance_chip", "data_class_allowlist_readout", "route_choice_readout", "tool_identity_chip", "tool_execution_location_chip", "tool_side_effect_readout"]
+    },
+    "retrieval_truth_state_class": {
+      "enum": ["not_applicable", "ready", "partial_labeled", "stale_labeled", "provider_limited_labeled", "unlabelled_partial_blocked"]
+    },
+    "route_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route_policy_id", "policy_label", "policy_class", "allowed_provider_entry_refs", "allowed_model_entry_refs", "allowed_execution_locus_classes", "allowed_route_choices", "policy_epoch_ref"],
+      "properties": {
+        "route_policy_id": { "$ref": "#/$defs/opaque_ref" },
+        "policy_label": { "$ref": "#/$defs/non_empty_string" },
+        "policy_class": { "$ref": "#/$defs/routing_policy_class" },
+        "allowed_provider_entry_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "allowed_model_entry_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "allowed_execution_locus_classes": { "type": "array", "items": { "$ref": "#/$defs/execution_locus_class" } },
+        "allowed_route_choices": { "type": "array", "items": { "$ref": "#/$defs/routing_policy_class" } },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "provider_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["record_kind", "schema_version", "provider_entry_id", "display_label", "provider_family_label", "provider_class", "execution_locus_class", "route_origin_class", "transport_class", "auth_mode_class", "region_posture_class", "retention_stance_class", "quota_family_class", "quota_state_class", "quota_scope_class", "cost_visibility_class", "cost_envelope_class", "latency_envelope_class", "supported_feature_classes", "model_entry_refs", "policy_allowed_route_choices", "route_eligibility_class", "lifecycle_state_class", "approval_posture_class", "route_disclosure_ref"],
+      "properties": {
+        "record_kind": { "const": "provider_model_registry_provider_entry_record" },
+        "schema_version": { "const": 1 },
+        "provider_entry_id": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_family_label": { "$ref": "#/$defs/non_empty_string" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "route_origin_class": { "$ref": "#/$defs/route_origin_class" },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "auth_mode_class": { "$ref": "#/$defs/auth_mode_class" },
+        "region_posture_class": { "$ref": "#/$defs/region_posture_class" },
+        "retention_stance_class": { "$ref": "#/$defs/retention_stance_class" },
+        "quota_family_class": { "$ref": "#/$defs/quota_family_class" },
+        "quota_state_class": { "$ref": "#/$defs/quota_state_class" },
+        "quota_scope_class": { "$ref": "#/$defs/quota_scope_class" },
+        "cost_visibility_class": { "$ref": "#/$defs/cost_visibility_class" },
+        "cost_envelope_class": { "$ref": "#/$defs/cost_envelope_class" },
+        "latency_envelope_class": { "$ref": "#/$defs/latency_envelope_class" },
+        "token_ceiling_class": { "$ref": "#/$defs/token_ceiling_class" },
+        "tool_call_ceiling_class": { "$ref": "#/$defs/tool_call_ceiling_class" },
+        "wall_time_ceiling_class": { "$ref": "#/$defs/wall_time_ceiling_class" },
+        "supported_feature_classes": { "type": "array", "items": { "$ref": "#/$defs/feature_class" } },
+        "allowed_data_classes": { "type": "array", "items": { "$ref": "#/$defs/data_class" } },
+        "denied_data_classes": { "type": "array", "items": { "$ref": "#/$defs/data_class" } },
+        "model_entry_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "local_model_pack_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "policy_allowed_route_choices": { "type": "array", "items": { "$ref": "#/$defs/routing_policy_class" } },
+        "route_eligibility_class": { "$ref": "#/$defs/route_eligibility_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "route_disclosure_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "model_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["record_kind", "schema_version", "model_entry_id", "display_label", "model_family_label", "model_variant_label", "model_capability_version", "lifecycle_state_class", "supported_feature_classes", "served_by_provider_entry_refs"],
+      "properties": {
+        "record_kind": { "const": "provider_model_registry_model_entry_record" },
+        "schema_version": { "const": 1 },
+        "model_entry_id": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "model_family_label": { "$ref": "#/$defs/non_empty_string" },
+        "model_variant_label": { "$ref": "#/$defs/non_empty_string" },
+        "model_capability_version": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "supported_feature_classes": { "type": "array", "items": { "$ref": "#/$defs/feature_class" } },
+        "served_by_provider_entry_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } }
+      }
+    },
+    "external_tool_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["record_kind", "schema_version", "tool_entry_id", "display_label", "tool_family_label", "tool_transport_class", "tool_execution_locus_class", "tool_auth_mode_class", "allowed_side_effect_classes", "policy_allowed_route_choices", "lifecycle_state_class", "approval_posture_class"],
+      "properties": {
+        "record_kind": { "const": "provider_model_registry_external_tool_entry_record" },
+        "schema_version": { "const": 1 },
+        "tool_entry_id": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "tool_family_label": { "$ref": "#/$defs/non_empty_string" },
+        "tool_transport_class": { "enum": ["in_process_call", "local_stdio_spawn", "local_http_loopback", "remote_https", "remote_mcp_over_streamable_http", "extension_mediated_transport"] },
+        "tool_execution_locus_class": { "enum": ["local_in_process", "local_subprocess_same_device", "local_companion_service_loopback", "remote_vendor_managed_service", "enterprise_gateway_brokered_service", "extension_provided_locus"] },
+        "tool_auth_mode_class": { "$ref": "#/$defs/auth_mode_class" },
+        "allowed_side_effect_classes": { "type": "array", "items": { "enum": ["inspect_only", "local_reversible_edit", "local_destructive_edit", "external_reversible_comment", "external_irreversible_publish", "policy_or_trust_mutation"] } },
+        "policy_allowed_route_choices": { "type": "array", "items": { "$ref": "#/$defs/routing_policy_class" } },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" }
+      }
+    },
+    "claimed_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_kind", "schema_version", "surface_id", "display_label", "required_feature_class", "routing_policy_id_ref", "allowed_provider_entry_refs", "allowed_model_entry_refs", "required_disclosure_kinds", "retrieval_truth_state_class", "ui_projection_ref", "docs_projection_ref", "support_export_projection_ref"],
+      "properties": {
+        "record_kind": { "const": "provider_model_registry_claimed_surface_record" },
+        "schema_version": { "const": 1 },
+        "surface_id": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "required_feature_class": { "$ref": "#/$defs/feature_class" },
+        "routing_policy_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "allowed_provider_entry_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "allowed_model_entry_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "allowed_external_tool_entry_refs": { "type": "array", "items": { "$ref": "#/$defs/opaque_ref" } },
+        "required_disclosure_kinds": { "type": "array", "items": { "$ref": "#/$defs/disclosure_kind" } },
+        "retrieval_truth_state_class": { "$ref": "#/$defs/retrieval_truth_state_class" },
+        "ui_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "docs_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "support_export_projection_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "consumer_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer_surface_class", "projection_ref", "registry_state_ref", "rendered_at"],
+      "properties": {
+        "consumer_surface_class": { "enum": ["ui", "docs", "support_export", "cli"] },
+        "projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "registry_state_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rendered_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

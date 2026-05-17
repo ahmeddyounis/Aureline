@@ -34,10 +34,19 @@ The companion artifacts are:
   — boundary schema for the `external_tool_registry_entry_record`,
   `external_tool_invocation_disclosure_record`, and
   `external_tool_registry_audit_event_record` shapes.
+- [`/schemas/ai/provider_model_registry.schema.json`](../../schemas/ai/provider_model_registry.schema.json)
+  — beta packet schema that joins provider, model, external-tool,
+  claimed-surface, route-policy, and consumer-projection rows into one
+  route-resolution source for UI, docs/help, CLI/headless, and support
+  exports.
 - [`/fixtures/ai/provider_tool_rows/`](../../fixtures/ai/provider_tool_rows/)
   — worked-example corpus covering at least one local-model pack,
   one BYOK provider, one enterprise-gateway route, and one each of
   a stdio / local-HTTP / remote-HTTP external-tool row.
+- [`/fixtures/ai/provider_model_registry_beta/`](../../fixtures/ai/provider_model_registry_beta/)
+  — executable registry fixture used by `aureline_ai::registry` to prove
+  local-first and cheapest-qualifying route selection from one registry
+  state.
 
 This contract **composes with and does not replace** vocabularies
 already frozen in:

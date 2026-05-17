@@ -3,10 +3,12 @@
 //! This crate owns inspectable AI records consumed by shell, diagnostics,
 //! support export, and evidence surfaces. The composer lane exposes one
 //! [`composer::ComposerDraft`] object plus typed mention, attachment,
-//! slash-command, and route-placeholder vocabularies. The routing lane exposes
-//! one [`routing::AiRoutingPacket`] object for provider/model identity, quota
-//! explainability, latency/cost envelopes, and visible route-change lineage on
-//! claimed hosted-model paths. The evidence lane exposes one
+//! slash-command, and route-placeholder vocabularies. The registry lane exposes
+//! one [`registry::ProviderModelRegistryPacket`] object for provider/model,
+//! external-tool, execution-location, and route-policy truth. The routing lane
+//! exposes one [`routing::AiRoutingPacket`] object for provider/model identity,
+//! quota explainability, latency/cost envelopes, and visible route-change
+//! lineage on claimed hosted-model paths. The evidence lane exposes one
 //! [`evidence::AiMutationEvidencePacket`] object for review-first mutation
 //! packets that preserve cited-source truth, tainted-context fences,
 //! route/spend refs, and approval lineage before apply.
@@ -31,6 +33,7 @@
 pub mod composer;
 pub mod context_inspector;
 pub mod evidence;
+pub mod registry;
 pub mod routing;
 
 pub use composer::{
@@ -63,6 +66,23 @@ pub use evidence::{
     TaintUsageConstraint, TaintedContextFence, TaintedEvidenceSourceClass, ValidationOutcomeClass,
     AI_MUTATION_EVIDENCE_PACKET_RECORD_KIND, AI_MUTATION_EVIDENCE_REVIEW_ROW_RECORD_KIND,
     AI_MUTATION_EVIDENCE_SCHEMA_VERSION, AI_MUTATION_EVIDENCE_SUPPORT_PACKET_RECORD_KIND,
+};
+pub use registry::{
+    AiFeatureClass, ClaimedAiSurface, ExternalToolExecutionLocusClass, ExternalToolRegistryEntry,
+    ExternalToolRegistrySupportSummary, ExternalToolSideEffectClass, ExternalToolTransportClass,
+    ModelRegistryEntry, ModelRegistrySupportSummary, ProviderModelRegistryPacket,
+    ProviderModelRegistrySupportExport, ProviderModelRegistrySurfaceRow,
+    ProviderModelRegistryViolation, ProviderRegistryEntry, ProviderRegistrySupportSummary,
+    RegistryApprovalPostureClass, RegistryAuthModeClass, RegistryConsumerProjection,
+    RegistryConsumerSurfaceClass, RegistryDataClass, RegistryDisclosureKind,
+    RegistryLifecycleStateClass, RegistryRouteCandidate, RegistryRoutePolicy,
+    RegistryRouteReasonClass, RegistryRoutingPolicyClass, RegistrySurfaceSupportSummary,
+    RegistryTransportClass, RetrievalTruthStateClass, RouteEligibilityClass,
+    PROVIDER_MODEL_REGISTRY_CLAIMED_SURFACE_RECORD_KIND,
+    PROVIDER_MODEL_REGISTRY_EXTERNAL_TOOL_ENTRY_RECORD_KIND,
+    PROVIDER_MODEL_REGISTRY_MODEL_ENTRY_RECORD_KIND, PROVIDER_MODEL_REGISTRY_PACKET_RECORD_KIND,
+    PROVIDER_MODEL_REGISTRY_PROVIDER_ENTRY_RECORD_KIND, PROVIDER_MODEL_REGISTRY_SCHEMA_VERSION,
+    PROVIDER_MODEL_REGISTRY_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use routing::{
     AiRouteCandidate, AiRouteProviderClass, AiRoutingExecutionContextSummary, AiRoutingPacket,
