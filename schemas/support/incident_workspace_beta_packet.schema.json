@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/incident_workspace_beta_packet.schema.json",
+  "title": "Aureline M3 beta incident-workspace handoff packet",
+  "description": "Boundary schema for the incident_workspace_beta_packet_record consumed by aureline-support's incident_workspace_beta module. One packet stands as the single escalation artifact a blocked user, support intake, and security triage can read without separate private templates: it names the workspace, the target's exact build and deployment profile, the degraded-state row, the typed findings, the evidence artifacts with their custody class (local-only, managed copy, or held record), the recovery options that remain, and the claim-state downgrade tokens that apply when the drill's evidence is stale or refused. Raw private material, ambient authority, raw provider URLs, raw command lines, and raw secret material never cross this boundary; every row carries stable refs, closed-vocabulary tokens, and reviewable summaries only.",
+  "type": "object",
+  "$ref": "#/$defs/incident_workspace_beta_packet_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Frozen schema version for the M3 beta incident-workspace packet."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "handoff_consumer_class": {
+      "type": "string",
+      "enum": [
+        "support_intake_only",
+        "security_triage_only",
+        "support_intake_and_security_triage"
+      ],
+      "description": "Names which downstream review surfaces will consume the packet. The closed value support_intake_and_security_triage is the joint-handoff lane that proves security and support can read the same packet without a separate private template."
+    },
+    "degraded_state_class": {
+      "type": "string",
+      "enum": [
+        "startup_crash_loop_detected",
+        "restart_budget_exceeded",
+        "extension_regression_suspected",
+        "policy_forced_safe_mode",
+        "remote_route_unavailable",
+        "state_corruption_recoverable",
+        "support_export_only_no_remote"
+      ]
+    },
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "project_doctor_finding",
+        "extension_bisect_finding",
+        "safe_mode_profile_finding",
+        "crash_envelope_finding",
+        "records_governance_finding",
+        "runtime_replay_finding"
+      ]
+    },
+    "evidence_artifact_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle_preview",
+        "crash_envelope_ref",
+        "doctor_probe_pack_record",
+        "extension_bisect_session_record",
+        "safe_mode_profile_record",
+        "repair_preview_skeleton_record",
+        "records_governance_packet_record",
+        "runtime_replay_pack_record",
+        "incident_workspace_alpha_packet_ref",
+        "runbook_packet_ref"
+      ]
+    },
+    "evidence_custody_class": {
+      "type": "string",
+      "enum": [
+        "local_only_artifact",
+        "managed_copy_available",
+        "held_record_under_legal_hold",
+        "held_record_under_security_hold",
+        "exported_to_support_intake",
+        "withheld_pending_user_review"
+      ],
+      "description": "Custody class for each evidence artifact. The packet distinguishes local-only artifacts (still owned by the blocked user), managed copies (available through the managed admin lane), and held records (under legal or security hold) so the escalation never silently merges the three."
+    },
+    "recovery_option_class": {
+      "type": "string",
+      "enum": [
+        "enter_safe_mode",
+        "start_extension_bisect",
+        "open_repair_preview",
+        "locate_missing_target",
+        "handoff_to_support",
+        "open_security_private_triage",
+        "rebuild_disposable_state",
+        "export_support_bundle"
+      ]
+    },
+    "claim_downgrade_token": {
+      "type": "string",
+      "enum": [
+        "fixture_missing",
+        "drill_step_unproven",
+        "drill_proves_regression",
+        "recovery_action_unsafe",
+        "raw_private_material_present",
+        "support_bundle_redaction_required",
+        "managed_copy_pending_admin_review",
+        "held_record_blocks_export"
+      ]
+    },
+    "workspace_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_id",
+        "workspace_profile_summary",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_profile_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "preserves_user_authored_files": {
+          "type": "boolean",
+          "description": "Pinned true on every packet so a handoff never silently drops the user's authored files. The validator refuses the packet when this is false."
+        }
+      }
+    },
+    "target_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_ref",
+        "deployment_profile_class",
+        "target_summary"
+      ],
+      "properties": {
+        "exact_build_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "target_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "managed_admin_required": { "type": "boolean" }
+      }
+    },
+    "degraded_state_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degraded_state_class",
+        "degraded_summary",
+        "observed_at"
+      ],
+      "properties": {
+        "degraded_state_class": { "$ref": "#/$defs/degraded_state_class" },
+        "degraded_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "finding_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "finding_class",
+        "finding_summary",
+        "source_ref"
+      ],
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/stable_ref_id" },
+        "finding_class": { "$ref": "#/$defs/finding_class" },
+        "finding_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "evidence_artifact_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "artifact_class",
+        "custody_class",
+        "artifact_summary",
+        "artifact_ref"
+      ],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/stable_ref_id" },
+        "artifact_class": { "$ref": "#/$defs/evidence_artifact_class" },
+        "custody_class": { "$ref": "#/$defs/evidence_custody_class" },
+        "artifact_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "artifact_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "recovery_option_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recovery_option_class",
+        "option_summary"
+      ],
+      "properties": {
+        "recovery_option_class": { "$ref": "#/$defs/recovery_option_class" },
+        "option_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "claim_state_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgrade_tokens",
+        "claim_summary"
+      ],
+      "properties": {
+        "downgrade_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claim_downgrade_token" },
+          "uniqueItems": true
+        },
+        "claim_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "privacy_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "redaction_baseline_summary"
+      ],
+      "properties": {
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "redaction_baseline_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "references_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "doc_ref",
+        "schema_ref",
+        "scenario_corpus_doc_ref"
+      ],
+      "properties": {
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/incident_handoff_template.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/support/incident_workspace_beta_packet.schema.json"
+        },
+        "scenario_corpus_doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/support_scenario_corpus.md"
+        },
+        "incident_workspace_alpha_doc_ref": {
+          "type": "string",
+          "const": "docs/ops/incident_workspace_contract.md"
+        }
+      }
+    },
+    "incident_workspace_beta_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "packet_id",
+        "title",
+        "summary",
+        "handoff_consumer_classes",
+        "workspace_identity",
+        "target",
+        "degraded_state",
+        "findings",
+        "evidence_artifacts",
+        "recovery_options",
+        "claim_state",
+        "privacy_baseline",
+        "references",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "incident_workspace_beta_packet_record"
+        },
+        "packet_id": { "$ref": "#/$defs/stable_ref_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "handoff_consumer_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/handoff_consumer_class" }
+        },
+        "workspace_identity": { "$ref": "#/$defs/workspace_identity" },
+        "target": { "$ref": "#/$defs/target_block" },
+        "degraded_state": { "$ref": "#/$defs/degraded_state_block" },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/finding_row" }
+        },
+        "evidence_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_artifact_row" }
+        },
+        "recovery_options": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_option_row" }
+        },
+        "claim_state": { "$ref": "#/$defs/claim_state_block" },
+        "privacy_baseline": { "$ref": "#/$defs/privacy_baseline" },
+        "references": { "$ref": "#/$defs/references_block" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}

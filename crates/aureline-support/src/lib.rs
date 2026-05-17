@@ -106,6 +106,7 @@ pub mod bundle;
 pub mod capabilities;
 pub mod extension_bisect;
 pub mod fitness;
+pub mod incident_workspace_beta;
 pub mod m3_scenario_corpus;
 pub mod project_doctor;
 pub mod publication_dry_run;

@@ -1,0 +1,126 @@
+schema_version: 1
+record_kind: incident_workspace_beta_packet_record
+packet_id: support.m3.incident_packet.extension_quarantine.managed_copy
+title: Extension-bisect attributes a regression; managed-admin copy is available
+summary: >
+  An enterprise tenant hit an extension regression after a recent
+  marketplace sync. Extension bisect attributed a single suspect and
+  staged a repair-preview skeleton. A managed copy of the support
+  bundle is reachable through the managed admin lane, so the packet
+  records the copy under managed-copy custody and routes the
+  claim-state downgrade to managed_copy_pending_admin_review.
+
+handoff_consumer_classes:
+  - support_intake_only
+
+workspace_identity:
+  workspace_id: workspace:enterprise.tenant.workspace_beta
+  workspace_profile_summary: >
+    Enterprise online tenant with a managed admin lane configured; the
+    blocked user has restricted workspace-trust posture.
+  preserves_user_authored_files: true
+
+target:
+  exact_build_identity_ref: exact_build:aureline.m3.beta.b2
+  deployment_profile_class: enterprise_online
+  target_summary: >
+    Enterprise online build under a managed tenant; managed admin
+    sign-off is required before any vendor-case handoff.
+  managed_admin_required: true
+
+degraded_state:
+  degraded_state_class: extension_regression_suspected
+  degraded_summary: >
+    A recent extension marketplace sync introduced a suspect host that
+    coincides with the regression window the user reported. Extension
+    bisect attributed a single suspect and staged a repair-preview
+    skeleton for compare-before-apply review.
+  observed_at: 2026-05-16T10:00:00Z
+
+findings:
+  - finding_id: doctor.finding.extension_regression.single_suspect
+    finding_class: project_doctor_finding
+    finding_summary: >
+      The Project Doctor beta finding routes the regression window to
+      the extension-bisect lane and pins the attributable suspect set
+      that the bisect session converged on.
+    source_ref: crates/aureline-support/src/project_doctor/beta.rs
+  - finding_id: extension_bisect.session.workspace_beta
+    finding_class: extension_bisect_finding
+    finding_summary: >
+      The extension-bisect session converged on a single suspect after
+      two cohort-activation steps and bound the restore action to the
+      prior extension state captured at session start.
+    source_ref: fixtures/recovery/m3/extension_bisect/single_suspect_attribution.yaml
+
+evidence_artifacts:
+  - artifact_id: support_bundle.preview.workspace_beta
+    artifact_class: support_bundle_preview
+    custody_class: local_only_artifact
+    artifact_summary: >
+      The local support-bundle preview enumerates the metadata-safe
+      rows the user can review before the managed handoff.
+    artifact_ref: aureline_support::bundle::SupportBundlePreview
+  - artifact_id: support_bundle.managed_copy.workspace_beta
+    artifact_class: support_bundle_preview
+    custody_class: managed_copy_available
+    artifact_summary: >
+      A managed copy of the redacted support bundle is reachable
+      through the managed admin lane; the packet records the copy and
+      defers export to admin review.
+    artifact_ref: managed_admin://support_bundle/workspace_beta
+  - artifact_id: extension_bisect.session.workspace_beta
+    artifact_class: extension_bisect_session_record
+    custody_class: local_only_artifact
+    artifact_summary: >
+      The typed extension-bisect session record carries the tested
+      states, suspect cohort rows, and the restore ref.
+    artifact_ref: crates/aureline-support/src/extension_bisect/mod.rs
+  - artifact_id: repair_preview.skeleton.workspace_beta
+    artifact_class: repair_preview_skeleton_record
+    custody_class: local_only_artifact
+    artifact_summary: >
+      The repair-preview skeleton declares blast-radius class,
+      compensation class, and the comparison axis the user reviews
+      before any apply path runs.
+    artifact_ref: crates/aureline-support/src/repair_transactions/mod.rs
+
+recovery_options:
+  - recovery_option_class: start_extension_bisect
+    option_summary: >
+      The bisect session has converged; the user can extend the
+      session if a follow-up suspect appears.
+  - recovery_option_class: open_repair_preview
+    option_summary: >
+      The repair-preview skeleton is reopenable; the user reviews the
+      blast radius and compensation class before any apply step.
+  - recovery_option_class: handoff_to_support
+    option_summary: >
+      Managed admin review is required before the managed copy is
+      uploaded; support intake reads the packet by reference in the
+      meantime.
+
+claim_state:
+  downgrade_tokens:
+    - managed_copy_pending_admin_review
+  claim_summary: >
+    A managed copy is staged behind the managed admin lane; the beta
+    claim downgrades to managed_copy_pending_admin_review until the
+    admin reviews and releases the copy.
+
+privacy_baseline:
+  raw_private_material_excluded: true
+  ambient_authority_excluded: true
+  redaction_baseline_summary: >
+    Raw extension manifests, command lines, provider payloads, and
+    secret material do not cross the packet boundary; the managed copy
+    is referenced under a managed_copy_available custody class rather
+    than embedded as a payload.
+
+references:
+  doc_ref: docs/support/m3/incident_handoff_template.md
+  schema_ref: schemas/support/incident_workspace_beta_packet.schema.json
+  scenario_corpus_doc_ref: docs/support/m3/support_scenario_corpus.md
+  incident_workspace_alpha_doc_ref: docs/ops/incident_workspace_contract.md
+
+emitted_at: 2026-05-16T10:01:00Z

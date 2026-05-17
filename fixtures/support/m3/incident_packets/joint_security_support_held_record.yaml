@@ -1,0 +1,133 @@
+schema_version: 1
+record_kind: incident_workspace_beta_packet_record
+packet_id: support.m3.incident_packet.joint.security_support_held_record
+title: Joint security and support handoff with a held record under security hold
+summary: >
+  A managed-cloud tenant opened a joint incident: support intake needs
+  to triage the user-visible regression and security triage needs to
+  review a held crash envelope under a security hold. Both review
+  lanes consume the same packet without a separate private template;
+  the packet pins the held record under a held_record_under_security_hold
+  custody class and routes the claim state to held_record_blocks_export
+  so export waits on the hold lifting.
+
+handoff_consumer_classes:
+  - support_intake_and_security_triage
+
+workspace_identity:
+  workspace_id: workspace:managed_cloud.tenant.workspace_gamma
+  workspace_profile_summary: >
+    Managed-cloud tenant with managed admin sign-off and a security
+    triage lane active for the affected build.
+  preserves_user_authored_files: true
+
+target:
+  exact_build_identity_ref: exact_build:aureline.m3.beta.b3
+  deployment_profile_class: managed_cloud
+  target_summary: >
+    Managed-cloud build with an active security triage lane; managed
+    admin sign-off is required for any vendor-case handoff.
+  managed_admin_required: true
+
+degraded_state:
+  degraded_state_class: support_export_only_no_remote
+  degraded_summary: >
+    The remote provider lane is unavailable for the affected build and
+    the recovery ladder has narrowed the user to the support-export
+    path. A crash envelope is held under a security hold pending
+    private triage.
+  observed_at: 2026-05-16T12:00:00Z
+
+findings:
+  - finding_id: doctor.finding.support_export_only.security_review_pending
+    finding_class: project_doctor_finding
+    finding_summary: >
+      The Project Doctor beta finding pins the support-export-only
+      narrowing and the security-review-pending state without
+      embedding the held crash envelope body.
+    source_ref: crates/aureline-support/src/project_doctor/beta.rs
+  - finding_id: crash.envelope.managed_cloud.workspace_gamma
+    finding_class: crash_envelope_finding
+    finding_summary: >
+      The held crash envelope binds to an exact-build symbol manifest
+      ref; raw dump bytes are not exported by default and remain on
+      the local host under a security hold.
+    source_ref: crates/aureline-crash/src/envelope/mod.rs
+  - finding_id: records.governance.managed_cloud.workspace_gamma
+    finding_class: records_governance_finding
+    finding_summary: >
+      The records-governance packet pins the held record's
+      hold-state, retention-owner, and chain-of-custody so support and
+      security read the same custody truth.
+    source_ref: crates/aureline-support/src/bundle/records/mod.rs
+
+evidence_artifacts:
+  - artifact_id: support_bundle.preview.workspace_gamma
+    artifact_class: support_bundle_preview
+    custody_class: local_only_artifact
+    artifact_summary: >
+      The local support-bundle preview lists the metadata-safe rows
+      available before the hold lifts.
+    artifact_ref: aureline_support::bundle::SupportBundlePreview
+  - artifact_id: crash.envelope.workspace_gamma
+    artifact_class: crash_envelope_ref
+    custody_class: held_record_under_security_hold
+    artifact_summary: >
+      The crash envelope is held under a security hold; only the
+      security triage lane may release the envelope for export.
+    artifact_ref: crates/aureline-crash/src/envelope/mod.rs
+  - artifact_id: records.governance.workspace_gamma
+    artifact_class: records_governance_packet_record
+    custody_class: held_record_under_legal_hold
+    artifact_summary: >
+      The records-governance packet pins the legal hold that applies
+      to the audit logs the security triage will review.
+    artifact_ref: crates/aureline-support/src/bundle/records/mod.rs
+  - artifact_id: incident_workspace_alpha.workspace_gamma
+    artifact_class: incident_workspace_alpha_packet_ref
+    custody_class: local_only_artifact
+    artifact_summary: >
+      The alpha incident-workspace packet pins the workspace target,
+      missing-span rollup, and runbook refs the joint review consumes
+      by reference.
+    artifact_ref: crates/aureline-incident/src/lib.rs
+
+recovery_options:
+  - recovery_option_class: handoff_to_support
+    option_summary: >
+      Support intake consumes the metadata-safe rows; the held records
+      remain by reference until the security triage lane releases them.
+  - recovery_option_class: open_security_private_triage
+    option_summary: >
+      The security triage lane opens against the held crash envelope
+      and the held audit-log packet; no raw dump bytes are exported by
+      default.
+  - recovery_option_class: export_support_bundle
+    option_summary: >
+      The local support-bundle preview remains reopenable; the user
+      can review the redacted rows that are not under hold.
+
+claim_state:
+  downgrade_tokens:
+    - held_record_blocks_export
+  claim_summary: >
+    A crash envelope is under a security hold and an audit-log packet
+    is under a legal hold; the beta claim downgrades to
+    held_record_blocks_export until both holds are reviewed.
+
+privacy_baseline:
+  raw_private_material_excluded: true
+  ambient_authority_excluded: true
+  redaction_baseline_summary: >
+    Raw dump bytes, raw audit log bodies, raw provider URLs, raw
+    command lines, and raw secret material do not cross the packet
+    boundary; held records are referenced under their hold custody
+    class and never embedded as payload.
+
+references:
+  doc_ref: docs/support/m3/incident_handoff_template.md
+  schema_ref: schemas/support/incident_workspace_beta_packet.schema.json
+  scenario_corpus_doc_ref: docs/support/m3/support_scenario_corpus.md
+  incident_workspace_alpha_doc_ref: docs/ops/incident_workspace_contract.md
+
+emitted_at: 2026-05-16T12:01:00Z
