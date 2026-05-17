@@ -47,6 +47,13 @@ fn release_symbol_manifest() -> SymbolManifest {
     load_json(&release_symbol_manifest_path())
 }
 
+fn preview_alpha_symbol_manifest() -> SymbolManifest {
+    load_json(
+        &repo_root()
+            .join("fixtures/support/crash_symbolication_alpha/symbol_manifest_preview_alpha.json"),
+    )
+}
+
 fn linked_crash_envelope() -> CrashEnvelope {
     load_json(&repo_root().join("fixtures/support/incident_trail_alpha/crash_envelope.json"))
 }
@@ -82,8 +89,8 @@ fn alpha_inputs<'a>(
 }
 
 #[test]
-fn release_symbol_manifest_matches_alpha_crash_envelope_identity() {
-    let manifest = release_symbol_manifest();
+fn preview_symbol_manifest_matches_alpha_crash_envelope_identity() {
+    let manifest = preview_alpha_symbol_manifest();
     let envelope = linked_crash_envelope();
 
     assert_eq!(manifest.record_kind, SYMBOL_MANIFEST_RECORD_KIND);
@@ -140,13 +147,83 @@ fn release_symbol_manifest_matches_alpha_crash_envelope_identity() {
         .collect();
     assert_eq!(
         envelope_modules, manifest_modules,
-        "release symbol manifest must cover every module declared by the alpha crash envelope"
+        "preview alpha symbol manifest must cover every module declared by the alpha crash envelope"
     );
 }
 
 #[test]
-fn linked_manifest_binds_crash_envelope_to_exact_build_symbols() {
+fn release_symbol_manifest_matches_beta_artifact_graph_identity() {
     let manifest = release_symbol_manifest();
+    let graph: serde_json::Value =
+        load_json(&repo_root().join("artifacts/release/m3/artifact_graph.json"));
+    let graph_exact_build_identity_ref = graph["exact_build_identities"][0]
+        ["exact_build_identity_ref"]
+        .as_str()
+        .expect("graph exact-build identity");
+    let graph_version = graph["candidate"]["version"]
+        .as_str()
+        .expect("graph candidate version");
+
+    assert_eq!(manifest.release_channel_class, ReleaseChannelClass::Beta);
+    assert_eq!(
+        manifest.primary_exact_build_identity_ref,
+        graph_exact_build_identity_ref
+    );
+    assert_eq!(manifest.workspace_version, graph_version);
+    assert_eq!(
+        graph["source_contract_refs"]["symbol_manifest"]
+            .as_str()
+            .expect("symbol manifest graph ref"),
+        "artifacts/release/m3/symbol_manifest/symbol_manifest.json"
+    );
+
+    let module_ids: std::collections::BTreeSet<&str> = manifest
+        .modules
+        .iter()
+        .map(|module| module.module_id.as_str())
+        .collect();
+    assert!(module_ids.contains("aureline-shell"));
+    assert!(module_ids.contains("aureline-commands"));
+    assert!(module_ids.contains("renderer.main.bundle.js"));
+
+    for module in &manifest.modules {
+        assert_eq!(
+            module.storage_class,
+            ManifestStorageClass::MetadataOnlyNoSymbolBytes
+        );
+        match module.module_kind {
+            ManifestModuleKind::NativeBinary => {
+                assert!(matches!(
+                    module.artifact_family_class,
+                    ManifestArtifactFamilyClass::IdeBinary | ManifestArtifactFamilyClass::CliBinary
+                ));
+                assert_eq!(
+                    module.exact_build_identity_ref,
+                    graph_exact_build_identity_ref
+                );
+                assert!(module.build_id.is_some());
+                assert!(module.debug_id.is_some());
+                assert!(module.support_archive_identity_ref.is_some());
+            }
+            ManifestModuleKind::WebBundle => {
+                assert_eq!(
+                    module.artifact_family_class,
+                    ManifestArtifactFamilyClass::SourceMapBundle
+                );
+                assert!(module
+                    .exact_build_identity_ref
+                    .starts_with(graph_exact_build_identity_ref));
+                assert!(module.source_map_digest.is_some());
+                assert!(module.bundle_revision_ref.is_some());
+                assert!(module.generated_asset_ref.is_some());
+            }
+        }
+    }
+}
+
+#[test]
+fn linked_manifest_binds_crash_envelope_to_exact_build_symbols() {
+    let manifest = preview_alpha_symbol_manifest();
     let envelope = linked_crash_envelope();
     let binding = bind_crash_envelope(alpha_inputs(&envelope, Some(&manifest)));
 
@@ -242,7 +319,7 @@ fn partial_manifest_labels_missing_modules_without_claiming_exact_state() {
 
     // partial envelope: manifest carries extra module the envelope does not name
     let partial_envelope = partial_crash_envelope();
-    let release_manifest = release_symbol_manifest();
+    let release_manifest = preview_alpha_symbol_manifest();
     let partial_binding =
         bind_crash_envelope(alpha_inputs(&partial_envelope, Some(&release_manifest)));
     assert_eq!(partial_binding.binding_state, SymbolBindingState::Partial);
@@ -264,7 +341,7 @@ fn partial_manifest_labels_missing_modules_without_claiming_exact_state() {
 #[test]
 fn build_mismatch_refuses_to_claim_exact_symbolication() {
     let envelope = linked_crash_envelope();
-    let mut manifest = release_symbol_manifest();
+    let mut manifest = preview_alpha_symbol_manifest();
     manifest.primary_exact_build_identity_ref =
         "build-id:aureline:preview:0.8.0-alpha.1:x86_64-unknown-linux-gnu:release:deadbeefdead"
             .into();
@@ -288,7 +365,7 @@ fn build_mismatch_refuses_to_claim_exact_symbolication() {
 
 #[test]
 fn binding_is_metadata_safe_by_construction() {
-    let manifest = release_symbol_manifest();
+    let manifest = preview_alpha_symbol_manifest();
     let envelope = linked_crash_envelope();
     let binding = bind_crash_envelope(alpha_inputs(&envelope, Some(&manifest)));
 

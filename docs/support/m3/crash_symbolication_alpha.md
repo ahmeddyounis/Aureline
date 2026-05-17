@@ -71,12 +71,15 @@ and the protected fixture corpus lives at
 - **Release packets preserve the same build IDs and symbol references
   that crash support expects.** The release-side symbol manifest at
   `artifacts/release/m3/symbol_manifest/symbol_manifest.json` declares
-  the same `primary_exact_build_identity_ref` and the same per-module
-  `module_id`/`exact_build_identity_ref`/`symbolication_identity_ref`
-  tuples that the alpha crash envelope under
-  `fixtures/support/incident_trail_alpha/crash_envelope.json` names. The
-  protected `release_symbol_manifest_matches_alpha_crash_envelope_identity`
-  test re-proves this every run.
+  the beta candidate's `primary_exact_build_identity_ref` and the
+  per-module `module_id` / `exact_build_identity_ref` /
+  `symbolication_identity_ref` tuples that the artifact graph names. The
+  protected `release_symbol_manifest_matches_beta_artifact_graph_identity`
+  test re-proves this every run. The alpha crash-envelope linked path
+  keeps its preview fixture under `fixtures/support/crash_symbolication_alpha/`
+  so old crash drills still prove `linked`, `partial`,
+  `missing_manifest`, and `build_mismatch` without pretending to cover
+  the beta candidate.
 
 ## Failure-drill posture
 

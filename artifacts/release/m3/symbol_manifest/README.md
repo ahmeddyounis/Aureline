@@ -1,8 +1,8 @@
 # M3 release-side exact-build symbol manifest packet
 
 This packet is the checked-in proof path for the exact-build symbol
-manifest the alpha crash incident lane joins to a runtime crash
-envelope.
+manifest the release-center pack and crash incident lane join to runtime
+crash envelopes.
 
 | Surface | Path |
 |---|---|
@@ -16,7 +16,8 @@ envelope.
 ## What this manifest declares
 
 `symbol_manifest_record` is the release-side declaration of per-module
-symbol identities tied to one exact-build identity. It pins:
+symbol identities tied to the beta candidate's exact-build identity. It
+pins:
 
 - `primary_exact_build_identity_ref` — the runtime exact-build identity
   this manifest covers (mirrors the channel/workspace_version/target/profile
@@ -37,7 +38,7 @@ symbol identities tied to one exact-build identity. It pins:
 | Crash artifacts can be linked to an exact build and symbol manifest | `crash_symbolication_alpha::linked_manifest_binds_crash_envelope_to_exact_build_symbols` |
 | Local users can inspect crash artifacts without raw private data leaking | `crash_symbolication_alpha::binding_is_metadata_safe_by_construction` |
 | Local symbolication result, or explicit mismatch state, is preserved | `crash_symbolication_alpha::linked_manifest_binds_crash_envelope_to_exact_build_symbols`, `crash_symbolication_alpha::build_mismatch_refuses_to_claim_exact_symbolication`, `crash_symbolication_alpha::missing_manifest_keeps_envelope_refs_without_implying_coverage` |
-| Release packets preserve the same build IDs and symbol references that crash support expects | `crash_symbolication_alpha::release_symbol_manifest_matches_alpha_crash_envelope_identity` |
+| Release packets preserve the same build IDs and symbol references that crash support expects | `crash_symbolication_alpha::release_symbol_manifest_matches_beta_artifact_graph_identity` |
 
 ## Redaction posture
 
@@ -53,9 +54,9 @@ explicit reviewed upload path is approved.
 
 1. Re-run the protected test:
    `cargo test -p aureline-crash --test crash_symbolication_alpha`.
-2. If a new module ships with the preview channel build, append a new
-   row to `symbol_manifest.json` and re-prove the alpha crash binding.
+2. If a new module ships with the beta candidate, append a new row to
+   `symbol_manifest.json` and re-run the release-center pack validator.
 3. When the primary exact-build identity changes (channel, workspace
    version, target, profile, or commit short), regenerate this manifest
-   alongside the matching crash envelope fixture so the binding stays
-   `linked` rather than `build_mismatch`.
+   alongside the release-center pack so the support and security pivots
+   stay `linked` rather than `build_mismatch`.

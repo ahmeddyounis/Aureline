@@ -92,6 +92,8 @@ impl ManifestModuleKind {
 pub enum ManifestArtifactFamilyClass {
     /// The shipped IDE shell or helper binary.
     IdeBinary,
+    /// The shipped command-line binary.
+    CliBinary,
     /// A support helper binary used by recovery flows.
     SupportHelperBinary,
     /// A source-map bundle for a renderer / web surface.
@@ -103,6 +105,7 @@ impl ManifestArtifactFamilyClass {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::IdeBinary => "ide_binary",
+            Self::CliBinary => "cli_binary",
             Self::SupportHelperBinary => "support_helper_binary",
             Self::SourceMapBundle => "source_map_bundle",
         }

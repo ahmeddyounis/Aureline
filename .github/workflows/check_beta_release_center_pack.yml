@@ -1,0 +1,70 @@
+# Beta release-center pack gate.
+#
+# Validates the generated release-center pack, support projection,
+# fixture pivots, and validation capture before beta promotion.
+
+name: check_beta_release_center_pack
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_release_center_pack.yml"
+      - "ci/check_m3_release_center_pack.py"
+      - "tools/ci/m3/release_center_pack/**"
+      - "schemas/release/release_center.schema.json"
+      - "schemas/support/crash_symbolication_manifest_alpha.schema.json"
+      - "artifacts/release/m3/release_center_pack/**"
+      - "artifacts/release/m3/artifact_graph.json"
+      - "artifacts/release/m3/artifact_graph_support_projection.json"
+      - "artifacts/release/m3/symbol_manifest/**"
+      - "artifacts/release/m3/claim_manifest.json"
+      - "artifacts/compat/m3/compatibility_report.json"
+      - "artifacts/benchmarks/m3/dashboard_snapshot.json"
+      - "artifacts/docs/m3/docs_truth_report.md"
+      - "fixtures/release/m3/release_center_pack/**"
+      - "docs/release/m3/release_center_beta.md"
+      - "docs/release/m3/packaging_and_signing_beta.md"
+      - "docs/help/m3/release_truth_surfaces.md"
+      - "docs/support/m3/crash_symbolication_alpha.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-release-center-pack-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release_center_pack:
+    name: Beta release-center pack
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run release-center pack validator
+        run: |
+          python3 ci/check_m3_release_center_pack.py --repo-root . --check
+
+      - name: Upload release-center validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-release-center-pack-${{ github.run_id }}
+          path: artifacts/release/m3/release_center_pack/captures/release_center_pack_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

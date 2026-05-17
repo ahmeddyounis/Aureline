@@ -101,6 +101,15 @@ Help / About, release docs, support exports, and partner proof packets
 quote the same exact-build identity, clean-room rebuild evidence state,
 artifact-graph comparison rows, and blocking publication checks.
 
+Release-center pack state is read through
+`artifacts/release/m3/release_center_pack/pack.json` and the generated
+support projection at
+`artifacts/release/m3/release_center_pack/support_export_projection.json`.
+Help / About, release docs, support exports, and security review quote
+the same candidate exact-build identity, artifact graph refs, symbol
+manifest refs, SBOM/attestation links, advisory pivots, compatibility
+pivots, and blocking completeness checks.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -252,6 +261,12 @@ The projection is read-only and does not:
 - `artifacts/release/m3/reproducible_rc_packet/support_export_projection.json`
   — the generated support/export projection for clean-room rebuild and
   exact-build publication checks.
+- `artifacts/release/m3/release_center_pack/pack.json` — the canonical
+  beta release-center pack binding exact-build symbols, SBOM/attestation
+  links, artifact graph truth, compatibility/claim refs, and support pivots.
+- `artifacts/release/m3/release_center_pack/support_export_projection.json`
+  — the generated support/export projection for release-center support and
+  security pivots.
 - `artifacts/release/m3/state_root_audit.md` — generated state-root audit
   consumed by Help / About, CLI diagnostics, silent deployment summaries,
   and support export.

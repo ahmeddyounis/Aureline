@@ -92,6 +92,17 @@ The packet compares the promoted artifact graph to the clean-room
 rebuilt graph snapshot and blocks publication when exact-build identity,
 digest rows, or release-center candidate refs diverge.
 
+Release-center publication truth is published at
+[`/artifacts/release/m3/release_center_pack/pack.json`](../../../artifacts/release/m3/release_center_pack/pack.json)
+with generated support truth at
+[`/artifacts/release/m3/release_center_pack/support_export_projection.json`](../../../artifacts/release/m3/release_center_pack/support_export_projection.json)
+and the headless gate in
+[`/tools/ci/m3/release_center_pack/`](../../../tools/ci/m3/release_center_pack).
+The pack binds the candidate exact-build identity, artifact graph,
+symbol manifest, SBOM/attestation links, claim and compatibility refs,
+rollback refs, advisory refs, and support pivots into one inspectable
+release-center packet.
+
 ## Promotion Rule
 
 The beta candidate may widen only when the graph validator passes:
@@ -149,6 +160,18 @@ artifact graph no longer matches the promoted candidate graph, if exact-
 build identity refs diverge, or if support/export cannot consume the same
 metadata-only proof packet.
 
+Release-center pack admission additionally requires:
+
+```bash
+python3 -m tools.ci.m3.release_center_pack --repo-root . --check
+```
+
+This gate fails if the checked-in pack drifts from the artifact graph, if
+the symbol manifest does not name the beta exact-build identity, if
+SBOM/attestation links are absent, if support and security pivots require
+private path lookup, or if the generated support projection and capture
+are stale.
+
 ## Rollback Rule
 
 Rollback targets the coordinated artifact set. Desktop, CLI, helper,
@@ -175,8 +198,12 @@ requires updating:
 - [`/schemas/release/reproducible_rc_packet.schema.json`](../../../schemas/release/reproducible_rc_packet.schema.json);
 - [`/artifacts/release/m3/reproducible_rc_packet/packet.json`](../../../artifacts/release/m3/reproducible_rc_packet/packet.json);
 - [`/artifacts/release/m3/reproducible_rc_packet/support_export_projection.json`](../../../artifacts/release/m3/reproducible_rc_packet/support_export_projection.json);
+- [`/schemas/release/release_center.schema.json`](../../../schemas/release/release_center.schema.json);
+- [`/artifacts/release/m3/release_center_pack/pack.json`](../../../artifacts/release/m3/release_center_pack/pack.json);
+- [`/artifacts/release/m3/release_center_pack/support_export_projection.json`](../../../artifacts/release/m3/release_center_pack/support_export_projection.json);
 - [`/fixtures/release/artifact_graph_cases/manifest.yaml`](../../../fixtures/release/artifact_graph_cases/manifest.yaml);
 - [`/fixtures/release/m3/reproducible_rc/manifest.yaml`](../../../fixtures/release/m3/reproducible_rc/manifest.yaml);
+- [`/fixtures/release/m3/release_center_pack/manifest.yaml`](../../../fixtures/release/m3/release_center_pack/manifest.yaml);
 - [`/fixtures/release/update_rollback_plan_cases/manifest.yaml`](../../../fixtures/release/update_rollback_plan_cases/manifest.yaml);
 - this packet.
 
