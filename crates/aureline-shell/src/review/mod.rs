@@ -4,3 +4,4 @@
 pub mod change_inspector;
 pub mod parity_harness_inspector;
 pub mod review_pack_inspector;
+pub mod workspace_inspector;

@@ -1,10 +1,13 @@
-//! Review-workspace seed packets for local diff discussion.
+//! Review-workspace seed packets and beta packets for local diff discussion.
 //!
 //! This module consumes the local Git review seed and diff-view packets, then
 //! materializes the first review-workspace packet with deterministic row anchor
 //! IDs and work-item relation rows. It keeps provider overlay fields out of the
 //! anchor hash so the same anchors can later be published to hosted review
 //! providers without changing their meaning.
+
+use std::collections::BTreeSet;
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +29,121 @@ pub const REVIEW_WORK_ITEM_LINKAGE_RECORD_KIND: &str = "review_work_item_linkage
 
 /// Stable record-kind tag for [`ReviewWorkspaceInspectionRecord`].
 pub const REVIEW_WORKSPACE_INSPECTION_RECORD_KIND: &str = "review_workspace_inspection_record";
+
+/// Stable record-kind tag for [`ReviewWorkspaceBetaPacket`].
+pub const REVIEW_WORKSPACE_BETA_PACKET_RECORD_KIND: &str = "review_workspace_beta_packet";
+
+/// Stable record-kind tag for [`ReviewWorkspaceDurableCommentAnchorRecord`].
+pub const REVIEW_WORKSPACE_DURABLE_COMMENT_ANCHOR_RECORD_KIND: &str =
+    "review_workspace_durable_comment_anchor_record";
+
+/// Stable record-kind tag for [`ReviewWorkspaceObjectLineageRecord`].
+pub const REVIEW_WORKSPACE_OBJECT_LINEAGE_RECORD_KIND: &str =
+    "review_workspace_object_lineage_record";
+
+/// Stable record-kind tag for [`ReviewWorkspaceCheckFreshnessRecord`].
+pub const REVIEW_WORKSPACE_CHECK_FRESHNESS_RECORD_KIND: &str =
+    "review_workspace_check_freshness_record";
+
+/// Stable record-kind tag for [`ReviewWorkspaceBrowserHandoffRecord`].
+pub const REVIEW_WORKSPACE_BROWSER_HANDOFF_RECORD_KIND: &str =
+    "review_workspace_browser_handoff_record";
+
+/// Stable record-kind tag for [`ReviewWorkspaceSupportExportPacket`].
+pub const REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND: &str =
+    "review_workspace_support_export_packet";
+
+/// Stable record-kind tag for [`ReviewWorkspaceBetaInspectionRecord`].
+pub const REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND: &str =
+    "review_workspace_beta_inspection_record";
+
+/// Schema version for beta review-workspace packets.
+pub const REVIEW_WORKSPACE_BETA_SCHEMA_VERSION: u32 = 1;
+
+/// Closed set of beta anchor drift states.
+pub const REVIEW_WORKSPACE_BETA_ANCHOR_DRIFT_STATES: &[&str] = &[
+    "anchor_bound_exact",
+    "anchor_remapped_with_recorded_mapping",
+    "anchor_drifted_user_must_resolve",
+    "anchor_target_deleted_re_anchor_or_resolve",
+    "anchor_scope_unavailable",
+    "anchor_archived_tombstone",
+];
+
+/// Closed set of beta anchor required-action tokens.
+pub const REVIEW_WORKSPACE_BETA_ANCHOR_REQUIRED_ACTIONS: &[&str] = &[
+    "no_user_action_required_anchor_bound_or_remapped",
+    "user_must_pick_successor_or_dismiss_drifted",
+    "user_must_re_anchor_or_resolve_deleted_target",
+    "user_must_widen_scope_or_load_pack_or_reach_remote",
+    "user_must_restore_from_archive_or_acknowledge_tombstone",
+];
+
+/// Closed set of per-anchor local/provider freshness classes.
+pub const REVIEW_WORKSPACE_BETA_ANCHOR_FRESHNESS_CLASSES: &[&str] = &[
+    "local_only_no_provider_overlay",
+    "local_and_provider_match_fresh",
+    "local_and_provider_match_stale_within_grace",
+    "local_and_provider_disagree_user_review_required",
+    "provider_overlay_unavailable_local_continues",
+];
+
+/// Closed set of review check status classes.
+pub const REVIEW_WORKSPACE_BETA_CHECK_STATUS_CLASSES: &[&str] = &[
+    "check_passed",
+    "check_failed",
+    "check_not_evaluated_on_this_surface",
+    "check_blocked_by_stale_context",
+];
+
+/// Closed set of review check freshness classes.
+pub const REVIEW_WORKSPACE_BETA_CHECK_FRESHNESS_CLASSES: &[&str] = &[
+    "check_current",
+    "check_stale_within_grace",
+    "check_stale_blocks_operator_truth",
+    "check_unavailable_blocks_operator_truth",
+];
+
+/// Closed set of review check authority classes.
+pub const REVIEW_WORKSPACE_BETA_CHECK_AUTHORITY_CLASSES: &[&str] = &[
+    "local_review_pack",
+    "ci_provider_overlay",
+    "ai_evidence_packet",
+    "imported_review_bundle",
+];
+
+/// Closed set of browser-handoff destination classes used by review workspaces.
+pub const REVIEW_WORKSPACE_BETA_HANDOFF_DESTINATION_CLASSES: &[&str] = &[
+    "code_host_web",
+    "issue_tracker_web",
+    "ci_provider_web",
+    "docs_or_portal_web",
+    "managed_admin_web",
+    "external_generic_web",
+];
+
+/// Closed set of browser-handoff reason codes used by review workspaces.
+pub const REVIEW_WORKSPACE_BETA_HANDOFF_REASON_CODES: &[&str] = &[
+    "mutation_not_supported_in_product",
+    "publish_requires_browser_auth",
+    "external_docs_or_runbook",
+    "provider_consent_flow",
+    "step_up_required",
+];
+
+/// Closed set of browser-handoff replay posture values.
+pub const REVIEW_WORKSPACE_BETA_HANDOFF_REPLAY_POSTURES: &[&str] =
+    &["single_use", "bounded_reuse", "read_only_resumable"];
+
+/// Closed set of consumer surfaces for the beta packet and support export.
+pub const REVIEW_WORKSPACE_BETA_CONSUMER_SURFACES: &[&str] = &[
+    "review_workspace_inspector",
+    "review_preview",
+    "cli_headless_entry",
+    "support_export",
+    "docs_review",
+    "browser_companion",
+];
 
 const REVIEW_WORKSPACE_SEED_PACKET_SCHEMA_VERSION: u32 = 1;
 const REVIEW_WORKSPACE_SCHEMA_VERSION: u32 = 1;
@@ -482,6 +600,1693 @@ impl ReviewWorkspaceSeedPacket {
             .map(String::as_str)
             .collect::<Vec<_>>();
         packet_epochs == inspection_epochs
+    }
+}
+
+/// Input used to build a beta review-workspace packet from a seed packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceBetaInput {
+    /// Stable packet identity.
+    pub packet_id: String,
+    /// Timestamp used for deterministic fixture output.
+    pub generated_at: String,
+    /// Durable comment anchors attached to alpha anchor IDs.
+    pub comment_anchors: Vec<ReviewWorkspaceDurableCommentAnchorInput>,
+    /// Current check freshness rows attached to the workspace.
+    pub check_freshness: Vec<ReviewWorkspaceCheckFreshnessInput>,
+    /// Optional browser handoff skeleton for companion or provider review.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_handoff: Option<ReviewWorkspaceBrowserHandoffInput>,
+    /// Support/export envelope that can reopen the review context.
+    pub support_export: ReviewWorkspaceSupportExportInput,
+}
+
+/// Input used to attach a durable comment anchor to an existing row anchor.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceDurableCommentAnchorInput {
+    /// Alpha anchor id that this durable comment anchor preserves.
+    pub source_anchor_id_ref: String,
+    /// Stable comment thread identity.
+    pub comment_thread_id: String,
+    /// Opaque ref for the redaction-aware display label.
+    pub comment_payload_label_opaque_ref: String,
+    /// Actor that posted or imported the comment.
+    pub posted_actor_ref: String,
+    /// Timestamp when the comment was posted or imported.
+    pub posted_at: String,
+    /// Drift state from the review-anchor vocabulary.
+    pub anchor_drift_state: String,
+    /// Required user action paired with the drift state.
+    pub anchor_drift_required_user_action: String,
+    /// Local/provider freshness state for this anchor.
+    pub local_vs_provider_freshness_class: String,
+    /// Recorded remap chain when the anchor was safely remapped.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub remap_chain_target_id_refs: Vec<String>,
+    /// Archive timestamp when the anchor is retained as a tombstone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_at: Option<String>,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Input row describing one check's current freshness in the workspace.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceCheckFreshnessInput {
+    /// Stable check identity.
+    pub check_id: String,
+    /// Check-kind token from the review/check family.
+    pub check_kind: String,
+    /// Current check status class.
+    pub check_status_class: String,
+    /// Freshness class for the check result.
+    pub check_freshness_class: String,
+    /// Authority that produced or imported the check.
+    pub check_authority_class: String,
+    /// Evidence row or packet backing the check claim.
+    pub evidence_ref: String,
+    /// Timestamp when the evidence was captured.
+    pub captured_at: String,
+    /// Expiry timestamp for freshness-sensitive rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+    /// True when the row remains valid without browser state.
+    pub browser_state_independent: bool,
+    /// True when stale or unavailable evidence blocks operator-truth claims.
+    pub blocks_operator_truth_claim_when_stale: bool,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Input row for a typed and reversible browser handoff.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceBrowserHandoffInput {
+    /// Stable handoff identity.
+    pub handoff_id: String,
+    /// Opaque ref to the integration handoff packet.
+    pub browser_handoff_packet_ref: String,
+    /// Typed destination class, never a raw URL class.
+    pub destination_class: String,
+    /// Opaque destination token resolved by the launcher.
+    pub destination_ref: String,
+    /// Provider-side object identity ref.
+    pub object_identity_ref: String,
+    /// Reason code explaining why browser handoff is used.
+    pub reason_code: String,
+    /// Return anchor kind used to reopen the source review context.
+    pub return_anchor_kind: String,
+    /// Return anchor ref used for reversible handoff.
+    pub return_anchor_ref: String,
+    /// Replay posture from the browser-handoff contract.
+    pub replay_posture: String,
+    /// Timestamp when the handoff was issued.
+    pub issued_at: String,
+    /// Timestamp when the handoff expires.
+    pub expires_at: String,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Input row for the review-workspace support/export packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceSupportExportInput {
+    /// Stable support/export packet identity.
+    pub support_export_id: String,
+    /// Stable context ref used to reopen the review workspace.
+    pub reopen_context_ref: String,
+    /// Command id used by CLI/headless or support tooling to reopen context.
+    pub reopen_command_id_ref: String,
+    /// Consumer surfaces that can read this support export.
+    pub consumer_surfaces: Vec<String>,
+    /// Redaction class applied to exported metadata.
+    pub redaction_class: String,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Durable comment anchor record for one review comment or thread.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceDurableCommentAnchorRecord {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version for the beta record.
+    pub schema_version: u32,
+    /// Stable durable comment anchor id.
+    pub durable_comment_anchor_id: String,
+    /// Alpha anchor id that this record preserves.
+    pub source_anchor_id_ref: String,
+    /// Review workspace this anchor belongs to.
+    pub review_workspace_id_ref: String,
+    /// Diff target ref inherited from the alpha anchor.
+    pub target_ref: String,
+    /// Path-truth ref inherited from the alpha anchor.
+    pub path_truth_ref: String,
+    /// Compare-target ref inherited from the alpha anchor.
+    pub compare_target_ref: String,
+    /// Fallback context hash inherited from the alpha anchor.
+    pub fallback_context_hash: String,
+    /// Stable identity fields inherited from the alpha anchor.
+    pub stable_identity_fields: Vec<String>,
+    /// True when provider object IDs are excluded from the stable anchor hash.
+    pub provider_excluded_from_anchor_hash: bool,
+    /// Stable comment thread identity.
+    pub comment_thread_id: String,
+    /// Opaque ref for the redaction-aware display label.
+    pub comment_payload_label_opaque_ref: String,
+    /// Actor that posted or imported the comment.
+    pub posted_actor_ref: String,
+    /// Timestamp when the comment was posted or imported.
+    pub posted_at: String,
+    /// Drift state from the review-anchor vocabulary.
+    pub anchor_drift_state: String,
+    /// Required user action paired with the drift state.
+    pub anchor_drift_required_user_action: String,
+    /// Local/provider freshness state for this anchor.
+    pub local_vs_provider_freshness_class: String,
+    /// Recorded remap chain when the anchor was safely remapped.
+    pub remap_chain_target_id_refs: Vec<String>,
+    /// Archive timestamp when the anchor is retained as a tombstone.
+    pub archived_at: Option<String>,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Object-lineage row tying workspace, diff, anchor, handoff, and export refs together.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceObjectLineageRecord {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version for the beta record.
+    pub schema_version: u32,
+    /// Stable lineage row id.
+    pub lineage_id: String,
+    /// Review workspace this lineage belongs to.
+    pub review_workspace_id_ref: String,
+    /// Source object ref for the lineage edge.
+    pub source_object_ref: String,
+    /// Source object kind for the lineage edge.
+    pub source_object_kind: String,
+    /// Derived object ref for the lineage edge.
+    pub derived_object_ref: String,
+    /// Derived object kind for the lineage edge.
+    pub derived_object_kind: String,
+    /// Relation class explaining the lineage edge.
+    pub lineage_relation_class: String,
+    /// Timestamp when the lineage edge was captured.
+    pub captured_at: String,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Check-freshness row proving current review checks without browser state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceCheckFreshnessRecord {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version for the beta record.
+    pub schema_version: u32,
+    /// Stable check identity.
+    pub check_id: String,
+    /// Review workspace this check belongs to.
+    pub review_workspace_id_ref: String,
+    /// Check-kind token from the review/check family.
+    pub check_kind: String,
+    /// Current check status class.
+    pub check_status_class: String,
+    /// Freshness class for the check result.
+    pub check_freshness_class: String,
+    /// Authority that produced or imported the check.
+    pub check_authority_class: String,
+    /// Evidence row or packet backing the check claim.
+    pub evidence_ref: String,
+    /// Timestamp when the evidence was captured.
+    pub captured_at: String,
+    /// Expiry timestamp for freshness-sensitive rows.
+    pub expires_at: Option<String>,
+    /// True when the row remains valid without browser state.
+    pub browser_state_independent: bool,
+    /// True when stale or unavailable evidence blocks operator-truth claims.
+    pub blocks_operator_truth_claim_when_stale: bool,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Typed browser handoff row that keeps a return anchor.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceBrowserHandoffRecord {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version for the beta record.
+    pub schema_version: u32,
+    /// Stable handoff identity.
+    pub handoff_id: String,
+    /// Review workspace this handoff belongs to.
+    pub review_workspace_id_ref: String,
+    /// Opaque ref to the integration handoff packet.
+    pub browser_handoff_packet_ref: String,
+    /// Typed destination class, never a raw URL class.
+    pub destination_class: String,
+    /// Opaque destination token resolved by the launcher.
+    pub destination_ref: String,
+    /// Provider-side object identity ref.
+    pub object_identity_ref: String,
+    /// Reason code explaining why browser handoff is used.
+    pub reason_code: String,
+    /// Return anchor kind used to reopen the source review context.
+    pub return_anchor_kind: String,
+    /// Return anchor ref used for reversible handoff.
+    pub return_anchor_ref: String,
+    /// Replay posture from the browser-handoff contract.
+    pub replay_posture: String,
+    /// True when the handoff has enough data to return to this workspace.
+    pub reversible_handoff: bool,
+    /// False so raw URL escape hatches cannot cross the review boundary.
+    pub raw_url_export_allowed: bool,
+    /// Current handoff state.
+    pub handoff_state: String,
+    /// Timestamp when the handoff was issued.
+    pub issued_at: String,
+    /// Timestamp when the handoff expires.
+    pub expires_at: String,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Support/export packet that can reopen a review workspace truthfully.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceSupportExportPacket {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version for the beta record.
+    pub schema_version: u32,
+    /// Stable support/export packet identity.
+    pub support_export_id: String,
+    /// Review workspace this packet exports.
+    pub review_workspace_id_ref: String,
+    /// Stable context ref used to reopen the review workspace.
+    pub reopen_context_ref: String,
+    /// Command id used by CLI/headless or support tooling to reopen context.
+    pub reopen_command_id_ref: String,
+    /// Durable comment anchor refs included in the packet.
+    pub durable_comment_anchor_refs: Vec<String>,
+    /// Check freshness refs included in the packet.
+    pub check_freshness_refs: Vec<String>,
+    /// Object lineage refs included in the packet.
+    pub object_lineage_refs: Vec<String>,
+    /// Browser handoff ref included in the packet.
+    pub browser_handoff_ref: Option<String>,
+    /// Consumer surfaces that can read this support export.
+    pub consumer_surfaces: Vec<String>,
+    /// Source schemas the export cites.
+    pub source_schema_refs: Vec<String>,
+    /// False so raw comment bodies cannot cross the support boundary.
+    pub raw_comment_body_export_allowed: bool,
+    /// False so raw URLs cannot cross the support boundary.
+    pub raw_url_export_allowed: bool,
+    /// False so raw source bodies cannot cross the support boundary.
+    pub raw_source_body_export_allowed: bool,
+    /// Redaction class applied to exported metadata.
+    pub redaction_class: String,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Inspection row used by fixtures, support/export, and shell rows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceBetaInspectionRecord {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version for the beta record.
+    pub schema_version: u32,
+    /// Review workspace inspected by this row.
+    pub review_workspace_id_ref: String,
+    /// Number of durable comment anchors.
+    pub durable_comment_anchor_count: usize,
+    /// Number of object-lineage rows.
+    pub object_lineage_count: usize,
+    /// Number of check-freshness rows.
+    pub check_freshness_count: usize,
+    /// True when durable comment anchors preserve source anchor identity.
+    pub anchor_identity_preserved: bool,
+    /// True when lineage rows connect the workspace to exportable objects.
+    pub object_lineage_preserved: bool,
+    /// True when check freshness does not depend on browser state.
+    pub check_freshness_browser_independent: bool,
+    /// True when a typed reversible browser handoff is present.
+    pub typed_reversible_browser_handoff_present: bool,
+    /// True when support/export can reopen this review context.
+    pub support_export_reopenable: bool,
+    /// True when raw URL, comment-body, and source-body escapes are absent.
+    pub raw_escape_hatches_absent: bool,
+    /// True when no check freshness row blocks operator-truth claims.
+    pub operator_truth_current: bool,
+    /// True when at least one stale check blocks operator-truth claims.
+    pub stale_check_blocks_operator_truth: bool,
+    /// Reviewable summary safe for support/export surfaces.
+    pub summary_label: String,
+}
+
+/// Beta review-workspace packet consumed by review, CLI/headless, and support/export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewWorkspaceBetaPacket {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version for the beta packet.
+    pub schema_version: u32,
+    /// Stable packet identity.
+    pub packet_id: String,
+    /// Generation timestamp supplied by the caller.
+    pub generated_at: String,
+    /// Workspace record consumed by review surfaces.
+    pub review_workspace: ReviewWorkspaceRecord,
+    /// Diffs opened inside the review workspace.
+    pub diff_entries: Vec<ReviewWorkspaceDiffEntry>,
+    /// Durable comment anchors attached to stable row anchors.
+    pub durable_comment_anchors: Vec<ReviewWorkspaceDurableCommentAnchorRecord>,
+    /// Object lineage rows that preserve reopen and export identity.
+    pub object_lineage: Vec<ReviewWorkspaceObjectLineageRecord>,
+    /// Check-freshness rows independent of browser state.
+    pub check_freshness: Vec<ReviewWorkspaceCheckFreshnessRecord>,
+    /// Optional typed browser handoff skeleton.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_handoff: Option<ReviewWorkspaceBrowserHandoffRecord>,
+    /// Support/export packet that can reopen the review context.
+    pub support_export: ReviewWorkspaceSupportExportPacket,
+    /// Inspection row used by support/export and tests.
+    pub inspection: ReviewWorkspaceBetaInspectionRecord,
+}
+
+impl ReviewWorkspaceBetaPacket {
+    /// Builds a beta review-workspace packet from an alpha seed packet.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReviewWorkspaceBetaValidationError`] when the input violates
+    /// the beta review-workspace invariants.
+    pub fn from_seed_packet(
+        input: ReviewWorkspaceBetaInput,
+        seed_packet: &ReviewWorkspaceSeedPacket,
+    ) -> Result<Self, ReviewWorkspaceBetaValidationError> {
+        validate_beta_input(&input, seed_packet)?;
+
+        let durable_comment_anchors = input
+            .comment_anchors
+            .iter()
+            .map(|anchor_input| durable_comment_anchor_for(seed_packet, anchor_input))
+            .collect::<Result<Vec<_>, _>>()?;
+        let check_freshness = input
+            .check_freshness
+            .iter()
+            .map(|check_input| check_freshness_for(seed_packet, check_input))
+            .collect::<Vec<_>>();
+        let browser_handoff = input
+            .browser_handoff
+            .as_ref()
+            .map(|handoff| browser_handoff_for(seed_packet, handoff));
+        let object_lineage = object_lineage_for(
+            seed_packet,
+            &durable_comment_anchors,
+            browser_handoff.as_ref(),
+            &input.support_export,
+            &input.generated_at,
+        );
+        let support_export = support_export_for(
+            seed_packet,
+            &input.support_export,
+            &durable_comment_anchors,
+            &check_freshness,
+            &object_lineage,
+            browser_handoff.as_ref(),
+        );
+        let inspection = beta_inspection_for(
+            &seed_packet.review_workspace,
+            &durable_comment_anchors,
+            &object_lineage,
+            &check_freshness,
+            browser_handoff.as_ref(),
+            &support_export,
+        );
+
+        let packet = Self {
+            record_kind: REVIEW_WORKSPACE_BETA_PACKET_RECORD_KIND.to_string(),
+            schema_version: REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+            packet_id: input.packet_id,
+            generated_at: input.generated_at,
+            review_workspace: seed_packet.review_workspace.clone(),
+            diff_entries: seed_packet.diff_entries.clone(),
+            durable_comment_anchors,
+            object_lineage,
+            check_freshness,
+            browser_handoff,
+            support_export,
+            inspection,
+        };
+        packet.validate()?;
+        Ok(packet)
+    }
+
+    /// Validates this packet against the beta review-workspace invariants.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReviewWorkspaceBetaValidationError`] when a required
+    /// invariant is violated.
+    pub fn validate(&self) -> Result<(), ReviewWorkspaceBetaValidationError> {
+        ensure_eq(
+            self.record_kind.as_str(),
+            REVIEW_WORKSPACE_BETA_PACKET_RECORD_KIND,
+            "record_kind",
+        )?;
+        ensure_eq(
+            self.schema_version,
+            REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+            "schema_version",
+        )?;
+        ensure_nonempty(&self.packet_id, "packet_id")?;
+        ensure_nonempty(&self.generated_at, "generated_at")?;
+        if self.durable_comment_anchors.is_empty() {
+            return Err(beta_validation_error(
+                "durable_comment_anchors must include at least one anchored comment",
+            ));
+        }
+        if self.check_freshness.is_empty() {
+            return Err(beta_validation_error(
+                "check_freshness must include at least one current check row",
+            ));
+        }
+
+        for anchor in &self.durable_comment_anchors {
+            validate_durable_anchor(anchor, &self.review_workspace.review_workspace_id)?;
+        }
+        for check in &self.check_freshness {
+            validate_check_freshness(check, &self.review_workspace.review_workspace_id)?;
+        }
+        for lineage in &self.object_lineage {
+            validate_object_lineage(lineage, &self.review_workspace.review_workspace_id)?;
+        }
+        if let Some(handoff) = &self.browser_handoff {
+            validate_browser_handoff(handoff, &self.review_workspace.review_workspace_id)?;
+        }
+        validate_support_export(
+            &self.support_export,
+            &self.review_workspace.review_workspace_id,
+            &self.durable_comment_anchors,
+            &self.check_freshness,
+            &self.object_lineage,
+            self.browser_handoff.as_ref(),
+        )?;
+        validate_beta_inspection(
+            &self.inspection,
+            &self.review_workspace.review_workspace_id,
+            self,
+        )?;
+        Ok(())
+    }
+
+    /// Returns true when every durable comment anchor preserves source anchor identity.
+    pub fn preserves_anchor_identity(&self) -> bool {
+        !self.durable_comment_anchors.is_empty()
+            && self.durable_comment_anchors.iter().all(|anchor| {
+                !anchor.source_anchor_id_ref.trim().is_empty()
+                    && anchor.provider_excluded_from_anchor_hash
+                    && !anchor.fallback_context_hash.trim().is_empty()
+                    && !anchor.stable_identity_fields.is_empty()
+            })
+    }
+
+    /// Returns true when every check row is independent of transient browser state.
+    pub fn check_freshness_is_browser_independent(&self) -> bool {
+        !self.check_freshness.is_empty()
+            && self
+                .check_freshness
+                .iter()
+                .all(|check| check.browser_state_independent)
+    }
+
+    /// Returns true when the packet carries a typed reversible browser handoff.
+    pub fn has_typed_reversible_browser_handoff(&self) -> bool {
+        self.browser_handoff
+            .as_ref()
+            .map(is_typed_reversible_handoff)
+            .unwrap_or(false)
+    }
+
+    /// Returns true when support/export can reopen the review context.
+    pub fn support_export_can_reopen_context(&self) -> bool {
+        support_export_reopenable(
+            &self.support_export,
+            &self.durable_comment_anchors,
+            &self.check_freshness,
+            &self.object_lineage,
+        )
+    }
+
+    /// Returns true when no check blocks operator-truth claims.
+    pub fn operator_truth_current(&self) -> bool {
+        self.check_freshness.iter().all(|check| {
+            check.check_freshness_class == "check_current"
+                || check.check_freshness_class == "check_stale_within_grace"
+        })
+    }
+
+    /// Returns true when raw URL/comment/source escapes are absent.
+    pub fn raw_escape_hatches_absent(&self) -> bool {
+        self.support_export.raw_comment_body_export_allowed == false
+            && self.support_export.raw_url_export_allowed == false
+            && self.support_export.raw_source_body_export_allowed == false
+            && self
+                .browser_handoff
+                .as_ref()
+                .map(|handoff| {
+                    handoff.raw_url_export_allowed == false
+                        && !looks_like_raw_url(&handoff.destination_ref)
+                })
+                .unwrap_or(true)
+    }
+}
+
+/// Compact projection consumed by CLI/headless and inspector surfaces.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewWorkspaceBetaProjection {
+    /// Stable packet identity.
+    pub packet_id: String,
+    /// Review workspace identity.
+    pub review_workspace_id: String,
+    /// Review workspace source class.
+    pub review_workspace_source_class: String,
+    /// Provider authority class.
+    pub provider_authority_class: String,
+    /// Workspace freshness class.
+    pub freshness_class: String,
+    /// Durable comment anchor count.
+    pub durable_comment_anchor_count: usize,
+    /// Check freshness row count.
+    pub check_freshness_count: usize,
+    /// Object lineage row count.
+    pub object_lineage_count: usize,
+    /// True when a typed reversible browser handoff is present.
+    pub typed_reversible_browser_handoff_present: bool,
+    /// True when support/export can reopen the review context.
+    pub support_export_reopenable: bool,
+    /// True when stale checks block operator-truth claims.
+    pub stale_check_blocks_operator_truth: bool,
+    /// Consumer surfaces wired through the support export.
+    pub consumer_surfaces: Vec<String>,
+    /// Redaction class used by the support export.
+    pub redaction_class: String,
+}
+
+/// Parses and validates a materialized beta review-workspace packet.
+///
+/// # Errors
+///
+/// Returns [`ReviewWorkspaceBetaError`] when the payload fails to parse or
+/// violates the beta review-workspace invariants.
+pub fn project_review_workspace_beta_packet(
+    payload: &str,
+) -> Result<ReviewWorkspaceBetaProjection, ReviewWorkspaceBetaError> {
+    let packet: ReviewWorkspaceBetaPacket = serde_json::from_str(payload)?;
+    packet.validate()?;
+    Ok(ReviewWorkspaceBetaProjection::from(packet))
+}
+
+impl From<ReviewWorkspaceBetaPacket> for ReviewWorkspaceBetaProjection {
+    fn from(packet: ReviewWorkspaceBetaPacket) -> Self {
+        Self {
+            packet_id: packet.packet_id,
+            review_workspace_id: packet.review_workspace.review_workspace_id,
+            review_workspace_source_class: packet.review_workspace.review_workspace_source_class,
+            provider_authority_class: packet.review_workspace.provider_authority_class,
+            freshness_class: packet.review_workspace.freshness_class,
+            durable_comment_anchor_count: packet.inspection.durable_comment_anchor_count,
+            check_freshness_count: packet.inspection.check_freshness_count,
+            object_lineage_count: packet.inspection.object_lineage_count,
+            typed_reversible_browser_handoff_present: packet
+                .inspection
+                .typed_reversible_browser_handoff_present,
+            support_export_reopenable: packet.inspection.support_export_reopenable,
+            stale_check_blocks_operator_truth: packet.inspection.stale_check_blocks_operator_truth,
+            consumer_surfaces: packet.support_export.consumer_surfaces,
+            redaction_class: packet.support_export.redaction_class,
+        }
+    }
+}
+
+/// Error returned when a beta review-workspace payload cannot be projected.
+#[derive(Debug)]
+pub enum ReviewWorkspaceBetaError {
+    /// The payload failed JSON parsing.
+    Parse(serde_json::Error),
+    /// The payload parsed but violated the beta invariants.
+    Validation(ReviewWorkspaceBetaValidationError),
+}
+
+impl fmt::Display for ReviewWorkspaceBetaError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Parse(err) => write!(formatter, "review workspace beta parse error: {err}"),
+            Self::Validation(err) => {
+                write!(formatter, "review workspace beta validation error: {err}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ReviewWorkspaceBetaError {}
+
+impl From<serde_json::Error> for ReviewWorkspaceBetaError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::Parse(err)
+    }
+}
+
+impl From<ReviewWorkspaceBetaValidationError> for ReviewWorkspaceBetaError {
+    fn from(err: ReviewWorkspaceBetaValidationError) -> Self {
+        Self::Validation(err)
+    }
+}
+
+/// Validation failure for beta review-workspace packets.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewWorkspaceBetaValidationError {
+    message: String,
+}
+
+impl ReviewWorkspaceBetaValidationError {
+    /// Returns the validation failure message.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+}
+
+impl fmt::Display for ReviewWorkspaceBetaValidationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for ReviewWorkspaceBetaValidationError {}
+
+fn validate_beta_input(
+    input: &ReviewWorkspaceBetaInput,
+    seed_packet: &ReviewWorkspaceSeedPacket,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_nonempty(&input.packet_id, "packet_id")?;
+    ensure_nonempty(&input.generated_at, "generated_at")?;
+    if input.comment_anchors.is_empty() {
+        return Err(beta_validation_error(
+            "comment_anchors must include at least one durable anchor input",
+        ));
+    }
+    if input.check_freshness.is_empty() {
+        return Err(beta_validation_error(
+            "check_freshness must include at least one check input",
+        ));
+    }
+
+    let alpha_anchor_ids = seed_packet
+        .anchors
+        .iter()
+        .map(|anchor| anchor.anchor_id.as_str())
+        .collect::<BTreeSet<_>>();
+    for anchor in &input.comment_anchors {
+        if !alpha_anchor_ids.contains(anchor.source_anchor_id_ref.as_str()) {
+            return Err(beta_validation_error(format!(
+                "comment anchor source_anchor_id_ref '{}' is not present in the seed packet",
+                anchor.source_anchor_id_ref
+            )));
+        }
+        validate_anchor_drift_pair(
+            &anchor.anchor_drift_state,
+            &anchor.anchor_drift_required_user_action,
+            &anchor.remap_chain_target_id_refs,
+            anchor.archived_at.as_deref(),
+        )?;
+    }
+
+    for check in &input.check_freshness {
+        validate_check_freshness_input(check)?;
+    }
+    if let Some(handoff) = &input.browser_handoff {
+        validate_browser_handoff_input(handoff)?;
+    }
+    validate_support_export_input(&input.support_export)?;
+    Ok(())
+}
+
+fn durable_comment_anchor_for(
+    seed_packet: &ReviewWorkspaceSeedPacket,
+    input: &ReviewWorkspaceDurableCommentAnchorInput,
+) -> Result<ReviewWorkspaceDurableCommentAnchorRecord, ReviewWorkspaceBetaValidationError> {
+    let source_anchor = seed_packet
+        .anchors
+        .iter()
+        .find(|anchor| anchor.anchor_id == input.source_anchor_id_ref)
+        .ok_or_else(|| {
+            beta_validation_error(format!(
+                "source anchor '{}' is missing from the seed packet",
+                input.source_anchor_id_ref
+            ))
+        })?;
+    let durable_comment_anchor_id = format!(
+        "review.comment_anchor.beta.{}.{}",
+        sanitize_id(&seed_packet.review_workspace.review_workspace_id),
+        stable_hash(&format!(
+            "{}|{}",
+            input.source_anchor_id_ref, input.comment_thread_id
+        ))
+    );
+
+    Ok(ReviewWorkspaceDurableCommentAnchorRecord {
+        record_kind: REVIEW_WORKSPACE_DURABLE_COMMENT_ANCHOR_RECORD_KIND.to_string(),
+        schema_version: REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        durable_comment_anchor_id,
+        source_anchor_id_ref: input.source_anchor_id_ref.clone(),
+        review_workspace_id_ref: seed_packet.review_workspace.review_workspace_id.clone(),
+        target_ref: source_anchor.target_ref.clone(),
+        path_truth_ref: source_anchor.path_truth_ref.clone(),
+        compare_target_ref: source_anchor.compare_target_ref.clone(),
+        fallback_context_hash: source_anchor.fallback_context_hash.clone(),
+        stable_identity_fields: source_anchor.stable_identity_fields.clone(),
+        provider_excluded_from_anchor_hash: source_anchor.provider_excluded_from_anchor_hash,
+        comment_thread_id: input.comment_thread_id.clone(),
+        comment_payload_label_opaque_ref: input.comment_payload_label_opaque_ref.clone(),
+        posted_actor_ref: input.posted_actor_ref.clone(),
+        posted_at: input.posted_at.clone(),
+        anchor_drift_state: input.anchor_drift_state.clone(),
+        anchor_drift_required_user_action: input.anchor_drift_required_user_action.clone(),
+        local_vs_provider_freshness_class: input.local_vs_provider_freshness_class.clone(),
+        remap_chain_target_id_refs: input.remap_chain_target_id_refs.clone(),
+        archived_at: input.archived_at.clone(),
+        summary_label: input.summary_label.clone(),
+    })
+}
+
+fn check_freshness_for(
+    seed_packet: &ReviewWorkspaceSeedPacket,
+    input: &ReviewWorkspaceCheckFreshnessInput,
+) -> ReviewWorkspaceCheckFreshnessRecord {
+    ReviewWorkspaceCheckFreshnessRecord {
+        record_kind: REVIEW_WORKSPACE_CHECK_FRESHNESS_RECORD_KIND.to_string(),
+        schema_version: REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        check_id: input.check_id.clone(),
+        review_workspace_id_ref: seed_packet.review_workspace.review_workspace_id.clone(),
+        check_kind: input.check_kind.clone(),
+        check_status_class: input.check_status_class.clone(),
+        check_freshness_class: input.check_freshness_class.clone(),
+        check_authority_class: input.check_authority_class.clone(),
+        evidence_ref: input.evidence_ref.clone(),
+        captured_at: input.captured_at.clone(),
+        expires_at: input.expires_at.clone(),
+        browser_state_independent: input.browser_state_independent,
+        blocks_operator_truth_claim_when_stale: input.blocks_operator_truth_claim_when_stale,
+        summary_label: input.summary_label.clone(),
+    }
+}
+
+fn browser_handoff_for(
+    seed_packet: &ReviewWorkspaceSeedPacket,
+    input: &ReviewWorkspaceBrowserHandoffInput,
+) -> ReviewWorkspaceBrowserHandoffRecord {
+    ReviewWorkspaceBrowserHandoffRecord {
+        record_kind: REVIEW_WORKSPACE_BROWSER_HANDOFF_RECORD_KIND.to_string(),
+        schema_version: REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        handoff_id: input.handoff_id.clone(),
+        review_workspace_id_ref: seed_packet.review_workspace.review_workspace_id.clone(),
+        browser_handoff_packet_ref: input.browser_handoff_packet_ref.clone(),
+        destination_class: input.destination_class.clone(),
+        destination_ref: input.destination_ref.clone(),
+        object_identity_ref: input.object_identity_ref.clone(),
+        reason_code: input.reason_code.clone(),
+        return_anchor_kind: input.return_anchor_kind.clone(),
+        return_anchor_ref: input.return_anchor_ref.clone(),
+        replay_posture: input.replay_posture.clone(),
+        reversible_handoff: !input.return_anchor_kind.trim().is_empty()
+            && !input.return_anchor_ref.trim().is_empty(),
+        raw_url_export_allowed: false,
+        handoff_state: "handoff_minted_not_launched".to_string(),
+        issued_at: input.issued_at.clone(),
+        expires_at: input.expires_at.clone(),
+        summary_label: input.summary_label.clone(),
+    }
+}
+
+fn object_lineage_for(
+    seed_packet: &ReviewWorkspaceSeedPacket,
+    durable_comment_anchors: &[ReviewWorkspaceDurableCommentAnchorRecord],
+    browser_handoff: Option<&ReviewWorkspaceBrowserHandoffRecord>,
+    support_export: &ReviewWorkspaceSupportExportInput,
+    captured_at: &str,
+) -> Vec<ReviewWorkspaceObjectLineageRecord> {
+    let workspace_id = &seed_packet.review_workspace.review_workspace_id;
+    let mut rows = Vec::new();
+    if let Some(local) = &seed_packet.review_workspace.local_locator {
+        rows.push(object_lineage_row(
+            workspace_id,
+            &local.branch_or_worktree_ref,
+            "local_branch_or_worktree",
+            workspace_id,
+            "review_workspace",
+            "materialized_from_local_locator",
+            captured_at,
+            "Review workspace materialized from local branch or worktree.",
+        ));
+    }
+    if let Some(provider_overlay) = &seed_packet.review_workspace.provider_overlay {
+        rows.push(object_lineage_row(
+            workspace_id,
+            &provider_overlay.provider_object_identity_ref,
+            "provider_review_object",
+            workspace_id,
+            "review_workspace",
+            "enriched_by_provider_overlay",
+            captured_at,
+            "Review workspace preserves provider overlay identity separately from local truth.",
+        ));
+    }
+    for diff_entry in &seed_packet.diff_entries {
+        rows.push(object_lineage_row(
+            workspace_id,
+            &diff_entry.diff_surface_ref,
+            "diff_surface",
+            workspace_id,
+            "review_workspace",
+            "opened_in_review_workspace",
+            captured_at,
+            "Diff surface opened inside the review workspace.",
+        ));
+    }
+    for anchor in durable_comment_anchors {
+        rows.push(object_lineage_row(
+            workspace_id,
+            &anchor.source_anchor_id_ref,
+            "review_anchor_id",
+            &anchor.durable_comment_anchor_id,
+            "durable_comment_anchor",
+            "preserves_comment_anchor_identity",
+            captured_at,
+            "Durable comment anchor preserves the provider-neutral source anchor.",
+        ));
+    }
+    if let Some(handoff) = browser_handoff {
+        rows.push(object_lineage_row(
+            workspace_id,
+            workspace_id,
+            "review_workspace",
+            &handoff.handoff_id,
+            "browser_handoff",
+            "mints_typed_browser_handoff",
+            captured_at,
+            "Browser handoff is typed and keeps a return anchor.",
+        ));
+    }
+    rows.push(object_lineage_row(
+        workspace_id,
+        workspace_id,
+        "review_workspace",
+        &support_export.support_export_id,
+        "support_export_packet",
+        "exports_reopenable_support_packet",
+        captured_at,
+        "Support export preserves enough metadata to reopen the review context.",
+    ));
+    rows
+}
+
+fn object_lineage_row(
+    review_workspace_id_ref: &str,
+    source_object_ref: &str,
+    source_object_kind: &str,
+    derived_object_ref: &str,
+    derived_object_kind: &str,
+    lineage_relation_class: &str,
+    captured_at: &str,
+    summary_label: &str,
+) -> ReviewWorkspaceObjectLineageRecord {
+    ReviewWorkspaceObjectLineageRecord {
+        record_kind: REVIEW_WORKSPACE_OBJECT_LINEAGE_RECORD_KIND.to_string(),
+        schema_version: REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        lineage_id: format!(
+            "review.workspace.lineage.{}.{}",
+            sanitize_id(review_workspace_id_ref),
+            stable_hash(&format!(
+                "{source_object_ref}|{derived_object_ref}|{lineage_relation_class}"
+            ))
+        ),
+        review_workspace_id_ref: review_workspace_id_ref.to_string(),
+        source_object_ref: source_object_ref.to_string(),
+        source_object_kind: source_object_kind.to_string(),
+        derived_object_ref: derived_object_ref.to_string(),
+        derived_object_kind: derived_object_kind.to_string(),
+        lineage_relation_class: lineage_relation_class.to_string(),
+        captured_at: captured_at.to_string(),
+        summary_label: summary_label.to_string(),
+    }
+}
+
+fn support_export_for(
+    seed_packet: &ReviewWorkspaceSeedPacket,
+    input: &ReviewWorkspaceSupportExportInput,
+    durable_comment_anchors: &[ReviewWorkspaceDurableCommentAnchorRecord],
+    check_freshness: &[ReviewWorkspaceCheckFreshnessRecord],
+    object_lineage: &[ReviewWorkspaceObjectLineageRecord],
+    browser_handoff: Option<&ReviewWorkspaceBrowserHandoffRecord>,
+) -> ReviewWorkspaceSupportExportPacket {
+    ReviewWorkspaceSupportExportPacket {
+        record_kind: REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND.to_string(),
+        schema_version: REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        support_export_id: input.support_export_id.clone(),
+        review_workspace_id_ref: seed_packet.review_workspace.review_workspace_id.clone(),
+        reopen_context_ref: input.reopen_context_ref.clone(),
+        reopen_command_id_ref: input.reopen_command_id_ref.clone(),
+        durable_comment_anchor_refs: durable_comment_anchors
+            .iter()
+            .map(|anchor| anchor.durable_comment_anchor_id.clone())
+            .collect(),
+        check_freshness_refs: check_freshness
+            .iter()
+            .map(|check| check.check_id.clone())
+            .collect(),
+        object_lineage_refs: object_lineage
+            .iter()
+            .map(|lineage| lineage.lineage_id.clone())
+            .collect(),
+        browser_handoff_ref: browser_handoff.map(|handoff| handoff.handoff_id.clone()),
+        consumer_surfaces: input.consumer_surfaces.clone(),
+        source_schema_refs: vec![
+            "schemas/review/review_workspace.schema.json".to_string(),
+            "schemas/vcs/review_workspace.schema.json".to_string(),
+            "schemas/vcs/review_anchor.schema.json".to_string(),
+            "schemas/review/anchor_id_alpha.schema.json".to_string(),
+            "schemas/integration/browser_handoff_packet.schema.json".to_string(),
+        ],
+        raw_comment_body_export_allowed: false,
+        raw_url_export_allowed: false,
+        raw_source_body_export_allowed: false,
+        redaction_class: input.redaction_class.clone(),
+        summary_label: input.summary_label.clone(),
+    }
+}
+
+fn beta_inspection_for(
+    workspace: &ReviewWorkspaceRecord,
+    durable_comment_anchors: &[ReviewWorkspaceDurableCommentAnchorRecord],
+    object_lineage: &[ReviewWorkspaceObjectLineageRecord],
+    check_freshness: &[ReviewWorkspaceCheckFreshnessRecord],
+    browser_handoff: Option<&ReviewWorkspaceBrowserHandoffRecord>,
+    support_export: &ReviewWorkspaceSupportExportPacket,
+) -> ReviewWorkspaceBetaInspectionRecord {
+    let anchor_identity_preserved = durable_comment_anchors.iter().all(|anchor| {
+        !anchor.source_anchor_id_ref.trim().is_empty()
+            && anchor.provider_excluded_from_anchor_hash
+            && !anchor.fallback_context_hash.trim().is_empty()
+            && !anchor.stable_identity_fields.is_empty()
+    });
+    let object_lineage_preserved = !object_lineage.is_empty()
+        && object_lineage.iter().all(|lineage| {
+            lineage.review_workspace_id_ref == workspace.review_workspace_id
+                && !lineage.source_object_ref.trim().is_empty()
+                && !lineage.derived_object_ref.trim().is_empty()
+        })
+        && object_lineage
+            .iter()
+            .any(|lineage| lineage.lineage_relation_class == "exports_reopenable_support_packet");
+    let check_freshness_browser_independent = check_freshness
+        .iter()
+        .all(|check| check.browser_state_independent);
+    let typed_reversible_browser_handoff_present = browser_handoff
+        .map(is_typed_reversible_handoff)
+        .unwrap_or(false);
+    let support_export_reopenable = support_export_reopenable(
+        support_export,
+        durable_comment_anchors,
+        check_freshness,
+        object_lineage,
+    );
+    let raw_escape_hatches_absent = support_export.raw_comment_body_export_allowed == false
+        && support_export.raw_url_export_allowed == false
+        && support_export.raw_source_body_export_allowed == false
+        && browser_handoff
+            .map(|handoff| handoff.raw_url_export_allowed == false)
+            .unwrap_or(true);
+    let stale_check_blocks_operator_truth = check_freshness
+        .iter()
+        .any(|check| check.blocks_operator_truth_claim_when_stale);
+    let operator_truth_current = check_freshness.iter().all(|check| {
+        check.check_freshness_class == "check_current"
+            || check.check_freshness_class == "check_stale_within_grace"
+    });
+
+    ReviewWorkspaceBetaInspectionRecord {
+        record_kind: REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND.to_string(),
+        schema_version: REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        review_workspace_id_ref: workspace.review_workspace_id.clone(),
+        durable_comment_anchor_count: durable_comment_anchors.len(),
+        object_lineage_count: object_lineage.len(),
+        check_freshness_count: check_freshness.len(),
+        anchor_identity_preserved,
+        object_lineage_preserved,
+        check_freshness_browser_independent,
+        typed_reversible_browser_handoff_present,
+        support_export_reopenable,
+        raw_escape_hatches_absent,
+        operator_truth_current,
+        stale_check_blocks_operator_truth,
+        summary_label: format!(
+            "{} durable anchor(s), {} check freshness row(s), {} lineage row(s)",
+            durable_comment_anchors.len(),
+            check_freshness.len(),
+            object_lineage.len()
+        ),
+    }
+}
+
+fn validate_durable_anchor(
+    anchor: &ReviewWorkspaceDurableCommentAnchorRecord,
+    workspace_id: &str,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_eq(
+        anchor.record_kind.as_str(),
+        REVIEW_WORKSPACE_DURABLE_COMMENT_ANCHOR_RECORD_KIND,
+        "durable_comment_anchor.record_kind",
+    )?;
+    ensure_eq(
+        anchor.schema_version,
+        REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        "durable_comment_anchor.schema_version",
+    )?;
+    ensure_eq(
+        anchor.review_workspace_id_ref.as_str(),
+        workspace_id,
+        "durable_comment_anchor.review_workspace_id_ref",
+    )?;
+    ensure_nonempty(
+        &anchor.durable_comment_anchor_id,
+        "durable_comment_anchor.durable_comment_anchor_id",
+    )?;
+    ensure_nonempty(
+        &anchor.source_anchor_id_ref,
+        "durable_comment_anchor.source_anchor_id_ref",
+    )?;
+    ensure_nonempty(&anchor.target_ref, "durable_comment_anchor.target_ref")?;
+    ensure_nonempty(
+        &anchor.fallback_context_hash,
+        "durable_comment_anchor.fallback_context_hash",
+    )?;
+    if !anchor.provider_excluded_from_anchor_hash {
+        return Err(beta_validation_error(
+            "durable_comment_anchor.provider_excluded_from_anchor_hash must be true",
+        ));
+    }
+    if !contains_token(
+        REVIEW_WORKSPACE_BETA_ANCHOR_FRESHNESS_CLASSES,
+        &anchor.local_vs_provider_freshness_class,
+    ) {
+        return Err(beta_validation_error(format!(
+            "unsupported local_vs_provider_freshness_class '{}'",
+            anchor.local_vs_provider_freshness_class
+        )));
+    }
+    validate_anchor_drift_pair(
+        &anchor.anchor_drift_state,
+        &anchor.anchor_drift_required_user_action,
+        &anchor.remap_chain_target_id_refs,
+        anchor.archived_at.as_deref(),
+    )
+}
+
+fn validate_check_freshness_input(
+    check: &ReviewWorkspaceCheckFreshnessInput,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_nonempty(&check.check_id, "check_freshness.check_id")?;
+    ensure_nonempty(&check.evidence_ref, "check_freshness.evidence_ref")?;
+    if !contains_token(
+        REVIEW_WORKSPACE_BETA_CHECK_STATUS_CLASSES,
+        &check.check_status_class,
+    ) {
+        return Err(beta_validation_error(format!(
+            "unsupported check_status_class '{}'",
+            check.check_status_class
+        )));
+    }
+    if !contains_token(
+        REVIEW_WORKSPACE_BETA_CHECK_FRESHNESS_CLASSES,
+        &check.check_freshness_class,
+    ) {
+        return Err(beta_validation_error(format!(
+            "unsupported check_freshness_class '{}'",
+            check.check_freshness_class
+        )));
+    }
+    if !contains_token(
+        REVIEW_WORKSPACE_BETA_CHECK_AUTHORITY_CLASSES,
+        &check.check_authority_class,
+    ) {
+        return Err(beta_validation_error(format!(
+            "unsupported check_authority_class '{}'",
+            check.check_authority_class
+        )));
+    }
+    if !check.browser_state_independent {
+        return Err(beta_validation_error(
+            "check_freshness.browser_state_independent must be true",
+        ));
+    }
+    if freshness_blocks_operator_truth(&check.check_freshness_class)
+        && !check.blocks_operator_truth_claim_when_stale
+    {
+        return Err(beta_validation_error(
+            "stale or unavailable check freshness must block operator-truth claims",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_check_freshness(
+    check: &ReviewWorkspaceCheckFreshnessRecord,
+    workspace_id: &str,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_eq(
+        check.record_kind.as_str(),
+        REVIEW_WORKSPACE_CHECK_FRESHNESS_RECORD_KIND,
+        "check_freshness.record_kind",
+    )?;
+    ensure_eq(
+        check.schema_version,
+        REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        "check_freshness.schema_version",
+    )?;
+    ensure_eq(
+        check.review_workspace_id_ref.as_str(),
+        workspace_id,
+        "check_freshness.review_workspace_id_ref",
+    )?;
+    validate_check_freshness_input(&ReviewWorkspaceCheckFreshnessInput {
+        check_id: check.check_id.clone(),
+        check_kind: check.check_kind.clone(),
+        check_status_class: check.check_status_class.clone(),
+        check_freshness_class: check.check_freshness_class.clone(),
+        check_authority_class: check.check_authority_class.clone(),
+        evidence_ref: check.evidence_ref.clone(),
+        captured_at: check.captured_at.clone(),
+        expires_at: check.expires_at.clone(),
+        browser_state_independent: check.browser_state_independent,
+        blocks_operator_truth_claim_when_stale: check.blocks_operator_truth_claim_when_stale,
+        summary_label: check.summary_label.clone(),
+    })
+}
+
+fn validate_browser_handoff_input(
+    handoff: &ReviewWorkspaceBrowserHandoffInput,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_nonempty(&handoff.handoff_id, "browser_handoff.handoff_id")?;
+    ensure_nonempty(
+        &handoff.browser_handoff_packet_ref,
+        "browser_handoff.browser_handoff_packet_ref",
+    )?;
+    if !contains_token(
+        REVIEW_WORKSPACE_BETA_HANDOFF_DESTINATION_CLASSES,
+        &handoff.destination_class,
+    ) {
+        return Err(beta_validation_error(format!(
+            "unsupported destination_class '{}'",
+            handoff.destination_class
+        )));
+    }
+    if looks_like_raw_url(&handoff.destination_ref) {
+        return Err(beta_validation_error(
+            "browser_handoff.destination_ref must be opaque and not a raw URL",
+        ));
+    }
+    if !contains_token(
+        REVIEW_WORKSPACE_BETA_HANDOFF_REASON_CODES,
+        &handoff.reason_code,
+    ) {
+        return Err(beta_validation_error(format!(
+            "unsupported reason_code '{}'",
+            handoff.reason_code
+        )));
+    }
+    if !contains_token(
+        REVIEW_WORKSPACE_BETA_HANDOFF_REPLAY_POSTURES,
+        &handoff.replay_posture,
+    ) {
+        return Err(beta_validation_error(format!(
+            "unsupported replay_posture '{}'",
+            handoff.replay_posture
+        )));
+    }
+    ensure_nonempty(
+        &handoff.return_anchor_ref,
+        "browser_handoff.return_anchor_ref",
+    )?;
+    ensure_nonempty(
+        &handoff.return_anchor_kind,
+        "browser_handoff.return_anchor_kind",
+    )
+}
+
+fn validate_browser_handoff(
+    handoff: &ReviewWorkspaceBrowserHandoffRecord,
+    workspace_id: &str,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_eq(
+        handoff.record_kind.as_str(),
+        REVIEW_WORKSPACE_BROWSER_HANDOFF_RECORD_KIND,
+        "browser_handoff.record_kind",
+    )?;
+    ensure_eq(
+        handoff.schema_version,
+        REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        "browser_handoff.schema_version",
+    )?;
+    ensure_eq(
+        handoff.review_workspace_id_ref.as_str(),
+        workspace_id,
+        "browser_handoff.review_workspace_id_ref",
+    )?;
+    validate_browser_handoff_input(&ReviewWorkspaceBrowserHandoffInput {
+        handoff_id: handoff.handoff_id.clone(),
+        browser_handoff_packet_ref: handoff.browser_handoff_packet_ref.clone(),
+        destination_class: handoff.destination_class.clone(),
+        destination_ref: handoff.destination_ref.clone(),
+        object_identity_ref: handoff.object_identity_ref.clone(),
+        reason_code: handoff.reason_code.clone(),
+        return_anchor_kind: handoff.return_anchor_kind.clone(),
+        return_anchor_ref: handoff.return_anchor_ref.clone(),
+        replay_posture: handoff.replay_posture.clone(),
+        issued_at: handoff.issued_at.clone(),
+        expires_at: handoff.expires_at.clone(),
+        summary_label: handoff.summary_label.clone(),
+    })?;
+    if !handoff.reversible_handoff {
+        return Err(beta_validation_error(
+            "browser_handoff.reversible_handoff must be true",
+        ));
+    }
+    if handoff.raw_url_export_allowed {
+        return Err(beta_validation_error(
+            "browser_handoff.raw_url_export_allowed must be false",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_object_lineage(
+    lineage: &ReviewWorkspaceObjectLineageRecord,
+    workspace_id: &str,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_eq(
+        lineage.record_kind.as_str(),
+        REVIEW_WORKSPACE_OBJECT_LINEAGE_RECORD_KIND,
+        "object_lineage.record_kind",
+    )?;
+    ensure_eq(
+        lineage.schema_version,
+        REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        "object_lineage.schema_version",
+    )?;
+    ensure_eq(
+        lineage.review_workspace_id_ref.as_str(),
+        workspace_id,
+        "object_lineage.review_workspace_id_ref",
+    )?;
+    ensure_nonempty(&lineage.lineage_id, "object_lineage.lineage_id")?;
+    ensure_nonempty(
+        &lineage.source_object_ref,
+        "object_lineage.source_object_ref",
+    )?;
+    ensure_nonempty(
+        &lineage.derived_object_ref,
+        "object_lineage.derived_object_ref",
+    )?;
+    ensure_nonempty(
+        &lineage.lineage_relation_class,
+        "object_lineage.lineage_relation_class",
+    )
+}
+
+fn validate_support_export_input(
+    export: &ReviewWorkspaceSupportExportInput,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_nonempty(
+        &export.support_export_id,
+        "support_export.support_export_id",
+    )?;
+    ensure_nonempty(
+        &export.reopen_context_ref,
+        "support_export.reopen_context_ref",
+    )?;
+    ensure_nonempty(
+        &export.reopen_command_id_ref,
+        "support_export.reopen_command_id_ref",
+    )?;
+    if !export
+        .consumer_surfaces
+        .iter()
+        .any(|surface| surface == "support_export")
+    {
+        return Err(beta_validation_error(
+            "support_export.consumer_surfaces must include support_export",
+        ));
+    }
+    if !export
+        .consumer_surfaces
+        .iter()
+        .any(|surface| surface == "cli_headless_entry")
+    {
+        return Err(beta_validation_error(
+            "support_export.consumer_surfaces must include cli_headless_entry",
+        ));
+    }
+    for surface in &export.consumer_surfaces {
+        if !contains_token(REVIEW_WORKSPACE_BETA_CONSUMER_SURFACES, surface) {
+            return Err(beta_validation_error(format!(
+                "unsupported consumer_surface '{}'",
+                surface
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_support_export(
+    export: &ReviewWorkspaceSupportExportPacket,
+    workspace_id: &str,
+    durable_comment_anchors: &[ReviewWorkspaceDurableCommentAnchorRecord],
+    check_freshness: &[ReviewWorkspaceCheckFreshnessRecord],
+    object_lineage: &[ReviewWorkspaceObjectLineageRecord],
+    browser_handoff: Option<&ReviewWorkspaceBrowserHandoffRecord>,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_eq(
+        export.record_kind.as_str(),
+        REVIEW_WORKSPACE_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+        "support_export.record_kind",
+    )?;
+    ensure_eq(
+        export.schema_version,
+        REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        "support_export.schema_version",
+    )?;
+    ensure_eq(
+        export.review_workspace_id_ref.as_str(),
+        workspace_id,
+        "support_export.review_workspace_id_ref",
+    )?;
+    validate_support_export_input(&ReviewWorkspaceSupportExportInput {
+        support_export_id: export.support_export_id.clone(),
+        reopen_context_ref: export.reopen_context_ref.clone(),
+        reopen_command_id_ref: export.reopen_command_id_ref.clone(),
+        consumer_surfaces: export.consumer_surfaces.clone(),
+        redaction_class: export.redaction_class.clone(),
+        summary_label: export.summary_label.clone(),
+    })?;
+    if export.raw_comment_body_export_allowed
+        || export.raw_url_export_allowed
+        || export.raw_source_body_export_allowed
+    {
+        return Err(beta_validation_error(
+            "support_export raw export flags must all be false",
+        ));
+    }
+    if !export
+        .source_schema_refs
+        .iter()
+        .any(|schema| schema == "schemas/review/review_workspace.schema.json")
+    {
+        return Err(beta_validation_error(
+            "support_export must cite schemas/review/review_workspace.schema.json",
+        ));
+    }
+
+    let expected_anchor_refs = durable_comment_anchors
+        .iter()
+        .map(|anchor| anchor.durable_comment_anchor_id.clone())
+        .collect::<BTreeSet<_>>();
+    let actual_anchor_refs = export
+        .durable_comment_anchor_refs
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if expected_anchor_refs != actual_anchor_refs {
+        return Err(beta_validation_error(
+            "support_export durable anchor refs must match packet anchors",
+        ));
+    }
+
+    let expected_check_refs = check_freshness
+        .iter()
+        .map(|check| check.check_id.clone())
+        .collect::<BTreeSet<_>>();
+    let actual_check_refs = export
+        .check_freshness_refs
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if expected_check_refs != actual_check_refs {
+        return Err(beta_validation_error(
+            "support_export check refs must match packet checks",
+        ));
+    }
+
+    let expected_lineage_refs = object_lineage
+        .iter()
+        .map(|lineage| lineage.lineage_id.clone())
+        .collect::<BTreeSet<_>>();
+    let actual_lineage_refs = export
+        .object_lineage_refs
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if expected_lineage_refs != actual_lineage_refs {
+        return Err(beta_validation_error(
+            "support_export lineage refs must match packet lineage rows",
+        ));
+    }
+
+    match (browser_handoff, export.browser_handoff_ref.as_ref()) {
+        (Some(handoff), Some(export_ref)) if export_ref == &handoff.handoff_id => {}
+        (None, None) => {}
+        _ => {
+            return Err(beta_validation_error(
+                "support_export browser handoff ref must match packet handoff",
+            ))
+        }
+    }
+    Ok(())
+}
+
+fn validate_beta_inspection(
+    inspection: &ReviewWorkspaceBetaInspectionRecord,
+    workspace_id: &str,
+    packet: &ReviewWorkspaceBetaPacket,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    ensure_eq(
+        inspection.record_kind.as_str(),
+        REVIEW_WORKSPACE_BETA_INSPECTION_RECORD_KIND,
+        "inspection.record_kind",
+    )?;
+    ensure_eq(
+        inspection.schema_version,
+        REVIEW_WORKSPACE_BETA_SCHEMA_VERSION,
+        "inspection.schema_version",
+    )?;
+    ensure_eq(
+        inspection.review_workspace_id_ref.as_str(),
+        workspace_id,
+        "inspection.review_workspace_id_ref",
+    )?;
+    ensure_eq(
+        inspection.durable_comment_anchor_count,
+        packet.durable_comment_anchors.len(),
+        "inspection.durable_comment_anchor_count",
+    )?;
+    ensure_eq(
+        inspection.object_lineage_count,
+        packet.object_lineage.len(),
+        "inspection.object_lineage_count",
+    )?;
+    ensure_eq(
+        inspection.check_freshness_count,
+        packet.check_freshness.len(),
+        "inspection.check_freshness_count",
+    )?;
+    ensure_eq(
+        inspection.anchor_identity_preserved,
+        packet.preserves_anchor_identity(),
+        "inspection.anchor_identity_preserved",
+    )?;
+    ensure_eq(
+        inspection.check_freshness_browser_independent,
+        packet.check_freshness_is_browser_independent(),
+        "inspection.check_freshness_browser_independent",
+    )?;
+    ensure_eq(
+        inspection.typed_reversible_browser_handoff_present,
+        packet.has_typed_reversible_browser_handoff(),
+        "inspection.typed_reversible_browser_handoff_present",
+    )?;
+    ensure_eq(
+        inspection.support_export_reopenable,
+        packet.support_export_can_reopen_context(),
+        "inspection.support_export_reopenable",
+    )?;
+    ensure_eq(
+        inspection.raw_escape_hatches_absent,
+        packet.raw_escape_hatches_absent(),
+        "inspection.raw_escape_hatches_absent",
+    )?;
+    ensure_eq(
+        inspection.operator_truth_current,
+        packet.operator_truth_current(),
+        "inspection.operator_truth_current",
+    )?;
+    ensure_eq(
+        inspection.stale_check_blocks_operator_truth,
+        packet
+            .check_freshness
+            .iter()
+            .any(|check| check.blocks_operator_truth_claim_when_stale),
+        "inspection.stale_check_blocks_operator_truth",
+    )
+}
+
+fn support_export_reopenable(
+    support_export: &ReviewWorkspaceSupportExportPacket,
+    durable_comment_anchors: &[ReviewWorkspaceDurableCommentAnchorRecord],
+    check_freshness: &[ReviewWorkspaceCheckFreshnessRecord],
+    object_lineage: &[ReviewWorkspaceObjectLineageRecord],
+) -> bool {
+    !support_export.reopen_context_ref.trim().is_empty()
+        && !support_export.reopen_command_id_ref.trim().is_empty()
+        && !durable_comment_anchors.is_empty()
+        && !check_freshness.is_empty()
+        && !object_lineage.is_empty()
+        && support_export.raw_comment_body_export_allowed == false
+        && support_export.raw_url_export_allowed == false
+        && support_export.raw_source_body_export_allowed == false
+}
+
+fn validate_anchor_drift_pair(
+    state: &str,
+    action: &str,
+    remap_chain_target_id_refs: &[String],
+    archived_at: Option<&str>,
+) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    if !contains_token(REVIEW_WORKSPACE_BETA_ANCHOR_DRIFT_STATES, state) {
+        return Err(beta_validation_error(format!(
+            "unsupported anchor_drift_state '{state}'"
+        )));
+    }
+    if !contains_token(REVIEW_WORKSPACE_BETA_ANCHOR_REQUIRED_ACTIONS, action) {
+        return Err(beta_validation_error(format!(
+            "unsupported anchor_drift_required_user_action '{action}'"
+        )));
+    }
+    let expected = match state {
+        "anchor_bound_exact" | "anchor_remapped_with_recorded_mapping" => {
+            "no_user_action_required_anchor_bound_or_remapped"
+        }
+        "anchor_drifted_user_must_resolve" => "user_must_pick_successor_or_dismiss_drifted",
+        "anchor_target_deleted_re_anchor_or_resolve" => {
+            "user_must_re_anchor_or_resolve_deleted_target"
+        }
+        "anchor_scope_unavailable" => "user_must_widen_scope_or_load_pack_or_reach_remote",
+        "anchor_archived_tombstone" => "user_must_restore_from_archive_or_acknowledge_tombstone",
+        _ => unreachable!("state token checked above"),
+    };
+    if action != expected {
+        return Err(beta_validation_error(format!(
+            "anchor drift state '{state}' requires action '{expected}'"
+        )));
+    }
+    if state == "anchor_remapped_with_recorded_mapping" && remap_chain_target_id_refs.is_empty() {
+        return Err(beta_validation_error(
+            "remapped anchors must cite remap_chain_target_id_refs",
+        ));
+    }
+    if state != "anchor_remapped_with_recorded_mapping" && !remap_chain_target_id_refs.is_empty() {
+        return Err(beta_validation_error(
+            "non-remapped anchors must not cite remap_chain_target_id_refs",
+        ));
+    }
+    if state == "anchor_archived_tombstone" && archived_at.is_none() {
+        return Err(beta_validation_error(
+            "archived anchors must cite archived_at",
+        ));
+    }
+    if state != "anchor_archived_tombstone" && archived_at.is_some() {
+        return Err(beta_validation_error(
+            "non-archived anchors must not cite archived_at",
+        ));
+    }
+    Ok(())
+}
+
+fn freshness_blocks_operator_truth(class: &str) -> bool {
+    matches!(
+        class,
+        "check_stale_blocks_operator_truth" | "check_unavailable_blocks_operator_truth"
+    )
+}
+
+fn is_typed_reversible_handoff(handoff: &ReviewWorkspaceBrowserHandoffRecord) -> bool {
+    contains_token(
+        REVIEW_WORKSPACE_BETA_HANDOFF_DESTINATION_CLASSES,
+        &handoff.destination_class,
+    ) && contains_token(
+        REVIEW_WORKSPACE_BETA_HANDOFF_REASON_CODES,
+        &handoff.reason_code,
+    ) && contains_token(
+        REVIEW_WORKSPACE_BETA_HANDOFF_REPLAY_POSTURES,
+        &handoff.replay_posture,
+    ) && handoff.reversible_handoff
+        && !handoff.return_anchor_ref.trim().is_empty()
+        && !handoff.return_anchor_kind.trim().is_empty()
+        && !looks_like_raw_url(&handoff.destination_ref)
+        && !handoff.raw_url_export_allowed
+}
+
+fn looks_like_raw_url(value: &str) -> bool {
+    let lower = value.trim().to_ascii_lowercase();
+    lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("ssh://")
+        || lower.starts_with("git@")
+}
+
+fn contains_token(tokens: &[&str], value: &str) -> bool {
+    tokens.iter().any(|token| token == &value)
+}
+
+fn ensure_nonempty(value: &str, field: &str) -> Result<(), ReviewWorkspaceBetaValidationError> {
+    if value.trim().is_empty() {
+        Err(beta_validation_error(format!("{field} must not be empty")))
+    } else {
+        Ok(())
+    }
+}
+
+fn ensure_eq<T>(
+    actual: T,
+    expected: T,
+    field: &str,
+) -> Result<(), ReviewWorkspaceBetaValidationError>
+where
+    T: Copy + PartialEq + fmt::Display,
+{
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(beta_validation_error(format!(
+            "{field} expected '{expected}' but got '{actual}'"
+        )))
+    }
+}
+
+fn beta_validation_error(message: impl Into<String>) -> ReviewWorkspaceBetaValidationError {
+    ReviewWorkspaceBetaValidationError {
+        message: message.into(),
     }
 }
 
