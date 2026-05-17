@@ -53,6 +53,7 @@ pub mod desktop_continuity_alpha;
 pub mod diagnostics;
 pub mod docs_browser;
 pub mod drift_truth;
+pub mod durable_attention_beta;
 pub mod efficiency;
 pub mod embedded;
 pub mod embedded_boundary_audit;
