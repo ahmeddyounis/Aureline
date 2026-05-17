@@ -66,6 +66,7 @@ pub mod identity;
 pub mod identity_beta;
 pub mod roots;
 pub mod save;
+pub mod save_conflict_suite;
 pub mod synthetic;
 pub mod uri_model;
 pub mod watcher;

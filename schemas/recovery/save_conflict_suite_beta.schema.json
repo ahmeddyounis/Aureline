@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/save_conflict_suite_beta.schema.json",
+  "title": "Aureline difficult filesystem, external-change, and save-conflict regression suite",
+  "description": "Boundary schema for the save_conflict_suite_case_record and save_conflict_suite_report_record consumed by aureline-vfs's save_conflict_suite module. A case record binds one regression scenario class (external_change, save_conflict, permission_loss, alias_drift, difficult_save_path) on one claimed desktop platform row (linux_desktop, macos_desktop, windows_desktop) to its proving fixture from the filesystem_identity_beta corpus, its expected save/conflict behavior, its open-gap class, and the closed downgrade label that fires when the row regresses. The report record folds every claimed (scenario_class, platform_class) row into a metadata-safe matrix with per-platform pass/downgrade counts. All vocabularies are closed; a failing row downgrades using the closed downgrade_label list, never free-form prose.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/save_conflict_suite_case_record" },
+    { "$ref": "#/$defs/save_conflict_suite_report_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "scenario_class": {
+      "type": "string",
+      "enum": [
+        "external_change",
+        "save_conflict",
+        "permission_loss",
+        "alias_drift",
+        "difficult_save_path"
+      ]
+    },
+    "platform_row_class": {
+      "type": "string",
+      "enum": [
+        "linux_desktop",
+        "macos_desktop",
+        "windows_desktop"
+      ]
+    },
+    "regression_outcome_class": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "downgrade_required",
+        "blocked_until_fix"
+      ]
+    },
+    "downgrade_label": {
+      "type": "string",
+      "enum": [
+        "none",
+        "red_blocks_beta_row",
+        "yellow_platform_skew",
+        "yellow_partial_coverage",
+        "degraded_to_safe_path_only",
+        "stale_corpus_blocks_release_candidate"
+      ]
+    },
+    "open_gap_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "platform_implementation_pending",
+        "external_dependency_unstable",
+        "manual_recovery_required",
+        "watcher_fallback_only"
+      ]
+    },
+    "compare_outcome": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "external_change_detected",
+        "save_conflict",
+        "wrong_target_prevented",
+        "current_bytes_unavailable"
+      ]
+    },
+    "save_target_review_blocker": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "policy_constrained",
+        "review_required_before_save",
+        "review_required_before_rename",
+        "not_writable_per_snapshot",
+        "atomic_write_mode_blocked",
+        "divergent_unknown_alias",
+        "untrusted_workspace"
+      ]
+    },
+    "resolution_action": {
+      "type": "string",
+      "enum": [
+        "write",
+        "compare",
+        "reload_external",
+        "merge",
+        "save_as",
+        "recompare",
+        "open_alias_details",
+        "cancel"
+      ]
+    },
+    "open_gap_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gap_class", "summary"],
+      "properties": {
+        "gap_class": { "$ref": "#/$defs/open_gap_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "expected_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compare_outcome",
+        "silent_overwrite_forbidden",
+        "save_redirects_target",
+        "resolution_actions"
+      ],
+      "properties": {
+        "compare_outcome": { "$ref": "#/$defs/compare_outcome" },
+        "silent_overwrite_forbidden": { "type": "boolean" },
+        "save_redirects_target": { "type": "boolean" },
+        "resolution_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resolution_action" }
+        },
+        "required_blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/save_target_review_blocker" }
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "destructive_resets_present",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "destructive_resets_present": { "type": "boolean", "const": false },
+        "preserves_user_authored_files": { "type": "boolean", "const": true }
+      }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "matrix_doc_ref",
+        "report_ref",
+        "schema_ref",
+        "filesystem_identity_beta_doc_ref"
+      ],
+      "properties": {
+        "matrix_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "filesystem_identity_beta_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "alpha_evidence_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "save_conflict_suite_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "case_id",
+        "title",
+        "scenario_class",
+        "platform_row_class",
+        "anchor_fixture_ref",
+        "anchor_case_id",
+        "anchor_difficulty_class",
+        "expected_behavior",
+        "expected_outcome",
+        "downgrade_label",
+        "open_gaps",
+        "safety",
+        "references",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": { "type": "string", "const": "save_conflict_suite_case_record" },
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "scenario_class": { "$ref": "#/$defs/scenario_class" },
+        "platform_row_class": { "$ref": "#/$defs/platform_row_class" },
+        "anchor_fixture_ref": { "$ref": "#/$defs/non_empty_string" },
+        "anchor_case_id": { "$ref": "#/$defs/non_empty_string" },
+        "anchor_difficulty_class": {
+          "type": "string",
+          "enum": [
+            "symlink_alias",
+            "junction_alias",
+            "hardlink_sibling",
+            "case_only_drift",
+            "unicode_normalization",
+            "bind_mount_overlay",
+            "container_mount_overlay",
+            "archive_inner_overlay",
+            "remote_agent_overlay"
+          ]
+        },
+        "expected_behavior": { "$ref": "#/$defs/expected_behavior" },
+        "expected_outcome": { "$ref": "#/$defs/regression_outcome_class" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "open_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_gap_entry" }
+        },
+        "safety": { "$ref": "#/$defs/safety" },
+        "references": { "$ref": "#/$defs/references" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "report_matrix_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "scenario_class",
+        "platform_row_class",
+        "anchor_difficulty_class",
+        "compare_outcome",
+        "expected_outcome",
+        "downgrade_label",
+        "open_gap_classes"
+      ],
+      "properties": {
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "scenario_class": { "$ref": "#/$defs/scenario_class" },
+        "platform_row_class": { "$ref": "#/$defs/platform_row_class" },
+        "anchor_difficulty_class": {
+          "type": "string",
+          "enum": [
+            "symlink_alias",
+            "junction_alias",
+            "hardlink_sibling",
+            "case_only_drift",
+            "unicode_normalization",
+            "bind_mount_overlay",
+            "container_mount_overlay",
+            "archive_inner_overlay",
+            "remote_agent_overlay"
+          ]
+        },
+        "compare_outcome": { "$ref": "#/$defs/compare_outcome" },
+        "expected_outcome": { "$ref": "#/$defs/regression_outcome_class" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "open_gap_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_gap_class" }
+        }
+      }
+    },
+    "platform_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform_row_class",
+        "case_count",
+        "pass_count",
+        "downgrade_required_count",
+        "blocked_until_fix_count",
+        "open_gap_count"
+      ],
+      "properties": {
+        "platform_row_class": { "$ref": "#/$defs/platform_row_class" },
+        "case_count": { "type": "integer", "minimum": 0 },
+        "pass_count": { "type": "integer", "minimum": 0 },
+        "downgrade_required_count": { "type": "integer", "minimum": 0 },
+        "blocked_until_fix_count": { "type": "integer", "minimum": 0 },
+        "open_gap_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "save_conflict_suite_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "report_id",
+        "captured_at",
+        "matrix_doc_ref",
+        "schema_ref",
+        "corpus_manifest_ref",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "required_scenario_classes",
+        "required_platform_row_classes",
+        "matrix_rows",
+        "platform_summaries"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": { "type": "string", "const": "save_conflict_suite_report_record" },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "matrix_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "corpus_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "required_scenario_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scenario_class" }
+        },
+        "required_platform_row_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform_row_class" }
+        },
+        "matrix_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/report_matrix_row" }
+        },
+        "platform_summaries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/platform_summary_row" }
+        }
+      }
+    }
+  }
+}
