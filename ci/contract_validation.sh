@@ -107,6 +107,9 @@ python3 "${REPO_ROOT}/tools/ci/validate_ui_copy_cases.py" | tee -a "${SUMMARY_PA
 printf '\n[contract-validation] validating component conformance packets\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/ci/check_component_conformance.py" | tee -a "${SUMMARY_PATH}"
 
+printf '\n[contract-validation] validating beta component-state and token conformance packets\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/ci/check_m3_component_state_token_contract.py" --repo-root "${REPO_ROOT}" | tee -a "${SUMMARY_PATH}"
+
 printf '\n[contract-validation] validating contract-family registry and examples\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/validate_contract_family_registry.py" | tee -a "${SUMMARY_PATH}"
 
