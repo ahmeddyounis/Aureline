@@ -5,6 +5,13 @@
 //! checked-in read-only probe pack, validates the contract invariants that
 //! make diagnosis safe, and renders machine-readable and human-readable
 //! projections from the same finding vocabulary.
+//!
+//! The [`beta`] submodule projects the beta Project Doctor probe-pack catalog
+//! and findings from `aureline_doctor::probes::beta` into a metadata-safe
+//! support packet so UI, CLI, and support exports render the same finding
+//! packet without re-deriving it from a side channel.
+
+pub mod beta;
 
 use std::collections::{BTreeMap, BTreeSet};
 

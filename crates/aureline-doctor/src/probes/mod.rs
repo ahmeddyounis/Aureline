@@ -5,6 +5,14 @@
 //! or reopen sessions. Callers pass typed evidence harvested by the owning
 //! surfaces; Doctor validates that the packet is safe to diagnose and projects
 //! one stable finding.
+//!
+//! The [`beta`] submodule promotes Project Doctor from alpha to a versioned,
+//! attributable, confidence-labeled diagnosis system with a named probe-pack
+//! catalog. Both modules share the alpha vocabulary; the beta lane adds the
+//! pack catalog, supported-context and handoff vocabularies, and the
+//! metadata-safe support packet.
+
+pub mod beta;
 
 use std::error::Error;
 use std::fmt;
