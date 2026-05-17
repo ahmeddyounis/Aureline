@@ -54,7 +54,10 @@ fn fingerprint_fixture_carries_full_coverage() {
         other => panic!("expected fingerprint record, got {other:?}"),
     };
     assert_eq!(fingerprint.record_kind, PREBUILD_FINGERPRINT_RECORD_KIND);
-    assert_eq!(fingerprint.freshness.freshness_age_class, "fresh_under_window");
+    assert_eq!(
+        fingerprint.freshness.freshness_age_class,
+        "fresh_under_window"
+    );
     assert!(fingerprint
         .redaction_and_portability
         .excluded_residue_classes
@@ -80,26 +83,27 @@ fn reuse_allowed_fixture_clears_invalidation_set() {
 
 #[test]
 fn stale_snapshot_resume_request_is_denied() {
-    let payload = std::fs::read_to_string(
-        fixtures_dir().join("stale_snapshot_resume_denied_decision.json"),
-    )
-    .expect("stale-snapshot fixture must read");
+    let payload =
+        std::fs::read_to_string(fixtures_dir().join("stale_snapshot_resume_denied_decision.json"))
+            .expect("stale-snapshot fixture must read");
     let record = parse_prebuild_alpha_record(&payload).expect("stale-snapshot must parse");
     let decision = match record {
         PrebuildAlphaRecord::ReuseDecision(record) => record,
         other => panic!("expected reuse decision record, got {other:?}"),
     };
     assert_eq!(decision.requested_path, "resume_live_workspace");
-    assert_eq!(decision.source_materialization_class, "stale_prebuild_snapshot");
+    assert_eq!(
+        decision.source_materialization_class,
+        "stale_prebuild_snapshot"
+    );
     assert_eq!(decision.reuse_outcome, "resume_live_denied");
 }
 
 #[test]
 fn local_override_disclosure_requires_rebuild() {
-    let payload = std::fs::read_to_string(
-        fixtures_dir().join("local_override_rebuild_disclosure.json"),
-    )
-    .expect("local-override fixture must read");
+    let payload =
+        std::fs::read_to_string(fixtures_dir().join("local_override_rebuild_disclosure.json"))
+            .expect("local-override fixture must read");
     let record = parse_prebuild_alpha_record(&payload).expect("disclosure must parse");
     let disclosure = match record {
         PrebuildAlphaRecord::Disclosure(record) => record,
@@ -108,7 +112,10 @@ fn local_override_disclosure_requires_rebuild() {
     assert_eq!(disclosure.record_kind, PREBUILD_DISCLOSURE_RECORD_KIND);
     assert!(disclosure.rebuild_required);
     assert!(disclosure.local_override_disclosed);
-    assert_eq!(disclosure.disclosure_state, "local_override_rebuild_required");
+    assert_eq!(
+        disclosure.disclosure_state,
+        "local_override_rebuild_required"
+    );
     assert!(disclosure
         .excluded_residue_classes
         .iter()
@@ -135,10 +142,9 @@ fn fresh_clone_disclosure_stays_distinct() {
 
 #[test]
 fn rejects_resume_live_on_snapshot_with_widened_outcome() {
-    let payload = std::fs::read_to_string(
-        fixtures_dir().join("stale_snapshot_resume_denied_decision.json"),
-    )
-    .expect("stale-snapshot fixture must read");
+    let payload =
+        std::fs::read_to_string(fixtures_dir().join("stale_snapshot_resume_denied_decision.json"))
+            .expect("stale-snapshot fixture must read");
     let mut decision: PrebuildReuseDecisionRecord =
         serde_json::from_str(&payload).expect("decision must parse");
     decision.reuse_outcome = "reuse_after_revalidation".to_string();
@@ -155,7 +161,9 @@ fn rejects_fingerprint_with_widened_capture() {
             .expect("fingerprint fixture must read");
     let mut fingerprint: PrebuildFingerprintRecord =
         serde_json::from_str(&payload).expect("fingerprint must parse");
-    fingerprint.redaction_and_portability.broadened_capture_approved = true;
+    fingerprint
+        .redaction_and_portability
+        .broadened_capture_approved = true;
     let err = fingerprint
         .validate()
         .expect_err("broadened capture must be rejected");
@@ -167,10 +175,9 @@ fn rejects_fingerprint_with_widened_capture() {
 
 #[test]
 fn rejects_disclosure_with_missing_residue_exclusion() {
-    let payload = std::fs::read_to_string(
-        fixtures_dir().join("local_override_rebuild_disclosure.json"),
-    )
-    .expect("disclosure fixture must read");
+    let payload =
+        std::fs::read_to_string(fixtures_dir().join("local_override_rebuild_disclosure.json"))
+            .expect("disclosure fixture must read");
     let mut disclosure: PrebuildDisclosureRecord =
         serde_json::from_str(&payload).expect("disclosure must parse");
     disclosure

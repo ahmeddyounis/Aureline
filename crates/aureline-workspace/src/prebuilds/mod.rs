@@ -427,7 +427,11 @@ pub struct PrebuildFingerprintRecord {
     pub freshness: PrebuildFreshness,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub support_packet_ref: Option<String>,
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture_metadata: Option<JsonValue>,
 }
 
@@ -455,7 +459,11 @@ pub struct PrebuildReuseDecisionRecord {
     pub local_override_ref: Option<String>,
     pub disclosure_record_ref: String,
     pub support_packet_inclusion: String,
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture_metadata: Option<JsonValue>,
 }
 
@@ -491,7 +499,11 @@ pub struct PrebuildDisclosureRecord {
     pub alternative_lane_refs: Vec<String>,
     pub excluded_residue_classes: Vec<String>,
     pub summary: String,
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture_metadata: Option<JsonValue>,
 }
 
@@ -984,7 +996,11 @@ fn validate_fingerprint(
     }
     let mut seen_artifact_refs: BTreeSet<&str> = BTreeSet::new();
     for artifact in &record.cache_artifacts {
-        require_one_of("cache_artifacts[].cache_class", CACHE_CLASSES, &artifact.cache_class)?;
+        require_one_of(
+            "cache_artifacts[].cache_class",
+            CACHE_CLASSES,
+            &artifact.cache_class,
+        )?;
         require_non_empty("cache_artifacts[].artifact_ref", &artifact.artifact_ref)?;
         require_non_empty("cache_artifacts[].digest_ref", &artifact.digest_ref)?;
         if !seen_artifact_refs.insert(artifact.artifact_ref.as_str()) {
@@ -1038,16 +1054,27 @@ fn validate_reuse_decision(
         )));
     }
     require_non_empty("decision_id", &record.decision_id)?;
-    require_non_empty("candidate_fingerprint_ref", &record.candidate_fingerprint_ref)?;
+    require_non_empty(
+        "candidate_fingerprint_ref",
+        &record.candidate_fingerprint_ref,
+    )?;
     require_non_empty("current_fingerprint_ref", &record.current_fingerprint_ref)?;
     require_non_empty("disclosure_record_ref", &record.disclosure_record_ref)?;
-    require_one_of("requested_path", PREBUILD_PATH_CLASSES, &record.requested_path)?;
+    require_one_of(
+        "requested_path",
+        PREBUILD_PATH_CLASSES,
+        &record.requested_path,
+    )?;
     require_one_of(
         "source_materialization_class",
         SOURCE_MATERIALIZATION_CLASSES,
         &record.source_materialization_class,
     )?;
-    require_one_of("reuse_outcome", REUSE_OUTCOME_CLASSES, &record.reuse_outcome)?;
+    require_one_of(
+        "reuse_outcome",
+        REUSE_OUTCOME_CLASSES,
+        &record.reuse_outcome,
+    )?;
     require_one_of(
         "support_packet_inclusion",
         SUPPORT_PACKET_INCLUSION_CLASSES,
@@ -1055,7 +1082,11 @@ fn validate_reuse_decision(
     )?;
 
     for cls in &record.required_revalidations {
-        require_one_of("required_revalidations[]", REQUIRED_REVALIDATION_CLASSES, cls)?;
+        require_one_of(
+            "required_revalidations[]",
+            REQUIRED_REVALIDATION_CLASSES,
+            cls,
+        )?;
     }
     require_unique("required_revalidations", &record.required_revalidations)?;
     require_unique("invalidation_bundle_refs", &record.invalidation_bundle_refs)?;
@@ -1126,7 +1157,11 @@ fn validate_disclosure(
         DISCLOSURE_STATE_CLASSES,
         &record.disclosure_state,
     )?;
-    require_one_of("requested_path", PREBUILD_PATH_CLASSES, &record.requested_path)?;
+    require_one_of(
+        "requested_path",
+        PREBUILD_PATH_CLASSES,
+        &record.requested_path,
+    )?;
     require_one_of(
         "source_materialization_class",
         SOURCE_MATERIALIZATION_CLASSES,
@@ -1138,9 +1173,17 @@ fn validate_disclosure(
         &record.freshness_age_class,
     )?;
     require_one_of("host_class", HOST_CLASSES, &record.host_class)?;
-    require_one_of("platform_arch", PLATFORM_ARCH_CLASSES, &record.platform_arch)?;
+    require_one_of(
+        "platform_arch",
+        PLATFORM_ARCH_CLASSES,
+        &record.platform_arch,
+    )?;
     for cls in &record.required_revalidations {
-        require_one_of("required_revalidations[]", REQUIRED_REVALIDATION_CLASSES, cls)?;
+        require_one_of(
+            "required_revalidations[]",
+            REQUIRED_REVALIDATION_CLASSES,
+            cls,
+        )?;
     }
     require_unique("required_revalidations", &record.required_revalidations)?;
     for cls in &record.alternative_lane_refs {
@@ -1272,10 +1315,7 @@ fn require_equal(
     }
 }
 
-fn require_non_empty(
-    label: &str,
-    value: &str,
-) -> Result<(), PrebuildFingerprintValidationError> {
+fn require_non_empty(label: &str, value: &str) -> Result<(), PrebuildFingerprintValidationError> {
     if value.trim().is_empty() {
         Err(PrebuildFingerprintValidationError::new(format!(
             "{label} must be a non-empty string"
@@ -1379,7 +1419,10 @@ mod tests {
             .expect("local override fixture must project");
         assert!(projection.rebuild_required);
         assert!(projection.local_override_disclosed);
-        assert_eq!(projection.disclosure_state, "local_override_rebuild_required");
+        assert_eq!(
+            projection.disclosure_state,
+            "local_override_rebuild_required"
+        );
     }
 
     #[test]
