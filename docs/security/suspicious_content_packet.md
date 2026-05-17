@@ -37,6 +37,12 @@ Companion artifacts:
   downgrade, embedded isolated-remote webview, package/install review,
   remote-attach approval, delete review, support export, and the
   browser-handoff / blocked-execution path.
+- [`/docs/security/m3/content_integrity_beta.md`](./m3/content_integrity_beta.md)
+  and
+  [`/fixtures/content_safety/m3/shared_detector/`](../../fixtures/content_safety/m3/shared_detector/)
+  — beta gate packet that proves the shared detector, warning classes, and
+  raw/rendered/sanitized/redacted transfer labels stay green across declared
+  surfaces.
 - [`/artifacts/security/safe_preview_examples/`](../../artifacts/security/safe_preview_examples/)
   — baseline reviewer-facing affordance examples showing how the
   product labels raw versus rendered content, active-content risk, and

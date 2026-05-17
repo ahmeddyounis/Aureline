@@ -38,6 +38,7 @@ pub mod content_integrity;
 pub mod detector;
 pub mod records;
 pub mod representation_copy_export;
+pub mod suspicious_content;
 pub mod suspicious_text;
 pub mod transfer;
 
@@ -66,6 +67,20 @@ pub use representation_copy_export::{
     PROTECTED_COPY_EXPORT_SURFACES, REPRESENTATION_COPY_EXPORT_ALPHA_PACKET_RECORD_KIND,
     REPRESENTATION_COPY_EXPORT_ALPHA_SCHEMA_VERSION,
     REPRESENTATION_COPY_EXPORT_VALIDATION_REPORT_RECORD_KIND,
+};
+pub use suspicious_content::{
+    current_content_integrity_beta_packet, ContentIntegrityBetaArtifactError,
+    ContentIntegrityBetaCase, ContentIntegrityBetaGateStatus, ContentIntegrityBetaPacket,
+    ContentIntegrityBetaSurfaceInput, ContentIntegrityBetaSurfaceKind,
+    ContentIntegrityBetaSurfaceRow, ContentIntegrityBetaValidationReport,
+    ContentIntegrityBetaViolation, ContentIntegrityOperatorTruthControls,
+    ContentIntegrityRepresentationChoice, ContentIntegrityRepresentationChoiceInput,
+    ContentIntegrityRepresentationClass, ContentIntegrityTransferKind,
+    CONTENT_INTEGRITY_BETA_DOC_REF, CONTENT_INTEGRITY_BETA_FIXTURE_DIR,
+    CONTENT_INTEGRITY_BETA_PACKET_RECORD_KIND, CONTENT_INTEGRITY_BETA_PACKET_REF,
+    CONTENT_INTEGRITY_BETA_REQUIRED_SURFACES, CONTENT_INTEGRITY_BETA_SCHEMA_VERSION,
+    CONTENT_INTEGRITY_BETA_VALIDATION_REPORT_RECORD_KIND,
+    CONTENT_INTEGRITY_REQUIRED_REPRESENTATIONS,
 };
 pub use suspicious_text::{
     project_suspicious_text_core_surfaces, SuspiciousTextAnchor, SuspiciousTextLocationKind,

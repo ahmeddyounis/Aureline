@@ -30,10 +30,18 @@ pub enum ContentIntegritySurfaceKind {
     Diff,
     /// Search result row, quick-open row, or snippet.
     Search,
+    /// Review workspace hunk, thread, or review packet anchor.
+    Review,
+    /// Documentation/help page or docs preview surface.
+    Docs,
     /// Safe preview card or rich preview shell.
     Preview,
     /// Package, marketplace, or install-review surface.
     Package,
+    /// AI context, evidence, or tainted-context projection.
+    AiContext,
+    /// Support export or diagnostics packet review surface.
+    SupportExport,
 }
 
 impl ContentIntegritySurfaceKind {
@@ -43,8 +51,12 @@ impl ContentIntegritySurfaceKind {
             Self::Editor => "editor",
             Self::Diff => "diff",
             Self::Search => "search",
+            Self::Review => "review",
+            Self::Docs => "docs",
             Self::Preview => "preview",
             Self::Package => "package",
+            Self::AiContext => "ai_context",
+            Self::SupportExport => "support_export",
         }
     }
 }

@@ -217,6 +217,336 @@ def validate_path_refs(
             )
 
 
+def validate_content_integrity_beta_gate(
+    repo_root: Path,
+    gate: dict[str, Any],
+    claimed_surfaces: list[Any],
+    findings: list[Finding],
+) -> None:
+    start_finding_count = len(findings)
+    packet_ref = ensure_str(gate.get("packet_ref"), "register.content_integrity_beta.packet_ref")
+    validate_path_refs(
+        repo_root,
+        [
+            packet_ref,
+            gate.get("doc_ref"),
+            gate.get("fixture_dir_ref"),
+        ],
+        "register.content_integrity_beta.refs",
+        findings,
+    )
+
+    required_status = ensure_str(
+        gate.get("required_status"),
+        "register.content_integrity_beta.required_status",
+    )
+    if required_status != "green":
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.required_status",
+                message="content_integrity_beta.required_status must be green",
+                remediation="Keep the gate fail-closed by requiring green content-integrity validation.",
+                ref=packet_ref,
+            )
+        )
+
+    packet_path = repo_root / strip_fragment(packet_ref)
+    try:
+        packet = ensure_dict(load_json(packet_path), "content_integrity_beta.packet")
+    except SystemExit as exc:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.packet_missing",
+                message=str(exc),
+                remediation="Regenerate the content-integrity beta packet and commit it with the register update.",
+                ref=packet_ref,
+            )
+        )
+        return
+
+    if ensure_str(packet.get("record_kind"), "content_integrity_beta.packet.record_kind") != "content_integrity_beta_packet":
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.packet_record_kind",
+                message="content-integrity beta packet has the wrong record kind",
+                remediation="Regenerate the packet with the content_integrity_beta CLI.",
+                ref=packet_ref,
+            )
+        )
+    if ensure_int(packet.get("schema_version"), "content_integrity_beta.packet.schema_version") != 1:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.packet_schema_version",
+                message="content-integrity beta packet schema_version must be 1",
+                remediation="Update the validator in the same change that bumps the packet schema.",
+                ref=packet_ref,
+            )
+        )
+    if packet.get("normalization_applied") is not False:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.normalization_applied",
+                message="content-integrity beta packet normalized or stripped source bytes",
+                remediation="Regenerate the packet from the shared detector without normalizing raw content.",
+                ref=packet_ref,
+            )
+        )
+
+    required_surface_tokens = {
+        ensure_str(token, "register.content_integrity_beta.required_surface_tokens[]")
+        for token in ensure_list(
+            gate.get("required_surface_tokens"),
+            "register.content_integrity_beta.required_surface_tokens",
+        )
+    }
+    required_warning_tokens = {
+        ensure_str(token, "register.content_integrity_beta.required_warning_class_tokens[]")
+        for token in ensure_list(
+            gate.get("required_warning_class_tokens"),
+            "register.content_integrity_beta.required_warning_class_tokens",
+        )
+    }
+    required_representation_tokens = {
+        ensure_str(token, "register.content_integrity_beta.required_representation_tokens[]")
+        for token in ensure_list(
+            gate.get("required_representation_tokens"),
+            "register.content_integrity_beta.required_representation_tokens",
+        )
+    }
+    claim_states_requiring_gate = {
+        ensure_str(token, "register.content_integrity_beta.required_for_claim_states[]")
+        for token in ensure_list(
+            gate.get("required_for_claim_states"),
+            "register.content_integrity_beta.required_for_claim_states",
+        )
+    }
+
+    packet_warning_tokens = set(
+        ensure_str(token, "content_integrity_beta.packet.finding_class_tokens[]")
+        for token in ensure_list(
+            packet.get("finding_class_tokens"),
+            "content_integrity_beta.packet.finding_class_tokens",
+        )
+    )
+    if not required_warning_tokens <= packet_warning_tokens:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.warning_classes_missing",
+                message="content-integrity beta packet is missing required suspicious-content classes",
+                remediation="Refresh the packet from the shared detector fixture so all required warning classes are present.",
+                ref=packet_ref,
+                details={"missing": sorted(required_warning_tokens - packet_warning_tokens)},
+            )
+        )
+
+    rows = ensure_list(packet.get("surfaces"), "content_integrity_beta.packet.surfaces")
+    surface_tokens: set[str] = set()
+    representation_tokens: set[str] = set()
+    claimed_surface_ids = {
+        ensure_str(
+            ensure_dict(row, "register.claimed_surfaces[]").get("surface_id"),
+            "register.claimed_surfaces[].surface_id",
+        )
+        for row in claimed_surfaces
+    }
+    for idx, raw_row in enumerate(rows):
+        row = ensure_dict(raw_row, f"content_integrity_beta.packet.surfaces[{idx}]")
+        surface_token = ensure_str(row.get("surface_token"), f"content_integrity_beta.packet.surfaces[{idx}].surface_token")
+        surface_tokens.add(surface_token)
+        declared_ref = ensure_str(
+            row.get("declared_beta_surface_ref"),
+            f"content_integrity_beta.packet.surfaces[{idx}].declared_beta_surface_ref",
+        )
+        if declared_ref not in claimed_surface_ids:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="register.content_integrity_beta.declared_surface_unknown",
+                    message=f"content-integrity packet cites unknown claimed surface {declared_ref}",
+                    remediation="Bind packet rows only to ids in claimed_surfaces.",
+                    ref=declared_ref,
+                )
+            )
+        row_warning_tokens = set(
+            ensure_str(token, f"content_integrity_beta.packet.surfaces[{idx}].warning_class_tokens[]")
+            for token in ensure_list(
+                row.get("warning_class_tokens"),
+                f"content_integrity_beta.packet.surfaces[{idx}].warning_class_tokens",
+            )
+        )
+        if row_warning_tokens != packet_warning_tokens:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="register.content_integrity_beta.surface_warning_class_drift",
+                    message=f"surface {surface_token} warning classes drift from packet classes",
+                    remediation="Regenerate the packet so every surface reads the same detector result.",
+                    ref=packet_ref,
+                    details={"surface": surface_token},
+                )
+            )
+        warnings = ensure_list(
+            row.get("content_integrity_warnings"),
+            f"content_integrity_beta.packet.surfaces[{idx}].content_integrity_warnings",
+        )
+        if not warnings:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="register.content_integrity_beta.surface_warnings_missing",
+                    message=f"surface {surface_token} carries no content-integrity warnings",
+                    remediation="Regenerate the packet so each surface carries shared warning records.",
+                    ref=packet_ref,
+                )
+            )
+        for warning in warnings:
+            warning_row = ensure_dict(warning, f"content_integrity_beta.packet.surfaces[{idx}].content_integrity_warnings[]")
+            if ensure_str(warning_row.get("record_kind"), "content_integrity_warning.record_kind") != "content_integrity_warning_record":
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="register.content_integrity_beta.warning_record_kind",
+                        message=f"surface {surface_token} carries a non-shared warning record",
+                        remediation="Use content_integrity_warning_record rows emitted by aureline-content-safety.",
+                        ref=packet_ref,
+                    )
+                )
+                break
+        controls = ensure_dict(
+            row.get("operator_truth"),
+            f"content_integrity_beta.packet.surfaces[{idx}].operator_truth",
+        )
+        for key in (
+            "trust_class_badge_visible",
+            "raw_rendered_state_visible",
+            "copy_export_representation_labels_visible",
+            "review_flow_preserves_warning_refs",
+            "support_export_preserves_warning_refs",
+        ):
+            if controls.get(key) is not True:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="register.content_integrity_beta.operator_truth_not_green",
+                        message=f"surface {surface_token} has operator-truth control {key} disabled",
+                        remediation="Block the beta claim or restore the missing content-integrity truth control.",
+                        ref=packet_ref,
+                    )
+                )
+        choices = ensure_list(
+            row.get("representation_choices"),
+            f"content_integrity_beta.packet.surfaces[{idx}].representation_choices",
+        )
+        if sum(1 for choice in choices if ensure_dict(choice, "representation_choice").get("default_for_surface") is True) != 1:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="register.content_integrity_beta.default_representation_invalid",
+                    message=f"surface {surface_token} must declare exactly one default representation action",
+                    remediation="Refresh representation choices so the active copy/export default is unambiguous.",
+                    ref=packet_ref,
+                )
+            )
+        for choice in choices:
+            choice_row = ensure_dict(choice, f"content_integrity_beta.packet.surfaces[{idx}].representation_choices[]")
+            representation = ensure_str(
+                choice_row.get("representation_class"),
+                f"content_integrity_beta.packet.surfaces[{idx}].representation_choices[].representation_class",
+            )
+            representation_tokens.add(representation)
+            if not ensure_str(
+                choice_row.get("visible_label"),
+                f"content_integrity_beta.packet.surfaces[{idx}].representation_choices[].visible_label",
+            ):
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="register.content_integrity_beta.representation_label_missing",
+                        message=f"surface {surface_token} has a representation choice without a label",
+                        remediation="Name every copy/export representation explicitly.",
+                        ref=packet_ref,
+                    )
+                )
+            if choice_row.get("review_flow_visible") is not True:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="register.content_integrity_beta.representation_not_review_visible",
+                        message=f"surface {surface_token} representation {representation} is not visible in review flow",
+                        remediation="Keep raw/rendered/sanitized/redacted choices visible through review handoff.",
+                        ref=packet_ref,
+                    )
+                )
+            if representation == "redacted" and choice_row.get("redaction_applied") is not True:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="register.content_integrity_beta.redacted_without_redaction",
+                        message=f"surface {surface_token} declares redacted output without applying redaction",
+                        remediation="Apply redaction or remove the redacted representation claim.",
+                        ref=packet_ref,
+                    )
+                )
+            if representation in {"sanitized", "redacted"} and choice_row.get("support_export_safe") is not True:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="register.content_integrity_beta.support_export_not_safe",
+                        message=f"surface {surface_token} representation {representation} is not support-export safe",
+                        remediation="Mark only support-safe sanitized/redacted representations as exportable.",
+                        ref=packet_ref,
+                    )
+                )
+
+    if not required_surface_tokens <= surface_tokens:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.surface_tokens_missing",
+                message="content-integrity beta packet is missing required surfaces",
+                remediation="Regenerate the packet with all declared beta content-integrity surfaces.",
+                ref=packet_ref,
+                details={"missing": sorted(required_surface_tokens - surface_tokens)},
+            )
+        )
+    if not required_representation_tokens <= representation_tokens:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.representation_tokens_missing",
+                message="content-integrity beta packet is missing required representation labels",
+                remediation="Expose raw, rendered, sanitized, and redacted labels before claiming beta.",
+                ref=packet_ref,
+                details={"missing": sorted(required_representation_tokens - representation_tokens)},
+            )
+        )
+
+    has_required_claim = any(
+        ensure_str(
+            ensure_dict(row, "register.claimed_surfaces[]").get("claim_state"),
+            "register.claimed_surfaces[].claim_state",
+        )
+        in claim_states_requiring_gate
+        for row in claimed_surfaces
+    )
+    if has_required_claim and len(findings) > start_finding_count:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="register.content_integrity_beta.blocks_beta_claim",
+                message="beta claimed surfaces are blocked because the content-integrity packet is not green",
+                remediation="Fix the packet or narrow the affected beta claims before admission.",
+                ref=packet_ref,
+            )
+        )
+
+
 def validate_header(
     payload: dict[str, Any],
     label: str,
@@ -294,6 +624,10 @@ def validate_register(
         ],
         "register.primary_refs",
         findings,
+    )
+    content_integrity_beta = ensure_dict(
+        register.get("content_integrity_beta"),
+        "register.content_integrity_beta",
     )
 
     change_control = ensure_dict(register.get("change_control"), "register.change_control")
@@ -393,6 +727,12 @@ def validate_register(
                 details={"missing": sorted(missing_required_surfaces)},
             )
         )
+    validate_content_integrity_beta_gate(
+        repo_root,
+        content_integrity_beta,
+        claimed_surfaces,
+        findings,
+    )
 
     archetype_rows = ensure_list(register.get("claimed_archetype_rows"), "register.claimed_archetype_rows")
     archetype_refs_used: set[str] = set()

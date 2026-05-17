@@ -11,6 +11,10 @@ rules.
 - Claimed-surface register: `artifacts/milestones/m3/claimed_surface_register.json`
 - Cohort guardrails: `artifacts/milestones/m3/cohort_guardrails.yaml`
 - Dependency graph (Mermaid): `artifacts/milestones/m3/dependency_graph.mmd`
+- Content-integrity beta packet:
+  `artifacts/security/m3/content_integrity_beta_packet.json`
+- Content-integrity beta contract:
+  `docs/security/m3/content_integrity_beta.md`
 - Beta admission validator: `ci/check_beta_admission.py`
 - Latest validation capture: `artifacts/milestones/m3/captures/beta_admission_validation_capture.json`
 
@@ -217,6 +221,9 @@ The beta admission freeze is green when:
   downgrade rule;
 - every claimed archetype row binds to a `archetype_row:*` id from
   `artifacts/compat/reference_workspace_rows.yaml`;
+- the content-integrity beta packet is green and covers editor, diff, search,
+  review, docs, safe-preview, install-review, AI-context, and support-export
+  rows with shared suspicious-content classes;
 - every cohort lists intake requirements, evidence classes, graduation
   criteria, and downgrade rules;
 - held and explicitly out-of-scope rows require release-council review and a
@@ -276,6 +283,10 @@ Run the beta-admission validator:
 
 `python3 ci/check_beta_admission.py --repo-root .`
 
+Run the content-integrity beta packet validator directly:
+
+`cargo run -q -p aureline-content-safety --bin content_integrity_beta -- fixtures/content_safety/m3/shared_detector/shared_beta_surfaces.json`
+
 Optional machine-readable report:
 
 `python3 ci/check_beta_admission.py --repo-root . --report artifacts/milestones/m3/captures/beta_admission_validation_capture.json`
@@ -312,7 +323,9 @@ the index, template, or policy.
    surface points to at least one cohort id with current downgrade rules.
 3. Update `artifacts/milestones/m3/dependency_graph.mmd` when an upstream
    contract, fixture, consumer, or validator changes.
-4. Refresh this page when the user-visible beta claim surface changes.
-5. Refresh the cohort and archetype scorecards plus their indices when
+4. Refresh `artifacts/security/m3/content_integrity_beta_packet.json` when a
+   claimed row changes safe-preview, suspicious-content, or copy/export truth.
+5. Refresh this page when the user-visible beta claim surface changes.
+6. Refresh the cohort and archetype scorecards plus their indices when
    evidence dates, waivers, or downgrade triggers change.
-6. Run both validators and refresh the captures in the same change set.
+7. Run both validators and refresh the captures in the same change set.
