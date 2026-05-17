@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/distributed_compatibility_manifest.schema.json",
+  "title": "Aureline beta distributed compatibility manifest",
+  "description": "Machine-readable beta manifest for one distributed compatibility family. The record is generated from the governed compatibility report, the skew-window declarations, and the version-skew register. It carries row refs, declared negotiation fields, upgrade and rollback order, supported and unsupported skew cases, downgrade behavior, and support/export refs without private compatibility notes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "manifest_id",
+    "manifest_family",
+    "family_label",
+    "manifest_revision",
+    "release_channel_scope",
+    "as_of",
+    "generated_at",
+    "source_refs",
+    "consuming_surfaces",
+    "rows",
+    "harness_case_refs",
+    "release_packet_ref",
+    "support_export_projection_ref"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "distributed_compatibility_manifest" },
+    "manifest_id": {
+      "type": "string",
+      "pattern": "^distributed_compat:[a-z0-9]+(?:[._-][a-z0-9]+)*\\.beta$"
+    },
+    "manifest_family": {
+      "type": "string",
+      "enum": ["client_helper", "client_extension", "schema", "provider"]
+    },
+    "family_label": { "$ref": "#/$defs/non_empty_string" },
+    "manifest_revision": { "type": "integer", "minimum": 1 },
+    "release_channel_scope": {
+      "type": "string",
+      "enum": ["nightly", "preview", "beta", "stable", "lts", "hotfix"]
+    },
+    "as_of": { "type": "string", "format": "date" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source_refs": { "$ref": "#/$defs/ref_map" },
+    "consuming_surfaces": { "$ref": "#/$defs/non_empty_ref_array" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/manifest_row" }
+    },
+    "harness_case_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+    "release_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+    "support_export_projection_ref": { "$ref": "#/$defs/non_empty_string" },
+    "notes": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "ref_map": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/non_empty_string" },
+      "minProperties": 1
+    },
+    "non_empty_ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "support_class": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["declared", "effective", "downgrade_triggers_fired"],
+      "properties": {
+        "declared": { "$ref": "#/$defs/non_empty_string" },
+        "effective": { "$ref": "#/$defs/non_empty_string" },
+        "downgrade_triggers_fired": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "scorecard_ref": {}
+      }
+    },
+    "client_scope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["deployment_profiles", "primary_cohort_refs", "claimed_beta_surface_refs"],
+      "properties": {
+        "deployment_profiles": { "$ref": "#/$defs/non_empty_ref_array" },
+        "primary_cohort_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "claimed_beta_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "skew_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skew_window_id",
+        "window_class",
+        "summary",
+        "version_skew_register_ref",
+        "current_skew_case_ref"
+      ],
+      "properties": {
+        "skew_window_id": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "pattern": "^skew_window:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+            }
+          ]
+        },
+        "window_class": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "version_skew_register_ref": {
+          "type": "string",
+          "pattern": "^skew_register:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "current_skew_case_ref": {
+          "type": "string",
+          "pattern": "^skew_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        }
+      }
+    },
+    "order_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_order", "notes"],
+      "properties": {
+        "declared_order": { "$ref": "#/$defs/non_empty_ref_array" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "state_behavior": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["support_class", "state_preservation_note"],
+      "properties": {
+        "support_class": { "$ref": "#/$defs/non_empty_string" },
+        "state_preservation_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "unsupported_state_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state_class", "out_of_window_posture", "contract_rule"],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/non_empty_string" },
+        "out_of_window_posture": {
+          "type": "string",
+          "enum": ["fail_closed", "read_only", "degraded", "explicitly_unsupported"]
+        },
+        "contract_rule": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "skew_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skew_case_ref",
+        "status",
+        "combination_label",
+        "window_class",
+        "outside_window_posture"
+      ],
+      "properties": {
+        "skew_case_ref": {
+          "type": "string",
+          "pattern": "^skew_case:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["supported", "best_effort", "untested", "unsupported"]
+        },
+        "combination_label": { "$ref": "#/$defs/non_empty_string" },
+        "window_class": { "$ref": "#/$defs/non_empty_string" },
+        "outside_window_posture": { "$ref": "#/$defs/non_empty_string" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        }
+      }
+    },
+    "skew_cases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported", "best_effort", "untested", "unsupported"],
+      "properties": {
+        "supported": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/skew_case" }
+        },
+        "best_effort": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/skew_case" }
+        },
+        "untested": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/skew_case" }
+        },
+        "unsupported": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/skew_case" }
+        }
+      }
+    },
+    "manifest_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_row_id",
+        "compatibility_report_row_ref",
+        "compatibility_row_ref",
+        "row_scope",
+        "artifact_or_protocol_boundary_label",
+        "claimed_surface",
+        "support_class",
+        "client_scope",
+        "skew_window",
+        "boundary_family",
+        "negotiation_fields",
+        "upgrade_order",
+        "rollback_order",
+        "downgrade_behavior",
+        "unsupported_state_behavior",
+        "repair_hints",
+        "skew_cases",
+        "evidence_refs",
+        "notes"
+      ],
+      "properties": {
+        "manifest_row_id": {
+          "type": "string",
+          "pattern": "^distributed_compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "compatibility_report_row_ref": { "$ref": "#/$defs/non_empty_string" },
+        "compatibility_row_ref": {
+          "type": "string",
+          "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "row_scope": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_or_protocol_boundary_label": { "$ref": "#/$defs/non_empty_string" },
+        "claimed_surface": { "$ref": "#/$defs/non_empty_string" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "skew_window": { "$ref": "#/$defs/skew_window" },
+        "boundary_family": { "$ref": "#/$defs/non_empty_string" },
+        "negotiation_fields": { "$ref": "#/$defs/non_empty_ref_array" },
+        "upgrade_order": { "$ref": "#/$defs/order_record" },
+        "rollback_order": { "$ref": "#/$defs/order_record" },
+        "downgrade_behavior": { "$ref": "#/$defs/state_behavior" },
+        "unsupported_state_behavior": { "$ref": "#/$defs/unsupported_state_behavior" },
+        "repair_hints": { "$ref": "#/$defs/non_empty_ref_array" },
+        "skew_cases": { "$ref": "#/$defs/skew_cases" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

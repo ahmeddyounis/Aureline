@@ -80,6 +80,17 @@ The only admitted `triage_lane` values are `hotfix`, `backport`,
 `correction_train_only`, and `next_cycle`; supported-line decisions use
 `backport_decision` values `yes`, `no`, `defer`, or `not_applicable`.
 
+Distributed compatibility state is read through the generated manifest index at
+`artifacts/compat/m3/distributed_manifests/manifest_index.json`, the family
+manifests under `artifacts/compat/m3/distributed_manifests/`, the release
+packet at
+`artifacts/release/m3/distributed_compatibility/release_packet.json`, and the
+support export projection at
+`artifacts/release/m3/distributed_compatibility/support_export_projection.json`.
+Help / About, release docs, partner docs, and support exports quote the same
+compatibility row refs, skew case refs, out-of-window postures, and repair
+hints; unsupported windows never render as mutating support.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -218,6 +229,11 @@ The projection is read-only and does not:
   correction-train packet joining hotfix, backport, train-only, and
   next-cycle triage to scope, risk, evidence, target channels, rollback
   targets, known-issue updates, and support/docs refs.
+- `artifacts/compat/m3/distributed_manifests/manifest_index.json` — the
+  generated distributed compatibility index joining client-helper,
+  client-extension, schema, and provider manifests.
+- `artifacts/release/m3/distributed_compatibility/support_export_projection.json`
+  — the generated support/export projection for distributed compatibility rows.
 - `artifacts/release/m3/correction_train/support_export_projection.json`
   — the generated support/export projection for correction-train rows.
 - `artifacts/release/m3/state_root_audit.md` — generated state-root audit

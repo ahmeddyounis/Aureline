@@ -77,6 +77,10 @@
 //!   publication manifest and exposes clean-room, mirror-only, deny-all,
 //!   offline, notice, SBOM, provenance, blocker, and live-truth degradation
 //!   state for metadata-only support/export review.
+//! - The [`distributed_compatibility`] beta projection — consumes the generated
+//!   distributed compatibility support export so support packets quote the same
+//!   manifest rows, skew cases, unsupported postures, and repair hints as the
+//!   release packet.
 //! - The [`bundle::notice_digest_preview_item_seed`] projection — consumes the
 //!   typed `aureline-notices` bundle and inserts the dependency notice digest
 //!   into support-bundle previews as metadata-only evidence.
@@ -111,6 +115,7 @@
 pub mod advisory_baseline;
 pub mod bundle;
 pub mod capabilities;
+pub mod distributed_compatibility;
 pub mod extension_bisect;
 pub mod fitness;
 pub mod generated_lineage;

@@ -1,0 +1,69 @@
+# M3 beta distributed compatibility manifest and skew harness gate.
+#
+# Validates generated compatibility manifests, protected skew-harness cases,
+# release-packet consumption, support-export projection, and partner docs.
+
+name: check_m3_distributed_compatibility
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m3_distributed_compatibility.yml"
+      - "ci/check_m3_distributed_compatibility.py"
+      - "tools/ci/m3/distributed_compatibility/**"
+      - "schemas/release/distributed_compatibility_manifest.schema.json"
+      - "schemas/release/distributed_skew_harness_case.schema.json"
+      - "fixtures/release/m3/skew_harness/**"
+      - "artifacts/compat/m3/distributed_manifests/**"
+      - "artifacts/compat/m3/captures/distributed_compatibility_validation_capture.json"
+      - "artifacts/release/m3/distributed_compatibility/**"
+      - "docs/release/m3/distributed_compatibility_beta.md"
+      - "docs/help/m3/release_truth_surfaces.md"
+      - "artifacts/compat/m3/compatibility_report.json"
+      - "artifacts/compat/skew_windows.yaml"
+      - "artifacts/compat/version_skew_register.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m3-distributed-compatibility-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  distributed_compatibility:
+    name: M3 beta distributed compatibility
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run distributed compatibility validator
+        run: |
+          python3 ci/check_m3_distributed_compatibility.py --repo-root . --check
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-distributed-compatibility-${{ github.run_id }}
+          path: artifacts/compat/m3/captures/distributed_compatibility_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
+
