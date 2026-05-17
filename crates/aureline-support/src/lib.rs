@@ -56,6 +56,16 @@
 //! - The [`repair`] alpha preview compiler — consumes checked-in repair seed
 //!   cases and emits typed transaction, preview, outcome, and journal records
 //!   before any guided repair can apply.
+//! - The [`repair_transactions`] beta preview-skeleton evaluator — mints
+//!   typed `repair_preview_skeleton_record` and
+//!   `repair_preview_comparison_record` rows that declare blast-radius
+//!   class, compensation class, affected object classes, checkpoint
+//!   disposition, and a cancellable comparison disposition bound to the
+//!   alpha transaction id and reversal class, plus a metadata-safe support
+//!   packet. Bound to the boundary schema at
+//!   `/schemas/support/repair_transaction_preview_skeleton.schema.json` and
+//!   the protected fixture corpus at
+//!   `/fixtures/recovery/m3/repair_transaction_preview/`.
 //! - The [`advisory_baseline`] support projection — consumes the checked-in
 //!   affected-build scope example and projects advisory, exact-build,
 //!   rollback, known-limit, and support refs into metadata-only support rows.
@@ -101,6 +111,7 @@ pub mod publication_dry_run;
 pub mod recovery_ladder;
 pub mod release_evidence;
 pub mod repair;
+pub mod repair_transactions;
 pub mod route_origin_alpha;
 pub mod runtime_evidence;
 pub mod runtime_health_alpha;
