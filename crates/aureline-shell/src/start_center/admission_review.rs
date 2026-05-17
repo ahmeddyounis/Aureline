@@ -7,14 +7,15 @@
 use std::path::Path;
 
 use aureline_workspace::{
-    build_admission_checkpoint_route, detect_workspace_archetype, review_drag_drop_admission,
-    review_entry_admission, AdmissionCheckpointBuildRequest, AdmissionCheckpointRouteRecord,
-    AdmissionReviewPacket, AdmissionReviewRequest, AdmissionSourceSurface, ArchetypeDetectionError,
-    ArchetypeDetectionOutcome, ArchetypeDetectionReport, ArchetypeProposal, BlockedReasonClass,
-    DragDropAdmissionRequest, DragDropPayloadKind, EntryVerb, ExecutionBoundary,
-    FirstUsefulEntrySource, MixedWorkspaceBoundaryChoice, ReadinessBucket, ReadinessBuckets,
-    ReadinessTask, ReadinessTaskClass, ReadinessTaskState, ResultingMode, SideEffectClass,
-    TargetKind,
+    build_admission_checkpoint_route, build_project_entry_review, detect_workspace_archetype,
+    review_drag_drop_admission, review_entry_admission, AdmissionCheckpointBuildRequest,
+    AdmissionCheckpointRouteRecord, AdmissionReviewPacket, AdmissionReviewRequest,
+    AdmissionSourceSurface, ArchetypeDetectionError, ArchetypeDetectionOutcome,
+    ArchetypeDetectionReport, ArchetypeProposal, BlockedReasonClass, DragDropAdmissionRequest,
+    DragDropPayloadKind, EntryVerb, ExecutionBoundary, FirstUsefulEntrySource,
+    MixedWorkspaceBoundaryChoice, ProjectEntryReviewRecord, ProjectEntryReviewRequest,
+    ReadinessBucket, ReadinessBuckets, ReadinessTask, ReadinessTaskClass, ReadinessTaskState,
+    ResultingMode, SideEffectClass, TargetKind,
 };
 
 use super::StartCenterPrimaryActionId;
@@ -104,6 +105,25 @@ pub fn admission_packet_for_start_center_action(
     review_entry_admission(request)
 }
 
+/// Builds a complete entry review for a Start Center primary action.
+pub fn project_entry_review_for_start_center_action(
+    action_id: StartCenterPrimaryActionId,
+) -> ProjectEntryReviewRecord {
+    let (entry_verb, target_kind, resulting_mode, target_specifier, destination) =
+        start_center_admission_tuple(action_id);
+    let mut request = ProjectEntryReviewRequest::new(
+        AdmissionSourceSurface::StartCenter,
+        entry_verb,
+        target_kind,
+        resulting_mode,
+        target_specifier,
+    );
+    if let Some(destination) = destination {
+        request = request.with_destination(destination);
+    }
+    build_project_entry_review(request)
+}
+
 /// Builds an admission packet for a resolved entry-flow sheet.
 pub fn admission_packet_for_resolved_entry(
     source_surface: AdmissionSourceSurface,
@@ -124,6 +144,28 @@ pub fn admission_packet_for_resolved_entry(
         request = request.with_destination(destination);
     }
     review_entry_admission(request)
+}
+
+/// Builds a complete entry review for a resolved entry-flow sheet.
+pub fn project_entry_review_for_resolved_entry(
+    source_surface: AdmissionSourceSurface,
+    entry_verb: EntryVerb,
+    target_kind: TargetKind,
+    resulting_mode: ResultingMode,
+    target_specifier: impl Into<String>,
+    destination: Option<String>,
+) -> ProjectEntryReviewRecord {
+    let mut request = ProjectEntryReviewRequest::new(
+        source_surface,
+        entry_verb,
+        target_kind,
+        resulting_mode,
+        target_specifier,
+    );
+    if let Some(destination) = destination {
+        request = request.with_destination(destination);
+    }
+    build_project_entry_review(request)
 }
 
 /// Builds the first-admission review for a local workspace path selected from Start Center.
@@ -193,6 +235,23 @@ pub fn clone_form_admission_packet(
     )
 }
 
+/// Builds a complete entry review from clone sheet form values.
+pub fn clone_form_project_entry_review(
+    remote_url: impl Into<String>,
+    destination_path: impl Into<String>,
+) -> ProjectEntryReviewRecord {
+    build_project_entry_review(
+        ProjectEntryReviewRequest::new(
+            AdmissionSourceSurface::StartCenter,
+            EntryVerb::Clone,
+            TargetKind::RemoteRepository,
+            ResultingMode::CloneThenReview,
+            remote_url,
+        )
+        .with_destination(destination_path),
+    )
+}
+
 /// Builds an import admission packet from import sheet form values.
 pub fn import_form_admission_packet(
     source_path: impl Into<String>,
@@ -202,6 +261,25 @@ pub fn import_form_admission_packet(
     let destination_workspace_target = destination_workspace_target.into();
     review_entry_admission(
         AdmissionReviewRequest::new(
+            AdmissionSourceSurface::StartCenter,
+            EntryVerb::Import,
+            classify_import_target(&source_path),
+            ResultingMode::ExtractThenReview,
+            source_path,
+        )
+        .with_destination(destination_workspace_target),
+    )
+}
+
+/// Builds a complete entry review from import sheet form values.
+pub fn import_form_project_entry_review(
+    source_path: impl Into<String>,
+    destination_workspace_target: impl Into<String>,
+) -> ProjectEntryReviewRecord {
+    let source_path = source_path.into();
+    let destination_workspace_target = destination_workspace_target.into();
+    build_project_entry_review(
+        ProjectEntryReviewRequest::new(
             AdmissionSourceSurface::StartCenter,
             EntryVerb::Import,
             classify_import_target(&source_path),
@@ -392,7 +470,10 @@ fn drag_drop_payload_kind_for_path(path: &Path) -> DragDropPayloadKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aureline_workspace::{AdmissionAction, DestinationDisposition, TransferProgressClass};
+    use aureline_workspace::{
+        AdmissionAction, DestinationDisposition, EntryDeferredWorkClass, EntryReviewSheetKind,
+        TransferProgressClass,
+    };
 
     #[test]
     fn start_center_clone_packet_discloses_destination_write_scope() {
@@ -405,6 +486,35 @@ mod tests {
         );
         assert!(packet.clone_review.is_some());
         assert!(packet.trust_and_setup_review.no_silent_trust_grant);
+    }
+
+    #[test]
+    fn start_center_project_entry_review_carries_checkpoint_and_handoff() {
+        let record = project_entry_review_for_start_center_action(
+            StartCenterPrimaryActionId::CloneRepository,
+        );
+        assert_eq!(record.entry_verb, EntryVerb::Clone);
+        assert_eq!(
+            record.review_sheet.review_sheet_kind,
+            EntryReviewSheetKind::CloneRepository
+        );
+        assert!(
+            record.is_contract_valid(),
+            "{:?}",
+            record.contract_findings()
+        );
+        assert!(record
+            .post_entry_handoff_card
+            .not_yet_done
+            .contains(&EntryDeferredWorkClass::TrustGrant));
+        assert_eq!(
+            record
+                .admission_checkpoint_route
+                .first_useful_route
+                .landing_surface
+                .as_str(),
+            "post_clone_handoff"
+        );
     }
 
     #[test]

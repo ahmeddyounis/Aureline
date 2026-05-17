@@ -12,6 +12,7 @@
 
 pub mod admission;
 pub mod archetype_detection;
+pub mod entry;
 pub mod entry_flows;
 pub mod generated_artifacts;
 pub mod generated_projects;
@@ -73,6 +74,18 @@ pub use state_packages::{
 pub use entry_flows::{
     resolve_entry_flow, EntryFlowDenialCode, EntryFlowDenied, EntryFlowOutcome, EntryFlowRequest,
     EntryFlowResolved, EntryFlowTarget, EntryVerb, OpenFlowSheetClass, ResultingMode,
+};
+
+pub use entry::{
+    build_project_entry_review, AddRootEntryReviewSheet, CloneDepthClass, CloneEntryReviewSheet,
+    CloneReviewOptions, EntryCollisionSafeAction, EntryDeferredWorkClass,
+    EntryDestinationCollisionClass, EntryDestinationCollisionReview, EntryDestinationFacts,
+    EntryFailureRepairState, EntryPostEntryHandoffCard, EntryReviewRequirementClass,
+    EntryReviewSheet, EntryReviewSheetKind, EntrySourceAccessClass, EntrySurfaceParity,
+    EntryVocabularyReview, ImportEntryReviewSheet, ImportLossyMappingClass, ImportReviewOptions,
+    ImportWriteBehaviorClass, OpenEntryReviewSheet, OpenWorkspaceReviewSheet,
+    ProjectEntryReviewRecord, ProjectEntryReviewRecordKind, ProjectEntryReviewRequest,
+    RestoreEntryReviewSheet, ENTRY_REVIEW_SCHEMA_VERSION,
 };
 
 pub use admission::{
