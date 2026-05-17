@@ -44,14 +44,16 @@ pub use composer::{
     ValidationOutcome, COMPOSER_DRAFT_RECORD_KIND, COMPOSER_DRAFT_SCHEMA_VERSION,
 };
 pub use context_inspector::{
-    AiContextEvidenceHandoff, AiContextEvidenceHandoffRow, BudgetPressureClass,
-    CitationAnchorAvailabilityClass, ComposerAttachmentPill, ComposerBudgetStrip,
-    ComposerContextAlphaInput, ComposerContextAlphaSnapshot, ComposerContextAlphaViolation,
-    ComposerContextItem, ComposerContextReviewLock, ComposerContextReviewState,
-    ComposerMentionPreview, ContextFreshnessClass, ContextGroupClass, ContextItemStateClass,
-    ContextLocalityClass, ContextOmissionReasonClass, ContextTrustClass, DocsKnowledgeIdentity,
-    DocsKnowledgeSourceClass, ExecutionBoundaryClass, IntentModeClass, MentionPreviewStateClass,
-    ReviewLockClass, SourceLanguageFallbackClass, AI_CONTEXT_EVIDENCE_HANDOFF_RECORD_KIND,
+    AiContextEvidenceHandoff, AiContextEvidenceHandoffRow, AiContextRetrievalExport,
+    AiContextRetrievalExportViolation, BudgetPressureClass, CitationAnchorAvailabilityClass,
+    ComposerAttachmentPill, ComposerBudgetStrip, ComposerContextAlphaInput,
+    ComposerContextAlphaSnapshot, ComposerContextAlphaViolation, ComposerContextItem,
+    ComposerContextReviewLock, ComposerContextReviewState, ComposerMentionPreview,
+    ContextFreshnessClass, ContextGroupClass, ContextItemStateClass, ContextLocalityClass,
+    ContextOmissionReasonClass, ContextTrustClass, DocsKnowledgeIdentity, DocsKnowledgeSourceClass,
+    ExecutionBoundaryClass, IntentModeClass, MentionPreviewStateClass, ReviewLockClass,
+    SourceLanguageFallbackClass, AI_CONTEXT_EVIDENCE_HANDOFF_RECORD_KIND,
+    AI_CONTEXT_RETRIEVAL_EXPORT_RECORD_KIND, AI_CONTEXT_RETRIEVAL_EXPORT_SCHEMA_VERSION,
     COMPOSER_CONTEXT_ALPHA_RECORD_KIND, COMPOSER_CONTEXT_ALPHA_SCHEMA_VERSION,
 };
 pub use evidence::{

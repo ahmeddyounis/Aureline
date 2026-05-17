@@ -15,6 +15,10 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_graph::GraphFactCuePacket;
+use aureline_search::{
+    RetrievalConsumerSurface, RetrievalInspectorFinding, RetrievalInspectorPacket,
+    RETRIEVAL_INSPECTOR_SCHEMA_VERSION,
+};
 
 use crate::composer::{
     AttachmentKind, AttachmentStatusClass, ComposerDraft, MentionKind, MentionResolutionState,
@@ -29,8 +33,117 @@ pub const COMPOSER_CONTEXT_ALPHA_RECORD_KIND: &str = "ai_composer_context_alpha_
 pub const AI_CONTEXT_EVIDENCE_HANDOFF_RECORD_KIND: &str =
     "ai_context_evidence_handoff_alpha_record";
 
+/// Stable record-kind tag carried on AI retrieval-inspector export payloads.
+pub const AI_CONTEXT_RETRIEVAL_EXPORT_RECORD_KIND: &str = "ai_context_retrieval_export_record";
+
+/// Schema version for AI retrieval-inspector export payloads.
+pub const AI_CONTEXT_RETRIEVAL_EXPORT_SCHEMA_VERSION: u32 = 1;
+
 /// Schema version shared by the alpha context snapshot and evidence handoff.
 pub const COMPOSER_CONTEXT_ALPHA_SCHEMA_VERSION: u32 = 1;
+
+/// AI-side wrapper proving the context surface exports the same retrieval packet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AiContextRetrievalExport {
+    /// Stable record kind.
+    pub record_kind: String,
+    /// Schema version for this wrapper.
+    pub schema_version: u32,
+    /// Stable export id.
+    pub export_id: String,
+    /// Composer context snapshot that displayed the retrieval state.
+    pub composer_context_snapshot_ref: String,
+    /// Request workspace ref for the AI turn.
+    pub request_workspace_ref: String,
+    /// Export timestamp.
+    pub exported_at: String,
+    /// Exact retrieval packet shown in the product surface.
+    pub retrieval_packet: RetrievalInspectorPacket,
+}
+
+impl AiContextRetrievalExport {
+    /// Builds an AI export wrapper around the exact retrieval inspector packet.
+    pub fn from_packet(
+        export_id: impl Into<String>,
+        composer_context_snapshot_ref: impl Into<String>,
+        request_workspace_ref: impl Into<String>,
+        exported_at: impl Into<String>,
+        retrieval_packet: RetrievalInspectorPacket,
+    ) -> Self {
+        Self {
+            record_kind: AI_CONTEXT_RETRIEVAL_EXPORT_RECORD_KIND.to_owned(),
+            schema_version: AI_CONTEXT_RETRIEVAL_EXPORT_SCHEMA_VERSION,
+            export_id: export_id.into(),
+            composer_context_snapshot_ref: composer_context_snapshot_ref.into(),
+            request_workspace_ref: request_workspace_ref.into(),
+            exported_at: exported_at.into(),
+            retrieval_packet,
+        }
+    }
+
+    /// Validates that the AI export preserves a valid AI-context packet.
+    pub fn validate(&self) -> Vec<AiContextRetrievalExportViolation> {
+        let mut violations = Vec::new();
+        if self.record_kind != AI_CONTEXT_RETRIEVAL_EXPORT_RECORD_KIND {
+            violations.push(AiContextRetrievalExportViolation::WrongRecordKind);
+        }
+        if self.schema_version != AI_CONTEXT_RETRIEVAL_EXPORT_SCHEMA_VERSION {
+            violations.push(AiContextRetrievalExportViolation::WrongSchemaVersion);
+        }
+        if self.export_id.trim().is_empty()
+            || self.composer_context_snapshot_ref.trim().is_empty()
+            || self.request_workspace_ref.trim().is_empty()
+        {
+            violations.push(AiContextRetrievalExportViolation::MissingIdentity);
+        }
+        if !self
+            .retrieval_packet
+            .has_projection_for(RetrievalConsumerSurface::AiContext)
+        {
+            violations.push(AiContextRetrievalExportViolation::MissingAiContextProjection);
+        }
+        if self.retrieval_packet.schema_version != RETRIEVAL_INSPECTOR_SCHEMA_VERSION
+            || !self.retrieval_packet.validate().is_empty()
+        {
+            violations.push(AiContextRetrievalExportViolation::RetrievalPacketInvalid);
+        }
+        violations
+    }
+
+    /// Returns the retrieval-inspector validation findings from the embedded packet.
+    pub fn retrieval_findings(&self) -> Vec<RetrievalInspectorFinding> {
+        self.retrieval_packet.validate()
+    }
+}
+
+/// Closed validation vocabulary for [`AiContextRetrievalExport`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiContextRetrievalExportViolation {
+    /// Wrapper has the wrong record kind.
+    WrongRecordKind,
+    /// Wrapper has the wrong schema version.
+    WrongSchemaVersion,
+    /// Wrapper identity fields are incomplete.
+    MissingIdentity,
+    /// Embedded packet lacks an AI-context projection preserving the same packet.
+    MissingAiContextProjection,
+    /// Embedded retrieval packet is invalid.
+    RetrievalPacketInvalid,
+}
+
+impl AiContextRetrievalExportViolation {
+    /// Stable token used in tests and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WrongRecordKind => "wrong_record_kind",
+            Self::WrongSchemaVersion => "wrong_schema_version",
+            Self::MissingIdentity => "missing_identity",
+            Self::MissingAiContextProjection => "missing_ai_context_projection",
+            Self::RetrievalPacketInvalid => "retrieval_packet_invalid",
+        }
+    }
+}
 
 /// Intent mode selected by the user before sending an AI turn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

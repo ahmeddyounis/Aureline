@@ -20,6 +20,9 @@
 //! - [`hot_set::HotSetPlan`] records why a file or symbol is hot, which cold
 //!   paths were deferred, and which fallback was used when hot inputs were not
 //!   available.
+//! - [`hybrid_retrieval::RetrievalInspectorPacket`] joins lexical, vector, and
+//!   graph retrieval contributions with locality, readiness, embedder epoch,
+//!   local-first fallback, and support/AI export projections.
 //! - [`planner::SearchPlannerAlpha`] chooses lexical, structural, cached, or
 //!   graph-backed paths for quick open, file search, symbol search, and docs
 //!   search while preserving explicit fallback explanations.
@@ -55,6 +58,7 @@ pub mod collections;
 pub mod counts;
 pub mod docs_linking;
 pub mod hot_set;
+pub mod hybrid_retrieval;
 pub mod index_scheduler;
 pub mod lexical;
 pub mod planner;
@@ -104,6 +108,20 @@ pub use hot_set::{
     HotSetPartialTruthCause, HotSetPlan, HotSetPlanEntry, HotSetPlanInputs, HotSetPlanner,
     HotSetResponsiveness, HotSetTarget, HotSetTargetKind, SearchReadinessState,
     DEFAULT_MAX_HOT_SET_TARGETS,
+};
+pub use hybrid_retrieval::{
+    EmbeddingIndexManifest, EmbeddingIndexStateClass, LocalFirstPolicyDisclosure,
+    RetrievalAnchorKind, RetrievalConsumerProjection, RetrievalConsumerSurface,
+    RetrievalContribution, RetrievalContributionRole, RetrievalFallbackReasonClass,
+    RetrievalFreshnessClass, RetrievalInspectorFinding, RetrievalInspectorFindingKind,
+    RetrievalInspectorFindingSeverity, RetrievalInspectorPacket, RetrievalInspectorPacketInput,
+    RetrievalInspectorRow, RetrievalInspectorSupportExport, RetrievalLaneClass,
+    RetrievalLaneSnapshot, RetrievalLocalityClass, RetrievalPromotionState,
+    RetrievalProvenanceAnchor, RetrievalReadinessClass, RetrievalReasonClass,
+    RetrievalRoutePolicyClass, HYBRID_RETRIEVAL_BETA_DOC_REF, HYBRID_RETRIEVAL_BETA_FIXTURE_DIR,
+    HYBRID_RETRIEVAL_BETA_PACKET_REF, RETRIEVAL_INSPECTOR_RECORD_KIND,
+    RETRIEVAL_INSPECTOR_SCHEMA_REF, RETRIEVAL_INSPECTOR_SCHEMA_VERSION,
+    RETRIEVAL_INSPECTOR_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use index_scheduler::{
     FirstUsefulNavigationSnapshot, IndexSchedulerAlpha, IndexSchedulerInputs, IndexSchedulerOutput,

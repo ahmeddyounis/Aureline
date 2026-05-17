@@ -1,0 +1,202 @@
+{
+  "record_kind": "hybrid_retrieval_beta_case",
+  "schema_version": 1,
+  "case_name": "local_first_hybrid_inspector",
+  "scenario": "Search shows one fused result with lexical, vector, and graph contributions. Local lexical and graph lanes remain visible while vector recall uses a disclosed tenant-scoped fallback because the local embedding index is warming.",
+  "input": {
+    "packet_id": "retrieval:packet:m3:hybrid:0001",
+    "query_session_id_ref": "search:session:m3:hybrid:0001",
+    "planner_pass_id_ref": "search:planner:m3:hybrid:0001",
+    "result_set_id_ref": "search:result_set:m3:hybrid:0001",
+    "consumer_surface": "search_results",
+    "captured_at": "2026-05-17T12:20:00Z",
+    "local_first_policy": {
+      "policy_ref": "policy:retrieval:local_first:beta",
+      "route_policy": "local_first_remote_fallback",
+      "preferred_locality": "local_workspace",
+      "active_locality": "managed_tenant_scoped",
+      "fallback_reason": "local_vector_index_unavailable",
+      "remote_route_disclosed": true,
+      "provider_write_allowed": false,
+      "explanation_label": "Local vector recall was still warming, so tenant-scoped managed recall was used with disclosure while lexical and graph lanes remained local."
+    },
+    "embedding_indexes": [
+      {
+        "manifest_id": "embedding-index:payments:tenant-scoped:fallback",
+        "workspace_id_ref": "workspace:payments",
+        "snapshot_ref": "workspace-snapshot:payments:2026-05-17",
+        "retrieval_epoch": "retrieval-epoch:payments:2026-05-17:v2",
+        "embedder_model_id": "embedder:text-code-beta",
+        "embedder_model_version": "model-digest:embedder-text-code-beta:2026-05-10",
+        "tokenizer_id": "tokenizer:embedder-text-code-beta:v1",
+        "chunker_id": "chunker:code-doc-symbol:v3",
+        "trust_boundary_ref": "trust-boundary:workspace:payments",
+        "locality": "managed_tenant_scoped",
+        "state": "ready",
+        "policy_scope_ref": "policy-scope:retrieval:payments"
+      }
+    ],
+    "lane_snapshots": [
+      {
+        "lane_id": "retrieval:lane:lexical:payments",
+        "lane_class": "lexical",
+        "source_snapshot_id": "search:snapshot:lexical:payments",
+        "locality": "local_workspace",
+        "readiness": "ready",
+        "freshness": "authoritative_live",
+        "policy_scope_ref": "policy-scope:retrieval:payments",
+        "route_policy": "local_first_used",
+        "candidate_count": 2,
+        "partial_truth_causes": []
+      },
+      {
+        "lane_id": "retrieval:lane:vector:payments",
+        "lane_class": "vector",
+        "source_snapshot_id": "search:snapshot:vector:payments:managed",
+        "locality": "managed_tenant_scoped",
+        "readiness": "ready",
+        "freshness": "warm_cached",
+        "retrieval_epoch": "retrieval-epoch:payments:2026-05-17:v2",
+        "embedder_model_id": "embedder:text-code-beta",
+        "policy_scope_ref": "policy-scope:retrieval:payments",
+        "route_policy": "local_first_remote_fallback",
+        "fallback_reason": "local_vector_index_unavailable",
+        "candidate_count": 4,
+        "partial_truth_causes": [
+          "local_vector_index_warming",
+          "managed_tenant_scoped_fallback_disclosed"
+        ]
+      },
+      {
+        "lane_id": "retrieval:lane:graph:payments",
+        "lane_class": "graph",
+        "source_snapshot_id": "graph:snapshot:payments:retry",
+        "locality": "local_cache",
+        "readiness": "partial",
+        "freshness": "warm_cached",
+        "graph_epoch": "graph-epoch:payments:2026-05-17",
+        "policy_scope_ref": "policy-scope:retrieval:payments",
+        "route_policy": "local_first_used",
+        "candidate_count": 1,
+        "partial_truth_causes": [
+          "graph_slice_partial",
+          "unloaded_test_target"
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "row_id": "retrieval:row:payments:retry-policy",
+        "canonical_id": "workspace:symbol:payments::retry::policy",
+        "display_title": "payments retry policy",
+        "rendered_result_ref": "search:result:m3:payments:retry-policy",
+        "selected_lane_class": "fused",
+        "selected_locality": "managed_tenant_scoped",
+        "readiness": "partial",
+        "contributions": [
+          {
+            "lane_id_ref": "retrieval:lane:lexical:payments",
+            "lane_class": "lexical",
+            "contribution_role": "primary",
+            "locality": "local_workspace",
+            "readiness": "ready",
+            "freshness": "authoritative_live",
+            "provenance": {
+              "anchor_kind": "file",
+              "target_ref": "workspace:file:src/payments/retry.rs",
+              "chunk_or_node_ref": "lines:18-92"
+            },
+            "ranking_reasons": [
+              "lexical_prefix_match"
+            ],
+            "partial_truth_causes": []
+          },
+          {
+            "lane_id_ref": "retrieval:lane:vector:payments",
+            "lane_class": "vector",
+            "contribution_role": "supplementary",
+            "locality": "managed_tenant_scoped",
+            "readiness": "ready",
+            "freshness": "warm_cached",
+            "provenance": {
+              "anchor_kind": "docs",
+              "target_ref": "docs-node:payments:retry-policy",
+              "chunk_or_node_ref": "chunk:retry-policy:overview"
+            },
+            "ranking_reasons": [
+              "vector_semantic_similarity",
+              "remote_route"
+            ],
+            "retrieval_epoch": "retrieval-epoch:payments:2026-05-17:v2",
+            "embedder_model_id": "embedder:text-code-beta",
+            "partial_truth_causes": []
+          },
+          {
+            "lane_id_ref": "retrieval:lane:graph:payments",
+            "lane_class": "graph",
+            "contribution_role": "supplementary",
+            "locality": "local_cache",
+            "readiness": "partial",
+            "freshness": "warm_cached",
+            "provenance": {
+              "anchor_kind": "graph_node",
+              "target_ref": "graph:node:symbol:payments.retry.policy",
+              "chunk_or_node_ref": "graph-edge:payments.retry.calls.policy_loader"
+            },
+            "ranking_reasons": [
+              "graph_expansion",
+              "partial_index"
+            ],
+            "graph_epoch": "graph-epoch:payments:2026-05-17",
+            "partial_truth_causes": [
+              "graph_slice_partial"
+            ]
+          }
+        ],
+        "explanation": "Lexical matched the local retry file, vector recall found the policy docs through a disclosed tenant-scoped fallback, and the local graph linked the retry symbol with partial graph coverage.",
+        "mutating_actions_require_live_resolution": true
+      }
+    ],
+    "consumer_projections": [
+      {
+        "consumer_surface": "search_results",
+        "projection_ref": "projection:search:retrieval-inspector:m3:0001",
+        "retrieval_packet_id_ref": "retrieval:packet:m3:hybrid:0001",
+        "rendered_at": "2026-05-17T12:20:00Z",
+        "preserves_same_packet": true,
+        "raw_private_material_excluded": true,
+        "ambient_authority_excluded": true
+      },
+      {
+        "consumer_surface": "ai_context",
+        "projection_ref": "projection:ai-context:retrieval-inspector:m3:0001",
+        "retrieval_packet_id_ref": "retrieval:packet:m3:hybrid:0001",
+        "rendered_at": "2026-05-17T12:20:01Z",
+        "preserves_same_packet": true,
+        "raw_private_material_excluded": true,
+        "ambient_authority_excluded": true
+      },
+      {
+        "consumer_surface": "support_export",
+        "projection_ref": "projection:support-export:retrieval-inspector:m3:0001",
+        "retrieval_packet_id_ref": "retrieval:packet:m3:hybrid:0001",
+        "rendered_at": "2026-05-17T12:20:02Z",
+        "preserves_same_packet": true,
+        "raw_private_material_excluded": true,
+        "ambient_authority_excluded": true
+      }
+    ]
+  },
+  "expect": {
+    "promotion_state": "promotable",
+    "lane_tokens": [
+      "lexical",
+      "vector",
+      "graph"
+    ],
+    "remote_route_disclosed": true,
+    "support_export_safe": true,
+    "ai_projection_present": true,
+    "validation_finding_count": 0
+  }
+}
