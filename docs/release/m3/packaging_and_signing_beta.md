@@ -35,6 +35,14 @@ digests, signature state, provenance state, policy refs, schema refs, and
 rollback refs from that projection rather than reconstructing
 relationships from release notes or support prose.
 
+Install topology and fleet rollout diagnostics are published separately at
+[`/artifacts/release/m3/install_diagnostics/install_diagnostics_packet.json`](../../../artifacts/release/m3/install_diagnostics/install_diagnostics_packet.json)
+with schema coverage at
+[`/schemas/release/install_diagnostics.schema.json`](../../../schemas/release/install_diagnostics.schema.json).
+Those rows bind install mode, channel, updater owner, state roots,
+managed-package reports, and the same exact-build identity refs used by
+the artifact graph.
+
 ## Promotion Rule
 
 The beta candidate may widen only when the graph validator passes:

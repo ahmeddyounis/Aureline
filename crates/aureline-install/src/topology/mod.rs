@@ -10,6 +10,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+mod diagnostics;
+
+pub use diagnostics::*;
+
 /// Schema version for install-topology alpha packets.
 pub const INSTALL_TOPOLOGY_ALPHA_SCHEMA_VERSION: u32 = 1;
 

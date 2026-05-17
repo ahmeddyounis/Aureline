@@ -35,6 +35,15 @@ About and support export surfaces may summarize those rows, but they
 quote graph node ids and generated projection fields rather than
 reconstructing artifact relationships from release copy.
 
+Install mode, channel, updater owner, durable state roots, and
+exact-build install diagnostics are read through
+`artifacts/release/m3/install_diagnostics/install_diagnostics_packet.json`
+and the generated support projection at
+`artifacts/release/m3/install_diagnostics/support_export_projection.json`.
+Help / About may render this as an install card, and CLI/support export
+may render it as structured diagnostics, but both quote the same
+diagnostic row fingerprints.
+
 ## What every beta row carries
 
 Each row on the manifest minted by `ci/check_m3_claim_manifest.py`
@@ -153,6 +162,11 @@ The projection is read-only and does not:
 - `artifacts/release/m3/artifact_graph_support_projection.json` — the
   generated support/export projection consumed by release and support
   packets.
+- `artifacts/release/m3/install_diagnostics/install_diagnostics_packet.json`
+  — the exact-build install diagnostics packet for portable,
+  side-by-side, and fleet rollout rows.
+- `artifacts/release/m3/install_diagnostics/support_export_projection.json`
+  — the generated support/export projection for install diagnostics.
 - `tools/ci/m3/artifact_graph/` — headless validator and projection
   generator.
 - `schemas/release/m3_claim_manifest.schema.json` — the canonical
