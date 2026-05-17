@@ -33,6 +33,7 @@ pub mod discovery;
 pub mod drift_repair;
 pub mod env_inspect;
 pub mod execution_context;
+pub mod host_boundary;
 pub mod language_hosts;
 pub mod launch_profiles;
 pub mod managed_alpha;
@@ -169,6 +170,21 @@ pub use execution_context::{
     ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass, TargetClass,
     TargetConfidence, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
     TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
+};
+pub use host_boundary::{
+    evaluate_host_boundary_reapproval, ActionExposureClass, ActionOriginClass, ActionRouteClass,
+    ActionTargetClass, AdapterConfidenceClass, AdapterConfidencePlaceholder, AdapterKind,
+    AuthorityLinkageClass, BoundaryFreshnessClass, BoundaryManagedLifecycleState,
+    BoundaryReachabilityClass, BoundaryRedactionClass, DiscoveryAuthorityBlock, ExpiryReasonClass,
+    ExportInclusionPosture, HostBoundaryDriftField, HostBoundaryDriftRow,
+    HostBoundaryIdentityChips, HostBoundaryReapprovalEvaluation, HostBoundaryReapprovalOutcome,
+    HostBoundaryReviewBinding, HostBoundarySupportExport, HostBoundarySurfaceClass,
+    HostBoundarySurfaceProjection, HostBoundaryTruthOptions, HostBoundaryTruthRecord,
+    HostBoundaryTruthViolation, LocalOnlyContinuationReasonClass, ManagedLifecycleTruth,
+    ManagedWorkspaceReviewerLabel, ReapprovalRequirementClass, RouteChangeReasonCode,
+    WrongTargetCorrectionClass, HOST_BOUNDARY_AND_LIFECYCLE_SCHEMA_VERSION,
+    HOST_BOUNDARY_REAPPROVAL_EVALUATION_RECORD_KIND, HOST_BOUNDARY_SUPPORT_EXPORT_RECORD_KIND,
+    HOST_BOUNDARY_SURFACE_PROJECTION_RECORD_KIND, HOST_BOUNDARY_TRUTH_RECORD_KIND,
 };
 pub use language_hosts::{
     LanguageHostEventClass, LanguageHostExitReasonClass, LanguageHostIdentity,
