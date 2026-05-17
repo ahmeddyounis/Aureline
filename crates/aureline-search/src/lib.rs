@@ -60,6 +60,7 @@ pub mod docs_linking;
 pub mod hot_set;
 pub mod hybrid_retrieval;
 pub mod index_scheduler;
+pub mod infrastructure_intelligence;
 pub mod lexical;
 pub mod planner;
 pub mod query_session;
@@ -127,6 +128,10 @@ pub use hybrid_retrieval::{
 pub use index_scheduler::{
     FirstUsefulNavigationSnapshot, IndexSchedulerAlpha, IndexSchedulerInputs, IndexSchedulerOutput,
     ScheduledQuickOpenSnapshot,
+};
+pub use infrastructure_intelligence::{
+    project_infrastructure_relationships_for_search, InfrastructureIntelligenceAlphaPage,
+    InfrastructureSearchProjection, InfrastructureSearchResultRow,
 };
 pub use lexical::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalSearchResults, LexicalShell,

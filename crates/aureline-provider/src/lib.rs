@@ -18,6 +18,7 @@ pub use aureline_auth::{KeyMode, RegionMode, ResidencyMode};
 pub mod account_scope;
 pub mod approval_tickets;
 pub mod browser_handoff;
+pub mod infrastructure_intelligence;
 pub mod object_model;
 pub mod publish_later;
 pub mod registry;
@@ -77,6 +78,32 @@ pub use browser_handoff::{
     PROVIDER_BROWSER_HANDOFF_ALPHA_SHARED_CONTRACT_REF,
     PROVIDER_BROWSER_HANDOFF_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
     PROVIDER_BROWSER_HANDOFF_ALPHA_VALIDATION_REPORT_RECORD_KIND,
+};
+pub use infrastructure_intelligence::{
+    seeded_infrastructure_intelligence_alpha_page, InfrastructureConfidenceClass,
+    InfrastructureConnectorKind, InfrastructureConnectorRecord, InfrastructureConnectorSummary,
+    InfrastructureConsumerProjection, InfrastructureConsumerSurface,
+    InfrastructureConsumerSurfaceSummary, InfrastructureControlPlaneBoundary,
+    InfrastructureIntelligenceAlphaPage, InfrastructureIntelligenceContractRefs,
+    InfrastructureIntelligenceCoverage, InfrastructureIntelligenceFinding,
+    InfrastructureIntelligenceFindingSeverity, InfrastructureIntelligenceFixtureMetadata,
+    InfrastructureIntelligenceValidationReport, InfrastructurePartialityClass,
+    InfrastructurePromotionGate, InfrastructurePromotionState, InfrastructureReadMode,
+    InfrastructureRelationshipKind, InfrastructureRelationshipRecord,
+    InfrastructureRelationshipSummary, InfrastructureResourceIdentity,
+    InfrastructureResourceRecord, InfrastructureResourceSummary, InfrastructureReviewAnchorRow,
+    InfrastructureReviewProjection, InfrastructureSearchProjection, InfrastructureSearchResultRow,
+    InfrastructureSourceClass, InfrastructureSupportExport, InfrastructureTargetContext,
+    InfrastructureTruthLayer, INFRASTRUCTURE_CONNECTOR_RECORD_KIND,
+    INFRASTRUCTURE_CONSUMER_PROJECTION_RECORD_KIND,
+    INFRASTRUCTURE_INTELLIGENCE_ALPHA_PAGE_RECORD_KIND,
+    INFRASTRUCTURE_INTELLIGENCE_ALPHA_SCHEMA_VERSION,
+    INFRASTRUCTURE_INTELLIGENCE_ALPHA_SHARED_CONTRACT_REF, INFRASTRUCTURE_INTELLIGENCE_DOC_REF,
+    INFRASTRUCTURE_INTELLIGENCE_FIXTURE_DIR, INFRASTRUCTURE_INTELLIGENCE_SCHEMA_REF,
+    INFRASTRUCTURE_INTELLIGENCE_VALIDATION_REPORT_RECORD_KIND,
+    INFRASTRUCTURE_RELATIONSHIP_RECORD_KIND, INFRASTRUCTURE_RESOURCE_RECORD_KIND,
+    INFRASTRUCTURE_REVIEW_PROJECTION_RECORD_KIND, INFRASTRUCTURE_SEARCH_PROJECTION_RECORD_KIND,
+    INFRASTRUCTURE_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use object_model::{
     ContinuityObservationClass, DegradedActionClass, ObjectModeClass, ObjectPublishStateClass,

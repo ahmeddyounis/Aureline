@@ -12,6 +12,7 @@
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
+pub mod infrastructure_intelligence;
 pub mod review_pack_dsl;
 pub mod review_pack_parity_harness;
 pub mod workspace;
@@ -40,6 +41,10 @@ pub use diff::{
     DiffScrollAnchor, DiffSuspiciousCue, DiffSyntaxClass, DiffSyntaxProjection, DiffViewMode,
     DiffViewSurfacePacket, DIFF_CLOSED_SESSION_RECORD_KIND, DIFF_OPEN_TARGET_RECORD_KIND,
     DIFF_REOPEN_PROJECTION_RECORD_KIND, DIFF_VIEW_SURFACE_PACKET_RECORD_KIND,
+};
+pub use infrastructure_intelligence::{
+    project_infrastructure_relationships_for_review, InfrastructureIntelligenceAlphaPage,
+    InfrastructureReviewAnchorRow, InfrastructureReviewProjection,
 };
 pub use review_pack_dsl::{
     project_review_pack, ReviewPackCheck, ReviewPackCheckProjection, ReviewPackError,
