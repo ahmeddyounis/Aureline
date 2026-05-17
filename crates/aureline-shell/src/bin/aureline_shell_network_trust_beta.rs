@@ -139,6 +139,7 @@ fn rebuild_with_defects(mut page: NetworkTrustBetaPage) -> NetworkTrustBetaPage 
         .map(NetworkTrustBetaSupportRow::from_row)
         .collect();
     page.defects = audit_network_trust_beta_rows(&page.rows, &page.support_rows);
-    page.summary = NetworkTrustBetaSummary::from_rows(&page.rows, &page.support_rows, &page.defects);
+    page.summary =
+        NetworkTrustBetaSummary::from_rows(&page.rows, &page.support_rows, &page.defects);
     page
 }

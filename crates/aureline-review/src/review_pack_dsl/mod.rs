@@ -329,9 +329,7 @@ impl ReviewPackRecord {
             raw_path_export_allowed: self.support_export.raw_path_export_allowed,
             raw_glob_body_export_allowed: self.support_export.raw_glob_body_export_allowed,
             raw_command_export_allowed: self.support_export.raw_command_export_allowed,
-            raw_check_output_export_allowed: self
-                .support_export
-                .raw_check_output_export_allowed,
+            raw_check_output_export_allowed: self.support_export.raw_check_output_export_allowed,
             local_ci_parity_classes,
             blocking_check_count,
             local_only_check_count,
@@ -413,7 +411,11 @@ pub fn project_review_pack(payload: &str) -> Result<ReviewPackProjection, Review
 }
 
 fn validate_record(record: &ReviewPackRecord) -> Result<(), ReviewPackValidationError> {
-    require_equal("record_kind", REVIEW_PACK_ALPHA_RECORD_KIND, &record.record_kind)?;
+    require_equal(
+        "record_kind",
+        REVIEW_PACK_ALPHA_RECORD_KIND,
+        &record.record_kind,
+    )?;
     if record.schema_version != REVIEW_PACK_ALPHA_SCHEMA_VERSION {
         return Err(ReviewPackValidationError::new(format!(
             "schema_version is {}, expected {}",
@@ -464,7 +466,11 @@ fn validate_checks(checks: &[ReviewPackCheck]) -> Result<(), ReviewPackValidatio
                 check.check_id
             )));
         }
-        require_one_of("checks[].check_kind", REVIEW_PACK_CHECK_KINDS, &check.check_kind)?;
+        require_one_of(
+            "checks[].check_kind",
+            REVIEW_PACK_CHECK_KINDS,
+            &check.check_kind,
+        )?;
         require_non_empty("checks[].display_label", &check.display_label)?;
         require_non_empty("checks[].summary", &check.summary)?;
         require_one_of(
@@ -492,7 +498,10 @@ fn validate_ownership_hints(
 ) -> Result<(), ReviewPackValidationError> {
     let mut seen_ids: BTreeSet<&str> = BTreeSet::new();
     for hint in hints {
-        require_non_empty("ownership_hints[].ownership_scope_id", &hint.ownership_scope_id)?;
+        require_non_empty(
+            "ownership_hints[].ownership_scope_id",
+            &hint.ownership_scope_id,
+        )?;
         if !seen_ids.insert(hint.ownership_scope_id.as_str()) {
             return Err(ReviewPackValidationError::new(format!(
                 "ownership_hints contains a duplicate ownership_scope_id: {}",
@@ -527,7 +536,10 @@ fn validate_parity_observations(
             &observation.parity_class,
         )?;
         require_non_empty("parity_observations[].summary", &observation.summary)?;
-        if !seen.insert((observation.parity_class.as_str(), observation.summary.as_str())) {
+        if !seen.insert((
+            observation.parity_class.as_str(),
+            observation.summary.as_str(),
+        )) {
             return Err(ReviewPackValidationError::new(
                 "parity_observations contains duplicate parity_class/summary pair",
             ));
@@ -566,7 +578,11 @@ fn validate_consumer_surfaces(surfaces: &[String]) -> Result<(), ReviewPackValid
     }
     require_unique("consumer_surfaces", surfaces)?;
     for surface in surfaces {
-        require_one_of("consumer_surfaces[]", REVIEW_PACK_CONSUMER_SURFACES, surface)?;
+        require_one_of(
+            "consumer_surfaces[]",
+            REVIEW_PACK_CONSUMER_SURFACES,
+            surface,
+        )?;
     }
     if !surfaces.iter().any(|s| s == "review_pack_inspector") {
         return Err(ReviewPackValidationError::new(
@@ -617,7 +633,10 @@ fn cross_check_ownership_refs(
     checks: &[ReviewPackCheck],
     hints: &[ReviewPackOwnershipHint],
 ) -> Result<(), ReviewPackValidationError> {
-    let known: BTreeSet<&str> = hints.iter().map(|h| h.ownership_scope_id.as_str()).collect();
+    let known: BTreeSet<&str> = hints
+        .iter()
+        .map(|h| h.ownership_scope_id.as_str())
+        .collect();
     for check in checks {
         for scope_ref in &check.ownership_scope_refs {
             if !known.contains(scope_ref.as_str()) {
@@ -631,9 +650,7 @@ fn cross_check_ownership_refs(
     Ok(())
 }
 
-fn cross_check_parity_coverage(
-    record: &ReviewPackRecord,
-) -> Result<(), ReviewPackValidationError> {
+fn cross_check_parity_coverage(record: &ReviewPackRecord) -> Result<(), ReviewPackValidationError> {
     let declared_classes: BTreeSet<&str> = record
         .parity_observations
         .iter()
@@ -745,7 +762,10 @@ mod tests {
     fn uncertified_community_local_only_projects() {
         let projection = project_review_pack(FIXTURE_COMMUNITY)
             .expect("uncertified-community local-only fixture must project");
-        assert_eq!(projection.pack_authority_class, "repo_uncertified_community");
+        assert_eq!(
+            projection.pack_authority_class,
+            "repo_uncertified_community"
+        );
         assert!(projection.local_only_check_count >= 1);
         assert!(!projection.unsupported_fields.is_empty());
     }
@@ -801,8 +821,7 @@ mod tests {
 
     #[test]
     fn rejects_wrong_record_kind_via_project() {
-        let tampered =
-            FIXTURE_FIRST_PARTY.replace("review_pack_alpha_record", "other_record_kind");
+        let tampered = FIXTURE_FIRST_PARTY.replace("review_pack_alpha_record", "other_record_kind");
         match project_review_pack(&tampered) {
             Err(ReviewPackError::Validation(err)) => {
                 assert!(err.message().contains("record_kind"));

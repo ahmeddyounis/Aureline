@@ -832,7 +832,10 @@ impl RegionTenantKeyModeBetaSupportExport {
             .region_rows
             .iter()
             .all(|row| row.local_editing_preserved)
-            && page.tenant_rows.iter().all(|row| row.local_editing_preserved)
+            && page
+                .tenant_rows
+                .iter()
+                .all(|row| row.local_editing_preserved)
             && page
                 .key_mode_rows
                 .iter()
@@ -906,7 +909,11 @@ pub fn audit_region_tenant_key_mode_beta_page(
         .map(|row| row.profile_token.as_str())
         .chain(tenant_rows.iter().map(|row| row.profile_token.as_str()))
         .chain(key_mode_rows.iter().map(|row| row.profile_token.as_str()))
-        .chain(drill_packets.iter().map(|packet| packet.profile_token.as_str()))
+        .chain(
+            drill_packets
+                .iter()
+                .map(|packet| packet.profile_token.as_str()),
+        )
         .collect();
     for missing in required_profiles.difference(&observed_profiles) {
         defects.push(RegionTenantKeyModeBetaDefect::new(
@@ -934,10 +941,7 @@ pub fn audit_region_tenant_key_mode_beta_page(
     defects
 }
 
-fn audit_region_row(
-    row: &RegionDisclosureRow,
-    defects: &mut Vec<RegionTenantKeyModeBetaDefect>,
-) {
+fn audit_region_row(row: &RegionDisclosureRow, defects: &mut Vec<RegionTenantKeyModeBetaDefect>) {
     if row.managed_lane_token != row.managed_lane.as_str() {
         defects.push(RegionTenantKeyModeBetaDefect::new(
             RegionTenantKeyModeBetaDefectKind::TokenDrift,
@@ -1054,10 +1058,7 @@ fn audit_region_row(
     }
 }
 
-fn audit_tenant_row(
-    row: &TenantBoundaryRow,
-    defects: &mut Vec<RegionTenantKeyModeBetaDefect>,
-) {
+fn audit_tenant_row(row: &TenantBoundaryRow, defects: &mut Vec<RegionTenantKeyModeBetaDefect>) {
     if row.managed_lane_token != row.managed_lane.as_str() {
         defects.push(RegionTenantKeyModeBetaDefect::new(
             RegionTenantKeyModeBetaDefectKind::TokenDrift,
@@ -1411,8 +1412,7 @@ fn seed_region_rows() -> Vec<RegionDisclosureRow> {
                 region_id: "airgap:lastknowngood:2026-05-14".to_owned(),
                 region_label: "Air-gapped snapshot 2026-05-14".to_owned(),
                 residency_zone_id: "residency:local".to_owned(),
-                disclosed_origin_ref:
-                    "airgap://courier-2026-05-14/aureline/regions".to_owned(),
+                disclosed_origin_ref: "airgap://courier-2026-05-14/aureline/regions".to_owned(),
             },
             CapabilityAuthorityClass::DegradedPreviewOnly,
             "region-tenant-drill:region-pinning-failure-001",
@@ -1859,8 +1859,9 @@ mod tests {
             .map(|row| row.effective_authority_token.clone())
             .collect();
         page.region_rows[0].pinning_state = RegionPinningStateClass::DriftedFromClaim;
-        page.region_rows[0].pinning_state_token =
-            RegionPinningStateClass::DriftedFromClaim.as_str().to_owned();
+        page.region_rows[0].pinning_state_token = RegionPinningStateClass::DriftedFromClaim
+            .as_str()
+            .to_owned();
         page.region_rows[0].effective_authority = CapabilityAuthorityClass::Allowed;
         page.region_rows[0].effective_authority_token =
             CapabilityAuthorityClass::Allowed.as_str().to_owned();
@@ -1870,8 +1871,10 @@ mod tests {
             &page.key_mode_rows,
             &page.drill_packets,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == RegionTenantKeyModeBetaDefectKind::MismatchMasksIssue));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == RegionTenantKeyModeBetaDefectKind::MismatchMasksIssue));
         let sibling_tokens: Vec<String> = page
             .key_mode_rows
             .iter()

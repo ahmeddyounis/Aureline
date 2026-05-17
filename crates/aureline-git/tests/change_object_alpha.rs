@@ -3,8 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use aureline_git::{
-    project_change_object, ChangeObjectError, ChangeObjectRecord,
-    CHANGE_OBJECT_ALPHA_RECORD_KIND, CHANGE_OBJECT_ALPHA_SCHEMA_VERSION,
+    project_change_object, ChangeObjectError, ChangeObjectRecord, CHANGE_OBJECT_ALPHA_RECORD_KIND,
+    CHANGE_OBJECT_ALPHA_SCHEMA_VERSION,
 };
 
 fn fixtures_dir() -> PathBuf {
@@ -101,18 +101,15 @@ fn fixtures_cover_all_three_kinds_and_diverse_landing_states() {
 
 #[test]
 fn branch_fixture_reports_publish_action_class() {
-    let payload =
-        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json"))
-            .expect("branch fixture must read");
-    let projection =
-        project_change_object(&payload).expect("branch publish fixture must project");
+    let payload = std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json"))
+        .expect("branch fixture must read");
+    let projection = project_change_object(&payload).expect("branch publish fixture must project");
     assert_eq!(projection.change_object_kind, "branch");
     assert_eq!(projection.landing_state_class, "pending_publish_to_remote");
     assert_eq!(projection.landing_action_class, "publish");
     assert_eq!(projection.mutation_authority_class, "provider_bound");
     assert_ne!(
-        projection.required_network_egress_class,
-        "no_network_egress_required",
+        projection.required_network_egress_class, "no_network_egress_required",
         "publish must declare a network egress class"
     );
 }
@@ -121,8 +118,7 @@ fn branch_fixture_reports_publish_action_class() {
 fn worktree_fixture_stays_local_only() {
     let payload = std::fs::read_to_string(fixtures_dir().join("worktree_linked_local_only.json"))
         .expect("worktree fixture must read");
-    let projection =
-        project_change_object(&payload).expect("worktree fixture must project");
+    let projection = project_change_object(&payload).expect("worktree fixture must project");
     assert_eq!(projection.change_object_kind, "worktree");
     assert_eq!(projection.landing_state_class, "local_only_no_remote_yet");
     assert_eq!(projection.remote_visibility_class, "no_remote_attached");
@@ -135,12 +131,10 @@ fn worktree_fixture_stays_local_only() {
 
 #[test]
 fn patch_stack_fixture_reports_apply_action_class() {
-    let payload = std::fs::read_to_string(
-        fixtures_dir().join("patch_stack_provider_pull_request.json"),
-    )
-    .expect("patch-stack fixture must read");
-    let projection =
-        project_change_object(&payload).expect("patch-stack fixture must project");
+    let payload =
+        std::fs::read_to_string(fixtures_dir().join("patch_stack_provider_pull_request.json"))
+            .expect("patch-stack fixture must read");
+    let projection = project_change_object(&payload).expect("patch-stack fixture must project");
     assert_eq!(projection.change_object_kind, "patch_stack");
     assert_eq!(projection.landing_state_class, "pending_patch_apply");
     assert_eq!(projection.landing_action_class, "apply");
@@ -149,8 +143,7 @@ fn patch_stack_fixture_reports_apply_action_class() {
 #[test]
 fn rejects_pending_publish_without_remote_attached() {
     let payload =
-        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json"))
-            .unwrap();
+        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json")).unwrap();
     let mut record: ChangeObjectRecord =
         serde_json::from_str(&payload).expect("branch fixture must parse");
     record.landing_state.remote_visibility_class = "no_remote_attached".to_string();
@@ -170,16 +163,13 @@ fn rejects_local_only_with_remote_egress() {
     let err = record
         .validate()
         .expect_err("local_only_no_remote_yet must not declare a remote egress envelope");
-    assert!(err
-        .message()
-        .contains("required_network_egress_class"));
+    assert!(err.message().contains("required_network_egress_class"));
 }
 
 #[test]
 fn rejects_branch_with_patch_stack_variant() {
     let payload =
-        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json"))
-            .unwrap();
+        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json")).unwrap();
     let mut record: ChangeObjectRecord =
         serde_json::from_str(&payload).expect("branch fixture must parse");
     record.patch_stack = Some(aureline_git::ChangeObjectPatchStackVariant {
@@ -215,8 +205,7 @@ fn rejects_missing_inspector_consumer() {
 #[test]
 fn rejects_raw_branch_name_export() {
     let payload =
-        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json"))
-            .unwrap();
+        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json")).unwrap();
     let mut record: ChangeObjectRecord =
         serde_json::from_str(&payload).expect("branch fixture must parse");
     record.support_export.raw_branch_name_export_allowed = true;
@@ -229,8 +218,7 @@ fn rejects_raw_branch_name_export() {
 #[test]
 fn rejects_invalid_record_kind_via_project() {
     let payload =
-        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json"))
-            .unwrap();
+        std::fs::read_to_string(fixtures_dir().join("branch_local_pending_publish.json")).unwrap();
     let tampered = payload.replace(
         "\"record_kind\": \"change_object_alpha_record\"",
         "\"record_kind\": \"some_other_record_kind\"",
@@ -246,5 +234,8 @@ fn rejects_invalid_record_kind_via_project() {
 #[test]
 fn schema_version_constants_match_record_kind() {
     assert_eq!(CHANGE_OBJECT_ALPHA_SCHEMA_VERSION, 1);
-    assert_eq!(CHANGE_OBJECT_ALPHA_RECORD_KIND, "change_object_alpha_record");
+    assert_eq!(
+        CHANGE_OBJECT_ALPHA_RECORD_KIND,
+        "change_object_alpha_record"
+    );
 }

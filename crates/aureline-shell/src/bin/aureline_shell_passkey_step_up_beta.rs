@@ -85,9 +85,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .iter_mut()
                 .find(|r| r.lane.lane_token == PasskeyBetaLaneClass::ReauthLane.as_str())
                 .ok_or("seeded page must include a reauth row")?;
-            row.outcome.fallback_token = PasskeyFallbackClass::NoFallbackRequired
-                .as_str()
-                .to_owned();
+            row.outcome.fallback_token =
+                PasskeyFallbackClass::NoFallbackRequired.as_str().to_owned();
             print_json(&rebuild_with_defects(page))?;
         }
         Some("drill-step-up-widens-authority") => {

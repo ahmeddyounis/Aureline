@@ -156,7 +156,11 @@ fn report_emits_closed_vocabulary_tokens() {
         .map(|s| s.packet_count)
         .sum();
     assert_eq!(family_total as usize, corpus.entries.len());
-    let lineage_total: u32 = report.lineage_summaries.iter().map(|s| s.packet_count).sum();
+    let lineage_total: u32 = report
+        .lineage_summaries
+        .iter()
+        .map(|s| s.packet_count)
+        .sum();
     assert_eq!(lineage_total as usize, corpus.entries.len());
 }
 
@@ -388,10 +392,7 @@ fn closed_vocabulary_tokens_are_pinned() {
     );
 
     assert_eq!(LineageOpenGapClass::None.as_str(), "none");
-    assert_eq!(
-        LineageOpenGapClass::RegenPending.as_str(),
-        "regen_pending"
-    );
+    assert_eq!(LineageOpenGapClass::RegenPending.as_str(), "regen_pending");
     assert_eq!(
         LineageOpenGapClass::GeneratorIdentityPending.as_str(),
         "generator_identity_pending"
@@ -415,16 +416,10 @@ fn closed_vocabulary_tokens_are_pinned() {
 
     assert_eq!(GeneratorKind::BuildSystem.as_str(), "build_system");
     assert_eq!(GeneratorKind::PackageManager.as_str(), "package_manager");
-    assert_eq!(
-        GeneratorKind::PreviewRenderer.as_str(),
-        "preview_renderer"
-    );
+    assert_eq!(GeneratorKind::PreviewRenderer.as_str(), "preview_renderer");
     assert_eq!(GeneratorKind::NotebookKernel.as_str(), "notebook_kernel");
     assert_eq!(GeneratorKind::TaskRunner.as_str(), "task_runner");
-    assert_eq!(
-        GeneratorKind::ExternalImport.as_str(),
-        "external_import"
-    );
+    assert_eq!(GeneratorKind::ExternalImport.as_str(), "external_import");
     assert_eq!(
         GeneratorKind::UnknownGenerator.as_str(),
         "unknown_generator"

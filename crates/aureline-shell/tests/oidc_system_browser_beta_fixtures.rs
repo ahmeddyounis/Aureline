@@ -178,8 +178,9 @@ fn drill_sign_out_loses_local_editing_replays_typed_defect() {
     let page: OidcSystemBrowserBetaPage = load("drill_sign_out_loses_local_editing.json");
     let recomputed = audit_oidc_system_browser_beta_rows(&page.rows, &page.support_rows);
     assert_eq!(recomputed, page.defects);
-    assert!(recomputed.iter().any(|d| d.defect_kind
-        == OidcSystemBrowserBetaDefectKind::SignOutOrOutageLosesLocalEditing));
+    assert!(recomputed.iter().any(
+        |d| d.defect_kind == OidcSystemBrowserBetaDefectKind::SignOutOrOutageLosesLocalEditing
+    ));
 }
 
 #[test]

@@ -44,8 +44,7 @@ pub const NETWORK_TRUST_BETA_SUPPORT_ROW_RECORD_KIND: &str =
     "network_network_trust_beta_support_row_record";
 
 /// Stable record kind for [`NetworkTrustBetaDefect`] payloads.
-pub const NETWORK_TRUST_BETA_DEFECT_RECORD_KIND: &str =
-    "network_network_trust_beta_defect_record";
+pub const NETWORK_TRUST_BETA_DEFECT_RECORD_KIND: &str = "network_network_trust_beta_defect_record";
 
 /// Stable record kind for [`NetworkTrustBetaSupportExport`] payloads.
 pub const NETWORK_TRUST_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -209,7 +208,10 @@ impl NetworkSettingLockClass {
 
     /// True when this lock requires a verified managed source.
     pub const fn requires_managed_source(self) -> bool {
-        matches!(self, Self::SignedManagedPolicyLocked | Self::AdminPolicyLocked)
+        matches!(
+            self,
+            Self::SignedManagedPolicyLocked | Self::AdminPolicyLocked
+        )
     }
 }
 
@@ -555,11 +557,18 @@ impl NetworkTrustBetaSupportRow {
         let mut authority_tokens_by_profile = BTreeMap::new();
         let mut effective_value_labels_by_profile = BTreeMap::new();
         for binding in &row.profile_bindings {
-            source_tokens_by_profile.insert(binding.profile_token.clone(), binding.source_token.clone());
-            lock_tokens_by_profile.insert(binding.profile_token.clone(), binding.lock_token.clone());
-            authority_tokens_by_profile.insert(binding.profile_token.clone(), binding.authority_token.clone());
-            effective_value_labels_by_profile
-                .insert(binding.profile_token.clone(), binding.effective_value_label.clone());
+            source_tokens_by_profile
+                .insert(binding.profile_token.clone(), binding.source_token.clone());
+            lock_tokens_by_profile
+                .insert(binding.profile_token.clone(), binding.lock_token.clone());
+            authority_tokens_by_profile.insert(
+                binding.profile_token.clone(),
+                binding.authority_token.clone(),
+            );
+            effective_value_labels_by_profile.insert(
+                binding.profile_token.clone(),
+                binding.effective_value_label.clone(),
+            );
         }
         Self {
             record_kind: NETWORK_TRUST_BETA_SUPPORT_ROW_RECORD_KIND.to_owned(),
@@ -838,10 +847,7 @@ pub fn audit_network_trust_beta_rows(
         .iter()
         .map(|facet| facet.as_str())
         .collect();
-    let observed_facets: BTreeSet<&str> = rows
-        .iter()
-        .map(|row| row.facet_token.as_str())
-        .collect();
+    let observed_facets: BTreeSet<&str> = rows.iter().map(|row| row.facet_token.as_str()).collect();
     for missing in expected_facets.difference(&observed_facets) {
         defects.push(NetworkTrustBetaDefect::new(
             NetworkTrustBetaDefectKind::MissingFacetCoverage,
@@ -951,9 +957,7 @@ pub fn audit_network_trust_beta_rows(
                     "authority_token must match authority",
                 ));
             }
-            if binding.lock_class.requires_managed_source()
-                && !binding.source_class.is_managed()
-            {
+            if binding.lock_class.requires_managed_source() && !binding.source_class.is_managed() {
                 defects.push(row_defect(
                     row,
                     binding.profile_token.as_str(),
@@ -1020,8 +1024,14 @@ fn compare_support_row(
     for binding in &row.profile_bindings {
         sources.insert(binding.profile_token.clone(), binding.source_token.clone());
         locks.insert(binding.profile_token.clone(), binding.lock_token.clone());
-        authorities.insert(binding.profile_token.clone(), binding.authority_token.clone());
-        labels.insert(binding.profile_token.clone(), binding.effective_value_label.clone());
+        authorities.insert(
+            binding.profile_token.clone(),
+            binding.authority_token.clone(),
+        );
+        labels.insert(
+            binding.profile_token.clone(),
+            binding.effective_value_label.clone(),
+        );
     }
     if support.facet_token != row.facet_token
         || support.source_tokens_by_profile != sources
@@ -1082,7 +1092,11 @@ fn seed_row(facet: NetworkTrustBetaFacetClass) -> NetworkTrustBetaRow {
         row_id: format!("network_trust_beta:{}", facet.as_str()),
         facet,
         facet_token: facet.as_str().to_owned(),
-        source_matrix_ref: format!("{}#{}", NETWORK_TRUST_BETA_SOURCE_MATRIX_REF, facet.as_str()),
+        source_matrix_ref: format!(
+            "{}#{}",
+            NETWORK_TRUST_BETA_SOURCE_MATRIX_REF,
+            facet.as_str()
+        ),
         profile_bindings: bindings,
         consumer_lanes: NetworkConsumerLaneClass::ALL.to_vec(),
         consumer_lane_tokens: NetworkConsumerLaneClass::ALL
@@ -1200,7 +1214,10 @@ fn seed_binding_fields(
             "Locked by signed managed policy delivered through the air-gapped bundle.",
             "artifacts/network/signatures/airgap-ca-bundle.sig",
         ),
-        (NetworkTrustBetaFacetClass::TrustStore, NetworkTrustBetaProfileClass::EnterpriseManaged) => (
+        (
+            NetworkTrustBetaFacetClass::TrustStore,
+            NetworkTrustBetaProfileClass::EnterpriseManaged,
+        ) => (
             NetworkSettingSourceClass::AdminManagedPolicy,
             NetworkSettingLockClass::SignedManagedPolicyLocked,
             NetworkAuthorityClass::EffectiveValuePublished,
@@ -1238,7 +1255,10 @@ fn seed_binding_fields(
             "Locked by signed managed policy; remote attach is read-only offline.",
             "artifacts/network/signatures/airgap-known-hosts.sig",
         ),
-        (NetworkTrustBetaFacetClass::SshHostProof, NetworkTrustBetaProfileClass::EnterpriseManaged) => (
+        (
+            NetworkTrustBetaFacetClass::SshHostProof,
+            NetworkTrustBetaProfileClass::EnterpriseManaged,
+        ) => (
             NetworkSettingSourceClass::AdminManagedPolicy,
             NetworkSettingLockClass::SignedManagedPolicyLocked,
             NetworkAuthorityClass::EffectiveValuePublished,
@@ -1249,7 +1269,10 @@ fn seed_binding_fields(
         ),
 
         // Client certificate (mTLS)
-        (NetworkTrustBetaFacetClass::ClientCertificate, NetworkTrustBetaProfileClass::Connected) => (
+        (
+            NetworkTrustBetaFacetClass::ClientCertificate,
+            NetworkTrustBetaProfileClass::Connected,
+        ) => (
             NetworkSettingSourceClass::BaselineDefault,
             NetworkSettingLockClass::NotApplicable,
             NetworkAuthorityClass::NotApplicable,
@@ -1258,7 +1281,10 @@ fn seed_binding_fields(
             "Not applicable on the connected consumer profile.",
             "",
         ),
-        (NetworkTrustBetaFacetClass::ClientCertificate, NetworkTrustBetaProfileClass::MirrorOnly) => (
+        (
+            NetworkTrustBetaFacetClass::ClientCertificate,
+            NetworkTrustBetaProfileClass::MirrorOnly,
+        ) => (
             NetworkSettingSourceClass::SignedMirrorPolicy,
             NetworkSettingLockClass::SignedManagedPolicyLocked,
             NetworkAuthorityClass::EffectiveValuePublished,
@@ -1276,7 +1302,10 @@ fn seed_binding_fields(
             "Locked by signed managed policy; mTLS enrollment unavailable offline.",
             "artifacts/network/signatures/airgap-client-cert.sig",
         ),
-        (NetworkTrustBetaFacetClass::ClientCertificate, NetworkTrustBetaProfileClass::EnterpriseManaged) => (
+        (
+            NetworkTrustBetaFacetClass::ClientCertificate,
+            NetworkTrustBetaProfileClass::EnterpriseManaged,
+        ) => (
             NetworkSettingSourceClass::AdminManagedPolicy,
             NetworkSettingLockClass::SignedManagedPolicyLocked,
             NetworkAuthorityClass::EffectiveValuePublished,
@@ -1305,10 +1334,19 @@ mod tests {
                 .iter()
                 .find(|row| row.facet == facet)
                 .expect("row");
-            assert_eq!(row.profile_bindings.len(), NetworkTrustBetaProfileClass::ALL.len());
-            assert_eq!(row.consumer_lanes.len(), NetworkConsumerLaneClass::ALL.len());
+            assert_eq!(
+                row.profile_bindings.len(),
+                NetworkTrustBetaProfileClass::ALL.len()
+            );
+            assert_eq!(
+                row.consumer_lanes.len(),
+                NetworkConsumerLaneClass::ALL.len()
+            );
         }
-        assert!(page.summary.profiles_present.contains(&"mirror_only".to_owned()));
+        assert!(page
+            .summary
+            .profiles_present
+            .contains(&"mirror_only".to_owned()));
         assert!(page
             .summary
             .consumer_lane_tokens_present
@@ -1336,8 +1374,10 @@ mod tests {
             .as_str()
             .to_owned();
         let defects = audit_network_trust_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkTrustBetaDefectKind::LockInconsistentWithSource));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == NetworkTrustBetaDefectKind::LockInconsistentWithSource));
     }
 
     #[test]
@@ -1350,8 +1390,9 @@ mod tests {
             .expect("binding");
         binding.managed_attribution_ref.clear();
         let defects = audit_network_trust_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkTrustBetaDefectKind::UnsignedManagedAuthority));
+        assert!(defects.iter().any(
+            |defect| defect.defect_kind == NetworkTrustBetaDefectKind::UnsignedManagedAuthority
+        ));
     }
 
     #[test]
@@ -1361,14 +1402,18 @@ mod tests {
             .effective_value_labels_by_profile
             .insert("connected".to_owned(), "drifted_label".to_owned());
         let defects = audit_network_trust_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkTrustBetaDefectKind::SupportRowVocabularyDrift));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == NetworkTrustBetaDefectKind::SupportRowVocabularyDrift));
     }
 
     #[test]
     fn validator_rejects_missing_consumer_lane() {
         let mut page = seeded_network_trust_beta_page();
-        page.rows[0].consumer_lane_tokens.retain(|lane| lane != "ai");
+        page.rows[0]
+            .consumer_lane_tokens
+            .retain(|lane| lane != "ai");
         page.rows[0]
             .consumer_lanes
             .retain(|lane| *lane != NetworkConsumerLaneClass::Ai);
@@ -1376,7 +1421,9 @@ mod tests {
         let row = page.rows[0].clone();
         page.support_rows[0] = NetworkTrustBetaSupportRow::from_row(&row);
         let defects = audit_network_trust_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkTrustBetaDefectKind::MissingConsumerLaneCoverage));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == NetworkTrustBetaDefectKind::MissingConsumerLaneCoverage));
     }
 }

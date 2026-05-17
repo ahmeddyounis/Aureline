@@ -17,11 +17,9 @@ use aureline_support::generated_lineage::{
 
 #[test]
 fn envelope_mirrors_report_matrix() {
-    let envelope = compile_support_export_envelope(
-        "envelope:generated_lineage:test",
-        "2026-05-16T10:00:00Z",
-    )
-    .expect("envelope compiles");
+    let envelope =
+        compile_support_export_envelope("envelope:generated_lineage:test", "2026-05-16T10:00:00Z")
+            .expect("envelope compiles");
     assert_eq!(
         envelope.record_kind,
         GENERATED_LINEAGE_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND
@@ -40,7 +38,10 @@ fn envelope_mirrors_report_matrix() {
     assert_eq!(envelope.rows.len(), report.matrix_rows.len());
 
     for (row, matrix) in envelope.rows.iter().zip(report.matrix_rows.iter()) {
-        assert_eq!(row.record_kind, GENERATED_LINEAGE_SUPPORT_EXPORT_ROW_RECORD_KIND);
+        assert_eq!(
+            row.record_kind,
+            GENERATED_LINEAGE_SUPPORT_EXPORT_ROW_RECORD_KIND
+        );
         assert_eq!(row.packet_id, matrix.packet_id);
         assert_eq!(row.consumer_surface, matrix.consumer_surface);
         assert_eq!(row.artifact_family, matrix.artifact_family);
@@ -55,11 +56,9 @@ fn envelope_mirrors_report_matrix() {
 
 #[test]
 fn envelope_round_trips_through_json() {
-    let envelope = compile_support_export_envelope(
-        "envelope:generated_lineage:test",
-        "2026-05-16T10:00:00Z",
-    )
-    .expect("envelope compiles");
+    let envelope =
+        compile_support_export_envelope("envelope:generated_lineage:test", "2026-05-16T10:00:00Z")
+            .expect("envelope compiles");
     let json = serde_json::to_string(&envelope).expect("envelope serializes");
     let parsed: GeneratedLineageSupportExportEnvelope =
         serde_json::from_str(&json).expect("envelope round-trips");
@@ -68,11 +67,9 @@ fn envelope_round_trips_through_json() {
 
 #[test]
 fn envelope_preserves_generator_identity_and_source_refs() {
-    let envelope = compile_support_export_envelope(
-        "envelope:generated_lineage:test",
-        "2026-05-16T10:00:00Z",
-    )
-    .expect("envelope compiles");
+    let envelope =
+        compile_support_export_envelope("envelope:generated_lineage:test", "2026-05-16T10:00:00Z")
+            .expect("envelope compiles");
     for row in &envelope.rows {
         assert!(
             !row.generator_identity.generator_ref.trim().is_empty(),

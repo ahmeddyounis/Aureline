@@ -842,7 +842,7 @@ pub struct AiContextInspectorAlphaProjection {
     pub rows: Vec<AlphaInspectorRow>,
     /// True when the source snapshot has docs rows with visible citation truth.
     pub has_docs_citation_truth: bool,
-    /// True when omitted, blocked, stale, or tainted context is visible.
+    /// True when omitted, blocked, stale, tainted, summarized, or trimmed context is visible.
     pub has_non_included_context_truth: bool,
     /// True when graph readiness cues are visible in shell rows.
     pub has_graph_readiness_cues: bool,
@@ -994,7 +994,7 @@ impl AiContextInspectorAlphaProjection {
         let has_non_included_context_truth = snapshot.context_items.iter().any(|item| {
             matches!(
                 item.state_class.as_str(),
-                "omitted" | "blocked" | "stale" | "tainted" | "summarized"
+                "omitted" | "blocked" | "stale" | "tainted" | "summarized" | "trimmed"
             )
         });
         let has_graph_readiness_cues = snapshot
@@ -1044,7 +1044,7 @@ fn alpha_state_status(token: &str) -> InspectorRowStatusClass {
         | "unresolved"
         | "budget_review_required"
         | "overflow" => InspectorRowStatusClass::Blocked,
-        "omitted" | "tainted" | "summarized" => InspectorRowStatusClass::Informational,
+        "omitted" | "tainted" | "summarized" | "trimmed" => InspectorRowStatusClass::Informational,
         _ => InspectorRowStatusClass::Live,
     }
 }

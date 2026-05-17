@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use aureline_doctor::probes::beta::{
     load_beta_finding, load_probe_pack_catalog, ProjectDoctorBetaFinding,
-    ProjectDoctorProbePackCatalog, PROJECT_DOCTOR_BETA_DOC_REF,
-    PROJECT_DOCTOR_BETA_SCHEMA_REF, PROJECT_DOCTOR_BETA_SUPPORT_PACKET_RECORD_KIND,
+    ProjectDoctorProbePackCatalog, PROJECT_DOCTOR_BETA_DOC_REF, PROJECT_DOCTOR_BETA_SCHEMA_REF,
+    PROJECT_DOCTOR_BETA_SUPPORT_PACKET_RECORD_KIND,
 };
 use aureline_support::project_doctor::beta::{
     beta_support_packet, PROJECT_DOCTOR_BETA_SUPPORT_PACKET_ID,
@@ -49,8 +49,8 @@ fn load_findings() -> Vec<ProjectDoctorBetaFinding> {
         .into_iter()
         .map(|file| {
             let path = fixture_dir().join(file);
-            let yaml = std::fs::read_to_string(&path)
-                .unwrap_or_else(|err| panic!("read {path:?}: {err}"));
+            let yaml =
+                std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
             load_beta_finding(&yaml).unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
         })
         .collect()

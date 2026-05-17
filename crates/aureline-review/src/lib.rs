@@ -33,15 +33,23 @@ pub use collections::{
     ReviewCollectionAlphaInput, ReviewCollectionAlphaPacket,
     REVIEW_COLLECTION_ALPHA_PACKET_RECORD_KIND, REVIEW_COLLECTION_ALPHA_SCHEMA_VERSION,
 };
+pub use diff::{
+    DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,
+    DiffCopyRepresentation, DiffFileInput, DiffHunkInput, DiffHunkView, DiffLineInput,
+    DiffLineKind, DiffLineView, DiffOpenTarget, DiffPathTruth, DiffReopenProjection,
+    DiffScrollAnchor, DiffSuspiciousCue, DiffSyntaxClass, DiffSyntaxProjection, DiffViewMode,
+    DiffViewSurfacePacket, DIFF_CLOSED_SESSION_RECORD_KIND, DIFF_OPEN_TARGET_RECORD_KIND,
+    DIFF_REOPEN_PROJECTION_RECORD_KIND, DIFF_VIEW_SURFACE_PACKET_RECORD_KIND,
+};
 pub use review_pack_dsl::{
     project_review_pack, ReviewPackCheck, ReviewPackCheckProjection, ReviewPackError,
     ReviewPackOwnershipHint, ReviewPackOwnershipProjection, ReviewPackParityObservation,
     ReviewPackProjection, ReviewPackRecord, ReviewPackReviewInvariants, ReviewPackSupportExport,
     ReviewPackUnsupportedField, ReviewPackValidationError, REVIEW_PACK_ALPHA_DSL_VERSION,
-    REVIEW_PACK_ALPHA_RECORD_KIND, REVIEW_PACK_ALPHA_SCHEMA_VERSION,
-    REVIEW_PACK_AUTHORITY_CLASSES, REVIEW_PACK_CHECK_KINDS, REVIEW_PACK_CONSUMER_SURFACES,
-    REVIEW_PACK_EXECUTION_CLASSES, REVIEW_PACK_OWNERSHIP_SCOPE_KINDS, REVIEW_PACK_PARITY_CLASSES,
-    REVIEW_PACK_SEVERITY_CLASSES, REVIEW_PACK_UNSUPPORTED_FIELD_CLASSES,
+    REVIEW_PACK_ALPHA_RECORD_KIND, REVIEW_PACK_ALPHA_SCHEMA_VERSION, REVIEW_PACK_AUTHORITY_CLASSES,
+    REVIEW_PACK_CHECK_KINDS, REVIEW_PACK_CONSUMER_SURFACES, REVIEW_PACK_EXECUTION_CLASSES,
+    REVIEW_PACK_OWNERSHIP_SCOPE_KINDS, REVIEW_PACK_PARITY_CLASSES, REVIEW_PACK_SEVERITY_CLASSES,
+    REVIEW_PACK_UNSUPPORTED_FIELD_CLASSES,
 };
 pub use review_pack_parity_harness::{
     project_review_pack_parity_harness, ReviewPackParityHarnessCheckFinding,
@@ -50,26 +58,15 @@ pub use review_pack_parity_harness::{
     ReviewPackParityHarnessLaneObservation, ReviewPackParityHarnessLaneProjection,
     ReviewPackParityHarnessProjection, ReviewPackParityHarnessRecord,
     ReviewPackParityHarnessReviewInvariants, ReviewPackParityHarnessSupportExport,
-    ReviewPackParityHarnessValidationError,
-    REVIEW_PACK_PARITY_HARNESS_ALPHA_HARNESS_VERSION,
-    REVIEW_PACK_PARITY_HARNESS_ALPHA_RECORD_KIND,
-    REVIEW_PACK_PARITY_HARNESS_ALPHA_SCHEMA_VERSION,
-    REVIEW_PACK_PARITY_HARNESS_AUTHORITY_CLASSES,
-    REVIEW_PACK_PARITY_HARNESS_CONSUMER_SURFACES,
-    REVIEW_PACK_PARITY_HARNESS_EXPECTED_PARITY_CLASSES,
-    REVIEW_PACK_PARITY_HARNESS_LANE_CLASSES, REVIEW_PACK_PARITY_HARNESS_LANE_OUTCOME_CLASSES,
+    ReviewPackParityHarnessValidationError, REVIEW_PACK_PARITY_HARNESS_ALPHA_HARNESS_VERSION,
+    REVIEW_PACK_PARITY_HARNESS_ALPHA_RECORD_KIND, REVIEW_PACK_PARITY_HARNESS_ALPHA_SCHEMA_VERSION,
+    REVIEW_PACK_PARITY_HARNESS_AUTHORITY_CLASSES, REVIEW_PACK_PARITY_HARNESS_CONSUMER_SURFACES,
+    REVIEW_PACK_PARITY_HARNESS_EXPECTED_PARITY_CLASSES, REVIEW_PACK_PARITY_HARNESS_LANE_CLASSES,
+    REVIEW_PACK_PARITY_HARNESS_LANE_OUTCOME_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_LANE_STATUS_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_OVERALL_VERDICT_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_PARITY_FINDING_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_ROW_DOWNGRADE_CLASSES,
-};
-pub use diff::{
-    DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,
-    DiffCopyRepresentation, DiffFileInput, DiffHunkInput, DiffHunkView, DiffLineInput,
-    DiffLineKind, DiffLineView, DiffOpenTarget, DiffPathTruth, DiffReopenProjection,
-    DiffScrollAnchor, DiffSuspiciousCue, DiffSyntaxClass, DiffSyntaxProjection, DiffViewMode,
-    DiffViewSurfacePacket, DIFF_CLOSED_SESSION_RECORD_KIND, DIFF_OPEN_TARGET_RECORD_KIND,
-    DIFF_REOPEN_PROJECTION_RECORD_KIND, DIFF_VIEW_SURFACE_PACKET_RECORD_KIND,
 };
 pub use workspace::{
     ReviewAnchorIdAlphaRecord, ReviewLocalLocator, ReviewPolicyContext, ReviewProviderOverlay,

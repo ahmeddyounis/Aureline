@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use aureline_auth::{
     audit_approval_ticket_beta_page, validate_approval_ticket_beta_page,
     ApprovalTicketBetaDefectKind, ApprovalTicketBetaPage, ApprovalTicketBetaProfileClass,
-    ApprovalTicketBetaSupportExport, EvaluationOutcome, NativeReapprovalRoute,
-    RequestOriginClass, SandboxProfileClass,
+    ApprovalTicketBetaSupportExport, EvaluationOutcome, NativeReapprovalRoute, RequestOriginClass,
+    SandboxProfileClass,
 };
 
 fn fixture_dir() -> PathBuf {
@@ -63,7 +63,9 @@ fn seeded_page_covers_admitted_and_typed_denial_outcomes() {
         "denied_self_authorization_attempted",
     ] {
         assert!(
-            page.summary.spend_attempts_by_outcome.contains_key(required),
+            page.summary
+                .spend_attempts_by_outcome
+                .contains_key(required),
             "fixture must cover spend outcome {required}",
         );
     }
@@ -131,29 +133,36 @@ fn seeded_spend_events_route_denials_to_typed_reapproval() {
 #[test]
 fn drill_raw_authority_material_surfaces_typed_defect() {
     let page = load_page("drill_raw_authority_material.json");
-    assert!(page.defects.iter().any(|defect| defect.defect_kind
-        == ApprovalTicketBetaDefectKind::RawAuthorityMaterialPresent));
+    assert!(page
+        .defects
+        .iter()
+        .any(|defect| defect.defect_kind
+            == ApprovalTicketBetaDefectKind::RawAuthorityMaterialPresent));
 }
 
 #[test]
 fn drill_self_authorization_attempted_surfaces_typed_defect() {
     let page = load_page("drill_self_authorization_attempted.json");
-    assert!(page.defects.iter().any(|defect| defect.defect_kind
-        == ApprovalTicketBetaDefectKind::SelfAuthorizationAttempted));
+    assert!(page.defects.iter().any(
+        |defect| defect.defect_kind == ApprovalTicketBetaDefectKind::SelfAuthorizationAttempted
+    ));
 }
 
 #[test]
 fn drill_admitted_under_drift_surfaces_typed_defect() {
     let page = load_page("drill_admitted_under_drift.json");
-    assert!(page.defects.iter().any(|defect| defect.defect_kind
-        == ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift));
+    assert!(page
+        .defects
+        .iter()
+        .any(|defect| defect.defect_kind == ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift));
 }
 
 #[test]
 fn drill_denial_missing_audit_ref_surfaces_typed_defect() {
     let page = load_page("drill_denial_missing_audit_ref.json");
-    assert!(page.defects.iter().any(|defect| defect.defect_kind
-        == ApprovalTicketBetaDefectKind::SpendDenialMissingAuditRef));
+    assert!(page.defects.iter().any(
+        |defect| defect.defect_kind == ApprovalTicketBetaDefectKind::SpendDenialMissingAuditRef
+    ));
 }
 
 #[test]
@@ -173,8 +182,11 @@ fn drill_envelope_capability_outside_sandbox_surfaces_typed_defect() {
 #[test]
 fn drill_missing_requesting_surface_ref_surfaces_typed_defect() {
     let page = load_page("drill_missing_requesting_surface_ref.json");
-    assert!(page.defects.iter().any(|defect| defect.defect_kind
-        == ApprovalTicketBetaDefectKind::MissingRequestingSurfaceRef));
+    assert!(page
+        .defects
+        .iter()
+        .any(|defect| defect.defect_kind
+            == ApprovalTicketBetaDefectKind::MissingRequestingSurfaceRef));
 }
 
 #[test]

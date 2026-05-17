@@ -44,7 +44,8 @@ pub const GENERATED_ARTIFACT_LINEAGE_REPORT_RECORD_KIND: &str =
 pub const GENERATED_ARTIFACT_LINEAGE_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the boundary schema.
-pub const GENERATED_ARTIFACT_LINEAGE_SCHEMA_REF: &str = "schemas/state/generated_artifact.schema.json";
+pub const GENERATED_ARTIFACT_LINEAGE_SCHEMA_REF: &str =
+    "schemas/state/generated_artifact.schema.json";
 
 /// Repo-relative path of the reviewer doc.
 pub const GENERATED_ARTIFACT_LINEAGE_DOC_REF: &str =

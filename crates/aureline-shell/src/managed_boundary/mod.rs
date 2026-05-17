@@ -42,17 +42,14 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-const BOUNDARY_MANIFEST_YAML: &str = include_str!(
-    "../../../../artifacts/milestones/m3/boundary_manifest_beta.yaml"
-);
+const BOUNDARY_MANIFEST_YAML: &str =
+    include_str!("../../../../artifacts/milestones/m3/boundary_manifest_beta.yaml");
 
 /// Stable record kind for [`ManagedBoundaryBetaPage`] payloads.
-pub const MANAGED_BOUNDARY_BETA_PAGE_RECORD_KIND: &str =
-    "shell_managed_boundary_beta_page_record";
+pub const MANAGED_BOUNDARY_BETA_PAGE_RECORD_KIND: &str = "shell_managed_boundary_beta_page_record";
 
 /// Stable record kind for [`ManagedBoundaryBetaRow`] payloads.
-pub const MANAGED_BOUNDARY_BETA_ROW_RECORD_KIND: &str =
-    "shell_managed_boundary_beta_row_record";
+pub const MANAGED_BOUNDARY_BETA_ROW_RECORD_KIND: &str = "shell_managed_boundary_beta_row_record";
 
 /// Stable record kind for [`ManagedBoundaryBetaOrgSwitchRow`] payloads.
 pub const MANAGED_BOUNDARY_BETA_ORG_SWITCH_ROW_RECORD_KIND: &str =
@@ -86,8 +83,7 @@ pub const MANAGED_BOUNDARY_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
 pub const MANAGED_BOUNDARY_BETA_SCHEMA_VERSION: u32 = 1;
 
 /// Shared contract ref consumed by every record produced by this module.
-pub const MANAGED_BOUNDARY_BETA_SHARED_CONTRACT_REF: &str =
-    "security:managed_boundary_beta:v1";
+pub const MANAGED_BOUNDARY_BETA_SHARED_CONTRACT_REF: &str = "security:managed_boundary_beta:v1";
 
 /// Source manifest ref.
 pub const MANAGED_BOUNDARY_BETA_SOURCE_MANIFEST_REF: &str =
@@ -98,12 +94,10 @@ pub const MANAGED_BOUNDARY_BETA_SOURCE_SCHEMA_REF: &str =
     "schemas/governance/boundary_manifest_beta.schema.json";
 
 /// Release doc ref linked from the support-export wrapper.
-pub const MANAGED_BOUNDARY_BETA_RELEASE_DOC_REF: &str =
-    "docs/release/m3/managed_boundary_beta.md";
+pub const MANAGED_BOUNDARY_BETA_RELEASE_DOC_REF: &str = "docs/release/m3/managed_boundary_beta.md";
 
 /// UX doc ref linked from the support-export wrapper.
-pub const MANAGED_BOUNDARY_BETA_UX_DOC_REF: &str =
-    "docs/ux/m3/managed_boundary_beta.md";
+pub const MANAGED_BOUNDARY_BETA_UX_DOC_REF: &str = "docs/ux/m3/managed_boundary_beta.md";
 
 /// Closed boundary-class vocabulary mirrored from the manifest schema.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
@@ -661,8 +655,7 @@ impl ManagedBoundaryBetaSummary {
             for token in &row.offboarding.phases_observed_tokens {
                 offboarding_phases_present.insert(token.clone());
             }
-            export_packet_classes_present
-                .insert(row.offboarding.export_packet_class_token.clone());
+            export_packet_classes_present.insert(row.offboarding.export_packet_class_token.clone());
             if row.absence_narrows_to.is_some() {
                 absence_narrowed_row_count += 1;
             }
@@ -1024,7 +1017,8 @@ fn audit_row(row: &ManagedBoundaryBetaRow, defects: &mut Vec<ManagedBoundaryBeta
 pub fn validate_managed_boundary_beta_page(
     page: &ManagedBoundaryBetaPage,
 ) -> Result<(), Vec<ManagedBoundaryBetaDefect>> {
-    let defects = audit_managed_boundary_beta_rows(&page.rows, &page.required_boundary_class_coverage);
+    let defects =
+        audit_managed_boundary_beta_rows(&page.rows, &page.required_boundary_class_coverage);
     if defects.is_empty() {
         Ok(())
     } else {
@@ -1041,10 +1035,8 @@ pub fn validate_managed_boundary_beta_page(
 pub fn seeded_managed_boundary_beta_page() -> ManagedBoundaryBetaPage {
     match parse_manifest_yaml(BOUNDARY_MANIFEST_YAML) {
         Ok((manifest, rows)) => {
-            let defects = audit_managed_boundary_beta_rows(
-                &rows,
-                &manifest.required_boundary_class_coverage,
-            );
+            let defects =
+                audit_managed_boundary_beta_rows(&rows, &manifest.required_boundary_class_coverage);
             let summary = ManagedBoundaryBetaSummary::from_records(&manifest, &rows, &defects);
             ManagedBoundaryBetaPage {
                 record_kind: MANAGED_BOUNDARY_BETA_PAGE_RECORD_KIND.to_owned(),
@@ -1055,9 +1047,7 @@ pub fn seeded_managed_boundary_beta_page() -> ManagedBoundaryBetaPage {
                 manifest_id: manifest.manifest_id.clone(),
                 manifest_status: manifest.status.clone(),
                 manifest_as_of: manifest.as_of.clone(),
-                required_boundary_class_coverage: manifest
-                    .required_boundary_class_coverage
-                    .clone(),
+                required_boundary_class_coverage: manifest.required_boundary_class_coverage.clone(),
                 rows,
                 defects,
                 summary,
@@ -1184,12 +1174,13 @@ fn project_org_switch(
     row_id: &str,
     raw: RawOrgSwitchBlock,
 ) -> Result<OrgSwitchBehaviorBlock, String> {
-    let behavior_class = OrgSwitchBehaviorClass::from_token(&raw.behavior_class).ok_or_else(|| {
-        format!(
-            "unknown org_switch behavior_class token '{}' on row {}",
-            raw.behavior_class, row_id
-        )
-    })?;
+    let behavior_class =
+        OrgSwitchBehaviorClass::from_token(&raw.behavior_class).ok_or_else(|| {
+            format!(
+                "unknown org_switch behavior_class token '{}' on row {}",
+                raw.behavior_class, row_id
+            )
+        })?;
     Ok(OrgSwitchBehaviorBlock {
         behavior_class,
         behavior_class_token: raw.behavior_class,
@@ -1198,7 +1189,10 @@ fn project_org_switch(
     })
 }
 
-fn project_grace_window(row_id: &str, raw: RawGraceWindowBlock) -> Result<GraceWindowBlock, String> {
+fn project_grace_window(
+    row_id: &str,
+    raw: RawGraceWindowBlock,
+) -> Result<GraceWindowBlock, String> {
     let window_class = GraceWindowClass::from_token(&raw.window_class).ok_or_else(|| {
         format!(
             "unknown grace_window window_class token '{}' on row {}",
@@ -1251,14 +1245,13 @@ fn project_offboarding(row_id: &str, raw: RawOffboardingBlock) -> Result<Offboar
         })?;
         phases_observed.push(phase);
     }
-    let export_packet_class = ExportPacketClass::from_token(&raw.export_packet_class).ok_or_else(
-        || {
+    let export_packet_class =
+        ExportPacketClass::from_token(&raw.export_packet_class).ok_or_else(|| {
             format!(
                 "unknown offboarding export_packet_class token '{}' on row {}",
                 raw.export_packet_class, row_id
             )
-        },
-    )?;
+        })?;
     Ok(OffboardingBlock {
         phases_observed,
         phases_observed_tokens: raw.phases_observed,
@@ -1454,22 +1447,20 @@ mod tests {
             .find(|row| row.boundary_class.requires_absence_narrowing())
             .expect("at least one managed or paid row");
         row.absence_narrows_to = None;
-        let defects = audit_managed_boundary_beta_rows(
-            &page.rows,
-            &page.required_boundary_class_coverage,
-        );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == ManagedBoundaryBetaDefectKind::AbsenceNarrowingMissing));
+        let defects =
+            audit_managed_boundary_beta_rows(&page.rows, &page.required_boundary_class_coverage);
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ManagedBoundaryBetaDefectKind::AbsenceNarrowingMissing));
     }
 
     #[test]
     fn validator_flags_missing_local_core_continuity() {
         let mut page = seeded_managed_boundary_beta_page();
         page.rows[0].local_core_continuity = String::new();
-        let defects = audit_managed_boundary_beta_rows(
-            &page.rows,
-            &page.required_boundary_class_coverage,
-        );
+        let defects =
+            audit_managed_boundary_beta_rows(&page.rows, &page.required_boundary_class_coverage);
         assert!(defects.iter().any(|defect| defect.defect_kind
             == ManagedBoundaryBetaDefectKind::LocalCoreContinuityMissing));
     }
@@ -1477,11 +1468,10 @@ mod tests {
     #[test]
     fn validator_flags_missing_required_boundary_class() {
         let mut page = seeded_managed_boundary_beta_page();
-        page.rows.retain(|row| row.boundary_class != BoundaryClass::PaidSeatBound);
-        let defects = audit_managed_boundary_beta_rows(
-            &page.rows,
-            &page.required_boundary_class_coverage,
-        );
+        page.rows
+            .retain(|row| row.boundary_class != BoundaryClass::PaidSeatBound);
+        let defects =
+            audit_managed_boundary_beta_rows(&page.rows, &page.required_boundary_class_coverage);
         assert!(defects.iter().any(|defect| defect.defect_kind
             == ManagedBoundaryBetaDefectKind::RequiredBoundaryClassMissing));
     }

@@ -545,7 +545,9 @@ impl EscalationActionClass {
         match self {
             Self::EscalateToExtensionQuarantine => "escalate_to_extension_quarantine",
             Self::EscalateToSafeMode => "escalate_to_safe_mode",
-            Self::EscalateToRollbackReinstallCandidate => "escalate_to_rollback_reinstall_candidate",
+            Self::EscalateToRollbackReinstallCandidate => {
+                "escalate_to_rollback_reinstall_candidate"
+            }
             Self::ExportEscalationPacket => "export_escalation_packet",
         }
     }
@@ -1006,11 +1008,7 @@ pub struct ExtensionBisectValidationReport {
 
 impl fmt::Display for ExtensionBisectValidationReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} extension-bisect violation(s)",
-            self.violations.len()
-        )
+        write!(f, "{} extension-bisect violation(s)", self.violations.len())
     }
 }
 
@@ -1496,9 +1494,23 @@ fn validate_session(session: &ExtensionBisectSession) -> Vec<ExtensionBisectViol
             "session must not delete durable non-disposable state",
         );
     }
-    if session.restore_plan.prior_state_snapshot_ref.trim().is_empty()
-        || session.restore_plan.restore_action.action_id.trim().is_empty()
-        || session.restore_plan.restore_action.summary.trim().is_empty()
+    if session
+        .restore_plan
+        .prior_state_snapshot_ref
+        .trim()
+        .is_empty()
+        || session
+            .restore_plan
+            .restore_action
+            .action_id
+            .trim()
+            .is_empty()
+        || session
+            .restore_plan
+            .restore_action
+            .summary
+            .trim()
+            .is_empty()
         || session.restore_plan.restore_conditions.is_empty()
     {
         push_violation(

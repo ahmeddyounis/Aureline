@@ -85,10 +85,7 @@ pub struct ChangeObjectInspectorRow {
 }
 
 impl ChangeObjectInspectorRow {
-    fn from_projection(
-        source_ref: &'static str,
-        projection: ChangeObjectProjection,
-    ) -> Self {
+    fn from_projection(source_ref: &'static str, projection: ChangeObjectProjection) -> Self {
         Self {
             source_ref,
             change_object_id: projection.change_object_id,
@@ -154,9 +151,11 @@ pub fn build_alpha_change_object_rows(
 ) -> Result<Vec<ChangeObjectInspectorRow>, ChangeObjectInspectorError> {
     let mut rows = Vec::with_capacity(ALPHA_CHANGE_OBJECTS.len());
     for (source_ref, payload) in ALPHA_CHANGE_OBJECTS {
-        let projection = project_change_object(payload)
-            .map_err(|err| projection_error(source_ref, err))?;
-        rows.push(ChangeObjectInspectorRow::from_projection(source_ref, projection));
+        let projection =
+            project_change_object(payload).map_err(|err| projection_error(source_ref, err))?;
+        rows.push(ChangeObjectInspectorRow::from_projection(
+            source_ref, projection,
+        ));
     }
     Ok(rows)
 }
@@ -167,8 +166,7 @@ pub fn build_alpha_change_object_rows(
 /// # Errors
 ///
 /// Returns [`ChangeObjectInspectorError`] when a fixture cannot be projected.
-pub fn render_alpha_change_object_plaintext(
-) -> Result<String, ChangeObjectInspectorError> {
+pub fn render_alpha_change_object_plaintext() -> Result<String, ChangeObjectInspectorError> {
     let rows = build_alpha_change_object_rows()?;
     let mut lines = vec![
         "Change-object inspector alpha".to_string(),
@@ -212,7 +210,10 @@ mod tests {
     fn alpha_change_object_rows_project() {
         let rows = build_alpha_change_object_rows().expect("alpha change objects must project");
         assert_eq!(rows.len(), 5);
-        let mut kinds: Vec<&str> = rows.iter().map(|row| row.change_object_kind.as_str()).collect();
+        let mut kinds: Vec<&str> = rows
+            .iter()
+            .map(|row| row.change_object_kind.as_str())
+            .collect();
         kinds.sort();
         kinds.dedup();
         assert!(kinds.contains(&"branch"));

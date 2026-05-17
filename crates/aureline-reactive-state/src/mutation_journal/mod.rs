@@ -597,11 +597,7 @@ pub struct MutationJournalValidationReport {
 
 impl fmt::Display for MutationJournalValidationReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} mutation-journal violation(s)",
-            self.violations.len()
-        )
+        write!(f, "{} mutation-journal violation(s)", self.violations.len())
     }
 }
 
@@ -986,9 +982,8 @@ fn validate_group(
                 );
             }
         }
-        EntryKind::DirectoryRename
-        | EntryKind::MetadataWrite
-        | EntryKind::DerivedArtifactWrite => {}
+        EntryKind::DirectoryRename | EntryKind::MetadataWrite | EntryKind::DerivedArtifactWrite => {
+        }
     }
 }
 

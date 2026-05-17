@@ -1053,9 +1053,7 @@ impl ApprovalTicketBetaDefectKind {
             Self::TargetDriftMatchesTicketTarget => "target_drift_matches_ticket_target",
             Self::SandboxDriftMatchesTicketSandbox => "sandbox_drift_matches_ticket_sandbox",
             Self::PolicyEpochDriftMatchesTicketEpoch => "policy_epoch_drift_matches_ticket_epoch",
-            Self::TrustProfileDriftMatchesTicketTrust => {
-                "trust_profile_drift_matches_ticket_trust"
-            }
+            Self::TrustProfileDriftMatchesTicketTrust => "trust_profile_drift_matches_ticket_trust",
             Self::EnvelopeDriftMatchesTicketEnvelope => "envelope_drift_matches_ticket_envelope",
             Self::ProfileCoverageMissing => "profile_coverage_missing",
             Self::SandboxProfileCoverageMissing => "sandbox_profile_coverage_missing",
@@ -1363,10 +1361,7 @@ fn check_guardrails(
     }
 }
 
-fn capability_tokens_match(
-    classes: &[CapabilityClass],
-    tokens: &[String],
-) -> bool {
+fn capability_tokens_match(classes: &[CapabilityClass], tokens: &[String]) -> bool {
     if classes.len() != tokens.len() {
         return false;
     }
@@ -1376,10 +1371,7 @@ fn capability_tokens_match(
         .all(|(class, token)| class.as_str() == token.as_str())
 }
 
-fn side_effect_tokens_match(
-    classes: &[SideEffectClass],
-    tokens: &[String],
-) -> bool {
+fn side_effect_tokens_match(classes: &[SideEffectClass], tokens: &[String]) -> bool {
     if classes.len() != tokens.len() {
         return false;
     }
@@ -1584,8 +1576,7 @@ pub fn audit_approval_ticket_beta_page(
                 ));
             }
             Some(sandbox) => {
-                if envelope.action_class.required_sandbox_profile()
-                    != sandbox.sandbox_profile_class
+                if envelope.action_class.required_sandbox_profile() != sandbox.sandbox_profile_class
                 {
                     defects.push(ApprovalTicketBetaDefect::new(
                         ApprovalTicketBetaDefectKind::EnvelopeSandboxClassMismatch,
@@ -1735,7 +1726,10 @@ pub fn audit_approval_ticket_beta_page(
             ));
         }
 
-        match (parse_timestamp(&ticket.issued_at), parse_timestamp(&ticket.expires_at)) {
+        match (
+            parse_timestamp(&ticket.issued_at),
+            parse_timestamp(&ticket.expires_at),
+        ) {
             (Some(issued), Some(expires)) => {
                 if expires <= issued {
                     defects.push(ApprovalTicketBetaDefect::new(
@@ -1839,7 +1833,10 @@ pub fn audit_approval_ticket_beta_page(
         }
 
         if event.evaluation_outcome.is_admitted() {
-            if !matches!(event.native_reapproval_route, NativeReapprovalRoute::NotRequired) {
+            if !matches!(
+                event.native_reapproval_route,
+                NativeReapprovalRoute::NotRequired
+            ) {
                 defects.push(ApprovalTicketBetaDefect::new(
                     ApprovalTicketBetaDefectKind::SpendAdmittedReapprovalRouteUnexpected,
                     event.spend_attempt_id.clone(),
@@ -1869,7 +1866,10 @@ pub fn audit_approval_ticket_beta_page(
                 }
             }
         } else {
-            if matches!(event.native_reapproval_route, NativeReapprovalRoute::NotRequired) {
+            if matches!(
+                event.native_reapproval_route,
+                NativeReapprovalRoute::NotRequired
+            ) {
                 defects.push(ApprovalTicketBetaDefect::new(
                     ApprovalTicketBetaDefectKind::SpendDenialReapprovalRouteCollapsed,
                     event.spend_attempt_id.clone(),
@@ -2959,24 +2959,26 @@ mod tests {
             &page.ticket_rows,
             &page.spend_attempt_events,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == ApprovalTicketBetaDefectKind::SelfAuthorizationAttempted));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SelfAuthorizationAttempted));
     }
 
     #[test]
     fn validator_flags_silent_widening_attempt() {
         let mut page = seeded_approval_ticket_beta_page();
-        page.ticket_rows[0]
-            .guardrails
-            .silent_widening_attempted = true;
+        page.ticket_rows[0].guardrails.silent_widening_attempted = true;
         let defects = audit_approval_ticket_beta_page(
             &page.sandbox_profile_rows,
             &page.capability_envelope_rows,
             &page.ticket_rows,
             &page.spend_attempt_events,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == ApprovalTicketBetaDefectKind::SilentWideningAttempted));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SilentWideningAttempted));
     }
 
     #[test]
@@ -2998,8 +3000,10 @@ mod tests {
             &page.ticket_rows,
             &page.spend_attempt_events,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SpendAdmittedUnderDrift));
     }
 
     #[test]
@@ -3038,8 +3042,10 @@ mod tests {
             &page.ticket_rows,
             &page.spend_attempt_events,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == ApprovalTicketBetaDefectKind::SpendDenialMissingAuditRef));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == ApprovalTicketBetaDefectKind::SpendDenialMissingAuditRef));
     }
 
     #[test]
@@ -3049,9 +3055,11 @@ mod tests {
         envelope
             .allowed_capability_classes
             .push(CapabilityClass::MutateRemoteHelperTarget);
-        envelope
-            .allowed_capability_class_tokens
-            .push(CapabilityClass::MutateRemoteHelperTarget.as_str().to_owned());
+        envelope.allowed_capability_class_tokens.push(
+            CapabilityClass::MutateRemoteHelperTarget
+                .as_str()
+                .to_owned(),
+        );
         let defects = audit_approval_ticket_beta_page(
             &page.sandbox_profile_rows,
             &page.capability_envelope_rows,

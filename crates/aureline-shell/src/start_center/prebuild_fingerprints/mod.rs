@@ -258,7 +258,10 @@ mod tests {
             .find(|row| row.reuse_outcome == "resume_live_denied")
             .expect("a resume_live_denied row must be wired into Start Center");
         assert_eq!(denied.requested_path, "resume_live_workspace");
-        assert_eq!(denied.source_materialization_class, "stale_prebuild_snapshot");
+        assert_eq!(
+            denied.source_materialization_class,
+            "stale_prebuild_snapshot"
+        );
     }
 
     #[test]

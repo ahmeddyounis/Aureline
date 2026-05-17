@@ -658,7 +658,8 @@ fn validate_packet(violations: &mut Vec<PacketViolation>, packet: &IncidentWorks
     validate_target_block(violations, target, &packet.target);
     validate_degraded_state(violations, target, &packet.degraded_state);
     validate_findings(violations, target, &packet.findings);
-    let custody_summary = validate_evidence_artifacts(violations, target, &packet.evidence_artifacts);
+    let custody_summary =
+        validate_evidence_artifacts(violations, target, &packet.evidence_artifacts);
     validate_recovery_options(
         violations,
         target,
@@ -701,11 +702,7 @@ fn validate_workspace_identity(
     }
 }
 
-fn validate_target_block(
-    violations: &mut Vec<PacketViolation>,
-    target: &str,
-    block: &TargetBlock,
-) {
+fn validate_target_block(violations: &mut Vec<PacketViolation>, target: &str, block: &TargetBlock) {
     if block.exact_build_identity_ref.trim().is_empty() || block.target_summary.trim().is_empty() {
         push_violation(
             violations,
@@ -731,11 +728,7 @@ fn validate_degraded_state(
     }
 }
 
-fn validate_findings(
-    violations: &mut Vec<PacketViolation>,
-    target: &str,
-    findings: &[FindingRow],
-) {
+fn validate_findings(violations: &mut Vec<PacketViolation>, target: &str, findings: &[FindingRow]) {
     if findings.is_empty() {
         push_violation(
             violations,
@@ -808,7 +801,10 @@ fn validate_evidence_artifacts(
         if artifact.custody_class.is_held_record() {
             summary.has_held_record = true;
         }
-        if matches!(artifact.custody_class, EvidenceCustodyClass::ManagedCopyAvailable) {
+        if matches!(
+            artifact.custody_class,
+            EvidenceCustodyClass::ManagedCopyAvailable
+        ) {
             summary.has_managed_copy = true;
         }
     }
@@ -899,9 +895,7 @@ fn validate_claim_state(
             "claim_state.downgrade_tokens must be unique",
         );
     }
-    if custody.has_held_record
-        && !seen.contains(&ClaimDowngradeToken::HeldRecordBlocksExport)
-    {
+    if custody.has_held_record && !seen.contains(&ClaimDowngradeToken::HeldRecordBlocksExport) {
         push_violation(
             violations,
             "packet.claim_state.held_record_token_required",

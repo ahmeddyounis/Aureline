@@ -1143,9 +1143,8 @@ impl<'a> Validator<'a> {
                 "presenter_handoff.silent_authority_widening_taken must be false",
             );
 
-            let non_empty = |opt: &Option<String>| {
-                opt.as_deref().is_some_and(|value| !value.trim().is_empty())
-            };
+            let non_empty =
+                |opt: &Option<String>| opt.as_deref().is_some_and(|value| !value.trim().is_empty());
 
             if handoff.outcome.requires_destination_actor() {
                 self.expect(
@@ -1218,8 +1217,7 @@ impl<'a> Validator<'a> {
                 "audit_event.display_label must be non-empty",
             );
             self.expect(
-                !event.session_ref.trim().is_empty()
-                    && !event.shared_object_ref.trim().is_empty(),
+                !event.session_ref.trim().is_empty() && !event.shared_object_ref.trim().is_empty(),
                 "shared_terminal_alpha.audit_event_binding_incomplete",
                 "audit_event must name session and shared-object refs",
             );
@@ -1229,9 +1227,8 @@ impl<'a> Validator<'a> {
                 "audit_event.minted_at must be non-empty",
             );
 
-            let non_empty = |opt: &Option<String>| {
-                opt.as_deref().is_some_and(|value| !value.trim().is_empty())
-            };
+            let non_empty =
+                |opt: &Option<String>| opt.as_deref().is_some_and(|value| !value.trim().is_empty());
 
             if event.event_class.requires_denial_reason() {
                 self.expect(
@@ -1279,8 +1276,7 @@ impl<'a> Validator<'a> {
     fn validate_continuity_observations(&mut self) {
         for observation in &self.page.continuity_observations {
             self.expect(
-                observation.record_kind
-                    == SHARED_TERMINAL_ALPHA_CONTINUITY_OBSERVATION_RECORD_KIND,
+                observation.record_kind == SHARED_TERMINAL_ALPHA_CONTINUITY_OBSERVATION_RECORD_KIND,
                 "shared_terminal_alpha.continuity_observation_record_kind",
                 "continuity_observation.record_kind is wrong",
             );
@@ -1316,7 +1312,8 @@ impl<'a> Validator<'a> {
                 "continuity_observation.bound_state_ref must be non-empty",
             );
             self.expect(
-                self.state_ids.contains(observation.bound_state_ref.as_str()),
+                self.state_ids
+                    .contains(observation.bound_state_ref.as_str()),
                 "shared_terminal_alpha.continuity_observation_state_ref_unknown",
                 "continuity_observation.bound_state_ref must reference a control-state row \
                  in the page",
@@ -1590,12 +1587,12 @@ mod tests {
             shared_contract_ref: SHARED_TERMINAL_ALPHA_SHARED_CONTRACT_REF.to_string(),
             page_id: "shared_terminal_alpha.page.unit_test".to_string(),
             contract_refs: SharedTerminalAlphaContractRefs {
-                control_grant_schema_ref:
-                    "schemas/collaboration/control_grant.schema.json".to_string(),
-                shared_object_schema_ref:
-                    "schemas/collaboration/shared_object.schema.json".to_string(),
-                session_state_schema_ref:
-                    "schemas/collaboration/session_state.schema.json".to_string(),
+                control_grant_schema_ref: "schemas/collaboration/control_grant.schema.json"
+                    .to_string(),
+                shared_object_schema_ref: "schemas/collaboration/shared_object.schema.json"
+                    .to_string(),
+                session_state_schema_ref: "schemas/collaboration/session_state.schema.json"
+                    .to_string(),
                 follow_and_presenter_state_schema_ref:
                     "schemas/collaboration/follow_and_presenter_state.schema.json".to_string(),
                 session_policy_manifest_schema_ref:
@@ -1616,11 +1613,7 @@ mod tests {
     fn baseline_page_validates() {
         let page = baseline_page();
         let report = page.validate();
-        assert!(
-            report.passed,
-            "baseline must pass: {:#?}",
-            report.findings
-        );
+        assert!(report.passed, "baseline must pass: {:#?}", report.findings);
         for state in [
             SharedTerminalControlStateClass::ViewOnlyObserver,
             SharedTerminalControlStateClass::RequestControlPending,
@@ -1641,8 +1634,11 @@ mod tests {
             .control_grant_ref = None;
         let report = page.validate();
         assert!(!report.passed);
-        assert!(report.findings.iter().any(|finding| finding.check_id
-            == "shared_terminal_alpha.control_state_grant_ref_missing"));
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.check_id
+                == "shared_terminal_alpha.control_state_grant_ref_missing"));
     }
 
     #[test]
@@ -1683,8 +1679,9 @@ mod tests {
             .control_state_ref = Some("unknown".to_string());
         let report = page.validate();
         assert!(!report.passed);
-        assert!(report.findings.iter().any(|finding| finding.check_id
-            == "shared_terminal_alpha.audit_event_state_ref_unknown"));
+        assert!(report.findings.iter().any(
+            |finding| finding.check_id == "shared_terminal_alpha.audit_event_state_ref_unknown"
+        ));
     }
 
     #[test]
@@ -1712,8 +1709,11 @@ mod tests {
             .retain(|event| event.control_state_ref.as_deref() != Some("revoked"));
         let report = page.validate();
         assert!(!report.passed);
-        assert!(report.findings.iter().any(|finding| finding.check_id
-            == "shared_terminal_alpha.coverage_control_state_missing"));
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.check_id
+                == "shared_terminal_alpha.coverage_control_state_missing"));
     }
 
     #[test]

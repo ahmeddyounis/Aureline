@@ -15,11 +15,10 @@ pub use aureline_auth::{
     OidcIdentityOutageClass, OidcIssuerDisclosure, OidcIssuerSourceClass, OidcRecoveryActionClass,
     OidcReturnPathLabel, OidcSessionContinuityBlock, OidcSessionStateClass,
     OidcSignOutContinuityClass, OidcSystemBrowserBetaAxis, OidcSystemBrowserBetaDefect,
-    OidcSystemBrowserBetaDefectKind, OidcSystemBrowserBetaPage,
-    OidcSystemBrowserBetaProfileClass, OidcSystemBrowserBetaRow, OidcSystemBrowserBetaSummary,
-    OidcSystemBrowserBetaSupportExport, OidcSystemBrowserBetaSupportRow, OidcTenantBinding,
-    OidcTenantBindingClass, OIDC_SYSTEM_BROWSER_BETA_SCHEMA_VERSION,
-    OIDC_SYSTEM_BROWSER_BETA_SHARED_CONTRACT_REF,
+    OidcSystemBrowserBetaDefectKind, OidcSystemBrowserBetaPage, OidcSystemBrowserBetaProfileClass,
+    OidcSystemBrowserBetaRow, OidcSystemBrowserBetaSummary, OidcSystemBrowserBetaSupportExport,
+    OidcSystemBrowserBetaSupportRow, OidcTenantBinding, OidcTenantBindingClass,
+    OIDC_SYSTEM_BROWSER_BETA_SCHEMA_VERSION, OIDC_SYSTEM_BROWSER_BETA_SHARED_CONTRACT_REF,
 };
 
 /// Stable record kind for [`OidcSystemBrowserBetaRenderSummary`] payloads.

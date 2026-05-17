@@ -53,8 +53,8 @@ fn load_findings() -> Vec<ProjectDoctorBetaFinding> {
         .into_iter()
         .map(|file| {
             let path = fixture_dir().join(file);
-            let yaml = std::fs::read_to_string(&path)
-                .unwrap_or_else(|err| panic!("read {path:?}: {err}"));
+            let yaml =
+                std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
             load_beta_finding(&yaml).unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
         })
         .collect()
@@ -69,7 +69,10 @@ fn beta_catalog_packs_are_versioned_named_and_read_only_by_default() {
         .validate_catalog(&catalog)
         .expect("catalog validates");
 
-    assert_eq!(catalog.record_kind, PROJECT_DOCTOR_PROBE_PACK_CATALOG_RECORD_KIND);
+    assert_eq!(
+        catalog.record_kind,
+        PROJECT_DOCTOR_PROBE_PACK_CATALOG_RECORD_KIND
+    );
     assert_eq!(catalog.doc_ref, PROJECT_DOCTOR_BETA_DOC_REF);
     assert_eq!(catalog.schema_ref, PROJECT_DOCTOR_BETA_SCHEMA_REF);
     assert!(!catalog.packs.is_empty());
@@ -135,7 +138,10 @@ fn beta_findings_are_typed_attributable_and_confidence_labeled() {
         assert!(finding.finding_code.starts_with(DOCTOR_FINDING_PREFIX));
         assert!(!finding.evidence_refs.is_empty());
         assert!(!finding.render_surfaces.is_empty());
-        assert_eq!(finding.redaction_class, SupportRedactionClass::MetadataSafeDefault);
+        assert_eq!(
+            finding.redaction_class,
+            SupportRedactionClass::MetadataSafeDefault
+        );
         assert!(finding.raw_private_material_excluded);
         assert!(finding.attribution_refs.iter().any(|attribution| {
             attribution.attribution_kind == AttributionKindClass::ProbePackRef
@@ -290,7 +296,9 @@ fn beta_evaluator_refuses_headless_finding_against_support_guided_only_pack() {
     finding.support_context_class = SupportContextClass::CliHeadless;
     let report = evaluator
         .validate_finding_against_catalog(&catalog, &finding)
-        .expect_err("cli_headless support context against support_guided_only pack must be rejected");
+        .expect_err(
+            "cli_headless support context against support_guided_only pack must be rejected",
+        );
     assert!(
         report.violations.iter().any(|violation| {
             violation.check_id == "project_doctor.finding_support_context_not_supported"

@@ -55,9 +55,7 @@ fn corpus_covers_every_required_recovery_class() {
     let entries = corpus_entries();
     for cls in REQUIRED_RECOVERY_CLASSES {
         assert!(
-            entries
-                .iter()
-                .any(|entry| entry.case.recovery_class == cls),
+            entries.iter().any(|entry| entry.case.recovery_class == cls),
             "required recovery_class {} has no seeded case",
             cls.as_str()
         );
@@ -358,7 +356,10 @@ fn refuses_unattributed_with_known_actor() {
 #[test]
 fn vocab_tokens_match_schema_constants() {
     assert_eq!(SourceLane::AiAssistant.as_str(), "ai_assistant");
-    assert_eq!(SourceLane::InteractiveRefactor.as_str(), "interactive_refactor");
+    assert_eq!(
+        SourceLane::InteractiveRefactor.as_str(),
+        "interactive_refactor"
+    );
     assert_eq!(SourceLane::AutomatedTooling.as_str(), "automated_tooling");
     assert_eq!(ActorClass::AiAgent.as_str(), "ai_agent");
     assert_eq!(ActorClass::UnknownActor.as_str(), "unknown_actor");
@@ -367,7 +368,10 @@ fn vocab_tokens_match_schema_constants() {
     assert_eq!(RecoveryClass::ExactUndo.as_str(), "exact_undo");
     assert_eq!(RecoveryClass::Compensation.as_str(), "compensation");
     assert_eq!(RecoveryClass::Regeneration.as_str(), "regeneration");
-    assert_eq!(RecoveryClass::CheckpointRestore.as_str(), "checkpoint_restore");
+    assert_eq!(
+        RecoveryClass::CheckpointRestore.as_str(),
+        "checkpoint_restore"
+    );
     assert_eq!(
         RecoveryClass::RequiresUserResolution.as_str(),
         "requires_user_resolution"
@@ -384,12 +388,18 @@ fn vocab_tokens_match_schema_constants() {
     );
     assert_eq!(ConsumerSurface::IncidentPacket.as_str(), "incident_packet");
     assert_eq!(ConsumerSurface::CrashReport.as_str(), "crash_report");
-    assert_eq!(DowngradeLabel::RedBlocksBetaRow.as_str(), "red_blocks_beta_row");
+    assert_eq!(
+        DowngradeLabel::RedBlocksBetaRow.as_str(),
+        "red_blocks_beta_row"
+    );
     assert_eq!(
         DowngradeLabel::DegradedToCheckpointRestoreOnly.as_str(),
         "degraded_to_checkpoint_restore_only"
     );
-    assert_eq!(OpenGapClass::AttributionPending.as_str(), "attribution_pending");
+    assert_eq!(
+        OpenGapClass::AttributionPending.as_str(),
+        "attribution_pending"
+    );
     assert_eq!(
         OpenGapClass::CompensationClassPending.as_str(),
         "compensation_class_pending"

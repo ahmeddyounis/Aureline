@@ -9,8 +9,8 @@ use aureline_shell::network_trust_beta::{
     audit_network_trust_beta_rows, seeded_network_trust_beta_page,
     validate_network_trust_beta_page, NetworkTrustBetaDefect, NetworkTrustBetaDefectKind,
     NetworkTrustBetaPage, NetworkTrustBetaRenderSummary, NetworkTrustBetaRow,
-    NetworkTrustBetaSupportExport, NetworkTrustBetaSupportRow,
-    NETWORK_TRUST_BETA_SCHEMA_VERSION, NETWORK_TRUST_BETA_SHARED_CONTRACT_REF,
+    NetworkTrustBetaSupportExport, NetworkTrustBetaSupportRow, NETWORK_TRUST_BETA_SCHEMA_VERSION,
+    NETWORK_TRUST_BETA_SHARED_CONTRACT_REF,
 };
 
 const FIXTURE_DIR: &str = concat!(
@@ -38,7 +38,10 @@ fn page_fixture_matches_seeded_builder() {
 #[test]
 fn page_fixture_validates_with_zero_defects() {
     let page: NetworkTrustBetaPage = load("page.json");
-    assert_eq!(page.shared_contract_ref, NETWORK_TRUST_BETA_SHARED_CONTRACT_REF);
+    assert_eq!(
+        page.shared_contract_ref,
+        NETWORK_TRUST_BETA_SHARED_CONTRACT_REF
+    );
     assert_eq!(page.schema_version, NETWORK_TRUST_BETA_SCHEMA_VERSION);
     assert!(page.defects.is_empty());
     validate_network_trust_beta_page(&page).expect("seeded page must validate");
@@ -109,8 +112,9 @@ fn drill_unsigned_managed_replays_typed_defect() {
     let page: NetworkTrustBetaPage = load("drill_unsigned_managed.json");
     let recomputed = audit_network_trust_beta_rows(&page.rows, &page.support_rows);
     assert_eq!(recomputed, page.defects);
-    assert!(recomputed.iter().any(|defect| defect.defect_kind
-        == NetworkTrustBetaDefectKind::UnsignedManagedAuthority));
+    assert!(recomputed
+        .iter()
+        .any(|defect| defect.defect_kind == NetworkTrustBetaDefectKind::UnsignedManagedAuthority));
 }
 
 #[test]
@@ -118,8 +122,9 @@ fn drill_public_fallback_replays_typed_defect() {
     let page: NetworkTrustBetaPage = load("drill_public_fallback.json");
     let recomputed = audit_network_trust_beta_rows(&page.rows, &page.support_rows);
     assert_eq!(recomputed, page.defects);
-    assert!(recomputed.iter().any(|defect| defect.defect_kind
-        == NetworkTrustBetaDefectKind::HiddenPublicEndpointFallback));
+    assert!(recomputed.iter().any(
+        |defect| defect.defect_kind == NetworkTrustBetaDefectKind::HiddenPublicEndpointFallback
+    ));
 }
 
 #[test]
@@ -127,6 +132,10 @@ fn drill_lock_source_mismatch_replays_typed_defect() {
     let page: NetworkTrustBetaPage = load("drill_lock_source_mismatch.json");
     let recomputed = audit_network_trust_beta_rows(&page.rows, &page.support_rows);
     assert_eq!(recomputed, page.defects);
-    assert!(recomputed.iter().any(|defect| defect.defect_kind
-        == NetworkTrustBetaDefectKind::LockInconsistentWithSource));
+    assert!(
+        recomputed
+            .iter()
+            .any(|defect| defect.defect_kind
+                == NetworkTrustBetaDefectKind::LockInconsistentWithSource)
+    );
 }

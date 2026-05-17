@@ -17,8 +17,8 @@ pub use aureline_auth::{
     OfflineEntitlementVerifierBetaProfileClass, OfflineEntitlementVerifierBetaRow,
     OfflineEntitlementVerifierBetaSummary, OfflineEntitlementVerifierBetaSupportExport,
     OfflineEntitlementVerifierBetaSupportRow, TrustAnchorSourceClass, VerifiedBundleKindClass,
-    VerifierBundleSubject, VerifierOutcomeClass, VerifierRecoveryActionClass,
-    VerifierTrustAnchor, OFFLINE_ENTITLEMENT_VERIFIER_BETA_SCHEMA_VERSION,
+    VerifierBundleSubject, VerifierOutcomeClass, VerifierRecoveryActionClass, VerifierTrustAnchor,
+    OFFLINE_ENTITLEMENT_VERIFIER_BETA_SCHEMA_VERSION,
     OFFLINE_ENTITLEMENT_VERIFIER_BETA_SHARED_CONTRACT_REF,
 };
 
@@ -66,9 +66,7 @@ impl OfflineEntitlementVerifierBetaRenderSummary {
             verified_row_count: page.summary.verified_row_count,
             failed_row_count: page.summary.failed_row_count,
             local_editing_preserved_row_count: page.summary.local_editing_preserved_row_count,
-            managed_authority_narrowed_row_count: page
-                .summary
-                .managed_authority_narrowed_row_count,
+            managed_authority_narrowed_row_count: page.summary.managed_authority_narrowed_row_count,
             profiles_present: page.summary.profiles_present.clone(),
             bundle_kinds_present: page.summary.bundle_kinds_present.clone(),
             outcomes_present: page.summary.outcomes_present.clone(),

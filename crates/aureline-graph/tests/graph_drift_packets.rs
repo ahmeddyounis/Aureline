@@ -10,11 +10,11 @@ use std::path::{Path, PathBuf};
 
 use aureline_graph::{
     current_graph_drift_corpus, DataLaneLineage, DriftConsumerSurface, DriftDowngradeLabel,
-    DriftIndicator, DriftOpenGapClass, FreshnessClass, GraphDriftPacketEvaluator,
-    GraphDriftReport, ReadinessState, ScopeClass, GRAPH_DRIFT_PACKET_CORPUS_DIR,
+    DriftIndicator, DriftOpenGapClass, FreshnessClass, GraphDriftPacketEvaluator, GraphDriftReport,
+    ReadinessState, ScopeClass, GRAPH_DRIFT_PACKET_CORPUS_DIR,
     GRAPH_DRIFT_PACKET_CORPUS_MANIFEST_REF, GRAPH_DRIFT_PACKET_DOC_REF,
-    GRAPH_DRIFT_PACKET_REPORT_REF, GRAPH_DRIFT_PACKET_SCHEMA_REF,
-    REQUIRED_DATA_LANE_LINEAGES, REQUIRED_DRIFT_CONSUMER_SURFACES,
+    GRAPH_DRIFT_PACKET_REPORT_REF, GRAPH_DRIFT_PACKET_SCHEMA_REF, REQUIRED_DATA_LANE_LINEAGES,
+    REQUIRED_DRIFT_CONSUMER_SURFACES,
 };
 
 fn repo_root() -> PathBuf {
@@ -127,7 +127,11 @@ fn report_emits_closed_vocabulary_tokens() {
         .map(|s| s.packet_count)
         .sum();
     assert_eq!(surface_total as usize, corpus.entries.len());
-    let lineage_total: u32 = report.lineage_summaries.iter().map(|s| s.packet_count).sum();
+    let lineage_total: u32 = report
+        .lineage_summaries
+        .iter()
+        .map(|s| s.packet_count)
+        .sum();
     assert_eq!(lineage_total as usize, corpus.entries.len());
 }
 

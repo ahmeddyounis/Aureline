@@ -8,10 +8,9 @@
 use aureline_shell::admin_audit_export_beta::{
     audit_admin_audit_export_beta_page, seeded_admin_audit_export_beta_page,
     validate_admin_audit_export_beta_page, AdminAuditExportBetaDefectKind,
-    AdminAuditExportBetaPage, AdminAuditExportBetaRenderSummary,
-    AdminAuditExportBetaSupportExport, EntitlementChangeEvent, PolicyBundleHistoryEvent,
-    ProvisioningEvent, ADMIN_AUDIT_EXPORT_BETA_SCHEMA_VERSION,
-    ADMIN_AUDIT_EXPORT_BETA_SHARED_CONTRACT_REF,
+    AdminAuditExportBetaPage, AdminAuditExportBetaRenderSummary, AdminAuditExportBetaSupportExport,
+    EntitlementChangeEvent, PolicyBundleHistoryEvent, ProvisioningEvent,
+    ADMIN_AUDIT_EXPORT_BETA_SCHEMA_VERSION, ADMIN_AUDIT_EXPORT_BETA_SHARED_CONTRACT_REF,
 };
 
 const FIXTURE_DIR: &str = concat!(
@@ -21,8 +20,8 @@ const FIXTURE_DIR: &str = concat!(
 
 fn load<T: serde::de::DeserializeOwned>(filename: &str) -> T {
     let path = format!("{}/{}", FIXTURE_DIR, filename);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
+    let body =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
     serde_json::from_str(&body).unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
 }
 
@@ -148,8 +147,10 @@ fn drill_public_fallback_replays_typed_defect() {
         &page.entitlement_changes,
     );
     assert_eq!(recomputed, page.defects);
-    assert!(recomputed.iter().any(|defect| defect.defect_kind
-        == AdminAuditExportBetaDefectKind::HiddenPublicEndpointFallback));
+    assert!(recomputed
+        .iter()
+        .any(|defect| defect.defect_kind
+            == AdminAuditExportBetaDefectKind::HiddenPublicEndpointFallback));
 }
 
 #[test]

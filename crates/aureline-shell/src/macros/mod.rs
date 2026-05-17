@@ -720,11 +720,7 @@ impl RecordedMacroAlphaPage {
                     .iter()
                     .map(|step| step.command_id.clone())
                     .collect(),
-                mode_requirements: def
-                    .steps
-                    .iter()
-                    .map(|step| step.mode_requirement)
-                    .collect(),
+                mode_requirements: def.steps.iter().map(|step| step.mode_requirement).collect(),
                 write_classes_union: write_class_union(&def.steps),
                 lineage_summary: def.lineage_summary.clone(),
             })
@@ -1246,9 +1242,8 @@ impl<'a> Validator<'a> {
                 "recorded_macro_alpha.disposition_silent_authority_widening",
                 "disposition.silent_authority_widening_taken must be false",
             );
-            let non_empty = |opt: &Option<String>| {
-                opt.as_deref().is_some_and(|value| !value.trim().is_empty())
-            };
+            let non_empty =
+                |opt: &Option<String>| opt.as_deref().is_some_and(|value| !value.trim().is_empty());
             if disposition.disposition.requires_preview_reason() {
                 self.expect(
                     non_empty(&disposition.preview_required_reason_label),
@@ -1361,8 +1356,7 @@ impl<'a> Validator<'a> {
                 "audit_event must name display_label and minted_at",
             );
             self.expect(
-                self.definition_ids
-                    .contains(event.definition_ref.as_str()),
+                self.definition_ids.contains(event.definition_ref.as_str()),
                 "recorded_macro_alpha.audit_event_definition_ref_unknown",
                 "audit_event.definition_ref must resolve to a definition on the page",
             );

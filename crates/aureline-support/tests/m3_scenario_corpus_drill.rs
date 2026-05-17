@@ -122,10 +122,7 @@ fn every_scenario_declares_export_support_packet_step_and_downgrade_baseline() {
 #[test]
 fn drill_harness_report_projects_one_metadata_safe_row_per_required_lane() {
     let corpus = current_m3_scenario_corpus().expect("corpus parses");
-    let report = corpus.drill_harness_report(
-        "m3.drill_harness_report.v1",
-        "2026-05-16T00:00:00Z",
-    );
+    let report = corpus.drill_harness_report("m3.drill_harness_report.v1", "2026-05-16T00:00:00Z");
     assert_eq!(report.record_kind, M3_DRILL_HARNESS_REPORT_RECORD_KIND);
     assert_eq!(report.lane_rows.len(), required_beta_lane_classes().len());
     assert!(report.is_export_safe());
@@ -138,7 +135,11 @@ fn drill_harness_report_projects_one_metadata_safe_row_per_required_lane() {
         .map(|row| row.beta_lane_class)
         .collect::<BTreeSet<_>>();
     for required in required_beta_lane_classes() {
-        assert!(lane_set.contains(required), "missing lane row for {}", required.as_str());
+        assert!(
+            lane_set.contains(required),
+            "missing lane row for {}",
+            required.as_str()
+        );
     }
     for row in &report.lane_rows {
         assert_eq!(row.record_kind, M3_DRILL_HARNESS_LANE_ROW_RECORD_KIND);
@@ -253,10 +254,12 @@ emitted_at: 2026-05-16T00:00:00Z
 "#;
     let scenario = load_m3_support_scenario(yaml).expect("parses as struct");
     let corpus = aureline_support::m3_scenario_corpus::M3ScenarioCorpus {
-        entries: vec![aureline_support::m3_scenario_corpus::M3ScenarioCorpusEntry {
-            fixture_ref: "fixtures/support/m3/scenario_corpus/bogus.yaml".to_owned(),
-            scenario,
-        }],
+        entries: vec![
+            aureline_support::m3_scenario_corpus::M3ScenarioCorpusEntry {
+                fixture_ref: "fixtures/support/m3/scenario_corpus/bogus.yaml".to_owned(),
+                scenario,
+            },
+        ],
     };
     let violations = corpus.validate();
     assert!(violations

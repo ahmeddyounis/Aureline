@@ -343,9 +343,7 @@ impl ReviewPackParityHarnessRecord {
             raw_path_export_allowed: self.support_export.raw_path_export_allowed,
             raw_glob_body_export_allowed: self.support_export.raw_glob_body_export_allowed,
             raw_command_export_allowed: self.support_export.raw_command_export_allowed,
-            raw_check_output_export_allowed: self
-                .support_export
-                .raw_check_output_export_allowed,
+            raw_check_output_export_allowed: self.support_export.raw_check_output_export_allowed,
             finding_count,
             full_parity_count,
             local_only_match_count,
@@ -410,7 +408,10 @@ impl fmt::Display for ReviewPackParityHarnessError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Json(message) => {
-                write!(formatter, "review-pack parity-harness JSON error: {message}")
+                write!(
+                    formatter,
+                    "review-pack parity-harness JSON error: {message}"
+                )
             }
             Self::Validation(error) => write!(formatter, "{error}"),
         }
@@ -513,10 +514,7 @@ fn validate_lane_observations(
             REVIEW_PACK_PARITY_HARNESS_LANE_STATUS_CLASSES,
             &observation.lane_status_class,
         )?;
-        require_non_empty(
-            "harness_lane_observations[].summary",
-            &observation.summary,
-        )?;
+        require_non_empty("harness_lane_observations[].summary", &observation.summary)?;
         if !seen_lanes.insert(observation.lane_class.as_str()) {
             return Err(ReviewPackParityHarnessValidationError::new(format!(
                 "harness_lane_observations contains a duplicate lane_class: {}",
@@ -544,10 +542,7 @@ fn validate_findings(
     }
     let mut seen_refs: BTreeSet<&str> = BTreeSet::new();
     for finding in findings {
-        require_non_empty(
-            "check_parity_findings[].check_ref",
-            &finding.check_ref,
-        )?;
+        require_non_empty("check_parity_findings[].check_ref", &finding.check_ref)?;
         if !seen_refs.insert(finding.check_ref.as_str()) {
             return Err(ReviewPackParityHarnessValidationError::new(format!(
                 "check_parity_findings contains a duplicate check_ref: {}",
@@ -579,10 +574,7 @@ fn validate_findings(
             REVIEW_PACK_PARITY_HARNESS_PARITY_FINDING_CLASSES,
             &finding.parity_finding_class,
         )?;
-        require_non_empty(
-            "check_parity_findings[].summary",
-            &finding.summary,
-        )?;
+        require_non_empty("check_parity_findings[].summary", &finding.summary)?;
     }
     Ok(())
 }
@@ -899,7 +891,10 @@ mod tests {
     fn community_drift_downgrades_the_row() {
         let projection = project_review_pack_parity_harness(FIXTURE_COMMUNITY)
             .expect("community drift-downgrade fixture must project");
-        assert_eq!(projection.pack_authority_class, "repo_uncertified_community");
+        assert_eq!(
+            projection.pack_authority_class,
+            "repo_uncertified_community"
+        );
         assert_eq!(projection.overall_verdict_class, "drift_downgraded");
         assert_eq!(
             projection.row_downgrade_class,
@@ -927,11 +922,13 @@ mod tests {
         record.check_parity_findings[0].parity_finding_class = "drift_detected".to_string();
         record.check_parity_findings[0].observed_parity_class =
             "parity_unknown_requires_review".to_string();
-        record.drift_downgrades.push(ReviewPackParityHarnessDriftDowngrade {
-            check_ref: record.check_parity_findings[0].check_ref.clone(),
-            downgrade_class: "downgraded_to_review_required".to_string(),
-            summary: "Drift downgrades the row.".to_string(),
-        });
+        record
+            .drift_downgrades
+            .push(ReviewPackParityHarnessDriftDowngrade {
+                check_ref: record.check_parity_findings[0].check_ref.clone(),
+                downgrade_class: "downgraded_to_review_required".to_string(),
+                summary: "Drift downgrades the row.".to_string(),
+            });
         record.row_downgrade_class = "downgraded_to_review_required".to_string();
         let err = record
             .validate()
@@ -953,9 +950,7 @@ mod tests {
                 lane_status_class: "lane_engaged".to_string(),
                 summary: "Duplicate placeholder.".to_string(),
             });
-        let err = record
-            .validate()
-            .expect_err("missing local_lane must fail");
+        let err = record.validate().expect_err("missing local_lane must fail");
         assert!(err.message().contains("local_lane") || err.message().contains("duplicate"));
     }
 
@@ -983,8 +978,10 @@ mod tests {
 
     #[test]
     fn rejects_wrong_record_kind_via_project() {
-        let tampered = FIXTURE_FIRST_PARTY
-            .replace("review_pack_parity_harness_alpha_record", "other_record_kind");
+        let tampered = FIXTURE_FIRST_PARTY.replace(
+            "review_pack_parity_harness_alpha_record",
+            "other_record_kind",
+        );
         match project_review_pack_parity_harness(&tampered) {
             Err(ReviewPackParityHarnessError::Validation(err)) => {
                 assert!(err.message().contains("record_kind"));

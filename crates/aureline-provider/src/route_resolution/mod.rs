@@ -44,8 +44,7 @@ use crate::registry::{
 pub const ROUTE_RESOLUTION_BETA_SCHEMA_VERSION: u32 = 1;
 
 /// Shared contract ref consumed by every route-resolution beta record.
-pub const ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF: &str =
-    "providers:route_resolution_beta:v1";
+pub const ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF: &str = "providers:route_resolution_beta:v1";
 
 /// Source matrix ref consumed by this beta projection.
 pub const ROUTE_RESOLUTION_BETA_SOURCE_MATRIX_REF: &str =
@@ -871,8 +870,7 @@ impl RouteResolutionBetaSummary {
             lane_classes_present.insert(row.lane_class_token.clone());
             route_choices_present.insert(row.route.route_choice_token.clone());
             owner_classes_present.insert(row.owner.owner_class_token.clone());
-            acting_identity_classes_present
-                .insert(row.grant.acting_identity_class_token.clone());
+            acting_identity_classes_present.insert(row.grant.acting_identity_class_token.clone());
             action_classes_present.insert(row.action_class_token.clone());
             fallback_modes_present.insert(row.fallback.fallback_mode_token.clone());
             route_degraded_states_present.insert(row.route_degraded_state_token.clone());
@@ -907,15 +905,11 @@ impl RouteResolutionBetaSummary {
             lane_classes_present: lane_classes_present.into_iter().collect(),
             route_choices_present: route_choices_present.into_iter().collect(),
             owner_classes_present: owner_classes_present.into_iter().collect(),
-            acting_identity_classes_present: acting_identity_classes_present
-                .into_iter()
-                .collect(),
+            acting_identity_classes_present: acting_identity_classes_present.into_iter().collect(),
             action_classes_present: action_classes_present.into_iter().collect(),
             fallback_modes_present: fallback_modes_present.into_iter().collect(),
             route_degraded_states_present: route_degraded_states_present.into_iter().collect(),
-            authority_truth_states_present: authority_truth_states_present
-                .into_iter()
-                .collect(),
+            authority_truth_states_present: authority_truth_states_present.into_iter().collect(),
             rows_by_route_degraded_state,
             rows_by_lane_class,
             defect_count: defects.len(),
@@ -1044,10 +1038,8 @@ pub fn audit_route_resolution_beta_page(
 ) -> Vec<RouteResolutionBetaDefect> {
     let mut defects = Vec::new();
 
-    let row_index: BTreeMap<&str, &RouteResolutionRow> = rows
-        .iter()
-        .map(|row| (row.row_id.as_str(), row))
-        .collect();
+    let row_index: BTreeMap<&str, &RouteResolutionRow> =
+        rows.iter().map(|row| (row.row_id.as_str(), row)).collect();
 
     for row in rows {
         audit_row_tokens(&mut defects, row);
@@ -1130,7 +1122,8 @@ pub fn audit_route_resolution_beta_page(
             }
             Some(row) => {
                 let row_route = row.route.route_choice;
-                let fallback_route = (row.fallback.fallback_mode == ProviderFallbackMode::OpenInProvider)
+                let fallback_route = (row.fallback.fallback_mode
+                    == ProviderFallbackMode::OpenInProvider)
                     .then_some(RouteChoiceClass::SystemBrowserHandoffRoute);
                 if panel.projected_route_choice != row_route
                     && Some(panel.projected_route_choice) != fallback_route
@@ -1550,7 +1543,9 @@ fn audit_row_fallback(defects: &mut Vec<RouteResolutionBetaDefect>, row: &RouteR
                 row.fallback.publish_later_queue_item_ref.is_some()
             }
             ProviderFallbackMode::InspectOnly => row.fallback.inspect_only_snapshot_ref.is_some(),
-            ProviderFallbackMode::CopyOrExport => row.fallback.copy_or_export_evidence_ref.is_some(),
+            ProviderFallbackMode::CopyOrExport => {
+                row.fallback.copy_or_export_evidence_ref.is_some()
+            }
         };
         if !proof_present {
             defects.push(RouteResolutionBetaDefect::new(
@@ -1606,11 +1601,8 @@ pub fn seeded_route_resolution_beta_page() -> RouteResolutionBetaPage {
     let rows = seed_rows();
     let browser_handoff_panels = seed_browser_handoff_panels();
     let authority_truth_panels = seed_authority_truth_panels();
-    let defects = audit_route_resolution_beta_page(
-        &rows,
-        &browser_handoff_panels,
-        &authority_truth_panels,
-    );
+    let defects =
+        audit_route_resolution_beta_page(&rows, &browser_handoff_panels, &authority_truth_panels);
     let summary = RouteResolutionBetaSummary::from_records(
         &rows,
         &browser_handoff_panels,
@@ -1645,8 +1637,7 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             lane_class_token: LaneClass::ExternalProviderLane.as_str().to_owned(),
             provider_source_class: ProviderSourceClass::LiveProvider,
             provider_surface_class: ProviderSurfaceClass::CodeHostSurface,
-            provider_descriptor_ref:
-                "provider-descriptor:code-host:public:payments-org".to_owned(),
+            provider_descriptor_ref: "provider-descriptor:code-host:public:payments-org".to_owned(),
             action_class: RouteActionClass::ProviderMutation,
             action_class_token: RouteActionClass::ProviderMutation.as_str().to_owned(),
             provider_linked_row_ref: "provider-linked-row:pr:payments/backend:1234".to_owned(),
@@ -1678,16 +1669,14 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
                     ProviderAuthSourceClass::HumanSession,
                 )
                 .to_owned(),
-                bound_identity_row_ref:
-                    "account-scope-beta:connected-account:connected:human-dev".to_owned(),
+                bound_identity_row_ref: "account-scope-beta:connected-account:connected:human-dev"
+                    .to_owned(),
                 managed_policy_bundle_ref: None,
             },
             fallback: FallbackDescriptor {
                 fallback_mode: ProviderFallbackMode::OpenInProvider,
-                fallback_mode_token: provider_fallback_token(
-                    ProviderFallbackMode::OpenInProvider,
-                )
-                .to_owned(),
+                fallback_mode_token: provider_fallback_token(ProviderFallbackMode::OpenInProvider)
+                    .to_owned(),
                 fallback_label: "Open in browser".to_owned(),
                 browser_handoff_packet_ref: Some(
                     "browser-handoff-packet:pr:1234:comment:connected".to_owned(),
@@ -1727,8 +1716,8 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             lane_class_token: LaneClass::ManagedMirrorLane.as_str().to_owned(),
             provider_source_class: ProviderSourceClass::MirroredOrSelfHosted,
             provider_surface_class: ProviderSurfaceClass::CodeHostSurface,
-            provider_descriptor_ref:
-                "provider-descriptor:code-host:enterprise-mirror:payments-org".to_owned(),
+            provider_descriptor_ref: "provider-descriptor:code-host:enterprise-mirror:payments-org"
+                .to_owned(),
             action_class: RouteActionClass::ProviderMutation,
             action_class_token: RouteActionClass::ProviderMutation.as_str().to_owned(),
             provider_linked_row_ref: "provider-linked-row:pr:payments/backend:1234".to_owned(),
@@ -1771,10 +1760,8 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             },
             fallback: FallbackDescriptor {
                 fallback_mode: ProviderFallbackMode::OpenInProvider,
-                fallback_mode_token: provider_fallback_token(
-                    ProviderFallbackMode::OpenInProvider,
-                )
-                .to_owned(),
+                fallback_mode_token: provider_fallback_token(ProviderFallbackMode::OpenInProvider)
+                    .to_owned(),
                 fallback_label: "Complete merge in browser".to_owned(),
                 browser_handoff_packet_ref: Some(
                     "browser-handoff-packet:pr:1234:merge:mirror_only".to_owned(),
@@ -1810,8 +1797,7 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             record_kind: ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND.to_owned(),
             schema_version: ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
             shared_contract_ref: ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF.to_owned(),
-            row_id: "route-resolution-beta:row:offline:release-signer:release-publish"
-                .to_owned(),
+            row_id: "route-resolution-beta:row:offline:release-signer:release-publish".to_owned(),
             display_label: "Release publish parked while offline snapshot is the only route"
                 .to_owned(),
             profile: AccountScopeBetaProfileClass::Offline,
@@ -1820,12 +1806,11 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             lane_class_token: LaneClass::OfflineSnapshotLane.as_str().to_owned(),
             provider_source_class: ProviderSourceClass::ImportedSnapshot,
             provider_surface_class: ProviderSurfaceClass::CiOrChecksSurface,
-            provider_descriptor_ref:
-                "provider-descriptor:release-registry:enterprise:fleet-0001".to_owned(),
+            provider_descriptor_ref: "provider-descriptor:release-registry:enterprise:fleet-0001"
+                .to_owned(),
             action_class: RouteActionClass::ReleasePublish,
             action_class_token: RouteActionClass::ReleasePublish.as_str().to_owned(),
-            provider_linked_row_ref:
-                "provider-linked-row:release:fleet-0001:v1.2.3".to_owned(),
+            provider_linked_row_ref: "provider-linked-row:release:fleet-0001:v1.2.3".to_owned(),
             route: RouteDescriptor {
                 route_choice: RouteChoiceClass::ImportedSnapshotRoute,
                 route_choice_token: RouteChoiceClass::ImportedSnapshotRoute.as_str().to_owned(),
@@ -1888,10 +1873,9 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
                 ),
             },
             route_degraded_state: RouteDegradedStateClass::SnapshotOlderThanRetentionFloor,
-            route_degraded_state_token:
-                RouteDegradedStateClass::SnapshotOlderThanRetentionFloor
-                    .as_str()
-                    .to_owned(),
+            route_degraded_state_token: RouteDegradedStateClass::SnapshotOlderThanRetentionFloor
+                .as_str()
+                .to_owned(),
             command_route_packet_ref: Some(
                 "command-route:reconstruction:release:fleet-0001:v1.2.3:offline".to_owned(),
             ),
@@ -1905,8 +1889,7 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             record_kind: ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND.to_owned(),
             schema_version: ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
             shared_contract_ref: ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF.to_owned(),
-            row_id: "route-resolution-beta:row:enterprise_managed:managed-bot:check-run"
-                .to_owned(),
+            row_id: "route-resolution-beta:row:enterprise_managed:managed-bot:check-run".to_owned(),
             display_label: "Managed deploy bot blocked by managed policy authority".to_owned(),
             profile: AccountScopeBetaProfileClass::EnterpriseManaged,
             profile_token: AccountScopeBetaProfileClass::EnterpriseManaged
@@ -1916,12 +1899,11 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             lane_class_token: LaneClass::ManagedProviderLane.as_str().to_owned(),
             provider_source_class: ProviderSourceClass::LiveProvider,
             provider_surface_class: ProviderSurfaceClass::CiOrChecksSurface,
-            provider_descriptor_ref:
-                "provider-descriptor:code-host:enterprise:tenant-001-fleet".to_owned(),
+            provider_descriptor_ref: "provider-descriptor:code-host:enterprise:tenant-001-fleet"
+                .to_owned(),
             action_class: RouteActionClass::CiOrCheckMutation,
             action_class_token: RouteActionClass::CiOrCheckMutation.as_str().to_owned(),
-            provider_linked_row_ref:
-                "provider-linked-row:check-run:tenant-001/fleet:42".to_owned(),
+            provider_linked_row_ref: "provider-linked-row:check-run:tenant-001/fleet:42".to_owned(),
             route: RouteDescriptor {
                 route_choice: RouteChoiceClass::LiveProviderDirect,
                 route_choice_token: RouteChoiceClass::LiveProviderDirect.as_str().to_owned(),
@@ -1961,10 +1943,8 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             },
             fallback: FallbackDescriptor {
                 fallback_mode: ProviderFallbackMode::CopyOrExport,
-                fallback_mode_token: provider_fallback_token(
-                    ProviderFallbackMode::CopyOrExport,
-                )
-                .to_owned(),
+                fallback_mode_token: provider_fallback_token(ProviderFallbackMode::CopyOrExport)
+                    .to_owned(),
                 fallback_label: "Export evidence for admin review".to_owned(),
                 browser_handoff_packet_ref: None,
                 publish_later_queue_item_ref: None,
@@ -1975,9 +1955,7 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             },
             freshness: RouteFreshness {
                 freshness_class: FreshnessLabel::RevokedOrDisconnected,
-                freshness_class_token: FreshnessLabel::RevokedOrDisconnected
-                    .as_str()
-                    .to_owned(),
+                freshness_class_token: FreshnessLabel::RevokedOrDisconnected.as_str().to_owned(),
                 freshness_floor_ref: "freshness-floor:managed-policy:tenant-001:60s".to_owned(),
                 observed_at: "2026-05-16T10:20:00Z".to_owned(),
                 stale_after: None,
@@ -1988,10 +1966,9 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
                 ),
             },
             route_degraded_state: RouteDegradedStateClass::ManagedPolicyBoundaryClosed,
-            route_degraded_state_token:
-                RouteDegradedStateClass::ManagedPolicyBoundaryClosed
-                    .as_str()
-                    .to_owned(),
+            route_degraded_state_token: RouteDegradedStateClass::ManagedPolicyBoundaryClosed
+                .as_str()
+                .to_owned(),
             command_route_packet_ref: Some(
                 "command-route:reconstruction:check-run:tenant-001/fleet:42:enterprise_managed"
                     .to_owned(),
@@ -2014,8 +1991,8 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
             lane_class_token: LaneClass::TunnelExposedExternalLane.as_str().to_owned(),
             provider_source_class: ProviderSourceClass::LiveProvider,
             provider_surface_class: ProviderSurfaceClass::CiOrChecksSurface,
-            provider_descriptor_ref:
-                "provider-descriptor:dev-tunnel:public:payments-org".to_owned(),
+            provider_descriptor_ref: "provider-descriptor:dev-tunnel:public:payments-org"
+                .to_owned(),
             action_class: RouteActionClass::ReadOnlyInspection,
             action_class_token: RouteActionClass::ReadOnlyInspection.as_str().to_owned(),
             provider_linked_row_ref:
@@ -2051,16 +2028,14 @@ fn seed_rows() -> Vec<RouteResolutionRow> {
                     ProviderAuthSourceClass::HumanSession,
                 )
                 .to_owned(),
-                bound_identity_row_ref:
-                    "account-scope-beta:connected-account:connected:human-dev".to_owned(),
+                bound_identity_row_ref: "account-scope-beta:connected-account:connected:human-dev"
+                    .to_owned(),
                 managed_policy_bundle_ref: None,
             },
             fallback: FallbackDescriptor {
                 fallback_mode: ProviderFallbackMode::InspectOnly,
-                fallback_mode_token: provider_fallback_token(
-                    ProviderFallbackMode::InspectOnly,
-                )
-                .to_owned(),
+                fallback_mode_token: provider_fallback_token(ProviderFallbackMode::InspectOnly)
+                    .to_owned(),
                 fallback_label: "Read tunnel preview metadata snapshot".to_owned(),
                 browser_handoff_packet_ref: None,
                 publish_later_queue_item_ref: None,
@@ -2117,8 +2092,8 @@ fn seed_browser_handoff_panels() -> Vec<BrowserHandoffPanel> {
             projected_acting_identity_class_token: ActingIdentityClass::ConnectedAccount
                 .as_str()
                 .to_owned(),
-            browser_handoff_packet_ref:
-                "browser-handoff-packet:pr:1234:comment:connected".to_owned(),
+            browser_handoff_packet_ref: "browser-handoff-packet:pr:1234:comment:connected"
+                .to_owned(),
             return_summary_ref: None,
             panel_summary:
                 "Open the PR comment surface in the system browser under the signed-in human \
@@ -2138,7 +2113,9 @@ fn seed_browser_handoff_panels() -> Vec<BrowserHandoffPanel> {
             profile: AccountScopeBetaProfileClass::MirrorOnly,
             profile_token: AccountScopeBetaProfileClass::MirrorOnly.as_str().to_owned(),
             handoff_reason: BrowserHandoffReasonClass::StepUpRequired,
-            handoff_reason_token: BrowserHandoffReasonClass::StepUpRequired.as_str().to_owned(),
+            handoff_reason_token: BrowserHandoffReasonClass::StepUpRequired
+                .as_str()
+                .to_owned(),
             projected_route_choice: RouteChoiceClass::SystemBrowserHandoffRoute,
             projected_route_choice_token: RouteChoiceClass::SystemBrowserHandoffRoute
                 .as_str()
@@ -2151,8 +2128,8 @@ fn seed_browser_handoff_panels() -> Vec<BrowserHandoffPanel> {
             projected_acting_identity_class_token: ActingIdentityClass::ConnectedAccount
                 .as_str()
                 .to_owned(),
-            browser_handoff_packet_ref:
-                "browser-handoff-packet:pr:1234:merge:mirror_only".to_owned(),
+            browser_handoff_packet_ref: "browser-handoff-packet:pr:1234:merge:mirror_only"
+                .to_owned(),
             return_summary_ref: None,
             panel_summary:
                 "Mirror lag exceeds review window; merge must complete in browser with step-up \
@@ -2305,8 +2282,10 @@ mod tests {
             &page.browser_handoff_panels,
             &page.authority_truth_panels,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == RouteResolutionBetaDefectKind::RawTokenMaterialPresent));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == RouteResolutionBetaDefectKind::RawTokenMaterialPresent));
     }
 
     #[test]
@@ -2500,8 +2479,7 @@ mod tests {
         let mut page = seeded_route_resolution_beta_page();
         let row = &mut page.rows[0];
         row.freshness.freshness_class = FreshnessLabel::StaleWithinWindow;
-        row.freshness.freshness_class_token =
-            FreshnessLabel::StaleWithinWindow.as_str().to_owned();
+        row.freshness.freshness_class_token = FreshnessLabel::StaleWithinWindow.as_str().to_owned();
         row.freshness.degraded_reason = Some("forced stale".to_owned());
         let defects = audit_route_resolution_beta_page(
             &page.rows,
@@ -2561,8 +2539,7 @@ mod tests {
         );
         let lane_total: usize = page.summary.rows_by_lane_class.values().sum();
         assert_eq!(lane_total, page.rows.len());
-        let degraded_total: usize =
-            page.summary.rows_by_route_degraded_state.values().sum();
+        let degraded_total: usize = page.summary.rows_by_route_degraded_state.values().sum();
         assert_eq!(degraded_total, page.rows.len());
     }
 }

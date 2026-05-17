@@ -63,8 +63,7 @@ pub const PASSKEY_STEP_UP_BETA_SUPPORT_ROW_RECORD_KIND: &str =
     "auth_passkey_step_up_beta_support_row_record";
 
 /// Record kind for [`PasskeyStepUpBetaDefect`] payloads.
-pub const PASSKEY_STEP_UP_BETA_DEFECT_RECORD_KIND: &str =
-    "auth_passkey_step_up_beta_defect_record";
+pub const PASSKEY_STEP_UP_BETA_DEFECT_RECORD_KIND: &str = "auth_passkey_step_up_beta_defect_record";
 
 /// Record kind for [`PasskeyStepUpBetaSupportExport`] payloads.
 pub const PASSKEY_STEP_UP_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -1010,8 +1009,7 @@ pub fn audit_passkey_step_up_beta_rows(
         let outcome_token = row.outcome.outcome_token.as_str();
         let fallback_token = row.outcome.fallback_token.as_str();
         if !is_local {
-            let outcome_is_satisfied =
-                outcome_token == satisfied || outcome_token == local_outcome;
+            let outcome_is_satisfied = outcome_token == satisfied || outcome_token == local_outcome;
             if !outcome_is_satisfied && fallback_token == no_fallback {
                 defects.push(PasskeyStepUpBetaDefect::new(
                     PasskeyStepUpBetaDefectKind::OutcomeUnsatisfiedWithoutFallback,
@@ -1399,7 +1397,10 @@ mod tests {
             .summary
             .lanes_present
             .contains(&"step_up_lane".to_owned()));
-        assert!(page.summary.lanes_present.contains(&"reauth_lane".to_owned()));
+        assert!(page
+            .summary
+            .lanes_present
+            .contains(&"reauth_lane".to_owned()));
         assert!(page
             .summary
             .lanes_present
@@ -1464,9 +1465,7 @@ mod tests {
             .iter_mut()
             .find(|r| r.lane.lane_token == PasskeyBetaLaneClass::ReauthLane.as_str())
             .unwrap();
-        row.outcome.fallback_token = PasskeyFallbackClass::NoFallbackRequired
-            .as_str()
-            .to_owned();
+        row.outcome.fallback_token = PasskeyFallbackClass::NoFallbackRequired.as_str().to_owned();
         let support_rows: Vec<PasskeyStepUpBetaSupportRow> = page
             .rows
             .iter()
@@ -1486,25 +1485,31 @@ mod tests {
             .iter_mut()
             .find(|r| r.lane.lane_token == PasskeyBetaLaneClass::StepUpLane.as_str())
             .unwrap();
-        row.granted_authority_scope_token =
-            PasskeyAuthorityScopeClass::TenantAdminScope.as_str().to_owned();
+        row.granted_authority_scope_token = PasskeyAuthorityScopeClass::TenantAdminScope
+            .as_str()
+            .to_owned();
         let support_rows: Vec<PasskeyStepUpBetaSupportRow> = page
             .rows
             .iter()
             .map(PasskeyStepUpBetaSupportRow::from_row)
             .collect();
         let defects = audit_passkey_step_up_beta_rows(&page.rows, &support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == PasskeyStepUpBetaDefectKind::GrantedAuthorityWidensRequested));
+        assert!(
+            defects
+                .iter()
+                .any(|d| d.defect_kind
+                    == PasskeyStepUpBetaDefectKind::GrantedAuthorityWidensRequested)
+        );
     }
 
     #[test]
     fn defect_drill_support_row_drift_is_caught() {
         let page = page();
         let mut support_rows = page.support_rows.clone();
-        support_rows[0].granted_authority_scope_token = PasskeyAuthorityScopeClass::WorkspaceAdminScope
-            .as_str()
-            .to_owned();
+        support_rows[0].granted_authority_scope_token =
+            PasskeyAuthorityScopeClass::WorkspaceAdminScope
+                .as_str()
+                .to_owned();
         let defects = audit_passkey_step_up_beta_rows(&page.rows, &support_rows);
         assert!(defects
             .iter()
@@ -1517,8 +1522,9 @@ mod tests {
         let row = page
             .rows
             .iter_mut()
-            .find(|r| r.lane.lane_token
-                == PasskeyBetaLaneClass::NotApplicableAccountFreeLocal.as_str())
+            .find(|r| {
+                r.lane.lane_token == PasskeyBetaLaneClass::NotApplicableAccountFreeLocal.as_str()
+            })
             .unwrap();
         // Drift the lifecycle to a non-local state while keeping the local
         // lane token — the row should be flagged.

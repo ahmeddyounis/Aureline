@@ -48,8 +48,8 @@ fn load_packs() -> Vec<DoctorProbePackRecord> {
         .into_iter()
         .map(|file| {
             let path = fixture_dir().join(file);
-            let yaml = std::fs::read_to_string(&path)
-                .unwrap_or_else(|err| panic!("read {path:?}: {err}"));
+            let yaml =
+                std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
             load_doctor_probe_pack(&yaml).unwrap_or_else(|err| panic!("parse {path:?}: {err}"))
         })
         .collect()

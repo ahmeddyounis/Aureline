@@ -192,11 +192,9 @@ mod tests {
 
     #[test]
     fn compile_envelope_round_trip() {
-        let envelope = compile_support_export_envelope(
-            "envelope:graph_drift:test",
-            "2026-05-16T10:00:00Z",
-        )
-        .expect("envelope compiles");
+        let envelope =
+            compile_support_export_envelope("envelope:graph_drift:test", "2026-05-16T10:00:00Z")
+                .expect("envelope compiles");
         assert!(envelope.is_export_safe());
         assert!(!envelope.rows.is_empty());
 

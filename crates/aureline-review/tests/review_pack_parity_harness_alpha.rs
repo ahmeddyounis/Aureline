@@ -5,8 +5,7 @@ use std::path::{Path, PathBuf};
 use aureline_review::{
     project_review_pack_parity_harness, ReviewPackParityHarnessDriftDowngrade,
     ReviewPackParityHarnessError, ReviewPackParityHarnessRecord,
-    REVIEW_PACK_PARITY_HARNESS_ALPHA_HARNESS_VERSION,
-    REVIEW_PACK_PARITY_HARNESS_ALPHA_RECORD_KIND,
+    REVIEW_PACK_PARITY_HARNESS_ALPHA_HARNESS_VERSION, REVIEW_PACK_PARITY_HARNESS_ALPHA_RECORD_KIND,
     REVIEW_PACK_PARITY_HARNESS_ALPHA_SCHEMA_VERSION,
 };
 
@@ -79,8 +78,8 @@ fn every_fixture_projects_through_the_alpha_contract() {
             "fixture {path:?} must mint a review_pack_parity_harness_alpha id"
         );
 
-        let record: ReviewPackParityHarnessRecord = serde_json::from_str(&payload)
-            .expect("fixture must parse for review-invariant probe");
+        let record: ReviewPackParityHarnessRecord =
+            serde_json::from_str(&payload).expect("fixture must parse for review-invariant probe");
         assert!(record.review_invariants.review_pack_ref_pinned);
         assert!(record.review_invariants.harness_lanes_pinned);
         assert!(record.review_invariants.check_findings_pinned);
@@ -184,8 +183,8 @@ fn fixtures_cover_parity_finding_spread() {
 fn community_fixture_drift_downgrades_the_row() {
     let path = fixtures_dir().join("uncertified_community_drift_downgrade.json");
     let payload = std::fs::read_to_string(&path).expect("fixture must read");
-    let projection = project_review_pack_parity_harness(&payload)
-        .expect("community fixture must project");
+    let projection =
+        project_review_pack_parity_harness(&payload).expect("community fixture must project");
     assert_eq!(projection.overall_verdict_class, "drift_downgraded");
     assert_eq!(
         projection.row_downgrade_class,
@@ -255,9 +254,7 @@ fn rejects_raw_command_export() {
     let mut record: ReviewPackParityHarnessRecord =
         serde_json::from_str(&payload).expect("fixture must parse");
     record.support_export.raw_command_export_allowed = true;
-    let err = record
-        .validate()
-        .expect_err("raw command export must fail");
+    let err = record.validate().expect_err("raw command export must fail");
     assert!(err.message().contains("raw_"));
 }
 

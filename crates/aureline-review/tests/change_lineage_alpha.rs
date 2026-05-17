@@ -130,8 +130,7 @@ fn ready_to_publish_fixture_reports_publish_action() {
     assert_eq!(projection.landing_action_class, "publish");
     assert_eq!(projection.conflict_state_class, "no_conflicts_detected");
     assert_eq!(
-        projection.change_object_ref,
-        "change_object_alpha:branch:feature_landing_inspector",
+        projection.change_object_ref, "change_object_alpha:branch:feature_landing_inspector",
         "lineage record must quote the underlying change-object id verbatim"
     );
 }
@@ -143,7 +142,10 @@ fn side_worktree_fixture_keeps_local_only() {
     let projection =
         project_change_lineage(&payload).expect("worktree inspect-only fixture must project");
     assert_eq!(projection.active_scope_class, "side_worktree");
-    assert_eq!(projection.publish_readiness_class, "not_applicable_inspect_only");
+    assert_eq!(
+        projection.publish_readiness_class,
+        "not_applicable_inspect_only"
+    );
     assert_eq!(projection.remote_visibility_class, "no_remote_attached");
     assert_eq!(
         projection.required_network_egress_class,
@@ -155,8 +157,7 @@ fn side_worktree_fixture_keeps_local_only() {
 fn patch_stack_fixture_reports_rebase_blocker() {
     let path = fixtures_dir().join("patch_stack_blocked_by_conflicts.json");
     let payload = std::fs::read_to_string(&path).expect("fixture must read");
-    let projection =
-        project_change_lineage(&payload).expect("patch-stack fixture must project");
+    let projection = project_change_lineage(&payload).expect("patch-stack fixture must project");
     assert_eq!(projection.active_scope_class, "stacked_patch_set");
     assert_eq!(projection.publish_readiness_class, "blocked_by_conflicts");
     assert!(
@@ -252,7 +253,9 @@ fn lineage_record_quotes_matching_change_object_id() {
         let projection = project_change_lineage(&payload)
             .unwrap_or_else(|err| panic!("fixture {path:?} must project: {err}"));
         assert!(
-            projection.change_object_ref.starts_with("change_object_alpha:"),
+            projection
+                .change_object_ref
+                .starts_with("change_object_alpha:"),
             "fixture {path:?} must quote a change-object alpha id"
         );
         assert!(
@@ -267,5 +270,8 @@ fn lineage_record_quotes_matching_change_object_id() {
 #[test]
 fn schema_version_constants_match_record_kind() {
     assert_eq!(CHANGE_LINEAGE_ALPHA_SCHEMA_VERSION, 1);
-    assert_eq!(CHANGE_LINEAGE_ALPHA_RECORD_KIND, "change_lineage_alpha_record");
+    assert_eq!(
+        CHANGE_LINEAGE_ALPHA_RECORD_KIND,
+        "change_lineage_alpha_record"
+    );
 }

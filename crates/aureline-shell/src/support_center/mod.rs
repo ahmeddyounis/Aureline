@@ -679,8 +679,7 @@ impl SupportCenterBetaEvaluator {
                     violations,
                     "launch_action.local_only_account_requirement",
                     &row.row_id,
-                    "local-only surface MUST NOT require an account on a launch action"
-                        .to_string(),
+                    "local-only surface MUST NOT require an account on a launch action".to_string(),
                 );
             }
             if surface.deployment_context_class == SupportCenterDeploymentContextClass::LocalOnly
@@ -1089,8 +1088,8 @@ mod tests {
             ia_route_refs: vec!["support_center_route:error_surface.project_doctor".into()],
             governance_bindings: SupportCenterGovernanceBindings {
                 support_center_concept_ref: "docs/support/support_center_concept.md".into(),
-                support_center_ia_ref:
-                    "docs/support/support_center_information_architecture.md".into(),
+                support_center_ia_ref: "docs/support/support_center_information_architecture.md"
+                    .into(),
                 support_center_routes_ref: "artifacts/support/support_center_routes.yaml".into(),
                 m3_scenario_corpus_ref: "docs/support/m3/support_scenario_corpus.md".into(),
                 recovery_ladder_doc_ref: "docs/support/recovery_ladder_alpha.md".into(),
@@ -1116,9 +1115,9 @@ mod tests {
     fn missing_required_action_is_refused() {
         let mut surface = baseline_surface();
         // Drop the safe-mode launch row.
-        surface.launch_action_rows.retain(|r| {
-            r.launch_action_class != SupportCenterLaunchActionClass::EnterSafeMode
-        });
+        surface
+            .launch_action_rows
+            .retain(|r| r.launch_action_class != SupportCenterLaunchActionClass::EnterSafeMode);
         let violations = SupportCenterBetaEvaluator::validate(&surface);
         assert!(violations
             .iter()

@@ -120,8 +120,12 @@ fn repair_events_align_resolved_at_with_outcome() {
 #[test]
 fn drill_plaintext_fallback_attempted_surfaces_typed_defect() {
     let page = load_page("drill_plaintext_fallback_attempted.json");
-    assert!(page.defects.iter().any(|defect| defect.defect_kind
-        == SecretRepairBetaDefectKind::PlaintextFallbackAttempted));
+    assert!(
+        page.defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == SecretRepairBetaDefectKind::PlaintextFallbackAttempted)
+    );
 }
 
 #[test]

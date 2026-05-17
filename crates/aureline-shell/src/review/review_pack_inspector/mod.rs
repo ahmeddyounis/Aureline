@@ -23,8 +23,8 @@
 use std::fmt;
 
 use aureline_review::{
-    project_review_pack, ReviewPackError, ReviewPackOwnershipProjection, ReviewPackProjection,
-    ReviewPackParityObservation, ReviewPackUnsupportedField,
+    project_review_pack, ReviewPackError, ReviewPackOwnershipProjection,
+    ReviewPackParityObservation, ReviewPackProjection, ReviewPackUnsupportedField,
 };
 
 const ALPHA_REVIEW_PACK_ROWS: &[(&str, &str)] = &[
@@ -156,9 +156,11 @@ pub fn build_alpha_review_pack_rows(
 ) -> Result<Vec<ReviewPackInspectorRow>, ReviewPackInspectorError> {
     let mut rows = Vec::with_capacity(ALPHA_REVIEW_PACK_ROWS.len());
     for (source_ref, payload) in ALPHA_REVIEW_PACK_ROWS {
-        let projection = project_review_pack(payload)
-            .map_err(|err| projection_error(source_ref, err))?;
-        rows.push(ReviewPackInspectorRow::from_projection(source_ref, projection));
+        let projection =
+            project_review_pack(payload).map_err(|err| projection_error(source_ref, err))?;
+        rows.push(ReviewPackInspectorRow::from_projection(
+            source_ref, projection,
+        ));
     }
     Ok(rows)
 }
@@ -209,10 +211,7 @@ pub fn render_alpha_review_pack_plaintext() -> Result<String, ReviewPackInspecto
     Ok(lines.join("\n"))
 }
 
-fn projection_error(
-    source_ref: &'static str,
-    err: ReviewPackError,
-) -> ReviewPackInspectorError {
+fn projection_error(source_ref: &'static str, err: ReviewPackError) -> ReviewPackInspectorError {
     ReviewPackInspectorError {
         source_ref,
         message: err.to_string(),
@@ -225,8 +224,7 @@ mod tests {
 
     #[test]
     fn alpha_review_pack_rows_project() {
-        let rows =
-            build_alpha_review_pack_rows().expect("alpha review-pack rows must project");
+        let rows = build_alpha_review_pack_rows().expect("alpha review-pack rows must project");
         assert_eq!(rows.len(), 4);
         let mut authorities: Vec<&str> = rows
             .iter()
@@ -257,10 +255,8 @@ mod tests {
 
     #[test]
     fn alpha_review_pack_plaintext_is_deterministic() {
-        let first =
-            render_alpha_review_pack_plaintext().expect("plaintext renders");
-        let second =
-            render_alpha_review_pack_plaintext().expect("plaintext renders");
+        let first = render_alpha_review_pack_plaintext().expect("plaintext renders");
+        let second = render_alpha_review_pack_plaintext().expect("plaintext renders");
         assert_eq!(first, second);
         assert!(first.contains("Review-pack DSL inspector alpha"));
         assert!(first.contains("repo_first_party"));

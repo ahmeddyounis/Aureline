@@ -168,7 +168,10 @@ fn bisect_disables_only_minimal_scope_and_restores_prior_state_afterward() {
             PreservedCapabilityClass::ExtensionBisectExitAction,
         ] {
             assert!(
-                scenario.session.preserved_capability_classes.contains(&required),
+                scenario
+                    .session
+                    .preserved_capability_classes
+                    .contains(&required),
                 "session {} missing preserved capability {:?}",
                 scenario.session.session_id,
                 required
@@ -194,14 +197,16 @@ fn bisect_disables_only_minimal_scope_and_restores_prior_state_afterward() {
             .session
             .disabled_capability_classes
             .contains(&DisabledCapabilityClass::ExtensionAutoActivation));
-        assert!(!scenario
-            .session
-            .disabled_capability_classes
-            .contains(&DisabledCapabilityClass::RemoteHelperAttach)
-            || scenario.session.blast_radius_class == BlastRadiusClass::FullExtensionHost
-            || scenario.session.blast_radius_class == BlastRadiusClass::AllThirdPartyExtensions
-            || scenario.session.blast_radius_class == BlastRadiusClass::CohortOnly
-            || scenario.session.blast_radius_class == BlastRadiusClass::SingleExtensionLane);
+        assert!(
+            !scenario
+                .session
+                .disabled_capability_classes
+                .contains(&DisabledCapabilityClass::RemoteHelperAttach)
+                || scenario.session.blast_radius_class == BlastRadiusClass::FullExtensionHost
+                || scenario.session.blast_radius_class == BlastRadiusClass::AllThirdPartyExtensions
+                || scenario.session.blast_radius_class == BlastRadiusClass::CohortOnly
+                || scenario.session.blast_radius_class == BlastRadiusClass::SingleExtensionLane
+        );
 
         // The restore record returns the prior extension state and observes
         // user-owned and durable state preservation.
@@ -415,8 +420,10 @@ fn evaluator_refuses_destructive_or_inconsistent_records() {
     let report = evaluator
         .validate_session(&without_gate)
         .expect_err("must reject session without auto-activation gate");
-    assert!(report.violations.iter().any(|v| v.check_id
-        == "extension_bisect.extension_auto_activation_must_be_disabled"));
+    assert!(report
+        .violations
+        .iter()
+        .any(|v| v.check_id == "extension_bisect.extension_auto_activation_must_be_disabled"));
 
     // Refuses a step that deletes user-owned state.
     let mut destructive_step = scenario.steps[0].clone();
@@ -482,8 +489,10 @@ fn evaluator_refuses_destructive_or_inconsistent_records() {
     let report = evaluator
         .validate_restore(&restore_without_user_files)
         .expect_err("must reject restore without user-authored-files");
-    assert!(report.violations.iter().any(|v| v.check_id
-        == "extension_bisect.restore_must_preserve_user_authored_files"));
+    assert!(report
+        .violations
+        .iter()
+        .any(|v| v.check_id == "extension_bisect.restore_must_preserve_user_authored_files"));
 
     // Refuses a restore whose disposition is pending review.
     let mut deferred_restore = scenario.restore.clone();

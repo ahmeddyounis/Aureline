@@ -37,8 +37,7 @@ pub const ADMIN_AUDIT_EXPORT_BETA_SCHEMA_VERSION: u32 = 1;
 
 /// Stable shared contract ref consumed by every provisioning and admin-audit
 /// record.
-pub const ADMIN_AUDIT_EXPORT_BETA_SHARED_CONTRACT_REF: &str =
-    "security:admin_audit_export_beta:v1";
+pub const ADMIN_AUDIT_EXPORT_BETA_SHARED_CONTRACT_REF: &str = "security:admin_audit_export_beta:v1";
 
 /// Source matrix ref consumed by this beta projection.
 pub const ADMIN_AUDIT_EXPORT_BETA_SOURCE_MATRIX_REF: &str =
@@ -602,9 +601,7 @@ impl AdminAuditExportBetaDefectKind {
             Self::EntitlementAuthorityTokenDrift => "entitlement_authority_token_drift",
             Self::ManagedSourceMissingSignature => "managed_source_missing_signature",
             Self::SubjectKindMismatch => "subject_kind_mismatch",
-            Self::HistoryTransitionMissingPredecessor => {
-                "history_transition_missing_predecessor"
-            }
+            Self::HistoryTransitionMissingPredecessor => "history_transition_missing_predecessor",
             Self::HistoryManagedSourceMissingSignature => {
                 "history_managed_source_missing_signature"
             }
@@ -1125,9 +1122,8 @@ fn seed_provisioning_events() -> Vec<ProvisioningEvent> {
             "2026-05-15T01:00:00Z",
             AdminAuditExportBetaProfileClass::Connected,
             ProvisioningProvenance {
-                source_ref:
-                    "https://scim.aureline.example/v2/Users?fetched=2026-05-15T01:00:00Z"
-                        .to_owned(),
+                source_ref: "https://scim.aureline.example/v2/Users?fetched=2026-05-15T01:00:00Z"
+                    .to_owned(),
                 signer_id: "scim-signer:aureline-managed".to_owned(),
                 signed_at: "2026-05-15T00:55:00Z".to_owned(),
                 fetched_at: "2026-05-15T01:00:00Z".to_owned(),
@@ -1147,17 +1143,15 @@ fn seed_provisioning_events() -> Vec<ProvisioningEvent> {
             "2026-05-15T01:05:00Z",
             AdminAuditExportBetaProfileClass::Connected,
             ProvisioningProvenance {
-                source_ref:
-                    "https://scim.customer.example/v2/Groups?fetched=2026-05-15T01:05:00Z"
-                        .to_owned(),
+                source_ref: "https://scim.customer.example/v2/Groups?fetched=2026-05-15T01:05:00Z"
+                    .to_owned(),
                 signer_id: "scim-signer:customer-selfhosted".to_owned(),
                 signed_at: "2026-05-15T01:00:00Z".to_owned(),
                 fetched_at: "2026-05-15T01:05:00Z".to_owned(),
                 valid_until: "2026-05-22T01:00:00Z".to_owned(),
                 transport_label: "https-scim-self-hosted".to_owned(),
                 signature_blob_ref:
-                    "artifacts/security/m3/admin_audit_exports/scim_self_hosted_002.sig"
-                        .to_owned(),
+                    "artifacts/security/m3/admin_audit_exports/scim_self_hosted_002.sig".to_owned(),
             },
         ),
         provisioning_event(
@@ -1217,8 +1211,8 @@ fn seed_provisioning_events() -> Vec<ProvisioningEvent> {
                 fetched_at: "2026-05-15T03:00:00Z".to_owned(),
                 valid_until: "2026-05-21T22:00:00Z".to_owned(),
                 transport_label: "air-gapped-signed-transfer".to_owned(),
-                signature_blob_ref:
-                    "artifacts/security/m3/admin_audit_exports/airgap_005.sig".to_owned(),
+                signature_blob_ref: "artifacts/security/m3/admin_audit_exports/airgap_005.sig"
+                    .to_owned(),
             },
         ),
         provisioning_event(
@@ -1568,9 +1562,7 @@ mod tests {
         let replaced: Vec<&PolicyBundleHistoryEvent> = page
             .policy_bundle_history
             .iter()
-            .filter(|event| {
-                event.transition == PolicyBundleTransitionClass::ReplacedBySuccessor
-            })
+            .filter(|event| event.transition == PolicyBundleTransitionClass::ReplacedBySuccessor)
             .collect();
         assert!(!replaced.is_empty());
         for event in replaced {
@@ -1614,9 +1606,7 @@ mod tests {
         let event = page
             .policy_bundle_history
             .iter_mut()
-            .find(|event| {
-                event.transition == PolicyBundleTransitionClass::ReplacedBySuccessor
-            })
+            .find(|event| event.transition == PolicyBundleTransitionClass::ReplacedBySuccessor)
             .expect("seeded replacement event");
         event.replaces_pack_id.clear();
         let defects = audit_admin_audit_export_beta_page(

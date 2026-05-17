@@ -467,7 +467,11 @@ pub struct ProviderObjectContinuityObservation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProviderObjectModelAlphaPage {
     /// Optional fixture metadata for validation lanes.
-    #[serde(default, rename = "__fixture__", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "__fixture__",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture_metadata: Option<ProviderObjectFixtureMetadata>,
     /// Stable record-kind discriminator.
     pub record_kind: String,
@@ -853,7 +857,8 @@ impl<'a> Validator<'a> {
         let publish_state_ok = match row.mode {
             ObjectModeClass::LocalDraftMode => matches!(
                 row.publish_state,
-                ObjectPublishStateClass::LocalDraftOnly | ObjectPublishStateClass::OfflineUnverified
+                ObjectPublishStateClass::LocalDraftOnly
+                    | ObjectPublishStateClass::OfflineUnverified
             ),
             ObjectModeClass::PublishNowMode => matches!(
                 row.publish_state,
@@ -1401,8 +1406,8 @@ mod tests {
                     "schemas/providers/browser_handoff_packet.schema.json".to_string(),
                 approval_ticket_alpha_schema_ref:
                     "schemas/security/approval_ticket_alpha.schema.json".to_string(),
-                change_object_alpha_schema_ref:
-                    "schemas/git/change_object_alpha.schema.json".to_string(),
+                change_object_alpha_schema_ref: "schemas/git/change_object_alpha.schema.json"
+                    .to_string(),
             },
             rows: vec![
                 pr_row("row.pr.4012"),
@@ -1422,13 +1427,14 @@ mod tests {
                 retained_capability_class: RetainedCapabilityClass::PublishLaterQueuingRetained,
                 degraded_action: DegradedActionClass::HoldForFreshnessRepair,
                 rationale_summary:
-                    "Issue tracker import older than freshness floor; queue retained for drain.".to_string(),
+                    "Issue tracker import older than freshness floor; queue retained for drain."
+                        .to_string(),
                 observed_at: "2026-05-13T17:32:00Z".to_string(),
                 silent_mutation_authority_widened: false,
                 local_editing_preserved: true,
             }],
-            support_export_summary:
-                "Provider-object alpha page for unit-test coverage.".to_string(),
+            support_export_summary: "Provider-object alpha page for unit-test coverage."
+                .to_string(),
         }
     }
 
@@ -1464,7 +1470,8 @@ mod tests {
         assert!(report
             .findings
             .iter()
-            .any(|finding| finding.check_id == "provider_object_alpha.row_approval_ticket_ref_missing"));
+            .any(|finding| finding.check_id
+                == "provider_object_alpha.row_approval_ticket_ref_missing"));
     }
 
     #[test]

@@ -49,8 +49,7 @@ pub const NETWORK_BADGE_BETA_SUPPORT_ROW_RECORD_KIND: &str =
     "network_network_badges_beta_support_row_record";
 
 /// Stable record kind for [`NetworkBadgeBetaDefect`] payloads.
-pub const NETWORK_BADGE_BETA_DEFECT_RECORD_KIND: &str =
-    "network_network_badges_beta_defect_record";
+pub const NETWORK_BADGE_BETA_DEFECT_RECORD_KIND: &str = "network_network_badges_beta_defect_record";
 
 /// Stable record kind for [`NetworkBadgeBetaSupportExport`] payloads.
 pub const NETWORK_BADGE_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -187,11 +186,11 @@ impl LocalityClass {
         match self {
             Self::LocalOnly => &[EgressClass::LocalOnly, EgressClass::DenyAll],
             Self::Mirrored => &[EgressClass::MirrorOnly],
-            Self::SelfHosted => &[
+            Self::SelfHosted => &[EgressClass::OrgApprovedExternal, EgressClass::TargetLocal],
+            Self::Managed => &[
+                EgressClass::PublicInternet,
                 EgressClass::OrgApprovedExternal,
-                EgressClass::TargetLocal,
             ],
-            Self::Managed => &[EgressClass::PublicInternet, EgressClass::OrgApprovedExternal],
             Self::PublicCloud => &[EgressClass::PublicInternet],
         }
     }
@@ -418,14 +417,22 @@ impl NetworkBadgeBetaSupportRow {
         let mut locality_tokens_by_profile = BTreeMap::new();
         let mut explainer_labels_by_profile = BTreeMap::new();
         for binding in &row.profile_bindings {
-            egress_class_tokens_by_profile
-                .insert(binding.profile_token.clone(), binding.egress_class_token.clone());
-            origin_scope_tokens_by_profile
-                .insert(binding.profile_token.clone(), binding.origin_scope_token.clone());
-            locality_tokens_by_profile
-                .insert(binding.profile_token.clone(), binding.locality_token.clone());
-            explainer_labels_by_profile
-                .insert(binding.profile_token.clone(), binding.explainer_label.clone());
+            egress_class_tokens_by_profile.insert(
+                binding.profile_token.clone(),
+                binding.egress_class_token.clone(),
+            );
+            origin_scope_tokens_by_profile.insert(
+                binding.profile_token.clone(),
+                binding.origin_scope_token.clone(),
+            );
+            locality_tokens_by_profile.insert(
+                binding.profile_token.clone(),
+                binding.locality_token.clone(),
+            );
+            explainer_labels_by_profile.insert(
+                binding.profile_token.clone(),
+                binding.explainer_label.clone(),
+            );
         }
         Self {
             record_kind: NETWORK_BADGE_BETA_SUPPORT_ROW_RECORD_KIND.to_owned(),
@@ -555,7 +562,11 @@ impl NetworkBadgeBetaSummary {
             .collect();
         let locality_tokens_present: BTreeSet<String> = rows
             .iter()
-            .flat_map(|row| row.profile_bindings.iter().map(|b| b.locality_token.clone()))
+            .flat_map(|row| {
+                row.profile_bindings
+                    .iter()
+                    .map(|b| b.locality_token.clone())
+            })
             .collect();
         let mut bindings_leaving_local_machine_count = 0_usize;
         let mut bindings_deny_all_count = 0_usize;
@@ -757,10 +768,8 @@ pub fn audit_network_badge_beta_rows(
         .iter()
         .map(|surface| surface.as_str())
         .collect();
-    let observed_surfaces: BTreeSet<&str> = rows
-        .iter()
-        .map(|row| row.surface_token.as_str())
-        .collect();
+    let observed_surfaces: BTreeSet<&str> =
+        rows.iter().map(|row| row.surface_token.as_str()).collect();
     for missing in expected_surfaces.difference(&observed_surfaces) {
         defects.push(NetworkBadgeBetaDefect::new(
             NetworkBadgeBetaDefectKind::MissingSurfaceCoverage,
@@ -926,10 +935,22 @@ fn compare_support_row(
     let mut locality: BTreeMap<String, String> = BTreeMap::new();
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
     for binding in &row.profile_bindings {
-        egress.insert(binding.profile_token.clone(), binding.egress_class_token.clone());
-        origins.insert(binding.profile_token.clone(), binding.origin_scope_token.clone());
-        locality.insert(binding.profile_token.clone(), binding.locality_token.clone());
-        labels.insert(binding.profile_token.clone(), binding.explainer_label.clone());
+        egress.insert(
+            binding.profile_token.clone(),
+            binding.egress_class_token.clone(),
+        );
+        origins.insert(
+            binding.profile_token.clone(),
+            binding.origin_scope_token.clone(),
+        );
+        locality.insert(
+            binding.profile_token.clone(),
+            binding.locality_token.clone(),
+        );
+        labels.insert(
+            binding.profile_token.clone(),
+            binding.explainer_label.clone(),
+        );
     }
     if support.surface_token != row.surface_token
         || support.egress_class_tokens_by_profile != egress
@@ -1289,8 +1310,9 @@ mod tests {
             .expect("binding");
         binding.route_label.clear();
         let defects = audit_network_badge_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkBadgeBetaDefectKind::HiddenPublicCloudRouting));
+        assert!(defects.iter().any(
+            |defect| defect.defect_kind == NetworkBadgeBetaDefectKind::HiddenPublicCloudRouting
+        ));
     }
 
     #[test]
@@ -1300,19 +1322,26 @@ mod tests {
             .locality_tokens_by_profile
             .insert("connected".to_owned(), "drifted_locality".to_owned());
         let defects = audit_network_badge_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkBadgeBetaDefectKind::SupportRowVocabularyDrift));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == NetworkBadgeBetaDefectKind::SupportRowVocabularyDrift));
     }
 
     #[test]
     fn validator_rejects_missing_surface() {
         let mut page = seeded_network_badge_beta_page();
-        page.rows.retain(|row| row.surface != NetworkBadgeSurfaceClass::DocsHelp);
+        page.rows
+            .retain(|row| row.surface != NetworkBadgeSurfaceClass::DocsHelp);
         page.support_rows
             .retain(|row| row.surface_token != "docs_help");
         let defects = audit_network_badge_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkBadgeBetaDefectKind::MissingSurfaceCoverage));
+        assert!(
+            defects
+                .iter()
+                .any(|defect| defect.defect_kind
+                    == NetworkBadgeBetaDefectKind::MissingSurfaceCoverage)
+        );
     }
 
     #[test]
@@ -1331,8 +1360,10 @@ mod tests {
             .expect("binding");
         binding.no_public_endpoint_fallback = false;
         let defects = audit_network_badge_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkBadgeBetaDefectKind::HiddenPublicEndpointFallback));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == NetworkBadgeBetaDefectKind::HiddenPublicEndpointFallback));
     }
 
     #[test]
@@ -1345,8 +1376,9 @@ mod tests {
             .expect("binding");
         binding.explainer_label.clear();
         let defects = audit_network_badge_beta_rows(&page.rows, &page.support_rows);
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == NetworkBadgeBetaDefectKind::EmptyExplainerLabel));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind == NetworkBadgeBetaDefectKind::EmptyExplainerLabel));
     }
 
     #[test]

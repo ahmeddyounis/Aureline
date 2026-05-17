@@ -56,6 +56,8 @@ use serde::{Deserialize, Serialize};
 use aureline_commands::CommandRegistry;
 use aureline_search::ScopeCandidateTruthRecord;
 
+pub mod beta;
+
 /// Stable record-kind tag carried on serialized [`ComposerDraft`] payloads.
 pub const COMPOSER_DRAFT_RECORD_KIND: &str = "ai_composer_draft_seed_record";
 

@@ -58,9 +58,11 @@ fn packs_and_receipts_round_trip() {
     assert!(packs.iter().any(|pack| pack.source_class
         == PolicyPackSourceClass::SignedMirrorOrigin
         && pack.applies_to_profiles.contains(&"mirror_only".to_owned())));
-    assert!(receipts.iter().all(|receipt| receipt.preserves_signature_blob
-        && receipt.preserves_provenance
-        && receipt.preserves_explanation));
+    assert!(receipts
+        .iter()
+        .all(|receipt| receipt.preserves_signature_blob
+            && receipt.preserves_provenance
+            && receipt.preserves_explanation));
 }
 
 #[test]
@@ -125,8 +127,10 @@ fn drill_signature_dropped_replays_typed_defect() {
         &page.import_receipts,
     );
     assert_eq!(recomputed, page.defects);
-    assert!(recomputed.iter().any(|defect| defect.defect_kind
-        == PolicyPackBetaDefectKind::MirrorOrImportSignatureBlobDropped));
+    assert!(recomputed
+        .iter()
+        .any(|defect| defect.defect_kind
+            == PolicyPackBetaDefectKind::MirrorOrImportSignatureBlobDropped));
 }
 
 #[test]
@@ -139,8 +143,9 @@ fn drill_denial_unresolvable_replays_typed_defect() {
         &page.import_receipts,
     );
     assert_eq!(recomputed, page.defects);
-    assert!(recomputed.iter().any(|defect| defect.defect_kind
-        == PolicyPackBetaDefectKind::DenialTraceUnresolvable));
+    assert!(recomputed
+        .iter()
+        .any(|defect| defect.defect_kind == PolicyPackBetaDefectKind::DenialTraceUnresolvable));
 }
 
 #[test]
@@ -153,8 +158,12 @@ fn drill_public_fallback_replays_typed_defect() {
         &page.import_receipts,
     );
     assert_eq!(recomputed, page.defects);
-    assert!(recomputed.iter().any(|defect| defect.defect_kind
-        == PolicyPackBetaDefectKind::HiddenPublicEndpointFallback));
+    assert!(
+        recomputed
+            .iter()
+            .any(|defect| defect.defect_kind
+                == PolicyPackBetaDefectKind::HiddenPublicEndpointFallback)
+    );
 }
 
 #[test]

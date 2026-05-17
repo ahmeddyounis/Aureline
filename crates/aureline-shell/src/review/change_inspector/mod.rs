@@ -21,9 +21,7 @@
 
 use std::fmt;
 
-use aureline_review::{
-    project_change_lineage, ChangeLineageError, ChangeLineageProjection,
-};
+use aureline_review::{project_change_lineage, ChangeLineageError, ChangeLineageProjection};
 
 const ALPHA_CHANGE_LINEAGE_ROWS: &[(&str, &str)] = &[
     (
@@ -64,8 +62,7 @@ const ALPHA_CHANGE_LINEAGE_ROWS: &[(&str, &str)] = &[
 ];
 
 /// Presentation label rendered for the landing-state inspector surface.
-pub const CHANGE_LINEAGE_INSPECTOR_PRESENTATION_LABEL: &str =
-    "Landing-state inspector";
+pub const CHANGE_LINEAGE_INSPECTOR_PRESENTATION_LABEL: &str = "Landing-state inspector";
 
 /// Presentation subtitle rendered for the landing-state inspector surface.
 pub const CHANGE_LINEAGE_INSPECTOR_PRESENTATION_SUBTITLE: &str =
@@ -107,10 +104,7 @@ pub struct ChangeLineageInspectorRow {
 }
 
 impl ChangeLineageInspectorRow {
-    fn from_projection(
-        source_ref: &'static str,
-        projection: ChangeLineageProjection,
-    ) -> Self {
+    fn from_projection(source_ref: &'static str, projection: ChangeLineageProjection) -> Self {
         Self {
             source_ref,
             change_lineage_id: projection.change_lineage_id,
@@ -184,9 +178,11 @@ pub fn build_alpha_change_lineage_rows(
 ) -> Result<Vec<ChangeLineageInspectorRow>, ChangeLineageInspectorError> {
     let mut rows = Vec::with_capacity(ALPHA_CHANGE_LINEAGE_ROWS.len());
     for (source_ref, payload) in ALPHA_CHANGE_LINEAGE_ROWS {
-        let projection = project_change_lineage(payload)
-            .map_err(|err| projection_error(source_ref, err))?;
-        rows.push(ChangeLineageInspectorRow::from_projection(source_ref, projection));
+        let projection =
+            project_change_lineage(payload).map_err(|err| projection_error(source_ref, err))?;
+        rows.push(ChangeLineageInspectorRow::from_projection(
+            source_ref, projection,
+        ));
     }
     Ok(rows)
 }
@@ -198,8 +194,7 @@ pub fn build_alpha_change_lineage_rows(
 ///
 /// Returns [`ChangeLineageInspectorError`] when a fixture cannot be
 /// projected.
-pub fn render_alpha_change_lineage_plaintext(
-) -> Result<String, ChangeLineageInspectorError> {
+pub fn render_alpha_change_lineage_plaintext() -> Result<String, ChangeLineageInspectorError> {
     let rows = build_alpha_change_lineage_rows()?;
     let mut lines = vec![
         "Landing-state inspector alpha".to_string(),
@@ -248,14 +243,20 @@ mod tests {
         let rows =
             build_alpha_change_lineage_rows().expect("alpha change-lineage rows must project");
         assert_eq!(rows.len(), 5);
-        let mut kinds: Vec<&str> = rows.iter().map(|row| row.change_object_kind.as_str()).collect();
+        let mut kinds: Vec<&str> = rows
+            .iter()
+            .map(|row| row.change_object_kind.as_str())
+            .collect();
         kinds.sort();
         kinds.dedup();
         assert!(kinds.contains(&"branch"));
         assert!(kinds.contains(&"worktree"));
         assert!(kinds.contains(&"patch_stack"));
 
-        let mut scopes: Vec<&str> = rows.iter().map(|row| row.active_scope_class.as_str()).collect();
+        let mut scopes: Vec<&str> = rows
+            .iter()
+            .map(|row| row.active_scope_class.as_str())
+            .collect();
         scopes.sort();
         scopes.dedup();
         assert!(scopes.contains(&"main_worktree"));
@@ -278,10 +279,8 @@ mod tests {
 
     #[test]
     fn alpha_change_lineage_plaintext_is_deterministic() {
-        let first =
-            render_alpha_change_lineage_plaintext().expect("plaintext renders");
-        let second =
-            render_alpha_change_lineage_plaintext().expect("plaintext renders");
+        let first = render_alpha_change_lineage_plaintext().expect("plaintext renders");
+        let second = render_alpha_change_lineage_plaintext().expect("plaintext renders");
         assert_eq!(first, second);
         assert!(first.contains("Landing-state inspector alpha"));
         assert!(first.contains("ready_to_publish"));

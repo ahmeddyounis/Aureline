@@ -566,11 +566,7 @@ pub struct ReactiveViewValidationReport {
 
 impl fmt::Display for ReactiveViewValidationReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} reactive-view violation(s)",
-            self.violations.len()
-        )
+        write!(f, "{} reactive-view violation(s)", self.violations.len())
     }
 }
 
@@ -1147,11 +1143,7 @@ fn validate_open_gaps(
     }
 }
 
-fn validate_safety(
-    violations: &mut Vec<ReactiveViewViolation>,
-    target: &str,
-    safety: &CaseSafety,
-) {
+fn validate_safety(violations: &mut Vec<ReactiveViewViolation>, target: &str, safety: &CaseSafety) {
     if !safety.raw_private_material_excluded {
         push_violation(
             violations,

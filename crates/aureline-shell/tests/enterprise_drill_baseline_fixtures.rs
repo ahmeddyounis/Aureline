@@ -25,15 +25,15 @@ const ARTIFACT_DIR: &str = concat!(
 
 fn load<T: serde::de::DeserializeOwned>(filename: &str) -> T {
     let path = format!("{}/{}", FIXTURE_DIR, filename);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
+    let body =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
     serde_json::from_str(&body).unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
 }
 
 fn load_artifact<T: serde::de::DeserializeOwned>(filename: &str) -> T {
     let path = format!("{}/{}", ARTIFACT_DIR, filename);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
+    let body =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
     serde_json::from_str(&body).unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
 }
 

@@ -83,8 +83,7 @@ pub const SECRET_REPAIR_BETA_SUMMARY_RECORD_KIND: &str =
     "security_secret_repair_beta_summary_record";
 
 /// Stable record kind for [`SecretRepairBetaDefect`] payloads.
-pub const SECRET_REPAIR_BETA_DEFECT_RECORD_KIND: &str =
-    "security_secret_repair_beta_defect_record";
+pub const SECRET_REPAIR_BETA_DEFECT_RECORD_KIND: &str = "security_secret_repair_beta_defect_record";
 
 /// Stable record kind for [`SecretRepairBetaSupportExport`] payloads.
 pub const SECRET_REPAIR_BETA_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -1196,11 +1195,8 @@ pub fn seeded_secret_repair_beta_page() -> SecretRepairBetaPage {
     let denied_projection_rows = seed_denied_projection_rows();
     let repair_events = seed_repair_events();
 
-    let defects = audit_secret_repair_beta_page(
-        &lock_state_rows,
-        &denied_projection_rows,
-        &repair_events,
-    );
+    let defects =
+        audit_secret_repair_beta_page(&lock_state_rows, &denied_projection_rows, &repair_events);
     let summary = SecretRepairBetaSummary::from_records(
         &lock_state_rows,
         &denied_projection_rows,
@@ -1240,19 +1236,16 @@ fn seed_lock_state_rows() -> Vec<KeychainLockStateRow> {
             capability_hash_ref: "capability-hash:package-registry-client:beta",
             target_ref: "registry:npm:public",
             workspace_scope_ref: "workspace:local:payments",
-            affected_secret_broker_row_ref:
-                Some("secret-broker-beta:row:connected:registry-auth"),
+            affected_secret_broker_row_ref: Some("secret-broker-beta:row:connected:registry-auth"),
             repair_action: RepairActionClass::PromptKeychainUnlock,
             repair_action_label: "Unlock keychain",
             repair_action_detail:
                 "Prompt the OS keychain unlock dialog so saved registry credentials resolve. \
                  Local editing continues regardless of the unlock decision.",
-            remediation_path_ref:
-                "remediation-path:os-keychain-unlock:registry:npm:payments",
+            remediation_path_ref: "remediation-path:os-keychain-unlock:registry:npm:payments",
         }),
         lock_state_row(LockStateSeed {
-            row_id:
-                "secret-repair-beta:lock-state:mirror_only:vault-mirror-outage",
+            row_id: "secret-repair-beta:lock-state:mirror_only:vault-mirror-outage",
             display_label: "Self-hosted vault mirror cannot be reached",
             profile: SecretBrokerBetaProfileClass::MirrorOnly,
             backing_store: VaultAdapterClass::EnterpriseVaultSelfHostedMirror,
@@ -1268,8 +1261,9 @@ fn seed_lock_state_rows() -> Vec<KeychainLockStateRow> {
             capability_hash_ref: "capability-hash:ai-provider:byok:beta",
             target_ref: "provider:byok-ai:tenant-001",
             workspace_scope_ref: "workspace:remote:payments",
-            affected_secret_broker_row_ref:
-                Some("secret-broker-beta:row:mirror_only:provider-token"),
+            affected_secret_broker_row_ref: Some(
+                "secret-broker-beta:row:mirror_only:provider-token",
+            ),
             repair_action: RepairActionClass::RefreshSignedVaultMirror,
             repair_action_label: "Refresh signed vault mirror",
             repair_action_detail:
@@ -1284,8 +1278,7 @@ fn seed_lock_state_rows() -> Vec<KeychainLockStateRow> {
             profile: SecretBrokerBetaProfileClass::Offline,
             backing_store: VaultAdapterClass::EnterpriseVaultAirGappedSnapshot,
             adapter_label: "Air-gapped enterprise vault snapshot",
-            store_entry_alias_ref:
-                "vault-entry:enterprise-vault:air-gapped:ssh:deploy:fleet:0001",
+            store_entry_alias_ref: "vault-entry:enterprise-vault:air-gapped:ssh:deploy:fleet:0001",
             lock_state: KeychainLockStateClass::VaultSnapshotExpired,
             lock_state_note:
                 "Air-gapped vault snapshot's valid_until is past; managed authority closed.",
@@ -1295,8 +1288,7 @@ fn seed_lock_state_rows() -> Vec<KeychainLockStateRow> {
             capability_hash_ref: "capability-hash:git:deploy:beta",
             target_ref: "remote:git:internal-fleet",
             workspace_scope_ref: "workspace:local:fleet",
-            affected_secret_broker_row_ref:
-                Some("secret-broker-beta:row:offline:ssh-deploy-key"),
+            affected_secret_broker_row_ref: Some("secret-broker-beta:row:offline:ssh-deploy-key"),
             repair_action: RepairActionClass::ImportSignedVaultSnapshot,
             repair_action_label: "Import fresh signed vault snapshot",
             repair_action_detail:
@@ -1323,8 +1315,9 @@ fn seed_lock_state_rows() -> Vec<KeychainLockStateRow> {
             capability_hash_ref: "capability-hash:tunnel:remote:beta",
             target_ref: "tunnel:remote:fleet:0001",
             workspace_scope_ref: "workspace:remote:fleet",
-            affected_secret_broker_row_ref:
-                Some("secret-broker-beta:row:enterprise_managed:tunnel-delegate"),
+            affected_secret_broker_row_ref: Some(
+                "secret-broker-beta:row:enterprise_managed:tunnel-delegate",
+            ),
             repair_action: RepairActionClass::ContactAdminToUnblockPolicy,
             repair_action_label: "Contact workspace admin",
             repair_action_detail:
@@ -1341,8 +1334,7 @@ fn seed_lock_state_rows() -> Vec<KeychainLockStateRow> {
             adapter_label: "Hardware security module",
             store_entry_alias_ref: "vault-entry:hsm:signing:release",
             lock_state: KeychainLockStateClass::HardwareTokenRequired,
-            lock_state_note:
-                "Release signing key requires a physical hardware token presence.",
+            lock_state_note: "Release signing key requires a physical hardware token presence.",
             lock_state_observed_at: "2026-05-16T01:15:00Z",
             consumer_id: "consumer:release:signing",
             consumer_label: "Release signing client",
@@ -1363,10 +1355,8 @@ fn seed_lock_state_rows() -> Vec<KeychainLockStateRow> {
 fn seed_denied_projection_rows() -> Vec<DeniedProjectionRow> {
     vec![
         denied_projection_row(DeniedProjectionSeed {
-            row_id:
-                "secret-repair-beta:denied:connected:registry-store-locked",
-            display_label:
-                "Registry projection blocked while OS keychain is locked",
+            row_id: "secret-repair-beta:denied:connected:registry-store-locked",
+            display_label: "Registry projection blocked while OS keychain is locked",
             profile: SecretBrokerBetaProfileClass::Connected,
             blocked_consumer_id: "consumer:package-registry:npm",
             blocked_consumer_label: "Package registry client",
@@ -1379,21 +1369,18 @@ fn seed_denied_projection_rows() -> Vec<DeniedProjectionRow> {
             denial_note:
                 "Broker callback denied: the OS keychain is locked, so the saved registry \
                  credential cannot be resolved.",
-            linked_lock_state_row_ref:
-                Some("secret-repair-beta:lock-state:connected:os-keychain-locked"),
-            linked_secret_broker_row_ref:
-                Some("secret-broker-beta:row:connected:registry-auth"),
+            linked_lock_state_row_ref: Some(
+                "secret-repair-beta:lock-state:connected:os-keychain-locked",
+            ),
+            linked_secret_broker_row_ref: Some("secret-broker-beta:row:connected:registry-auth"),
             required_repair_action: RepairActionClass::PromptKeychainUnlock,
             remediation_path_label: "Unlock keychain",
-            remediation_path_ref:
-                "remediation-path:os-keychain-unlock:registry:npm:payments",
+            remediation_path_ref: "remediation-path:os-keychain-unlock:registry:npm:payments",
             observed_at: "2026-05-16T01:00:20Z",
         }),
         denied_projection_row(DeniedProjectionSeed {
-            row_id:
-                "secret-repair-beta:denied:mirror_only:public-endpoint-fallback-refused",
-            display_label:
-                "Public-endpoint fallback refused on mirror-only profile",
+            row_id: "secret-repair-beta:denied:mirror_only:public-endpoint-fallback-refused",
+            display_label: "Public-endpoint fallback refused on mirror-only profile",
             profile: SecretBrokerBetaProfileClass::MirrorOnly,
             blocked_consumer_id: "consumer:ai-provider:byok",
             blocked_consumer_label: "BYOK AI provider client",
@@ -1406,10 +1393,10 @@ fn seed_denied_projection_rows() -> Vec<DeniedProjectionRow> {
             denial_note:
                 "Caller asked the broker to fall back to a public endpoint after the signed \
                  vault mirror went down; refused on the mirror-only profile.",
-            linked_lock_state_row_ref:
-                Some("secret-repair-beta:lock-state:mirror_only:vault-mirror-outage"),
-            linked_secret_broker_row_ref:
-                Some("secret-broker-beta:row:mirror_only:provider-token"),
+            linked_lock_state_row_ref: Some(
+                "secret-repair-beta:lock-state:mirror_only:vault-mirror-outage",
+            ),
+            linked_secret_broker_row_ref: Some("secret-broker-beta:row:mirror_only:provider-token"),
             required_repair_action: RepairActionClass::RefreshSignedVaultMirror,
             remediation_path_label: "Refresh signed vault mirror",
             remediation_path_ref:
@@ -1428,15 +1415,13 @@ fn seed_denied_projection_rows() -> Vec<DeniedProjectionRow> {
             requested_secret_class: SecretClass::SshKeyMaterial,
             requested_projection_mode: HandleProjectionModeClass::SignOnly,
             denial_reason: DenialReasonClass::StaleSnapshot,
-            denial_note:
-                "SSH sign-only projection denied: the air-gapped snapshot is past its \
+            denial_note: "SSH sign-only projection denied: the air-gapped snapshot is past its \
                  valid_until and managed authority is closed until a fresh signed snapshot is \
                  imported.",
             linked_lock_state_row_ref: Some(
                 "secret-repair-beta:lock-state:offline:vault-snapshot-expired",
             ),
-            linked_secret_broker_row_ref:
-                Some("secret-broker-beta:row:offline:ssh-deploy-key"),
+            linked_secret_broker_row_ref: Some("secret-broker-beta:row:offline:ssh-deploy-key"),
             required_repair_action: RepairActionClass::ImportSignedVaultSnapshot,
             remediation_path_label: "Import fresh signed vault snapshot",
             remediation_path_ref:
@@ -1444,10 +1429,8 @@ fn seed_denied_projection_rows() -> Vec<DeniedProjectionRow> {
             observed_at: "2026-05-16T01:30:25Z",
         }),
         denied_projection_row(DeniedProjectionSeed {
-            row_id:
-                "secret-repair-beta:denied:enterprise_managed:plaintext-projection-refused",
-            display_label:
-                "Plaintext projection request refused by managed policy",
+            row_id: "secret-repair-beta:denied:enterprise_managed:plaintext-projection-refused",
+            display_label: "Plaintext projection request refused by managed policy",
             profile: SecretBrokerBetaProfileClass::EnterpriseManaged,
             blocked_consumer_id: "consumer:tunnel:remote",
             blocked_consumer_label: "Remote tunnel client",
@@ -1466,8 +1449,7 @@ fn seed_denied_projection_rows() -> Vec<DeniedProjectionRow> {
                 "secret-broker-beta:row:enterprise_managed:tunnel-delegate",
             ),
             required_repair_action: RepairActionClass::ContactAdminToUnblockPolicy,
-            remediation_path_label:
-                "Contact workspace admin to discuss capability scope",
+            remediation_path_label: "Contact workspace admin to discuss capability scope",
             remediation_path_ref:
                 "remediation-path:contact-admin:policy-injector:tunnel:fleet:0001",
             observed_at: "2026-05-16T01:35:00Z",
@@ -1480,8 +1462,9 @@ fn seed_repair_events() -> Vec<SecretRepairActionEvent> {
         repair_event(RepairEventSeed {
             event_id: "secret-repair-beta:repair:connected:os-keychain-unlock-resolved",
             profile: SecretBrokerBetaProfileClass::Connected,
-            keychain_lock_row_ref:
-                Some("secret-repair-beta:lock-state:connected:os-keychain-locked"),
+            keychain_lock_row_ref: Some(
+                "secret-repair-beta:lock-state:connected:os-keychain-locked",
+            ),
             denied_projection_row_ref: Some(
                 "secret-repair-beta:denied:connected:registry-store-locked",
             ),
@@ -1499,11 +1482,11 @@ fn seed_repair_events() -> Vec<SecretRepairActionEvent> {
             resolved_at: Some("2026-05-16T01:00:38Z"),
         }),
         repair_event(RepairEventSeed {
-            event_id:
-                "secret-repair-beta:repair:mirror_only:refresh-mirror-in-progress",
+            event_id: "secret-repair-beta:repair:mirror_only:refresh-mirror-in-progress",
             profile: SecretBrokerBetaProfileClass::MirrorOnly,
-            keychain_lock_row_ref:
-                Some("secret-repair-beta:lock-state:mirror_only:vault-mirror-outage"),
+            keychain_lock_row_ref: Some(
+                "secret-repair-beta:lock-state:mirror_only:vault-mirror-outage",
+            ),
             denied_projection_row_ref: Some(
                 "secret-repair-beta:denied:mirror_only:public-endpoint-fallback-refused",
             ),
@@ -1536,15 +1519,13 @@ fn seed_repair_events() -> Vec<SecretRepairActionEvent> {
             workspace_scope_ref: "workspace:local:fleet",
             repair_action: RepairActionClass::ImportSignedVaultSnapshot,
             outcome: RepairOutcomeClass::AwaitingUser,
-            repair_note:
-                "Awaiting manual delivery of a fresh signed snapshot from the air-gapped \
+            repair_note: "Awaiting manual delivery of a fresh signed snapshot from the air-gapped \
                  transfer channel.",
             requested_at: "2026-05-16T01:30:35Z",
             resolved_at: None,
         }),
         repair_event(RepairEventSeed {
-            event_id:
-                "secret-repair-beta:repair:enterprise_managed:contact-admin-declined",
+            event_id: "secret-repair-beta:repair:enterprise_managed:contact-admin-declined",
             profile: SecretBrokerBetaProfileClass::EnterpriseManaged,
             keychain_lock_row_ref: Some(
                 "secret-repair-beta:lock-state:enterprise_managed:policy-injector-misconfigured",
@@ -1559,15 +1540,13 @@ fn seed_repair_events() -> Vec<SecretRepairActionEvent> {
             workspace_scope_ref: "workspace:remote:fleet",
             repair_action: RepairActionClass::ContactAdminToUnblockPolicy,
             outcome: RepairOutcomeClass::UserDeclined,
-            repair_note:
-                "User declined to contact admin; tunnel reuse stays paused. No plaintext \
+            repair_note: "User declined to contact admin; tunnel reuse stays paused. No plaintext \
                  fallback admitted.",
             requested_at: "2026-05-16T01:40:15Z",
             resolved_at: Some("2026-05-16T01:40:55Z"),
         }),
         repair_event(RepairEventSeed {
-            event_id:
-                "secret-repair-beta:repair:connected:hardware-token-failed-permanent",
+            event_id: "secret-repair-beta:repair:connected:hardware-token-failed-permanent",
             profile: SecretBrokerBetaProfileClass::Connected,
             keychain_lock_row_ref: Some(
                 "secret-repair-beta:lock-state:connected:hardware-token-required",
@@ -1796,8 +1775,10 @@ mod tests {
             &page.denied_projection_rows,
             &page.repair_events,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == SecretRepairBetaDefectKind::PlaintextFallbackAttempted));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == SecretRepairBetaDefectKind::PlaintextFallbackAttempted));
     }
 
     #[test]
@@ -1809,8 +1790,9 @@ mod tests {
             &page.denied_projection_rows,
             &page.repair_events,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == SecretRepairBetaDefectKind::PlaintextFallbackOffered));
+        assert!(defects.iter().any(
+            |defect| defect.defect_kind == SecretRepairBetaDefectKind::PlaintextFallbackOffered
+        ));
     }
 
     #[test]
@@ -1822,9 +1804,12 @@ mod tests {
             &page.denied_projection_rows,
             &page.repair_events,
         );
-        assert!(defects
-            .iter()
-            .any(|defect| defect.defect_kind == SecretRepairBetaDefectKind::PlaintextFallbackTaken));
+        assert!(
+            defects
+                .iter()
+                .any(|defect| defect.defect_kind
+                    == SecretRepairBetaDefectKind::PlaintextFallbackTaken)
+        );
     }
 
     #[test]
@@ -1855,9 +1840,12 @@ mod tests {
             &page.denied_projection_rows,
             &page.repair_events,
         );
-        assert!(defects.iter().any(
-            |defect| defect.defect_kind == SecretRepairBetaDefectKind::RemediationPathMissing
-        ));
+        assert!(
+            defects
+                .iter()
+                .any(|defect| defect.defect_kind
+                    == SecretRepairBetaDefectKind::RemediationPathMissing)
+        );
     }
 
     #[test]
@@ -1872,9 +1860,12 @@ mod tests {
             &page.denied_projection_rows,
             &page.repair_events,
         );
-        assert!(defects.iter().any(
-            |defect| defect.defect_kind == SecretRepairBetaDefectKind::BlockedConsumerMissing
-        ));
+        assert!(
+            defects
+                .iter()
+                .any(|defect| defect.defect_kind
+                    == SecretRepairBetaDefectKind::BlockedConsumerMissing)
+        );
     }
 
     #[test]
@@ -1944,9 +1935,12 @@ mod tests {
             &page.denied_projection_rows,
             &page.repair_events,
         );
-        assert!(defects.iter().any(
-            |defect| defect.defect_kind == SecretRepairBetaDefectKind::LinkedLockStateMissing
-        ));
+        assert!(
+            defects
+                .iter()
+                .any(|defect| defect.defect_kind
+                    == SecretRepairBetaDefectKind::LinkedLockStateMissing)
+        );
     }
 
     #[test]
@@ -1982,7 +1976,10 @@ mod tests {
     #[test]
     fn summary_counts_match_records() {
         let page = seeded_secret_repair_beta_page();
-        assert_eq!(page.summary.lock_state_row_count, page.lock_state_rows.len());
+        assert_eq!(
+            page.summary.lock_state_row_count,
+            page.lock_state_rows.len()
+        );
         assert_eq!(
             page.summary.denied_projection_row_count,
             page.denied_projection_rows.len()

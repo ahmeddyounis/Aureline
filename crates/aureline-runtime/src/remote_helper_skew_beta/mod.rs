@@ -226,12 +226,10 @@ impl RemoteHelperRepairPathClass {
                     Self::ContinueNarrowedPosture
                 }
             }
-            RemoteHelperSkewVisibilityClass::ProbeRequiredUntested => {
-                match phase {
-                    RemoteHelperLifecyclePhaseClass::Attach => Self::RunDriftProbeOrReattach,
-                    RemoteHelperLifecyclePhaseClass::Reconnect => Self::RunDriftProbeOrReattach,
-                }
-            }
+            RemoteHelperSkewVisibilityClass::ProbeRequiredUntested => match phase {
+                RemoteHelperLifecyclePhaseClass::Attach => Self::RunDriftProbeOrReattach,
+                RemoteHelperLifecyclePhaseClass::Reconnect => Self::RunDriftProbeOrReattach,
+            },
             RemoteHelperSkewVisibilityClass::OutsideSupportedWindow => match posture {
                 EffectiveCapabilityPosture::Blocked => Self::ContactAdminOrSupport,
                 EffectiveCapabilityPosture::LocalOnly => Self::ContinueLocalOnly,
@@ -366,12 +364,18 @@ impl RemoteHelperBetaRecord {
         helper_version: impl Into<String>,
         compatibility_report_row_refs: Vec<String>,
     ) -> Self {
-        let visibility =
-            RemoteHelperSkewVisibilityClass::derive(response.compatibility_window.status, response.outcome);
-        let repair = RemoteHelperRepairPathClass::derive(visibility, response.effective_posture, phase);
+        let visibility = RemoteHelperSkewVisibilityClass::derive(
+            response.compatibility_window.status,
+            response.outcome,
+        );
+        let repair =
+            RemoteHelperRepairPathClass::derive(visibility, response.effective_posture, phase);
         let attach_session_ref = attach_session_ref.into();
-        let visible_version_state =
-            RemoteHelperVisibleVersionState::from_response(response, client_version, helper_version);
+        let visible_version_state = RemoteHelperVisibleVersionState::from_response(
+            response,
+            client_version,
+            helper_version,
+        );
         let row_id = format!("remote-helper-beta-row:{}", response.row_id);
         let mut source_refs = response.compatibility_window.source_refs.clone();
         source_refs.extend(response.source_refs.iter().cloned());
@@ -514,8 +518,9 @@ impl RemoteHelperBetaSupportExport {
             .iter()
             .map(RemoteHelperBetaCompatibilityRow::from_record)
             .collect();
-        let any_record_fails_closed_for_mutation =
-            records.iter().any(RemoteHelperBetaRecord::fails_closed_for_mutation);
+        let any_record_fails_closed_for_mutation = records
+            .iter()
+            .any(RemoteHelperBetaRecord::fails_closed_for_mutation);
         Self {
             record_kind: REMOTE_HELPER_SKEW_BETA_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION,

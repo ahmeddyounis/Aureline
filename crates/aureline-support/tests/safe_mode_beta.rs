@@ -7,8 +7,8 @@ use aureline_support::safe_mode::{
     load_safe_mode_profile, load_safe_mode_transition, FullerModeClass, PreservedCapabilityClass,
     PreservedStateClass, SafeModeDispositionClass, SafeModeEntryReasonClass, SafeModeEvaluator,
     SafeModeExitReasonClass, SafeModeProfile, SafeModeProfileClass, SafeModeReasonClass,
-    SafeModeTransition, TransitionClass, SAFE_MODE_PROFILE_DOC_REF,
-    SAFE_MODE_PROFILE_RECORD_KIND, SAFE_MODE_PROFILE_SCHEMA_REF, SAFE_MODE_SUPPORT_PACKET_RECORD_KIND,
+    SafeModeTransition, TransitionClass, SAFE_MODE_PROFILE_DOC_REF, SAFE_MODE_PROFILE_RECORD_KIND,
+    SAFE_MODE_PROFILE_SCHEMA_REF, SAFE_MODE_SUPPORT_PACKET_RECORD_KIND,
     SAFE_MODE_TRANSITION_RECORD_KIND,
 };
 use serde::Deserialize;
@@ -269,7 +269,10 @@ fn safe_mode_post_crash_loop_profile_pairs_enter_and_exit_transitions() {
     evaluator
         .validate_transition_against_profile(&profile, exit)
         .expect("exit validates against profile");
-    assert_eq!(profile.return_path.fuller_mode_class, FullerModeClass::FullMode);
+    assert_eq!(
+        profile.return_path.fuller_mode_class,
+        FullerModeClass::FullMode
+    );
     assert!(profile.return_path.return_action.requires_review);
 }
 
@@ -316,9 +319,10 @@ fn safe_mode_evaluator_refuses_destructive_or_mismatched_transitions() {
     let report = evaluator
         .validate_transition_against_profile(&profile, &mismatched)
         .expect_err("mismatched profile_ref must be rejected");
-    assert!(report.violations.iter().any(|violation| {
-        violation.check_id == "safe_mode.transition_profile_ref_mismatch"
-    }));
+    assert!(report
+        .violations
+        .iter()
+        .any(|violation| { violation.check_id == "safe_mode.transition_profile_ref_mismatch" }));
 
     // Refuses an enter transition that names an exit_reason_class.
     let mut crossed = enter.clone();
@@ -326,9 +330,10 @@ fn safe_mode_evaluator_refuses_destructive_or_mismatched_transitions() {
     let report = evaluator
         .validate_transition(&crossed)
         .expect_err("enter with exit_reason_class must be rejected");
-    assert!(report.violations.iter().any(|violation| {
-        violation.check_id == "safe_mode.transition_enter_has_exit_reason"
-    }));
+    assert!(report
+        .violations
+        .iter()
+        .any(|violation| { violation.check_id == "safe_mode.transition_enter_has_exit_reason" }));
 }
 
 #[test]
@@ -356,4 +361,3 @@ fn safe_mode_evaluator_refuses_profile_without_doctor_finding_or_local_editing()
     assert!(check_ids.contains("safe_mode.local_editing_must_be_preserved"));
     assert!(check_ids.contains("safe_mode.destructive_reset_declared"));
 }
-

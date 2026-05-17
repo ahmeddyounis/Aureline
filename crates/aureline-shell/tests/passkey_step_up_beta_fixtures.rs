@@ -164,13 +164,14 @@ fn fixture_includes_account_free_local_row_with_no_lane() {
     let row = page
         .rows
         .iter()
-        .find(|r| {
-            r.lane.lane_token == PasskeyBetaLaneClass::NotApplicableAccountFreeLocal.as_str()
-        })
+        .find(|r| r.lane.lane_token == PasskeyBetaLaneClass::NotApplicableAccountFreeLocal.as_str())
         .expect("fixture must include an account-free local row");
     assert!(row.lane.target_label.is_empty());
     assert!(row.lane.requested_action_label.is_empty());
-    assert_eq!(row.outcome.fallback_token, "not_applicable_account_free_local");
+    assert_eq!(
+        row.outcome.fallback_token,
+        "not_applicable_account_free_local"
+    );
 }
 
 #[test]

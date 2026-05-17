@@ -17,11 +17,9 @@ use aureline_support::mutation_journal::{
 
 #[test]
 fn envelope_mirrors_report_matrix() {
-    let envelope = compile_support_export_envelope(
-        "envelope:mutation_journal:test",
-        "2026-05-16T10:30:00Z",
-    )
-    .expect("envelope compiles");
+    let envelope =
+        compile_support_export_envelope("envelope:mutation_journal:test", "2026-05-16T10:30:00Z")
+            .expect("envelope compiles");
     assert_eq!(
         envelope.record_kind,
         MUTATION_JOURNAL_SUPPORT_EXPORT_ENVELOPE_RECORD_KIND
@@ -40,7 +38,10 @@ fn envelope_mirrors_report_matrix() {
     assert_eq!(envelope.rows.len(), report.matrix_rows.len());
 
     for (row, matrix) in envelope.rows.iter().zip(report.matrix_rows.iter()) {
-        assert_eq!(row.record_kind, MUTATION_JOURNAL_SUPPORT_EXPORT_ROW_RECORD_KIND);
+        assert_eq!(
+            row.record_kind,
+            MUTATION_JOURNAL_SUPPORT_EXPORT_ROW_RECORD_KIND
+        );
         assert_eq!(row.entry_id, matrix.entry_id);
         assert_eq!(row.consumer_surface, matrix.consumer_surface);
         assert_eq!(row.source_lane, matrix.source_lane);
@@ -59,11 +60,9 @@ fn envelope_mirrors_report_matrix() {
 
 #[test]
 fn envelope_round_trips_through_json() {
-    let envelope = compile_support_export_envelope(
-        "envelope:mutation_journal:test",
-        "2026-05-16T10:30:00Z",
-    )
-    .expect("envelope compiles");
+    let envelope =
+        compile_support_export_envelope("envelope:mutation_journal:test", "2026-05-16T10:30:00Z")
+            .expect("envelope compiles");
     let json = serde_json::to_string(&envelope).expect("envelope serializes");
     let parsed: MutationJournalSupportExportEnvelope =
         serde_json::from_str(&json).expect("envelope round-trips");
@@ -72,11 +71,9 @@ fn envelope_round_trips_through_json() {
 
 #[test]
 fn envelope_preserves_affected_paths_and_safety_baseline() {
-    let envelope = compile_support_export_envelope(
-        "envelope:mutation_journal:test",
-        "2026-05-16T10:30:00Z",
-    )
-    .expect("envelope compiles");
+    let envelope =
+        compile_support_export_envelope("envelope:mutation_journal:test", "2026-05-16T10:30:00Z")
+            .expect("envelope compiles");
     assert!(envelope.raw_payload_excluded);
     assert!(envelope.raw_private_material_excluded);
     assert!(envelope.ambient_authority_excluded);

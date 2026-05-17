@@ -836,7 +836,10 @@ fn summarize_consumer_surface(
     row
 }
 
-fn summarize_lineage(corpus: &GraphDriftCorpus, lineage: DataLaneLineage) -> DriftLineageSummaryRow {
+fn summarize_lineage(
+    corpus: &GraphDriftCorpus,
+    lineage: DataLaneLineage,
+) -> DriftLineageSummaryRow {
     let mut row = DriftLineageSummaryRow {
         data_lane_lineage: lineage,
         packet_count: 0,

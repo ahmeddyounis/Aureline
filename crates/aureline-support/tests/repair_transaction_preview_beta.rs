@@ -108,7 +108,9 @@ fn beta_skeleton_corpus_validates_and_covers_blast_radius_and_compensation_class
         assert!(!skeleton.destructive_resets_present);
         assert!(skeleton.doctor_finding_ref.starts_with("doctor.finding."));
         assert!(
-            skeleton.repair_transaction_ref.starts_with("repair_transaction:"),
+            skeleton
+                .repair_transaction_ref
+                .starts_with("repair_transaction:"),
             "skeleton {} must preserve the alpha repair_transaction:* id",
             skeleton.skeleton_id
         );
@@ -173,12 +175,8 @@ fn beta_skeleton_corpus_validates_and_covers_blast_radius_and_compensation_class
         .into_iter()
         .collect::<BTreeSet<_>>()
     );
-    assert!(
-        checkpoint_seen.contains(&RepairCheckpointDispositionClass::DurablePreApplyCheckpoint)
-    );
-    assert!(
-        checkpoint_seen.contains(&RepairCheckpointDispositionClass::NoCheckpointEscalationOnly)
-    );
+    assert!(checkpoint_seen.contains(&RepairCheckpointDispositionClass::DurablePreApplyCheckpoint));
+    assert!(checkpoint_seen.contains(&RepairCheckpointDispositionClass::NoCheckpointEscalationOnly));
     assert!(reversal_seen.contains(&TransactionReversalClass::Regenerate));
     assert!(reversal_seen.contains(&TransactionReversalClass::Compensating));
     assert!(reversal_seen.contains(&TransactionReversalClass::Manual));
@@ -186,9 +184,7 @@ fn beta_skeleton_corpus_validates_and_covers_blast_radius_and_compensation_class
     assert!(
         preview_disposition_seen.contains(&RepairPreviewDispositionClass::CancellablePendingReview)
     );
-    assert!(
-        preview_disposition_seen.contains(&RepairPreviewDispositionClass::RefusedNoLocalRepair)
-    );
+    assert!(preview_disposition_seen.contains(&RepairPreviewDispositionClass::RefusedNoLocalRepair));
 }
 
 #[test]
@@ -212,8 +208,7 @@ fn beta_support_packet_preserves_transaction_id_and_reversal_class_and_is_export
         assert_eq!(packet.doc_ref, REPAIR_PREVIEW_SKELETON_DOC_REF);
         assert_eq!(packet.schema_ref, REPAIR_PREVIEW_SKELETON_SCHEMA_REF);
         assert_eq!(
-            packet.repair_transaction_ref,
-            scenario.skeleton.repair_transaction_ref,
+            packet.repair_transaction_ref, scenario.skeleton.repair_transaction_ref,
             "packet must preserve the alpha transaction id verbatim"
         );
         assert_eq!(
@@ -221,7 +216,11 @@ fn beta_support_packet_preserves_transaction_id_and_reversal_class_and_is_export
             "packet must preserve the alpha reversal class verbatim"
         );
         assert_eq!(packet.comparison_rows.len(), scenario.comparisons.len());
-        assert!(packet.is_export_safe(), "packet {} must be export-safe", scenario.scenario_id);
+        assert!(
+            packet.is_export_safe(),
+            "packet {} must be export-safe",
+            scenario.scenario_id
+        );
         assert!(!packet.destructive_resets_present);
     }
 }
@@ -324,8 +323,10 @@ fn beta_evaluator_refuses_destructive_or_inconsistent_skeletons_and_comparisons(
     let mut destructive = skeleton.clone();
     destructive.destructive_resets_present = true;
     let err = evaluator.validate_skeleton(&destructive).unwrap_err();
-    assert!(err.violations.iter().any(|violation| violation.check_id
-        == "repair_preview.destructive_reset_declared"));
+    assert!(err
+        .violations
+        .iter()
+        .any(|violation| violation.check_id == "repair_preview.destructive_reset_declared"));
 
     // user_authored_files preservation removed.
     let mut without_authored = skeleton.clone();
@@ -333,13 +334,18 @@ fn beta_evaluator_refuses_destructive_or_inconsistent_skeletons_and_comparisons(
         .preserved_state_classes
         .retain(|class| *class != PreservedStateClass::UserAuthoredFiles);
     let err = evaluator.validate_skeleton(&without_authored).unwrap_err();
-    assert!(err.violations.iter().any(|violation| violation.check_id
-        == "repair_preview.user_authored_files_must_be_preserved"));
+    assert!(err
+        .violations
+        .iter()
+        .any(|violation| violation.check_id
+            == "repair_preview.user_authored_files_must_be_preserved"));
 
     // Checkpoint disposition / ref mismatch.
     let mut missing_checkpoint = skeleton.clone();
     missing_checkpoint.checkpoint_ref = None;
-    let err = evaluator.validate_skeleton(&missing_checkpoint).unwrap_err();
+    let err = evaluator
+        .validate_skeleton(&missing_checkpoint)
+        .unwrap_err();
     assert!(err
         .violations
         .iter()
@@ -348,7 +354,9 @@ fn beta_evaluator_refuses_destructive_or_inconsistent_skeletons_and_comparisons(
     let mut spurious_checkpoint = skeleton.clone();
     spurious_checkpoint.checkpoint_disposition_class =
         RepairCheckpointDispositionClass::NoCheckpointObserveOnly;
-    let err = evaluator.validate_skeleton(&spurious_checkpoint).unwrap_err();
+    let err = evaluator
+        .validate_skeleton(&spurious_checkpoint)
+        .unwrap_err();
     assert!(err
         .violations
         .iter()
@@ -358,15 +366,19 @@ fn beta_evaluator_refuses_destructive_or_inconsistent_skeletons_and_comparisons(
     let mut wrong_blast = skeleton.clone();
     wrong_blast.blast_radius_class = RepairBlastRadiusClass::NoLocalBlastEscalationOnly;
     let err = evaluator.validate_skeleton(&wrong_blast).unwrap_err();
-    assert!(err.violations.iter().any(|violation| violation.check_id
-        == "repair_preview.blast_radius_object_mismatch"));
+    assert!(err
+        .violations
+        .iter()
+        .any(|violation| violation.check_id == "repair_preview.blast_radius_object_mismatch"));
 
     // Audit-only compensation must not list affected objects.
     let mut wrong_audit = skeleton.clone();
     wrong_audit.compensation_class = RepairCompensationClass::AuditOnlyNoStateChange;
     let err = evaluator.validate_skeleton(&wrong_audit).unwrap_err();
-    assert!(err.violations.iter().any(|violation| violation.check_id
-        == "repair_preview.audit_only_lists_affected_objects"));
+    assert!(err
+        .violations
+        .iter()
+        .any(|violation| violation.check_id == "repair_preview.audit_only_lists_affected_objects"));
 
     // Authorized + strong-compensation must travel through comparison first.
     let mut authorized_compensating = skeleton.clone();
@@ -377,8 +389,10 @@ fn beta_evaluator_refuses_destructive_or_inconsistent_skeletons_and_comparisons(
     let err = evaluator
         .validate_skeleton(&authorized_compensating)
         .unwrap_err();
-    assert!(err.violations.iter().any(|violation| violation.check_id
-        == "repair_preview.authorized_requires_comparison"));
+    assert!(err
+        .violations
+        .iter()
+        .any(|violation| violation.check_id == "repair_preview.authorized_requires_comparison"));
 
     // Comparison empty axes / wrong-binding rejection.
     let mut comparison = baseline.comparisons[0].clone();
@@ -395,8 +409,10 @@ fn beta_evaluator_refuses_destructive_or_inconsistent_skeletons_and_comparisons(
     let err = evaluator
         .validate_comparison_against_skeleton(&skeleton, &wrong_bound)
         .unwrap_err();
-    assert!(err.violations.iter().any(|violation| violation.check_id
-        == "repair_preview.comparison_bound_ref_mismatch"));
+    assert!(err
+        .violations
+        .iter()
+        .any(|violation| violation.check_id == "repair_preview.comparison_bound_ref_mismatch"));
 
     // Mixed-skeleton packet refused.
     let other_scenario = load_scenarios()
@@ -412,8 +428,10 @@ fn beta_evaluator_refuses_destructive_or_inconsistent_skeletons_and_comparisons(
             &cross_comparisons,
         )
         .unwrap_err();
-    assert!(err.violations.iter().any(|violation| violation.check_id
-        == "repair_preview.comparison_bound_ref_mismatch"));
+    assert!(err
+        .violations
+        .iter()
+        .any(|violation| violation.check_id == "repair_preview.comparison_bound_ref_mismatch"));
 }
 
 #[test]

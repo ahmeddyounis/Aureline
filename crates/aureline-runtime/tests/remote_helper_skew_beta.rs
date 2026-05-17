@@ -5,8 +5,8 @@ use aureline_runtime::{
     EffectiveCapabilityPosture, HelperCapabilityResponse, MissingCapabilityReasonClass,
     NegotiationOutcome, RemoteHelperBetaCompatibilityRow, RemoteHelperBetaRecord,
     RemoteHelperBetaSupportExport, RemoteHelperLifecyclePhaseClass, RemoteHelperRepairPathClass,
-    RemoteHelperSkewVisibilityClass,
-    HELPER_CAPABILITY_NEGOTIATION_SCHEMA_VERSION, REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION,
+    RemoteHelperSkewVisibilityClass, HELPER_CAPABILITY_NEGOTIATION_SCHEMA_VERSION,
+    REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION,
 };
 use serde::Deserialize;
 
@@ -24,8 +24,7 @@ fn load_fixture(name: &str) -> FixtureRecord {
     let path = fixture_path(name);
     let payload = std::fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
-    serde_json::from_str(&payload)
-        .unwrap_or_else(|err| panic!("parse {}: {err}", path.display()))
+    serde_json::from_str(&payload).unwrap_or_else(|err| panic!("parse {}: {err}", path.display()))
 }
 
 fn parse_visibility(token: &str) -> RemoteHelperSkewVisibilityClass {
@@ -107,7 +106,10 @@ fn response_from_fixture(fixture: &FixtureRecord) -> HelperCapabilityResponse {
         surface_ref: fixture.envelope_id.clone(),
         title: fixture.visible_summary.clone(),
         outcome: parse_outcome(&fixture.negotiation_outcome),
-        selected_protocol_ref: fixture.visible_version_state.selected_protocol_version.clone(),
+        selected_protocol_ref: fixture
+            .visible_version_state
+            .selected_protocol_version
+            .clone(),
         negotiated_capabilities: fixture.negotiated_capabilities.clone(),
         dropped_capabilities: parse_dropped(&fixture.dropped_capabilities),
         mutation_allowed: fixture.mutation_allowed,
@@ -127,15 +129,18 @@ fn response_from_fixture(fixture: &FixtureRecord) -> HelperCapabilityResponse {
         compatibility_window: CompatibilityWindow {
             boundary_family: "desktop_cli_and_remote_agent".to_owned(),
             compatibility_row_ref: fixture.visible_version_state.compatibility_row_ref.clone(),
-            version_skew_register_ref:
-                "version_skew_register:remote.attach_envelope_and_drift".to_owned(),
+            version_skew_register_ref: "version_skew_register:remote.attach_envelope_and_drift"
+                .to_owned(),
             skew_case_ref: fixture.visible_version_state.skew_case_ref.clone(),
             skew_window_declaration_ref: fixture
                 .visible_version_state
                 .skew_window_declaration_ref
                 .clone(),
             status: parse_window_status(visibility),
-            selected_protocol_ref: fixture.visible_version_state.selected_protocol_version.clone(),
+            selected_protocol_ref: fixture
+                .visible_version_state
+                .selected_protocol_version
+                .clone(),
             source_refs: fixture.evidence_refs.compat_refs.clone(),
         },
     }
@@ -160,8 +165,14 @@ fn attach_adjacent_supported_admits_full_remote() {
     let fixture = load_fixture("attach_adjacent_supported.json");
     let record = beta_record_from_fixture(&fixture);
 
-    assert_eq!(record.schema_version, REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION);
-    assert_eq!(record.lifecycle_phase, RemoteHelperLifecyclePhaseClass::Attach);
+    assert_eq!(
+        record.schema_version,
+        REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION
+    );
+    assert_eq!(
+        record.lifecycle_phase,
+        RemoteHelperLifecyclePhaseClass::Attach
+    );
     assert_eq!(
         record.skew_visibility,
         RemoteHelperSkewVisibilityClass::AdjacentSupported

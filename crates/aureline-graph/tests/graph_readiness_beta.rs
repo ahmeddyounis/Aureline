@@ -10,11 +10,11 @@
 use std::path::{Path, PathBuf};
 
 use aureline_graph::{
-    current_graph_readiness_beta_corpus, BetaConsumerSurface, ClaimAlignmentState, DowngradeLabel,
-    FactLane, GraphReadinessBetaEvaluator, BetaOpenGapClass as OpenGapClass, ReadinessClaim,
+    current_graph_readiness_beta_corpus, BetaConsumerSurface, BetaOpenGapClass as OpenGapClass,
+    ClaimAlignmentState, DowngradeLabel, FactLane, GraphReadinessBetaEvaluator, ReadinessClaim,
     GRAPH_READINESS_BETA_CORPUS_DIR, GRAPH_READINESS_BETA_CORPUS_MANIFEST_REF,
-    GRAPH_READINESS_BETA_DOC_REF, GRAPH_READINESS_BETA_REPORT_REF,
-    GRAPH_READINESS_BETA_SCHEMA_REF, REQUIRED_CONSUMER_SURFACES, REQUIRED_FACT_LANES,
+    GRAPH_READINESS_BETA_DOC_REF, GRAPH_READINESS_BETA_REPORT_REF, GRAPH_READINESS_BETA_SCHEMA_REF,
+    REQUIRED_CONSUMER_SURFACES, REQUIRED_FACT_LANES,
 };
 
 fn repo_root() -> PathBuf {
@@ -79,8 +79,7 @@ fn at_least_one_overclaim_case_exists() {
         corpus
             .entries
             .iter()
-            .any(|entry| entry.case.claim_alignment_state
-                == ClaimAlignmentState::OverclaimBlocked),
+            .any(|entry| entry.case.claim_alignment_state == ClaimAlignmentState::OverclaimBlocked),
         "corpus must seed at least one overclaim_blocked case"
     );
 }
@@ -108,7 +107,11 @@ fn corpus_round_trips_through_serde() {
 fn report_emits_closed_vocabulary_tokens() {
     let corpus = current_graph_readiness_beta_corpus().expect("corpus loads");
     let report = GraphReadinessBetaEvaluator::new()
-        .report("report:graph_readiness_beta", "2026-05-16T10:00:00Z", &corpus)
+        .report(
+            "report:graph_readiness_beta",
+            "2026-05-16T10:00:00Z",
+            &corpus,
+        )
         .expect("report builds");
     assert!(report.is_export_safe());
 
@@ -121,7 +124,11 @@ fn report_emits_closed_vocabulary_tokens() {
     }
 
     // Per-fact-lane and per-surface summaries must add up to corpus size.
-    let lane_total: u32 = report.fact_lane_summaries.iter().map(|s| s.case_count).sum();
+    let lane_total: u32 = report
+        .fact_lane_summaries
+        .iter()
+        .map(|s| s.case_count)
+        .sum();
     assert_eq!(lane_total as usize, corpus.entries.len());
     let surface_total: u32 = report
         .consumer_surface_summaries
@@ -220,7 +227,10 @@ fn closed_vocabulary_tokens_are_pinned() {
     assert_eq!(BetaConsumerSurface::Navigation.as_str(), "navigation");
     assert_eq!(BetaConsumerSurface::AiContext.as_str(), "ai_context");
     assert_eq!(BetaConsumerSurface::Review.as_str(), "review");
-    assert_eq!(BetaConsumerSurface::SupportExport.as_str(), "support_export");
+    assert_eq!(
+        BetaConsumerSurface::SupportExport.as_str(),
+        "support_export"
+    );
 
     assert_eq!(
         FactLane::ExactLocalGraphFact.as_str(),
@@ -238,7 +248,10 @@ fn closed_vocabulary_tokens_are_pinned() {
         FactLane::OutOfScopeGraphFact.as_str(),
         "out_of_scope_graph_fact"
     );
-    assert_eq!(FactLane::FallbackSearchFact.as_str(), "fallback_search_fact");
+    assert_eq!(
+        FactLane::FallbackSearchFact.as_str(),
+        "fallback_search_fact"
+    );
 
     assert_eq!(ReadinessClaim::Ready.as_str(), "ready");
     assert_eq!(ReadinessClaim::OutOfScope.as_str(), "out_of_scope");

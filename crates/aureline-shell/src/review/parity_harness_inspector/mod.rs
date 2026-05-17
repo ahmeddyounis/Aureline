@@ -58,7 +58,8 @@ const ALPHA_PARITY_HARNESS_ROWS: &[(&str, &str)] = &[
 ];
 
 /// Presentation label rendered for the parity-harness inspector surface.
-pub const PARITY_HARNESS_INSPECTOR_PRESENTATION_LABEL: &str = "Review-pack parity-harness inspector";
+pub const PARITY_HARNESS_INSPECTOR_PRESENTATION_LABEL: &str =
+    "Review-pack parity-harness inspector";
 
 /// Presentation subtitle rendered for the parity-harness inspector surface.
 pub const PARITY_HARNESS_INSPECTOR_PRESENTATION_SUBTITLE: &str =
@@ -167,7 +168,9 @@ pub fn build_alpha_parity_harness_rows(
     for (source_ref, payload) in ALPHA_PARITY_HARNESS_ROWS {
         let projection = project_review_pack_parity_harness(payload)
             .map_err(|err| projection_error(source_ref, err))?;
-        rows.push(ParityHarnessInspectorRow::from_projection(source_ref, projection));
+        rows.push(ParityHarnessInspectorRow::from_projection(
+            source_ref, projection,
+        ));
     }
     Ok(rows)
 }
@@ -179,8 +182,7 @@ pub fn build_alpha_parity_harness_rows(
 ///
 /// Returns [`ParityHarnessInspectorError`] when a fixture cannot be
 /// projected.
-pub fn render_alpha_parity_harness_plaintext(
-) -> Result<String, ParityHarnessInspectorError> {
+pub fn render_alpha_parity_harness_plaintext() -> Result<String, ParityHarnessInspectorError> {
     let rows = build_alpha_parity_harness_rows()?;
     let mut lines = vec![
         "Review-pack parity-harness inspector alpha".to_string(),
@@ -223,8 +225,8 @@ mod tests {
 
     #[test]
     fn alpha_parity_harness_rows_project() {
-        let rows = build_alpha_parity_harness_rows()
-            .expect("alpha parity-harness rows must project");
+        let rows =
+            build_alpha_parity_harness_rows().expect("alpha parity-harness rows must project");
         assert_eq!(rows.len(), 4);
         let mut authorities: Vec<&str> = rows
             .iter()

@@ -59,17 +59,15 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let summary = RegionTenantKeyModeBetaRenderSummary::from_page(&page);
             print_json(&summary)?;
         }
-        Some("drill-region-pinning-failure") => print_drill_by_kind(
-            page,
-            RegionTenantDrillKindClass::RegionPinningFailure,
-        )?,
+        Some("drill-region-pinning-failure") => {
+            print_drill_by_kind(page, RegionTenantDrillKindClass::RegionPinningFailure)?
+        }
         Some("drill-region-failover") => {
             print_drill_by_kind(page, RegionTenantDrillKindClass::RegionFailover)?
         }
-        Some("drill-tenant-boundary-drift") => print_drill_by_kind(
-            page,
-            RegionTenantDrillKindClass::TenantBoundaryDrift,
-        )?,
+        Some("drill-tenant-boundary-drift") => {
+            print_drill_by_kind(page, RegionTenantDrillKindClass::TenantBoundaryDrift)?
+        }
         Some("drill-tenant-failover") => {
             print_drill_by_kind(page, RegionTenantDrillKindClass::TenantFailover)?
         }

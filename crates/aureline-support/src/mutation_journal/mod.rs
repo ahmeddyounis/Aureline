@@ -18,10 +18,10 @@ use std::error::Error;
 use std::fmt;
 
 use aureline_reactive_state::mutation_journal::{
-    current_mutation_journal_corpus, ActorClass, AttributionState, AuthorityClass,
-    ConsumerSurface, DowngradeLabel, EntryKind, MutationJournalCase, MutationJournalCorpus,
-    MutationJournalEvaluator, MutationJournalReport, MutationJournalValidationReport,
-    OpenGapClass, RecoveryClass, ReplayabilityState, SourceLane, MUTATION_JOURNAL_DOC_REF,
+    current_mutation_journal_corpus, ActorClass, AttributionState, AuthorityClass, ConsumerSurface,
+    DowngradeLabel, EntryKind, MutationJournalCase, MutationJournalCorpus,
+    MutationJournalEvaluator, MutationJournalReport, MutationJournalValidationReport, OpenGapClass,
+    RecoveryClass, ReplayabilityState, SourceLane, MUTATION_JOURNAL_DOC_REF,
     MUTATION_JOURNAL_REPORT_REF, MUTATION_JOURNAL_SCHEMA_REF,
 };
 use serde::{Deserialize, Serialize};

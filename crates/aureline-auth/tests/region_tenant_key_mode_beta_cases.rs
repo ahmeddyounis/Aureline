@@ -17,8 +17,7 @@ use aureline_auth::{
 };
 
 fn fixture_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/security/m3/region_tenant_key_mode")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/security/m3/region_tenant_key_mode")
 }
 
 fn load_page(file_name: &str) -> RegionTenantKeyModeBetaPage {

@@ -22,9 +22,9 @@ use std::path::{Path, PathBuf};
 use aureline_shell::support_center::{
     load_surface_from_yaml, SupportCenterBetaEvaluator, SupportCenterBetaLaneClass,
     SupportCenterBetaSurface, SupportCenterDegradedTruthClass, SupportCenterExportRouteRow,
-    SupportCenterLaunchActionClass, SupportCenterLaunchActionRow,
-    SupportCenterPreservedStateClass, SupportCenterServiceDependencyClass,
-    SUPPORT_CENTER_BETA_SCHEMA_VERSION, SUPPORT_CENTER_BETA_SURFACE_RECORD_KIND,
+    SupportCenterLaunchActionClass, SupportCenterLaunchActionRow, SupportCenterPreservedStateClass,
+    SupportCenterServiceDependencyClass, SUPPORT_CENTER_BETA_SCHEMA_VERSION,
+    SUPPORT_CENTER_BETA_SURFACE_RECORD_KIND,
 };
 
 const FIXTURE_FILES: &[&str] = &[
@@ -77,8 +77,8 @@ fn every_protected_fixture_loads_and_validates() {
 #[test]
 fn manifest_lists_every_protected_fixture_on_disk() {
     let manifest_path = fixtures_root().join("manifest.yaml");
-    let manifest =
-        fs::read_to_string(&manifest_path).expect("read fixtures/ux/m3/support_center/manifest.yaml");
+    let manifest = fs::read_to_string(&manifest_path)
+        .expect("read fixtures/ux/m3/support_center/manifest.yaml");
     for name in FIXTURE_FILES {
         assert!(
             manifest.contains(name),
@@ -172,10 +172,18 @@ fn every_launch_action_preserves_user_authored_files() {
 fn support_packet_excludes_raw_private_material_and_ambient_authority() {
     for name in FIXTURE_FILES {
         let surface = load_fixture(name);
-        let packet =
-            surface.support_packet(format!("packet:{}", surface.surface_id), &surface.emitted_at);
-        assert!(packet.raw_private_material_excluded, "{name}: packet leaked raw private material");
-        assert!(packet.ambient_authority_excluded, "{name}: packet leaked ambient authority");
+        let packet = surface.support_packet(
+            format!("packet:{}", surface.surface_id),
+            &surface.emitted_at,
+        );
+        assert!(
+            packet.raw_private_material_excluded,
+            "{name}: packet leaked raw private material"
+        );
+        assert!(
+            packet.ambient_authority_excluded,
+            "{name}: packet leaked ambient authority"
+        );
         assert_eq!(packet.surface_ref, surface.surface_id);
         assert_eq!(
             packet.launch_action_row_refs.len(),
@@ -192,7 +200,10 @@ fn post_crash_loop_surface_names_explicit_exit_command() {
         .iter()
         .filter(|r| r.degraded_truth_class != SupportCenterDegradedTruthClass::NoneDegraded)
         .collect();
-    assert!(!active_rows.is_empty(), "post-crash-loop surface must quote at least one active degraded row");
+    assert!(
+        !active_rows.is_empty(),
+        "post-crash-loop surface must quote at least one active degraded row"
+    );
     for row in active_rows {
         assert!(
             row.active,
@@ -272,9 +283,9 @@ fn after_edit_upload_first_export_route_is_refused() {
 #[test]
 fn after_edit_missing_required_action_is_refused() {
     let mut surface = load_fixture("local_only_baseline.yaml");
-    surface.launch_action_rows.retain(|r| {
-        r.launch_action_class != SupportCenterLaunchActionClass::OpenRepairPreview
-    });
+    surface
+        .launch_action_rows
+        .retain(|r| r.launch_action_class != SupportCenterLaunchActionClass::OpenRepairPreview);
     let violations = SupportCenterBetaEvaluator::validate(&surface);
     assert!(
         violations

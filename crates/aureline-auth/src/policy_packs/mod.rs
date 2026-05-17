@@ -147,9 +147,7 @@ impl PolicyPackSourceClass {
     pub const fn is_mirror_or_manual(self) -> bool {
         matches!(
             self,
-            Self::SignedMirrorOrigin
-                | Self::ManualSignedFileImport
-                | Self::AirGappedSignedTransfer
+            Self::SignedMirrorOrigin | Self::ManualSignedFileImport | Self::AirGappedSignedTransfer
         )
     }
 }
@@ -272,7 +270,10 @@ impl PolicyPackRuleEffectClass {
 
     /// True when this effect must surface a denial reason on a product row.
     pub const fn surfaces_denial(self) -> bool {
-        matches!(self, Self::Deny | Self::RequireApproval | Self::NarrowToReadOrPreview)
+        matches!(
+            self,
+            Self::Deny | Self::RequireApproval | Self::NarrowToReadOrPreview
+        )
     }
 }
 
@@ -782,19 +783,11 @@ pub fn seeded_policy_pack_beta_page() -> PolicyPackBetaPage {
     let denial_traces = seed_denial_traces(&target_pack);
     let import_receipts = vec![
         seed_import_receipt(&mirror_pack, "policy-pack-beta:import:mirror-001"),
-        seed_import_receipt(
-            &manual_import_pack,
-            "policy-pack-beta:import:manual-001",
-        ),
+        seed_import_receipt(&manual_import_pack, "policy-pack-beta:import:manual-001"),
         seed_import_receipt(&offline_pack, "policy-pack-beta:import:airgap-001"),
     ];
 
-    let defects = audit_policy_pack_beta_page(
-        &packs,
-        &diffs,
-        &denial_traces,
-        &import_receipts,
-    );
+    let defects = audit_policy_pack_beta_page(&packs, &diffs, &denial_traces, &import_receipts);
     let summary = PolicyPackBetaSummary::from_records(
         &packs,
         &diffs,
@@ -947,7 +940,8 @@ pub fn audit_policy_pack_beta_page(
                 "import receipt must preserve upstream signature blob ref",
             ));
         }
-        if !receipt.preserves_explanation || pack.rules.iter().any(|rule| rule.explanation.is_empty())
+        if !receipt.preserves_explanation
+            || pack.rules.iter().any(|rule| rule.explanation.is_empty())
         {
             defects.push(PolicyPackBetaDefect::new(
                 PolicyPackBetaDefectKind::MirrorOrImportExplanationDropped,
@@ -971,12 +965,10 @@ pub fn audit_policy_pack_beta_page(
                 ));
                 continue;
             }
-            let base_rule = base.and_then(|pack| {
-                pack.rules.iter().find(|rule| rule.rule_id == entry.rule_id)
-            });
-            let target_rule = target.and_then(|pack| {
-                pack.rules.iter().find(|rule| rule.rule_id == entry.rule_id)
-            });
+            let base_rule =
+                base.and_then(|pack| pack.rules.iter().find(|rule| rule.rule_id == entry.rule_id));
+            let target_rule = target
+                .and_then(|pack| pack.rules.iter().find(|rule| rule.rule_id == entry.rule_id));
             let resolved_before = base_rule
                 .map(|rule| rule.effect_token.clone())
                 .unwrap_or_else(|| "not_present".to_owned());
@@ -1006,11 +998,7 @@ pub fn audit_policy_pack_beta_page(
             ));
             continue;
         };
-        let Some(rule) = pack
-            .rules
-            .iter()
-            .find(|rule| rule.rule_id == trace.rule_id)
-        else {
+        let Some(rule) = pack.rules.iter().find(|rule| rule.rule_id == trace.rule_id) else {
             defects.push(PolicyPackBetaDefect::new(
                 PolicyPackBetaDefectKind::DenialTraceUnresolvable,
                 trace.trace_id.clone(),
@@ -1159,15 +1147,16 @@ fn seed_mirror_pack(target: &PolicyPackBetaPack) -> PolicyPackBetaPack {
     let mut mirror = target.clone();
     mirror.pack_id = "policy-pack-beta:mirror:2026.05.0".to_owned();
     mirror.source_class = PolicyPackSourceClass::SignedMirrorOrigin;
-    mirror.source_token = PolicyPackSourceClass::SignedMirrorOrigin.as_str().to_owned();
+    mirror.source_token = PolicyPackSourceClass::SignedMirrorOrigin
+        .as_str()
+        .to_owned();
     mirror.signature_state = PolicyPackSignatureStateClass::VerifiedMirror;
     mirror.signature_state_token = PolicyPackSignatureStateClass::VerifiedMirror
         .as_str()
         .to_owned();
     mirror.provenance.transport_label = "signed-mirror".to_owned();
     mirror.provenance.fetched_at = "2026-05-15T00:10:00Z".to_owned();
-    mirror.applies_to_profiles =
-        vec![PolicyPackBetaProfileClass::MirrorOnly.as_str().to_owned()];
+    mirror.applies_to_profiles = vec![PolicyPackBetaProfileClass::MirrorOnly.as_str().to_owned()];
     mirror
 }
 
@@ -1203,8 +1192,7 @@ fn seed_offline_pack(target: &PolicyPackBetaPack) -> PolicyPackBetaPack {
         .to_owned();
     offline.provenance.transport_label = "air-gapped-signed-transfer".to_owned();
     offline.provenance.fetched_at = "2026-05-15T00:30:00Z".to_owned();
-    offline.applies_to_profiles =
-        vec![PolicyPackBetaProfileClass::Offline.as_str().to_owned()];
+    offline.applies_to_profiles = vec![PolicyPackBetaProfileClass::Offline.as_str().to_owned()];
     offline
 }
 
@@ -1300,7 +1288,9 @@ fn diff_entry(
     target_rule: Option<&PolicyPackBetaRule>,
     note: &str,
 ) -> PolicyPackBetaDiffEntry {
-    let rule = target_rule.or(base_rule).expect("diff entry needs at least one rule");
+    let rule = target_rule
+        .or(base_rule)
+        .expect("diff entry needs at least one rule");
     PolicyPackBetaDiffEntry {
         record_kind: POLICY_PACK_BETA_DIFF_ENTRY_RECORD_KIND.to_owned(),
         schema_version: POLICY_PACK_BETA_SCHEMA_VERSION,
@@ -1353,10 +1343,7 @@ fn seed_denial_traces(target: &PolicyPackBetaPack) -> Vec<PolicyPackBetaDenialTr
         .collect()
 }
 
-fn seed_import_receipt(
-    pack: &PolicyPackBetaPack,
-    receipt_id: &str,
-) -> PolicyPackBetaImportReceipt {
+fn seed_import_receipt(pack: &PolicyPackBetaPack, receipt_id: &str) -> PolicyPackBetaImportReceipt {
     PolicyPackBetaImportReceipt {
         record_kind: POLICY_PACK_BETA_IMPORT_RECEIPT_RECORD_KIND.to_owned(),
         schema_version: POLICY_PACK_BETA_SCHEMA_VERSION,
@@ -1569,8 +1556,9 @@ mod tests {
             &page.denial_traces,
             &page.import_receipts,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == PolicyPackBetaDefectKind::DenialTraceUnresolvable));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind == PolicyPackBetaDefectKind::DenialTraceUnresolvable));
     }
 
     #[test]
@@ -1583,8 +1571,10 @@ mod tests {
             &page.denial_traces,
             &page.import_receipts,
         );
-        assert!(defects.iter().any(|defect| defect.defect_kind
-            == PolicyPackBetaDefectKind::HiddenPublicEndpointFallback));
+        assert!(defects
+            .iter()
+            .any(|defect| defect.defect_kind
+                == PolicyPackBetaDefectKind::HiddenPublicEndpointFallback));
     }
 
     #[test]

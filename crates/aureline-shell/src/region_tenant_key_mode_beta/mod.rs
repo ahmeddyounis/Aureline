@@ -92,10 +92,7 @@ mod tests {
             .profiles_present
             .contains(&"enterprise_managed".to_owned()));
         for axis in ["region", "tenant", "key_mode"] {
-            assert!(summary
-                .drill_axes_present
-                .iter()
-                .any(|token| token == axis));
+            assert!(summary.drill_axes_present.iter().any(|token| token == axis));
         }
     }
 

@@ -173,9 +173,9 @@ fn unmapped_keystroke_step_forces_a_non_proceed_disposition() {
         .definitions
         .iter()
         .find(|def| {
-            def.steps
-                .iter()
-                .any(|step| step.step_command_lineage == StepCommandLineageClass::UnmappedKeystrokeDenied)
+            def.steps.iter().any(|step| {
+                step.step_command_lineage == StepCommandLineageClass::UnmappedKeystrokeDenied
+            })
         })
         .expect("fixture must include a definition with an unmapped-keystroke step");
     let disposition = page
@@ -196,8 +196,11 @@ fn dropping_proceed_disposition_breaks_required_coverage_after_edit() {
         .retain(|disp| disp.disposition != ReplayDispositionClass::ProceedLocalEditorOnly);
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "recorded_macro_alpha.coverage_replay_disposition_missing"));
+    assert!(report
+        .findings
+        .iter()
+        .any(|finding| finding.check_id
+            == "recorded_macro_alpha.coverage_replay_disposition_missing"));
 }
 
 #[test]
@@ -208,8 +211,11 @@ fn dropping_support_attribution_breaks_definition_invariant_after_edit() {
     }
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "recorded_macro_alpha.definition_support_attribution_missing"));
+    assert!(report
+        .findings
+        .iter()
+        .any(|finding| finding.check_id
+            == "recorded_macro_alpha.definition_support_attribution_missing"));
 }
 
 #[test]
@@ -228,8 +234,13 @@ fn editing_a_single_buffer_safe_definition_to_include_denied_write_class_is_refu
         .push(WriteClass::NetworkMutationDenied);
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "recorded_macro_alpha.definition_silent_proceed_denied"));
+    assert!(
+        report
+            .findings
+            .iter()
+            .any(|finding| finding.check_id
+                == "recorded_macro_alpha.definition_silent_proceed_denied")
+    );
 }
 
 #[test]
@@ -243,8 +254,11 @@ fn editing_an_audit_event_to_drop_disposition_ref_is_refused_after_edit() {
     event.replay_disposition_ref = None;
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "recorded_macro_alpha.audit_event_disposition_ref_unknown"));
+    assert!(report
+        .findings
+        .iter()
+        .any(|finding| finding.check_id
+            == "recorded_macro_alpha.audit_event_disposition_ref_unknown"));
 }
 
 #[test]
@@ -258,6 +272,7 @@ fn editing_a_disposition_to_drop_its_required_reason_is_refused_after_edit() {
     disp.denial_reason_label = None;
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "recorded_macro_alpha.disposition_denial_reason_missing"));
+    assert!(report.findings.iter().any(
+        |finding| finding.check_id == "recorded_macro_alpha.disposition_denial_reason_missing"
+    ));
 }

@@ -83,8 +83,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     r.session_continuity.session_state_token == "identity_outage_managed_blocked"
                 })
                 .ok_or("seeded page must include an issuer-outage row")?;
-            row.granted_authority_scope_token =
-                OidcAuthorityScopeClass::TenantAdminScope.as_str().to_owned();
+            row.granted_authority_scope_token = OidcAuthorityScopeClass::TenantAdminScope
+                .as_str()
+                .to_owned();
             print_json(&rebuild_with_defects(page))?;
         }
         Some("drill-outage-missing-class") => {

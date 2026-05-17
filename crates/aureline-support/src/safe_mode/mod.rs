@@ -1064,7 +1064,12 @@ fn validate_profile(profile: &SafeModeProfile) -> Vec<SafeModeViolation> {
             "safe-mode profiles must not declare a destructive reset",
         );
     }
-    if profile.return_path.return_action.action_id.trim().is_empty()
+    if profile
+        .return_path
+        .return_action
+        .action_id
+        .trim()
+        .is_empty()
         || profile.return_path.restore_conditions.is_empty()
         || profile.return_path.return_action.summary.trim().is_empty()
     {

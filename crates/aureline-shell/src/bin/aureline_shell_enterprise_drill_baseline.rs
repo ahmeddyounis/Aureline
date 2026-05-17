@@ -54,9 +54,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("drill-backup-restore") => {
             print_drills_by_kind(&page, EnterpriseDrillKindClass::BackupRestore)?
         }
-        Some("drill-failover") => {
-            print_drills_by_kind(&page, EnterpriseDrillKindClass::Failover)?
-        }
+        Some("drill-failover") => print_drills_by_kind(&page, EnterpriseDrillKindClass::Failover)?,
         Some("drill-key-rotation") => {
             print_drills_by_kind(&page, EnterpriseDrillKindClass::KeyRotation)?
         }

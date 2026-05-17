@@ -589,7 +589,9 @@ pub fn audit_enterprise_drill_baseline_page(
     for family in EnterpriseRowFamilyClass::ALL {
         let observed = coverage.get(&family);
         for required in EnterpriseDrillKindClass::ALL {
-            let covered = observed.map(|kinds| kinds.contains(&required)).unwrap_or(false);
+            let covered = observed
+                .map(|kinds| kinds.contains(&required))
+                .unwrap_or(false);
             if !covered {
                 defects.push(EnterpriseDrillBaselineDefect::new(
                     EnterpriseDrillBaselineDefectKind::DrillKindCoverageMissingForFamily,
@@ -686,8 +688,7 @@ fn audit_drill_packet(
         ));
     }
 
-    if packet.evidence_freshness.requires_downgrade()
-        && !packet.claim_impact_if_stale.downgrades()
+    if packet.evidence_freshness.requires_downgrade() && !packet.claim_impact_if_stale.downgrades()
     {
         defects.push(EnterpriseDrillBaselineDefect::new(
             EnterpriseDrillBaselineDefectKind::StaleEvidenceWithoutDowngrade,
@@ -1070,10 +1071,11 @@ mod tests {
             EnterpriseDrillEvidenceFreshnessClass::StaleBeyondWindow
                 .as_str()
                 .to_owned();
-        page.drill_packets[0].claim_impact_if_stale =
-            EnterpriseDrillClaimImpactClass::NoImpact;
+        page.drill_packets[0].claim_impact_if_stale = EnterpriseDrillClaimImpactClass::NoImpact;
         page.drill_packets[0].claim_impact_if_stale_token =
-            EnterpriseDrillClaimImpactClass::NoImpact.as_str().to_owned();
+            EnterpriseDrillClaimImpactClass::NoImpact
+                .as_str()
+                .to_owned();
         let defects = audit_enterprise_drill_baseline_page(&page.drill_packets);
         assert!(defects.iter().any(|defect| defect.defect_kind
             == EnterpriseDrillBaselineDefectKind::StaleEvidenceWithoutDowngrade));
@@ -1110,9 +1112,10 @@ mod tests {
     fn validator_flags_outcome_mismatch() {
         let mut page = seeded_enterprise_drill_baseline_page();
         page.drill_packets[0].outcome = EnterpriseDrillOutcomeClass::FailedOverToDeclaredFallback;
-        page.drill_packets[0].outcome_token = EnterpriseDrillOutcomeClass::FailedOverToDeclaredFallback
-            .as_str()
-            .to_owned();
+        page.drill_packets[0].outcome_token =
+            EnterpriseDrillOutcomeClass::FailedOverToDeclaredFallback
+                .as_str()
+                .to_owned();
         let defects = audit_enterprise_drill_baseline_page(&page.drill_packets);
         assert!(defects.iter().any(|defect| defect.defect_kind
             == EnterpriseDrillBaselineDefectKind::OutcomeDoesNotMatchDrillKind));

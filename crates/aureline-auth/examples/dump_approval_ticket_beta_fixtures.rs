@@ -23,8 +23,8 @@
 
 use aureline_auth::{
     audit_approval_ticket_beta_page, seeded_approval_ticket_beta_page, ApprovalTicketBetaPage,
-    ApprovalTicketBetaSummary, ApprovalTicketBetaSupportExport, CapabilityClass,
-    EvaluationOutcome, NativeReapprovalRoute, RequestOriginClass,
+    ApprovalTicketBetaSummary, ApprovalTicketBetaSupportExport, CapabilityClass, EvaluationOutcome,
+    NativeReapprovalRoute, RequestOriginClass,
 };
 
 fn main() {
@@ -106,9 +106,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             envelope
                 .allowed_capability_classes
                 .push(CapabilityClass::MutateRemoteHelperTarget);
-            envelope
-                .allowed_capability_class_tokens
-                .push(CapabilityClass::MutateRemoteHelperTarget.as_str().to_owned());
+            envelope.allowed_capability_class_tokens.push(
+                CapabilityClass::MutateRemoteHelperTarget
+                    .as_str()
+                    .to_owned(),
+            );
             print_json(&rebuild_with_defects(page))?;
         }
         Some("drill-missing-requesting-surface-ref") => {

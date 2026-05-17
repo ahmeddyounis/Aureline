@@ -351,6 +351,11 @@ fn packet(
         cited_sources: docs_sources(),
         derived_explanations: derived_explanations(),
         tainted_context_fences: Vec::new(),
+        tool_call_lineage_refs: if packet_state == MutationEvidenceState::ReviewPreApply {
+            Vec::new()
+        } else {
+            vec!["tool-call-lineage:ai-mutation:alpha:0001".to_owned()]
+        },
         context_handoff: None,
         review_lineage: review_lineage(apply_outcome_class),
         source_contract_refs: vec![

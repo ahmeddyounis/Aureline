@@ -460,10 +460,10 @@ impl ProbePackEntry {
             ReadOnlyPostureClass::ReadOnlyByDefaultNoMutation
                 | ReadOnlyPostureClass::MetadataLocalEvidenceOnly
         ) && !matches!(self.headless_admission, HeadlessAdmissionClass::Denied)
-                || !matches!(
-                    self.support_guided_admission,
-                    SupportGuidedAdmissionClass::Denied
-                )
+            || !matches!(
+                self.support_guided_admission,
+                SupportGuidedAdmissionClass::Denied
+            )
     }
 }
 
@@ -905,9 +905,7 @@ fn validate_catalog(catalog: &ProjectDoctorProbePackCatalog) -> Vec<ProjectDocto
             &mut violations,
             "project_doctor.catalog_schema_ref",
             &catalog.catalog_id,
-            format!(
-                "catalog schema_ref must equal {PROJECT_DOCTOR_BETA_SCHEMA_REF}"
-            ),
+            format!("catalog schema_ref must equal {PROJECT_DOCTOR_BETA_SCHEMA_REF}"),
         );
     }
     if catalog.doc_ref != PROJECT_DOCTOR_BETA_DOC_REF {
@@ -1223,8 +1221,10 @@ fn validate_finding(
                         ),
                     );
                 }
-                if matches!(finding.support_context_class, SupportContextClass::CliHeadless)
-                    && matches!(pack.headless_admission, HeadlessAdmissionClass::Denied)
+                if matches!(
+                    finding.support_context_class,
+                    SupportContextClass::CliHeadless
+                ) && matches!(pack.headless_admission, HeadlessAdmissionClass::Denied)
                 {
                     push_violation(
                         &mut violations,
@@ -1236,12 +1236,13 @@ fn validate_finding(
                         ),
                     );
                 }
-                if matches!(finding.support_context_class, SupportContextClass::SupportGuided)
-                    && matches!(
-                        pack.support_guided_admission,
-                        SupportGuidedAdmissionClass::Denied
-                    )
-                {
+                if matches!(
+                    finding.support_context_class,
+                    SupportContextClass::SupportGuided
+                ) && matches!(
+                    pack.support_guided_admission,
+                    SupportGuidedAdmissionClass::Denied
+                ) {
                     push_violation(
                         &mut violations,
                         "project_doctor.finding_support_guided_denied",

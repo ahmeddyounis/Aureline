@@ -150,7 +150,10 @@ fn support_projection_omits_action_refs() {
     let page = load_page();
     let projection = page.support_export_projection();
     let json = serde_json::to_string(&projection).expect("projection serializes");
-    assert_eq!(projection.record_kind, "provider_object_model_alpha_support_export");
+    assert_eq!(
+        projection.record_kind,
+        "provider_object_model_alpha_support_export"
+    );
     assert!(!json.contains("approval_ticket_ref"));
     assert!(!json.contains("browser_handoff_packet_ref"));
     assert!(!json.contains("imported_snapshot_ref"));

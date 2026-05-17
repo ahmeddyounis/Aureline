@@ -628,8 +628,7 @@ impl M3ScenarioCorpus {
                     "scenario_id must be unique within the corpus",
                 );
             }
-            if !scorecard_targets.insert(scenario.scorecard_contribution.scorecard_target.clone())
-            {
+            if !scorecard_targets.insert(scenario.scorecard_contribution.scorecard_target.clone()) {
                 push_violation(
                     &mut violations,
                     "corpus.duplicate_scorecard_target",
@@ -697,11 +696,9 @@ pub fn current_m3_scenario_corpus() -> Result<M3ScenarioCorpus, serde_yaml::Erro
     let entries = SCENARIO_FIXTURES
         .iter()
         .map(|(fixture_ref, yaml)| {
-            serde_yaml::from_str::<M3SupportScenario>(yaml).map(|scenario| {
-                M3ScenarioCorpusEntry {
-                    fixture_ref: (*fixture_ref).to_owned(),
-                    scenario,
-                }
+            serde_yaml::from_str::<M3SupportScenario>(yaml).map(|scenario| M3ScenarioCorpusEntry {
+                fixture_ref: (*fixture_ref).to_owned(),
+                scenario,
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -987,8 +984,18 @@ fn validate_scenario(violations: &mut Vec<M3CorpusViolation>, scenario: &M3Suppo
     validate_scorecard_contribution(violations, target, &scenario.scorecard_contribution);
     validate_claim_downgrade_rules(violations, target, &scenario.claim_downgrade_rules);
     validate_safety(violations, target, &scenario.safety);
-    validate_references(violations, target, &scenario.references, scenario.beta_lane_class);
-    validate_drill_class_matches_lane(violations, target, scenario.beta_lane_class, scenario.drill_class);
+    validate_references(
+        violations,
+        target,
+        &scenario.references,
+        scenario.beta_lane_class,
+    );
+    validate_drill_class_matches_lane(
+        violations,
+        target,
+        scenario.beta_lane_class,
+        scenario.drill_class,
+    );
 }
 
 fn validate_beta_lane_refs(
@@ -1183,10 +1190,7 @@ fn validate_scorecard_contribution(
             "scorecard_contribution must declare scorecard_target, coverage_class, and expected_state",
         );
     }
-    if !contribution
-        .scorecard_target
-        .starts_with("m3.beta_lane.")
-    {
+    if !contribution.scorecard_target.starts_with("m3.beta_lane.") {
         push_violation(
             violations,
             "scenario.scorecard_contribution.scorecard_target",

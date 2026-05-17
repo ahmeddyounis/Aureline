@@ -302,6 +302,8 @@ pub enum ContextItemStateClass {
     Tainted,
     /// Context was summarized rather than included raw.
     Summarized,
+    /// Context was trimmed to a bounded representation before dispatch.
+    Trimmed,
     /// Context was not requested.
     NotRequested,
 }
@@ -317,6 +319,7 @@ impl ContextItemStateClass {
             Self::Stale => "stale",
             Self::Tainted => "tainted",
             Self::Summarized => "summarized",
+            Self::Trimmed => "trimmed",
             Self::NotRequested => "not_requested",
         }
     }
@@ -325,7 +328,12 @@ impl ContextItemStateClass {
     pub const fn must_survive_handoff(self) -> bool {
         matches!(
             self,
-            Self::Pinned | Self::Omitted | Self::Blocked | Self::Stale | Self::Tainted
+            Self::Pinned
+                | Self::Omitted
+                | Self::Blocked
+                | Self::Stale
+                | Self::Tainted
+                | Self::Trimmed
         )
     }
 }
@@ -1085,6 +1093,7 @@ impl ComposerContextAlphaSnapshot {
                     | ContextItemStateClass::Stale
                     | ContextItemStateClass::Tainted
                     | ContextItemStateClass::Summarized
+                    | ContextItemStateClass::Trimmed
             ) && item.omission_reason_class.is_none()
             {
                 violations.push(ComposerContextAlphaViolation::OmittedContextReasonMissing);
@@ -1227,7 +1236,7 @@ impl AiContextEvidenceHandoff {
             }
             if matches!(
                 row.state_token.as_str(),
-                "omitted" | "blocked" | "stale" | "tainted" | "summarized"
+                "omitted" | "blocked" | "stale" | "tainted" | "summarized" | "trimmed"
             ) && row.omission_reason_token.is_none()
             {
                 violations.push(ComposerContextAlphaViolation::OmittedContextReasonMissing);
@@ -1342,7 +1351,7 @@ pub enum ComposerContextAlphaViolation {
     MissingComposerIdentity,
     /// Context item identity is missing.
     ContextItemIdentityMissing,
-    /// Omitted, blocked, stale, tainted, or summarized context lacks a reason.
+    /// Omitted, blocked, stale, tainted, summarized, or trimmed context lacks a reason.
     OmittedContextReasonMissing,
     /// Docs or knowledge identity is missing.
     DocsIdentityMissing,
@@ -1479,6 +1488,7 @@ fn project_budget_strip(
             ContextItemStateClass::Stale,
             ContextItemStateClass::Tainted,
             ContextItemStateClass::Summarized,
+            ContextItemStateClass::Trimmed,
         ],
     );
 

@@ -869,6 +869,9 @@ pub struct AiMutationEvidencePacket {
     pub derived_explanations: Vec<DerivedExplanationLineage>,
     /// Tainted-context fences.
     pub tainted_context_fences: Vec<TaintedContextFence>,
+    /// Tool-call lineage refs associated with this packet.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_call_lineage_refs: Vec<String>,
     /// Context handoff rows consumed from the pre-send composer/context inspector.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_handoff: Option<AiContextEvidenceHandoff>,
@@ -908,6 +911,7 @@ impl AiMutationEvidencePacket {
             cited_sources: input.cited_sources,
             derived_explanations: input.derived_explanations,
             tainted_context_fences: input.tainted_context_fences,
+            tool_call_lineage_refs: input.tool_call_lineage_refs,
             context_handoff: input.context_handoff,
             review_lineage: input.review_lineage,
             source_contract_refs: input.source_contract_refs,
@@ -1032,6 +1036,7 @@ impl AiMutationEvidencePacket {
                 .iter()
                 .map(AiMutationEvidenceFenceSupportRow::from_fence)
                 .collect(),
+            tool_call_lineage_refs: self.tool_call_lineage_refs.clone(),
             context_handoff_rows: self
                 .context_handoff
                 .as_ref()
@@ -1100,6 +1105,10 @@ impl AiMutationEvidencePacket {
         out.push_str(&format!(
             "- Tainted fences: {} row(s)\n",
             support.tainted_fence_rows.len()
+        ));
+        out.push_str(&format!(
+            "- Tool lineage: {} ref(s)\n",
+            support.tool_call_lineage_refs.len()
         ));
         out.push_str(&format!(
             "- Graph cues: {} packet(s)\n",
@@ -1282,6 +1291,19 @@ impl AiMutationEvidencePacket {
             }
         }
 
+        if self.packet_state != MutationEvidenceState::ReviewPreApply
+            && self.tool_call_lineage_refs.is_empty()
+        {
+            violations.push(AiMutationEvidenceViolation::PostRunPacketMissingToolLineage);
+        }
+        if self
+            .tool_call_lineage_refs
+            .iter()
+            .any(|reference| reference.trim().is_empty())
+        {
+            violations.push(AiMutationEvidenceViolation::PostRunPacketMissingToolLineage);
+        }
+
         for source in &self.cited_sources {
             if source.source_identity_ref.trim().is_empty() {
                 violations.push(AiMutationEvidenceViolation::CitationSourceIdentityMissing);
@@ -1432,6 +1454,8 @@ pub struct AiMutationEvidencePacketInput {
     pub derived_explanations: Vec<DerivedExplanationLineage>,
     /// Tainted context fences.
     pub tainted_context_fences: Vec<TaintedContextFence>,
+    /// Tool-call lineage refs associated with this packet.
+    pub tool_call_lineage_refs: Vec<String>,
     /// Context handoff from the pre-send composer/context inspector.
     pub context_handoff: Option<AiContextEvidenceHandoff>,
     /// Review lineage.
@@ -1525,6 +1549,9 @@ pub struct AiMutationEvidenceSupportPacket {
     pub derived_explanation_rows: Vec<AiMutationEvidenceDerivedSupportRow>,
     /// Tainted fence rows.
     pub tainted_fence_rows: Vec<AiMutationEvidenceFenceSupportRow>,
+    /// Tool-call lineage refs associated with this packet.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_call_lineage_refs: Vec<String>,
     /// Context handoff rows consumed from the composer/context inspector.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub context_handoff_rows: Vec<AiContextEvidenceHandoffRow>,
@@ -1733,6 +1760,8 @@ pub enum AiMutationEvidenceViolation {
     AppliedPacketMissingApplyLineage,
     /// Rejected packet lacks rejection or block lineage.
     RejectedPacketMissingRejectionLineage,
+    /// Post-run packet lacks tool-call lineage refs.
+    PostRunPacketMissingToolLineage,
     /// Cited source identity is missing.
     CitationSourceIdentityMissing,
     /// Docs-backed source lacks docs-pack or revision truth.
@@ -1789,6 +1818,7 @@ impl AiMutationEvidenceViolation {
             Self::RejectedPacketMissingRejectionLineage => {
                 "rejected_packet_missing_rejection_lineage"
             }
+            Self::PostRunPacketMissingToolLineage => "post_run_packet_missing_tool_lineage",
             Self::CitationSourceIdentityMissing => "citation_source_identity_missing",
             Self::DocsCitationRevisionMissing => "docs_citation_revision_missing",
             Self::CitationAnchorMissing => "citation_anchor_missing",

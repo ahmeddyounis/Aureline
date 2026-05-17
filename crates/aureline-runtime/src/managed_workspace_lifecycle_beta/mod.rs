@@ -433,7 +433,8 @@ impl ManagedWorkspaceLifecycleBetaRecord {
         let current_phase = last.phase;
         let current_state = last.state;
         let mutation_allowed = current_state.admits_remote_mutation();
-        let reconnect_required = matches!(current_state, ManagedLifecycleStateClass::ReconnectRequired);
+        let reconnect_required =
+            matches!(current_state, ManagedLifecycleStateClass::ReconnectRequired);
         Self {
             record_kind: MANAGED_WORKSPACE_LIFECYCLE_BETA_RECORD_KIND.to_owned(),
             schema_version: MANAGED_WORKSPACE_LIFECYCLE_BETA_SCHEMA_VERSION,
@@ -572,8 +573,7 @@ impl ManagedWorkspaceLifecycleBetaRecord {
             ),
         };
         ManagedWorkspaceLifecycleBetaSurfaceProjection {
-            record_kind: MANAGED_WORKSPACE_LIFECYCLE_BETA_SURFACE_PROJECTION_RECORD_KIND
-                .to_owned(),
+            record_kind: MANAGED_WORKSPACE_LIFECYCLE_BETA_SURFACE_PROJECTION_RECORD_KIND.to_owned(),
             schema_version: MANAGED_WORKSPACE_LIFECYCLE_BETA_SCHEMA_VERSION,
             row_id: self.row_id.clone(),
             workspace_ref: self.workspace_ref.clone(),
@@ -641,7 +641,10 @@ impl ManagedWorkspaceLifecycleBetaRecord {
             ));
         }
         if self.reconnect_required
-            != matches!(self.current_state, ManagedLifecycleStateClass::ReconnectRequired)
+            != matches!(
+                self.current_state,
+                ManagedLifecycleStateClass::ReconnectRequired
+            )
         {
             issues.push(ManagedWorkspaceLifecycleBetaViolation::new(
                 "reconnect_required_state_mismatch",
@@ -942,9 +945,7 @@ mod tests {
         );
         assert!(!record.mutation_allowed);
         assert!(!record.reconnect_required);
-        assert!(record
-            .local_editing_continuity
-            .preserves_local_editing());
+        assert!(record.local_editing_continuity.preserves_local_editing());
         assert!(record.fails_closed_for_mutation());
         assert!(record.validate().is_empty());
     }

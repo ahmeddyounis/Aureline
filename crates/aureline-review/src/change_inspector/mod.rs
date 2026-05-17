@@ -414,9 +414,7 @@ pub fn project_change_lineage(
     Ok(record.project())
 }
 
-fn validate_record(
-    record: &ChangeLineageRecord,
-) -> Result<(), ChangeLineageValidationError> {
+fn validate_record(record: &ChangeLineageRecord) -> Result<(), ChangeLineageValidationError> {
     require_equal(
         "record_kind",
         CHANGE_LINEAGE_ALPHA_RECORD_KIND,
@@ -572,7 +570,10 @@ fn validate_publish_readiness(
         readiness.publish_readiness_class.as_str(),
         "ready_to_publish" | "ready_to_merge" | "ready_to_apply" | "not_applicable_inspect_only"
     );
-    let only_no_blockers = readiness.blockers.iter().all(|blocker| blocker == "no_blockers");
+    let only_no_blockers = readiness
+        .blockers
+        .iter()
+        .all(|blocker| blocker == "no_blockers");
     if ready_class && !only_no_blockers {
         return Err(ChangeLineageValidationError::new(
             "ready_to_* and not_applicable_inspect_only publish-readiness classes must carry no_blockers only",
@@ -595,9 +596,7 @@ fn validate_publish_readiness(
     Ok(())
 }
 
-fn validate_consumer_surfaces(
-    surfaces: &[String],
-) -> Result<(), ChangeLineageValidationError> {
+fn validate_consumer_surfaces(surfaces: &[String]) -> Result<(), ChangeLineageValidationError> {
     if surfaces.is_empty() {
         return Err(ChangeLineageValidationError::new(
             "consumer_surfaces must list at least one consumer surface",
@@ -655,9 +654,7 @@ fn validate_review_invariants(
     Ok(())
 }
 
-fn cross_check_scope(
-    record: &ChangeLineageRecord,
-) -> Result<(), ChangeLineageValidationError> {
+fn cross_check_scope(record: &ChangeLineageRecord) -> Result<(), ChangeLineageValidationError> {
     match record.change_object_kind.as_str() {
         "branch" => {
             if matches!(record.active_scope_class.as_str(), "stacked_patch_set") {
@@ -695,9 +692,7 @@ fn cross_check_scope(
     Ok(())
 }
 
-fn cross_check_readiness(
-    record: &ChangeLineageRecord,
-) -> Result<(), ChangeLineageValidationError> {
+fn cross_check_readiness(record: &ChangeLineageRecord) -> Result<(), ChangeLineageValidationError> {
     let readiness = &record.publish_readiness;
     let conflict = &record.conflict_state;
     let target = &record.target_summary;
@@ -772,10 +767,7 @@ fn require_equal(
     }
 }
 
-fn require_non_empty(
-    label: &str,
-    value: &str,
-) -> Result<(), ChangeLineageValidationError> {
+fn require_non_empty(label: &str, value: &str) -> Result<(), ChangeLineageValidationError> {
     if value.trim().is_empty() {
         Err(ChangeLineageValidationError::new(format!(
             "{label} must be a non-empty string"
@@ -799,10 +791,7 @@ fn require_one_of(
     }
 }
 
-fn require_unique(
-    label: &str,
-    values: &[String],
-) -> Result<(), ChangeLineageValidationError> {
+fn require_unique(label: &str, values: &[String]) -> Result<(), ChangeLineageValidationError> {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     for value in values {
         if !seen.insert(value.as_str()) {
@@ -855,7 +844,10 @@ mod tests {
             projection.active_scope_class.as_str(),
             "side_worktree" | "main_worktree"
         ));
-        assert_eq!(projection.publish_readiness_class, "not_applicable_inspect_only");
+        assert_eq!(
+            projection.publish_readiness_class,
+            "not_applicable_inspect_only"
+        );
         assert_eq!(projection.landing_action_class, "inspect_only");
     }
 
@@ -884,8 +876,7 @@ mod tests {
     fn rejects_ready_to_publish_with_conflicts() {
         let mut record: ChangeLineageRecord =
             serde_json::from_str(FIXTURE_BRANCH_PUBLISH_READY).expect("fixture must parse");
-        record.conflict_state.conflict_state_class =
-            "merge_conflicts_pending_review".to_string();
+        record.conflict_state.conflict_state_class = "merge_conflicts_pending_review".to_string();
         record.conflict_state.conflict_path_count = 1;
         let err = record
             .validate()
@@ -909,9 +900,7 @@ mod tests {
         let mut record: ChangeLineageRecord =
             serde_json::from_str(FIXTURE_BRANCH_PUBLISH_READY).expect("fixture must parse");
         record.support_export.raw_path_export_allowed = true;
-        let err = record
-            .validate()
-            .expect_err("must reject raw path export");
+        let err = record.validate().expect_err("must reject raw path export");
         assert!(err.message().contains("raw_"));
     }
 

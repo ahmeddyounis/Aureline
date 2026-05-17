@@ -38,8 +38,7 @@ fn managed_workspace_lifecycle_beta_fixtures_replay_one_truth() {
             .unwrap_or_else(|err| panic!("parse {case_path:?}: {err}"));
 
         assert_eq!(
-            fixture.record_kind,
-            MANAGED_WORKSPACE_LIFECYCLE_BETA_RECORD_KIND,
+            fixture.record_kind, MANAGED_WORKSPACE_LIFECYCLE_BETA_RECORD_KIND,
             "fixture {case_rel} carries the canonical record kind"
         );
         assert_eq!(
@@ -78,11 +77,19 @@ fn managed_workspace_lifecycle_beta_fixtures_replay_one_truth() {
             "fixture {case_rel} must not overclaim truth: {:?}",
             record.validate()
         );
-        assert_eq!(record.current_phase, fixture.harness_expectations.expected_current_phase);
-        assert_eq!(record.current_state, fixture.harness_expectations.expected_current_state);
+        assert_eq!(
+            record.current_phase,
+            fixture.harness_expectations.expected_current_phase
+        );
+        assert_eq!(
+            record.current_state,
+            fixture.harness_expectations.expected_current_state
+        );
         assert_eq!(
             record.local_editing_continuity,
-            fixture.harness_expectations.expected_local_editing_continuity
+            fixture
+                .harness_expectations
+                .expected_local_editing_continuity
         );
         assert_eq!(
             record.mutation_allowed,

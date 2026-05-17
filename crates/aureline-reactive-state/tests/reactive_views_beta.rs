@@ -11,8 +11,8 @@ use aureline_reactive_state::reactive_views::{
     current_materialized_view_corpus, current_materialized_view_fixture_refs,
     load_materialized_view_case, AuthorityLabel, DowngradeLabel, EpochParityState,
     InvalidationCauseClass, MaterializedViewClass, MaterializedViewCorpusEntry,
-    MaterializedViewReport, OpenGapClass, ReactiveViewEvaluator, SubscriberFreshness, SurfaceKind,
-    SupportExportPosture, REACTIVE_VIEW_CORPUS_DIR, REACTIVE_VIEW_CORPUS_MANIFEST_REF,
+    MaterializedViewReport, OpenGapClass, ReactiveViewEvaluator, SubscriberFreshness,
+    SupportExportPosture, SurfaceKind, REACTIVE_VIEW_CORPUS_DIR, REACTIVE_VIEW_CORPUS_MANIFEST_REF,
     REACTIVE_VIEW_DOC_REF, REACTIVE_VIEW_REPORT_RECORD_KIND, REACTIVE_VIEW_REPORT_REF,
     REACTIVE_VIEW_SCHEMA_REF, REQUIRED_SURFACE_KINDS, REQUIRED_VIEW_CLASSES,
 };
@@ -355,16 +355,40 @@ fn refuses_subscriber_epoch_above_authority() {
 
 #[test]
 fn vocab_tokens_match_schema_constants() {
-    assert_eq!(MaterializedViewClass::EphemeralProjection.as_str(), "ephemeral_projection");
-    assert_eq!(MaterializedViewClass::DurableLocalMaterialization.as_str(), "durable_local_materialization");
-    assert_eq!(MaterializedViewClass::ExportableSnapshot.as_str(), "exportable_snapshot");
-    assert_eq!(MaterializedViewClass::ManagedReplicatedView.as_str(), "managed_replicated_view");
+    assert_eq!(
+        MaterializedViewClass::EphemeralProjection.as_str(),
+        "ephemeral_projection"
+    );
+    assert_eq!(
+        MaterializedViewClass::DurableLocalMaterialization.as_str(),
+        "durable_local_materialization"
+    );
+    assert_eq!(
+        MaterializedViewClass::ExportableSnapshot.as_str(),
+        "exportable_snapshot"
+    );
+    assert_eq!(
+        MaterializedViewClass::ManagedReplicatedView.as_str(),
+        "managed_replicated_view"
+    );
     assert_eq!(AuthorityLabel::WorkspaceVfs.as_str(), "workspace_vfs");
     assert_eq!(SurfaceKind::Support.as_str(), "support");
     assert_eq!(EpochParityState::DriftDetected.as_str(), "drift_detected");
     assert_eq!(SubscriberFreshness::Authoritative.as_str(), "authoritative");
-    assert_eq!(InvalidationCauseClass::ResyncRequired.as_str(), "resync_required");
-    assert_eq!(SupportExportPosture::MetadataSafeExport.as_str(), "metadata_safe_export");
-    assert_eq!(DowngradeLabel::YellowSurfacePartial.as_str(), "yellow_surface_partial");
-    assert_eq!(OpenGapClass::ReplicationPending.as_str(), "replication_pending");
+    assert_eq!(
+        InvalidationCauseClass::ResyncRequired.as_str(),
+        "resync_required"
+    );
+    assert_eq!(
+        SupportExportPosture::MetadataSafeExport.as_str(),
+        "metadata_safe_export"
+    );
+    assert_eq!(
+        DowngradeLabel::YellowSurfacePartial.as_str(),
+        "yellow_surface_partial"
+    );
+    assert_eq!(
+        OpenGapClass::ReplicationPending.as_str(),
+        "replication_pending"
+    );
 }

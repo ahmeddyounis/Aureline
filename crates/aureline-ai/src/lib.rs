@@ -41,6 +41,16 @@ pub mod registry;
 pub mod routing;
 pub mod routing_policy;
 
+pub use composer::beta::{
+    current_beta_composer_context_evidence_support_export,
+    ComposerContextEvidenceBetaArtifactError, ComposerContextEvidenceBetaInput,
+    ComposerContextEvidenceBetaPacket, ComposerContextEvidenceBetaViolation,
+    ComposerContextEvidenceContextRow, ComposerContextEvidenceSurfaceClass,
+    ComposerContextEvidenceSurfaceRow, COMPOSER_CONTEXT_EVIDENCE_BETA_AI_DOC_REF,
+    COMPOSER_CONTEXT_EVIDENCE_BETA_ARTIFACT_REF, COMPOSER_CONTEXT_EVIDENCE_BETA_FIXTURE_DIR,
+    COMPOSER_CONTEXT_EVIDENCE_BETA_PACKET_RECORD_KIND, COMPOSER_CONTEXT_EVIDENCE_BETA_SCHEMA_REF,
+    COMPOSER_CONTEXT_EVIDENCE_BETA_SCHEMA_VERSION, COMPOSER_CONTEXT_EVIDENCE_BETA_UX_DOC_REF,
+};
 pub use composer::{
     AttachmentKind, AttachmentStatusClass, BlockReason, ComposerAttachment, ComposerDraft,
     ComposerDraftState, ComposerMention, ComposerSlashCommandInvocation, DispatchTargetClass,

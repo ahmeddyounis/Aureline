@@ -788,7 +788,10 @@ impl OfflineEntitlementVerifierBetaRow {
             managed_capability_impact: request.managed_capability_impact,
             managed_capability_impact_token: request.managed_capability_impact.as_str().to_owned(),
             local_editing_preservation: request.local_editing_preservation,
-            local_editing_preservation_token: request.local_editing_preservation.as_str().to_owned(),
+            local_editing_preservation_token: request
+                .local_editing_preservation
+                .as_str()
+                .to_owned(),
             recovery_action: request.recovery_action,
             recovery_action_token: request.recovery_action.as_str().to_owned(),
             explanation_label: request.explanation_label.to_owned(),
@@ -953,7 +956,10 @@ pub fn audit_offline_entitlement_verifier_beta_rows(
                     "failed verifier outcome must preserve local editing",
                 ));
             }
-            if matches!(row.recovery_action, VerifierRecoveryActionClass::NoActionVerified) {
+            if matches!(
+                row.recovery_action,
+                VerifierRecoveryActionClass::NoActionVerified
+            ) {
                 defects.push(OfflineEntitlementVerifierBetaDefect::new(
                     OfflineEntitlementVerifierBetaDefectKind::DowngradeMissingRecoveryAction,
                     row.row_id.clone(),
@@ -1419,10 +1425,11 @@ mod tests {
         assert!(expired
             .managed_capability_impact
             .narrows_managed_authority());
-        assert!(expired
-            .local_editing_preservation
-            .preserves_local_editing());
-        assert_ne!(expired.recovery_action, VerifierRecoveryActionClass::NoActionVerified);
+        assert!(expired.local_editing_preservation.preserves_local_editing());
+        assert_ne!(
+            expired.recovery_action,
+            VerifierRecoveryActionClass::NoActionVerified
+        );
     }
 
     #[test]
@@ -1437,9 +1444,7 @@ mod tests {
             missing.managed_capability_impact,
             ManagedCapabilityImpactClass::PausedWithVisibleRecovery
         ));
-        assert!(missing
-            .local_editing_preservation
-            .preserves_local_editing());
+        assert!(missing.local_editing_preservation.preserves_local_editing());
     }
 
     #[test]
@@ -1486,13 +1491,12 @@ mod tests {
             .find(|row| row.outcome_class == VerifierOutcomeClass::Expired)
             .expect("expired row");
         expired.managed_capability_impact = ManagedCapabilityImpactClass::FullAuthorityActive;
-        expired.managed_capability_impact_token =
-            ManagedCapabilityImpactClass::FullAuthorityActive.as_str().to_owned();
+        expired.managed_capability_impact_token = ManagedCapabilityImpactClass::FullAuthorityActive
+            .as_str()
+            .to_owned();
         let defects = audit_offline_entitlement_verifier_beta_rows(&page.rows);
-        assert!(defects
-            .iter()
-            .any(|defect| defect.defect_kind
-                == OfflineEntitlementVerifierBetaDefectKind::ExpiredBundleAcceptedWithoutDowngrade));
+        assert!(defects.iter().any(|defect| defect.defect_kind
+            == OfflineEntitlementVerifierBetaDefectKind::ExpiredBundleAcceptedWithoutDowngrade));
     }
 
     #[test]
@@ -1505,7 +1509,9 @@ mod tests {
             .expect("missing row");
         missing.local_editing_preservation = LocalEditingPreservationClass::NotApplicableLocalOnly;
         missing.local_editing_preservation_token =
-            LocalEditingPreservationClass::NotApplicableLocalOnly.as_str().to_owned();
+            LocalEditingPreservationClass::NotApplicableLocalOnly
+                .as_str()
+                .to_owned();
         let defects = audit_offline_entitlement_verifier_beta_rows(&page.rows);
         assert!(defects.iter().any(|defect| defect.defect_kind
             == OfflineEntitlementVerifierBetaDefectKind::LocalEditingBlockedOnFailedVerification));
@@ -1521,7 +1527,9 @@ mod tests {
             .expect("untrusted row");
         untrusted.managed_capability_impact = ManagedCapabilityImpactClass::FullAuthorityActive;
         untrusted.managed_capability_impact_token =
-            ManagedCapabilityImpactClass::FullAuthorityActive.as_str().to_owned();
+            ManagedCapabilityImpactClass::FullAuthorityActive
+                .as_str()
+                .to_owned();
         let defects = audit_offline_entitlement_verifier_beta_rows(&page.rows);
         assert!(defects.iter().any(|defect| defect.defect_kind
             == OfflineEntitlementVerifierBetaDefectKind::UntrustedSignerAccepted));
@@ -1536,8 +1544,9 @@ mod tests {
             .find(|row| row.outcome_class == VerifierOutcomeClass::UnsignedLocalAdvisory)
             .expect("advisory row");
         advisory.trust_anchor.source_class = TrustAnchorSourceClass::VendorManagedRoot;
-        advisory.trust_anchor.source_token =
-            TrustAnchorSourceClass::VendorManagedRoot.as_str().to_owned();
+        advisory.trust_anchor.source_token = TrustAnchorSourceClass::VendorManagedRoot
+            .as_str()
+            .to_owned();
         let defects = audit_offline_entitlement_verifier_beta_rows(&page.rows);
         assert!(defects.iter().any(|defect| defect.defect_kind
             == OfflineEntitlementVerifierBetaDefectKind::UnsignedLocalAdvisoryOnManagedAnchor));

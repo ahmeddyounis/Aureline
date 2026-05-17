@@ -36,8 +36,7 @@ pub const GRAPH_READINESS_BETA_REPORT_RECORD_KIND: &str = "graph_readiness_beta_
 pub const GRAPH_READINESS_BETA_SCHEMA_VERSION: u32 = 1;
 
 /// Repo-relative path of the boundary schema.
-pub const GRAPH_READINESS_BETA_SCHEMA_REF: &str =
-    "schemas/search/graph_readiness_beta.schema.json";
+pub const GRAPH_READINESS_BETA_SCHEMA_REF: &str = "schemas/search/graph_readiness_beta.schema.json";
 
 /// Repo-relative path of the reviewer doc.
 pub const GRAPH_READINESS_BETA_DOC_REF: &str = "docs/search/m3/graph_readiness_beta.md";
@@ -1051,8 +1050,8 @@ pub fn load_graph_readiness_beta_case(
 }
 
 /// Returns the checked-in graph-readiness beta corpus.
-pub fn current_graph_readiness_beta_corpus(
-) -> Result<GraphReadinessBetaCorpus, serde_yaml::Error> {
+pub fn current_graph_readiness_beta_corpus() -> Result<GraphReadinessBetaCorpus, serde_yaml::Error>
+{
     let entries = CASE_FIXTURES
         .iter()
         .map(|(fixture_ref, yaml)| {
@@ -1319,8 +1318,7 @@ mod tests {
 
     #[test]
     fn checked_in_corpus_loads_and_validates() {
-        let corpus =
-            current_graph_readiness_beta_corpus().expect("checked-in corpus must parse");
+        let corpus = current_graph_readiness_beta_corpus().expect("checked-in corpus must parse");
         GraphReadinessBetaEvaluator::new()
             .validate_corpus(&corpus)
             .expect("checked-in corpus must validate");
@@ -1362,10 +1360,7 @@ mod tests {
             .expect("report must build");
         assert!(report.is_export_safe());
         assert_eq!(report.matrix_rows.len(), corpus.entries.len());
-        assert_eq!(
-            report.fact_lane_summaries.len(),
-            REQUIRED_FACT_LANES.len()
-        );
+        assert_eq!(report.fact_lane_summaries.len(), REQUIRED_FACT_LANES.len());
         assert_eq!(
             report.consumer_surface_summaries.len(),
             REQUIRED_CONSUMER_SURFACES.len()

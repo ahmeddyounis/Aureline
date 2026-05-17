@@ -3,9 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use aureline_review::{
-    project_review_pack, ReviewPackError, ReviewPackRecord,
-    REVIEW_PACK_ALPHA_DSL_VERSION, REVIEW_PACK_ALPHA_RECORD_KIND,
-    REVIEW_PACK_ALPHA_SCHEMA_VERSION,
+    project_review_pack, ReviewPackError, ReviewPackRecord, REVIEW_PACK_ALPHA_DSL_VERSION,
+    REVIEW_PACK_ALPHA_RECORD_KIND, REVIEW_PACK_ALPHA_SCHEMA_VERSION,
 };
 
 fn fixtures_dir() -> PathBuf {
@@ -124,8 +123,7 @@ fn fixtures_cover_parity_class_spread() {
 fn first_party_fixture_reports_blocking_checks() {
     let path = fixtures_dir().join("first_party_local_and_ci_parity.json");
     let payload = std::fs::read_to_string(&path).expect("fixture must read");
-    let projection =
-        project_review_pack(&payload).expect("first-party fixture must project");
+    let projection = project_review_pack(&payload).expect("first-party fixture must project");
     assert_eq!(projection.pack_authority_class, "repo_first_party");
     assert!(projection.blocking_check_count >= 1);
     assert_eq!(projection.local_only_check_count, 0);
@@ -136,8 +134,7 @@ fn first_party_fixture_reports_blocking_checks() {
 fn team_shared_fixture_reports_local_only_and_ci_only_counts() {
     let path = fixtures_dir().join("team_shared_mixed_parity.json");
     let payload = std::fs::read_to_string(&path).expect("fixture must read");
-    let projection =
-        project_review_pack(&payload).expect("team-shared fixture must project");
+    let projection = project_review_pack(&payload).expect("team-shared fixture must project");
     assert_eq!(projection.pack_authority_class, "repo_team_shared");
     assert_eq!(projection.local_only_check_count, 1);
     assert_eq!(projection.ci_only_check_count, 1);
@@ -148,8 +145,7 @@ fn team_shared_fixture_reports_local_only_and_ci_only_counts() {
 fn partner_signed_fixture_reports_ci_only_audit() {
     let path = fixtures_dir().join("partner_signed_ci_only_lane.json");
     let payload = std::fs::read_to_string(&path).expect("fixture must read");
-    let projection =
-        project_review_pack(&payload).expect("partner-signed fixture must project");
+    let projection = project_review_pack(&payload).expect("partner-signed fixture must project");
     assert_eq!(projection.pack_authority_class, "repo_partner_signed");
     assert_eq!(projection.ci_only_check_count, 1);
 }
@@ -158,9 +154,11 @@ fn partner_signed_fixture_reports_ci_only_audit() {
 fn community_fixture_carries_unsupported_field_declarations() {
     let path = fixtures_dir().join("uncertified_community_local_only_lane.json");
     let payload = std::fs::read_to_string(&path).expect("fixture must read");
-    let projection =
-        project_review_pack(&payload).expect("community fixture must project");
-    assert_eq!(projection.pack_authority_class, "repo_uncertified_community");
+    let projection = project_review_pack(&payload).expect("community fixture must project");
+    assert_eq!(
+        projection.pack_authority_class,
+        "repo_uncertified_community"
+    );
     assert!(projection.local_only_check_count >= 1);
     assert!(
         projection
@@ -183,8 +181,7 @@ fn rejects_check_with_undeclared_ownership_scope() {
     let payload =
         std::fs::read_to_string(fixtures_dir().join("first_party_local_and_ci_parity.json"))
             .unwrap();
-    let mut record: ReviewPackRecord =
-        serde_json::from_str(&payload).expect("fixture must parse");
+    let mut record: ReviewPackRecord = serde_json::from_str(&payload).expect("fixture must parse");
     record.checks[0]
         .ownership_scope_refs
         .push("ownership_scope:phantom".to_string());
@@ -199,8 +196,7 @@ fn rejects_check_parity_class_without_observation() {
     let payload =
         std::fs::read_to_string(fixtures_dir().join("first_party_local_and_ci_parity.json"))
             .unwrap();
-    let mut record: ReviewPackRecord =
-        serde_json::from_str(&payload).expect("fixture must parse");
+    let mut record: ReviewPackRecord = serde_json::from_str(&payload).expect("fixture must parse");
     record.checks[0].parity_class = "ci_only_documented".to_string();
     record
         .parity_observations
@@ -216,8 +212,7 @@ fn rejects_raw_command_export() {
     let payload =
         std::fs::read_to_string(fixtures_dir().join("first_party_local_and_ci_parity.json"))
             .unwrap();
-    let mut record: ReviewPackRecord =
-        serde_json::from_str(&payload).expect("fixture must parse");
+    let mut record: ReviewPackRecord = serde_json::from_str(&payload).expect("fixture must parse");
     record.support_export.raw_command_export_allowed = true;
     let err = record
         .validate()
@@ -229,8 +224,7 @@ fn rejects_raw_command_export() {
 fn rejects_missing_review_pack_inspector_consumer() {
     let payload =
         std::fs::read_to_string(fixtures_dir().join("team_shared_mixed_parity.json")).unwrap();
-    let mut record: ReviewPackRecord =
-        serde_json::from_str(&payload).expect("fixture must parse");
+    let mut record: ReviewPackRecord = serde_json::from_str(&payload).expect("fixture must parse");
     record
         .consumer_surfaces
         .retain(|surface| surface != "review_pack_inspector");

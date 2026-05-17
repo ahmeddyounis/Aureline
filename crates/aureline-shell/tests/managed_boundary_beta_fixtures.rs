@@ -23,8 +23,8 @@ const FIXTURE_DIR: &str = concat!(
 
 fn load<T: serde::de::DeserializeOwned>(filename: &str) -> T {
     let path = format!("{}/{}", FIXTURE_DIR, filename);
-    let body = std::fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
+    let body =
+        std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
     serde_json::from_str(&body).unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
 }
 
@@ -41,7 +41,10 @@ fn page_fixture_matches_seeded_builder() {
 #[test]
 fn page_fixture_validates_with_zero_defects() {
     let page: ManagedBoundaryBetaPage = load("page.json");
-    assert_eq!(page.shared_contract_ref, MANAGED_BOUNDARY_BETA_SHARED_CONTRACT_REF);
+    assert_eq!(
+        page.shared_contract_ref,
+        MANAGED_BOUNDARY_BETA_SHARED_CONTRACT_REF
+    );
     assert_eq!(page.schema_version, MANAGED_BOUNDARY_BETA_SCHEMA_VERSION);
     assert!(page.defects.is_empty());
     validate_managed_boundary_beta_page(&page).expect("published manifest must validate");
@@ -112,10 +115,8 @@ fn offboarding_rows_fixture_matches_projection() {
 fn defects_fixture_replays_through_validator() {
     let defects: Vec<ManagedBoundaryBetaDefect> = load("defects.json");
     let page: ManagedBoundaryBetaPage = load("page.json");
-    let recomputed = audit_managed_boundary_beta_rows(
-        &page.rows,
-        &page.required_boundary_class_coverage,
-    );
+    let recomputed =
+        audit_managed_boundary_beta_rows(&page.rows, &page.required_boundary_class_coverage);
     assert_eq!(defects, recomputed);
     assert!(defects.is_empty());
 }

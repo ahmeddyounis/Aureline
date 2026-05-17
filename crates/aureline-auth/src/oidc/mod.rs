@@ -177,7 +177,10 @@ impl OidcTenantBindingClass {
 
     /// True when the binding requires both tenant and workspace refs.
     pub const fn requires_workspace_ref(self) -> bool {
-        matches!(self, Self::WorkspaceAndTenantBound | Self::WorkspaceOnlyBound)
+        matches!(
+            self,
+            Self::WorkspaceAndTenantBound | Self::WorkspaceOnlyBound
+        )
     }
 
     /// True when the binding requires a tenant ref.
@@ -1012,8 +1015,7 @@ pub fn audit_oidc_system_browser_beta_rows(
         .map(|row| (row.row_id.as_str(), row))
         .collect();
 
-    let account_free_local_source =
-        OidcIssuerSourceClass::NotApplicableAccountFreeLocal.as_str();
+    let account_free_local_source = OidcIssuerSourceClass::NotApplicableAccountFreeLocal.as_str();
     let account_free_local_binding =
         OidcTenantBindingClass::NoTenantBindingAccountFreeLocal.as_str();
     let account_free_local_state = OidcSessionStateClass::AccountFreeLocalNoAuthRequired.as_str();
@@ -1022,9 +1024,8 @@ pub fn audit_oidc_system_browser_beta_rows(
     let no_recovery_token = OidcRecoveryActionClass::NoRecoveryRequired.as_str();
 
     for row in rows {
-        let is_local =
-            row.issuer.source_token == account_free_local_source
-                || row.session_continuity.session_state_token == account_free_local_state;
+        let is_local = row.issuer.source_token == account_free_local_source
+            || row.session_continuity.session_state_token == account_free_local_state;
 
         // Axis 1: enterprise issuer source disclosed (for non-local rows).
         if !is_local {
@@ -1130,8 +1131,7 @@ pub fn audit_oidc_system_browser_beta_rows(
 
         // Axis 4: session continuity preserves local editing.
         if row.session_continuity.session_state_token == signed_in_active_token {
-            if row.granted_authority_scope_token
-                == OidcAuthorityScopeClass::NoScopeGranted.as_str()
+            if row.granted_authority_scope_token == OidcAuthorityScopeClass::NoScopeGranted.as_str()
             {
                 defects.push(OidcSystemBrowserBetaDefect::new(
                     OidcSystemBrowserBetaDefectKind::SignedInActiveWithoutGrantedScope,
@@ -1672,8 +1672,9 @@ mod tests {
             .iter_mut()
             .find(|r| r.session_continuity.session_state_token == "identity_outage_managed_blocked")
             .unwrap();
-        row.granted_authority_scope_token =
-            OidcAuthorityScopeClass::TenantAdminScope.as_str().to_owned();
+        row.granted_authority_scope_token = OidcAuthorityScopeClass::TenantAdminScope
+            .as_str()
+            .to_owned();
         let support_rows: Vec<OidcSystemBrowserBetaSupportRow> = page
             .rows
             .iter()
@@ -1700,8 +1701,10 @@ mod tests {
             .map(OidcSystemBrowserBetaSupportRow::from_row)
             .collect();
         let defects = audit_oidc_system_browser_beta_rows(&page.rows, &support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == OidcSystemBrowserBetaDefectKind::SignOutOrOutageLosesLocalEditing));
+        assert!(defects
+            .iter()
+            .any(|d| d.defect_kind
+                == OidcSystemBrowserBetaDefectKind::SignOutOrOutageLosesLocalEditing));
     }
 
     #[test]
@@ -1729,7 +1732,9 @@ mod tests {
         let page = page();
         let mut support_rows = page.support_rows.clone();
         support_rows[0].granted_authority_scope_token =
-            OidcAuthorityScopeClass::WorkspaceAdminScope.as_str().to_owned();
+            OidcAuthorityScopeClass::WorkspaceAdminScope
+                .as_str()
+                .to_owned();
         let defects = audit_oidc_system_browser_beta_rows(&page.rows, &support_rows);
         assert!(defects
             .iter()
@@ -1751,8 +1756,9 @@ mod tests {
             .map(OidcSystemBrowserBetaSupportRow::from_row)
             .collect();
         let defects = audit_oidc_system_browser_beta_rows(&page.rows, &support_rows);
-        assert!(defects.iter().any(|d| d.defect_kind
-            == OidcSystemBrowserBetaDefectKind::ManagedSessionStateRefMissing));
+        assert!(defects.iter().any(
+            |d| d.defect_kind == OidcSystemBrowserBetaDefectKind::ManagedSessionStateRefMissing
+        ));
     }
 
     #[test]

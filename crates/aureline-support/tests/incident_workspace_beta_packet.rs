@@ -6,11 +6,10 @@ use std::path::{Path, PathBuf};
 use aureline_support::incident_workspace_beta::{
     current_incident_workspace_beta_packet_corpus, load_incident_workspace_beta_packet,
     validate_packet_record, ClaimDowngradeToken, EvidenceCustodyClass, HandoffConsumerClass,
-    RecoveryOptionClass, INCIDENT_WORKSPACE_ALPHA_DOC_REF,
-    INCIDENT_WORKSPACE_BETA_ARTIFACT_REF, INCIDENT_WORKSPACE_BETA_FIXTURE_DIR,
-    INCIDENT_WORKSPACE_BETA_FIXTURE_MANIFEST_REF, INCIDENT_WORKSPACE_BETA_PACKET_DOC_REF,
-    INCIDENT_WORKSPACE_BETA_PACKET_RECORD_KIND, INCIDENT_WORKSPACE_BETA_PACKET_SCHEMA_REF,
-    INCIDENT_WORKSPACE_BETA_SCENARIO_CORPUS_DOC_REF,
+    RecoveryOptionClass, INCIDENT_WORKSPACE_ALPHA_DOC_REF, INCIDENT_WORKSPACE_BETA_ARTIFACT_REF,
+    INCIDENT_WORKSPACE_BETA_FIXTURE_DIR, INCIDENT_WORKSPACE_BETA_FIXTURE_MANIFEST_REF,
+    INCIDENT_WORKSPACE_BETA_PACKET_DOC_REF, INCIDENT_WORKSPACE_BETA_PACKET_RECORD_KIND,
+    INCIDENT_WORKSPACE_BETA_PACKET_SCHEMA_REF, INCIDENT_WORKSPACE_BETA_SCENARIO_CORPUS_DOC_REF,
 };
 
 fn repo_root() -> PathBuf {
@@ -136,7 +135,8 @@ fn corpus_doc_artifact_and_schema_exist_at_declared_paths() {
         "doc {INCIDENT_WORKSPACE_BETA_PACKET_DOC_REF} missing"
     );
     assert!(
-        root.join(INCIDENT_WORKSPACE_BETA_PACKET_SCHEMA_REF).is_file(),
+        root.join(INCIDENT_WORKSPACE_BETA_PACKET_SCHEMA_REF)
+            .is_file(),
         "schema {INCIDENT_WORKSPACE_BETA_PACKET_SCHEMA_REF} missing"
     );
     assert!(

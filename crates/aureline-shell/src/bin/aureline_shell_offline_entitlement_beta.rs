@@ -60,7 +60,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .ok_or("seeded page must include an expired row")?;
             expired.managed_capability_impact = ManagedCapabilityImpactClass::FullAuthorityActive;
             expired.managed_capability_impact_token =
-                ManagedCapabilityImpactClass::FullAuthorityActive.as_str().to_owned();
+                ManagedCapabilityImpactClass::FullAuthorityActive
+                    .as_str()
+                    .to_owned();
             print_json(&rebuild_with_defects(page))?;
         }
         Some("drill-untrusted-signer-accepted") => {
@@ -72,7 +74,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .ok_or("seeded page must include an untrusted-signer row")?;
             untrusted.managed_capability_impact = ManagedCapabilityImpactClass::FullAuthorityActive;
             untrusted.managed_capability_impact_token =
-                ManagedCapabilityImpactClass::FullAuthorityActive.as_str().to_owned();
+                ManagedCapabilityImpactClass::FullAuthorityActive
+                    .as_str()
+                    .to_owned();
             print_json(&rebuild_with_defects(page))?;
         }
         Some("drill-local-editing-blocked") => {
@@ -85,7 +89,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             missing.local_editing_preservation =
                 LocalEditingPreservationClass::NotApplicableLocalOnly;
             missing.local_editing_preservation_token =
-                LocalEditingPreservationClass::NotApplicableLocalOnly.as_str().to_owned();
+                LocalEditingPreservationClass::NotApplicableLocalOnly
+                    .as_str()
+                    .to_owned();
             print_json(&rebuild_with_defects(page))?;
         }
         Some("validate") => match validate_offline_entitlement_verifier_beta_page(&page) {

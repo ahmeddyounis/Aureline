@@ -14,7 +14,9 @@ fn main() {
         Some("support-export") => Mode::SupportExport,
         Some(other) => {
             eprintln!("unknown subcommand: {other}");
-            eprintln!("usage: aureline_provider_route_resolution_beta [page|validate|support-export]");
+            eprintln!(
+                "usage: aureline_provider_route_resolution_beta [page|validate|support-export]"
+            );
             process::exit(2);
         }
     };

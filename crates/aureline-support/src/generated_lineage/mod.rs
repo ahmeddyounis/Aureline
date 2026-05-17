@@ -19,10 +19,11 @@ use std::fmt;
 
 use aureline_reactive_state::generated_lineage::{
     current_generated_artifact_lineage_corpus, ArtifactFamily, DefaultEditPosture, DriftState,
-    GeneratedArtifactLineageCorpus, GeneratedArtifactLineageEvaluator, GeneratedArtifactLineagePacket,
-    GeneratedArtifactLineageReport, GeneratedArtifactLineageValidationReport, GeneratorIdentity,
-    LineageClass, LineageConsumerSurface, LineageDowngradeLabel, LineageOpenGapClass,
-    LineageSourceRef, GENERATED_ARTIFACT_LINEAGE_DOC_REF, GENERATED_ARTIFACT_LINEAGE_REPORT_REF,
+    GeneratedArtifactLineageCorpus, GeneratedArtifactLineageEvaluator,
+    GeneratedArtifactLineagePacket, GeneratedArtifactLineageReport,
+    GeneratedArtifactLineageValidationReport, GeneratorIdentity, LineageClass,
+    LineageConsumerSurface, LineageDowngradeLabel, LineageOpenGapClass, LineageSourceRef,
+    GENERATED_ARTIFACT_LINEAGE_DOC_REF, GENERATED_ARTIFACT_LINEAGE_REPORT_REF,
     GENERATED_ARTIFACT_LINEAGE_SCHEMA_REF,
 };
 use serde::{Deserialize, Serialize};

@@ -208,9 +208,9 @@ impl RepairAffectedObjectClass {
     /// blast-radius truth.
     pub fn family(self) -> RepairObjectFamily {
         match self {
-            Self::DerivedCacheObject
-            | Self::WatcherBacklogObject
-            | Self::DocsPackMirrorObject => RepairObjectFamily::DisposableCacheFamily,
+            Self::DerivedCacheObject | Self::WatcherBacklogObject | Self::DocsPackMirrorObject => {
+                RepairObjectFamily::DisposableCacheFamily
+            }
             Self::ExecutionContextObject | Self::LanguageServerSessionObject => {
                 RepairObjectFamily::ExecutionContextFamily
             }
@@ -852,10 +852,7 @@ impl RepairPreviewSkeletonEvaluator {
                     .summary_for(transaction.transaction_reversal_class),
                 checkpoint_summary: checkpoint_disposition_class
                     .summary_for(transaction.checkpoint_ref.as_deref()),
-                user_facing_next_step: transaction
-                    .explanation_fields
-                    .user_facing_next_step
-                    .clone(),
+                user_facing_next_step: transaction.explanation_fields.user_facing_next_step.clone(),
             },
             captured_at: captured_at.into(),
         }
@@ -866,8 +863,7 @@ impl RepairCompensationClass {
     fn summary_for(self, reversal: TransactionReversalClass) -> String {
         match self {
             Self::NoCompensationNeeded => {
-                "No compensation is needed; the repair only touches disposable state."
-                    .to_owned()
+                "No compensation is needed; the repair only touches disposable state.".to_owned()
             }
             Self::RegenerateFromAuthoritativeSource => {
                 "Regenerates disposable derived state from authoritative sources.".to_owned()
@@ -1059,7 +1055,9 @@ fn validate_skeleton(skeleton: &RepairPreviewSkeleton) -> Vec<RepairPreviewSkele
         );
     }
 
-    if skeleton.checkpoint_disposition_class.requires_checkpoint_ref()
+    if skeleton
+        .checkpoint_disposition_class
+        .requires_checkpoint_ref()
         && skeleton.checkpoint_ref.is_none()
     {
         push_violation(
@@ -1069,7 +1067,9 @@ fn validate_skeleton(skeleton: &RepairPreviewSkeleton) -> Vec<RepairPreviewSkele
             "skeletons with a pre-apply checkpoint disposition must name a checkpoint_ref",
         );
     }
-    if !skeleton.checkpoint_disposition_class.requires_checkpoint_ref()
+    if !skeleton
+        .checkpoint_disposition_class
+        .requires_checkpoint_ref()
         && skeleton.checkpoint_ref.is_some()
     {
         push_violation(
@@ -1082,7 +1082,11 @@ fn validate_skeleton(skeleton: &RepairPreviewSkeleton) -> Vec<RepairPreviewSkele
 
     let preview_authorizes = skeleton.preview_disposition_class.authorizes_apply();
     let preview_forbids = skeleton.preview_disposition_class.forbids_apply();
-    if preview_authorizes && skeleton.compensation_class.requires_strong_acknowledgement() {
+    if preview_authorizes
+        && skeleton
+            .compensation_class
+            .requires_strong_acknowledgement()
+    {
         // Authorized previews for compensating/manual repairs must travel
         // through a compare-before-apply path first.
         push_violation(

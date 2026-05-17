@@ -87,9 +87,15 @@ mod tests {
         assert_eq!(summary.row_count, page.rows.len());
         assert_eq!(summary.defect_count, 0);
         assert!(summary.facets_present.contains(&"proxy".to_owned()));
-        assert!(summary.facets_present.contains(&"client_certificate".to_owned()));
-        assert!(summary.profiles_present.contains(&"enterprise_managed".to_owned()));
-        assert!(summary.consumer_lane_tokens_present.contains(&"runtime".to_owned()));
+        assert!(summary
+            .facets_present
+            .contains(&"client_certificate".to_owned()));
+        assert!(summary
+            .profiles_present
+            .contains(&"enterprise_managed".to_owned()));
+        assert!(summary
+            .consumer_lane_tokens_present
+            .contains(&"runtime".to_owned()));
         assert!(summary
             .consumer_lane_tokens_present
             .contains(&"provider".to_owned()));

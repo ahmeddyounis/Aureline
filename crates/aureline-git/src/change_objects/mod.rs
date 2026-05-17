@@ -395,10 +395,7 @@ impl ChangeObjectRecord {
             target_kind: self.landing_state.target_kind.clone(),
             mutation_authority_class: self.landing_state.mutation_authority_class.clone(),
             remote_visibility_class: self.landing_state.remote_visibility_class.clone(),
-            required_network_egress_class: self
-                .landing_state
-                .required_network_egress_class
-                .clone(),
+            required_network_egress_class: self.landing_state.required_network_egress_class.clone(),
             pending_writes_summary: self.landing_state.pending_writes_summary.clone(),
             landing_notes: self.landing_state.landing_notes.clone(),
             variant_class_summary,
@@ -435,7 +432,11 @@ impl ChangeObjectValidationError {
 
 impl fmt::Display for ChangeObjectValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "change-object validation error: {}", self.message)
+        write!(
+            formatter,
+            "change-object validation error: {}",
+            self.message
+        )
     }
 }
 
@@ -472,21 +473,19 @@ impl fmt::Display for ChangeObjectError {
 impl std::error::Error for ChangeObjectError {}
 
 /// Parses and validates an alpha change-object JSON payload.
-pub fn project_change_object(
-    payload: &str,
-) -> Result<ChangeObjectProjection, ChangeObjectError> {
-    let record: ChangeObjectRecord = serde_json::from_str(payload)
-        .map_err(|err| ChangeObjectError::Json(err.to_string()))?;
-    record
-        .validate()
-        .map_err(ChangeObjectError::Validation)?;
+pub fn project_change_object(payload: &str) -> Result<ChangeObjectProjection, ChangeObjectError> {
+    let record: ChangeObjectRecord =
+        serde_json::from_str(payload).map_err(|err| ChangeObjectError::Json(err.to_string()))?;
+    record.validate().map_err(ChangeObjectError::Validation)?;
     Ok(record.project())
 }
 
-fn validate_record(
-    record: &ChangeObjectRecord,
-) -> Result<(), ChangeObjectValidationError> {
-    require_equal("record_kind", CHANGE_OBJECT_ALPHA_RECORD_KIND, &record.record_kind)?;
+fn validate_record(record: &ChangeObjectRecord) -> Result<(), ChangeObjectValidationError> {
+    require_equal(
+        "record_kind",
+        CHANGE_OBJECT_ALPHA_RECORD_KIND,
+        &record.record_kind,
+    )?;
     if record.schema_version != CHANGE_OBJECT_ALPHA_SCHEMA_VERSION {
         return Err(ChangeObjectValidationError::new(format!(
             "schema_version is {}, expected {}",
@@ -523,10 +522,7 @@ fn validate_lineage(lineage: &ChangeObjectLineage) -> Result<(), ChangeObjectVal
     )?;
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     for entry in &lineage.ancestor_chain {
-        require_non_empty(
-            "lineage.ancestor_chain[].ancestor_ref",
-            &entry.ancestor_ref,
-        )?;
+        require_non_empty("lineage.ancestor_chain[].ancestor_ref", &entry.ancestor_ref)?;
         require_non_empty(
             "lineage.ancestor_chain[].ancestor_kind",
             &entry.ancestor_kind,
@@ -675,9 +671,7 @@ fn validate_variant(record: &ChangeObjectRecord) -> Result<(), ChangeObjectValid
     Ok(())
 }
 
-fn validate_consumer_surfaces(
-    surfaces: &[String],
-) -> Result<(), ChangeObjectValidationError> {
+fn validate_consumer_surfaces(surfaces: &[String]) -> Result<(), ChangeObjectValidationError> {
     if surfaces.is_empty() {
         return Err(ChangeObjectValidationError::new(
             "consumer_surfaces must list at least one consumer surface",
@@ -712,7 +706,10 @@ fn validate_support_export(
         ));
     }
     require_non_empty("support_export.redaction_class", &export.redaction_class)?;
-    require_unique("support_export.export_packet_refs", &export.export_packet_refs)?;
+    require_unique(
+        "support_export.export_packet_refs",
+        &export.export_packet_refs,
+    )?;
     Ok(())
 }
 
@@ -843,10 +840,7 @@ fn require_one_of(
     }
 }
 
-fn require_unique(
-    label: &str,
-    values: &[String],
-) -> Result<(), ChangeObjectValidationError> {
+fn require_unique(label: &str, values: &[String]) -> Result<(), ChangeObjectValidationError> {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     for value in values {
         if !seen.insert(value.as_str()) {
@@ -877,7 +871,8 @@ mod tests {
 
     #[test]
     fn branch_fixture_projects() {
-        let projection = project_change_object(FIXTURE_BRANCH).expect("branch fixture must project");
+        let projection =
+            project_change_object(FIXTURE_BRANCH).expect("branch fixture must project");
         assert_eq!(projection.change_object_kind, "branch");
         assert_eq!(projection.landing_state_class, "pending_publish_to_remote");
         assert_eq!(projection.landing_action_class, "publish");
@@ -924,14 +919,11 @@ mod tests {
     fn rejects_local_only_with_remote_egress() {
         let mut record: ChangeObjectRecord =
             serde_json::from_str(FIXTURE_WORKTREE).expect("worktree fixture must parse");
-        record.landing_state.required_network_egress_class =
-            "first_party_origin_only".to_string();
+        record.landing_state.required_network_egress_class = "first_party_origin_only".to_string();
         let err = record
             .validate()
             .expect_err("local_only_no_remote_yet must not declare egress");
-        assert!(err
-            .message()
-            .contains("required_network_egress_class"));
+        assert!(err.message().contains("required_network_egress_class"));
     }
 
     #[test]
@@ -956,9 +948,7 @@ mod tests {
         let mut record: ChangeObjectRecord =
             serde_json::from_str(FIXTURE_BRANCH).expect("branch fixture must parse");
         record.support_export.raw_diff_body_export_allowed = true;
-        let err = record
-            .validate()
-            .expect_err("must reject raw diff export");
+        let err = record.validate().expect_err("must reject raw diff export");
         assert!(err.message().contains("raw_"));
     }
 

@@ -135,9 +135,7 @@ fn follow_states_cite_a_follow_target_actor_ref() {
     let follower = page
         .control_states
         .iter()
-        .find(|state| {
-            state.control_state == SharedDebugControlStateClass::FollowPresenterObserver
-        })
+        .find(|state| state.control_state == SharedDebugControlStateClass::FollowPresenterObserver)
         .expect("follow state present");
     assert!(follower.follow_target_actor_ref.is_some());
     assert!(follower.control_grant_ref.is_none());
@@ -234,8 +232,9 @@ fn editing_a_revoked_row_to_drop_revocation_ref_is_rejected_after_edit() {
     row.revocation_ref = None;
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "shared_debug_alpha.control_state_revocation_ref_missing"));
+    assert!(report.findings.iter().any(
+        |finding| finding.check_id == "shared_debug_alpha.control_state_revocation_ref_missing"
+    ));
 }
 
 #[test]
@@ -246,20 +245,20 @@ fn audit_event_referencing_unknown_state_is_rejected_after_edit() {
         .iter_mut()
         .find(|event| event.event_class == SharedDebugAuditEventClass::ControlActiveStarted)
         .expect("active-started audit present");
-    event.control_state_ref =
-        Some("shared_debug_control_alpha.state.does_not_exist".to_string());
+    event.control_state_ref = Some("shared_debug_control_alpha.state.does_not_exist".to_string());
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "shared_debug_alpha.audit_event_state_ref_unknown"));
+    assert!(report
+        .findings
+        .iter()
+        .any(|finding| finding.check_id == "shared_debug_alpha.audit_event_state_ref_unknown"));
 }
 
 #[test]
 fn dropping_active_control_state_breaks_required_coverage_after_edit() {
     let mut page = load_page();
-    page.control_states.retain(|state| {
-        state.control_state != SharedDebugControlStateClass::ActiveControlGrantee
-    });
+    page.control_states
+        .retain(|state| state.control_state != SharedDebugControlStateClass::ActiveControlGrantee);
     page.audit_events
         .retain(|event| event.event_class != SharedDebugAuditEventClass::ControlActiveStarted);
     page.presenter_handoffs.retain(|handoff| {
@@ -267,8 +266,10 @@ fn dropping_active_control_state_breaks_required_coverage_after_edit() {
     });
     let report = page.validate();
     assert!(!report.passed);
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "shared_debug_alpha.coverage_control_state_missing"));
+    assert!(report
+        .findings
+        .iter()
+        .any(|finding| finding.check_id == "shared_debug_alpha.coverage_control_state_missing"));
 }
 
 #[test]
@@ -285,6 +286,8 @@ fn silent_escalation_from_view_to_control_is_refused_after_edit() {
         !report.passed,
         "silently flipping a view-only row to active control without a grant must fail"
     );
-    assert!(report.findings.iter().any(|finding| finding.check_id
-        == "shared_debug_alpha.control_state_grant_ref_missing"));
+    assert!(report
+        .findings
+        .iter()
+        .any(|finding| finding.check_id == "shared_debug_alpha.control_state_grant_ref_missing"));
 }

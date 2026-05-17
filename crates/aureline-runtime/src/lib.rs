@@ -135,6 +135,12 @@ pub use discovery::toolchains::{
     WorkspaceToolchainDiscovery, WorkspaceToolchainKind, WORKSPACE_TOOLCHAIN_DETECTOR_VERSION,
     WORKSPACE_TOOLCHAIN_DISCOVERY_RECORD_KIND, WORKSPACE_TOOLCHAIN_DISCOVERY_SCHEMA_VERSION,
 };
+pub use drift_repair::{
+    DriftReasonClass, DriftRepairAction, DriftRepairActionClass, DriftRepairAuthorityImpactClass,
+    RemoteDriftRepairDiagnosticsPacket, RemoteDriftRepairGuidance,
+    REMOTE_DRIFT_REPAIR_BETA_DIAGNOSTICS_PACKET_RECORD_KIND,
+    REMOTE_DRIFT_REPAIR_BETA_GUIDANCE_RECORD_KIND, REMOTE_DRIFT_REPAIR_BETA_SCHEMA_VERSION,
+};
 pub use env_inspect::{
     seeded_env_inspect_resolver, seeded_env_inspect_snapshot, seeded_env_inspect_support_export,
     EnvInspectCoreField, EnvInspectDegradationLabel, EnvInspectDegradationSeverity,
@@ -195,10 +201,10 @@ pub use managed_alpha::{
 };
 pub use managed_workspace_lifecycle_beta::{
     ManagedLifecycleLineageEntry, ManagedLifecyclePhaseClass, ManagedLifecycleStateClass,
-    ManagedLocalEditingContinuityClass, ManagedSurfaceClass,
-    ManagedWorkspaceLifecycleBetaRecord, ManagedWorkspaceLifecycleBetaSupportExport,
-    ManagedWorkspaceLifecycleBetaSurfaceProjection, ManagedWorkspaceLifecycleBetaViolation,
-    MANAGED_WORKSPACE_LIFECYCLE_BETA_RECORD_KIND, MANAGED_WORKSPACE_LIFECYCLE_BETA_SCHEMA_VERSION,
+    ManagedLocalEditingContinuityClass, ManagedSurfaceClass, ManagedWorkspaceLifecycleBetaRecord,
+    ManagedWorkspaceLifecycleBetaSupportExport, ManagedWorkspaceLifecycleBetaSurfaceProjection,
+    ManagedWorkspaceLifecycleBetaViolation, MANAGED_WORKSPACE_LIFECYCLE_BETA_RECORD_KIND,
+    MANAGED_WORKSPACE_LIFECYCLE_BETA_SCHEMA_VERSION,
     MANAGED_WORKSPACE_LIFECYCLE_BETA_SUPPORT_EXPORT_RECORD_KIND,
     MANAGED_WORKSPACE_LIFECYCLE_BETA_SURFACE_PROJECTION_RECORD_KIND,
 };
@@ -220,19 +226,6 @@ pub use packages::{
     PACKAGE_OPERATION_ALPHA_SCHEMA_VERSION, PACKAGE_OPERATION_AUDIT_RECORD_KIND,
     PACKAGE_OPERATION_SUPPORT_EXPORT_RECORD_KIND, REGISTRY_SOURCE_ALPHA_RECORD_KIND,
 };
-pub use remote_helper_skew_beta::{
-    RemoteHelperBetaCompatibilityRow, RemoteHelperBetaRecord, RemoteHelperBetaSupportExport,
-    RemoteHelperLifecyclePhaseClass, RemoteHelperRepairPathClass, RemoteHelperSkewVisibilityClass,
-    RemoteHelperVisibleVersionState, REMOTE_HELPER_SKEW_BETA_COMPATIBILITY_ROW_RECORD_KIND,
-    REMOTE_HELPER_SKEW_BETA_RECORD_KIND, REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION,
-    REMOTE_HELPER_SKEW_BETA_SUPPORT_EXPORT_RECORD_KIND,
-};
-pub use drift_repair::{
-    DriftReasonClass, DriftRepairAction, DriftRepairActionClass, DriftRepairAuthorityImpactClass,
-    RemoteDriftRepairDiagnosticsPacket, RemoteDriftRepairGuidance,
-    REMOTE_DRIFT_REPAIR_BETA_DIAGNOSTICS_PACKET_RECORD_KIND,
-    REMOTE_DRIFT_REPAIR_BETA_GUIDANCE_RECORD_KIND, REMOTE_DRIFT_REPAIR_BETA_SCHEMA_VERSION,
-};
 pub use provenance::evidence_packet::{
     seeded_runtime_evidence_packet, seeded_runtime_evidence_packet_support_export,
     ReplayCompatibilityClass, ReplayIncompatibilityReason, RuntimeEvidenceKind,
@@ -251,17 +244,23 @@ pub use provenance::{
 pub use recipes::{
     RecipeAlphaContractRefs, RecipeAlphaCoverage, RecipeAlphaFinding, RecipeAlphaFindingSeverity,
     RecipeAlphaFixtureMetadata, RecipeAlphaPage, RecipeAlphaSupportExport,
-    RecipeAlphaValidationReport, RecipeApprovalClass, RecipeAttribution,
-    RecipeAttributionSummary, RecipeAttributionSurfaceClass, RecipeAuditEvent,
-    RecipeAuditEventClass, RecipeAuditEventSummary, RecipeDefinition, RecipeDefinitionSummary,
-    RecipeDenialReasonClass, RecipePreviewRequirementClass, RecipeRun, RecipeRunDispositionClass,
-    RecipeRunSummary, RecipeStep, RecipeStepDisposition, RecipeStepDispositionClass,
-    RecipeTrustGateClass, RecipeWriteClass, StepCommandLineageClass, StepModeRequirementClass,
+    RecipeAlphaValidationReport, RecipeApprovalClass, RecipeAttribution, RecipeAttributionSummary,
+    RecipeAttributionSurfaceClass, RecipeAuditEvent, RecipeAuditEventClass,
+    RecipeAuditEventSummary, RecipeDefinition, RecipeDefinitionSummary, RecipeDenialReasonClass,
+    RecipePreviewRequirementClass, RecipeRun, RecipeRunDispositionClass, RecipeRunSummary,
+    RecipeStep, RecipeStepDisposition, RecipeStepDispositionClass, RecipeTrustGateClass,
+    RecipeWriteClass, StepCommandLineageClass, StepModeRequirementClass,
     RECIPE_ALPHA_ATTRIBUTION_RECORD_KIND, RECIPE_ALPHA_AUDIT_EVENT_RECORD_KIND,
     RECIPE_ALPHA_DEFINITION_RECORD_KIND, RECIPE_ALPHA_PAGE_RECORD_KIND,
-    RECIPE_ALPHA_RUN_RECORD_KIND, RECIPE_ALPHA_SCHEMA_VERSION,
-    RECIPE_ALPHA_SHARED_CONTRACT_REF, RECIPE_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
-    RECIPE_ALPHA_VALIDATION_REPORT_RECORD_KIND,
+    RECIPE_ALPHA_RUN_RECORD_KIND, RECIPE_ALPHA_SCHEMA_VERSION, RECIPE_ALPHA_SHARED_CONTRACT_REF,
+    RECIPE_ALPHA_SUPPORT_EXPORT_RECORD_KIND, RECIPE_ALPHA_VALIDATION_REPORT_RECORD_KIND,
+};
+pub use remote_helper_skew_beta::{
+    RemoteHelperBetaCompatibilityRow, RemoteHelperBetaRecord, RemoteHelperBetaSupportExport,
+    RemoteHelperLifecyclePhaseClass, RemoteHelperRepairPathClass, RemoteHelperSkewVisibilityClass,
+    RemoteHelperVisibleVersionState, REMOTE_HELPER_SKEW_BETA_COMPATIBILITY_ROW_RECORD_KIND,
+    REMOTE_HELPER_SKEW_BETA_RECORD_KIND, REMOTE_HELPER_SKEW_BETA_SCHEMA_VERSION,
+    REMOTE_HELPER_SKEW_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use request_workspace::{
     seeded_request_workspace_record, seeded_request_workspace_support_export,
@@ -276,15 +275,23 @@ pub use request_workspace::{
     REQUEST_WORKSPACE_ALPHA_RECORD_KIND, REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION,
     REQUEST_WORKSPACE_SEND_INSPECTOR_RECORD_KIND, REQUEST_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND,
 };
+pub use rerun::{
+    built_in_rerun_command_bindings, RerunAttemptSummary, RerunCommandBinding, RerunContractKind,
+    RerunDiffClass, RerunDiffRow, RerunDispatchState, RerunKeyboardRoute, RerunLane,
+    RerunLastLaunch, RerunLastLoop, RerunPreparedAttempt, RerunRunContract, RerunSupportExport,
+    RerunTargetComparison, RerunTargetMode, RerunTargetSnapshot, RerunUnavailableReason,
+    RERUN_COMMAND_BINDING_RECORD_KIND, RERUN_LAST_LAUNCH_RECORD_KIND, RERUN_LAST_TASK_COMMAND_ID,
+    RERUN_LAST_TEST_COMMAND_ID, RERUN_LOOP_SCHEMA_VERSION, RERUN_PREPARED_ATTEMPT_RECORD_KIND,
+    RERUN_SUPPORT_EXPORT_RECORD_KIND, RERUN_TARGET_COMPARISON_RECORD_KIND,
+};
 pub use shared_debug_alpha::{
     LocalDebugContinuityClass, LocalDebugContinuityObservation,
-    LocalDebugContinuityObservationSummary, SharedDebugAlphaContractRefs,
-    SharedDebugAlphaCoverage, SharedDebugAlphaFinding, SharedDebugAlphaFindingSeverity,
-    SharedDebugAlphaFixtureMetadata, SharedDebugAlphaPage, SharedDebugAlphaSupportExport,
-    SharedDebugAlphaValidationReport, SharedDebugAuditEvent, SharedDebugAuditEventClass,
-    SharedDebugAuditEventSummary, SharedDebugBinding, SharedDebugControlState,
-    SharedDebugControlStateClass, SharedDebugControlStateSummary,
-    SHARED_DEBUG_ALPHA_AUDIT_EVENT_RECORD_KIND,
+    LocalDebugContinuityObservationSummary, SharedDebugAlphaContractRefs, SharedDebugAlphaCoverage,
+    SharedDebugAlphaFinding, SharedDebugAlphaFindingSeverity, SharedDebugAlphaFixtureMetadata,
+    SharedDebugAlphaPage, SharedDebugAlphaSupportExport, SharedDebugAlphaValidationReport,
+    SharedDebugAuditEvent, SharedDebugAuditEventClass, SharedDebugAuditEventSummary,
+    SharedDebugBinding, SharedDebugControlState, SharedDebugControlStateClass,
+    SharedDebugControlStateSummary, SHARED_DEBUG_ALPHA_AUDIT_EVENT_RECORD_KIND,
     SHARED_DEBUG_ALPHA_CONTINUITY_OBSERVATION_RECORD_KIND,
     SHARED_DEBUG_ALPHA_CONTROL_STATE_RECORD_KIND, SHARED_DEBUG_ALPHA_PAGE_RECORD_KIND,
     SHARED_DEBUG_ALPHA_PRESENTER_HANDOFF_RECORD_KIND, SHARED_DEBUG_ALPHA_SCHEMA_VERSION,
@@ -296,25 +303,16 @@ pub use shared_terminal_alpha::{
     LocalTerminalContinuityObservationSummary, ParticipantRoleClass, PresenterHandoffEvent,
     PresenterHandoffOutcomeClass, PresenterHandoffSummary, SharedTerminalAlphaContractRefs,
     SharedTerminalAlphaCoverage, SharedTerminalAlphaFinding, SharedTerminalAlphaFindingSeverity,
-    SharedTerminalAlphaFixtureMetadata, SharedTerminalAlphaPage,
-    SharedTerminalAlphaSupportExport, SharedTerminalAlphaValidationReport,
-    SharedTerminalAuditEvent, SharedTerminalAuditEventClass, SharedTerminalAuditEventSummary,
-    SharedTerminalBinding, SharedTerminalControlState, SharedTerminalControlStateClass,
-    SharedTerminalControlStateSummary, SHARED_TERMINAL_ALPHA_AUDIT_EVENT_RECORD_KIND,
+    SharedTerminalAlphaFixtureMetadata, SharedTerminalAlphaPage, SharedTerminalAlphaSupportExport,
+    SharedTerminalAlphaValidationReport, SharedTerminalAuditEvent, SharedTerminalAuditEventClass,
+    SharedTerminalAuditEventSummary, SharedTerminalBinding, SharedTerminalControlState,
+    SharedTerminalControlStateClass, SharedTerminalControlStateSummary,
+    SHARED_TERMINAL_ALPHA_AUDIT_EVENT_RECORD_KIND,
     SHARED_TERMINAL_ALPHA_CONTINUITY_OBSERVATION_RECORD_KIND,
     SHARED_TERMINAL_ALPHA_CONTROL_STATE_RECORD_KIND, SHARED_TERMINAL_ALPHA_PAGE_RECORD_KIND,
     SHARED_TERMINAL_ALPHA_PRESENTER_HANDOFF_RECORD_KIND, SHARED_TERMINAL_ALPHA_SCHEMA_VERSION,
     SHARED_TERMINAL_ALPHA_SHARED_CONTRACT_REF, SHARED_TERMINAL_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
     SHARED_TERMINAL_ALPHA_VALIDATION_REPORT_RECORD_KIND,
-};
-pub use rerun::{
-    built_in_rerun_command_bindings, RerunAttemptSummary, RerunCommandBinding, RerunContractKind,
-    RerunDiffClass, RerunDiffRow, RerunDispatchState, RerunKeyboardRoute, RerunLane,
-    RerunLastLaunch, RerunLastLoop, RerunPreparedAttempt, RerunRunContract, RerunSupportExport,
-    RerunTargetComparison, RerunTargetMode, RerunTargetSnapshot, RerunUnavailableReason,
-    RERUN_COMMAND_BINDING_RECORD_KIND, RERUN_LAST_LAUNCH_RECORD_KIND, RERUN_LAST_TASK_COMMAND_ID,
-    RERUN_LAST_TEST_COMMAND_ID, RERUN_LOOP_SCHEMA_VERSION, RERUN_PREPARED_ATTEMPT_RECORD_KIND,
-    RERUN_SUPPORT_EXPORT_RECORD_KIND, RERUN_TARGET_COMPARISON_RECORD_KIND,
 };
 pub use support_matrix_beta::{
     SupportMatrixAttachSupport, SupportMatrixBetaManifest, SupportMatrixBetaSupportExport,

@@ -11,15 +11,15 @@ use serde::{Deserialize, Serialize};
 pub use aureline_auth::{
     audit_admin_audit_export_beta_page, seeded_admin_audit_export_beta_page,
     validate_admin_audit_export_beta_page, AdminAuditExportBetaDefect,
-    AdminAuditExportBetaDefectKind, AdminAuditExportBetaPage,
-    AdminAuditExportBetaProfileClass, AdminAuditExportBetaSummary,
-    AdminAuditExportBetaSupportExport, EntitlementChangeClass, EntitlementChangeEvent,
-    PolicyBundleHistoryEvent, PolicyBundleTransitionClass, ProvisioningEvent,
-    ProvisioningEventClass, ProvisioningFreshnessClass, ProvisioningLifecycleStateClass,
-    ProvisioningProvenance, ProvisioningSourceClass, ProvisioningSubjectKindClass,
-    ADMIN_AUDIT_EXPORT_BETA_DEFECT_RECORD_KIND, ADMIN_AUDIT_EXPORT_BETA_PAGE_RECORD_KIND,
-    ADMIN_AUDIT_EXPORT_BETA_SCHEMA_VERSION, ADMIN_AUDIT_EXPORT_BETA_SHARED_CONTRACT_REF,
-    ADMIN_AUDIT_EXPORT_BETA_SOURCE_MATRIX_REF, ADMIN_AUDIT_EXPORT_BETA_SUMMARY_RECORD_KIND,
+    AdminAuditExportBetaDefectKind, AdminAuditExportBetaPage, AdminAuditExportBetaProfileClass,
+    AdminAuditExportBetaSummary, AdminAuditExportBetaSupportExport, EntitlementChangeClass,
+    EntitlementChangeEvent, PolicyBundleHistoryEvent, PolicyBundleTransitionClass,
+    ProvisioningEvent, ProvisioningEventClass, ProvisioningFreshnessClass,
+    ProvisioningLifecycleStateClass, ProvisioningProvenance, ProvisioningSourceClass,
+    ProvisioningSubjectKindClass, ADMIN_AUDIT_EXPORT_BETA_DEFECT_RECORD_KIND,
+    ADMIN_AUDIT_EXPORT_BETA_PAGE_RECORD_KIND, ADMIN_AUDIT_EXPORT_BETA_SCHEMA_VERSION,
+    ADMIN_AUDIT_EXPORT_BETA_SHARED_CONTRACT_REF, ADMIN_AUDIT_EXPORT_BETA_SOURCE_MATRIX_REF,
+    ADMIN_AUDIT_EXPORT_BETA_SUMMARY_RECORD_KIND,
     ADMIN_AUDIT_EXPORT_BETA_SUPPORT_EXPORT_RECORD_KIND, ENTITLEMENT_CHANGE_EVENT_RECORD_KIND,
     POLICY_BUNDLE_HISTORY_EVENT_RECORD_KIND, PROVISIONING_EVENT_RECORD_KIND,
 };
@@ -94,9 +94,7 @@ mod tests {
             page.provisioning_events.len()
         );
         assert_eq!(summary.defect_count, 0);
-        assert!(summary
-            .profiles_present
-            .contains(&"mirror_only".to_owned()));
+        assert!(summary.profiles_present.contains(&"mirror_only".to_owned()));
         assert!(summary
             .profiles_present
             .contains(&"enterprise_managed".to_owned()));

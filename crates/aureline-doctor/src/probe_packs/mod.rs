@@ -596,10 +596,8 @@ impl DoctorProbePackEvaluator {
                 .then_with(|| left.pack_id.cmp(&right.pack_id))
         });
 
-        let covered_families: BTreeSet<FailureFamilyClass> = rows
-            .iter()
-            .map(|row| row.failure_family_class)
-            .collect();
+        let covered_families: BTreeSet<FailureFamilyClass> =
+            rows.iter().map(|row| row.failure_family_class).collect();
         let families_uncovered: Vec<FailureFamilyClass> = FailureFamilyClass::all()
             .into_iter()
             .filter(|family| !covered_families.contains(family))
@@ -910,9 +908,7 @@ fn validate_catalog(catalog: &DoctorProbePackCatalog) -> Vec<DoctorProbePackViol
                 &mut violations,
                 "doctor_probe_pack.catalog_family_missing",
                 &catalog.catalog_id,
-                format!(
-                    "catalog must declare a pack for failure_family_class {required}"
-                ),
+                format!("catalog must declare a pack for failure_family_class {required}"),
             );
         }
     }
