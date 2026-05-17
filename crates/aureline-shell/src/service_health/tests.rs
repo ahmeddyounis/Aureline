@@ -120,6 +120,11 @@ fn projection_against_generated_manifest_resolves_known_vocabularies() {
             "row_id={} freshness badge",
             row.row_id,
         );
+        assert!(
+            !row.compatibility_row_refs.is_empty(),
+            "row_id={} compatibility refs",
+            row.row_id,
+        );
     }
 }
 

@@ -35,6 +35,7 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::docs_browser::{seeded_truth_wiring_report, SurfaceTruthBinding, TruthSurfaceClass};
 use crate::migration_corpus::{
     seeded_migration_scoreboard, MIGRATION_CORPUS_SHARED_CONTRACT_REF, MIGRATION_SCOREBOARD_ID,
 };
@@ -624,6 +625,9 @@ pub struct MigrationCenterPage {
     pub page_id: String,
     pub generated_at: String,
     pub learnability_claim: LearnabilityClaim,
+    /// Current release-truth binding that joins the migration center to the
+    /// generated claim manifest and compatibility report.
+    pub release_truth_binding: SurfaceTruthBinding,
     pub upstream_refs: MigrationCenterUpstreamRefs,
     pub sections: Vec<MigrationCenterSection>,
     pub entries: Vec<MigrationCenterEntryPoint>,
@@ -949,6 +953,11 @@ pub fn validate_migration_center_page(
 /// inspector, the live shell, and the integration test.
 pub fn seeded_migration_center_page() -> MigrationCenterPage {
     let claim = LearnabilityClaim::beta_current();
+    let truth_report = seeded_truth_wiring_report();
+    let release_truth_binding = truth_report
+        .binding_for(TruthSurfaceClass::MigrationCenter)
+        .expect("seeded truth report must include migration-center binding")
+        .clone();
 
     let wizard = seeded_migration_wizard_page();
     let scoreboard = seeded_migration_scoreboard();
@@ -1221,6 +1230,7 @@ pub fn seeded_migration_center_page() -> MigrationCenterPage {
         page_id: MIGRATION_CENTER_PAGE_ID.to_owned(),
         generated_at: GENERATED_AT.to_owned(),
         learnability_claim: claim,
+        release_truth_binding,
         upstream_refs,
         sections,
         entries,
@@ -1415,6 +1425,24 @@ mod tests {
         );
         assert!(!page.upstream_refs.wizard_mapping_report_ref.is_empty());
         assert!(!page.upstream_refs.wizard_rollback_checkpoint_ref.is_empty());
+    }
+
+    #[test]
+    fn seeded_page_quotes_release_truth_binding() {
+        let page = seeded_migration_center_page();
+        assert_eq!(
+            page.release_truth_binding.surface_class,
+            TruthSurfaceClass::MigrationCenter
+        );
+        assert!(page
+            .release_truth_binding
+            .claim_row_ids
+            .contains(&"m3_claim_row:beta_surface.importer_and_migration".to_owned()));
+        assert!(!page.release_truth_binding.compatibility_row_refs.is_empty());
+        assert!(page
+            .release_truth_binding
+            .missing_compatibility_row_refs
+            .is_empty());
     }
 
     #[test]

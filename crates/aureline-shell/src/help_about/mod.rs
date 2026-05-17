@@ -1,7 +1,7 @@
 //! Help / About / provenance / service-health skeleton with client-scope
 //! badges.
 //!
-//! This is the M1 seed for the canonical product self-description surface a
+//! This is the initial seed for the canonical product self-description surface a
 //! user opens to answer "what build is running, how was it installed, what
 //! client scope am I in, where do I take issues, and is anything visibly
 //! degraded?" without scanning logs or chasing a marketing page.
@@ -37,18 +37,18 @@
 //!   already minted by the docs/help boundary card so the help shell never
 //!   forks a private freshness ladder.
 //! - **Service health** — typed placeholder rows for the runtime, auth,
-//!   docs/help, and update-channel subsystems. Every row carries a
-//!   [`ServiceHealthState::SeedPlaceholderAwaitingWiring`] state in M1; the
-//!   row is reserved for the M2/M3 wiring task and labeled honestly so the
-//!   chrome cannot fabricate "all green" before the data is real.
+//!   docs/help, and update-channel subsystems. The release-truth attachment
+//!   adds the current manifest-derived Help / About card without pretending
+//!   the placeholder subsystem rows are a live service monitor.
 //! - **Provenance** — typed placeholder rows for signature / attestation /
 //!   checksum / SBOM / advisory-open state. The full machine-readable
-//!   provenance contract lives in the about_card schema and lands in
-//!   M01-101; this seed renders the row scaffold so support exports and the
-//!   chrome agree on stable row ids before that lands.
+//!   provenance contract lives in the about_card schema; this seed renders
+//!   the row scaffold so support exports and the chrome agree on stable row
+//!   ids before that verifier lands.
 //! - **Community handoff** — frozen route classes (public issue tracker,
 //!   public RFC forum, private security channel, private support channel)
-//!   with stable disclosure copy.
+//!   with stable disclosure copy, destination trust classes, auth
+//!   expectations, data-exit boundaries, and issue-template refs.
 //!
 //! ## Failure-drill posture
 //!
@@ -72,6 +72,7 @@ use aureline_runtime::{
     TrustState,
 };
 
+use crate::about::HelpAboutReleaseTruthCard;
 use crate::badges::target_origin::{
     BadgeEntryPoint, HostBoundaryCue, OriginBadgeClass, TargetBadgeClass, TargetOriginBadge,
 };
@@ -89,9 +90,9 @@ pub const HELP_ABOUT_SURFACE_SCHEMA_VERSION: u32 = 1;
 /// without inferring it from the row vocabulary alone.
 pub const HELP_ABOUT_SEED_SCOPE_NOTICE: &str =
     "Help / About seed: live rows quote the exact-build identity, derived install mode, and \
-     shared client-scope chip. Service-health, provenance, advisory history, and community \
-     handoff routing are seeded placeholders; their machine-readable truth-source and badge \
-     vocabulary are hardened in a later milestone.";
+     shared client-scope chip. Service-health and provenance rows remain visible placeholders; \
+     the release-truth card attaches the current claim-manifest rows, compatibility refs, and \
+     community handoff route disclosures.";
 
 /// Stable section ids the seed surface renders.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -137,7 +138,7 @@ impl HelpAboutSectionId {
 /// Closed install-mode vocabulary derived from the running build's
 /// release-channel-class token plus its tree-state. Mirrors the
 /// `channel_class` enum frozen in `schemas/about/about_card.schema.json` so
-/// the seed and the M01-101 hardening agree on row tokens.
+/// the seed and the about-card hardening agree on row tokens.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallModeClass {
@@ -259,7 +260,7 @@ pub enum HelpAboutActionClass {
     /// Open the advisory history index for the running build. Reserved.
     OpenAdvisoryHistory,
     /// Hand the user off to the matching community-handoff route based on
-    /// the issue class. Reserved.
+    /// the issue class. Live once release-truth routing is attached.
     ReportIssueViaCommunityHandoff,
 }
 
@@ -379,7 +380,7 @@ impl ServiceHealthRowClass {
     }
 }
 
-/// Service-health state vocabulary. Every row in the M1 seed defaults to
+/// Service-health state vocabulary. Every row in the initial seed defaults to
 /// [`ServiceHealthState::SeedPlaceholderAwaitingWiring`]; the wider state
 /// vocabulary is reserved so support exports and the chrome agree on stable
 /// tokens before the live aggregator lands.
@@ -417,7 +418,7 @@ impl ServiceHealthState {
     }
 }
 
-/// Provenance row classes seeded as placeholders in M1.
+/// Provenance row classes seeded as placeholders.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProvenanceRowClass {
@@ -452,9 +453,9 @@ impl ProvenanceRowClass {
     }
 }
 
-/// Provenance row state vocabulary. M1 seed renders every row with
+/// Provenance row state vocabulary. The initial seed renders every row with
 /// [`ProvenanceRowState::SeedPlaceholderAwaitingWiring`]; the broader
-/// vocabulary is reserved for the M01-101 hardening so support exports and
+/// vocabulary is reserved for about-card hardening so support exports and
 /// the chrome agree on stable tokens before the live verifier lands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -498,7 +499,7 @@ impl ProvenanceRowState {
 
 /// Frozen community-handoff route vocabulary. Mirrors the route classes in
 /// `schemas/about/about_card.schema.json#community_handoff_route_class` so
-/// the seed and the M01-101 contract render the same row ids.
+/// the seed and the about-card contract render the same row ids.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CommunityHandoffRouteClass {
@@ -548,6 +549,55 @@ impl CommunityHandoffRouteClass {
                 "Private support intake for live-device, account, or workspace content. \
                  Sanitised summaries may surface publicly after fix."
             }
+        }
+    }
+
+    /// Destination trust class token disclosed before navigation.
+    pub const fn destination_trust_class_token(self) -> &'static str {
+        match self {
+            Self::PublicIssueTracker => "official_public",
+            Self::PublicRfcForum => "community",
+            Self::PrivateSecurityChannel | Self::PrivateSupportChannel => "official_authenticated",
+        }
+    }
+
+    /// Authentication expectation disclosed before navigation.
+    pub const fn auth_expectation(self) -> &'static str {
+        match self {
+            Self::PublicIssueTracker => {
+                "no sign-in required to view; sign-in may be required to comment"
+            }
+            Self::PublicRfcForum => "public forum account may be required",
+            Self::PrivateSecurityChannel => "security intake identity required",
+            Self::PrivateSupportChannel => "support identity required",
+        }
+    }
+
+    /// Data-exit boundary disclosed before navigation.
+    pub const fn data_exit_boundary(self) -> &'static str {
+        match self {
+            Self::PublicIssueTracker => {
+                "metadata-safe object refs may leave the product after review"
+            }
+            Self::PublicRfcForum => {
+                "proposal refs only; local diagnostics are not attached automatically"
+            }
+            Self::PrivateSecurityChannel => {
+                "security payloads leave only through the private security lane"
+            }
+            Self::PrivateSupportChannel => {
+                "redacted support packet leaves only after local preview"
+            }
+        }
+    }
+
+    /// Issue template ref attached to the handoff route.
+    pub const fn issue_template_ref(self) -> &'static str {
+        match self {
+            Self::PublicIssueTracker => "issue-template:docs-or-compatibility-public",
+            Self::PublicRfcForum => "issue-template:public-rfc-proposal",
+            Self::PrivateSecurityChannel => "issue-template:private-security-intake",
+            Self::PrivateSupportChannel => "issue-template:private-support-intake",
         }
     }
 }
@@ -709,6 +759,10 @@ pub struct HelpAboutCommunityHandoffRow {
     pub route_class_token: String,
     pub label: String,
     pub disclosure: String,
+    pub destination_trust_class_token: String,
+    pub auth_expectation: String,
+    pub data_exit_boundary: String,
+    pub issue_template_ref: String,
 }
 
 /// Community-handoff section: stable route vocabulary.
@@ -761,6 +815,8 @@ pub struct HelpAboutSurface {
     pub provenance: HelpAboutProvenanceSection,
     pub community_handoff: HelpAboutCommunityHandoffSection,
     pub actions: Vec<HelpAboutAction>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_truth_card: Option<HelpAboutReleaseTruthCard>,
     pub seed_scope_notice: String,
     pub honesty_marker_present: bool,
 }
@@ -822,9 +878,35 @@ impl HelpAboutSurface {
             provenance: provenance_section,
             community_handoff: community_handoff_section,
             actions,
+            release_truth_card: None,
             seed_scope_notice: HELP_ABOUT_SEED_SCOPE_NOTICE.to_owned(),
             honesty_marker_present,
         }
+    }
+
+    /// Project a help/about surface and attach the current release-truth card.
+    pub fn project_with_release_truth(
+        inputs: HelpAboutInputs<'_>,
+        release_truth_card: HelpAboutReleaseTruthCard,
+    ) -> Self {
+        Self::project(inputs).with_release_truth_card(release_truth_card)
+    }
+
+    /// Attach the release-truth card and activate community-handoff routing.
+    pub fn with_release_truth_card(
+        mut self,
+        release_truth_card: HelpAboutReleaseTruthCard,
+    ) -> Self {
+        self.honesty_marker_present |= release_truth_card.honesty_marker_present;
+        for action in &mut self.actions {
+            if action.action_class == HelpAboutActionClass::ReportIssueViaCommunityHandoff {
+                action.availability = HelpAboutActionAvailability::Live;
+                action.availability_token = action.availability.as_str().to_owned();
+                action.availability_label = action.availability.label().to_owned();
+            }
+        }
+        self.release_truth_card = Some(release_truth_card);
+        self
     }
 
     /// Render a deterministic plaintext block for the copy-context action and
@@ -928,6 +1010,16 @@ impl HelpAboutSurface {
         }
         out.push('\n');
 
+        if let Some(card) = &self.release_truth_card {
+            out.push_str("[Release truth]\n");
+            for line in card.render_plaintext().lines() {
+                out.push_str("  ");
+                out.push_str(line);
+                out.push('\n');
+            }
+            out.push('\n');
+        }
+
         out.push_str(&format!("[{}]\n", HelpAboutSectionId::Provenance.heading()));
         for row in &self.provenance.rows {
             out.push_str(&format!(
@@ -943,8 +1035,14 @@ impl HelpAboutSurface {
         ));
         for row in &self.community_handoff.rows {
             out.push_str(&format!(
-                "  - {}: {}\n      {}\n",
-                row.route_class_token, row.label, row.disclosure,
+                "  - {}: {}\n      {}\n      trust={} auth={} boundary={} template={}\n",
+                row.route_class_token,
+                row.label,
+                row.disclosure,
+                row.destination_trust_class_token,
+                row.auth_expectation,
+                row.data_exit_boundary,
+                row.issue_template_ref,
             ));
         }
         out.push('\n');
@@ -1142,7 +1240,7 @@ fn project_service_health() -> HelpAboutServiceHealthSection {
         .collect();
     HelpAboutServiceHealthSection {
         rows,
-        // Seed placeholders are in-spec for the M1 lane; they do not light
+        // Seed placeholders are in-spec here; they do not light
         // the global honesty marker on their own. The marker fires only when
         // an upstream truth source actively degrades.
         honesty_marker_present: false,
@@ -1192,6 +1290,10 @@ fn project_community_handoff() -> HelpAboutCommunityHandoffSection {
             route_class_token: class.as_str().to_owned(),
             label: class.label().to_owned(),
             disclosure: class.disclosure().to_owned(),
+            destination_trust_class_token: class.destination_trust_class_token().to_owned(),
+            auth_expectation: class.auth_expectation().to_owned(),
+            data_exit_boundary: class.data_exit_boundary().to_owned(),
+            issue_template_ref: class.issue_template_ref().to_owned(),
         })
         .collect();
     HelpAboutCommunityHandoffSection { rows }

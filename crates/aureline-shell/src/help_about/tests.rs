@@ -8,10 +8,12 @@ use aureline_runtime::{
 use serde::Deserialize;
 
 use super::*;
+use crate::about::HelpAboutReleaseTruthCard;
 use crate::badges::target_origin::{HostBoundaryCue, TargetBadgeClass};
 use crate::embedded::boundary_card::{
     FreshnessClass, SourceClass, SourceTruthRecord, VersionMatchState,
 };
+use crate::service_health::{M3ClaimManifestSnapshot, ServiceHealthBetaSurface};
 
 fn baseline_resolver() -> ExecutionContextResolver {
     ExecutionContextResolver::new(ExecutionContextResolverConfig {
@@ -49,6 +51,15 @@ fn fixture_build_identity() -> BuildIdentityRecord {
         source_date_epoch: 1_714_492_800,
         build_timestamp_utc: "2024-04-30T12:00:00Z".to_owned(),
     }
+}
+
+fn generated_release_truth_card() -> HelpAboutReleaseTruthCard {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../artifacts/release/m3/claim_manifest.json");
+    let manifest =
+        M3ClaimManifestSnapshot::load_from_path(path).expect("generated manifest must load");
+    let surface = ServiceHealthBetaSurface::project_at_manifest_as_of(&manifest);
+    HelpAboutReleaseTruthCard::project(&surface)
 }
 
 #[test]
@@ -155,6 +166,12 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
             "private_support_channel",
         ]
     );
+    for row in &surface.community_handoff.rows {
+        assert!(!row.destination_trust_class_token.is_empty());
+        assert!(!row.auth_expectation.is_empty());
+        assert!(!row.data_exit_boundary.is_empty());
+        assert!(!row.issue_template_ref.is_empty());
+    }
 
     // Live actions stay live; reserved actions stay reserved.
     let live_actions: Vec<_> = surface
@@ -200,6 +217,39 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     assert!(plaintext.contains("[Provenance]"));
     assert!(plaintext.contains("[Community handoff]"));
     assert!(plaintext.contains("Honesty marker: none"));
+}
+
+#[test]
+fn release_truth_card_activates_community_handoff_action() {
+    let mut resolver = baseline_resolver();
+    let context = resolver.resolve(ExecutionContextRequest::local_terminal_seed(
+        "terminal.open",
+        TrustState::Trusted,
+        "mono:0",
+    ));
+    let identity = fixture_build_identity();
+    let card = generated_release_truth_card();
+
+    let surface = HelpAboutSurface::project_with_release_truth(
+        HelpAboutInputs {
+            build_identity: &identity,
+            release_channel_class_token: "stable",
+            execution_context: Some(&context),
+            docs_source_truth: None,
+        },
+        card,
+    );
+
+    assert!(surface.release_truth_card.is_some());
+    let handoff = surface
+        .actions
+        .iter()
+        .find(|a| a.action_class == HelpAboutActionClass::ReportIssueViaCommunityHandoff)
+        .expect("community handoff action present");
+    assert_eq!(handoff.availability, HelpAboutActionAvailability::Live);
+    let plaintext = surface.render_plaintext();
+    assert!(plaintext.contains("[Release truth]"));
+    assert!(plaintext.contains("compatibility rows:"));
 }
 
 #[test]

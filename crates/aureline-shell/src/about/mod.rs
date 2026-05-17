@@ -50,6 +50,9 @@ pub struct HelpAboutReleaseTruthRow {
     pub row_kind_token: String,
     pub headline: String,
     pub claim_family: String,
+    /// Compatibility row refs this Help/About row resolves through before
+    /// presenting the claim as current release truth.
+    pub compatibility_row_refs: Vec<String>,
     pub claim_posture_effective: ClaimPostureClass,
     pub claim_posture_effective_token: String,
     pub claim_posture_downgraded: bool,
@@ -91,6 +94,7 @@ impl HelpAboutReleaseTruthRow {
             row_kind_token: row.row_kind_token.clone(),
             headline: row.headline.clone(),
             claim_family: row.claim_family.clone(),
+            compatibility_row_refs: row.compatibility_row_refs.clone(),
             claim_posture_effective: row.claim_posture.effective,
             claim_posture_effective_token: row.claim_posture.effective_token.clone(),
             claim_posture_downgraded: row.claim_posture.downgraded,
@@ -301,6 +305,12 @@ impl HelpAboutReleaseTruthCard {
                 row.evidence_date,
                 row.review_window_days,
             ));
+            if !row.compatibility_row_refs.is_empty() {
+                out.push_str(&format!(
+                    "    compatibility rows: {}\n",
+                    row.compatibility_row_refs.join(", "),
+                ));
+            }
             out.push_str(&format!(
                 "    help_about channel: binding={} projection_kind={} copy_field={} surface_ref={}\n",
                 row.help_about_binding_status,

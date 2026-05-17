@@ -9,7 +9,14 @@ a marketing page.
 This document is the reviewer-facing landing page for the seed shipped under
 `crates/aureline-shell/src/help_about/`. The canonical machine-readable
 contract and the wider badge vocabulary land in a later milestone; this seed
-deliberately covers the slice of that contract M1 needs in-product.
+deliberately covers the slice of that contract the initial in-product surface
+needs.
+
+The beta release-truth attachment now lets Help / About consume the shared
+claim-manifest and compatibility-report projection through
+`HelpAboutReleaseTruthCard`. When that card is attached, the surface carries
+the same manifest rows as service health and activates the community handoff
+action without losing the current object or issue context.
 
 ## What the seed surface guarantees
 
@@ -37,14 +44,15 @@ shell forks a private copy of build, runtime, or freshness identity:
 - **Service health** renders typed seed-placeholder rows for the local
   runtime, the auth subsystem, the docs/help subsystem, and the update
   channel. Every row carries a `seed_placeholder_awaiting_wiring` state
-  in M1; the wiring is owned by a later milestone.
+  until a live subsystem monitor is attached.
 - **Provenance** renders typed seed-placeholder rows for signature,
   attestation, checksum, SBOM, and open-advisory state. The full
-  machine-readable verifier lands in the M01-101 hardening row.
+  machine-readable verifier lands through the about-card hardening path.
 - **Community handoff** carries the frozen route classes —
   `public_issue_tracker`, `public_rfc_forum`, `private_security_channel`,
-  `private_support_channel` — with stable disclosure copy. The actual
-  issue-template and route-destination wiring is reserved.
+  `private_support_channel` — with stable disclosure copy, destination
+  trust-class tokens, data-exit boundaries, auth expectations, and issue
+  template refs.
 
 ## Honesty marker semantics
 
@@ -59,7 +67,7 @@ mirrors as a visible chip. It lights when **any of** the following hold:
   `pre_release_unverified` / `unknown_target_build` version match.
 
 The seed-placeholder rows for service health and provenance do not light
-the global honesty marker on their own. Those rows are in-spec for the M1
+the global honesty marker on their own. Those rows are in-spec for the initial
 seed and labeled with a typed `seed_placeholder_awaiting_wiring` state so
 the chrome cannot fabricate "all green" before the live aggregator lands.
 
@@ -72,10 +80,10 @@ exports never invent button-only labels:
 |---|---|---|
 | `open_execution_context_inspector` | `live` | Routes to the shared runtime inspector. |
 | `copy_context_for_support_export` | `live` | Renders the deterministic plaintext block. |
-| `open_release_packet` | `reserved_for_later_milestone` | Reserved; M01-101 lands the linkage. |
+| `open_release_packet` | `reserved_for_later_milestone` | Reserved until release-packet linkage is attached. |
 | `view_provenance_details` | `reserved_for_later_milestone` | Reserved. |
 | `open_advisory_history` | `reserved_for_later_milestone` | Reserved. |
-| `report_issue_via_community_handoff` | `reserved_for_later_milestone` | Reserved; routes to the matching channel. |
+| `report_issue_via_community_handoff` | `reserved_for_later_milestone` | Upgrades to `live` when the release-truth card is attached; routes to the matching public or private lane while preserving object and issue context. |
 
 Live action availability narrows in two cases. When the resolved execution
 context carries a degraded field, `open_execution_context_inspector`
@@ -113,7 +121,7 @@ this drill. Expected behaviour:
 The seed deliberately does **not** own:
 
 - the canonical machine-readable About card schema and badge vocabulary
-  beyond the UI stubs M1 needs in-product (M01-101 hardening);
+  beyond the UI stubs the initial in-product surface needs;
 - live signature / attestation / SBOM / advisory verification (the
   provenance section seeds row scaffolding only);
 - live service-health aggregation (the service-health section seeds row

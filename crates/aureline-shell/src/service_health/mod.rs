@@ -30,6 +30,9 @@
 //! - **Beta rows** — one [`ServiceHealthBetaRow`] per manifest row. Each
 //!   row carries:
 //!   - the canonical `row_id`, `row_kind`, `headline`, and `claim_family`;
+//!   - `claim_row_refs` and `compatibility_row_refs`, quoted verbatim so
+//!     downstream surfaces can prove which compatibility rows back the
+//!     claim before treating it as current truth;
 //!   - declared and effective `claim_posture` plus the active downgrade
 //!     reasons (the row's failure vocabulary, quoted verbatim from the
 //!     manifest);
@@ -756,6 +759,12 @@ pub struct ServiceHealthChannelProjection {
 /// One service-health beta row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ServiceHealthBetaRow {
+    /// Claim row refs quoted from the upstream manifest row.
+    pub claim_row_refs: Vec<String>,
+    /// Compatibility row refs that must resolve in the current
+    /// compatibility report before a surface may treat this row as
+    /// claim-bearing truth.
+    pub compatibility_row_refs: Vec<String>,
     pub row_id: String,
     pub row_kind: BetaRowKindClass,
     pub row_kind_token: String,
@@ -1007,6 +1016,12 @@ impl ServiceHealthBetaSurface {
                 "    provenance: {} (owner: {})\n",
                 row.provenance.label_token, row.provenance.evidence_owner,
             ));
+            if !row.compatibility_row_refs.is_empty() {
+                out.push_str(&format!(
+                    "    compatibility rows: {}\n",
+                    row.compatibility_row_refs.join(", "),
+                ));
+            }
             if row.required_projection_missing {
                 out.push_str("    required projection missing: yes\n");
             }
@@ -1114,6 +1129,8 @@ fn project_row(
         || copy_field_drifts_between_help_about_and_service_health;
 
     ServiceHealthBetaRow {
+        claim_row_refs: row.claim_row_refs.clone(),
+        compatibility_row_refs: row.compatibility_row_refs.clone(),
         row_id: row.row_id.clone(),
         row_kind,
         row_kind_token: row_kind.as_str().to_owned(),
@@ -1476,6 +1493,8 @@ pub struct ManifestRowSnapshot {
     pub claim_family: String,
     #[serde(default)]
     pub claim_row_refs: Vec<String>,
+    #[serde(default)]
+    pub compatibility_row_refs: Vec<String>,
     #[serde(default)]
     pub requirement_ids: Vec<String>,
     pub claim_posture: ClaimPostureSnapshot,

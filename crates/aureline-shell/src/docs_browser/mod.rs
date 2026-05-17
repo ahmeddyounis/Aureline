@@ -19,9 +19,16 @@
 
 pub mod content;
 pub mod state;
+pub mod truth_wiring;
 
 pub use content::{docs_browser_row_cards_from_pack, DocsBrowserContentContext};
 pub use state::{
     DocsBrowserBrowserHandoffRow, DocsBrowserClientScopeRow, DocsBrowserFreshnessRow,
     DocsBrowserRowCard, DocsBrowserSourceRow, DocsBrowserSurfaceState, DocsBrowserVersionRow,
+};
+pub use truth_wiring::{
+    current_truth_wiring_report, route_community_handoff, seeded_truth_wiring_report,
+    CommunityHandoffDecision, CommunityHandoffRequest, CommunityHandoffRouteClass,
+    CommunityIssueClass, DestinationTrustClass, ServiceContractState, SurfaceTruthBinding,
+    TruthSurfaceClass, TruthWiringDefect, TruthWiringDefectKind, TruthWiringReport,
 };

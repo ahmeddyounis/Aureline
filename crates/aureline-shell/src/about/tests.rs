@@ -46,6 +46,11 @@ fn release_truth_card_is_projection_only() {
             .expect("card rows MUST carry a help_about projection");
         assert_eq!(projection.binding_status, "required");
         assert_eq!(card_row.help_about_binding_status, "required");
+        assert!(
+            !card_row.compatibility_row_refs.is_empty(),
+            "{} must carry compatibility refs",
+            card_row.row_id
+        );
     }
 }
 
@@ -114,5 +119,12 @@ fn plaintext_renders_envelope_and_per_row_lines() {
             "missing row {} from plaintext",
             row.row_id
         );
+        for compatibility_ref in &row.compatibility_row_refs {
+            assert!(
+                text.contains(compatibility_ref),
+                "missing compatibility ref {} from plaintext",
+                compatibility_ref
+            );
+        }
     }
 }
