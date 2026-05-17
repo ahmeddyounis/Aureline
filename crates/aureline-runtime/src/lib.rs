@@ -38,6 +38,7 @@ pub mod launch_profiles;
 pub mod managed_alpha;
 pub mod managed_workspace_lifecycle_beta;
 pub mod packages;
+pub mod preview_drift;
 pub mod provenance;
 pub mod recipes;
 pub mod remote_helper_skew_beta;
@@ -225,6 +226,18 @@ pub use packages::{
     PACKAGE_MUTATION_REVIEWER_VERSION, PACKAGE_OPERATION_ALPHA_RECORD_KIND,
     PACKAGE_OPERATION_ALPHA_SCHEMA_VERSION, PACKAGE_OPERATION_AUDIT_RECORD_KIND,
     PACKAGE_OPERATION_SUPPORT_EXPORT_RECORD_KIND, REGISTRY_SOURCE_ALPHA_RECORD_KIND,
+};
+pub use preview_drift::{
+    evaluate_preview_commit_guard, seeded_preview_commit_guard_scenario, ApprovalTicketBinding,
+    GuardedActionClass, PolicySnapshotBinding, PreviewApprovalState,
+    PreviewCommitAdmissionDecision, PreviewCommitAuditEventClass, PreviewCommitBasis,
+    PreviewCommitCliOutput, PreviewCommitContext, PreviewCommitGuard, PreviewCommitGuardAuditEvent,
+    PreviewCommitGuardEvaluation, PreviewCommitGuardScenario, PreviewCommitGuardSupportExport,
+    PreviewCommitSurfaceProjection, PreviewInvalidationReason, PreviewInvalidationRow,
+    PreviewLifecycleState, PreviewRepresentationClass, PreviewScalarBinding, PreviewTargetBinding,
+    PREVIEW_COMMIT_GUARD_AUDIT_EVENT_RECORD_KIND, PREVIEW_COMMIT_GUARD_EVALUATION_RECORD_KIND,
+    PREVIEW_COMMIT_GUARD_RECORD_KIND, PREVIEW_COMMIT_GUARD_SCHEMA_VERSION,
+    PREVIEW_COMMIT_GUARD_SUPPORT_EXPORT_RECORD_KIND, PREVIEW_COMMIT_SURFACE_PROJECTION_RECORD_KIND,
 };
 pub use provenance::evidence_packet::{
     seeded_runtime_evidence_packet, seeded_runtime_evidence_packet_support_export,

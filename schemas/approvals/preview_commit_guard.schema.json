@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/approvals/preview_commit_guard.schema.json",
+  "title": "Aureline preview commit guard",
+  "description": "Boundary schema for preview_commit_guard_record and preview_commit_guard_evaluation_record. The guard binds high-risk preview/apply paths to export-safe target fingerprints, selected scope, host boundary, route, policy snapshot, approval ticket, lifecycle state, and representation class. Apply fails closed when any material basis changes or approval expires before commit. Raw file bodies, provider payloads, URLs, command lines, secret bytes, and token bodies never appear; only opaque refs, hashes, class tokens, and stable invalidation reasons cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/preview_commit_guard_record" },
+    { "$ref": "#/$defs/preview_commit_guard_evaluation_record" },
+    { "$ref": "#/$defs/preview_commit_guard_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "hash_ref": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string" },
+    "guarded_action_class": {
+      "type": "string",
+      "enum": [
+        "local_destructive_mutation",
+        "remote_mutation",
+        "external_publish",
+        "provider_linked_mutation"
+      ]
+    },
+    "representation_class": {
+      "type": "string",
+      "enum": [
+        "source_diff",
+        "rendered_preview",
+        "structured_metadata",
+        "raw_text",
+        "provider_object",
+        "safe_preview_snapshot"
+      ]
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": [
+        "live_unrevoked",
+        "missing",
+        "expired",
+        "revoked",
+        "remembered_decision_only"
+      ]
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "preview_open",
+        "awaiting_approval",
+        "approved_ready",
+        "applying",
+        "superseded",
+        "target_unavailable",
+        "provider_disconnected"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "target_set_drift",
+        "target_identity_drift",
+        "selected_scope_drift",
+        "host_boundary_drift",
+        "route_drift",
+        "policy_epoch_drift",
+        "approval_ticket_drift",
+        "approval_ticket_missing",
+        "approval_ticket_expired",
+        "approval_ticket_revoked",
+        "remembered_decision_only",
+        "lifecycle_drift",
+        "representation_class_drift",
+        "preview_expired"
+      ]
+    },
+    "admission_decision": {
+      "type": "string",
+      "enum": ["admit_apply", "block_require_review"]
+    },
+    "target_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_ref", "target_hash"],
+      "properties": {
+        "target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_hash": { "$ref": "#/$defs/hash_ref" }
+      }
+    },
+    "scalar_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_ref", "binding_hash"],
+      "properties": {
+        "binding_ref": { "$ref": "#/$defs/opaque_ref" },
+        "binding_hash": { "$ref": "#/$defs/hash_ref" }
+      }
+    },
+    "policy_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_snapshot_ref",
+        "policy_epoch",
+        "policy_snapshot_hash"
+      ],
+      "properties": {
+        "policy_snapshot_ref": { "$ref": "#/$defs/opaque_ref" },
+        "policy_epoch": { "type": "integer", "minimum": 0 },
+        "policy_snapshot_hash": { "$ref": "#/$defs/hash_ref" }
+      }
+    },
+    "approval_ticket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_ticket_hash",
+        "approval_state"
+      ],
+      "properties": {
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" },
+        "approval_ticket_hash": { "$ref": "#/$defs/hash_ref" },
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "expires_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_bindings",
+        "selected_scope",
+        "host_boundary",
+        "route_binding",
+        "policy_snapshot",
+        "approval_ticket",
+        "representation_class",
+        "lifecycle_state"
+      ],
+      "properties": {
+        "target_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/target_binding" }
+        },
+        "selected_scope": { "$ref": "#/$defs/scalar_binding" },
+        "host_boundary": { "$ref": "#/$defs/scalar_binding" },
+        "route_binding": { "$ref": "#/$defs/scalar_binding" },
+        "policy_snapshot": { "$ref": "#/$defs/policy_snapshot" },
+        "approval_ticket": { "$ref": "#/$defs/approval_ticket" },
+        "representation_class": { "$ref": "#/$defs/representation_class" },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state" }
+      }
+    },
+    "preview_commit_guard_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "guard_id",
+        "preview_ref",
+        "command_id_ref",
+        "action_class",
+        "created_at",
+        "basis",
+        "basis_hash"
+      ],
+      "properties": {
+        "record_kind": { "const": "preview_commit_guard_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "guard_id": { "$ref": "#/$defs/opaque_ref" },
+        "preview_ref": { "$ref": "#/$defs/opaque_ref" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "action_class": { "$ref": "#/$defs/guarded_action_class" },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "preview_expires_at": { "$ref": "#/$defs/timestamp" },
+        "basis": { "$ref": "#/$defs/basis" },
+        "basis_hash": { "$ref": "#/$defs/hash_ref" }
+      }
+    },
+    "invalidation_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason",
+        "reason_token",
+        "stored_value_token",
+        "current_value_token",
+        "explanation",
+        "requires_re_review"
+      ],
+      "properties": {
+        "reason": { "$ref": "#/$defs/invalidation_reason" },
+        "reason_token": { "$ref": "#/$defs/invalidation_reason" },
+        "stored_value_token": { "type": "string", "minLength": 1 },
+        "current_value_token": { "type": "string", "minLength": 1 },
+        "explanation": { "type": "string", "minLength": 1 },
+        "requires_re_review": { "const": true }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "guard_id",
+        "preview_ref",
+        "severity_token",
+        "next_action_token",
+        "summary",
+        "reason_tokens"
+      ],
+      "properties": {
+        "record_kind": { "const": "preview_commit_surface_projection_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "guard_id": { "$ref": "#/$defs/opaque_ref" },
+        "preview_ref": { "$ref": "#/$defs/opaque_ref" },
+        "severity_token": { "type": "string", "enum": ["info", "blocking"] },
+        "next_action_token": { "type": "string", "enum": ["apply", "review_again"] },
+        "summary": { "type": "string", "minLength": 1 },
+        "reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        }
+      }
+    },
+    "cli_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exit_code", "status_token", "reason_tokens", "message"],
+      "properties": {
+        "exit_code": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "status_token": {
+          "type": "string",
+          "enum": ["admitted", "blocked_require_review"]
+        },
+        "reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "audit_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_event_id",
+        "event_class",
+        "event_token",
+        "guard_id",
+        "preview_ref",
+        "evaluation_ref",
+        "occurred_at",
+        "reason_tokens",
+        "export_safe"
+      ],
+      "properties": {
+        "record_kind": { "const": "preview_commit_guard_audit_event_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/opaque_ref" },
+        "event_class": {
+          "type": "string",
+          "enum": [
+            "preview_commit_guard_admitted",
+            "preview_commit_guard_invalidated"
+          ]
+        },
+        "event_token": {
+          "type": "string",
+          "enum": [
+            "preview_commit_guard_admitted",
+            "preview_commit_guard_invalidated"
+          ]
+        },
+        "guard_id": { "$ref": "#/$defs/opaque_ref" },
+        "preview_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evaluation_ref": { "$ref": "#/$defs/opaque_ref" },
+        "occurred_at": { "$ref": "#/$defs/timestamp" },
+        "reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "export_safe": { "const": true }
+      }
+    },
+    "preview_commit_guard_evaluation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evaluation_id",
+        "guard_id",
+        "preview_ref",
+        "command_id_ref",
+        "action_class",
+        "evaluated_at",
+        "stored_basis_hash",
+        "current_basis_hash",
+        "admission_decision",
+        "blocks_apply",
+        "requires_re_review",
+        "may_auto_refresh",
+        "invalidations",
+        "surface_projection",
+        "cli_output",
+        "audit_events"
+      ],
+      "properties": {
+        "record_kind": { "const": "preview_commit_guard_evaluation_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "evaluation_id": { "$ref": "#/$defs/opaque_ref" },
+        "guard_id": { "$ref": "#/$defs/opaque_ref" },
+        "preview_ref": { "$ref": "#/$defs/opaque_ref" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "action_class": { "$ref": "#/$defs/guarded_action_class" },
+        "evaluated_at": { "$ref": "#/$defs/timestamp" },
+        "stored_basis_hash": { "$ref": "#/$defs/hash_ref" },
+        "current_basis_hash": { "$ref": "#/$defs/hash_ref" },
+        "admission_decision": { "$ref": "#/$defs/admission_decision" },
+        "blocks_apply": { "type": "boolean" },
+        "requires_re_review": { "type": "boolean" },
+        "may_auto_refresh": { "const": false },
+        "invalidations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_row" }
+        },
+        "surface_projection": { "$ref": "#/$defs/surface_projection" },
+        "cli_output": { "$ref": "#/$defs/cli_output" },
+        "audit_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_event" }
+        }
+      }
+    },
+    "preview_commit_guard_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "generated_at",
+        "evaluations",
+        "audit_events",
+        "blocked_evaluation_count",
+        "redaction_safe"
+      ],
+      "properties": {
+        "record_kind": { "const": "preview_commit_guard_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "evaluations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preview_commit_guard_evaluation_record" }
+        },
+        "audit_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_event" }
+        },
+        "blocked_evaluation_count": { "type": "integer", "minimum": 0 },
+        "redaction_safe": { "const": true }
+      }
+    }
+  }
+}

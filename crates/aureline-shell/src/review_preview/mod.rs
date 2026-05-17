@@ -55,8 +55,11 @@ use aureline_history::{
     TargetRef,
 };
 use aureline_runtime::{
-    ExecutionContext, ExecutionEventProvenance, ExecutionProvenanceEvent,
-    ExecutionProvenanceEventClass,
+    evaluate_preview_commit_guard, ApprovalTicketBinding, ExecutionContext,
+    ExecutionEventProvenance, ExecutionProvenanceEvent, ExecutionProvenanceEventClass,
+    GuardedActionClass, PolicySnapshotBinding, PreviewCommitBasis, PreviewCommitContext,
+    PreviewCommitGuard, PreviewCommitGuardEvaluation, PreviewLifecycleState,
+    PreviewRepresentationClass, PreviewScalarBinding, PreviewTargetBinding,
 };
 
 /// Stable record-kind tag carried in serialized [`MutationPacket`] payloads.
@@ -267,6 +270,10 @@ pub struct PreviewRecord {
     pub apply_admissibility: ApplyAdmissibility,
     pub total_match_count: u32,
     pub revert_class_after_apply: RevertClass,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub commit_guard: Option<PreviewCommitGuard>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub commit_guard_evaluation: Option<PreviewCommitGuardEvaluation>,
 }
 
 /// One mutation/checkpoint link bound at apply time per target.
@@ -466,6 +473,20 @@ impl MutationPacket {
                     warnings = row.content_integrity_warnings.len(),
                 ));
             }
+            if let Some(guard) = &preview.commit_guard {
+                out.push_str(&format!(
+                    "  commit_guard: {} basis_hash={}\n",
+                    guard.guard_id, guard.basis_hash
+                ));
+            }
+            if let Some(evaluation) = &preview.commit_guard_evaluation {
+                out.push_str(&format!(
+                    "  commit_guard_evaluation: {} decision={} reasons={}\n",
+                    evaluation.evaluation_id,
+                    evaluation.admission_decision.as_str(),
+                    evaluation.reason_tokens().join(",")
+                ));
+            }
         } else {
             out.push_str("  (not yet previewed)\n");
         }
@@ -602,6 +623,7 @@ pub enum WedgeError {
         actual: PreviewApplyRevertPhase,
     },
     ApplyBlocked(ApplyAdmissibility),
+    ApplyBlockedByCommitGuard(PreviewCommitGuardEvaluation),
     NoPreview,
     NoApply,
     AlreadyReverted,
@@ -622,6 +644,11 @@ impl std::fmt::Display for WedgeError {
                 f,
                 "apply blocked by {reason} — re-open preview after the basis settles",
                 reason = reason.as_token(),
+            ),
+            Self::ApplyBlockedByCommitGuard(evaluation) => write!(
+                f,
+                "apply blocked by stale preview guard: {}",
+                evaluation.reason_tokens().join(",")
             ),
             Self::NoPreview => write!(f, "apply requires a preview; none has been computed"),
             Self::NoApply => write!(f, "validate/revert require an apply; none has been recorded"),
@@ -744,6 +771,107 @@ impl DestructiveCoreEngine {
         self.world.get(logical_ref).map(|bytes| bytes.as_slice())
     }
 
+    fn preview_commit_guard_for(
+        &self,
+        packet: &MutationPacket,
+        preview: &PreviewRecord,
+    ) -> PreviewCommitGuard {
+        let basis = self.preview_commit_basis_for(packet, preview, false);
+        PreviewCommitGuard::new(
+            format!("preview-commit-guard:{}", preview.preview_id),
+            preview.preview_id.clone(),
+            packet.proposal.command_id.clone(),
+            GuardedActionClass::LocalDestructiveMutation,
+            preview.previewed_at.clone(),
+            None,
+            basis,
+        )
+    }
+
+    fn preview_commit_context_for(
+        &self,
+        packet: &MutationPacket,
+        preview: &PreviewRecord,
+        observed_at: &str,
+    ) -> PreviewCommitContext {
+        PreviewCommitContext::new(
+            observed_at.to_owned(),
+            self.preview_commit_basis_for(packet, preview, true),
+        )
+    }
+
+    fn preview_commit_basis_for(
+        &self,
+        packet: &MutationPacket,
+        preview: &PreviewRecord,
+        read_current_world: bool,
+    ) -> PreviewCommitBasis {
+        let target_bindings = preview
+            .rows
+            .iter()
+            .map(|row| {
+                let target_hash = if read_current_world {
+                    self.world
+                        .get(&row.logical_ref)
+                        .map(|bytes| body_object_id(bytes))
+                        .unwrap_or_else(|| "obj:missing".to_owned())
+                } else {
+                    row.basis_digest_observed_at_preview.clone()
+                };
+                PreviewTargetBinding::from_hash(row.logical_ref.clone(), target_hash)
+            })
+            .collect::<Vec<_>>();
+
+        let scope_fingerprint_parts = packet
+            .proposal
+            .target_specs
+            .iter()
+            .map(|spec| spec.logical_ref.as_str())
+            .collect::<Vec<_>>();
+        let scope_hash = scope_digest(
+            &self.workspace_id,
+            &packet.proposal.search_pattern,
+            &scope_fingerprint_parts,
+        );
+        let policy_epoch = self
+            .context_provenance
+            .as_ref()
+            .map(|provenance| provenance.policy_epoch)
+            .unwrap_or(0);
+        let policy_ref = format!("policy-epoch:{policy_epoch}");
+        let policy_epoch_text = policy_epoch.to_string();
+        PreviewCommitBasis::new(
+            target_bindings,
+            PreviewScalarBinding::from_hash(
+                format!(
+                    "scope:{}:{}",
+                    self.workspace_id, packet.proposal.proposal_id
+                ),
+                scope_hash,
+            ),
+            PreviewScalarBinding::new(
+                format!("host-boundary:{}", self.workspace_id),
+                &["local_host", &self.workspace_id],
+            ),
+            PreviewScalarBinding::new(
+                format!("route:{}", packet.proposal.command_id),
+                &[
+                    "workspace_vfs",
+                    &self.workspace_id,
+                    &packet.proposal.command_id,
+                ],
+            ),
+            PolicySnapshotBinding::new(policy_ref, policy_epoch, &["policy", &policy_epoch_text]),
+            ApprovalTicketBinding::live(
+                format!("approval-ticket:{}", preview.preview_id),
+                &["local_destructive_review", &preview.preview_id],
+                None,
+            ),
+            PreviewRepresentationClass::SourceDiff,
+            PreviewLifecycleState::ApprovedReady,
+        )
+    }
+
     /// Phase 1 — capture the proposal. The basis digest for each target is
     /// frozen on the proposal so a later preview can detect drift.
     pub fn propose(
@@ -854,7 +982,7 @@ impl DestructiveCoreEngine {
             ApplyAdmissibility::Admitted
         };
 
-        let preview = PreviewRecord {
+        let mut preview = PreviewRecord {
             preview_id,
             proposal_id: packet.proposal.proposal_id.clone(),
             previewed_at,
@@ -863,7 +991,10 @@ impl DestructiveCoreEngine {
             apply_admissibility,
             total_match_count,
             revert_class_after_apply: packet.proposal.declared_revert_class,
+            commit_guard: None,
+            commit_guard_evaluation: None,
         };
+        preview.commit_guard = Some(self.preview_commit_guard_for(packet, &preview));
         packet.preview = Some(preview);
         packet.current_phase = PreviewApplyRevertPhase::Preview;
         Ok(())
@@ -892,10 +1023,25 @@ impl DestructiveCoreEngine {
             return Err(WedgeError::ApplyBlocked(preview.apply_admissibility));
         }
 
+        let applied_at = self.clock.now_iso();
+        let guard = preview.commit_guard.as_ref().ok_or(WedgeError::NoPreview)?;
+        let current_context = self.preview_commit_context_for(packet, &preview, &applied_at);
+        let guard_evaluation = evaluate_preview_commit_guard(
+            guard,
+            &current_context,
+            format!("preview-commit-eval:{}", preview.preview_id),
+            applied_at.clone(),
+        );
+        if let Some(preview_mut) = packet.preview.as_mut() {
+            preview_mut.commit_guard_evaluation = Some(guard_evaluation.clone());
+        }
+        if guard_evaluation.blocks_apply {
+            return Err(WedgeError::ApplyBlockedByCommitGuard(guard_evaluation));
+        }
+
         let apply_id = self.applies.mint();
         let mutation_group_id = self.journal.mint_group_id();
         let local_history_group_id = self.history.mint_group_id();
-        let applied_at = self.clock.now_iso();
 
         let mutation_group_label = format!(
             "Bulk replace `{search}` -> `{replacement}` across {count} target(s)",
@@ -1423,6 +1569,18 @@ fn apply_replacement(bytes: &[u8], search: &str, replacement: &str) -> Vec<u8> {
         Ok(text) => text.replace(search, replacement).into_bytes(),
         Err(_) => bytes.to_vec(),
     }
+}
+
+fn scope_digest(workspace_id: &str, search_pattern: &str, target_refs: &[&str]) -> String {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(workspace_id.as_bytes());
+    bytes.push(0xff);
+    bytes.extend_from_slice(search_pattern.as_bytes());
+    for target_ref in target_refs {
+        bytes.push(0xff);
+        bytes.extend_from_slice(target_ref.as_bytes());
+    }
+    body_object_id(&bytes)
 }
 
 fn preview_snippet(bytes: &[u8], max_len: usize) -> String {

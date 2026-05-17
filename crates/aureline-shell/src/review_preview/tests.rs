@@ -336,6 +336,60 @@ fn failure_drill_blocks_apply_when_basis_drifts_after_preview() {
 }
 
 #[test]
+fn apply_revalidates_commit_guard_when_target_changes_after_preview() {
+    let (mut engine, root) = fixture_engine("commit_guard_revalidation");
+    engine.seed_target("src/launch.rs", b"call(legacy_fn);\n".to_vec());
+    engine.seed_target("src/router.rs", b"// route legacy_fn here\n".to_vec());
+
+    let mut packet = engine
+        .propose(
+            &["src/launch.rs", "src/router.rs"],
+            "legacy_fn",
+            "modern_fn",
+        )
+        .expect("propose succeeds");
+    engine.preview(&mut packet).expect("preview succeeds");
+    assert!(packet
+        .preview
+        .as_ref()
+        .and_then(|preview| preview.commit_guard.as_ref())
+        .is_some());
+
+    engine.simulate_external_mutation(
+        "src/router.rs",
+        b"// route legacy_fn here\n// changed after review\n".to_vec(),
+    );
+
+    let err = engine
+        .apply(&mut packet)
+        .expect_err("apply must revalidate target basis immediately before commit");
+    match err {
+        WedgeError::ApplyBlockedByCommitGuard(evaluation) => {
+            assert!(evaluation.blocks_apply);
+            assert!(evaluation
+                .reason_tokens()
+                .contains(&"target_identity_drift".to_owned()));
+            assert_eq!(evaluation.cli_output.exit_code, 78);
+            assert!(!evaluation.may_auto_refresh);
+        }
+        other => panic!("expected commit guard block, got {other:?}"),
+    }
+    let preview = packet.preview.as_ref().expect("preview remains open");
+    let evaluation = preview
+        .commit_guard_evaluation
+        .as_ref()
+        .expect("blocked evaluation is stored on preview");
+    assert!(evaluation
+        .surface_projection
+        .reason_tokens
+        .contains(&"target_identity_drift".to_owned()));
+    assert_eq!(packet.current_phase, PreviewApplyRevertPhase::Preview);
+    assert!(packet.apply.is_none());
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn apply_is_rejected_when_preview_is_skipped() {
     let (mut engine, root) = fixture_engine("skip_preview");
     engine.seed_target("src/launch.rs", b"call(legacy_fn);\n".to_vec());
