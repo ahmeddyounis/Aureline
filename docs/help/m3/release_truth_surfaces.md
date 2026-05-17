@@ -124,6 +124,17 @@ Help / About, release docs, release-center pivots, and support exports quote
 the same source ids, license classes, versions, owner refs, notice targets, and
 red-risk promotion effects. They do not maintain a separate notice table.
 
+Runtime-heavy and ecosystem-heavy preview-row truth is read through
+`artifacts/compat/m3/preview_row_packets/preview_row_packets.json` and the
+support projection at
+`artifacts/compat/m3/preview_row_packets/support_export_projection.json`.
+Help / About, docs/help, release docs, CLI/headless inspection, review
+workspace, marketplace discovery, AI context, and support exports quote the
+same notebook-trust, repair, install-review, compatibility-label,
+activation-budget, and promotion-gate states. Rows without a current packet
+render as downgraded out of the claimed set rather than inheriting adjacent
+runtime or notebook truth.
+
 ## Release-control rehearsals
 
 Publish, rollback, revocation, and advisory rehearsal state is read
