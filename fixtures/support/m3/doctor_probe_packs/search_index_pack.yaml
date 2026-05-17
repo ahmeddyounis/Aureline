@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../../../schemas/support/doctor_probe_pack.schema.json
+# Beta doctor probe pack: search/index readiness failures.
+
+schema_version: 1
+record_kind: doctor_probe_pack_record
+pack_id: doctor.probe_pack.search_index.v1
+failure_family_class: search_index
+pack_class: search_index_readiness
+pack_version: doctor.probe_pack.search_index.v1
+doctor_pack_ref: project_doctor.pack.search_index_readiness.v1
+summary: >
+  Diagnoses search and index readiness from existing readiness manifests
+  and scope-coverage records without re-running the indexer.
+captured_at: "2026-05-15T12:00:00Z"
+doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+schema_ref: schemas/support/doctor_probe_pack.schema.json
+
+prerequisites:
+  - prerequisite_class: search_index_status_record
+    evidence_ref: evidence:search_index.readiness.status
+    description: >
+      The readiness status record for the search/index host naming
+      requested scope coverage and progress.
+  - prerequisite_class: execution_context_manifest
+    evidence_ref: evidence:search_index.execution_context
+    description: >
+      The execution-context manifest the search/index host was last
+      activated under.
+
+outputs:
+  - finding_code: doctor.finding.search_index.readiness_stalled
+    severity_class: degraded
+    recovery_action_class: open_index_status
+    recovery_step_ref: recovery_step:open_search_index_status_surface
+    description: >
+      Search/index readiness has stalled below the requested scope;
+      Doctor opens the readiness status surface for review.
+  - finding_code: doctor.finding.search_index.scope_below_requested
+    severity_class: degraded
+    recovery_action_class: open_repair_preview
+    recovery_step_ref: recovery_step:search_index_scope_repair_preview
+    description: >
+      The active index scope is below the requested coverage; Doctor
+      opens a repair-preview transaction to expand the indexed scope
+      without applying it.
+
+unsupported_state_handling:
+  unsupported_state_class: evidence_unavailable
+  unsupported_finding_code: doctor.finding.search_index.unsupported_no_status_record
+  handoff_action_class: open_index_status
+  handoff_ref: recovery_step:search_index_status_handoff
+  description: >
+    When the readiness status record is unavailable, Doctor refuses to
+    re-derive readiness from the raw index and hands off to the
+    readiness status surface for the user.

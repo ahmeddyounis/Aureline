@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../../../../schemas/support/doctor_probe_pack.schema.json
+# Beta doctor probe pack: toolchain / execution-context failures.
+
+schema_version: 1
+record_kind: doctor_probe_pack_record
+pack_id: doctor.probe_pack.toolchain.v1
+failure_family_class: toolchain
+pack_class: toolchain_resolution
+pack_version: doctor.probe_pack.toolchain.v1
+doctor_pack_ref: project_doctor.pack.toolchain_resolution.v1
+summary: >
+  Diagnoses required toolchain components and version ranges from
+  existing execution-context manifests and policy decisions.
+captured_at: "2026-05-15T12:00:00Z"
+doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+schema_ref: schemas/support/doctor_probe_pack.schema.json
+
+prerequisites:
+  - prerequisite_class: execution_context_manifest
+    evidence_ref: evidence:execution_context.resolved.manifest
+    description: >
+      The resolved execution-context manifest naming required toolchain
+      components and version ranges for the target.
+  - prerequisite_class: policy_decision_record
+    evidence_ref: evidence:execution_context.policy_decision
+    description: >
+      The policy decision that admitted or denied the requested
+      toolchain configuration.
+
+outputs:
+  - finding_code: doctor.finding.toolchain_missing_required_component
+    severity_class: blocking
+    recovery_action_class: reresolve_toolchain
+    recovery_step_ref: recovery_step:reresolve_toolchain_from_manifest
+    description: >
+      A required toolchain component is missing; Doctor offers a
+      reviewed re-resolution from the existing execution-context
+      manifest instead of installing in-place.
+  - finding_code: doctor.finding.toolchain_version_out_of_range
+    severity_class: degraded
+    recovery_action_class: open_repair_preview
+    recovery_step_ref: recovery_step:toolchain_version_repair_preview
+    description: >
+      The selected toolchain component is out of the declared version
+      range; Doctor opens a typed repair-preview transaction without
+      applying it.
+
+unsupported_state_handling:
+  unsupported_state_class: dependency_missing
+  unsupported_finding_code: doctor.finding.toolchain.unsupported_missing_execution_context
+  handoff_action_class: handoff_to_support
+  handoff_ref: recovery_step:toolchain_support_escalation
+  description: >
+    When the resolved execution-context manifest is missing, Doctor
+    refuses to infer toolchain state from raw environment probes and
+    hands off to a governed support escalation packet.

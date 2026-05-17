@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=../../../../schemas/support/doctor_probe_pack.schema.json
+# Beta doctor probe pack: trust / identity / policy failures.
+
+schema_version: 1
+record_kind: doctor_probe_pack_record
+pack_id: doctor.probe_pack.trust_policy.v1
+failure_family_class: trust_policy
+pack_class: trust_policy
+pack_version: doctor.probe_pack.trust_policy.v1
+doctor_pack_ref: project_doctor.pack.trust_policy.v1
+summary: >
+  Diagnoses trust, identity, and policy denials from existing
+  workspace-trust state and policy-decision records.
+captured_at: "2026-05-15T12:00:00Z"
+doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+schema_ref: schemas/support/doctor_probe_pack.schema.json
+
+prerequisites:
+  - prerequisite_class: trust_state_record
+    evidence_ref: evidence:trust.state.workspace
+    description: >
+      The workspace-trust state record describing the current trust
+      level and decision history for the workspace.
+  - prerequisite_class: policy_decision_record
+    evidence_ref: evidence:trust.policy_decision
+    description: >
+      The policy-decision record for the capability the user requested.
+
+outputs:
+  - finding_code: doctor.finding.trust_policy_blocked
+    severity_class: blocking
+    recovery_action_class: open_policy_details
+    recovery_step_ref: recovery_step:open_policy_details_surface
+    description: >
+      The active trust or policy denies the requested capability;
+      Doctor opens the policy details surface for the user.
+  - finding_code: doctor.finding.trust_policy.safe_mode_required
+    severity_class: blocking
+    recovery_action_class: enter_safe_mode
+    recovery_step_ref: safe_mode_profile:policy_forced:default
+    description: >
+      Active managed policy forces safe mode for this entry; Doctor
+      routes the user to enter a typed policy-forced safe-mode profile
+      instead of widening trust silently.
+
+unsupported_state_handling:
+  unsupported_state_class: dependency_missing
+  unsupported_finding_code: doctor.finding.trust_policy.unsupported_no_policy_record
+  handoff_action_class: handoff_to_support
+  handoff_ref: recovery_step:trust_policy_support_escalation
+  description: >
+    When no policy-decision record is available, Doctor refuses to
+    widen workspace trust as a side effect of diagnosis and hands off
+    to a governed support escalation packet.

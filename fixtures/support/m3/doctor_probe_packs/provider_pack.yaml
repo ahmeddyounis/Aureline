@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=../../../../schemas/support/doctor_probe_pack.schema.json
+# Beta doctor probe pack: provider / credential authority failures.
+
+schema_version: 1
+record_kind: doctor_probe_pack_record
+pack_id: doctor.probe_pack.provider.v1
+failure_family_class: provider
+pack_class: provider_auth
+pack_version: doctor.probe_pack.provider.v1
+doctor_pack_ref: project_doctor.pack.provider_auth.v1
+summary: >
+  Diagnoses provider / credential authority state from existing
+  credential-state manifests; headless runs are gated to support-guided
+  sessions to avoid silent reauthentication prompts.
+captured_at: "2026-05-15T12:00:00Z"
+doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+schema_ref: schemas/support/doctor_probe_pack.schema.json
+
+prerequisites:
+  - prerequisite_class: credential_state_record
+    evidence_ref: evidence:provider.credential.state
+    description: >
+      The credential-state record describing the provider handle, its
+      expiry, and the last reauthentication attempt.
+  - prerequisite_class: policy_decision_record
+    evidence_ref: evidence:provider.policy_decision
+    description: >
+      The policy-decision record describing whether the provider
+      authority is admitted for the requested action.
+
+outputs:
+  - finding_code: doctor.finding.provider_auth.credential_expired
+    severity_class: blocking
+    recovery_action_class: reauthenticate_provider
+    recovery_step_ref: recovery_step:provider_reauthentication_handoff
+    description: >
+      The provider credential has expired; Doctor routes the user to a
+      governed reauthentication flow instead of refreshing tokens
+      silently.
+  - finding_code: doctor.finding.provider_auth.consent_required
+    severity_class: blocking
+    recovery_action_class: handoff_to_support
+    recovery_step_ref: recovery_step:provider_consent_escalation
+    description: >
+      The provider authority requires fresh consent; Doctor hands off
+      to a governed support escalation with the existing credential-state
+      metadata.
+
+unsupported_state_handling:
+  unsupported_state_class: context_not_admitted
+  unsupported_finding_code: doctor.finding.provider_auth.unsupported_headless_context
+  handoff_action_class: handoff_to_support
+  handoff_ref: recovery_step:provider_support_guided_handoff
+  description: >
+    Headless runs cannot complete a provider reauthentication; Doctor
+    routes headless callers to a support-guided session instead of
+    prompting in the background.

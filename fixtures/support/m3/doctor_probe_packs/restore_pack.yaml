@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../../../../schemas/support/doctor_probe_pack.schema.json
+# Beta doctor probe pack: session restore / crash replay continuity failures.
+
+schema_version: 1
+record_kind: doctor_probe_pack_record
+pack_id: doctor.probe_pack.restore.v1
+failure_family_class: restore
+pack_class: restore_continuity
+pack_version: doctor.probe_pack.restore.v1
+doctor_pack_ref: project_doctor.pack.restore_continuity.v1
+summary: >
+  Diagnoses session restore and crash-replay continuity from existing
+  session-restore manifests without re-running restore replay.
+captured_at: "2026-05-15T12:00:00Z"
+doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+schema_ref: schemas/support/doctor_probe_pack.schema.json
+
+prerequisites:
+  - prerequisite_class: session_restore_manifest
+    evidence_ref: evidence:session_restore.manifest
+    description: >
+      The session-restore manifest naming the last-known-good replay
+      state and any blocked replay reasons.
+  - prerequisite_class: admission_manifest
+    evidence_ref: evidence:session_restore.admission
+    description: >
+      The admission manifest naming the workspace entry whose restore
+      replay is being evaluated.
+
+outputs:
+  - finding_code: doctor.finding.restore_continuity.replay_blocked
+    severity_class: blocking
+    recovery_action_class: open_without_restore
+    recovery_step_ref: recovery_step:open_without_session_restore
+    description: >
+      Session restore replay is blocked to avoid an unsafe automatic
+      rerun; Doctor offers an open-without-restore path that preserves
+      user-owned state.
+  - finding_code: doctor.finding.restore_continuity.crash_loop_quarantine_required
+    severity_class: blocking
+    recovery_action_class: start_extension_bisect
+    recovery_step_ref: extension_bisect_session:post_crash_loop:default
+    description: >
+      Restore replay detects a crash-loop signature; Doctor routes the
+      user to a typed extension-bisect session instead of restoring all
+      extensions blindly.
+
+unsupported_state_handling:
+  unsupported_state_class: evidence_unavailable
+  unsupported_finding_code: doctor.finding.restore_continuity.unsupported_no_manifest
+  handoff_action_class: open_without_restore
+  handoff_ref: recovery_step:restore_continuity_open_without_manifest
+  description: >
+    When the session-restore manifest is unavailable, Doctor refuses to
+    rebuild the last-known-good state from raw cache and offers an
+    open-without-restore path instead.

@@ -8,4 +8,5 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-doctor/0.0.0")]
 
+pub mod probe_packs;
 pub mod probes;

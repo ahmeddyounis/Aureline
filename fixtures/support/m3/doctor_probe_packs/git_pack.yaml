@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../../../../schemas/support/doctor_probe_pack.schema.json
+# Beta doctor probe pack: local Git baseline failures.
+
+schema_version: 1
+record_kind: doctor_probe_pack_record
+pack_id: doctor.probe_pack.git.v1
+failure_family_class: git
+pack_class: git_baseline
+pack_version: doctor.probe_pack.git.v1
+doctor_pack_ref: project_doctor.pack.git_baseline.v1
+summary: >
+  Diagnoses local Git baseline issues (repository identity, HEAD,
+  workspace state) from existing workspace-state records without
+  running Git commands during diagnosis.
+captured_at: "2026-05-15T12:00:00Z"
+doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+schema_ref: schemas/support/doctor_probe_pack.schema.json
+
+prerequisites:
+  - prerequisite_class: git_workspace_state
+    evidence_ref: evidence:git.workspace.state
+    description: >
+      The local Git workspace state record describing repository
+      identity, HEAD, and dirty-tree state for the selected root.
+  - prerequisite_class: admission_manifest
+    evidence_ref: evidence:git.workspace.admission
+    description: >
+      The admission manifest naming the workspace root the Git baseline
+      should be derived for.
+
+outputs:
+  - finding_code: doctor.finding.git_baseline.repository_unavailable
+    severity_class: degraded
+    recovery_action_class: open_git_baseline_details
+    recovery_step_ref: recovery_step:open_git_baseline_details_surface
+    description: >
+      The selected workspace root does not resolve to a Git repository;
+      Doctor opens the Git baseline details surface for review.
+  - finding_code: doctor.finding.git_baseline.head_unreadable
+    severity_class: degraded
+    recovery_action_class: handoff_to_support
+    recovery_step_ref: recovery_step:git_baseline_support_escalation
+    description: >
+      The repository is detected but HEAD is unreadable; Doctor refuses
+      to mutate the repo and hands off to a governed support escalation
+      with the existing workspace-state evidence.
+
+unsupported_state_handling:
+  unsupported_state_class: scope_out_of_bounds
+  unsupported_finding_code: doctor.finding.git_baseline.unsupported_scope_out_of_bounds
+  handoff_action_class: open_git_baseline_details
+  handoff_ref: recovery_step:git_baseline_details_handoff
+  description: >
+    When the requested scope is outside the workspace root the Git
+    baseline was prepared for, Doctor hands off to the baseline details
+    surface instead of inferring a baseline from a side channel.

@@ -1,0 +1,372 @@
+# yaml-language-server: $schema=../../../../schemas/support/doctor_probe_pack.schema.json
+# Beta doctor probe-pack catalog covering the seven named failure families.
+
+schema_version: 1
+record_kind: doctor_probe_pack_catalog_record
+catalog_id: doctor.probe_pack.catalog.beta.read_only_baseline
+catalog_version: doctor.probe_pack.catalog.beta.v1
+captured_at: "2026-05-15T12:00:00Z"
+doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+schema_ref: schemas/support/doctor_probe_pack.schema.json
+
+packs:
+  - schema_version: 1
+    record_kind: doctor_probe_pack_record
+    pack_id: doctor.probe_pack.entry.v1
+    failure_family_class: entry
+    pack_class: entry_open_readiness
+    pack_version: doctor.probe_pack.entry.v1
+    doctor_pack_ref: project_doctor.pack.entry_open_readiness.v1
+    summary: >
+      Diagnoses opening, clone/import handoff, and recent-workspace
+      entry failures from existing admission and entry-intent manifests
+      only.
+    captured_at: "2026-05-15T12:00:00Z"
+    doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+    schema_ref: schemas/support/doctor_probe_pack.schema.json
+    prerequisites:
+      - prerequisite_class: admission_manifest
+        evidence_ref: evidence:admission.recent_workspace.target
+        description: >
+          The recent-workspace admission manifest naming the target the
+          user most recently opened.
+      - prerequisite_class: entry_intent_record
+        evidence_ref: evidence:entry.intent.restore_last_session
+        description: >
+          The entry-intent record describing the requested
+          locate-or-restore handoff for the chosen target.
+    outputs:
+      - finding_code: doctor.finding.entry_open.target_unavailable
+        severity_class: blocking
+        recovery_action_class: locate_missing_target
+        recovery_step_ref: recovery_step:locate_missing_target_or_open_minimal
+        description: >
+          The most recent workspace entry target is not available;
+          Doctor offers a reviewed locate-or-open-minimal path instead
+          of silently failing the open.
+      - finding_code: doctor.finding.entry_open.recent_workspace_missing
+        severity_class: degraded
+        recovery_action_class: handoff_to_support
+        recovery_step_ref: recovery_step:open_without_recent_workspace
+        description: >
+          The recent-workspace manifest is missing or unreadable;
+          Doctor hands off to an open-with-empty-recent-workspace path
+          instead of reconstructing the list from a side channel.
+    unsupported_state_handling:
+      unsupported_state_class: evidence_unavailable
+      unsupported_finding_code: doctor.finding.entry_open.unsupported_no_admission_evidence
+      handoff_action_class: handoff_to_support
+      handoff_ref: recovery_step:entry_open_support_escalation
+      description: >
+        When neither the admission manifest nor the entry-intent record
+        is available, Doctor refuses to guess at the entry target and
+        hands off to a governed support escalation packet.
+
+  - schema_version: 1
+    record_kind: doctor_probe_pack_record
+    pack_id: doctor.probe_pack.toolchain.v1
+    failure_family_class: toolchain
+    pack_class: toolchain_resolution
+    pack_version: doctor.probe_pack.toolchain.v1
+    doctor_pack_ref: project_doctor.pack.toolchain_resolution.v1
+    summary: >
+      Diagnoses required toolchain components and version ranges from
+      existing execution-context manifests and policy decisions.
+    captured_at: "2026-05-15T12:00:00Z"
+    doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+    schema_ref: schemas/support/doctor_probe_pack.schema.json
+    prerequisites:
+      - prerequisite_class: execution_context_manifest
+        evidence_ref: evidence:execution_context.resolved.manifest
+        description: >
+          The resolved execution-context manifest naming required
+          toolchain components and version ranges for the target.
+      - prerequisite_class: policy_decision_record
+        evidence_ref: evidence:execution_context.policy_decision
+        description: >
+          The policy decision that admitted or denied the requested
+          toolchain configuration.
+    outputs:
+      - finding_code: doctor.finding.toolchain_missing_required_component
+        severity_class: blocking
+        recovery_action_class: reresolve_toolchain
+        recovery_step_ref: recovery_step:reresolve_toolchain_from_manifest
+        description: >
+          A required toolchain component is missing; Doctor offers a
+          reviewed re-resolution from the existing execution-context
+          manifest instead of installing in-place.
+      - finding_code: doctor.finding.toolchain_version_out_of_range
+        severity_class: degraded
+        recovery_action_class: open_repair_preview
+        recovery_step_ref: recovery_step:toolchain_version_repair_preview
+        description: >
+          The selected toolchain component is out of the declared
+          version range; Doctor opens a typed repair-preview transaction
+          without applying it.
+    unsupported_state_handling:
+      unsupported_state_class: dependency_missing
+      unsupported_finding_code: doctor.finding.toolchain.unsupported_missing_execution_context
+      handoff_action_class: handoff_to_support
+      handoff_ref: recovery_step:toolchain_support_escalation
+      description: >
+        When the resolved execution-context manifest is missing, Doctor
+        refuses to infer toolchain state from raw environment probes
+        and hands off to a governed support escalation packet.
+
+  - schema_version: 1
+    record_kind: doctor_probe_pack_record
+    pack_id: doctor.probe_pack.search_index.v1
+    failure_family_class: search_index
+    pack_class: search_index_readiness
+    pack_version: doctor.probe_pack.search_index.v1
+    doctor_pack_ref: project_doctor.pack.search_index_readiness.v1
+    summary: >
+      Diagnoses search and index readiness from existing readiness
+      manifests and scope-coverage records without re-running the
+      indexer.
+    captured_at: "2026-05-15T12:00:00Z"
+    doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+    schema_ref: schemas/support/doctor_probe_pack.schema.json
+    prerequisites:
+      - prerequisite_class: search_index_status_record
+        evidence_ref: evidence:search_index.readiness.status
+        description: >
+          The readiness status record for the search/index host naming
+          requested scope coverage and progress.
+      - prerequisite_class: execution_context_manifest
+        evidence_ref: evidence:search_index.execution_context
+        description: >
+          The execution-context manifest the search/index host was last
+          activated under.
+    outputs:
+      - finding_code: doctor.finding.search_index.readiness_stalled
+        severity_class: degraded
+        recovery_action_class: open_index_status
+        recovery_step_ref: recovery_step:open_search_index_status_surface
+        description: >
+          Search/index readiness has stalled below the requested scope;
+          Doctor opens the readiness status surface for review.
+      - finding_code: doctor.finding.search_index.scope_below_requested
+        severity_class: degraded
+        recovery_action_class: open_repair_preview
+        recovery_step_ref: recovery_step:search_index_scope_repair_preview
+        description: >
+          The active index scope is below the requested coverage;
+          Doctor opens a repair-preview transaction to expand the
+          indexed scope without applying it.
+    unsupported_state_handling:
+      unsupported_state_class: evidence_unavailable
+      unsupported_finding_code: doctor.finding.search_index.unsupported_no_status_record
+      handoff_action_class: open_index_status
+      handoff_ref: recovery_step:search_index_status_handoff
+      description: >
+        When the readiness status record is unavailable, Doctor refuses
+        to re-derive readiness from the raw index and hands off to the
+        readiness status surface for the user.
+
+  - schema_version: 1
+    record_kind: doctor_probe_pack_record
+    pack_id: doctor.probe_pack.trust_policy.v1
+    failure_family_class: trust_policy
+    pack_class: trust_policy
+    pack_version: doctor.probe_pack.trust_policy.v1
+    doctor_pack_ref: project_doctor.pack.trust_policy.v1
+    summary: >
+      Diagnoses trust, identity, and policy denials from existing
+      workspace-trust state and policy-decision records.
+    captured_at: "2026-05-15T12:00:00Z"
+    doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+    schema_ref: schemas/support/doctor_probe_pack.schema.json
+    prerequisites:
+      - prerequisite_class: trust_state_record
+        evidence_ref: evidence:trust.state.workspace
+        description: >
+          The workspace-trust state record describing the current trust
+          level and decision history for the workspace.
+      - prerequisite_class: policy_decision_record
+        evidence_ref: evidence:trust.policy_decision
+        description: >
+          The policy-decision record for the capability the user
+          requested.
+    outputs:
+      - finding_code: doctor.finding.trust_policy_blocked
+        severity_class: blocking
+        recovery_action_class: open_policy_details
+        recovery_step_ref: recovery_step:open_policy_details_surface
+        description: >
+          The active trust or policy denies the requested capability;
+          Doctor opens the policy details surface for the user.
+      - finding_code: doctor.finding.trust_policy.safe_mode_required
+        severity_class: blocking
+        recovery_action_class: enter_safe_mode
+        recovery_step_ref: safe_mode_profile:policy_forced:default
+        description: >
+          Active managed policy forces safe mode for this entry;
+          Doctor routes the user to enter a typed policy-forced
+          safe-mode profile instead of widening trust silently.
+    unsupported_state_handling:
+      unsupported_state_class: dependency_missing
+      unsupported_finding_code: doctor.finding.trust_policy.unsupported_no_policy_record
+      handoff_action_class: handoff_to_support
+      handoff_ref: recovery_step:trust_policy_support_escalation
+      description: >
+        When no policy-decision record is available, Doctor refuses to
+        widen workspace trust as a side effect of diagnosis and hands
+        off to a governed support escalation packet.
+
+  - schema_version: 1
+    record_kind: doctor_probe_pack_record
+    pack_id: doctor.probe_pack.git.v1
+    failure_family_class: git
+    pack_class: git_baseline
+    pack_version: doctor.probe_pack.git.v1
+    doctor_pack_ref: project_doctor.pack.git_baseline.v1
+    summary: >
+      Diagnoses local Git baseline issues (repository identity, HEAD,
+      workspace state) from existing workspace-state records without
+      running Git commands during diagnosis.
+    captured_at: "2026-05-15T12:00:00Z"
+    doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+    schema_ref: schemas/support/doctor_probe_pack.schema.json
+    prerequisites:
+      - prerequisite_class: git_workspace_state
+        evidence_ref: evidence:git.workspace.state
+        description: >
+          The local Git workspace state record describing repository
+          identity, HEAD, and dirty-tree state for the selected root.
+      - prerequisite_class: admission_manifest
+        evidence_ref: evidence:git.workspace.admission
+        description: >
+          The admission manifest naming the workspace root the Git
+          baseline should be derived for.
+    outputs:
+      - finding_code: doctor.finding.git_baseline.repository_unavailable
+        severity_class: degraded
+        recovery_action_class: open_git_baseline_details
+        recovery_step_ref: recovery_step:open_git_baseline_details_surface
+        description: >
+          The selected workspace root does not resolve to a Git
+          repository; Doctor opens the Git baseline details surface for
+          review.
+      - finding_code: doctor.finding.git_baseline.head_unreadable
+        severity_class: degraded
+        recovery_action_class: handoff_to_support
+        recovery_step_ref: recovery_step:git_baseline_support_escalation
+        description: >
+          The repository is detected but HEAD is unreadable; Doctor
+          refuses to mutate the repo and hands off to a governed
+          support escalation with the existing workspace-state evidence.
+    unsupported_state_handling:
+      unsupported_state_class: scope_out_of_bounds
+      unsupported_finding_code: doctor.finding.git_baseline.unsupported_scope_out_of_bounds
+      handoff_action_class: open_git_baseline_details
+      handoff_ref: recovery_step:git_baseline_details_handoff
+      description: >
+        When the requested scope is outside the workspace root the Git
+        baseline was prepared for, Doctor hands off to the baseline
+        details surface instead of inferring a baseline from a side
+        channel.
+
+  - schema_version: 1
+    record_kind: doctor_probe_pack_record
+    pack_id: doctor.probe_pack.provider.v1
+    failure_family_class: provider
+    pack_class: provider_auth
+    pack_version: doctor.probe_pack.provider.v1
+    doctor_pack_ref: project_doctor.pack.provider_auth.v1
+    summary: >
+      Diagnoses provider / credential authority state from existing
+      credential-state manifests; headless runs are gated to
+      support-guided sessions to avoid silent reauthentication prompts.
+    captured_at: "2026-05-15T12:00:00Z"
+    doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+    schema_ref: schemas/support/doctor_probe_pack.schema.json
+    prerequisites:
+      - prerequisite_class: credential_state_record
+        evidence_ref: evidence:provider.credential.state
+        description: >
+          The credential-state record describing the provider handle,
+          its expiry, and the last reauthentication attempt.
+      - prerequisite_class: policy_decision_record
+        evidence_ref: evidence:provider.policy_decision
+        description: >
+          The policy-decision record describing whether the provider
+          authority is admitted for the requested action.
+    outputs:
+      - finding_code: doctor.finding.provider_auth.credential_expired
+        severity_class: blocking
+        recovery_action_class: reauthenticate_provider
+        recovery_step_ref: recovery_step:provider_reauthentication_handoff
+        description: >
+          The provider credential has expired; Doctor routes the user
+          to a governed reauthentication flow instead of refreshing
+          tokens silently.
+      - finding_code: doctor.finding.provider_auth.consent_required
+        severity_class: blocking
+        recovery_action_class: handoff_to_support
+        recovery_step_ref: recovery_step:provider_consent_escalation
+        description: >
+          The provider authority requires fresh consent; Doctor hands
+          off to a governed support escalation with the existing
+          credential-state metadata.
+    unsupported_state_handling:
+      unsupported_state_class: context_not_admitted
+      unsupported_finding_code: doctor.finding.provider_auth.unsupported_headless_context
+      handoff_action_class: handoff_to_support
+      handoff_ref: recovery_step:provider_support_guided_handoff
+      description: >
+        Headless runs cannot complete a provider reauthentication;
+        Doctor routes headless callers to a support-guided session
+        instead of prompting in the background.
+
+  - schema_version: 1
+    record_kind: doctor_probe_pack_record
+    pack_id: doctor.probe_pack.restore.v1
+    failure_family_class: restore
+    pack_class: restore_continuity
+    pack_version: doctor.probe_pack.restore.v1
+    doctor_pack_ref: project_doctor.pack.restore_continuity.v1
+    summary: >
+      Diagnoses session restore and crash-replay continuity from
+      existing session-restore manifests without re-running restore
+      replay.
+    captured_at: "2026-05-15T12:00:00Z"
+    doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+    schema_ref: schemas/support/doctor_probe_pack.schema.json
+    prerequisites:
+      - prerequisite_class: session_restore_manifest
+        evidence_ref: evidence:session_restore.manifest
+        description: >
+          The session-restore manifest naming the last-known-good
+          replay state and any blocked replay reasons.
+      - prerequisite_class: admission_manifest
+        evidence_ref: evidence:session_restore.admission
+        description: >
+          The admission manifest naming the workspace entry whose
+          restore replay is being evaluated.
+    outputs:
+      - finding_code: doctor.finding.restore_continuity.replay_blocked
+        severity_class: blocking
+        recovery_action_class: open_without_restore
+        recovery_step_ref: recovery_step:open_without_session_restore
+        description: >
+          Session restore replay is blocked to avoid an unsafe
+          automatic rerun; Doctor offers an open-without-restore path
+          that preserves user-owned state.
+      - finding_code: doctor.finding.restore_continuity.crash_loop_quarantine_required
+        severity_class: blocking
+        recovery_action_class: start_extension_bisect
+        recovery_step_ref: extension_bisect_session:post_crash_loop:default
+        description: >
+          Restore replay detects a crash-loop signature; Doctor routes
+          the user to a typed extension-bisect session instead of
+          restoring all extensions blindly.
+    unsupported_state_handling:
+      unsupported_state_class: evidence_unavailable
+      unsupported_finding_code: doctor.finding.restore_continuity.unsupported_no_manifest
+      handoff_action_class: open_without_restore
+      handoff_ref: recovery_step:restore_continuity_open_without_manifest
+      description: >
+        When the session-restore manifest is unavailable, Doctor
+        refuses to rebuild the last-known-good state from raw cache and
+        offers an open-without-restore path instead.

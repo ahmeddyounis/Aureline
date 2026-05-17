@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../../../../schemas/support/doctor_probe_pack.schema.json
+# Beta doctor probe pack: entry/open failures.
+
+schema_version: 1
+record_kind: doctor_probe_pack_record
+pack_id: doctor.probe_pack.entry.v1
+failure_family_class: entry
+pack_class: entry_open_readiness
+pack_version: doctor.probe_pack.entry.v1
+doctor_pack_ref: project_doctor.pack.entry_open_readiness.v1
+summary: >
+  Diagnoses opening, clone/import handoff, and recent-workspace entry
+  failures from existing admission and entry-intent manifests only.
+captured_at: "2026-05-15T12:00:00Z"
+doc_ref: docs/support/m3/doctor_probe_packs_beta.md
+schema_ref: schemas/support/doctor_probe_pack.schema.json
+
+prerequisites:
+  - prerequisite_class: admission_manifest
+    evidence_ref: evidence:admission.recent_workspace.target
+    description: >
+      The recent-workspace admission manifest naming the target the user
+      most recently opened.
+  - prerequisite_class: entry_intent_record
+    evidence_ref: evidence:entry.intent.restore_last_session
+    description: >
+      The entry-intent record describing the requested locate-or-restore
+      handoff for the chosen target.
+
+outputs:
+  - finding_code: doctor.finding.entry_open.target_unavailable
+    severity_class: blocking
+    recovery_action_class: locate_missing_target
+    recovery_step_ref: recovery_step:locate_missing_target_or_open_minimal
+    description: >
+      The most recent workspace entry target is not available; Doctor
+      offers a reviewed locate-or-open-minimal path instead of silently
+      failing the open.
+  - finding_code: doctor.finding.entry_open.recent_workspace_missing
+    severity_class: degraded
+    recovery_action_class: handoff_to_support
+    recovery_step_ref: recovery_step:open_without_recent_workspace
+    description: >
+      The recent-workspace manifest is missing or unreadable; Doctor
+      hands off to an open-with-empty-recent-workspace path instead of
+      reconstructing the list from a side channel.
+
+unsupported_state_handling:
+  unsupported_state_class: evidence_unavailable
+  unsupported_finding_code: doctor.finding.entry_open.unsupported_no_admission_evidence
+  handoff_action_class: handoff_to_support
+  handoff_ref: recovery_step:entry_open_support_escalation
+  description: >
+    When neither the admission manifest nor the entry-intent record is
+    available, Doctor refuses to guess at the entry target and hands off
+    to a governed support escalation packet.

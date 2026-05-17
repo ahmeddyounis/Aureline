@@ -12,6 +12,7 @@
 //! packet without re-deriving it from a side channel.
 
 pub mod beta;
+pub mod probe_pack_coverage;
 
 use std::collections::{BTreeMap, BTreeSet};
 
