@@ -58,6 +58,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-reactive-state/0.0.0")]
 
 pub mod envelope;
+pub mod generated_lineage;
 pub mod harness;
 pub mod hooks;
 pub mod producers;

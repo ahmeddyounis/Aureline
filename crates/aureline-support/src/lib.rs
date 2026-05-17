@@ -106,6 +106,7 @@ pub mod bundle;
 pub mod capabilities;
 pub mod extension_bisect;
 pub mod fitness;
+pub mod generated_lineage;
 pub mod graph_drift;
 pub mod incident_workspace_beta;
 pub mod m3_scenario_corpus;
