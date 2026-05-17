@@ -18,6 +18,12 @@ claim-manifest and compatibility-report projection through
 the same manifest rows as service health and activates the community handoff
 action without losing the current object or issue context.
 
+The docs / public-proof parity blocker
+(`tools/ci/m3/docs_public_proof_gate/`) verifies that the freshness tokens
+rendered by this Help / About card remain the same tokens used by the claim
+manifest and public-proof packets. Its generated report lives at
+`artifacts/docs/m3/public_proof_parity_report.md`.
+
 ## What the seed surface guarantees
 
 The surface is a thin projection over upstream truth — no surface in the

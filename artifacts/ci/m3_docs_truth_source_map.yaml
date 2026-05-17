@@ -17,9 +17,11 @@
 # - the release-notes draft the gate fails closed on unless it
 #   back-links every named claim-manifest row and every named
 #   compatibility row before beta publication;
-# - the named failure drills the gates replay under `--force-drill`
-#   so the pipeline is reproducible without hand-curated stale
-#   fixtures.
+# - the named failure drills the freshness and stale-example gates
+#   replay under `--force-drill` so the pipeline is reproducible
+#   without hand-curated stale fixtures; and
+# - the docs / public-proof parity report that joins the generated
+#   captures to public-proof packets and Help/About badge semantics.
 #
 # The freshness-gate entry point is
 # `tools/ci/m3/docs_freshness_gate.py`. The stale-example entry point
@@ -41,6 +43,7 @@ owner_dri: "@ahmeddyounis"
 overview_page: docs/milestones/m3/beta_admission_matrix.md
 freshness_gate_entrypoint: tools/ci/m3/docs_freshness_gate.py
 stale_example_entrypoint: tools/ci/m3/stale_example_checker.py
+docs_public_proof_gate_entrypoint: tools/ci/m3/docs_public_proof_gate/
 ci_gate_manifest: ci/docs/m3_docs_truth_gate.yml
 build_identity_ref: artifacts/build/build_identity.json
 validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
@@ -53,12 +56,15 @@ claim_manifest_ref: artifacts/release/m3/claim_manifest.json
 compatibility_report_ref: artifacts/compat/m3/compatibility_report.json
 release_notes_draft_ref: artifacts/release/m3/release_notes_draft.md
 
-# Generated outputs. The freshness gate refreshes both files in place
-# on every run; under `--check` it fails if either would drift from
-# the upstream truth.
+# Generated outputs. The gates refresh these files in place on every
+# run; under `--check` they fail if any generated output would drift
+# from upstream truth.
 docs_truth_report_ref: artifacts/docs/m3/docs_truth_report.md
+docs_public_proof_parity_report_ref: artifacts/docs/m3/public_proof_parity_report.md
 freshness_capture_ref: artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json
 stale_example_capture_ref: artifacts/docs/m3/captures/m3_stale_example_validation_capture.json
+docs_public_proof_parity_capture_ref: artifacts/docs/m3/captures/m3_docs_public_proof_parity_capture.json
+stale_example_policy_ref: docs/governance/m3/stale_example_policy.md
 
 # The freshness gate fails when the manifest as_of is older than this
 # many days from today. The floor is intentionally generous; it stops
@@ -116,6 +122,12 @@ consuming_surfaces:
     must_contain_tokens:
       - "provenance"
       - "boundary"
+  - surface_ref: docs/governance/m3/stale_example_policy.md
+    purpose: stale_example_policy
+    must_contain_tokens:
+      - "stale-example"
+      - "public-proof"
+      - "freshness"
 
 # Beta-claim manifest rows the gate enforces. Every manifest_row_id
 # below MUST be present in the manifest rows[] list. The gate fails
@@ -152,12 +164,14 @@ release_notes_requirements:
 # declared payload tokens MUST appear in the manifest vocabulary.
 protected_examples:
   - example_id: m3_docs_truth.project_docs_fresh_pack
+    claim_family: docs_freshness
     payload_ref: fixtures/docs/docs_pack_examples/project_docs_fresh.json
     schema_ref: schemas/docs/docs_pack_manifest.schema.json
     vocabulary_pins:
       - vocabulary_id: provenance_label
         payload_path: source_class
   - example_id: m3_docs_truth.docs_browser_project_docs_live_verified
+    claim_family: docs_freshness
     payload_ref: fixtures/help/docs_browser_cases/project_docs_live_verified.json
     schema_ref: schemas/ux/embedded_boundary_card.schema.json
     vocabulary_pins:

@@ -100,15 +100,22 @@ the exact row, packet, and freshness delta causing each block.
 - Source map: `artifacts/ci/m3_docs_truth_source_map.yaml`
 - Freshness gate: `tools/ci/m3/docs_freshness_gate.py`
 - Stale-example checker: `tools/ci/m3/stale_example_checker.py`
+- Docs / public-proof parity blocker:
+  `tools/ci/m3/docs_public_proof_gate/`
 - CI gate manifest: `ci/docs/m3_docs_truth_gate.yml`
 - CI shell entry: `ci/check_m3_docs_truth.sh`
+- Stale-example policy:
+  `docs/governance/m3/stale_example_policy.md`
 - Release-notes draft (gate input):
   `artifacts/release/m3/release_notes_draft.md`
 - Generated truth report:
   `artifacts/docs/m3/docs_truth_report.md`
+- Generated parity report:
+  `artifacts/docs/m3/public_proof_parity_report.md`
 - Latest validation captures:
   - `artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json`
   - `artifacts/docs/m3/captures/m3_stale_example_validation_capture.json`
+  - `artifacts/docs/m3/captures/m3_docs_public_proof_parity_capture.json`
 
 The gate replays named failure drills under `--force-drill` so the
 pipeline is reproducible without hand-curated stale fixtures:
@@ -121,6 +128,12 @@ pipeline is reproducible without hand-curated stale fixtures:
   a payload field to a token outside the manifest vocabulary and
   asserts the stale-example checker fails with
   `stale_examples.vocabulary_pin_not_in_manifest`.
+
+The parity blocker joins those captures to the public-proof index and
+Help/About badge vocabulary. It blocks promotion when a marketed beta
+row has no freshness badge, a stale-example capture is failing, a
+public-proof packet is stale, or the claim-manifest badge would render
+fresher than the proof row that backs the same claim family.
 
 ## Beta enablement starter pack
 

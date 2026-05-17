@@ -129,8 +129,8 @@ every line back to the named row before sign-off.
 
 ## How the gate enforces this draft
 
-The freshness gate at `tools/ci/m3/docs_freshness_gate.py` fails
-closed when this draft:
+The freshness gate at `tools/ci/m3/docs_freshness_gate.py` fails closed
+when this draft:
 
 - omits the claim-manifest `manifest_id`;
 - omits the claim-manifest `as_of`;
@@ -144,3 +144,11 @@ The reproducer drill
 `m3_docs_truth.release_notes_manifest_backlink_missing` strips the
 manifest id from this draft and re-runs the gate to verify the gate
 fails with `release_notes.manifest_backlink_missing`.
+
+The docs / public-proof parity blocker at
+`tools/ci/m3/docs_public_proof_gate/` also reads this draft as one of
+the docs-freshness public-proof outputs. It blocks promotion when the
+stale-example capture is failing, the public-proof downgrade matrix has
+drifted from the canonical index, a marketed row has no freshness badge,
+or a row's manifest badge would render fresher than its backing
+public-proof packet.

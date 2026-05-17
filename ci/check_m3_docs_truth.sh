@@ -8,10 +8,13 @@
 #     generated truth report regeneration.
 #   - tools/ci/m3/stale_example_checker.py — protected fixture-backed
 #     example validation against schemas and manifest vocabularies.
+#   - tools/ci/m3/docs_public_proof_gate/ — parity blocker that joins
+#     docs captures, stale examples, public-proof packets, and the
+#     Help/About freshness badge vocabulary on marketed beta rows.
 #
-# Both validators refresh their durable JSON captures on every run;
-# under --check mode the freshness gate also fails if the generated
-# truth report would drift from upstream truth.
+# Validators refresh their durable JSON captures on every run; under
+# --check mode generated reports also fail when they drift from
+# upstream truth.
 
 set -euo pipefail
 
@@ -29,7 +32,8 @@ Usage: ci/check_m3_docs_truth.sh [--check]
 Runs the M3 docs / public-truth gate. The freshness gate regenerates
 the docs truth report and validation captures; the stale-example
 checker re-validates protected fixtures against the live claim
-manifest vocabularies.
+manifest vocabularies; the parity blocker verifies marketed rows are
+not fresher than their public proof.
 
 Options:
   --check       Fail when the on-disk truth report would drift from
@@ -71,6 +75,7 @@ export LC_ALL=C
 
 FRESHNESS_EXIT=0
 STALE_EXIT=0
+PARITY_EXIT=0
 
 python3 tools/ci/m3/docs_freshness_gate.py --repo-root . ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
   || FRESHNESS_EXIT=$?
@@ -78,13 +83,19 @@ python3 tools/ci/m3/docs_freshness_gate.py --repo-root . ${EXTRA_ARGS[@]+"${EXTR
 python3 tools/ci/m3/stale_example_checker.py --repo-root . \
   || STALE_EXIT=$?
 
-if (( FRESHNESS_EXIT != 0 )) || (( STALE_EXIT != 0 )); then
-  printf '[m3-docs-truth] FAIL (freshness=%s, stale_examples=%s)\n' \
-    "${FRESHNESS_EXIT}" "${STALE_EXIT}" >&2
+python3 -m tools.ci.m3.docs_public_proof_gate --repo-root . ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
+  || PARITY_EXIT=$?
+
+if (( FRESHNESS_EXIT != 0 )) || (( STALE_EXIT != 0 )) || (( PARITY_EXIT != 0 )); then
+  printf '[m3-docs-truth] FAIL (freshness=%s, stale_examples=%s, parity=%s)\n' \
+    "${FRESHNESS_EXIT}" "${STALE_EXIT}" "${PARITY_EXIT}" >&2
   if (( FRESHNESS_EXIT != 0 )); then
     exit "${FRESHNESS_EXIT}"
   fi
-  exit "${STALE_EXIT}"
+  if (( STALE_EXIT != 0 )); then
+    exit "${STALE_EXIT}"
+  fi
+  exit "${PARITY_EXIT}"
 fi
 
 printf '[m3-docs-truth] PASS\n'

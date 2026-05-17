@@ -247,11 +247,17 @@ rows:
       stale_propagation_profile: docs_truth_stale
     current_outputs:
       - artifacts/docs/m3/docs_truth_report.md
+      - artifacts/docs/m3/public_proof_parity_report.md
+      - artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json
+      - artifacts/docs/m3/captures/m3_stale_example_validation_capture.json
+      - artifacts/docs/m3/captures/m3_docs_public_proof_parity_capture.json
       - artifacts/release/m3/release_notes_draft.md
     supporting_evidence_refs:
       - artifacts/ci/m3_docs_truth_source_map.yaml
       - tools/ci/m3/docs_freshness_gate.py
       - tools/ci/m3/stale_example_checker.py
+      - tools/ci/m3/docs_public_proof_gate/
+      - docs/governance/m3/stale_example_policy.md
     exact_build_identity_ref: artifacts/build/build_identity.json
     rerun_trigger_refs:
       - docs_truth_contract_or_pack_revision_changed
@@ -261,7 +267,7 @@ rows:
     latest_capture:
       captured_at: "2026-05-15T20:39:50Z"
       command: bash ci/check_m3_docs_truth.sh
-      report_ref: artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json
+      report_ref: artifacts/docs/m3/captures/m3_docs_public_proof_parity_capture.json
 
   - row_id: m3_public_proof:version_skew_truth
     claim_family: version_skew_truth

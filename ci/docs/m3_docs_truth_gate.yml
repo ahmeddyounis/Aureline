@@ -1,7 +1,7 @@
 # M3 docs / public-truth CI gate manifest.
 #
 # This file is the canonical machine-readable description of the M3
-# beta docs-and-public-truth CI gate. The gate composes two
+# beta docs-and-public-truth CI gate. The gate composes three
 # validators:
 #
 #   - tools/ci/m3/docs_freshness_gate.py — verifies that every
@@ -12,8 +12,11 @@
 #   - tools/ci/m3/stale_example_checker.py — re-validates the
 #     protected fixture-backed examples against their pinned schemas
 #     and the manifest vocabularies.
+#   - tools/ci/m3/docs_public_proof_gate/ — joins the docs captures,
+#     stale-example capture, public-proof downgrade matrix, and
+#     Help/About freshness badge vocabulary for marketed beta rows.
 #
-# The gate is fail-close: any error from either validator stops a
+# The gate is fail-close: any error from any validator stops a
 # beta publication. Advisory downgrade is allowed only via the
 # rollback lever below, and only while the underlying drift is being
 # investigated.
@@ -31,6 +34,7 @@ overview_page: docs/milestones/m3/beta_admission_matrix.md
 source_map_ref: artifacts/ci/m3_docs_truth_source_map.yaml
 freshness_gate_entrypoint: tools/ci/m3/docs_freshness_gate.py
 stale_example_entrypoint: tools/ci/m3/stale_example_checker.py
+docs_public_proof_gate_entrypoint: tools/ci/m3/docs_public_proof_gate/
 shell_entrypoint: ci/check_m3_docs_truth.sh
 validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
 
@@ -51,15 +55,17 @@ protected_paths:
   - docs/release/release_evidence_packet_template.md
   - docs/help/help_about_truth_source.md
   - docs/about/about_provenance_and_boundary_contract.md
+  - docs/governance/m3/stale_example_policy.md
   - tools/ci/m3/docs_freshness_gate.py
   - tools/ci/m3/stale_example_checker.py
+  - tools/ci/m3/docs_public_proof_gate/__main__.py
   - tools/ci/m3/_common.py
 
 commands:
   local_run:
     description: >
-      Reproduce the gate locally on a clean checkout. Writes both
-      durable JSON captures and refreshes the generated truth report.
+      Reproduce the gate locally on a clean checkout. Writes the
+      durable JSON captures and refreshes generated reports.
     command: >-
       bash ci/check_m3_docs_truth.sh
   freshness_gate_only:
@@ -74,11 +80,19 @@ commands:
       stale-example capture.
     command: >-
       python3 tools/ci/m3/stale_example_checker.py --repo-root .
+  docs_public_proof_parity_only:
+    description: >
+      Run the parity blocker independently; refreshes the parity report
+      and capture.
+    command: >-
+      python3 -m tools.ci.m3.docs_public_proof_gate --repo-root .
 
 artifact_outputs:
   docs_truth_report_ref: artifacts/docs/m3/docs_truth_report.md
+  docs_public_proof_parity_report_ref: artifacts/docs/m3/public_proof_parity_report.md
   freshness_capture_ref: artifacts/docs/m3/captures/m3_docs_freshness_validation_capture.json
   stale_example_capture_ref: artifacts/docs/m3/captures/m3_stale_example_validation_capture.json
+  docs_public_proof_parity_capture_ref: artifacts/docs/m3/captures/m3_docs_public_proof_parity_capture.json
 
 failure_outputs:
   pinpointed_failure_class:
@@ -101,6 +115,10 @@ failure_outputs:
       - stale_examples.payload_missing
       - stale_examples.example_payload_schema_invalid
       - stale_examples.vocabulary_pin_not_in_manifest
+      - marketed_row.freshness_badge_missing
+      - marketed_row.badge_wider_than_public_proof
+      - public_proof_capture.current_outputs_mismatch
+      - docs_public_proof.required_output_missing
 
 rollback_lever:
   description: >
@@ -118,6 +136,7 @@ refresh_policy:
     - artifacts/ci/m3_docs_truth_source_map.yaml
     - tools/ci/m3/docs_freshness_gate.py
     - tools/ci/m3/stale_example_checker.py
+    - tools/ci/m3/docs_public_proof_gate/__main__.py
     - tools/ci/m3/_common.py
     - artifacts/release/m3/claim_manifest.json
     - artifacts/release/m3/claim_manifest_matrix.yaml
