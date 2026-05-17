@@ -110,6 +110,7 @@ pub mod generated_lineage;
 pub mod graph_drift;
 pub mod incident_workspace_beta;
 pub mod m3_scenario_corpus;
+pub mod mutation_journal;
 pub mod project_doctor;
 pub mod publication_dry_run;
 pub mod recovery_ladder;

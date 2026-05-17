@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/mutation_journal.schema.json",
+  "title": "Aureline mutation-journal beta",
+  "description": "Boundary schema for the mutation_journal_case_record and mutation_journal_report_record consumed by aureline-reactive-state's mutation_journal module. A case record groups one material multi-file or tool-driven write and binds it to its source_lane (ai_assistant, interactive_refactor, automated_tooling, manual_save, migration_replay, restore_pipeline), actor_class, authority_class, entry_kind, attribution_state, replayability_state, the recovery_class the journal can take (exact_undo, compensation, regeneration, checkpoint_restore, requires_user_resolution), a metadata-safe support_export projection that preserves the audit fields so support and incident packets can explain what changed without re-reading raw diffs, and a closed downgrade_label for failing rows. The report record folds every case into source-lane and recovery-class summaries so support and export pipelines can audit journal posture without re-running the underlying writes.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/mutation_journal_case_record" },
+    { "$ref": "#/$defs/mutation_journal_report_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "count_value": { "type": "integer", "minimum": 0 },
+    "positive_count": { "type": "integer", "minimum": 1 },
+    "repo_relative_path": { "type": "string", "minLength": 1 },
+    "source_lane": {
+      "type": "string",
+      "enum": [
+        "ai_assistant",
+        "interactive_refactor",
+        "automated_tooling",
+        "manual_save",
+        "migration_replay",
+        "restore_pipeline"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_user",
+        "ai_agent",
+        "automated_tool",
+        "system_service",
+        "unknown_actor"
+      ]
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ]
+    },
+    "entry_kind": {
+      "type": "string",
+      "enum": [
+        "single_file_write",
+        "multi_file_write",
+        "directory_rename",
+        "metadata_write",
+        "derived_artifact_write"
+      ]
+    },
+    "recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensation",
+        "regeneration",
+        "checkpoint_restore",
+        "requires_user_resolution"
+      ]
+    },
+    "attribution_state": {
+      "type": "string",
+      "enum": ["attributed", "partially_attributed", "unattributed"]
+    },
+    "replayability_state": {
+      "type": "string",
+      "enum": [
+        "replay_ready",
+        "replay_with_compensation",
+        "regenerate_only",
+        "requires_manual_inspection"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "incident_packet",
+        "support_bundle",
+        "doctor_probe",
+        "crash_report",
+        "recovery_ladder"
+      ]
+    },
+    "downgrade_label": {
+      "type": "string",
+      "enum": [
+        "none",
+        "red_blocks_beta_row",
+        "yellow_partial_attribution",
+        "yellow_recovery_class_unknown",
+        "degraded_to_checkpoint_restore_only",
+        "stale_corpus_blocks_release_candidate"
+      ]
+    },
+    "open_gap_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "attribution_pending",
+        "compensation_class_pending",
+        "replay_pipeline_pending",
+        "support_export_pending"
+      ]
+    },
+    "open_gap_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gap_class", "summary"],
+      "properties": {
+        "gap_class": { "$ref": "#/$defs/open_gap_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_export_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "includes_entry_id",
+        "includes_source_lane",
+        "includes_actor_class",
+        "includes_authority_class",
+        "includes_recovery_class",
+        "includes_replayability_state",
+        "includes_affected_paths",
+        "raw_payload_excluded",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "includes_entry_id": { "type": "boolean", "const": true },
+        "includes_source_lane": { "type": "boolean", "const": true },
+        "includes_actor_class": { "type": "boolean", "const": true },
+        "includes_authority_class": { "type": "boolean", "const": true },
+        "includes_recovery_class": { "type": "boolean", "const": true },
+        "includes_replayability_state": { "type": "boolean", "const": true },
+        "includes_affected_paths": { "type": "boolean", "const": true },
+        "raw_payload_excluded": { "type": "boolean", "const": true },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "preserves_user_authored_files": { "type": "boolean", "const": true }
+      }
+    },
+    "case_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "destructive_resets_present",
+        "preserves_user_authored_files"
+      ],
+      "properties": {
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "destructive_resets_present": { "type": "boolean", "const": false },
+        "preserves_user_authored_files": { "type": "boolean", "const": true }
+      }
+    },
+    "case_references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_ref", "schema_ref", "report_ref"],
+      "properties": {
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/state/m3/mutation_journal_beta.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/state/mutation_journal.schema.json"
+        },
+        "report_ref": {
+          "type": "string",
+          "const": "artifacts/support/m3/mutation_journal_beta_report.md"
+        }
+      }
+    },
+    "mutation_journal_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "entry_id",
+        "title",
+        "source_lane",
+        "actor_class",
+        "authority_class",
+        "entry_kind",
+        "group_size",
+        "affected_paths",
+        "recovery_class",
+        "attribution_state",
+        "replayability_state",
+        "consumer_surface",
+        "support_export",
+        "downgrade_label",
+        "safety",
+        "references",
+        "captured_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "mutation_journal_case_record"
+        },
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "source_lane": { "$ref": "#/$defs/source_lane" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "entry_kind": { "$ref": "#/$defs/entry_kind" },
+        "group_size": { "$ref": "#/$defs/positive_count" },
+        "affected_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repo_relative_path" }
+        },
+        "recovery_class": { "$ref": "#/$defs/recovery_class" },
+        "attribution_state": { "$ref": "#/$defs/attribution_state" },
+        "replayability_state": { "$ref": "#/$defs/replayability_state" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "support_export": { "$ref": "#/$defs/support_export_projection" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "open_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_gap_entry" }
+        },
+        "safety": { "$ref": "#/$defs/case_safety" },
+        "references": { "$ref": "#/$defs/case_references" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "report_matrix_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "consumer_surface",
+        "source_lane",
+        "actor_class",
+        "authority_class",
+        "entry_kind",
+        "group_size",
+        "affected_path_count",
+        "recovery_class",
+        "attribution_state",
+        "replayability_state",
+        "downgrade_label",
+        "open_gap_classes"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "source_lane": { "$ref": "#/$defs/source_lane" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "entry_kind": { "$ref": "#/$defs/entry_kind" },
+        "group_size": { "$ref": "#/$defs/positive_count" },
+        "affected_path_count": { "$ref": "#/$defs/positive_count" },
+        "recovery_class": { "$ref": "#/$defs/recovery_class" },
+        "attribution_state": { "$ref": "#/$defs/attribution_state" },
+        "replayability_state": { "$ref": "#/$defs/replayability_state" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "open_gap_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/open_gap_class" }
+        }
+      }
+    },
+    "source_lane_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_lane",
+        "case_count",
+        "attributed_count",
+        "partially_attributed_count",
+        "unattributed_count",
+        "downgrade_required_count"
+      ],
+      "properties": {
+        "source_lane": { "$ref": "#/$defs/source_lane" },
+        "case_count": { "$ref": "#/$defs/count_value" },
+        "attributed_count": { "$ref": "#/$defs/count_value" },
+        "partially_attributed_count": { "$ref": "#/$defs/count_value" },
+        "unattributed_count": { "$ref": "#/$defs/count_value" },
+        "downgrade_required_count": { "$ref": "#/$defs/count_value" }
+      }
+    },
+    "recovery_class_summary_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recovery_class",
+        "case_count",
+        "replay_ready_count",
+        "replay_with_compensation_count",
+        "regenerate_only_count",
+        "requires_manual_inspection_count"
+      ],
+      "properties": {
+        "recovery_class": { "$ref": "#/$defs/recovery_class" },
+        "case_count": { "$ref": "#/$defs/count_value" },
+        "replay_ready_count": { "$ref": "#/$defs/count_value" },
+        "replay_with_compensation_count": { "$ref": "#/$defs/count_value" },
+        "regenerate_only_count": { "$ref": "#/$defs/count_value" },
+        "requires_manual_inspection_count": { "$ref": "#/$defs/count_value" }
+      }
+    },
+    "mutation_journal_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "report_id",
+        "captured_at",
+        "doc_ref",
+        "schema_ref",
+        "corpus_manifest_ref",
+        "raw_payload_excluded",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "required_source_lanes",
+        "required_recovery_classes",
+        "required_consumer_surfaces",
+        "matrix_rows",
+        "source_lane_summaries",
+        "recovery_class_summaries"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "mutation_journal_report_record"
+        },
+        "report_id": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/state/m3/mutation_journal_beta.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/state/mutation_journal.schema.json"
+        },
+        "corpus_manifest_ref": {
+          "type": "string",
+          "const": "fixtures/state/mutation_journal_beta/manifest.yaml"
+        },
+        "raw_payload_excluded": { "type": "boolean", "const": true },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "ambient_authority_excluded": { "type": "boolean", "const": true },
+        "required_source_lanes": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/source_lane" }
+        },
+        "required_recovery_classes": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/recovery_class" }
+        },
+        "required_consumer_surfaces": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "matrix_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/report_matrix_row" }
+        },
+        "source_lane_summaries": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/source_lane_summary_row" }
+        },
+        "recovery_class_summaries": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/recovery_class_summary_row" }
+        }
+      }
+    }
+  }
+}

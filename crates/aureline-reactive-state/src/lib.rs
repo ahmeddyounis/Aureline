@@ -61,6 +61,7 @@ pub mod envelope;
 pub mod generated_lineage;
 pub mod harness;
 pub mod hooks;
+pub mod mutation_journal;
 pub mod producers;
 pub mod query_envelope;
 pub mod reactive_views;

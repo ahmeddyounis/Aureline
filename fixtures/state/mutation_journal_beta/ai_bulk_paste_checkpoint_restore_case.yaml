@@ -1,0 +1,54 @@
+schema_version: 1
+record_kind: mutation_journal_case_record
+entry_id: journal:ai_bulk_paste_checkpoint_only
+title: AI bulk paste over a checkpointed module (checkpoint-restore only)
+source_lane: ai_assistant
+actor_class: ai_agent
+authority_class: buffer_editor
+entry_kind: single_file_write
+group_size: 1
+affected_paths:
+  - crates/example/src/legacy_module.rs
+recovery_class: checkpoint_restore
+attribution_state: attributed
+replayability_state: requires_manual_inspection
+consumer_surface: incident_packet
+captured_at: "2026-05-16T10:15:00Z"
+reviewer_summary: >-
+  An AI assistant pasted a large rewrite over a single module. The
+  buffer editor recorded only the post-write checkpoint, not a
+  byte-exact pre-image, so the journal records checkpoint_restore as
+  the recovery path. Replay is not safe without operator review;
+  incident packets quote the audit fields so the user can decide
+  whether to restore the checkpoint or accept the rewrite. The row
+  downgrades with degraded_to_checkpoint_restore_only and records
+  compensation_class_pending so the supportability gap is visible
+  instead of being papered over by a clean badge.
+support_export:
+  includes_entry_id: true
+  includes_source_lane: true
+  includes_actor_class: true
+  includes_authority_class: true
+  includes_recovery_class: true
+  includes_replayability_state: true
+  includes_affected_paths: true
+  raw_payload_excluded: true
+  raw_private_material_excluded: true
+  ambient_authority_excluded: true
+  preserves_user_authored_files: true
+downgrade_label: degraded_to_checkpoint_restore_only
+open_gaps:
+  - gap_class: compensation_class_pending
+    summary: >-
+      The buffer editor did not preserve a byte-exact pre-image for
+      this AI bulk paste; a finer compensation path is pending and
+      the journal can only offer checkpoint restore until it lands.
+safety:
+  raw_private_material_excluded: true
+  ambient_authority_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+references:
+  doc_ref: docs/state/m3/mutation_journal_beta.md
+  schema_ref: schemas/state/mutation_journal.schema.json
+  report_ref: artifacts/support/m3/mutation_journal_beta_report.md
