@@ -81,6 +81,7 @@ pub mod keybindings;
 pub mod layout;
 pub mod learning_mode;
 pub mod learning_tour_alpha;
+pub mod locale_pack_beta;
 pub mod macros;
 pub mod managed_boundary;
 pub mod managed_truth;

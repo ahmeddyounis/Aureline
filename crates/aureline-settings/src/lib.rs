@@ -34,6 +34,7 @@
 pub mod experiments;
 pub mod inspector;
 pub mod keybindings;
+pub mod locale_beta;
 pub mod resolver;
 pub mod schema;
 pub mod sync;
@@ -67,6 +68,7 @@ pub use keybindings::{
     KeybindingSettingSourceRecord, KeybindingSettingsConflictRecord,
     KEYBINDING_SETTINGS_SCHEMA_VERSION,
 };
+pub use locale_beta::project_locale_beta_settings_panel;
 pub use resolver::{
     CapabilityState, EffectiveCapabilityDependency, EffectiveControlStack, EffectiveLastWritten,
     EffectiveSettingRecord, EffectiveSettingsResolver, EffectiveValue, LockReason, LockState,

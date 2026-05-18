@@ -136,6 +136,7 @@ pub mod graph_drift;
 pub mod incident_workspace;
 pub mod incident_workspace_beta;
 pub mod local_history_timeline;
+pub mod locale_beta;
 pub mod m3_scenario_corpus;
 pub mod mutation_journal;
 pub mod policy_simulation;
@@ -158,3 +159,4 @@ pub use fault_domain_views::{
     FaultDomainViewViolation, FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND,
     FAULT_DOMAIN_VIEW_ROW_RECORD_KIND,
 };
+pub use locale_beta::current_locale_pack_support_export;
