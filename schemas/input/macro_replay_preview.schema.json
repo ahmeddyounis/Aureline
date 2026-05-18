@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/input/macro_replay_preview.schema.json",
+  "title": "Aureline macro replay preview sheet",
+  "description": "Boundary schema for the macro replay review sheet. The record exposes source macro register, target scope, command ids, write classes, register route, risk rows, and the replay decision. It blocks raw macro bodies, raw clipboard contents, and raw register contents.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "preview_id",
+    "source_register",
+    "target_scope",
+    "command_steps",
+    "register_route",
+    "risks",
+    "decision",
+    "review_required",
+    "can_silently_proceed",
+    "recovery_actions",
+    "diagnostics",
+    "raw_macro_body_present",
+    "raw_clipboard_contents_present",
+    "raw_register_contents_present",
+    "redaction_class",
+    "emitted_at"
+  ],
+  "properties": {
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "const": "macro_replay_preview_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "preview_id": { "$ref": "#/$defs/opaque_id" },
+    "source_register": { "$ref": "#/$defs/register_target_record" },
+    "target_scope": { "$ref": "#/$defs/edit_target_scope" },
+    "command_steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/macro_replay_command_step" }
+    },
+    "register_route": { "$ref": "#/$defs/register_route_record" },
+    "risks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/macro_replay_risk_record" }
+    },
+    "decision": { "$ref": "#/$defs/macro_replay_decision_class" },
+    "review_required": { "type": "boolean" },
+    "can_silently_proceed": { "type": "boolean" },
+    "promoted_recipe_ref": { "type": "string" },
+    "recovery_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/recovery_action_record" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewable_text" }
+    },
+    "raw_macro_body_present": { "const": false },
+    "raw_clipboard_contents_present": { "const": false },
+    "raw_register_contents_present": { "const": false },
+    "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+    "emitted_at": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/reviewable_text" }
+      }
+    },
+    "register_scope_kind": {
+      "type": "string",
+      "enum": [
+        "editor_local",
+        "system_clipboard",
+        "remote_clipboard_bridge",
+        "named_register",
+        "search_history",
+        "macro",
+        "special_register",
+        "policy_blocked",
+        "unknown"
+      ]
+    },
+    "clipboard_route_kind": {
+      "type": "string",
+      "enum": [
+        "local_editor_register",
+        "local_system_clipboard",
+        "remote_clipboard_bridge",
+        "remote_bridge_suppressed",
+        "admin_blocked",
+        "unsupported_on_surface"
+      ]
+    },
+    "register_policy_state": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "requires_review",
+        "suppressed_by_remote_policy",
+        "blocked_by_admin_policy",
+        "unsupported_on_surface"
+      ]
+    },
+    "edit_target_scope": {
+      "type": "string",
+      "enum": ["current_buffer", "multiple_buffers", "workspace", "settings", "run_capable_command", "unknown"]
+    },
+    "write_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "editor_buffer_mutation",
+        "editor_multi_file_mutation",
+        "settings_mutation",
+        "run_capable_command",
+        "network_capable_command"
+      ]
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": [
+        "cross_file_scope",
+        "settings_mutation",
+        "run_capable_command",
+        "clipboard_route_change",
+        "remote_clipboard_suppressed",
+        "admin_policy_blocked",
+        "unsupported_imported_sequence",
+        "unstable_timing"
+      ]
+    },
+    "macro_replay_decision_class": {
+      "type": "string",
+      "enum": [
+        "proceed_local_editor_only",
+        "review_required_before_replay",
+        "promote_to_recipe",
+        "downgrade_to_observer_no_mutation",
+        "denied_unsafe_replay"
+      ]
+    },
+    "recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "open_command_palette",
+        "open_keymap_diagnostics",
+        "open_migration_help",
+        "switch_to_insert",
+        "reset_keyboard_mode",
+        "retry_on_supported_surface",
+        "cancel_sequence",
+        "review_register_route",
+        "review_macro_replay"
+      ]
+    },
+    "register_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "display_label"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/register_scope_kind" },
+        "register_name": { "type": "string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "register_route_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_register",
+        "clipboard_route",
+        "policy_state",
+        "is_default_route",
+        "route_changes_result",
+        "route_label",
+        "diagnostics"
+      ],
+      "properties": {
+        "active_register": { "$ref": "#/$defs/register_target_record" },
+        "clipboard_route": { "$ref": "#/$defs/clipboard_route_kind" },
+        "policy_state": { "$ref": "#/$defs/register_policy_state" },
+        "is_default_route": { "type": "boolean" },
+        "route_changes_result": { "type": "boolean" },
+        "remote_boundary_ref": { "type": "string" },
+        "policy_ref": { "type": "string" },
+        "route_label": { "$ref": "#/$defs/non_empty_string" },
+        "diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_text" }
+        }
+      }
+    },
+    "macro_replay_command_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "command_id",
+        "command_revision_ref",
+        "display_label",
+        "source_ref",
+        "write_classes",
+        "crosses_files",
+        "mutates_settings",
+        "run_capable"
+      ],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/reviewable_text" },
+        "source_ref": { "$ref": "#/$defs/non_empty_string" },
+        "write_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/write_class" }
+        },
+        "crosses_files": { "type": "boolean" },
+        "mutates_settings": { "type": "boolean" },
+        "run_capable": { "type": "boolean" }
+      }
+    },
+    "macro_replay_risk_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk_class", "label"],
+      "properties": {
+        "risk_class": { "$ref": "#/$defs/risk_class" },
+        "label": { "$ref": "#/$defs/reviewable_text" },
+        "command_id": { "type": "string" }
+      }
+    },
+    "recovery_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "label"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/recovery_action_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "type": "string" }
+      }
+    }
+  }
+}

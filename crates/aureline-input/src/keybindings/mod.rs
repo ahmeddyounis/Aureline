@@ -527,6 +527,8 @@ impl KeybindingResolver {
         let inspected_descriptor = inspected.to_descriptor();
         let mut precedence_trace: Vec<PrecedenceTraceRow> = Vec::with_capacity(8);
         let mut losing_candidates: Vec<LosingCandidateRecord> = Vec::new();
+        let unsupported_surface_reason =
+            surface_cannot_honor_sequence(scope, &inspected_descriptor);
 
         let mut first_exact_layer: Option<ResolverLayerClass> = None;
         let mut exact_candidates_by_layer: HashMap<ResolverLayerClass, Vec<&BindingCandidate>> =
@@ -596,6 +598,15 @@ impl KeybindingResolver {
                 command_candidate: None,
                 reason_code: ResolutionReasonCode::AdminPolicyLockedBinding,
                 note: Some("Admin/policy lock denied shortcut dispatch.".to_string()),
+            };
+        } else if let Some(reason) = unsupported_surface_reason.as_ref() {
+            sequence_state = SequenceResolutionState::UnsupportedOnSurface;
+            winner = WinningResolution {
+                winner_kind: WinningResolutionKind::Unbound,
+                resolver_layer: None,
+                command_candidate: None,
+                reason_code: ResolutionReasonCode::SurfaceCannotHonorSequence,
+                note: Some(reason.clone()),
             };
         } else if first_exact_layer.is_none() && !prefix_layers.is_empty() {
             sequence_state = SequenceResolutionState::WaitingForNextStroke;
@@ -746,6 +757,8 @@ impl KeybindingResolver {
             });
             let disposition = if layer_won {
                 PrecedenceDisposition::CandidateVisible
+            } else if unsupported_surface_reason.is_some() && (!exact.is_empty() || has_prefix) {
+                PrecedenceDisposition::UnsupportedOnSurface
             } else if has_prefix && first_exact_layer.is_none() {
                 PrecedenceDisposition::WaitingPrefix
             } else if !exact.is_empty() {
@@ -825,6 +838,24 @@ impl KeybindingResolver {
             }
         }
 
+        if unsupported_surface_reason.is_some() {
+            for candidates in exact_candidates_by_layer.values() {
+                for candidate in candidates {
+                    losing_candidates.push(LosingCandidateRecord {
+                        candidate: candidate.record.clone(),
+                        loss_reason_code: ResolutionReasonCode::SurfaceCannotHonorSequence,
+                        what_changes_outcome: vec![OutcomeChangeCondition {
+                            condition_class:
+                                OutcomeChangeConditionClass::MoveFocusToSupportedSurface,
+                            explanation: "Move focus to a surface that can honor this sequence."
+                                .to_string(),
+                            resulting_layer: Some(candidate.record.resolver_layer),
+                        }],
+                    });
+                }
+            }
+        }
+
         let outcome_change_conditions = match winner.reason_code {
             ResolutionReasonCode::NoCandidateBound => vec![OutcomeChangeCondition {
                 condition_class: OutcomeChangeConditionClass::RebindSequence,
@@ -837,6 +868,14 @@ impl KeybindingResolver {
                     explanation: "Resolve the collision by rebinding or scoping one candidate."
                         .to_string(),
                     resulting_layer: winner.resolver_layer,
+                }]
+            }
+            ResolutionReasonCode::SurfaceCannotHonorSequence => {
+                vec![OutcomeChangeCondition {
+                    condition_class: OutcomeChangeConditionClass::MoveFocusToSupportedSurface,
+                    explanation: "Use a supported editor surface or switch to a modeless fallback."
+                        .to_string(),
+                    resulting_layer: None,
                 }]
             }
             _ => Vec::new(),
@@ -858,6 +897,13 @@ impl KeybindingResolver {
                 action_class: PivotActionClass::OpenConflictReview,
                 label: "Open conflict review".to_string(),
                 target_ref: Some(conflict_ref.clone()),
+            });
+        }
+        if sequence_state == SequenceResolutionState::UnsupportedOnSurface {
+            next_safe_actions.push(NextSafeActionRecord {
+                action_class: PivotActionClass::RetryOnSupportedSurface,
+                label: "Retry on supported surface".to_string(),
+                target_ref: Some("surface:source_editor".to_string()),
             });
         }
 
@@ -988,6 +1034,27 @@ fn candidate_applies(candidate: &BindingCandidate, scope: &InspectionScope) -> b
         }
     }
     true
+}
+
+fn surface_cannot_honor_sequence(
+    scope: &InspectionScope,
+    inspected: &SequenceDescriptor,
+) -> Option<String> {
+    match scope.surface_support_class {
+        SurfaceSupportClass::FullySupported => None,
+        SurfaceSupportClass::Unsupported => {
+            Some("Current surface cannot honor keybinding sequences faithfully.".to_string())
+        }
+        SurfaceSupportClass::MultiStrokeLimited if inspected.stroke_count > 1 => {
+            Some("Current surface only supports single-stroke shortcuts.".to_string())
+        }
+        SurfaceSupportClass::LeaderLimited
+            if inspected.shape_class == SequenceShapeClass::LeaderSequence =>
+        {
+            Some("Current surface cannot honor leader sequences faithfully.".to_string())
+        }
+        SurfaceSupportClass::MultiStrokeLimited | SurfaceSupportClass::LeaderLimited => None,
+    }
 }
 
 enum SelectedCandidate<'a> {

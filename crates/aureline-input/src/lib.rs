@@ -23,6 +23,13 @@ pub mod keybindings;
 /// surfaces share one runtime contract.
 pub mod text_input;
 
+/// Modal editing state, register routing, and macro replay preview contracts.
+///
+/// This module keeps Vim/Emacs-style modal state, leader discovery, register
+/// routing, operator-pending overlays, and macro replay safety inspectable
+/// through one input boundary.
+pub mod modal;
+
 /// Built-in keymap preset definitions and helpers.
 ///
 /// Presets seed the keybinding resolver with incumbent-style shortcut layers so
