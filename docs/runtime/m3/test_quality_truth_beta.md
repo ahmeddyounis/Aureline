@@ -111,8 +111,8 @@ to both projections without re-deriving truth from log text.
 - Cross-workspace coverage merge.
 - Time-series flaky trends; the flaky packet reports the per-session verdict
   only.
-- Snapshot accept/reject workflows; the snapshot packet labels the review
-  state and links the diff artifact identity ref, but does not own the
-  acceptance ceremony.
+- Snapshot accept/reject rendering internals; the downstream triage-trust
+  packet owns the release-visible mutation ceremony, rollback checkpoint, and
+  policy-hook checks.
 - AI-generated baseline reasoning beyond the alpha `ai_test_generation`
   gate tokens.

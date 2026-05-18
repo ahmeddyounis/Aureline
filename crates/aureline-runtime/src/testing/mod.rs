@@ -834,6 +834,14 @@ pub struct TestRunnerBetaSupportExport {
     /// the in-product flow attached one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quality_support_export_ref: Option<String>,
+    /// Test-trust packet ref carried alongside this packet, when the
+    /// release-facing triage flow attached one.
+    ///
+    /// When present, the packet names the watch/flaky/snapshot/quarantine
+    /// debt summary generated from the same tree, inline, and quality
+    /// projections as this support export.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_trust_packet_ref: Option<String>,
     /// Reviewer-facing summary lines.
     pub summary_lines: Vec<String>,
 }
@@ -893,6 +901,7 @@ impl TestRunnerBetaSupportExport {
             attempt_support_export_refs,
             quality_projection_ref: None,
             quality_support_export_ref: None,
+            test_trust_packet_ref: None,
             summary_lines,
         }
     }
@@ -908,6 +917,13 @@ impl TestRunnerBetaSupportExport {
     ) {
         self.quality_projection_ref = Some(projection_ref.into());
         self.quality_support_export_ref = Some(support_export_ref.into());
+    }
+
+    /// Attaches the release-facing test-trust packet ref to this export so
+    /// support reviewers can find the watch/flaky/snapshot/quarantine debt
+    /// packet generated from the same beta rows.
+    pub fn attach_test_trust_packet_ref(&mut self, packet_ref: impl Into<String>) {
+        self.test_trust_packet_ref = Some(packet_ref.into());
     }
 
     /// Renders deterministic plaintext lines for support exports.
@@ -929,6 +945,9 @@ impl TestRunnerBetaSupportExport {
         }
         if let Some(support_export_ref) = &self.quality_support_export_ref {
             out.push_str(&format!("Quality support export: {}\n", support_export_ref));
+        }
+        if let Some(packet_ref) = &self.test_trust_packet_ref {
+            out.push_str(&format!("Test trust packet: {}\n", packet_ref));
         }
         for line in &self.summary_lines {
             out.push_str(line);

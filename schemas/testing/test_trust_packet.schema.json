@@ -1,0 +1,520 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/testing/test_trust_packet.schema.json",
+  "title": "Aureline release-facing test trust packet",
+  "description": "Boundary schema for release-visible test trust packets on claimed beta rows. The packet summarizes watch degradations, flaky verdict attempt lineage, snapshot/baseline mutation review, active or expired mute/quarantine records, and imported-vs-live evidence state. Raw runner logs, raw stdout/stderr, raw assertions, raw paths, raw environment bodies, raw provider payloads, and raw policy payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/test_trust_packet_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "framework_token": {
+      "type": "string",
+      "enum": ["pytest"]
+    },
+    "watch_state_token": {
+      "type": "string",
+      "enum": ["live", "reduced", "polling", "unavailable", "imported_only"]
+    },
+    "downgrade_reason_token": {
+      "type": "string",
+      "enum": [
+        "none",
+        "not_a_watch_session",
+        "partial_discovery",
+        "bounded_backlog",
+        "native_watcher_unavailable_polling",
+        "imported_read_only_evidence",
+        "source_or_target_drift",
+        "target_unavailable",
+        "reconnect_required",
+        "unknown_requires_review"
+      ]
+    },
+    "flaky_verdict_token": {
+      "type": "string",
+      "enum": [
+        "suspected_flaky",
+        "reproduced_flaky",
+        "stable_again",
+        "muted",
+        "unknown"
+      ]
+    },
+    "snapshot_review_state_token": {
+      "type": "string",
+      "enum": [
+        "no_mutation",
+        "preview_required",
+        "review_ready",
+        "applied_with_rollback_checkpoint",
+        "blocked_missing_preview",
+        "blocked_missing_rollback_checkpoint",
+        "blocked_release_bearing_policy",
+        "unknown_requires_review"
+      ]
+    },
+    "treatment_kind_token": {
+      "type": "string",
+      "enum": ["mute", "quarantine"]
+    },
+    "quarantine_status_token": {
+      "type": "string",
+      "enum": ["active", "expired_reopened", "resolved", "renewed"]
+    },
+    "quarantine_reason_token": {
+      "type": "string",
+      "enum": [
+        "suspected_flaky",
+        "reproduced_flaky",
+        "known_failing",
+        "environment_dependent",
+        "imported_incomparable",
+        "manual_noise_reduction",
+        "policy_restriction",
+        "unknown_requires_review"
+      ]
+    },
+    "quarantine_scope_class_token": {
+      "type": "string",
+      "enum": [
+        "exact_test_item",
+        "parameterized_family",
+        "suite_or_container",
+        "selector_expression",
+        "target_environment",
+        "release_channel_scope",
+        "unknown_requires_review"
+      ]
+    },
+    "reopen_behavior_token": {
+      "type": "string",
+      "enum": [
+        "reopen_failure",
+        "stable_window_required",
+        "manual_owner_review",
+        "renewal_required",
+        "unknown_requires_review"
+      ]
+    },
+    "release_debt_token": {
+      "type": "string",
+      "enum": [
+        "release_blocking",
+        "claim_narrowing_required",
+        "waiver_linked",
+        "informational_recovered",
+        "unknown_requires_review"
+      ]
+    },
+    "evidence_trust_token": {
+      "type": "string",
+      "enum": [
+        "live_local",
+        "imported_only",
+        "mixed_local_and_imported",
+        "stale_or_unknown"
+      ]
+    },
+    "triage_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_test_item_ref",
+        "selector_ref",
+        "test_session_ref",
+        "framework",
+        "framework_token",
+        "tree_row_ref",
+        "inline_row_ref"
+      ],
+      "properties": {
+        "canonical_test_item_ref": { "$ref": "#/$defs/opaque_ref" },
+        "selector_ref": { "$ref": "#/$defs/opaque_ref" },
+        "test_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "framework": { "$ref": "#/$defs/framework_token" },
+        "framework_token": { "$ref": "#/$defs/framework_token" },
+        "tree_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "inline_row_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "watch_state_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "watch_state_packet_id",
+        "identity",
+        "watch_controller_ref",
+        "watch_state",
+        "watch_state_token",
+        "downgrade_reasons",
+        "downgrade_reason_tokens",
+        "source_watch_state_token",
+        "source_degradation_reason_token",
+        "buffered_change_count",
+        "current_truth_claim_allowed",
+        "reconnect_preserves_state",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_watch_state_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "watch_state_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "identity": { "$ref": "#/$defs/triage_identity" },
+        "watch_controller_ref": { "$ref": "#/$defs/opaque_ref" },
+        "watch_state": { "$ref": "#/$defs/watch_state_token" },
+        "watch_state_token": { "$ref": "#/$defs/watch_state_token" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_token" }
+        },
+        "downgrade_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_token" }
+        },
+        "source_watch_state_token": { "type": "string", "minLength": 1 },
+        "source_degradation_reason_token": { "type": "string", "minLength": 1 },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "last_successful_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "buffered_change_count": { "type": "integer", "minimum": 0 },
+        "current_truth_claim_allowed": { "type": "boolean" },
+        "reconnect_preserves_state": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "flaky_attempt_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_ref",
+        "attempt_index",
+        "attempt_kind_token",
+        "result_state_token",
+        "execution_context_ref",
+        "target_id",
+        "target_class_token",
+        "imported_ci_projection_token",
+        "source_drift_state_token",
+        "watch_state_at_attempt_token"
+      ],
+      "properties": {
+        "attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "attempt_index": { "type": "integer", "minimum": 1 },
+        "attempt_kind_token": { "type": "string", "minLength": 1 },
+        "result_state_token": { "type": "string", "minLength": 1 },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_id": { "$ref": "#/$defs/opaque_id" },
+        "target_class_token": { "type": "string", "minLength": 1 },
+        "imported_ci_projection_token": { "type": "string", "minLength": 1 },
+        "source_drift_state_token": { "type": "string", "minLength": 1 },
+        "watch_state_at_attempt_token": { "type": "string", "minLength": 1 },
+        "predecessor_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "origin_attempt_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "flaky_verdict_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "flaky_verdict_packet_id",
+        "identity",
+        "verdict_state",
+        "verdict_token",
+        "evidence_attempt_refs",
+        "evidence_attempts",
+        "observation_window_attempts",
+        "release_visible",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_flaky_verdict_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "flaky_verdict_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "identity": { "$ref": "#/$defs/triage_identity" },
+        "verdict_state": { "$ref": "#/$defs/flaky_verdict_token" },
+        "verdict_token": { "$ref": "#/$defs/flaky_verdict_token" },
+        "producing_test_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "evidence_attempts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/flaky_attempt_input" }
+        },
+        "observation_window_attempts": { "type": "integer", "minimum": 0 },
+        "release_visible": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "snapshot_file_change_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_id",
+        "subject_ref",
+        "before_artifact_ref",
+        "after_artifact_ref",
+        "change_class_token",
+        "preview_artifact_ref",
+        "summary"
+      ],
+      "properties": {
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_ref": { "$ref": "#/$defs/opaque_ref" },
+        "before_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "after_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "change_class_token": { "type": "string", "minLength": 1 },
+        "preview_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "snapshot_mutation_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "mutation_review_id",
+        "identity",
+        "review_state",
+        "review_state_token",
+        "actor_ref",
+        "file_change_previews",
+        "preview_available",
+        "grouped_rollback_checkpoint_required",
+        "release_bearing_scope",
+        "policy_hook_refs",
+        "can_land",
+        "denial_reason_tokens",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_snapshot_mutation_review_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "mutation_review_id": { "$ref": "#/$defs/opaque_id" },
+        "identity": { "$ref": "#/$defs/triage_identity" },
+        "review_state": { "$ref": "#/$defs/snapshot_review_state_token" },
+        "review_state_token": { "$ref": "#/$defs/snapshot_review_state_token" },
+        "actor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "file_change_previews": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snapshot_file_change_preview" }
+        },
+        "preview_available": { "type": "boolean" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "grouped_rollback_checkpoint_required": { "type": "boolean" },
+        "release_bearing_scope": { "type": "boolean" },
+        "policy_hook_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "can_land": { "type": "boolean" },
+        "denial_reason_tokens": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "quarantine_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "quarantine_record_id",
+        "treatment_kind",
+        "treatment_kind_token",
+        "status",
+        "status_token",
+        "owner_ref",
+        "reason",
+        "reason_token",
+        "scope_class",
+        "scope_class_token",
+        "scope_refs",
+        "created_at",
+        "expires_at",
+        "evidence_refs",
+        "reopen_behavior",
+        "reopen_behavior_token",
+        "release_debt_class",
+        "release_debt_token",
+        "release_visible",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_quarantine_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "quarantine_record_id": { "$ref": "#/$defs/opaque_id" },
+        "treatment_kind": { "$ref": "#/$defs/treatment_kind_token" },
+        "treatment_kind_token": { "$ref": "#/$defs/treatment_kind_token" },
+        "status": { "$ref": "#/$defs/quarantine_status_token" },
+        "status_token": { "$ref": "#/$defs/quarantine_status_token" },
+        "owner_ref": { "$ref": "#/$defs/opaque_ref" },
+        "reason": { "$ref": "#/$defs/quarantine_reason_token" },
+        "reason_token": { "$ref": "#/$defs/quarantine_reason_token" },
+        "scope_class": { "$ref": "#/$defs/quarantine_scope_class_token" },
+        "scope_class_token": { "$ref": "#/$defs/quarantine_scope_class_token" },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "reopen_behavior": { "$ref": "#/$defs/reopen_behavior_token" },
+        "reopen_behavior_token": { "$ref": "#/$defs/reopen_behavior_token" },
+        "release_debt_class": { "$ref": "#/$defs/release_debt_token" },
+        "release_debt_token": { "$ref": "#/$defs/release_debt_token" },
+        "release_visible": { "type": "boolean" },
+        "reopened_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "trust_row_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity",
+        "watch_state_packet_ref",
+        "watch_state_token",
+        "watch_downgrade_reason_tokens",
+        "flaky_verdict_packet_ref",
+        "flaky_verdict_token",
+        "flaky_evidence_attempt_refs",
+        "snapshot_mutation_review_refs",
+        "quarantine_record_refs",
+        "evidence_trust_class",
+        "evidence_trust_token",
+        "row_debt_tokens",
+        "release_blocking",
+        "summary"
+      ],
+      "properties": {
+        "identity": { "$ref": "#/$defs/triage_identity" },
+        "latest_attempt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "watch_state_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "watch_state_token": { "$ref": "#/$defs/watch_state_token" },
+        "watch_downgrade_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_token" }
+        },
+        "flaky_verdict_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "flaky_verdict_token": { "$ref": "#/$defs/flaky_verdict_token" },
+        "flaky_evidence_attempt_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "snapshot_mutation_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "quarantine_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "evidence_trust_class": { "$ref": "#/$defs/evidence_trust_token" },
+        "evidence_trust_token": { "$ref": "#/$defs/evidence_trust_token" },
+        "row_debt_tokens": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "release_blocking": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "test_trust_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "trust_packet_id",
+        "generated_at",
+        "workspace_id",
+        "tree_projection_ref",
+        "inline_projection_ref",
+        "quality_projection_ref",
+        "watch_state_packets",
+        "flaky_verdict_packets",
+        "snapshot_mutation_reviews",
+        "quarantine_records",
+        "row_summaries",
+        "watch_degraded_row_count",
+        "imported_only_row_count",
+        "active_mute_record_count",
+        "quarantined_scope_count",
+        "expired_reopened_count",
+        "snapshot_mutation_count",
+        "release_blocking_debt_count",
+        "summary_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "test_trust_packet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "trust_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "tree_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "inline_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "quality_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "watch_state_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/watch_state_packet" }
+        },
+        "flaky_verdict_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/flaky_verdict_packet" }
+        },
+        "snapshot_mutation_reviews": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snapshot_mutation_review" }
+        },
+        "quarantine_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/quarantine_record" }
+        },
+        "row_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/trust_row_summary" }
+        },
+        "watch_degraded_row_count": { "type": "integer", "minimum": 0 },
+        "imported_only_row_count": { "type": "integer", "minimum": 0 },
+        "active_mute_record_count": { "type": "integer", "minimum": 0 },
+        "quarantined_scope_count": { "type": "integer", "minimum": 0 },
+        "expired_reopened_count": { "type": "integer", "minimum": 0 },
+        "snapshot_mutation_count": { "type": "integer", "minimum": 0 },
+        "release_blocking_debt_count": { "type": "integer", "minimum": 0 },
+        "summary_lines": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

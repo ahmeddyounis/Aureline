@@ -107,6 +107,8 @@ accessing live workspace state, that:
 - every parity row carries a matching tree / inline pair;
 - every artifact ref is bound to a typed kind, a session, and a canonical
   test-item id.
+- when attached, the `test_trust_packet_ref` points to the release-facing
+  watch/flaky/snapshot/quarantine debt packet for the same beta rows.
 
 ## Cross-references
 
@@ -119,6 +121,7 @@ accessing live workspace state, that:
 - Promoted identity/session/attempt ledger — [`test_identity_beta.md`](test_identity_beta.md)
 - Pytest discovery —
   [`/crates/aureline-runtime/src/discovery/pytest/`](../../../crates/aureline-runtime/src/discovery/pytest/)
+- Test triage trust packets — [`test_triage_trust_beta.md`](test_triage_trust_beta.md)
 
 ## Out of scope for this beta
 

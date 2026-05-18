@@ -18,6 +18,10 @@
 //! truth from terminal state alone or fork local copies of host / target /
 //! toolchain identity.
 //!
+//! [`testing_triage::TestTrustPacket`] composes the beta test-runner and
+//! test-quality projections into release-visible watch, flaky, snapshot, and
+//! quarantine debt summaries without re-parsing raw runner output.
+//!
 //! The reviewer-facing landing page is
 //! [`/docs/runtime/execution_context_seed.md`](../../../docs/runtime/execution_context_seed.md).
 //! The cross-tool boundary schema is
@@ -55,6 +59,7 @@ pub mod tasks;
 pub mod testing;
 pub mod testing_identity;
 pub mod testing_quality;
+pub mod testing_triage;
 pub mod tests;
 pub mod trace_replay_alpha;
 
@@ -419,6 +424,17 @@ pub use testing_quality::{
     TEST_QUALITY_COVERAGE_PACKET_RECORD_KIND, TEST_QUALITY_FLAKY_PACKET_RECORD_KIND,
     TEST_QUALITY_ROW_TRUTH_RECORD_KIND, TEST_QUALITY_SNAPSHOT_PACKET_RECORD_KIND,
     TEST_QUALITY_TRUTH_BETA_SCHEMA_VERSION,
+};
+pub use testing_triage::{
+    FlakyVerdictAttemptInput, FlakyVerdictPacket, SnapshotFileChangePreview,
+    SnapshotMutationReview, SnapshotMutationReviewState, TestEvidenceTrustClass,
+    TestQuarantineReason, TestQuarantineRecord, TestQuarantineReopenBehavior,
+    TestQuarantineScopeClass, TestQuarantineStatus, TestQuarantineTreatmentKind,
+    TestReleaseDebtClass, TestTriageIdentity, TestTrustPacket, TestTrustRowSummary,
+    WatchModeDowngradeReason, WatchModeState, WatchStatePacket, FLAKY_VERDICT_PACKET_RECORD_KIND,
+    SNAPSHOT_MUTATION_REVIEW_RECORD_KIND, TEST_QUARANTINE_RECORD_KIND,
+    TEST_TRIAGE_TRUST_SCHEMA_VERSION, TEST_TRUST_PACKET_RECORD_KIND,
+    WATCH_STATE_PACKET_RECORD_KIND,
 };
 pub use tests::{
     AiTestGenerationGateState, CoverageMergeClass, FlakyVerdictState, ImportedCiProjection,
