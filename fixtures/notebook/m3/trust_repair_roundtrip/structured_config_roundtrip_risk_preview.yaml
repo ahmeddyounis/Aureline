@@ -1,0 +1,161 @@
+record:
+  record_kind: ""
+  schema_version: 0
+  preview_id: "preview-truth:config:roundtrip-risk"
+  surface_class: structured_config_preview
+  surface_class_token: ""
+  workspace_ref: "workspace:service-config"
+  claim_manifest:
+    surface_label: "Structured config preview"
+    qualification_class: preview_limited
+    qualification_class_token: ""
+    visible_qualification_label: "Preview-limited structured config row"
+    qualification_evidence_ref: null
+    claim_limits:
+      - token: "source_effective_live_only"
+        label: "Authored, effective, and live views are labelled; no general config editor claim."
+      - token: "compare_before_lossy_write"
+        label: "Unknown-field, comment, and ordering drift require compare-first repair lineage."
+  trust_layers:
+    - layer_class: document
+      layer_class_token: ""
+      trust_state_token: "source_trusted_workspace_file"
+      gate_state: permits_action
+      gate_state_token: ""
+      action_refs:
+        - "action:config:edit_authored_source"
+      gate_explanation_label: "Authored YAML is the canonical source and remains editable."
+      evidence_ref: "vfs:config:source"
+    - layer_class: runtime
+      layer_class_token: ""
+      trust_state_token: "live_connector_policy_limited"
+      gate_state: permits_inspection_only
+      gate_state_token: ""
+      action_refs:
+        - "action:config:open_live_observed"
+      gate_explanation_label: "Live state is inspect-only because target freshness and authority are limited."
+      evidence_ref: "execution-context:config:live-connector"
+    - layer_class: output
+      layer_class_token: ""
+      trust_state_token: "effective_projection_redacted"
+      gate_state: permits_inspection_only
+      gate_state_token: ""
+      action_refs:
+        - "action:config:copy_redacted_effective"
+      gate_explanation_label: "Effective values are a redacted projection and cannot be written back as authored source."
+      evidence_ref: "projection:config:effective"
+  structured_state_views:
+    - view_id: "view:config:authored"
+      view_class: authored_source
+      view_class_token: ""
+      source_ref: "config:source:service-yaml"
+      resolution_time_label: "authored"
+      target_boundary_ref: "target:workspace"
+      write_eligibility: editable_canonical_source
+      write_eligibility_token: ""
+      value_posture_label: "Canonical YAML source with comments and unknown vendor fields."
+      freshness_label: "current buffer"
+    - view_id: "view:config:effective"
+      view_class: effective_projection
+      view_class_token: ""
+      source_ref: "config:effective:service-yaml"
+      resolution_time_label: "at run"
+      target_boundary_ref: "target:workspace"
+      write_eligibility: read_only_projection
+      write_eligibility_token: ""
+      value_posture_label: "Defaults, env refs, and policy-injected values are redacted or deferred."
+      freshness_label: "computed from current buffer"
+    - view_id: "view:config:live"
+      view_class: live_observed_state
+      view_class_token: ""
+      source_ref: "config:live:service-yaml"
+      resolution_time_label: "observed live"
+      target_boundary_ref: "target:managed-runtime:staging"
+      write_eligibility: inspect_only
+      write_eligibility_token: ""
+      value_posture_label: "Live observed state comes through a policy-limited connector."
+      freshness_label: "snapshot stale after target drift"
+  round_trip_risks:
+    - risk_id: "risk:config:unknown-fields-ordering"
+      subject_ref: "config:source:service-yaml"
+      risk_class: lossy_structural
+      risk_class_token: ""
+      preview_representation_class: normalised_preview
+      preview_representation_class_token: ""
+      apply_gate_class: require_compare_first_review
+      apply_gate_class_token: ""
+      warning_classes:
+        - unknown_field_loss
+        - ordering_drift
+        - comment_loss
+      warning_class_tokens: []
+      affected_field_paths:
+        - "/x-vendor"
+        - "/services/0/env"
+        - "/#comments"
+      raw_preservation_ref: "raw:config:service-yaml:before-apply"
+      compare_view_ref: "compare:config:service-yaml:structured-apply"
+      recovery_hint_label: "Raw YAML is preserved before apply; compare-first shows unknown field, comment, and ordering drift."
+  repair_lineage:
+    - lineage_id: "lineage:config:structured-apply"
+      flow_class: structured_apply
+      flow_class_token: ""
+      action_posture: mutates_after_review
+      action_posture_token: ""
+      checkpoint_ref: "checkpoint:config:before_apply"
+      mutation_journal_ref: "mutation-journal:config:structured-apply"
+      preview_or_repair_packet_ref: "roundtrip-preview:config:unknown-fields-ordering"
+      actor_ref: "actor:user:local"
+      affected_refs:
+        - "config:source:service-yaml"
+      reversal_class: exact
+      reversal_class_token: ""
+      consequence_label: "Structured apply can rewrite unknown fields, comments, and ordering; checkpoint restore is available."
+      safe_next_actions:
+        - "open compare before apply"
+        - "continue source-only editing"
+    - lineage_id: "lineage:config:repair"
+      flow_class: repair
+      flow_class_token: ""
+      action_posture: preview_only
+      action_posture_token: ""
+      checkpoint_ref: "checkpoint:config:before_repair"
+      mutation_journal_ref: "mutation-journal:config:repair-preview"
+      preview_or_repair_packet_ref: "repair-packet:config:preserve-unknown-fields"
+      actor_ref: "actor:user:local"
+      affected_refs:
+        - "config:source:service-yaml"
+      reversal_class: exact
+      reversal_class_token: ""
+      consequence_label: "Repair preview preserves raw YAML and enumerates unknown-field movement before any write."
+      safe_next_actions:
+        - "inspect raw source"
+        - "refuse structured rewrite"
+  safe_outputs:
+    - output_ref: "config:effective:service-yaml"
+      risk_class: oversized_result
+      risk_class_token: ""
+      disposition: safe_preview_default
+      disposition_token: ""
+      trust_state_token: "effective_projection_redacted"
+      preview_ref: "safe-preview:config:effective-summary"
+      deeper_render_action_ref: "action:config:open-full-effective-review"
+      rerun_action_ref: null
+      policy_ref: null
+      summary_label: "Large effective projection opens as a redacted safe preview."
+  support_export_scope_refs:
+    - "support:config:preview-truth"
+expect:
+  valid: true
+  required_violation_tokens: []
+  required_plaintext_snippets:
+    - "authored_source source=config:source:service-yaml"
+    - "effective_projection source=config:effective:service-yaml"
+    - "live_observed_state source=config:live:service-yaml"
+    - "warnings=[unknown_field_loss,ordering_drift,comment_loss]"
+    - "flow=structured_apply"
+    - "journal=mutation-journal:config:structured-apply"
+  required_support_tokens:
+    - "lossy_structural:require_compare_first_review"
+    - "structured_apply:checkpoint:config:before_apply"
+    - "oversized_result:safe_preview_default"

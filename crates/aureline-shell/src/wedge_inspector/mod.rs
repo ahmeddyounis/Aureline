@@ -65,6 +65,9 @@ use crate::permission_prompts::{
     PermissionPromptDenialBranch, PermissionPromptQuestions, PermissionPromptRequester,
     PermissionPromptWedge, RequesterClass, ScopeFilterClass,
 };
+use crate::preview_truth::{
+    seeded_notebook_preview_truth, seeded_structured_config_preview_truth, PreviewTruthRecord,
+};
 use crate::review_preview::DestructiveCoreEngine;
 use crate::safe_preview_card::{SafePreviewCardSnapshot, SafePreviewSectionId};
 
@@ -254,6 +257,8 @@ fn build_rows(inputs: WedgeInspectorInputs) -> Vec<WedgeInspectorRow> {
         host_boundary_row(&inputs),
         managed_workspace_row(&inputs),
         notebook_trust_row(&inputs),
+        notebook_preview_truth_row(&inputs),
+        structured_config_preview_truth_row(&inputs),
         install_review_row(&install_review_card),
         permission_prompt_row(&install_review_card),
         restricted_mode_row(&inputs),
@@ -448,6 +453,41 @@ fn notebook_trust_row(inputs: &WedgeInspectorInputs) -> WedgeInspectorRow {
         "notebook_preview:seeded_trust_axes",
         claim_limits,
         card.render_plaintext(),
+    )
+}
+
+fn preview_truth_claim_limits(record: &PreviewTruthRecord) -> Vec<WedgeInspectorClaimLimit> {
+    record
+        .claim_manifest
+        .claim_limits
+        .iter()
+        .map(|row| WedgeInspectorClaimLimit::new(row.token.clone(), row.label.clone()))
+        .collect()
+}
+
+fn notebook_preview_truth_row(inputs: &WedgeInspectorInputs) -> WedgeInspectorRow {
+    let record = seeded_notebook_preview_truth(inputs.workspace_id.clone());
+    WedgeInspectorRow::new(
+        "notebook_preview_truth",
+        "Notebook Preview Truth",
+        record.surface_class_token.clone(),
+        record.claim_manifest.visible_qualification_label.clone(),
+        "notebook_preview:trust_roundtrip_repair_lineage",
+        preview_truth_claim_limits(&record),
+        record.render_plaintext(),
+    )
+}
+
+fn structured_config_preview_truth_row(inputs: &WedgeInspectorInputs) -> WedgeInspectorRow {
+    let record = seeded_structured_config_preview_truth(inputs.workspace_id.clone());
+    WedgeInspectorRow::new(
+        "structured_config_preview_truth",
+        "Structured Config Preview Truth",
+        record.surface_class_token.clone(),
+        record.claim_manifest.visible_qualification_label.clone(),
+        "structured_config_preview:source_effective_live_roundtrip",
+        preview_truth_claim_limits(&record),
+        record.render_plaintext(),
     )
 }
 

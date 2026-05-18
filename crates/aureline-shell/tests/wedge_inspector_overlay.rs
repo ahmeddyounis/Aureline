@@ -36,6 +36,8 @@ fn inspector_lists_all_wedges_and_each_panel_renders_claim_limits() {
         "host_boundary_cues",
         "managed_workspace_labels",
         "notebook_trust_badges",
+        "notebook_preview_truth",
+        "structured_config_preview_truth",
         "install_review_fact_grid",
         "permission_prompts",
         "restricted_mode_launch_wedge",

@@ -1,0 +1,164 @@
+record:
+  record_kind: ""
+  schema_version: 0
+  preview_id: "preview-truth:notebook:mixed-trust"
+  surface_class: notebook_preview
+  surface_class_token: ""
+  workspace_ref: "workspace:python-data-local"
+  claim_manifest:
+    surface_label: "Notebook mixed-trust preview"
+    qualification_class: preview_limited
+    qualification_class_token: ""
+    visible_qualification_label: "Preview-limited notebook row"
+    qualification_evidence_ref: null
+    claim_limits:
+      - token: "single_notebook_preview_row"
+        label: "One retained notebook preview row; no full notebook editor or kernel runtime claim."
+      - token: "explicit_runtime_rebind"
+        label: "Rerun, trust raise, and deeper render require explicit runtime review."
+  trust_layers:
+    - layer_class: document
+      layer_class_token: ""
+      trust_state_token: "document_trust_elevated_on_explicit_grant"
+      gate_state: permits_inspection_only
+      gate_state_token: ""
+      action_refs:
+        - "action:notebook:open_cell_aware_diff"
+      gate_explanation_label: "Document structure is trusted for review; execution depends on the runtime layer."
+      evidence_ref: "evidence:notebook:user_grant"
+    - layer_class: runtime
+      layer_class_token: ""
+      trust_state_token: "kernel_trust_unavailable_no_kernel"
+      gate_state: blocks_action
+      gate_state_token: ""
+      action_refs:
+        - "action:notebook:rerun_all"
+      gate_explanation_label: "The producing remote kernel is unavailable, so rerun is blocked until the runtime is reconnected or replaced."
+      evidence_ref: "execution-context:notebook:remote-kernel-prior"
+    - layer_class: output
+      layer_class_token: ""
+      trust_state_token: "output_trust_captured_from_prior_session"
+      gate_state: permits_inspection_only
+      gate_state_token: ""
+      action_refs:
+        - "action:notebook:open_safe_preview"
+      gate_explanation_label: "Outputs remain captured evidence and cannot be described as live until a governed rerun succeeds."
+      evidence_ref: "lineage:notebook:output:prior-session"
+  structured_state_views: []
+  round_trip_risks:
+    - risk_id: "risk:notebook:output-representation"
+      subject_ref: "notebook:document:forecast-report"
+      risk_class: lossy_output_representation
+      risk_class_token: ""
+      preview_representation_class: summary_only_preview
+      preview_representation_class_token: ""
+      apply_gate_class: warn_allow_apply
+      apply_gate_class_token: ""
+      warning_classes:
+        - output_representation_loss
+        - oversized_safe_preview
+      warning_class_tokens: []
+      affected_field_paths:
+        - "/cells/fit-model/outputs"
+        - "/cells/widget/outputs"
+      raw_preservation_ref: "raw:notebook:forecast-report:before-output-clear"
+      compare_view_ref: "compare:notebook:forecast-report:output-scope"
+      recovery_hint_label: "Captured output bytes are preserved; output clearing can be recovered through the checkpoint or a governed rerun."
+  repair_lineage:
+    - lineage_id: "lineage:notebook:rerun-review"
+      flow_class: rerun
+      flow_class_token: ""
+      action_posture: preview_only
+      action_posture_token: ""
+      checkpoint_ref: "checkpoint:notebook:before_rerun"
+      mutation_journal_ref: "mutation-journal:notebook:rerun-review"
+      preview_or_repair_packet_ref: "roundtrip-preview:notebook:rerun-review"
+      actor_ref: "actor:user:local"
+      affected_refs:
+        - "notebook:cell:fit-model"
+      reversal_class: regenerate
+      reversal_class_token: ""
+      consequence_label: "Rerun would replace captured outputs only after runtime trust is rechecked."
+      safe_next_actions:
+        - "reconnect kernel"
+        - "keep captured outputs"
+    - lineage_id: "lineage:notebook:output-clear"
+      flow_class: output_clear
+      flow_class_token: ""
+      action_posture: mutates_after_review
+      action_posture_token: ""
+      checkpoint_ref: "checkpoint:notebook:before_output_clear"
+      mutation_journal_ref: "mutation-journal:notebook:output-clear"
+      preview_or_repair_packet_ref: "repair-packet:notebook:output-clear"
+      actor_ref: "actor:user:local"
+      affected_refs:
+        - "notebook:output:fit-model-chart"
+        - "notebook:output:widget-controls"
+      reversal_class: regenerate
+      reversal_class_token: ""
+      consequence_label: "Clear outputs removes captured evidence from the notebook and requires rerun for fresh output."
+      safe_next_actions:
+        - "open compare before apply"
+        - "save clean copy"
+    - lineage_id: "lineage:notebook:trust-raise"
+      flow_class: trust_raise
+      flow_class_token: ""
+      action_posture: preview_only
+      action_posture_token: ""
+      checkpoint_ref: "checkpoint:notebook:before_trust_raise"
+      mutation_journal_ref: "mutation-journal:notebook:trust-raise"
+      preview_or_repair_packet_ref: "approval:notebook:trust-raise"
+      actor_ref: "actor:user:local"
+      affected_refs:
+        - "notebook:document:forecast-report"
+      reversal_class: manual
+      reversal_class_token: ""
+      consequence_label: "Trust raise is auditable and does not make prior outputs live."
+      safe_next_actions:
+        - "review trust evidence"
+        - "continue structural-only"
+  safe_outputs:
+    - output_ref: "notebook:output:fit-model-chart"
+      risk_class: oversized_result
+      risk_class_token: ""
+      disposition: safe_preview_default
+      disposition_token: ""
+      trust_state_token: "output_trust_captured_from_prior_session"
+      preview_ref: "safe-preview:notebook:fit-model-chart-window"
+      deeper_render_action_ref: "action:notebook:render-full-chart"
+      rerun_action_ref: "action:notebook:rerun-fit-model"
+      policy_ref: null
+      summary_label: "Large captured chart opens as a safe preview; full render or rerun is explicit."
+    - output_ref: "notebook:output:widget-controls"
+      risk_class: widget_runtime
+      risk_class_token: ""
+      disposition: blocked_by_policy
+      disposition_token: ""
+      trust_state_token: "output_trust_widget_gated"
+      preview_ref: "safe-preview:notebook:widget-static"
+      deeper_render_action_ref: null
+      rerun_action_ref: null
+      policy_ref: "policy:notebook:widget-runtime-denied"
+      summary_label: "Widget output remains static because live binding is policy blocked."
+  support_export_scope_refs:
+    - "support:notebook:preview-truth"
+expect:
+  valid: true
+  required_violation_tokens: []
+  required_plaintext_snippets:
+    - "qualification=preview_limited"
+    - "document trust=document_trust_elevated_on_explicit_grant"
+    - "runtime trust=kernel_trust_unavailable_no_kernel"
+    - "output trust=output_trust_captured_from_prior_session"
+    - "risk=lossy_output_representation"
+    - "flow=rerun"
+    - "flow=output_clear"
+    - "disposition=safe_preview_default"
+  required_support_tokens:
+    - "document:document_trust_elevated_on_explicit_grant"
+    - "runtime:kernel_trust_unavailable_no_kernel"
+    - "output:output_trust_captured_from_prior_session"
+    - "lossy_output_representation:warn_allow_apply"
+    - "rerun:checkpoint:notebook:before_rerun"
+    - "output_clear:checkpoint:notebook:before_output_clear"
+    - "oversized_result:safe_preview_default"
