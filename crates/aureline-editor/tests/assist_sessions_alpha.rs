@@ -1,12 +1,13 @@
 use std::path::Path;
 
 use aureline_editor::{
-    AssistSessionStore, AssistSourceDescriptor, AssistSourceFamily, AssistSurfaceSnapshot,
-    AssistSurfaceSnapshotRequest, AssistSurfaceStateClass, CompletionAcceptanceContract,
-    CompletionItemInit, CompletionItemKindClass, CompletionItemRecord, CompletionSideEffectClass,
-    SignatureHelpInit, SignatureHelpRecord, SignaturePlacementClass, SnippetKeyIntentClass,
-    SnippetKeyOutcomeClass, SnippetSessionController, SnippetSessionInit, SnippetSessionRecord,
-    SnippetSessionStateClass, SnippetTabBehaviorClass, ASSIST_SCHEMA_VERSION,
+    AssistSessionStore, AssistSourceDescriptor, AssistSourceFamily, AssistSourceLabelClass,
+    AssistSurfaceSnapshot, AssistSurfaceSnapshotRequest, AssistSurfaceStateClass,
+    CompletionAcceptanceContract, CompletionItemInit, CompletionItemKindClass,
+    CompletionItemRecord, CompletionSideEffectClass, SignatureHelpInit, SignatureHelpRecord,
+    SignaturePlacementClass, SnippetCursorPostureClass, SnippetImePostureClass,
+    SnippetKeyIntentClass, SnippetKeyOutcomeClass, SnippetSessionController, SnippetSessionInit,
+    SnippetSessionRecord, SnippetSessionStateClass, SnippetTabBehaviorClass, ASSIST_SCHEMA_VERSION,
 };
 use aureline_language::{
     LanguageServerHostIdentity, LanguageServerHostStatus, LspRouter, RouterCapabilityClass,
@@ -63,6 +64,7 @@ struct CompletionItemCase {
     preview_required: bool,
     additional_edit_summary: Option<String>,
     expected_source_family: AssistSourceFamily,
+    expected_source_label_class: AssistSourceLabelClass,
     expected_source_label: String,
     expected_disclosure: bool,
 }
@@ -88,11 +90,16 @@ struct SnippetSessionCase {
     selection_count: u32,
     multi_cursor_compatible: bool,
     tab_behavior_class: SnippetTabBehaviorClass,
+    ime_posture_class: SnippetImePostureClass,
+    cursor_posture_class: SnippetCursorPostureClass,
+    primary_caret_ref: Option<String>,
     visible_strip_required: bool,
     expected_source_family: AssistSourceFamily,
     expected_visible: bool,
     expected_can_escape: bool,
     expected_captures_tab: bool,
+    expected_keyboard_ime_safe: bool,
+    expected_composition_disclosure: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -107,14 +114,17 @@ struct KeySequenceCase {
 #[derive(Debug, Deserialize)]
 struct Expected {
     completion_total_count: usize,
+    deterministic_language_completion_count: usize,
     lsp_completion_count: usize,
     fallback_completion_count: usize,
     snippet_completion_count: usize,
+    ai_assist_completion_count: usize,
     preview_required_count: usize,
     active_snippet_session_count: usize,
     signature_help_count: usize,
     source_label_count: usize,
     source_families: Vec<AssistSourceFamily>,
+    source_label_classes: Vec<AssistSourceLabelClass>,
     completion_disclosure_required: bool,
     surface_disclosure_required: bool,
     surface_state_class: AssistSurfaceStateClass,
@@ -161,6 +171,7 @@ fn assist_sessions_preserve_sources_and_snippet_key_contracts() {
             "ready_router" => ready_completion_source.clone(),
             "fallback_router" => fallback_completion_source.clone(),
             "snippet" => snippet_source.clone(),
+            "ai_inline" => ai_source(),
             other => panic!("unknown completion source route {other}"),
         };
         let item = completion_item(&fixture, case, source);
@@ -168,6 +179,11 @@ fn assist_sessions_preserve_sources_and_snippet_key_contracts() {
         assert_eq!(
             item.source.source_family, case.expected_source_family,
             "source family mismatch for {}",
+            case.case_id
+        );
+        assert_eq!(
+            item.source.source_label_class, case.expected_source_label_class,
+            "source label class mismatch for {}",
             case.case_id
         );
         assert_eq!(
@@ -228,6 +244,14 @@ fn assist_sessions_preserve_sources_and_snippet_key_contracts() {
         snippet_session.captures_tab(),
         fixture.snippet_session.expected_captures_tab
     );
+    assert_eq!(
+        snippet_session.is_keyboard_and_ime_safe(),
+        fixture.snippet_session.expected_keyboard_ime_safe
+    );
+    assert_eq!(
+        snippet_session.requires_composition_disclosure(),
+        fixture.snippet_session.expected_composition_disclosure
+    );
     store.set_snippet_session(snippet_session.clone());
 
     let snapshot = store.surface_snapshot(AssistSurfaceSnapshotRequest {
@@ -249,6 +273,13 @@ fn assist_sessions_preserve_sources_and_snippet_key_contracts() {
         fixture.expected.completion_total_count
     );
     assert_eq!(
+        snapshot
+            .completion_list
+            .source_counts
+            .deterministic_language_completion_count,
+        fixture.expected.deterministic_language_completion_count
+    );
+    assert_eq!(
         snapshot.source_counts.lsp_completion_count,
         fixture.expected.lsp_completion_count
     );
@@ -259,6 +290,10 @@ fn assist_sessions_preserve_sources_and_snippet_key_contracts() {
     assert_eq!(
         snapshot.source_counts.snippet_completion_count,
         fixture.expected.snippet_completion_count
+    );
+    assert_eq!(
+        snapshot.source_counts.ai_assist_completion_count,
+        fixture.expected.ai_assist_completion_count
     );
     assert_eq!(
         snapshot.source_counts.preview_required_count,
@@ -281,6 +316,10 @@ fn assist_sessions_preserve_sources_and_snippet_key_contracts() {
         fixture.expected.source_families
     );
     assert_eq!(
+        snapshot.source_counts.source_label_classes,
+        fixture.expected.source_label_classes
+    );
+    assert_eq!(
         snapshot.completion_list.disclosure_required,
         fixture.expected.completion_disclosure_required
     );
@@ -290,11 +329,28 @@ fn assist_sessions_preserve_sources_and_snippet_key_contracts() {
     );
     assert_eq!(snapshot.state_class, fixture.expected.surface_state_class);
     assert!(!snapshot.completion_list.router_decision_refs.is_empty());
+    let ai_projection = ai_source().label_projection(&fixture.captured_at);
+    assert_eq!(
+        ai_projection.source_label_class,
+        AssistSourceLabelClass::AiInlineAssist
+    );
+    assert!(ai_projection.requires_visual_distinction);
 
     let serialized = serde_json::to_string(&snapshot).expect("snapshot serializes");
     let round_trip: AssistSurfaceSnapshot =
         serde_json::from_str(&serialized).expect("snapshot deserializes");
     assert_eq!(round_trip, snapshot);
+
+    let mut ime_composing_session = snippet_session.clone();
+    ime_composing_session.ime_posture_class = SnippetImePostureClass::CompositionActivePassThrough;
+    let mut ime_controller = SnippetSessionController::new(ime_composing_session);
+    let ime_tab = ime_controller.handle_key(SnippetKeyIntentClass::Tab);
+    assert_eq!(ime_tab.outcome_class, SnippetKeyOutcomeClass::PassThrough);
+    assert_eq!(
+        ime_tab.resulting_state_class,
+        SnippetSessionStateClass::Active
+    );
+    assert_eq!(ime_tab.resulting_placeholder_index, Some(1));
 
     let mut controller = SnippetSessionController::new(snippet_session);
     for step in &fixture.key_sequence {
@@ -425,6 +481,16 @@ fn snippet_source() -> AssistSourceDescriptor {
     )
 }
 
+fn ai_source() -> AssistSourceDescriptor {
+    AssistSourceDescriptor::ai_inline(
+        "assist-source:ai:inline:webapp",
+        "AI inline assist",
+        "ai-inline-assist:webapp:local-policy",
+        RouterLocalityClass::LocalSidecar,
+        "AI inline assist is advisory and must remain visually distinct from deterministic completion.",
+    )
+}
+
 fn snippet_session(fixture: &Fixture, source: AssistSourceDescriptor) -> SnippetSessionRecord {
     SnippetSessionRecord::new(SnippetSessionInit {
         snippet_session_id: fixture.snippet_session_id.clone(),
@@ -437,6 +503,9 @@ fn snippet_session(fixture: &Fixture, source: AssistSourceDescriptor) -> Snippet
         selection_count: fixture.snippet_session.selection_count,
         multi_cursor_compatible: fixture.snippet_session.multi_cursor_compatible,
         tab_behavior_class: fixture.snippet_session.tab_behavior_class,
+        ime_posture_class: fixture.snippet_session.ime_posture_class,
+        cursor_posture_class: fixture.snippet_session.cursor_posture_class,
+        primary_caret_ref: fixture.snippet_session.primary_caret_ref.clone(),
         next_placeholder_command_id_ref: "cmd:editor.snippet.nextPlaceholder".into(),
         previous_placeholder_command_id_ref: "cmd:editor.snippet.previousPlaceholder".into(),
         exit_command_id_ref: "cmd:editor.snippet.exit".into(),

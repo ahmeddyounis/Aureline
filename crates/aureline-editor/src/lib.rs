@@ -25,14 +25,17 @@ pub mod viewport;
 
 pub use assist::{
     AssistContractError, AssistSchemaVersion, AssistSessionStore, AssistSourceCounts,
-    AssistSourceDescriptor, AssistSourceFamily, AssistSurfaceSnapshot,
-    AssistSurfaceSnapshotRequest, AssistSurfaceStateClass, CompletionAcceptanceContract,
+    AssistSourceDescriptor, AssistSourceFamily, AssistSourceLabelClass,
+    AssistSourceLabelProjection, AssistSurfaceSnapshot, AssistSurfaceSnapshotRequest,
+    AssistSurfaceStateClass, CodeActionPreviewDecisionClass, CodeActionPreviewRecord,
+    CodeActionPreviewRequest, CodeActionPreviewSchemaVersion, CompletionAcceptanceContract,
     CompletionItemInit, CompletionItemKindClass, CompletionItemRecord, CompletionListRequest,
-    CompletionListSnapshot, CompletionSideEffectClass, SignatureHelpInit, SignatureHelpRecord,
-    SignaturePlacementClass, SnippetKeyIntentClass, SnippetKeyOutcomeClass,
-    SnippetKeyOutcomeRecord, SnippetSessionController, SnippetSessionInit, SnippetSessionRecord,
-    SnippetSessionStateClass, SnippetTabBehaviorClass, SnippetUnrelatedKeyPolicyClass,
-    ASSIST_SCHEMA_VERSION,
+    CompletionListSnapshot, CompletionSideEffectClass, QuickFixEvidenceTrustClass,
+    SignatureHelpInit, SignatureHelpRecord, SignaturePlacementClass, SnippetCursorPostureClass,
+    SnippetImePostureClass, SnippetKeyIntentClass, SnippetKeyOutcomeClass, SnippetKeyOutcomeRecord,
+    SnippetSessionController, SnippetSessionInit, SnippetSessionRecord, SnippetSessionStateClass,
+    SnippetTabBehaviorClass, SnippetUnrelatedKeyPolicyClass, ASSIST_SCHEMA_VERSION,
+    CODE_ACTION_PREVIEW_SCHEMA_VERSION,
 };
 pub use find_replace::{FindOptions, FindReplaceError, FindReplaceMode, FindReplaceState};
 pub use highlight::{

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub type AssistSchemaVersion = u32;
 
 /// Schema version used by completion, signature-help, and snippet-session records.
-pub const ASSIST_SCHEMA_VERSION: AssistSchemaVersion = 1;
+pub const ASSIST_SCHEMA_VERSION: AssistSchemaVersion = 2;
 
 /// Error returned when assist records cannot be built from upstream provider state.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,6 +94,11 @@ impl AssistSourceFamily {
         matches!(self, Self::LanguageServer)
     }
 
+    /// Returns true when this result is AI-authored assist.
+    pub const fn is_ai_assist(self) -> bool {
+        matches!(self, Self::AiAssist)
+    }
+
     /// Returns the stable schema token for this source family.
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -108,6 +113,111 @@ impl AssistSourceFamily {
     }
 }
 
+/// Stable beta source-label class shared by UI, telemetry, support, and docs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AssistSourceLabelClass {
+    /// Deterministic language intelligence such as an LSP or first-party semantic provider.
+    DeterministicLanguage,
+    /// Cached, lexical, syntactic, or other limited fallback result.
+    CachedFallback,
+    /// Snippet pack or active snippet session result.
+    SnippetOrigin,
+    /// AI inline assist or AI-authored proposal.
+    AiInlineAssist,
+    /// Project graph result.
+    ProjectGraph,
+    /// Framework, schema, or generated-source provider result.
+    FrameworkProvider,
+    /// Structured tool adapter result.
+    ToolAdapter,
+}
+
+impl AssistSourceLabelClass {
+    /// Projects a source family into the visible source-label class.
+    pub const fn from_source_family(source_family: AssistSourceFamily) -> Self {
+        match source_family {
+            AssistSourceFamily::LanguageServer => Self::DeterministicLanguage,
+            AssistSourceFamily::FallbackLexical => Self::CachedFallback,
+            AssistSourceFamily::Snippet => Self::SnippetOrigin,
+            AssistSourceFamily::ProjectGraph => Self::ProjectGraph,
+            AssistSourceFamily::FrameworkPack => Self::FrameworkProvider,
+            AssistSourceFamily::AiAssist => Self::AiInlineAssist,
+            AssistSourceFamily::ToolAdapter => Self::ToolAdapter,
+        }
+    }
+
+    /// Returns the stable schema token for this source-label class.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::DeterministicLanguage => "deterministic_language",
+            Self::CachedFallback => "cached_fallback",
+            Self::SnippetOrigin => "snippet_origin",
+            Self::AiInlineAssist => "ai_inline_assist",
+            Self::ProjectGraph => "project_graph",
+            Self::FrameworkProvider => "framework_provider",
+            Self::ToolAdapter => "tool_adapter",
+        }
+    }
+
+    /// Returns the telemetry key that mirrors the visible label class.
+    pub const fn telemetry_token(self) -> &'static str {
+        match self {
+            Self::DeterministicLanguage => "completion_source.deterministic_language",
+            Self::CachedFallback => "completion_source.cached_fallback",
+            Self::SnippetOrigin => "completion_source.snippet_origin",
+            Self::AiInlineAssist => "completion_source.ai_inline_assist",
+            Self::ProjectGraph => "completion_source.project_graph",
+            Self::FrameworkProvider => "completion_source.framework_provider",
+            Self::ToolAdapter => "completion_source.tool_adapter",
+        }
+    }
+
+    /// Returns true when the UI must keep this assist visually distinct.
+    pub const fn requires_visual_distinction(self) -> bool {
+        matches!(
+            self,
+            Self::CachedFallback | Self::SnippetOrigin | Self::AiInlineAssist
+        )
+    }
+}
+
+/// Export-safe projection of one assist source label for shared consumers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssistSourceLabelProjection {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Integer schema version.
+    pub assist_schema_version: AssistSchemaVersion,
+    /// Source descriptor represented by this projection.
+    pub source_descriptor_id: String,
+    /// Source family from the descriptor.
+    pub source_family: AssistSourceFamily,
+    /// Stable source-label class used by UI, telemetry, support, and docs.
+    pub source_label_class: AssistSourceLabelClass,
+    /// Human-readable label already safe for compact surfaces.
+    pub source_label: String,
+    /// Stable telemetry token for this source-label class.
+    pub telemetry_token: String,
+    /// Short label a UI badge can show without guessing source semantics.
+    pub ui_badge_label: String,
+    /// Label carried into support export packets.
+    pub support_export_label: String,
+    /// Documentation anchor for this label class.
+    pub docs_label_ref: String,
+    /// Whether consumers must visually distinguish this source from deterministic language.
+    pub requires_visual_distinction: bool,
+    /// Capture timestamp.
+    pub captured_at: String,
+    /// Export-safe summary.
+    pub export_safe_summary: String,
+}
+
+impl AssistSourceLabelProjection {
+    /// Stable record-kind tag for source-label projections.
+    pub const RECORD_KIND: &'static str = "assist_source_label_projection";
+}
+
 /// Source descriptor shared by completion items, signatures, and snippets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AssistSourceDescriptor {
@@ -115,6 +225,8 @@ pub struct AssistSourceDescriptor {
     pub source_descriptor_id: String,
     /// Normalized source family.
     pub source_family: AssistSourceFamily,
+    /// Stable source-label class shared by UI, telemetry, support, and docs.
+    pub source_label_class: AssistSourceLabelClass,
     /// Plain-language source label that consumers must keep visible.
     pub source_label: String,
     /// Provider id, when the source came through the language router.
@@ -166,6 +278,9 @@ impl AssistSourceDescriptor {
                 sanitize_id(&decision.router_decision_id)
             ),
             source_family: AssistSourceFamily::from_provider_kind(row.provider_kind),
+            source_label_class: AssistSourceLabelClass::from_source_family(
+                AssistSourceFamily::from_provider_kind(row.provider_kind),
+            ),
             source_label: row.provider_display_label.clone(),
             provider_id: Some(row.provider_id.clone()),
             router_decision_ref: Some(decision.router_decision_id.clone()),
@@ -193,6 +308,7 @@ impl AssistSourceDescriptor {
         Self {
             source_descriptor_id: source_descriptor_id.into(),
             source_family: AssistSourceFamily::Snippet,
+            source_label_class: AssistSourceLabelClass::SnippetOrigin,
             source_label: source_label.into(),
             provider_id: None,
             router_decision_ref: None,
@@ -201,6 +317,33 @@ impl AssistSourceDescriptor {
             freshness_class: RouterFreshnessClass::AuthoritativeLive,
             scope_claim_class,
             completeness_class: RouterCompletenessClass::CompleteForClaimedScope,
+            scope_limit_classes: Vec::new(),
+            locality_class,
+            degraded_state_class: RouterDegradedStateClass::None,
+            summary: summary.into(),
+        }
+    }
+
+    /// Builds a descriptor for an AI inline-assist source.
+    pub fn ai_inline(
+        source_descriptor_id: impl Into<String>,
+        source_label: impl Into<String>,
+        source_ref: impl Into<String>,
+        locality_class: RouterLocalityClass,
+        summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            source_descriptor_id: source_descriptor_id.into(),
+            source_family: AssistSourceFamily::AiAssist,
+            source_label_class: AssistSourceLabelClass::AiInlineAssist,
+            source_label: source_label.into(),
+            provider_id: None,
+            router_decision_ref: None,
+            source_ref: Some(source_ref.into()),
+            support_class: RouterSupportClass::Advisory,
+            freshness_class: RouterFreshnessClass::AuthoritativeLive,
+            scope_claim_class: RouterScopeClaimClass::SingleFile,
+            completeness_class: RouterCompletenessClass::PartialForClaimedScope,
             scope_limit_classes: Vec::new(),
             locality_class,
             degraded_state_class: RouterDegradedStateClass::None,
@@ -221,6 +364,43 @@ impl AssistSourceDescriptor {
             || self.freshness_class != RouterFreshnessClass::AuthoritativeLive
             || self.completeness_class != RouterCompletenessClass::CompleteForClaimedScope
             || !self.scope_limit_classes.is_empty()
+    }
+
+    /// Returns true when consumers must visually distinguish this source class.
+    pub fn requires_visual_distinction(&self) -> bool {
+        self.source_label_class.requires_visual_distinction()
+            || self.requires_degraded_disclosure()
+            || self.source_family.is_ai_assist()
+    }
+
+    /// Builds the shared label projection for UI, telemetry, support, and docs.
+    pub fn label_projection(&self, captured_at: impl Into<String>) -> AssistSourceLabelProjection {
+        AssistSourceLabelProjection {
+            record_kind: AssistSourceLabelProjection::RECORD_KIND.into(),
+            assist_schema_version: ASSIST_SCHEMA_VERSION,
+            source_descriptor_id: self.source_descriptor_id.clone(),
+            source_family: self.source_family,
+            source_label_class: self.source_label_class,
+            source_label: self.source_label.clone(),
+            telemetry_token: self.source_label_class.telemetry_token().into(),
+            ui_badge_label: self.source_label.clone(),
+            support_export_label: format!(
+                "{} ({})",
+                self.source_label,
+                self.source_label_class.as_str()
+            ),
+            docs_label_ref: format!(
+                "docs:editor.assist.source_label.{}",
+                self.source_label_class.as_str()
+            ),
+            requires_visual_distinction: self.requires_visual_distinction(),
+            captured_at: captured_at.into(),
+            export_safe_summary: format!(
+                "Assist source {} is labeled as {}.",
+                self.source_descriptor_id,
+                self.source_label_class.as_str()
+            ),
+        }
     }
 }
 
@@ -412,12 +592,16 @@ pub struct CompletionListRequest {
 pub struct AssistSourceCounts {
     /// Completion items in the list.
     pub completion_total_count: usize,
+    /// Completion items sourced from deterministic language intelligence.
+    pub deterministic_language_completion_count: usize,
     /// Completion items sourced from language servers.
     pub lsp_completion_count: usize,
     /// Completion items sourced from lexical or syntax fallback.
     pub fallback_completion_count: usize,
     /// Completion items sourced from snippets.
     pub snippet_completion_count: usize,
+    /// Completion items sourced from AI assist.
+    pub ai_assist_completion_count: usize,
     /// Completion items requiring preview before acceptance.
     pub preview_required_count: usize,
     /// Number of active snippet sessions.
@@ -428,6 +612,8 @@ pub struct AssistSourceCounts {
     pub source_label_count: usize,
     /// Source families present in deterministic order.
     pub source_families: Vec<AssistSourceFamily>,
+    /// Source-label classes present in deterministic order.
+    pub source_label_classes: Vec<AssistSourceLabelClass>,
 }
 
 impl AssistSourceCounts {
@@ -438,6 +624,7 @@ impl AssistSourceCounts {
         snippet_session: Option<&SnippetSessionRecord>,
     ) -> Self {
         let mut families = BTreeSet::new();
+        let mut label_classes = BTreeSet::new();
         let mut counts = Self {
             completion_total_count: completion_items.len(),
             ..Self::default()
@@ -445,8 +632,12 @@ impl AssistSourceCounts {
 
         for item in completion_items {
             families.insert(item.source.source_family);
+            label_classes.insert(item.source.source_label_class);
             if item.source.requires_source_label() {
                 counts.source_label_count += 1;
+            }
+            if item.source.source_label_class == AssistSourceLabelClass::DeterministicLanguage {
+                counts.deterministic_language_completion_count += 1;
             }
             if item.source.source_family.is_language_server() {
                 counts.lsp_completion_count += 1;
@@ -457,6 +648,9 @@ impl AssistSourceCounts {
             if item.source.source_family.is_snippet() {
                 counts.snippet_completion_count += 1;
             }
+            if item.source.source_family.is_ai_assist() {
+                counts.ai_assist_completion_count += 1;
+            }
             if item.requires_preview() {
                 counts.preview_required_count += 1;
             }
@@ -465,6 +659,7 @@ impl AssistSourceCounts {
         if let Some(signature_help) = signature_help {
             counts.signature_help_count = 1;
             families.insert(signature_help.source.source_family);
+            label_classes.insert(signature_help.source.source_label_class);
             if signature_help.source.requires_source_label() {
                 counts.source_label_count += 1;
             }
@@ -472,6 +667,7 @@ impl AssistSourceCounts {
 
         if let Some(snippet_session) = snippet_session {
             families.insert(snippet_session.source.source_family);
+            label_classes.insert(snippet_session.source.source_label_class);
             if snippet_session.source.requires_source_label() {
                 counts.source_label_count += 1;
             }
@@ -481,6 +677,7 @@ impl AssistSourceCounts {
         }
 
         counts.source_families = families.into_iter().collect();
+        counts.source_label_classes = label_classes.into_iter().collect();
         counts
     }
 }
@@ -744,6 +941,66 @@ pub enum SnippetUnrelatedKeyPolicyClass {
     CaptureSnippetNavigationOnly,
 }
 
+/// IME composition posture for snippet-session key handling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SnippetImePostureClass {
+    /// No IME composition is active, so snippet navigation may own Tab.
+    NoComposition,
+    /// Composition is active and snippet navigation must pass composition keys through.
+    CompositionActivePassThrough,
+    /// Composition was reduced to one visible primary caret for multi-cursor safety.
+    CompositionPrimaryCaretOnly,
+    /// Composition cannot safely continue in the current snippet state.
+    CompositionBlocked,
+}
+
+impl SnippetImePostureClass {
+    /// Returns true when snippet placeholder navigation may consume Tab.
+    pub const fn allows_snippet_navigation(self) -> bool {
+        matches!(self, Self::NoComposition)
+    }
+
+    /// Returns true when the posture keeps composition safe and visible.
+    pub const fn is_safe(self) -> bool {
+        matches!(
+            self,
+            Self::NoComposition
+                | Self::CompositionActivePassThrough
+                | Self::CompositionPrimaryCaretOnly
+        )
+    }
+
+    /// Returns true when multi-cursor composition was deliberately narrowed.
+    pub const fn reduced_to_primary_caret(self) -> bool {
+        matches!(self, Self::CompositionPrimaryCaretOnly)
+    }
+}
+
+/// Cursor movement posture for preserving snippet-session truth.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SnippetCursorPostureClass {
+    /// The active cursor remains anchored to the current placeholder.
+    Stable,
+    /// The session remapped the cursor to the equivalent placeholder.
+    Remapped,
+    /// Rapid cursor movement left a recoverable visible session strip.
+    RecoverableAfterMovement,
+    /// The cursor moved outside a recoverable snippet range.
+    LostOutsideSession,
+}
+
+impl SnippetCursorPostureClass {
+    /// Returns true when the snippet session remains recoverable.
+    pub const fn is_recoverable(self) -> bool {
+        matches!(
+            self,
+            Self::Stable | Self::Remapped | Self::RecoverableAfterMovement
+        )
+    }
+}
+
 /// Key intent class routed through snippet-session handling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -809,6 +1066,12 @@ pub struct SnippetSessionRecord {
     pub tab_behavior_class: SnippetTabBehaviorClass,
     /// Policy for unrelated keys.
     pub unrelated_key_policy_class: SnippetUnrelatedKeyPolicyClass,
+    /// IME composition posture applied to snippet traversal.
+    pub ime_posture_class: SnippetImePostureClass,
+    /// Cursor movement posture used to keep the session visible or recoverable.
+    pub cursor_posture_class: SnippetCursorPostureClass,
+    /// Primary caret used when multi-cursor composition narrows to one target.
+    pub primary_caret_ref: Option<String>,
     /// Stable command id for next-placeholder traversal.
     pub next_placeholder_command_id_ref: String,
     /// Stable command id for previous-placeholder traversal.
@@ -851,6 +1114,9 @@ impl SnippetSessionRecord {
             tab_behavior_class: init.tab_behavior_class,
             unrelated_key_policy_class:
                 SnippetUnrelatedKeyPolicyClass::CaptureSnippetNavigationOnly,
+            ime_posture_class: init.ime_posture_class,
+            cursor_posture_class: init.cursor_posture_class,
+            primary_caret_ref: init.primary_caret_ref,
             next_placeholder_command_id_ref: init.next_placeholder_command_id_ref,
             previous_placeholder_command_id_ref: init.previous_placeholder_command_id_ref,
             exit_command_id_ref: init.exit_command_id_ref,
@@ -859,9 +1125,10 @@ impl SnippetSessionRecord {
             redaction_class: RedactionClass::MetadataSafeDefault,
             captured_at: init.captured_at,
             accessibility_label: format!(
-                "Snippet session from {source_label}; placeholder {} of {}.",
+                "Snippet session from {source_label}; placeholder {} of {}; IME posture {:?}.",
                 init.active_placeholder_index.unwrap_or(0),
-                init.placeholder_count
+                init.placeholder_count,
+                init.ime_posture_class
             ),
             export_safe_summary: format!("Snippet session is source-labeled as {source_label}."),
         }
@@ -884,7 +1151,29 @@ impl SnippetSessionRecord {
 
     /// Returns true when Tab is owned by snippet traversal.
     pub const fn captures_tab(&self) -> bool {
-        self.is_active() && self.placeholder_count > 0
+        self.is_active()
+            && self.placeholder_count > 0
+            && self.ime_posture_class.allows_snippet_navigation()
+    }
+
+    /// Returns true when the session is safe for IME and rapid cursor movement.
+    pub fn is_keyboard_and_ime_safe(&self) -> bool {
+        self.ime_posture_class.is_safe()
+            && self.cursor_posture_class.is_recoverable()
+            && (!self.ime_posture_class.reduced_to_primary_caret()
+                || self
+                    .primary_caret_ref
+                    .as_ref()
+                    .is_some_and(|value| !value.trim().is_empty()))
+    }
+
+    /// Returns true when the visible strip should announce narrowed composition.
+    pub const fn requires_composition_disclosure(&self) -> bool {
+        matches!(
+            self.ime_posture_class,
+            SnippetImePostureClass::CompositionPrimaryCaretOnly
+                | SnippetImePostureClass::CompositionBlocked
+        )
     }
 }
 
@@ -911,6 +1200,12 @@ pub struct SnippetSessionInit {
     pub multi_cursor_compatible: bool,
     /// Tab-key behavior.
     pub tab_behavior_class: SnippetTabBehaviorClass,
+    /// IME composition posture applied to snippet traversal.
+    pub ime_posture_class: SnippetImePostureClass,
+    /// Cursor movement posture used to keep the session visible or recoverable.
+    pub cursor_posture_class: SnippetCursorPostureClass,
+    /// Primary caret used when multi-cursor composition narrows to one target.
+    pub primary_caret_ref: Option<String>,
     /// Stable command id for next-placeholder traversal.
     pub next_placeholder_command_id_ref: String,
     /// Stable command id for previous-placeholder traversal.
@@ -1226,7 +1521,10 @@ impl AssistSessionStore {
         let disclosure_required = completion_list.disclosure_required
             || signature_help
                 .as_ref()
-                .is_some_and(SignatureHelpRecord::requires_degraded_disclosure);
+                .is_some_and(SignatureHelpRecord::requires_degraded_disclosure)
+            || snippet_session.as_ref().is_some_and(|session| {
+                session.requires_composition_disclosure() || !session.is_keyboard_and_ime_safe()
+            });
         let state_class = if source_counts.completion_total_count == 0
             && source_counts.signature_help_count == 0
             && source_counts.active_snippet_session_count == 0

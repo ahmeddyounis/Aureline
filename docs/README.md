@@ -809,6 +809,17 @@ code.
   [`/schemas/editor/inline_assist.schema.json`](../schemas/editor/inline_assist.schema.json);
   worked fixtures in
   [`/fixtures/editor/inline_assist_cases/`](../fixtures/editor/inline_assist_cases/).
+- [`editor/assist_and_quickfix_beta.md`](./editor/assist_and_quickfix_beta.md)
+  — editor assist beta contract for source-labeled completions,
+  snippet-session truth, IME-safe placeholder traversal, AI inline
+  assist distinction, and preview/approval/rollback handling for broad
+  or tainted quick fixes. Boundary schemas in
+  [`/schemas/editor/assist_source.schema.json`](../schemas/editor/assist_source.schema.json),
+  [`/schemas/assist/completion_item.schema.json`](../schemas/assist/completion_item.schema.json),
+  and
+  [`/schemas/editor/code_action_preview.schema.json`](../schemas/editor/code_action_preview.schema.json);
+  worked fixtures in
+  [`/fixtures/editor/completion_snippet_and_quickfix_beta/`](../fixtures/editor/completion_snippet_and_quickfix_beta/).
 - [`ux/editor_selection_contract.md`](./ux/editor_selection_contract.md)
   — source-editor selection, caret, multi-cursor, column-selection,
   line-selection, structural/semantic selection, IME composition, and
