@@ -108,6 +108,10 @@
 //!   checked-in local-history timeline corpus and emits metadata-only support
 //!   rows that quote the same exact, compatible, layout-only, and evidence-only
 //!   fidelity labels as the timeline and restore-preview surfaces.
+//! - The [`refactor_preview`] support projection — consumes the checked-in
+//!   launch-language refactor preview corpus and emits metadata-only support
+//!   rows for green, downgraded, and unsupported semantic-change claims,
+//!   including fallback labels and grouped rollback refs.
 //!
 //! ## Failure-drill posture
 //!
@@ -137,6 +141,7 @@ pub mod policy_simulation;
 pub mod project_doctor;
 pub mod publication_dry_run;
 pub mod recovery_ladder;
+pub mod refactor_preview;
 pub mod release_evidence;
 pub mod repair;
 pub mod repair_transactions;

@@ -1,0 +1,522 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/refactor_preview.schema.json",
+  "title": "Aureline launch-language refactor preview record",
+  "description": "Boundary schema for language_refactor_preview_record. The record captures a launch-language refactor preview target set, confidence class, semantic/textual source class, fallback label, generated-file and dependency notes, validation summary, rollback handle, and grouped mutation lineage. Raw source text, raw diffs, raw paths, provider logs, URLs, command lines, and secrets never cross this boundary; records carry opaque refs, closed vocabulary, counts, and export-safe summaries only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "refactor_preview_schema_version",
+    "preview_id",
+    "language_row_ref",
+    "refactor_class",
+    "support_claim_class",
+    "runtime_condition_class",
+    "semantic_source_class",
+    "confidence_class",
+    "apply_posture_class",
+    "target_set",
+    "fallback_label",
+    "generated_dependency_notes",
+    "validation_summary",
+    "rollback_handle",
+    "evidence_binding",
+    "epoch_bindings",
+    "policy_context",
+    "redaction_class",
+    "captured_at",
+    "export_safe_summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "language_refactor_preview_record" },
+    "refactor_preview_schema_version": { "type": "integer", "const": 1 },
+    "preview_id": { "$ref": "#/$defs/opaque_ref" },
+    "language_row_ref": { "$ref": "#/$defs/opaque_ref" },
+    "refactor_class": { "$ref": "#/$defs/refactor_class" },
+    "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+    "runtime_condition_class": { "$ref": "#/$defs/runtime_condition_class" },
+    "semantic_source_class": { "$ref": "#/$defs/semantic_source_class" },
+    "confidence_class": { "$ref": "#/$defs/confidence_class" },
+    "apply_posture_class": { "$ref": "#/$defs/apply_posture_class" },
+    "target_set": { "$ref": "#/$defs/target_set" },
+    "fallback_label": { "$ref": "#/$defs/fallback_label" },
+    "generated_dependency_notes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/generated_dependency_note" }
+    },
+    "validation_summary": { "$ref": "#/$defs/validation_summary" },
+    "rollback_handle": { "$ref": "#/$defs/rollback_handle" },
+    "evidence_binding": { "$ref": "#/$defs/evidence_binding" },
+    "epoch_bindings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/epoch_binding" },
+      "minItems": 1
+    },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "captured_at": { "$ref": "#/$defs/timestamp" },
+    "export_safe_summary": { "$ref": "#/$defs/summary" }
+  },
+  "allOf": [
+    {
+      "description": "Textual fallback must not masquerade as a beta semantic claim.",
+      "if": {
+        "properties": {
+          "semantic_source_class": { "const": "textual_fallback" }
+        }
+      },
+      "then": {
+        "properties": {
+          "support_claim_class": {
+            "enum": ["downgraded_partial", "unsupported"]
+          },
+          "fallback_label": {
+            "properties": {
+              "required": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Partial, cached, remote-assisted, and textual previews require explicit labels.",
+      "if": {
+        "properties": {
+          "semantic_source_class": {
+            "enum": [
+              "semantic_partial",
+              "semantic_cached",
+              "textual_fallback",
+              "remote_semantic_assisted"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "fallback_label": {
+            "properties": {
+              "required": { "const": true },
+              "reason_classes": {
+                "contains": {
+                  "not": { "const": "none" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Claimed beta rows may be green only from current or qualified remote semantic sources.",
+      "if": {
+        "properties": {
+          "support_claim_class": { "const": "beta_claimed" }
+        }
+      },
+      "then": {
+        "properties": {
+          "semantic_source_class": {
+            "enum": ["semantic_current", "remote_semantic_assisted"]
+          },
+          "confidence_class": {
+            "enum": ["high", "medium"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Multi-file previews that can apply after review must carry rollback refs.",
+      "if": {
+        "properties": {
+          "apply_posture_class": {
+            "enum": ["ready_after_preview", "preview_only_downgraded"]
+          },
+          "target_set": {
+            "properties": {
+              "affected_file_count": { "minimum": 2 }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "rollback_handle": {
+            "properties": {
+              "rollback_handle_ref": { "$ref": "#/$defs/opaque_ref" },
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_ref" },
+              "local_history_group_ref": { "$ref": "#/$defs/opaque_ref" },
+              "mutation_journal_ref": { "$ref": "#/$defs/opaque_ref" },
+              "drill_outcome_class": { "const": "passed" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "nullable_ref": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "non_negative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "refactor_class": {
+      "type": "string",
+      "enum": [
+        "rename_symbol",
+        "extract_function",
+        "move_symbol",
+        "update_imports",
+        "cross_file_signature_change"
+      ]
+    },
+    "support_claim_class": {
+      "type": "string",
+      "enum": [
+        "beta_claimed",
+        "downgraded_partial",
+        "unsupported"
+      ]
+    },
+    "runtime_condition_class": {
+      "type": "string",
+      "enum": [
+        "warm_semantic",
+        "partial_index",
+        "cached_semantic",
+        "remote_assisted"
+      ]
+    },
+    "semantic_source_class": {
+      "type": "string",
+      "enum": [
+        "semantic_current",
+        "semantic_partial",
+        "semantic_cached",
+        "textual_fallback",
+        "remote_semantic_assisted"
+      ]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "blocked"]
+    },
+    "apply_posture_class": {
+      "type": "string",
+      "enum": [
+        "ready_after_preview",
+        "preview_only_downgraded",
+        "blocked_pending_refresh",
+        "blocked_pending_scope_expansion",
+        "blocked_unsupported",
+        "inspect_only"
+      ]
+    },
+    "fallback_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "partial_index",
+        "semantic_engine_stale",
+        "semantic_engine_missing",
+        "policy_limited",
+        "not_qualified_for_row",
+        "remote_unavailable",
+        "remote_assisted_semantic",
+        "generated_artifact_limit"
+      ]
+    },
+    "generated_artifact_posture_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "counted_authored_only",
+        "compare_only",
+        "regenerate_required",
+        "blocked_pending_review"
+      ]
+    },
+    "dependency_impact_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "import_rewrite",
+        "public_api_signature",
+        "package_boundary",
+        "generated_config"
+      ]
+    },
+    "validation_hook_class": {
+      "type": "string",
+      "enum": [
+        "refresh_semantic_snapshot",
+        "rerun_diagnostics",
+        "run_typecheck",
+        "run_unit_tests",
+        "inspect_generated_outputs",
+        "inspect_dependency_graph",
+        "remote_agent_revalidation",
+        "no_automatic_validation_available"
+      ]
+    },
+    "validation_state_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "passed_with_warnings",
+        "pending",
+        "failed",
+        "blocked",
+        "unsupported"
+      ]
+    },
+    "rollback_path_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo_via_local_history_checkpoint",
+        "compensating_revert_via_workspace_diff",
+        "grouped_mutation_journal_revert",
+        "regenerate_first_then_replay",
+        "manual_review_required_no_automatic_path",
+        "no_safe_rollback_available"
+      ]
+    },
+    "grouped_mutation_lineage_class": {
+      "type": "string",
+      "enum": [
+        "single_buffer_undo",
+        "local_history_checkpoint_group",
+        "mutation_journal_grouped_entry",
+        "local_history_and_mutation_journal",
+        "support_export_only"
+      ]
+    },
+    "drill_outcome_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed",
+        "not_run_blocked",
+        "not_required_single_buffer"
+      ]
+    },
+    "epoch_role_class": {
+      "type": "string",
+      "enum": [
+        "workspace_scope",
+        "language_semantic_model",
+        "build_graph",
+        "search_index_epoch",
+        "generated_artifact_lineage",
+        "policy_bundle",
+        "remote_agent_session"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted"]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted"
+      ]
+    },
+    "target_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_set_ref",
+        "affected_file_count",
+        "affected_symbol_count",
+        "affected_reference_count",
+        "generated_file_count",
+        "dependency_note_count",
+        "omitted_scope_count",
+        "file_set_ref",
+        "symbol_refs",
+        "omitted_scope_refs",
+        "partial_scope_reason_classes",
+        "summary"
+      ],
+      "properties": {
+        "target_set_ref": { "$ref": "#/$defs/opaque_ref" },
+        "affected_file_count": { "$ref": "#/$defs/non_negative_int" },
+        "affected_symbol_count": { "$ref": "#/$defs/non_negative_int" },
+        "affected_reference_count": { "$ref": "#/$defs/non_negative_int" },
+        "generated_file_count": { "$ref": "#/$defs/non_negative_int" },
+        "dependency_note_count": { "$ref": "#/$defs/non_negative_int" },
+        "omitted_scope_count": { "$ref": "#/$defs/non_negative_int" },
+        "file_set_ref": { "$ref": "#/$defs/opaque_ref" },
+        "symbol_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "minItems": 1
+        },
+        "omitted_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "partial_scope_reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_reason_class" }
+        },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    },
+    "fallback_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "label", "reason_classes", "summary"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "label": { "$ref": "#/$defs/summary" },
+        "reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_reason_class" },
+          "minItems": 1
+        },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    },
+    "generated_dependency_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "generated_artifact_posture_class",
+        "dependency_impact_class",
+        "affected_count",
+        "summary"
+      ],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/opaque_ref" },
+        "generated_artifact_posture_class": { "$ref": "#/$defs/generated_artifact_posture_class" },
+        "dependency_impact_class": { "$ref": "#/$defs/dependency_impact_class" },
+        "affected_count": { "$ref": "#/$defs/non_negative_int" },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    },
+    "validation_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_result_ref",
+        "validation_state_class",
+        "validation_hook_classes",
+        "fallout_risk_count",
+        "blocking_defect_count",
+        "summary"
+      ],
+      "properties": {
+        "validation_result_ref": { "$ref": "#/$defs/opaque_ref" },
+        "validation_state_class": { "$ref": "#/$defs/validation_state_class" },
+        "validation_hook_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_hook_class" },
+          "minItems": 1
+        },
+        "fallout_risk_count": { "$ref": "#/$defs/non_negative_int" },
+        "blocking_defect_count": { "$ref": "#/$defs/non_negative_int" },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    },
+    "rollback_handle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollback_handle_ref",
+        "rollback_path_class",
+        "checkpoint_ref",
+        "local_history_group_ref",
+        "mutation_journal_ref",
+        "grouped_mutation_lineage_class",
+        "drill_outcome_class",
+        "summary"
+      ],
+      "properties": {
+        "rollback_handle_ref": { "$ref": "#/$defs/nullable_ref" },
+        "rollback_path_class": { "$ref": "#/$defs/rollback_path_class" },
+        "checkpoint_ref": { "$ref": "#/$defs/nullable_ref" },
+        "local_history_group_ref": { "$ref": "#/$defs/nullable_ref" },
+        "mutation_journal_ref": { "$ref": "#/$defs/nullable_ref" },
+        "grouped_mutation_lineage_class": { "$ref": "#/$defs/grouped_mutation_lineage_class" },
+        "drill_outcome_class": { "$ref": "#/$defs/drill_outcome_class" },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    },
+    "evidence_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "editor_refactor_preview_ref",
+        "navigation_rename_preview_ref",
+        "graph_impact_ref",
+        "review_packet_ref",
+        "support_export_ref",
+        "mutation_lineage_refs",
+        "schema_refs"
+      ],
+      "properties": {
+        "editor_refactor_preview_ref": { "$ref": "#/$defs/opaque_ref" },
+        "navigation_rename_preview_ref": { "$ref": "#/$defs/nullable_ref" },
+        "graph_impact_ref": { "$ref": "#/$defs/nullable_ref" },
+        "review_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "support_export_ref": { "$ref": "#/$defs/opaque_ref" },
+        "mutation_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "schema_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "minItems": 2,
+          "uniqueItems": true
+        }
+      }
+    },
+    "epoch_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["epoch_role_class", "epoch_ref"],
+      "properties": {
+        "epoch_role_class": { "$ref": "#/$defs/epoch_role_class" },
+        "epoch_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "execution_context_id": { "$ref": "#/$defs/opaque_ref" }
+      }
+    }
+  }
+}

@@ -17,6 +17,7 @@ pub mod invalidation;
 pub mod lsp_router;
 pub mod packs;
 pub mod python;
+pub mod refactor_preview;
 pub mod symbol_snapshot;
 pub mod target_model;
 pub mod tree_sitter;
@@ -112,6 +113,27 @@ pub use python::{
     PythonSemanticResultSchemaVersion, PythonSourceAnchor, PythonSourceAnchorKindClass,
     PythonSymbolKindClass, PythonSymbolSeed, PythonWorkspaceContext,
     PYTHON_NAV_ALPHA_SCHEMA_VERSION, PYTHON_QUALITY_ALPHA_SCHEMA_VERSION,
+};
+pub use refactor_preview::{
+    current_refactor_preview_corpus, current_refactor_preview_fixture_refs,
+    load_refactor_preview_case, GeneratedArtifactPostureClass, GroupedMutationLineageClass,
+    RefactorApplyPostureClass, RefactorConfidenceClass, RefactorCorpusRowState,
+    RefactorDependencyImpactClass, RefactorEpochBinding, RefactorEpochRoleClass,
+    RefactorEvidenceBinding, RefactorFallbackLabel, RefactorFallbackReasonClass,
+    RefactorGeneratedDependencyNote, RefactorPolicyContext, RefactorPreviewAggregateCounts,
+    RefactorPreviewBetaReport, RefactorPreviewCorpus, RefactorPreviewCorpusEntry,
+    RefactorPreviewCorpusValidationReport, RefactorPreviewEvaluator, RefactorPreviewRecord,
+    RefactorPreviewReportRow, RefactorPreviewSchemaVersion, RefactorPreviewValidationDefect,
+    RefactorRedactionClass, RefactorRollbackDrillOutcomeClass, RefactorRollbackHandle,
+    RefactorRollbackPathClass, RefactorRuntimeConditionClass, RefactorSemanticSourceClass,
+    RefactorSupportClaimClass, RefactorTargetSet, RefactorTrustState, RefactorValidationCheckClass,
+    RefactorValidationFinding, RefactorValidationHookClass, RefactorValidationResult,
+    RefactorValidationResultSchemaVersion, RefactorValidationSeverityClass,
+    RefactorValidationStateClass, REFACTOR_PREVIEW_BETA_DOC_REF,
+    REFACTOR_PREVIEW_BETA_REPORT_RECORD_KIND, REFACTOR_PREVIEW_CORPUS_DIR,
+    REFACTOR_PREVIEW_RECORD_KIND, REFACTOR_PREVIEW_SCHEMA_REF, REFACTOR_PREVIEW_SCHEMA_VERSION,
+    REFACTOR_VALIDATION_RESULT_RECORD_KIND, REFACTOR_VALIDATION_RESULT_SCHEMA_REF,
+    REFACTOR_VALIDATION_RESULT_SCHEMA_VERSION,
 };
 pub use symbol_snapshot::{
     SourcePoint, SourceRange, SymbolKindClass, SymbolProviderClass, SymbolRecord,

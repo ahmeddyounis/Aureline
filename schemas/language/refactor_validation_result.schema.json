@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/refactor_validation_result.schema.json",
+  "title": "Aureline launch-language refactor validation result",
+  "description": "Boundary schema for language_refactor_validation_result_record. The record states whether a launch-language refactor preview row is green, downgraded, or unsupported, and preserves preview-truth, fallback-label, rollback-lineage, support-export, and rollback-drill validation outcomes without exporting raw source, diffs, paths, provider logs, URLs, command lines, or secrets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "refactor_validation_result_schema_version",
+    "validation_result_id",
+    "preview_ref",
+    "corpus_row_state",
+    "validation_state_class",
+    "preview_truth_check_class",
+    "fallback_label_check_class",
+    "rollback_lineage_check_class",
+    "support_export_check_class",
+    "rollback_drill_outcome_class",
+    "findings",
+    "support_export_ref",
+    "validated_at",
+    "export_safe_summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "language_refactor_validation_result_record" },
+    "refactor_validation_result_schema_version": { "type": "integer", "const": 1 },
+    "validation_result_id": { "$ref": "#/$defs/opaque_ref" },
+    "preview_ref": { "$ref": "#/$defs/opaque_ref" },
+    "corpus_row_state": { "$ref": "#/$defs/corpus_row_state" },
+    "validation_state_class": { "$ref": "#/$defs/validation_state_class" },
+    "preview_truth_check_class": { "$ref": "#/$defs/check_class" },
+    "fallback_label_check_class": { "$ref": "#/$defs/check_class" },
+    "rollback_lineage_check_class": { "$ref": "#/$defs/check_class" },
+    "support_export_check_class": { "$ref": "#/$defs/check_class" },
+    "rollback_drill_outcome_class": { "$ref": "#/$defs/drill_outcome_class" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "support_export_ref": { "$ref": "#/$defs/opaque_ref" },
+    "validated_at": { "$ref": "#/$defs/timestamp" },
+    "export_safe_summary": { "$ref": "#/$defs/summary" }
+  },
+  "allOf": [
+    {
+      "description": "Green rows must have passing validation and support export checks.",
+      "if": {
+        "properties": {
+          "corpus_row_state": { "const": "green" }
+        }
+      },
+      "then": {
+        "properties": {
+          "validation_state_class": {
+            "enum": ["passed", "passed_with_warnings"]
+          },
+          "preview_truth_check_class": { "const": "passed" },
+          "support_export_check_class": { "const": "passed" }
+        }
+      }
+    },
+    {
+      "description": "Unsupported rows must not report ordinary passing validation.",
+      "if": {
+        "properties": {
+          "corpus_row_state": { "const": "unsupported" }
+        }
+      },
+      "then": {
+        "properties": {
+          "validation_state_class": {
+            "enum": ["unsupported", "blocked"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Rows with a passed rollback drill must also pass rollback-lineage validation.",
+      "if": {
+        "properties": {
+          "rollback_drill_outcome_class": { "const": "passed" }
+        }
+      },
+      "then": {
+        "properties": {
+          "rollback_lineage_check_class": { "const": "passed" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "corpus_row_state": {
+      "type": "string",
+      "enum": ["green", "downgraded", "unsupported"]
+    },
+    "validation_state_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "passed_with_warnings",
+        "pending",
+        "failed",
+        "blocked",
+        "unsupported"
+      ]
+    },
+    "check_class": {
+      "type": "string",
+      "enum": ["passed", "failed", "not_applicable"]
+    },
+    "drill_outcome_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed",
+        "not_run_blocked",
+        "not_required_single_buffer"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["info", "warning", "error"]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_id",
+        "severity_class",
+        "field_name",
+        "summary"
+      ],
+      "properties": {
+        "check_id": { "$ref": "#/$defs/opaque_ref" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "field_name": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    }
+  }
+}
