@@ -113,6 +113,20 @@ sequence_packet_failure_classes:
   - fixture_seed_divergence
 
 # -----------------------------------------------------------------------------
+# Conformance-packet state classes (closed).
+#
+# Cross-lane packet families use this state to distinguish current green
+# proof from missing, stale, red, or expired-waiver packet posture.
+# -----------------------------------------------------------------------------
+conformance_packet_state_classes:
+  - green
+  - missing
+  - stale
+  - red
+  - waived_time_boxed
+  - blocked_by_expired_waiver
+
+# -----------------------------------------------------------------------------
 # Waiver posture (closed).
 #
 # A rule that returns a blocking verdict MAY downgrade to a narrower
@@ -304,6 +318,32 @@ rules:
       clearance_condition in artifacts/benchmarks/quarantine_rules.yaml.
     references:
       - artifacts/benchmarks/quarantine_rules.yaml
+
+  - id: rules.interaction_integrity_packet_not_green
+    title: Interaction-integrity packet is missing, stale, red, or expired
+    trigger:
+      conformance_packet_family: interaction_integrity
+      conformance_packet_state_any_of:
+        - missing
+        - stale
+        - red
+        - blocked_by_expired_waiver
+    verdict: widening_blocked
+    composes_with_lanes:
+      - fixture_repo_integration
+      - accessibility_regression
+      - chaos_fault_injection
+      - protected_sequence_packet_validation
+    admits_waiver_postures:
+      - no_waiver
+    remediation_required: >
+      Refresh the interaction-integrity conformance packet and release
+      snapshot, or narrow the affected marketed row before beta widening
+      or release-candidate promotion continues.
+    references:
+      - fixtures/qe/m3/interaction_integrity_corpus/manifest.yaml
+      - artifacts/qe/m3/interaction_integrity_packets/conformance_packet.json
+      - artifacts/qe/m3/interaction_integrity_packets/release_snapshot.json
 
   - id: rules.fitness_catalog_or_metrics_revision_pending
     title: Fitness-catalog or protected-metrics revision pending

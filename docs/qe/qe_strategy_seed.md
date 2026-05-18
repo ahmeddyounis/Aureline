@@ -62,9 +62,9 @@ decision row in `artifacts/governance/decision_index.yaml`.
 | `performance_ci` | Benchmark-lab and performance-CI runs tied to protected fitness functions, the corpus manifest, and the quarantine policy; gates regressions against declared thresholds. |
 | `protected_sequence_packet_validation` | Validates protected-sequence packet families (reconnect sequences, browser-handoff sequences, trust-state transitions, remote-agent hello/heartbeat, repair rollback chronology) against their schemas and fixture seeds. |
 
-These eight lanes are the floor. Protected cross-cutting areas — the
-ten named in the registry — route their scenarios through one or more
-of these lanes; they do not invent a parallel lane vocabulary.
+These eight lanes are the floor. Protected cross-cutting areas named
+in the registry route their scenarios through one or more of these
+lanes; they do not invent a parallel lane vocabulary.
 
 ## Cross-cutting scenario coverage
 
@@ -79,6 +79,7 @@ protected-metric or contract-family row the scenario guards.
 - `terminal_run_test_debug_replay_safety`
 - `git_merge_history_edit_recovery`
 - `connectivity_reconciliation`
+- `interaction_integrity_conformance`
 - `portability_export_integrity`
 - `localization_locale_pack_parity`
 - `theme_icon_motion_package_validation`
