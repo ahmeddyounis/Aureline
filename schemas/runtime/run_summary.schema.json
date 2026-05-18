@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/run_summary.schema.json",
+  "title": "Aureline run summary and durable history records",
+  "description": "Boundary schema for run summary cards, durable job rows, artifact detail sheets, and run-history support exports. The records preserve run identity, attempt identity, execution context, target boundary, build or commit identity, freshness, retention, artifact lineage, and controlled interruption truth across desktop UI, activity center, CLI/headless output, and support exports.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/run_summary_card_record" },
+    { "$ref": "#/$defs/durable_job_row_record" },
+    { "$ref": "#/$defs/run_artifact_detail_sheet_record" },
+    { "$ref": "#/$defs/run_history_support_export_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "date_time": { "type": "string", "format": "date-time" },
+    "task_wedge_class": {
+      "type": "string",
+      "enum": ["build", "test", "debug", "terminal", "package", "notebook", "ai_tool", "review", "generic"]
+    },
+    "run_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "preparing",
+        "running",
+        "waiting_input",
+        "partially_complete",
+        "passed",
+        "failed",
+        "cancelled",
+        "stale_output_partial_parse"
+      ]
+    },
+    "run_freshness_class": {
+      "type": "string",
+      "enum": ["current", "stale", "imported"]
+    },
+    "run_boundary_class": {
+      "type": "string",
+      "enum": ["local", "remote", "container", "managed", "ai_sandbox"]
+    },
+    "run_current_relationship_class": {
+      "type": "string",
+      "enum": [
+        "current_attempt",
+        "stale_prior_evidence",
+        "current_context_rerun",
+        "imported_evidence",
+        "manual_replay_required"
+      ]
+    },
+    "run_continuity_marker": {
+      "type": "string",
+      "enum": [
+        "look_away_return",
+        "sleep_resume",
+        "window_switch",
+        "runtime_restart",
+        "imported_replay"
+      ]
+    },
+    "run_interruption_kind": {
+      "type": "string",
+      "enum": [
+        "user_cancel",
+        "remote_disconnect",
+        "thermal_pause",
+        "policy_block",
+        "auth_expiry",
+        "process_crash",
+        "lost_source_map",
+        "truncated_log",
+        "stale_import",
+        "manual_replay_requirement"
+      ]
+    },
+    "run_artifact_kind": {
+      "type": "string",
+      "enum": [
+        "build_output",
+        "coverage",
+        "test_report",
+        "log_slice",
+        "profile",
+        "debug_artifact",
+        "validation_summary",
+        "diagnostic_bundle",
+        "source_map"
+      ]
+    },
+    "run_artifact_retention_class": {
+      "type": "string",
+      "enum": ["metadata_only", "retained_redacted", "pinned_evidence", "provider_only"]
+    },
+    "run_artifact_viewer_class": {
+      "type": "string",
+      "enum": [
+        "structured_viewer",
+        "log_viewer",
+        "safe_preview",
+        "trace_viewer",
+        "download_only",
+        "raw_fallback"
+      ]
+    },
+    "redaction_class": { "const": "metadata_safe_default" },
+    "run_build_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "commit_ref", "build_id"],
+      "properties": {
+        "branch": { "$ref": "#/$defs/opaque_id" },
+        "commit_ref": { "$ref": "#/$defs/opaque_id" },
+        "build_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "run_context_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "execution_context_ref",
+        "workspace_id",
+        "surface_token",
+        "command_id",
+        "target_class_token",
+        "canonical_target_id",
+        "boundary_token",
+        "toolchain_class_token",
+        "toolchain_id",
+        "resolved_toolchain_version",
+        "environment_capsule_ref",
+        "environment_capsule_hash",
+        "environment_capsule_drift_token",
+        "trust_state_token",
+        "policy_epoch"
+      ],
+      "properties": {
+        "execution_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_token": { "$ref": "#/$defs/opaque_id" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "target_class_token": { "$ref": "#/$defs/opaque_id" },
+        "canonical_target_id": { "$ref": "#/$defs/opaque_id" },
+        "boundary_token": { "$ref": "#/$defs/run_boundary_class" },
+        "toolchain_class_token": { "$ref": "#/$defs/opaque_id" },
+        "toolchain_id": { "$ref": "#/$defs/opaque_id" },
+        "resolved_toolchain_version": { "$ref": "#/$defs/opaque_id" },
+        "environment_capsule_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_capsule_hash": { "$ref": "#/$defs/opaque_id" },
+        "environment_capsule_drift_token": { "$ref": "#/$defs/opaque_id" },
+        "trust_state_token": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "run_action_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_token", "action_ref", "label"],
+      "properties": {
+        "action_token": { "$ref": "#/$defs/opaque_id" },
+        "action_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "run_summary_card_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "run_id",
+        "latest_attempt_id",
+        "title",
+        "initiator",
+        "wedge_token",
+        "context",
+        "build_identity",
+        "started_at",
+        "lifecycle_state_token",
+        "freshness_token",
+        "current_relationship_token",
+        "artifact_count",
+        "old_evidence_preserved",
+        "evidence_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_summary_card_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "latest_attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "type": "string", "minLength": 1 },
+        "initiator": { "type": "string", "minLength": 1 },
+        "wedge_token": { "$ref": "#/$defs/task_wedge_class" },
+        "context": { "$ref": "#/$defs/run_context_summary" },
+        "build_identity": { "$ref": "#/$defs/run_build_identity" },
+        "started_at": { "$ref": "#/$defs/date_time" },
+        "finished_at": { "$ref": "#/$defs/date_time" },
+        "lifecycle_state_token": { "$ref": "#/$defs/run_lifecycle_state" },
+        "freshness_token": { "$ref": "#/$defs/run_freshness_class" },
+        "current_relationship_token": { "$ref": "#/$defs/run_current_relationship_class" },
+        "interruption_token": { "$ref": "#/$defs/run_interruption_kind" },
+        "artifact_count": { "type": "integer", "minimum": 0 },
+        "old_evidence_preserved": { "type": "boolean" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "durable_job_row_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "job_row_id",
+        "run_id",
+        "latest_attempt_id",
+        "workspace_id",
+        "lifecycle_state_token",
+        "last_update_at",
+        "artifact_count",
+        "freshness_token",
+        "current_relationship_token",
+        "continuity_marker_tokens",
+        "retry_action",
+        "rerun_exact_action",
+        "rerun_current_context_action",
+        "durable_after_surface_close",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": { "const": "durable_job_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "job_row_id": { "$ref": "#/$defs/opaque_id" },
+        "run_id": { "$ref": "#/$defs/opaque_id" },
+        "latest_attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_state_token": { "$ref": "#/$defs/run_lifecycle_state" },
+        "last_update_at": { "$ref": "#/$defs/date_time" },
+        "artifact_count": { "type": "integer", "minimum": 0 },
+        "freshness_token": { "$ref": "#/$defs/run_freshness_class" },
+        "current_relationship_token": { "$ref": "#/$defs/run_current_relationship_class" },
+        "interruption_token": { "$ref": "#/$defs/run_interruption_kind" },
+        "continuity_marker_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_continuity_marker" }
+        },
+        "retry_action": { "$ref": "#/$defs/run_action_ref" },
+        "rerun_exact_action": { "$ref": "#/$defs/run_action_ref" },
+        "rerun_current_context_action": { "$ref": "#/$defs/run_action_ref" },
+        "durable_after_surface_close": { "const": true },
+        "raw_private_material_excluded": { "const": true }
+      }
+    },
+    "run_artifact_detail_sheet_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "artifact_id",
+        "artifact_kind_token",
+        "producing_run_id",
+        "producing_attempt_id",
+        "producing_execution_context_ref",
+        "freshness_token",
+        "retention_class_token",
+        "redaction_class_token",
+        "preferred_viewer_token",
+        "raw_fallback_viewer_token",
+        "compatible_viewer_available",
+        "raw_fallback_available",
+        "actions",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_artifact_detail_sheet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "artifact_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_kind_token": { "$ref": "#/$defs/run_artifact_kind" },
+        "producing_run_id": { "$ref": "#/$defs/opaque_id" },
+        "producing_attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "producing_execution_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_token": { "$ref": "#/$defs/run_freshness_class" },
+        "retention_class_token": { "$ref": "#/$defs/run_artifact_retention_class" },
+        "redaction_class_token": { "$ref": "#/$defs/redaction_class" },
+        "preferred_viewer_token": { "$ref": "#/$defs/run_artifact_viewer_class" },
+        "raw_fallback_viewer_token": { "const": "raw_fallback" },
+        "compatible_viewer_available": { "type": "boolean" },
+        "raw_fallback_available": { "type": "boolean" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/run_action_ref" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "run_history_support_export_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "workspace_id",
+        "generated_at",
+        "run_summaries",
+        "durable_job_rows",
+        "artifact_sheets",
+        "rerun_reviews",
+        "interruption_taxonomy_tokens",
+        "consumer_surface_tokens",
+        "raw_private_material_excluded",
+        "summary_lines"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_history_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "run_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_summary_card_record" }
+        },
+        "durable_job_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/durable_job_row_record" }
+        },
+        "artifact_sheets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_artifact_detail_sheet_record" }
+        },
+        "rerun_reviews": { "type": "array" },
+        "interruption_taxonomy_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_interruption_kind" }
+        },
+        "consumer_surface_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_private_material_excluded": { "const": true },
+        "summary_lines": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

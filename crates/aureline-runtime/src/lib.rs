@@ -54,6 +54,7 @@ pub mod remote_helper_skew_beta;
 pub mod request_workspace;
 pub mod request_workspace_contracts;
 pub mod rerun;
+pub mod run_lineage;
 pub mod scanner_import;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
@@ -378,6 +379,17 @@ pub use rerun::{
     RERUN_COMMAND_BINDING_RECORD_KIND, RERUN_LAST_LAUNCH_RECORD_KIND, RERUN_LAST_TASK_COMMAND_ID,
     RERUN_LAST_TEST_COMMAND_ID, RERUN_LOOP_SCHEMA_VERSION, RERUN_PREPARED_ATTEMPT_RECORD_KIND,
     RERUN_SUPPORT_EXPORT_RECORD_KIND, RERUN_TARGET_COMPARISON_RECORD_KIND,
+};
+pub use run_lineage::{
+    seeded_run_history_support_export, DurableJobRow, RerunReviewDriftField, RerunReviewDriftRow,
+    RerunReviewMode, RerunReviewModeOption, RerunReviewSheet, RunActionRef, RunArtifactActionClass,
+    RunArtifactDetailSheet, RunArtifactKind, RunArtifactRetentionClass, RunArtifactViewerClass,
+    RunBoundaryClass, RunBuildIdentity, RunContextSummary, RunContinuityMarker,
+    RunCurrentRelationshipClass, RunFreshnessClass, RunHistorySupportExport, RunInterruptionKind,
+    RunLifecycleState, RunLineageSeededScenario, RunSummaryCard, DURABLE_JOB_ROW_RECORD_KIND,
+    RERUN_REVIEW_SHEET_RECORD_KIND, RUN_ARTIFACT_DETAIL_SHEET_RECORD_KIND,
+    RUN_HISTORY_SUPPORT_EXPORT_RECORD_KIND, RUN_LINEAGE_SCHEMA_VERSION,
+    RUN_SUMMARY_CARD_RECORD_KIND,
 };
 pub use shared_debug_alpha::{
     LocalDebugContinuityClass, LocalDebugContinuityObservation,

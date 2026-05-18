@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/rerun_review.schema.json",
+  "title": "Aureline rerun review sheet",
+  "description": "Boundary schema for exact-versus-current rerun review sheets. The sheet exposes both Rerun exactly and Rerun with current context, enumerates changed code, config, toolchain, locale, policy, secret, branch, target, trust, environment, and workspace-scope inputs, and preserves the old/current evidence relationship before dispatch.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/rerun_review_sheet_record" },
+    { "$ref": "#/$defs/rerun_review_case" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "date_time": { "type": "string", "format": "date-time" },
+    "rerun_review_mode": {
+      "type": "string",
+      "enum": ["rerun_exactly", "rerun_with_current_context"]
+    },
+    "rerun_review_drift_field": {
+      "type": "string",
+      "enum": [
+        "code",
+        "config",
+        "toolchain",
+        "locale",
+        "policy",
+        "secrets",
+        "branch",
+        "target",
+        "trust",
+        "environment",
+        "workspace_scope"
+      ]
+    },
+    "run_current_relationship_class": {
+      "type": "string",
+      "enum": [
+        "current_attempt",
+        "stale_prior_evidence",
+        "current_context_rerun",
+        "imported_evidence",
+        "manual_replay_required"
+      ]
+    },
+    "rerun_review_mode_option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode_token",
+        "label",
+        "execution_context_ref",
+        "preserves_original_context",
+        "uses_current_workspace_context",
+        "dispatch_action_ref"
+      ],
+      "properties": {
+        "mode": { "$ref": "#/$defs/rerun_review_mode" },
+        "mode_token": { "$ref": "#/$defs/rerun_review_mode" },
+        "label": { "type": "string", "minLength": 1 },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserves_original_context": { "type": "boolean" },
+        "uses_current_workspace_context": { "type": "boolean" },
+        "dispatch_action_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "rerun_review_drift_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_token",
+        "source_field_path",
+        "label",
+        "changes_reproduction_context",
+        "requires_review_before_dispatch"
+      ],
+      "properties": {
+        "field": { "$ref": "#/$defs/rerun_review_drift_field" },
+        "field_token": { "$ref": "#/$defs/rerun_review_drift_field" },
+        "source_field_path": { "$ref": "#/$defs/opaque_id" },
+        "label": { "type": "string", "minLength": 1 },
+        "exact_value_token": { "$ref": "#/$defs/opaque_id" },
+        "current_value_token": { "$ref": "#/$defs/opaque_id" },
+        "changes_reproduction_context": { "type": "boolean" },
+        "requires_review_before_dispatch": { "type": "boolean" }
+      }
+    },
+    "rerun_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "review_id",
+        "source_run_id",
+        "source_attempt_id",
+        "exact_context_ref",
+        "current_context_ref",
+        "generated_at",
+        "mode_options",
+        "drift_rows",
+        "drift_field_tokens",
+        "has_drift",
+        "requires_review_before_dispatch",
+        "old_evidence_preserved",
+        "old_current_relationship_token",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "rerun_review_sheet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "source_run_id": { "$ref": "#/$defs/opaque_id" },
+        "source_attempt_id": { "$ref": "#/$defs/opaque_id" },
+        "exact_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "current_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/date_time" },
+        "mode_options": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/rerun_review_mode_option" }
+        },
+        "drift_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rerun_review_drift_row" }
+        },
+        "drift_field_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rerun_review_drift_field" }
+        },
+        "has_drift": { "type": "boolean" },
+        "requires_review_before_dispatch": { "type": "boolean" },
+        "old_evidence_preserved": { "type": "boolean" },
+        "old_current_relationship_token": { "$ref": "#/$defs/run_current_relationship_class" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "rerun_review_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "__fixture__",
+        "record_kind",
+        "schema_version",
+        "case_id",
+        "scenario",
+        "expect"
+      ],
+      "properties": {
+        "__fixture__": { "type": "object", "additionalProperties": true },
+        "record_kind": { "const": "rerun_review_case" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "scenario": {
+          "type": "string",
+          "enum": [
+            "current_local_passed_sleep_resume",
+            "remote_disconnect_current_context_review",
+            "auth_expiry_stale_evidence",
+            "stale_import_manual_replay"
+          ]
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "freshness",
+            "current_relationship",
+            "interruption",
+            "requires_review_before_dispatch",
+            "required_drift_fields",
+            "required_continuity_markers"
+          ],
+          "properties": {
+            "freshness": { "type": "string", "enum": ["current", "stale", "imported"] },
+            "current_relationship": { "$ref": "#/$defs/run_current_relationship_class" },
+            "interruption": {
+              "type": ["string", "null"],
+              "enum": [
+                "remote_disconnect",
+                "auth_expiry",
+                "manual_replay_requirement",
+                null
+              ]
+            },
+            "requires_review_before_dispatch": { "type": "boolean" },
+            "required_drift_fields": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/rerun_review_drift_field" }
+            },
+            "required_continuity_markers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "look_away_return",
+                  "sleep_resume",
+                  "window_switch",
+                  "runtime_restart",
+                  "imported_replay"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
