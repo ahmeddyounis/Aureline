@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/attention_inbox_item.schema.json",
+  "title": "Aureline attention / review inbox item and snapshot contract",
+  "description": "Boundary schema for the attention_inbox_item_record and attention_inbox_snapshot_record minted by the shell activity-timeline runtime. Inbox items are for things that need explicit human action rather than background completion; they carry why this user is being asked, the freshness of the underlying evidence, the authority that requested the prompt, a closed verb set (open / snooze / acknowledge / clear / mute / resolve / escalate) so each verb stays attributable in exported history, and quiet-hours/policy suppression notes that never destroy durable inbox evidence. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never cross this boundary; this schema carries ids, typed vocabulary, and short privacy-safe labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/attention_inbox_item_record" },
+    { "$ref": "#/$defs/attention_inbox_snapshot_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:activity_timeline_and_inbox:v1"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:#/\\-]+$"
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "chronology_lane": {
+      "$ref": "https://aureline.dev/schemas/ux/activity_event_row.schema.json#/$defs/chronology_lane"
+    },
+    "source_subsystem": {
+      "$ref": "https://aureline.dev/schemas/ux/activity_event_row.schema.json#/$defs/source_subsystem"
+    },
+    "importance_class": {
+      "$ref": "https://aureline.dev/schemas/ux/activity_event_row.schema.json#/$defs/importance_class"
+    },
+    "scope_object_kind": {
+      "$ref": "https://aureline.dev/schemas/ux/activity_event_row.schema.json#/$defs/scope_object_kind"
+    },
+    "detail_link": {
+      "$ref": "https://aureline.dev/schemas/ux/activity_event_row.schema.json#/$defs/detail_link"
+    },
+    "why_shown_reason": {
+      "enum": [
+        "assigned_reviewer",
+        "workspace_owner",
+        "policy_authority",
+        "originating_actor",
+        "admin_addressed",
+        "directly_addressed",
+        "recovery_addressed",
+        "reconnect_addressed",
+        "provider_sync_addressed",
+        "update_addressed"
+      ]
+    },
+    "authority_source_class": {
+      "enum": [
+        "first_party",
+        "admin_policy",
+        "ai_agent",
+        "remote_service",
+        "extension",
+        "user_snooze_expiry",
+        "recovery_subsystem"
+      ]
+    },
+    "freshness_class": {
+      "enum": [
+        "fresh",
+        "recent",
+        "stale_revalidation_recommended",
+        "stale_revalidation_required",
+        "reconstructed_from_backup"
+      ]
+    },
+    "triage_verb": {
+      "enum": [
+        "open",
+        "snooze",
+        "acknowledge",
+        "clear",
+        "mute",
+        "resolve",
+        "escalate"
+      ]
+    },
+    "inbox_availability": {
+      "enum": [
+        "enabled",
+        "disabled",
+        "requires_revalidation",
+        "not_applicable"
+      ]
+    },
+    "quiet_hours_mode": {
+      "enum": [
+        "mode_none",
+        "mode_quiet_hours_user",
+        "mode_do_not_disturb_user",
+        "mode_focus_mode_user",
+        "mode_presentation",
+        "mode_screen_share",
+        "mode_privacy_mode",
+        "mode_reduced_attention_policy",
+        "mode_power_saver_runtime",
+        "mode_admin_suppression"
+      ]
+    },
+    "suppression_reason": {
+      "enum": [
+        "quiet_hours_user_policy",
+        "do_not_disturb_user_policy",
+        "focus_mode_user_policy",
+        "presentation_mode_active",
+        "screen_share_active",
+        "privacy_mode_active",
+        "admin_policy_suppression",
+        "reduced_attention_posture",
+        "power_saver_background_pause",
+        "dedupe_same_canonical_event",
+        "dedupe_same_grouped_burst",
+        "class_muted_by_user",
+        "class_snoozed_by_user",
+        "release_pending_next_unsuppressed_surface"
+      ]
+    },
+    "triage_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verb", "availability", "target_identity_ref"],
+      "properties": {
+        "verb": { "$ref": "#/$defs/triage_verb" },
+        "command_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "availability": { "$ref": "#/$defs/inbox_availability" },
+        "disabled_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label" }
+          ]
+        },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "availability in {disabled, requires_revalidation} MUST carry a disabled_reason_label.",
+          "if": {
+            "properties": {
+              "availability": { "enum": ["disabled", "requires_revalidation"] }
+            },
+            "required": ["availability"]
+          },
+          "then": {
+            "properties": { "disabled_reason_label": { "$ref": "#/$defs/short_label" } },
+            "required": ["disabled_reason_label"]
+          }
+        }
+      ]
+    },
+    "suppression_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_modes",
+        "suppression_reasons",
+        "transient_surface_held",
+        "durable_history_preserved",
+        "release_rule_label"
+      ],
+      "properties": {
+        "active_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/quiet_hours_mode" }
+        },
+        "suppression_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" }
+        },
+        "transient_surface_held": { "type": "boolean" },
+        "durable_history_preserved": { "const": true },
+        "release_rule_label": { "$ref": "#/$defs/short_label" }
+      }
+    },
+    "attention_inbox_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "inbox_item_id",
+        "canonical_event_id",
+        "canonical_object_target_ref",
+        "chronology_lane",
+        "source_subsystem",
+        "scope_object_kind",
+        "importance_class",
+        "why_shown_reason",
+        "authority_source_class",
+        "freshness_class",
+        "title_label",
+        "body_label",
+        "scope_label",
+        "detail_link",
+        "minted_at",
+        "last_observed_at",
+        "acknowledged",
+        "resolved",
+        "muted",
+        "actions",
+        "suppression_note"
+      ],
+      "properties": {
+        "record_kind": { "const": "attention_inbox_item_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "inbox_item_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "chronology_lane": { "$ref": "#/$defs/chronology_lane" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "scope_object_kind": { "$ref": "#/$defs/scope_object_kind" },
+        "importance_class": { "$ref": "#/$defs/importance_class" },
+        "why_shown_reason": { "$ref": "#/$defs/why_shown_reason" },
+        "authority_source_class": { "$ref": "#/$defs/authority_source_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "title_label": { "$ref": "#/$defs/short_label" },
+        "body_label": { "$ref": "#/$defs/short_label" },
+        "scope_label": { "$ref": "#/$defs/short_label" },
+        "detail_link": { "$ref": "#/$defs/detail_link" },
+        "event_row_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "snoozed_until": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "acknowledged": { "type": "boolean" },
+        "resolved": { "type": "boolean" },
+        "muted": { "type": "boolean" },
+        "actions": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/triage_action" },
+          "description": "Inbox items MUST expose at minimum the open / snooze / acknowledge / resolve verbs so each remains attributable in exported history. Additional verbs (clear, mute, escalate) may be included."
+        },
+        "suppression_note": { "$ref": "#/$defs/suppression_note" }
+      }
+    },
+    "attention_inbox_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "items",
+        "actionable_count",
+        "snoozed_count",
+        "acknowledged_unresolved_count",
+        "resolved_count",
+        "muted_count",
+        "honesty_marker_present"
+      ],
+      "properties": {
+        "record_kind": { "const": "attention_inbox_snapshot_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/attention_inbox_item_record" }
+        },
+        "actionable_count": { "type": "integer", "minimum": 0 },
+        "snoozed_count": { "type": "integer", "minimum": 0 },
+        "acknowledged_unresolved_count": { "type": "integer", "minimum": 0 },
+        "resolved_count": { "type": "integer", "minimum": 0 },
+        "muted_count": { "type": "integer", "minimum": 0 },
+        "honesty_marker_present": { "type": "boolean" }
+      }
+    }
+  }
+}

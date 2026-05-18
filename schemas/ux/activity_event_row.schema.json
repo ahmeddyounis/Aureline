@@ -1,0 +1,566 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/activity_event_row.schema.json",
+  "title": "Aureline shared activity event/history row, timeline group, and narrative summary card contract",
+  "description": "Boundary schema for the activity_event_row_record, activity_timeline_group_record, and activity_narrative_summary_card_record minted by the shell activity-timeline runtime. Every chronology lane (activity center, AI evidence, policy changes, provider sync, update history, reconnect flow, recovery, approvals) projects into this row shape so the activity center, attention inbox, narrative summary cards, support exports, and notification handoff rows agree on object identity and structured vocabulary. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never cross this boundary; this schema carries ids, typed vocabulary, and short privacy-safe summary labels only. Adding a new chronology_lane, action_verb, outcome_class, scope_object_kind, actionability_class, detail_link_kind, or timeline_group_rule is additive-minor and requires a schema_version bump; repurposing an existing value is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/activity_event_row_record" },
+    { "$ref": "#/$defs/activity_timeline_group_record" },
+    { "$ref": "#/$defs/activity_narrative_summary_card_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:activity_timeline_and_inbox:v1",
+      "description": "Shared contract ref consumed by every record produced by the activity-timeline runtime."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:#/\\-]+$",
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw bodies, raw paths, raw URLs, raw prompt text, and raw credential material never appear here."
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short, privacy-safe label rendered directly on a surface or export preview. MUST NOT embed raw paths, raw URLs, raw secret material, raw customer identifiers, or raw AI prompt/completion text."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source. Display formatting is a derived concern; canonical storage and export use UTC."
+    },
+    "chronology_lane": {
+      "enum": [
+        "activity_center",
+        "ai_evidence",
+        "policy_changes",
+        "provider_sync",
+        "update_history",
+        "reconnect_flow",
+        "recovery",
+        "approvals"
+      ]
+    },
+    "source_subsystem": {
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ],
+      "description": "Re-exported from schemas/ux/notification_envelope.schema.json without modification."
+    },
+    "actor_kind": {
+      "enum": [
+        "user_actor",
+        "system_actor",
+        "ai_agent_actor",
+        "remote_service_actor",
+        "admin_policy_actor",
+        "extension_actor",
+        "unknown_actor"
+      ]
+    },
+    "action_verb": {
+      "enum": [
+        "started",
+        "progressed",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "blocked",
+        "unblocked",
+        "held",
+        "released",
+        "granted",
+        "narrowed",
+        "revoked",
+        "superseded",
+        "proposed",
+        "accepted",
+        "rejected",
+        "restored",
+        "recovered",
+        "published",
+        "reconnected",
+        "disconnected",
+        "acknowledged",
+        "dismissed",
+        "snoozed",
+        "resolved",
+        "muted",
+        "cleared",
+        "imported"
+      ]
+    },
+    "outcome_class": {
+      "enum": [
+        "pending",
+        "in_progress",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "denied",
+        "held",
+        "superseded",
+        "recovered",
+        "observed_only",
+        "awaiting_approval"
+      ]
+    },
+    "importance_class": {
+      "enum": [
+        "routine",
+        "consequential",
+        "safety_critical"
+      ]
+    },
+    "actionability_class": {
+      "enum": [
+        "none",
+        "open_details_only",
+        "reviewable",
+        "requires_user_action",
+        "requires_revalidation"
+      ]
+    },
+    "scope_object_kind": {
+      "enum": [
+        "ai_evidence_row",
+        "approval_request_row",
+        "durable_job_row",
+        "policy_decision_row",
+        "provider_grant_row",
+        "provider_sync_row",
+        "publication_row",
+        "recovery_snapshot_row",
+        "support_bundle_row",
+        "update_event_row",
+        "reconnect_event_row",
+        "workspace_object_row",
+        "extension_lifecycle_row"
+      ]
+    },
+    "detail_link_kind": {
+      "enum": [
+        "canonical_object_exact",
+        "durable_activity_row",
+        "evidence_packet_row",
+        "review_sheet",
+        "diff_view",
+        "placeholder_announced",
+        "denied_requires_revalidation",
+        "audit_trail_only",
+        "not_available_linkback_lost"
+      ]
+    },
+    "detail_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "is_durable"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/detail_link_kind" },
+        "target_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "is_durable": { "type": "boolean" },
+        "unavailability_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label" }
+          ]
+        },
+        "announcement_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": { "enum": ["audit_trail_only", "not_available_linkback_lost"] }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "unavailability_reason_label": { "$ref": "#/$defs/short_label" }
+            },
+            "required": ["unavailability_reason_label"]
+          }
+        }
+      ]
+    },
+    "activity_event_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "event_row_id",
+        "canonical_event_id",
+        "canonical_object_target_ref",
+        "chronology_lane",
+        "source_subsystem",
+        "actor_kind",
+        "actor_or_subsystem_label",
+        "scope_object_kind",
+        "action_verb",
+        "outcome_class",
+        "importance_class",
+        "actionability_class",
+        "summary_label",
+        "scope_label",
+        "monotonic_timestamp",
+        "minted_at",
+        "last_observed_at",
+        "detail_link",
+        "quiet_hours_held",
+        "occurrence_count"
+      ],
+      "properties": {
+        "record_kind": { "const": "activity_event_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "event_row_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "chronology_lane": { "$ref": "#/$defs/chronology_lane" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "actor_kind": { "$ref": "#/$defs/actor_kind" },
+        "actor_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "actor_or_subsystem_label": { "$ref": "#/$defs/short_label" },
+        "scope_object_kind": { "$ref": "#/$defs/scope_object_kind" },
+        "action_verb": { "$ref": "#/$defs/action_verb" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "importance_class": { "$ref": "#/$defs/importance_class" },
+        "actionability_class": { "$ref": "#/$defs/actionability_class" },
+        "summary_label": { "$ref": "#/$defs/short_label" },
+        "scope_label": { "$ref": "#/$defs/short_label" },
+        "monotonic_timestamp": { "$ref": "#/$defs/monotonic_timestamp" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "detail_link": { "$ref": "#/$defs/detail_link" },
+        "linked_canonical_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "supersedes_event_row_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "quiet_hours_held": { "type": "boolean" },
+        "occurrence_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "allOf": [
+        {
+          "description": "actor_kind in {user_actor, ai_agent_actor, remote_service_actor, admin_policy_actor, extension_actor} MUST carry actor_identity_ref.",
+          "if": {
+            "properties": {
+              "actor_kind": {
+                "enum": [
+                  "user_actor",
+                  "ai_agent_actor",
+                  "remote_service_actor",
+                  "admin_policy_actor",
+                  "extension_actor"
+                ]
+              }
+            },
+            "required": ["actor_kind"]
+          },
+          "then": {
+            "properties": {
+              "actor_identity_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["actor_identity_ref"]
+          }
+        },
+        {
+          "description": "action_verb = superseded MUST carry supersedes_event_row_id_ref.",
+          "if": {
+            "properties": { "action_verb": { "const": "superseded" } },
+            "required": ["action_verb"]
+          },
+          "then": {
+            "properties": {
+              "supersedes_event_row_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["supersedes_event_row_id_ref"]
+          }
+        },
+        {
+          "description": "importance_class in {consequential, safety_critical} MUST carry a non-truncating durable detail_link that opens an exact target.",
+          "if": {
+            "properties": {
+              "importance_class": { "enum": ["consequential", "safety_critical"] }
+            },
+            "required": ["importance_class"]
+          },
+          "then": {
+            "properties": {
+              "detail_link": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "canonical_object_exact",
+                      "durable_activity_row",
+                      "evidence_packet_row",
+                      "review_sheet",
+                      "diff_view"
+                    ]
+                  },
+                  "is_durable": { "const": true }
+                },
+                "required": ["kind", "is_durable"]
+              }
+            },
+            "required": ["detail_link"]
+          }
+        }
+      ]
+    },
+    "timeline_group_rule": {
+      "enum": [
+        "same_canonical_object",
+        "same_grouped_burst_id",
+        "same_linked_canonical_event_id",
+        "same_lane_phase",
+        "same_actor_within_window",
+        "explicit_user_pin"
+      ]
+    },
+    "activity_timeline_group_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "timeline_group_id",
+        "group_rule",
+        "chronology_lane",
+        "phase_boundary_labels",
+        "member_event_row_ids",
+        "importance_class",
+        "allow_routine_row_truncation",
+        "summary_label",
+        "opened_at",
+        "last_updated_at",
+        "collapsed_by_default"
+      ],
+      "properties": {
+        "record_kind": { "const": "activity_timeline_group_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "timeline_group_id": { "$ref": "#/$defs/opaque_id" },
+        "group_rule": { "$ref": "#/$defs/timeline_group_rule" },
+        "chronology_lane": { "$ref": "#/$defs/chronology_lane" },
+        "canonical_object_target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "linked_canonical_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "phase_boundary_labels": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/short_label" }
+        },
+        "member_event_row_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "importance_class": { "$ref": "#/$defs/importance_class" },
+        "allow_routine_row_truncation": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/short_label" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "collapsed_by_default": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "description": "group_rule = same_canonical_object MUST carry canonical_object_target_ref.",
+          "if": {
+            "properties": { "group_rule": { "const": "same_canonical_object" } },
+            "required": ["group_rule"]
+          },
+          "then": {
+            "properties": {
+              "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["canonical_object_target_ref"]
+          }
+        },
+        {
+          "description": "group_rule = same_grouped_burst_id MUST carry grouped_burst_id_ref.",
+          "if": {
+            "properties": { "group_rule": { "const": "same_grouped_burst_id" } },
+            "required": ["group_rule"]
+          },
+          "then": {
+            "properties": {
+              "grouped_burst_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["grouped_burst_id_ref"]
+          }
+        },
+        {
+          "description": "allow_routine_row_truncation = true MUST be paired with importance_class = routine.",
+          "if": {
+            "properties": { "allow_routine_row_truncation": { "const": true } },
+            "required": ["allow_routine_row_truncation"]
+          },
+          "then": {
+            "properties": { "importance_class": { "const": "routine" } },
+            "required": ["importance_class"]
+          }
+        }
+      ]
+    },
+    "activity_narrative_summary_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "narrative_summary_card_id",
+        "subject_canonical_object_target_ref",
+        "chronology_lane",
+        "cited_event_row_ids",
+        "importance_class",
+        "summary_title",
+        "summary_body_label",
+        "detail_link",
+        "opened_at",
+        "last_updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "activity_narrative_summary_card_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "narrative_summary_card_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "chronology_lane": { "$ref": "#/$defs/chronology_lane" },
+        "cited_event_row_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "cited_timeline_group_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "importance_class": { "$ref": "#/$defs/importance_class" },
+        "summary_title": { "$ref": "#/$defs/short_label" },
+        "summary_body_label": { "$ref": "#/$defs/short_label" },
+        "detail_link": { "$ref": "#/$defs/detail_link" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "importance_class in {consequential, safety_critical} MUST carry a non-truncating durable detail_link.",
+          "if": {
+            "properties": {
+              "importance_class": { "enum": ["consequential", "safety_critical"] }
+            },
+            "required": ["importance_class"]
+          },
+          "then": {
+            "properties": {
+              "detail_link": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "canonical_object_exact",
+                      "durable_activity_row",
+                      "evidence_packet_row",
+                      "review_sheet",
+                      "diff_view"
+                    ]
+                  },
+                  "is_durable": { "const": true }
+                },
+                "required": ["kind", "is_durable"]
+              }
+            },
+            "required": ["detail_link"]
+          }
+        }
+      ]
+    }
+  }
+}

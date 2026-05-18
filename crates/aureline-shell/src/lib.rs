@@ -34,6 +34,7 @@
 pub mod a11y;
 pub mod about;
 pub mod activity_center;
+pub mod activity_timeline;
 pub mod admin_alpha;
 pub mod admin_audit_export_beta;
 pub mod ai_context_inspector;

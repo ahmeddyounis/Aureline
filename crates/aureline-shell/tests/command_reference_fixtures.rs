@@ -45,9 +45,15 @@ fn load_json<T: serde::de::DeserializeOwned>(file: &str) -> T {
 fn fixture_catalog_is_bit_for_bit_equal_to_seed() {
     let on_disk: CommandReferenceCatalog = load_json("catalog.json");
     let seeded = seeded_command_reference_catalog();
-    assert_eq!(on_disk, seeded, "fixture catalog diverged from seeded catalog");
+    assert_eq!(
+        on_disk, seeded,
+        "fixture catalog diverged from seeded catalog"
+    );
     assert_eq!(seeded.record_kind, COMMAND_REFERENCE_CATALOG_RECORD_KIND);
-    assert_eq!(seeded.shared_contract_ref, COMMAND_REFERENCE_SHARED_CONTRACT_REF);
+    assert_eq!(
+        seeded.shared_contract_ref,
+        COMMAND_REFERENCE_SHARED_CONTRACT_REF
+    );
 }
 
 #[test]
@@ -61,12 +67,8 @@ fn published_report_md_matches_seeded_rendering() {
     let catalog = seeded_command_reference_catalog();
     let rendered = render_catalog_markdown(&catalog);
     let path = artifacts_root().join("command_reference_parity_report.md");
-    let on_disk = std::fs::read_to_string(&path).unwrap_or_else(|err| {
-        panic!(
-            "published {} must exist: {err}",
-            path.display()
-        )
-    });
+    let on_disk = std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("published {} must exist: {err}", path.display()));
     assert_eq!(
         on_disk, rendered,
         "published command_reference_parity_report.md diverged from seeded rendering -- regenerate with \
@@ -79,9 +81,7 @@ fn published_doc_links_every_required_artifact() {
     let body = std::fs::read_to_string(docs_root().join("command_reference_beta_contract.md"))
         .expect("published command_reference_beta_contract doc must exist");
     assert!(body.contains("/artifacts/ux/m3/command_reference_parity_report.md"));
-    assert!(body.contains(
-        "/fixtures/ux/m3/command_reference_and_discoverability/catalog.json",
-    ));
+    assert!(body.contains("/fixtures/ux/m3/command_reference_and_discoverability/catalog.json",));
     assert!(body.contains("/schemas/commands/command_reference_entry.schema.json"));
     assert!(body.contains("aureline_shell_command_reference"));
 }
@@ -89,15 +89,26 @@ fn published_doc_links_every_required_artifact() {
 #[test]
 fn published_paths_match_constants() {
     let catalog = seeded_command_reference_catalog();
-    assert_eq!(catalog.shared_contract_ref, COMMAND_REFERENCE_SHARED_CONTRACT_REF);
+    assert_eq!(
+        catalog.shared_contract_ref,
+        COMMAND_REFERENCE_SHARED_CONTRACT_REF
+    );
     let report_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(COMMAND_REFERENCE_PUBLISHED_REPORT_REF);
-    assert!(report_path.exists(), "report must exist at {}", report_path.display());
+    assert!(
+        report_path.exists(),
+        "report must exist at {}",
+        report_path.display()
+    );
     let doc_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(COMMAND_REFERENCE_PUBLISHED_DOC_REF);
-    assert!(doc_path.exists(), "doc must exist at {}", doc_path.display());
+    assert!(
+        doc_path.exists(),
+        "doc must exist at {}",
+        doc_path.display()
+    );
 }
 
 #[test]

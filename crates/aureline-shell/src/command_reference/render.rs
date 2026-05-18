@@ -36,12 +36,7 @@ pub fn render_catalog_markdown(catalog: &CommandReferenceCatalog) -> String {
     )
     .unwrap();
     writeln!(out, "- Entries: `{}`", catalog.entries.len()).unwrap();
-    writeln!(
-        out,
-        "- High-risk entries: `{}`",
-        catalog.high_risk_count()
-    )
-    .unwrap();
+    writeln!(out, "- High-risk entries: `{}`", catalog.high_risk_count()).unwrap();
     writeln!(
         out,
         "- Deprecated entries: `{}`",
@@ -104,41 +99,16 @@ pub fn render_catalog_markdown(catalog: &CommandReferenceCatalog) -> String {
 }
 
 fn render_entry(out: &mut String, entry: &CommandReferenceEntry) {
-    writeln!(
-        out,
-        "### `{}` -- {}",
-        entry.command_id, entry.title
-    )
-    .unwrap();
+    writeln!(out, "### `{}` -- {}", entry.command_id, entry.title).unwrap();
     out.push('\n');
     writeln!(out, "{}", entry.summary).unwrap();
     out.push('\n');
 
-    writeln!(
-        out,
-        "- Lifecycle: `{}`",
-        entry.lifecycle_state.as_str()
-    )
-    .unwrap();
+    writeln!(out, "- Lifecycle: `{}`", entry.lifecycle_state.as_str()).unwrap();
     writeln!(out, "- Origin: `{}`", entry.origin_class).unwrap();
-    writeln!(
-        out,
-        "- Risk class: `{}`",
-        entry.risk_class.as_str()
-    )
-    .unwrap();
-    writeln!(
-        out,
-        "- Preview class: `{}`",
-        entry.preview_class.as_str()
-    )
-    .unwrap();
-    writeln!(
-        out,
-        "- Idempotency: `{}`",
-        entry.idempotency_class.as_str()
-    )
-    .unwrap();
+    writeln!(out, "- Risk class: `{}`", entry.risk_class.as_str()).unwrap();
+    writeln!(out, "- Preview class: `{}`", entry.preview_class.as_str()).unwrap();
+    writeln!(out, "- Idempotency: `{}`", entry.idempotency_class.as_str()).unwrap();
     writeln!(out, "- Supports dry run: `{}`", entry.supports_dry_run).unwrap();
     writeln!(
         out,
@@ -146,18 +116,8 @@ fn render_entry(out: &mut String, entry: &CommandReferenceEntry) {
         entry.command_revision_ref
     )
     .unwrap();
-    writeln!(
-        out,
-        "- Primary label ref: `{}`",
-        entry.primary_label_ref
-    )
-    .unwrap();
-    writeln!(
-        out,
-        "- Docs/help anchor: `{}`",
-        entry.docs_help_anchor_ref
-    )
-    .unwrap();
+    writeln!(out, "- Primary label ref: `{}`", entry.primary_label_ref).unwrap();
+    writeln!(out, "- Docs/help anchor: `{}`", entry.docs_help_anchor_ref).unwrap();
     out.push('\n');
 
     out.push_str("#### Aliases\n\n");
@@ -192,12 +152,7 @@ fn render_entry(out: &mut String, entry: &CommandReferenceEntry) {
     }
 
     out.push_str("#### Deprecation\n\n");
-    writeln!(
-        out,
-        "- State: `{}`",
-        entry.deprecation.state.as_str()
-    )
-    .unwrap();
+    writeln!(out, "- State: `{}`", entry.deprecation.state.as_str()).unwrap();
     if let Some(v) = entry.deprecation.deprecated_in_version.as_deref() {
         writeln!(out, "- Deprecated in: `{v}`").unwrap();
     }
@@ -263,20 +218,13 @@ fn render_entry(out: &mut String, entry: &CommandReferenceEntry) {
         .map(|surface| surface.as_str())
         .collect();
     writeln!(out, "- Supported surfaces: `{}`", supported.join(", ")).unwrap();
-    if entry
-        .availability
-        .current_disabled_reason_codes
-        .is_empty()
-    {
+    if entry.availability.current_disabled_reason_codes.is_empty() {
         out.push_str("- Current disabled reasons: none\n");
     } else {
         writeln!(
             out,
             "- Current disabled reasons: `{}`",
-            entry
-                .availability
-                .current_disabled_reason_codes
-                .join(", ")
+            entry.availability.current_disabled_reason_codes.join(", ")
         )
         .unwrap();
     }
@@ -332,12 +280,7 @@ fn render_entry(out: &mut String, entry: &CommandReferenceEntry) {
         entry.automation.macro_eligible
     )
     .unwrap();
-    writeln!(
-        out,
-        "- AI eligible: `{}`",
-        entry.automation.ai_eligible
-    )
-    .unwrap();
+    writeln!(out, "- AI eligible: `{}`", entry.automation.ai_eligible).unwrap();
     writeln!(out, "- Automation labels: `{}`", labels.join(", ")).unwrap();
     out.push('\n');
 

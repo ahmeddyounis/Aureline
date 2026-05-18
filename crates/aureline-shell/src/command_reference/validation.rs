@@ -22,24 +22,62 @@ use super::{
 #[serde(tag = "error", rename_all = "snake_case")]
 pub enum CommandReferenceValidationError {
     EmptyCatalog,
-    EntryRecordKindMismatch { command_id: String, actual: String },
-    CatalogRecordKindMismatch { actual: String },
-    SchemaVersionMismatch { actual: u32 },
-    SharedContractRefMismatch { actual: String },
-    DuplicateCommandId { command_id: String },
-    MissingTitle { command_id: String },
-    MissingSummary { command_id: String },
-    MissingDocsHelpAnchor { command_id: String },
-    MissingPrimaryLabelRef { command_id: String },
-    MissingCanonicalVerb { command_id: String },
-    MissingCommandRevisionRef { command_id: String },
-    EmptySearchIndex { command_id: String },
-    MissingHumanLabelToken { command_id: String },
-    MissingCommandIdToken { command_id: String },
-    AvailabilityListsNoSupportedSurfaces { command_id: String },
-    DeprecatedEntryMissingReplacement { command_id: String },
-    DeprecatedAliasMissingRetirementMetadata { command_id: String, alias_id: String },
-    SearchTokenEmpty { command_id: String },
+    EntryRecordKindMismatch {
+        command_id: String,
+        actual: String,
+    },
+    CatalogRecordKindMismatch {
+        actual: String,
+    },
+    SchemaVersionMismatch {
+        actual: u32,
+    },
+    SharedContractRefMismatch {
+        actual: String,
+    },
+    DuplicateCommandId {
+        command_id: String,
+    },
+    MissingTitle {
+        command_id: String,
+    },
+    MissingSummary {
+        command_id: String,
+    },
+    MissingDocsHelpAnchor {
+        command_id: String,
+    },
+    MissingPrimaryLabelRef {
+        command_id: String,
+    },
+    MissingCanonicalVerb {
+        command_id: String,
+    },
+    MissingCommandRevisionRef {
+        command_id: String,
+    },
+    EmptySearchIndex {
+        command_id: String,
+    },
+    MissingHumanLabelToken {
+        command_id: String,
+    },
+    MissingCommandIdToken {
+        command_id: String,
+    },
+    AvailabilityListsNoSupportedSurfaces {
+        command_id: String,
+    },
+    DeprecatedEntryMissingReplacement {
+        command_id: String,
+    },
+    DeprecatedAliasMissingRetirementMetadata {
+        command_id: String,
+        alias_id: String,
+    },
+    SearchTokenEmpty {
+        command_id: String,
+    },
 }
 
 /// Validates one entry. Surfaces should call this whenever they
@@ -235,9 +273,12 @@ mod tests {
     fn missing_human_label_token_is_rejected() {
         let mut catalog = seeded_command_reference_catalog();
         let entry = catalog.entries.first_mut().expect("at least one entry");
-        entry
-            .search_index
-            .retain(|token| !matches!(token.token_class, super::super::SearchTokenClass::HumanLabel));
+        entry.search_index.retain(|token| {
+            !matches!(
+                token.token_class,
+                super::super::SearchTokenClass::HumanLabel
+            )
+        });
         let errors =
             validate_command_reference_catalog(&catalog).expect_err("must flag missing label");
         assert!(errors.iter().any(|err| matches!(

@@ -178,9 +178,7 @@ fn open_folder_entry() -> CommandReferenceEntry {
             },
         ],
         docs_help_anchor_ref: "docs:anchor:workspace:open_folder_overview".to_owned(),
-        migration_notes_refs: vec![
-            "docs:anchor:migration:legacy_file_open_folder".to_owned(),
-        ],
+        migration_notes_refs: vec!["docs:anchor:migration:legacy_file_open_folder".to_owned()],
         generated_at: COMMAND_REFERENCE_GENERATED_AT.to_owned(),
     }
 }
@@ -436,9 +434,7 @@ fn import_profile_entry() -> CommandReferenceEntry {
             },
         ],
         docs_help_anchor_ref: "docs:anchor:migration:import_profile_overview".to_owned(),
-        migration_notes_refs: vec![
-            "docs:anchor:migration:import_profile_overview".to_owned(),
-        ],
+        migration_notes_refs: vec!["docs:anchor:migration:import_profile_overview".to_owned()],
         generated_at: COMMAND_REFERENCE_GENERATED_AT.to_owned(),
     }
 }
@@ -525,7 +521,10 @@ fn restore_from_checkpoint_entry() -> CommandReferenceEntry {
             recipe_eligible: false,
             macro_eligible: false,
             ai_eligible: false,
-            automation_labels: vec![AutomationLabel::HeadlessSafe, AutomationLabel::AiNotCallable],
+            automation_labels: vec![
+                AutomationLabel::HeadlessSafe,
+                AutomationLabel::AiNotCallable,
+            ],
         },
         search_index: vec![
             SearchIndexToken {
@@ -677,7 +676,7 @@ fn command_palette_open_entry() -> CommandReferenceEntry {
         ],
         docs_help_anchor_ref: "docs:anchor:command_palette:open_overview".to_owned(),
         migration_notes_refs: vec![
-            "docs:anchor:migration:command_palette_show_all_commands".to_owned(),
+            "docs:anchor:migration:command_palette_show_all_commands".to_owned()
         ],
         generated_at: COMMAND_REFERENCE_GENERATED_AT.to_owned(),
     }
