@@ -1,0 +1,678 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/kernel_session_summary.schema.json",
+  "title": "Aureline notebook kernel-session summary, cell-execution detail row, variable-explorer entry, debugger-bridge state, and reconnect/restart review record vocabulary",
+  "description": "Boundary schema for the retained notebook preview runtime-truth records: the kernel-bar / header `kernel_session_summary_record`, the cell-execution `cell_execution_detail_row_record`, the `variable_explorer_entry_record`, the `debugger_bridge_state_record`, and the `reconnect_review_sheet_record` generated on restart / reconnect / runtime drift. Records reuse the four orthogonal trust axes already frozen by `/schemas/notebook/notebook_metadata_aureline.schema.json` (document, kernel, output, widget). Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw kernel-protocol frames, raw widget state bytes, and raw URLs MUST NOT appear in any record; records carry opaque refs only. Adding a new member to a closed vocabulary is additive-minor and bumps `notebook_runtime_truth_schema_version`; repurposing an existing member is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/kernel_session_summary_record" },
+    { "$ref": "#/$defs/cell_execution_detail_row_record" },
+    { "$ref": "#/$defs/variable_explorer_entry_record" },
+    { "$ref": "#/$defs/debugger_bridge_state_record" },
+    { "$ref": "#/$defs/reconnect_review_sheet_record" }
+  ],
+  "$defs": {
+    "notebook_runtime_truth_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the runtime-truth record set. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (notebook document, cell, kernel session, kernelspec, MIME bundle descriptor, target-identity witness, remote-agent session, execution-context root, paired-text export, run lineage, etc.)."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "notebook_document_trust_class": {
+      "type": "string",
+      "enum": [
+        "document_trust_inherited_from_workspace",
+        "document_trust_elevated_on_explicit_grant",
+        "document_trust_restricted_by_policy",
+        "document_trust_revoked"
+      ],
+      "description": "Document-trust class projected for the header chip; mirrors notebook_document_trust_state (axis 1 of 4)."
+    },
+    "notebook_dirty_state_class": {
+      "type": "string",
+      "enum": [
+        "clean_saved",
+        "dirty_user_edited",
+        "dirty_cell_ordering_changed",
+        "dirty_external_change_detected",
+        "unreconciled_canonical_mismatch"
+      ]
+    },
+    "kernel_origin_class": {
+      "type": "string",
+      "enum": [
+        "no_kernel",
+        "local_managed_toolchain_kernel",
+        "local_provisioned_kernel",
+        "remote_agent_primary_kernel",
+        "managed_workspace_agent_kernel",
+        "provider_side_remote_kernel",
+        "compatibility_bridge_remote_kernel"
+      ],
+      "description": "Where the kernel actually runs. `no_kernel` is admitted; the document stays editable, reviewable, and diffable."
+    },
+    "kernel_selection_state": {
+      "type": "string",
+      "enum": [
+        "no_kernel_selected",
+        "selected_kernel_resolved",
+        "selection_pending_user",
+        "selection_pending_resolver",
+        "selection_narrowed_by_policy",
+        "selection_unavailable_no_compatible_kernel"
+      ]
+    },
+    "paired_text_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "paired_text_export_not_applicable",
+        "paired_text_export_derived_notebook_to_script",
+        "paired_text_export_derived_notebook_to_markdown"
+      ]
+    },
+    "kernel_bar_action_class": {
+      "type": "string",
+      "enum": [
+        "select_kernel",
+        "change_kernel",
+        "restart_kernel",
+        "restart_kernel_and_run_all",
+        "interrupt_kernel",
+        "reconnect_kernel",
+        "shutdown_kernel"
+      ]
+    },
+    "cell_execution_run_scope": {
+      "type": "string",
+      "enum": [
+        "current_session",
+        "prior_session",
+        "replay_from_captured_output",
+        "manual_user_action",
+        "queued_not_yet_started"
+      ]
+    },
+    "cell_execution_outcome_class": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "errored",
+        "interrupted",
+        "cancelled",
+        "queued",
+        "skipped_no_kernel",
+        "skipped_by_policy"
+      ]
+    },
+    "variable_explorer_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_from_current_session",
+        "snapshot_from_prior_session",
+        "stale_after_restart",
+        "imported_snapshot",
+        "no_live_variables_no_kernel"
+      ]
+    },
+    "variable_explorer_truncation_class": {
+      "type": "string",
+      "enum": [
+        "no_truncation",
+        "truncated_for_display",
+        "truncated_for_redaction",
+        "truncated_for_size",
+        "unsupported_type_no_preview"
+      ]
+    },
+    "variable_explorer_entry_action_class": {
+      "type": "string",
+      "enum": [
+        "open_live_viewer",
+        "open_snapshot_viewer",
+        "export_with_redaction",
+        "review_before_export",
+        "dismiss_from_explorer"
+      ]
+    },
+    "debugger_bridge_support_class": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "supported_partial",
+        "unsupported",
+        "unsupported_by_policy",
+        "unsupported_no_kernel",
+        "unsupported_remote_parity_unverified"
+      ]
+    },
+    "debugger_bridge_unsupported_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_supported",
+        "adapter_unavailable_for_kernel_class",
+        "adapter_capability_narrowed_by_policy",
+        "kernel_does_not_implement_debug_protocol",
+        "kernel_class_cell_stepping_unsupported",
+        "remote_adapter_round_trip_unverified",
+        "bridge_cancelled_by_restart_or_reconnect",
+        "no_kernel_session"
+      ]
+    },
+    "debugger_bridge_adapter_class": {
+      "type": "string",
+      "enum": [
+        "no_adapter",
+        "kernel_embedded_debug_protocol",
+        "external_debug_adapter",
+        "remote_agent_forwarded_adapter",
+        "compatibility_bridge_forwarded_adapter"
+      ]
+    },
+    "debugger_bridge_kernel_class": {
+      "type": "string",
+      "enum": [
+        "no_kernel",
+        "local_managed_toolchain_kernel",
+        "local_provisioned_kernel",
+        "remote_agent_primary_kernel",
+        "managed_workspace_agent_kernel",
+        "provider_side_remote_kernel",
+        "compatibility_bridge_remote_kernel"
+      ]
+    },
+    "debugger_bridge_frame_relation_class": {
+      "type": "string",
+      "enum": [
+        "no_active_frame",
+        "current_cell_matches_current_frame",
+        "different_cell_paused",
+        "frame_in_imported_library",
+        "frame_in_prior_cell_attempt",
+        "frame_stale_after_restart"
+      ]
+    },
+    "debugger_bridge_breakpoint_posture_class": {
+      "type": "string",
+      "enum": [
+        "breakpoints_honoured",
+        "breakpoints_honoured_source_map_only",
+        "breakpoints_deferred_until_cell_run",
+        "breakpoints_not_supported_by_kernel",
+        "breakpoints_cancelled_by_restart",
+        "breakpoints_blocked_by_policy"
+      ]
+    },
+    "reconnect_review_kind": {
+      "type": "string",
+      "enum": [
+        "user_initiated_restart",
+        "user_initiated_reconnect",
+        "user_initiated_shutdown",
+        "transport_lost_reconnect_attempted",
+        "identity_rotation_requires_renegotiation",
+        "trust_downgrade_cancels_in_flight",
+        "managed_workspace_lifecycle_change",
+        "policy_denies_continued_execution",
+        "window_exceeded_fresh_session_required"
+      ]
+    },
+    "reconnect_review_consequence_class": {
+      "type": "string",
+      "enum": [
+        "reopening_transcript_no_live_kernel",
+        "reopening_live_kernel_fresh_session",
+        "reopening_live_kernel_same_identity",
+        "reopening_live_kernel_identity_changed",
+        "reopening_degraded_preview_no_execution",
+        "quarantined_awaiting_operator_review"
+      ]
+    },
+    "notebook_header_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id_ref",
+        "document_path_token_ref",
+        "document_title_label",
+        "document_trust_class",
+        "dirty_state_class",
+        "paired_export_posture"
+      ],
+      "properties": {
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "document_path_token_ref": { "$ref": "#/$defs/opaque_ref" },
+        "document_title_label": { "type": "string", "minLength": 1 },
+        "document_trust_class": { "$ref": "#/$defs/notebook_document_trust_class" },
+        "dirty_state_class": { "$ref": "#/$defs/notebook_dirty_state_class" },
+        "paired_export_posture": { "$ref": "#/$defs/paired_text_export_posture_class" },
+        "paired_export_ref": { "$ref": "#/$defs/opaque_ref" }
+      },
+      "allOf": [
+        {
+          "description": "Derived paired-export postures MUST cite a paired_export_ref; not_applicable MUST NOT.",
+          "if": {
+            "properties": {
+              "paired_export_posture": {
+                "enum": [
+                  "paired_text_export_derived_notebook_to_script",
+                  "paired_text_export_derived_notebook_to_markdown"
+                ]
+              }
+            },
+            "required": ["paired_export_posture"]
+          },
+          "then": {
+            "required": ["paired_export_ref"]
+          }
+        }
+      ]
+    },
+    "last_successful_run_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id_ref",
+        "attempt_id_ref",
+        "completed_at",
+        "cells_completed",
+        "summary_label"
+      ],
+      "properties": {
+        "run_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "attempt_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "completed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "cells_completed": { "type": "integer", "minimum": 0 },
+        "summary_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "kernel_session_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_runtime_truth_schema_version",
+        "summary_id",
+        "header",
+        "kernel_selection_state",
+        "kernel_origin_class",
+        "local_vs_remote_boundary_cue_visible",
+        "available_actions",
+        "auto_rerun_forbidden",
+        "captured_at",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_kernel_session_summary_record" },
+        "notebook_runtime_truth_schema_version": { "$ref": "#/$defs/notebook_runtime_truth_schema_version" },
+        "summary_id": { "$ref": "#/$defs/opaque_id" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernelspec_ref": { "$ref": "#/$defs/opaque_ref" },
+        "header": { "$ref": "#/$defs/notebook_header_block" },
+        "kernel_selection_state": { "$ref": "#/$defs/kernel_selection_state" },
+        "kernel_origin_class": { "$ref": "#/$defs/kernel_origin_class" },
+        "local_vs_remote_boundary_cue_visible": { "type": "boolean" },
+        "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" },
+        "remote_agent_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "execution_context_root_ref": { "$ref": "#/$defs/opaque_ref" },
+        "last_successful_run": { "$ref": "#/$defs/last_successful_run_summary" },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/kernel_bar_action_class" }
+        },
+        "auto_rerun_forbidden": { "const": true },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "Remote kernel origins MUST render the local-vs-remote boundary cue and MUST carry a target-identity witness ref and a remote-agent session id ref.",
+          "if": {
+            "properties": {
+              "kernel_origin_class": {
+                "enum": [
+                  "remote_agent_primary_kernel",
+                  "managed_workspace_agent_kernel",
+                  "provider_side_remote_kernel",
+                  "compatibility_bridge_remote_kernel"
+                ]
+              }
+            },
+            "required": ["kernel_origin_class"]
+          },
+          "then": {
+            "required": ["target_identity_witness_ref", "remote_agent_session_id_ref"],
+            "properties": {
+              "local_vs_remote_boundary_cue_visible": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "no_kernel origins MUST NOT carry a kernel_session_id_ref and MUST expose the select_kernel action.",
+          "if": {
+            "properties": {
+              "kernel_origin_class": { "const": "no_kernel" }
+            },
+            "required": ["kernel_origin_class"]
+          },
+          "then": {
+            "not": {
+              "required": ["kernel_session_id_ref"]
+            },
+            "properties": {
+              "available_actions": {
+                "contains": { "const": "select_kernel" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "cell_execution_detail_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_runtime_truth_schema_version",
+        "row_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "cell_display_index",
+        "cell_execution_id_ref",
+        "run_scope",
+        "outcome_class",
+        "output_count",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_cell_execution_detail_row_record" },
+        "notebook_runtime_truth_schema_version": { "$ref": "#/$defs/notebook_runtime_truth_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_display_index": { "type": "integer", "minimum": 0 },
+        "cell_execution_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "run_scope": { "$ref": "#/$defs/cell_execution_run_scope" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "finished_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "duration_millis": { "type": "integer", "minimum": 0 },
+        "outcome_class": { "$ref": "#/$defs/cell_execution_outcome_class" },
+        "output_count": { "type": "integer", "minimum": 0 },
+        "task_event_envelope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "log_slice_ref": { "$ref": "#/$defs/opaque_ref" },
+        "diagnostic_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "Queued rows must not carry started_at, finished_at, or duration_millis.",
+          "if": {
+            "properties": {
+              "outcome_class": { "const": "queued" }
+            },
+            "required": ["outcome_class"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["started_at"] },
+                { "required": ["finished_at"] },
+                { "required": ["duration_millis"] }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Errored rows must carry a diagnostic_ref.",
+          "if": {
+            "properties": {
+              "outcome_class": { "const": "errored" }
+            },
+            "required": ["outcome_class"]
+          },
+          "then": {
+            "required": ["diagnostic_ref"]
+          }
+        }
+      ]
+    },
+    "variable_explorer_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_runtime_truth_schema_version",
+        "entry_id",
+        "document_id_ref",
+        "variable_handle_ref",
+        "display_name_label",
+        "type_descriptor_ref",
+        "freshness_class",
+        "truncation_class",
+        "available_actions",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_variable_explorer_entry_record" },
+        "notebook_runtime_truth_schema_version": { "$ref": "#/$defs/notebook_runtime_truth_schema_version" },
+        "entry_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "variable_handle_ref": { "$ref": "#/$defs/opaque_ref" },
+        "display_name_label": { "type": "string", "minLength": 1 },
+        "type_descriptor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "freshness_class": { "$ref": "#/$defs/variable_explorer_freshness_class" },
+        "truncation_class": { "$ref": "#/$defs/variable_explorer_truncation_class" },
+        "available_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variable_explorer_entry_action_class" }
+        },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "no_live_variables_no_kernel must not carry a kernel_session_id_ref or expose open_live_viewer.",
+          "if": {
+            "properties": {
+              "freshness_class": { "const": "no_live_variables_no_kernel" }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["kernel_session_id_ref"] },
+                {
+                  "properties": {
+                    "available_actions": {
+                      "contains": { "const": "open_live_viewer" }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "debugger_bridge_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_runtime_truth_schema_version",
+        "state_id",
+        "document_id_ref",
+        "support_class",
+        "unsupported_reason_class",
+        "adapter_class",
+        "kernel_class",
+        "frame_relation_class",
+        "breakpoint_posture_class",
+        "reconnect_review_required",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_debugger_bridge_state_record" },
+        "notebook_runtime_truth_schema_version": { "$ref": "#/$defs/notebook_runtime_truth_schema_version" },
+        "state_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "support_class": { "$ref": "#/$defs/debugger_bridge_support_class" },
+        "unsupported_reason_class": { "$ref": "#/$defs/debugger_bridge_unsupported_reason_class" },
+        "adapter_class": { "$ref": "#/$defs/debugger_bridge_adapter_class" },
+        "kernel_class": { "$ref": "#/$defs/debugger_bridge_kernel_class" },
+        "current_cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "current_frame_ref": { "$ref": "#/$defs/opaque_ref" },
+        "frame_relation_class": { "$ref": "#/$defs/debugger_bridge_frame_relation_class" },
+        "breakpoint_posture_class": { "$ref": "#/$defs/debugger_bridge_breakpoint_posture_class" },
+        "reconnect_review_required": { "type": "boolean" },
+        "reconnect_review_sheet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "supported bridges MUST cite not_applicable_supported and MUST carry a kernel_session_id_ref.",
+          "if": {
+            "properties": {
+              "support_class": { "const": "supported" }
+            },
+            "required": ["support_class"]
+          },
+          "then": {
+            "required": ["kernel_session_id_ref"],
+            "properties": {
+              "unsupported_reason_class": { "const": "not_applicable_supported" }
+            }
+          }
+        },
+        {
+          "description": "unsupported_no_kernel MUST NOT carry a kernel_session_id_ref and MUST cite no_kernel_session.",
+          "if": {
+            "properties": {
+              "support_class": { "const": "unsupported_no_kernel" }
+            },
+            "required": ["support_class"]
+          },
+          "then": {
+            "not": {
+              "required": ["kernel_session_id_ref"]
+            },
+            "properties": {
+              "unsupported_reason_class": { "const": "no_kernel_session" },
+              "frame_relation_class": { "const": "no_active_frame" }
+            }
+          }
+        },
+        {
+          "description": "reconnect_review_required=true requires a reconnect_review_sheet_ref.",
+          "if": {
+            "properties": {
+              "reconnect_review_required": { "const": true }
+            },
+            "required": ["reconnect_review_required"]
+          },
+          "then": {
+            "required": ["reconnect_review_sheet_ref"]
+          }
+        }
+      ]
+    },
+    "reconnect_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_runtime_truth_schema_version",
+        "sheet_id",
+        "document_id_ref",
+        "kind",
+        "consequence_class",
+        "in_flight_executions_cancelled",
+        "queued_cells_affected",
+        "live_variable_state_lost",
+        "user_confirmation_required",
+        "auto_rerun_forbidden",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_reconnect_review_sheet_record" },
+        "notebook_runtime_truth_schema_version": { "$ref": "#/$defs/notebook_runtime_truth_schema_version" },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "prior_kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "next_kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "kind": { "$ref": "#/$defs/reconnect_review_kind" },
+        "consequence_class": { "$ref": "#/$defs/reconnect_review_consequence_class" },
+        "in_flight_executions_cancelled": { "type": "boolean" },
+        "queued_cells_affected": { "type": "integer", "minimum": 0 },
+        "live_variable_state_lost": { "type": "boolean" },
+        "user_confirmation_required": { "type": "boolean" },
+        "auto_rerun_forbidden": { "const": true },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "Any consequence other than same-identity reopen MUST cancel in-flight executions and MUST declare live_variable_state_lost.",
+          "if": {
+            "properties": {
+              "consequence_class": {
+                "enum": [
+                  "reopening_transcript_no_live_kernel",
+                  "reopening_live_kernel_fresh_session",
+                  "reopening_live_kernel_identity_changed",
+                  "reopening_degraded_preview_no_execution",
+                  "quarantined_awaiting_operator_review"
+                ]
+              }
+            },
+            "required": ["consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "in_flight_executions_cancelled": { "const": true },
+              "live_variable_state_lost": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "Trust downgrades, identity rotations, user restarts, user shutdowns, and window-exceeded fresh sessions require user_confirmation_required=true.",
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "trust_downgrade_cancels_in_flight",
+                  "identity_rotation_requires_renegotiation",
+                  "user_initiated_restart",
+                  "user_initiated_shutdown",
+                  "window_exceeded_fresh_session_required"
+                ]
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "user_confirmation_required": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

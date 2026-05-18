@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebook/output_trust_record.schema.json",
+  "title": "Aureline notebook rich-output trust record vocabulary",
+  "description": "Boundary schema for `notebook_output_trust_record` — the rendering trust posture quoted by every rich-output viewer, evidence export, and support packet. The four trust classes Sanitized, Sandboxed, TrustedActive, and Stale are the rendering posture; they are orthogonal to (and never silently escalated from) the lineage-bearing `notebook_output_trust_state` axis in `/schemas/notebook/notebook_metadata_aureline.schema.json`. Raw output bytes, raw URLs, raw HTML/SVG/script bodies, raw widget state, and raw kernel-protocol frames MUST NOT appear in any record; records carry opaque MIME-bundle descriptor refs only. Adding a new member to a closed vocabulary is additive-minor and bumps `notebook_runtime_truth_schema_version`; repurposing an existing member is breaking.",
+  "type": "object",
+  "$ref": "#/$defs/output_trust_record",
+  "$defs": {
+    "notebook_runtime_truth_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "opaque_ref": { "type": "string", "minLength": 1 },
+    "output_trust_class": {
+      "type": "string",
+      "enum": ["sanitized", "sandboxed", "trusted_active", "stale"],
+      "description": "Rendering trust posture for the output. `trusted_active` is the only class that admits live scripts, fonts, network requests, or other active behavior; every other class requires an explicit user review to escalate."
+    },
+    "output_trust_hidden_escalation_posture": {
+      "type": "string",
+      "enum": [
+        "no_hidden_escalation_allowed",
+        "explicit_review_required",
+        "blocked_by_policy"
+      ],
+      "description": "Whether the row could escalate rendering trust without the user noticing. `no_hidden_escalation_allowed` is the default; the chrome row never silently flips a sanitized output to trusted_active."
+    },
+    "output_trust_stale_reason_class": {
+      "type": "string",
+      "enum": [
+        "kernel_restarted_since_produce",
+        "kernel_lost_transport",
+        "document_trust_downgraded_since_produce",
+        "output_captured_from_prior_session",
+        "source_cell_edited_since_produce",
+        "orphaned_no_kernel_binding"
+      ]
+    },
+    "output_trust_fallback_action_class": {
+      "type": "string",
+      "enum": [
+        "open_compatible_viewer",
+        "open_raw_fallback",
+        "export_with_redaction",
+        "copy_as_text",
+        "review_before_trust"
+      ]
+    },
+    "output_trust_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notebook_runtime_truth_schema_version",
+        "record_id",
+        "document_id_ref",
+        "cell_id_ref",
+        "output_block_ref",
+        "mime_bundle_descriptor_ref",
+        "trust_class",
+        "hidden_escalation_posture",
+        "fallback_actions",
+        "compatible_viewer_available",
+        "raw_fallback_available",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "notebook_output_trust_record" },
+        "notebook_runtime_truth_schema_version": { "$ref": "#/$defs/notebook_runtime_truth_schema_version" },
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "document_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "output_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "mime_bundle_descriptor_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_class": { "$ref": "#/$defs/output_trust_class" },
+        "hidden_escalation_posture": { "$ref": "#/$defs/output_trust_hidden_escalation_posture" },
+        "stale_reason_class": { "$ref": "#/$defs/output_trust_stale_reason_class" },
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/output_trust_fallback_action_class" }
+        },
+        "compatible_viewer_available": { "type": "boolean" },
+        "raw_fallback_available": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "description": "stale trust class MUST cite a stale_reason_class; non-stale MUST NOT.",
+          "if": {
+            "properties": {
+              "trust_class": { "const": "stale" }
+            },
+            "required": ["trust_class"]
+          },
+          "then": {
+            "required": ["stale_reason_class"]
+          },
+          "else": {
+            "not": {
+              "required": ["stale_reason_class"]
+            }
+          }
+        },
+        {
+          "description": "trusted_active requires a compatible viewer.",
+          "if": {
+            "properties": {
+              "trust_class": { "const": "trusted_active" }
+            },
+            "required": ["trust_class"]
+          },
+          "then": {
+            "properties": {
+              "compatible_viewer_available": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "non-stale rows MUST expose open_compatible_viewer.",
+          "if": {
+            "not": {
+              "properties": {
+                "trust_class": { "const": "stale" }
+              },
+              "required": ["trust_class"]
+            }
+          },
+          "then": {
+            "properties": {
+              "fallback_actions": {
+                "contains": { "const": "open_compatible_viewer" }
+              }
+            }
+          }
+        },
+        {
+          "description": "sanitized and sandboxed rows under no_hidden_escalation_allowed MUST expose review_before_trust.",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "trust_class": { "enum": ["sanitized", "sandboxed"] }
+                },
+                "required": ["trust_class"]
+              },
+              {
+                "properties": {
+                  "hidden_escalation_posture": { "const": "no_hidden_escalation_allowed" }
+                },
+                "required": ["hidden_escalation_posture"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "fallback_actions": {
+                "contains": { "const": "review_before_trust" }
+              }
+            }
+          }
+        },
+        {
+          "description": "rows with raw_fallback_available=true MUST expose open_raw_fallback.",
+          "if": {
+            "properties": {
+              "raw_fallback_available": { "const": true }
+            },
+            "required": ["raw_fallback_available"]
+          },
+          "then": {
+            "properties": {
+              "fallback_actions": {
+                "contains": { "const": "open_raw_fallback" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
