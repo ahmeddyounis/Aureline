@@ -112,6 +112,10 @@
 //!   launch-language refactor preview corpus and emits metadata-only support
 //!   rows for green, downgraded, and unsupported semantic-change claims,
 //!   including fallback labels and grouped rollback refs.
+//! - The [`portable_bundle_handoff`] support projection — folds portable
+//!   change bundle and shelf fixtures into one metadata-safe handoff envelope
+//!   with target identity, stale-validation labels, reopen modes, redaction
+//!   posture, and support-export lineage preserved.
 //!
 //! ## Failure-drill posture
 //!
@@ -140,6 +144,7 @@ pub mod locale_beta;
 pub mod m3_scenario_corpus;
 pub mod mutation_journal;
 pub mod policy_simulation;
+pub mod portable_bundle_handoff;
 pub mod project_doctor;
 pub mod publication_dry_run;
 pub mod recovery_ladder;
