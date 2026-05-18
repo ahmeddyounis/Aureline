@@ -6,10 +6,12 @@
 //! evidence drifted from the Rust contract.
 
 use aureline_design_system::{
-    seeded_component_state_registry, seeded_screenshot_diff_packet,
-    seeded_token_conformance_packet, validate_component_state_registry,
+    seeded_appearance_session_beta_contract, seeded_component_state_registry,
+    seeded_screenshot_diff_packet, seeded_token_conformance_packet,
+    validate_appearance_session_beta_contract, validate_component_state_registry,
     validate_screenshot_diff_packet, validate_token_conformance_packet,
-    ComponentStateRegistryRecord, ScreenshotDiffPacket, TokenConformancePacket,
+    AppearanceSessionBetaContract, ComponentStateRegistryRecord, ScreenshotDiffPacket,
+    TokenConformancePacket,
 };
 
 const FIXTURE_DIR: &str = concat!(
@@ -20,6 +22,11 @@ const FIXTURE_DIR: &str = concat!(
 const SCREENSHOT_ARTIFACT: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../artifacts/ux/m3/component_state_screenshot_diff/packet.json"
+);
+
+const APPEARANCE_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/ux/m3/theme_import_and_live_change/appearance_session_beta_contract.json"
 );
 
 fn load<T: serde::de::DeserializeOwned>(path: &str) -> T {
@@ -54,4 +61,12 @@ fn token_conformance_fixture_matches_seeded_builder() {
     let fixture: TokenConformancePacket = load(&path);
     validate_token_conformance_packet(&fixture).expect("fixture token conformance validates");
     assert_eq!(fixture, seeded_token_conformance_packet());
+}
+
+#[test]
+fn appearance_session_fixture_matches_seeded_builder() {
+    let fixture: AppearanceSessionBetaContract = load(APPEARANCE_FIXTURE);
+    validate_appearance_session_beta_contract(&fixture)
+        .expect("fixture appearance-session contract validates");
+    assert_eq!(fixture, seeded_appearance_session_beta_contract());
 }

@@ -932,10 +932,10 @@ impl LiveFollowSystemPolicyRecord {
                 },
                 LiveAxisRow {
                     axis: AppearanceAxis::DensityClass,
-                    live_update_class: LiveUpdateClass::ConfirmReviewRequired,
+                    live_update_class: LiveUpdateClass::LiveApplyWithRevertableCheckpoint,
                     os_signal_class: OsSignalClass::OsDensitySignal,
                     requires_checkpoint: true,
-                    requires_user_confirm: true,
+                    requires_user_confirm: false,
                     policy_lock_reason_class: PolicyLockReasonClass::NotLocked,
                     surface_scope: SurfaceScopeClass::GlobalAppearance,
                     notes: None,

@@ -1,11 +1,12 @@
 //! Headless inspector for beta design-system contract records.
 //!
 //! The binary emits the component-state registry, screenshot-diff matrix, token
-//! conformance packet, or a validation result for all seeded records.
+//! conformance packet, appearance-session packet, or a validation result for
+//! all seeded records.
 
 use aureline_design_system::{
-    seeded_component_state_registry, seeded_screenshot_diff_packet,
-    seeded_token_conformance_packet, validate_seeded_beta_contract,
+    seeded_appearance_session_beta_contract, seeded_component_state_registry,
+    seeded_screenshot_diff_packet, seeded_token_conformance_packet, validate_seeded_beta_contract,
 };
 
 fn main() {
@@ -21,6 +22,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         Some("registry") | None => print_json(&seeded_component_state_registry())?,
         Some("screenshot-diff") => print_json(&seeded_screenshot_diff_packet())?,
         Some("token-conformance") => print_json(&seeded_token_conformance_packet())?,
+        Some("appearance-session") => print_json(&seeded_appearance_session_beta_contract())?,
         Some("validate") => match validate_seeded_beta_contract() {
             Ok(()) => println!("ok"),
             Err(findings) => {

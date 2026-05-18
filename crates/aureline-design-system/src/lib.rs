@@ -9,11 +9,22 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+pub mod appearance_session;
+
 use aureline_ui::components::ComponentStateClass;
 use aureline_ui::density::DensityClass;
 use aureline_ui::themes::AccessibilityPostureClass;
 use aureline_ui::tokens::{seeded_token_registry, ThemeClass};
 use serde::{Deserialize, Serialize};
+
+pub use appearance_session::{
+    audit_appearance_session_beta_contract, seeded_appearance_session_beta_contract,
+    try_seeded_appearance_session_beta_contract, validate_appearance_session_beta_contract,
+    AppearanceSessionBetaContract, AppearanceSessionContractError, ImportedThemeParityClass,
+    LiveFollowPolicySummary, LiveOsAppearanceChangeSummary, ProtectedCueContractRow,
+    ThemeImportMappingContractSummary, ThemePackageContractSummary, TokenOverlayContractSummary,
+    APPEARANCE_SESSION_BETA_RECORD_KIND, APPEARANCE_SESSION_BETA_SHARED_CONTRACT_REF,
+};
 
 /// Schema version emitted by all beta design-system contract records.
 pub const DESIGN_SYSTEM_BETA_SCHEMA_VERSION: u32 = 1;
@@ -1682,6 +1693,7 @@ pub fn audit_seeded_beta_contract() -> BTreeMap<String, Vec<DesignSystemFinding>
     let registry = seeded_component_state_registry();
     let screenshot = seeded_screenshot_diff_packet();
     let conformance = seeded_token_conformance_packet();
+    let appearance = seeded_appearance_session_beta_contract();
 
     findings.insert(
         "component_state_registry".to_owned(),
@@ -1694,6 +1706,10 @@ pub fn audit_seeded_beta_contract() -> BTreeMap<String, Vec<DesignSystemFinding>
     findings.insert(
         "token_conformance".to_owned(),
         audit_token_conformance_rows(&conformance.rows),
+    );
+    findings.insert(
+        "appearance_session_beta".to_owned(),
+        audit_appearance_session_beta_contract(&appearance),
     );
 
     findings
