@@ -17,6 +17,11 @@ The canonical truth lives in two crate modules:
   — the precedence engine, the shadow-chain projection, and the
   typed `attempt_write` flow that returns a verdict plus typed
   denial reason instead of dropping the request silently.
+- [`EffectiveSettingRecord`](../../crates/aureline-settings/src/resolver/effective.rs)
+  — the serialized cross-surface record used by UI, CLI, sync,
+  policy, docs/help, and support consumers. It carries the shadow
+  chain, write posture, capability-dependency state, control-stack
+  trace, and restart posture in one object.
 - [`/crates/aureline-settings/src/inspector/`](../../crates/aureline-settings/src/inspector/)
   — the alpha inspector projection consumed by CLI inspection,
   settings UI rows, help deep links, write previews, and support
@@ -69,10 +74,20 @@ or not it actually capped the layered winner.
 
 Every write goes through `EffectiveSettingsResolver::attempt_write`,
 which returns a typed [`WriteAttemptOutcome`](../../crates/aureline-settings/src/resolver/engine.rs)
-with one of two verdicts:
+with a schema-backed verdict:
 
 - `allowed` — the overlay was recorded; `effective_after` shows the
   next reader's view.
+- `allowed_with_restart` — the write is admitted and the definition
+  names the required restart or reload posture.
+- `allowed_with_preview` — the write is admitted only through a
+  preview acknowledgement flow.
+- `allowed_with_rollback_checkpoint` — the write is admitted after
+  a rollback checkpoint exists.
+- `allowed_with_rollback_checkpoint_and_approval` — the write is
+  admitted after both checkpoint and approval handles exist.
+- `allowed_requires_approval_ticket` — the write is admitted only
+  through an approval-ticket path.
 - `denied` — the overlay was **not** recorded; `denial_reason` names
   the typed reason, and `effective_after` quotes the still-current
   shadow chain so the surface can explain the denial without
@@ -86,6 +101,7 @@ Frozen denial reason codes:
 | `scope_not_allowed`         | Target scope is not in the definition's `allowed_scopes`.         |
 | `policy_locked`             | Admin policy pins the value; proposed value is not the pin.       |
 | `policy_constrained_value`  | Admin policy admits a narrowed set; proposed value is outside it. |
+| `capability_dependency_unmet` | A declared feature, identity, trust, policy, workspace, extension, or credential dependency is unavailable. |
 | `validation_failed`         | Type / range / enum check failed (carries `detail`).              |
 | `retired_setting`           | Setting is retired and refuses writes.                            |
 
@@ -155,14 +171,21 @@ required to capture or replay settings state. Support packets and
 fixtures should embed the exported overlay set rather than recording
 ad-hoc snapshots.
 
+## Cross-Surface Fixtures
+
+`fixtures/config/effective_settings_shadow_chain/` contains a
+policy-locked effective record and a scope-explicit write preview.
+They are generated from the headless inspector path and prove that
+support, CLI, sync, and UI projections can quote the same source
+chain and destination preview.
+
 ## Out of scope for this seed
 
 - Sync transport, conflict packets, or device-binding lifecycle —
   see [`docs/settings/sync_and_device_registry_seed.md`](./sync_and_device_registry_seed.md).
 - Settings UI rendering — surfaces consume the card record verbatim.
-- Profile import / migration alias retention — the schema registry
-  seed reserves the publishing posture; runtime alias redirection
-  lands in a follow-up row.
+- Full profile-import UI — alias retention and runtime alias
+  redirection are present in the schema registry and inspector path.
 - Remote/container settings authority and target-aware resolution
   — the resolver intentionally does not model `remote_target`
   scope yet; later work adds that lane.

@@ -175,6 +175,10 @@ fn format_denial_message(reason: &WriteDenialReason) -> String {
         WriteDenialReason::ScopeNotAllowed => {
             "This setting cannot be written at the requested scope.".to_owned()
         }
+        WriteDenialReason::ScopeBroadeningWouldWidenTrust => {
+            "The proposed write would broaden trust, egress, or authority beyond the selected scope."
+                .to_owned()
+        }
         WriteDenialReason::PolicyLocked => {
             "Admin policy pins this value; the proposed write was refused.".to_owned()
         }
@@ -182,11 +186,32 @@ fn format_denial_message(reason: &WriteDenialReason) -> String {
             "Admin policy constrains the allowed values; the proposed value is outside the set."
                 .to_owned()
         }
+        WriteDenialReason::CapabilityDependencyUnmet => {
+            "A declared capability dependency is not currently satisfied.".to_owned()
+        }
+        WriteDenialReason::PreviewRequiredNotAcknowledged => {
+            "A required settings preview has not been acknowledged.".to_owned()
+        }
+        WriteDenialReason::RollbackCheckpointNotCreated => {
+            "A required rollback checkpoint has not been created.".to_owned()
+        }
+        WriteDenialReason::ApprovalTicketMissing => {
+            "A required approval ticket is missing.".to_owned()
+        }
+        WriteDenialReason::RestartRequiredNotAcknowledged => {
+            "The declared restart posture has not been acknowledged.".to_owned()
+        }
         WriteDenialReason::ValidationFailed { detail } => {
             format!("Proposed value failed validation: {detail}")
         }
         WriteDenialReason::RetiredSetting => {
             "This setting is retired and no longer accepts writes.".to_owned()
+        }
+        WriteDenialReason::ManagedModeOnly => {
+            "This setting can only be changed by a managed authority.".to_owned()
+        }
+        WriteDenialReason::ReadOnlySurface => {
+            "This surface can inspect the setting but cannot mutate it.".to_owned()
         }
     }
 }

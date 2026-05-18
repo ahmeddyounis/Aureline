@@ -919,6 +919,7 @@ fn lock_state_token(lock_state: LockState) -> &'static str {
         LockState::Open | LockState::Inherited => "unlocked",
         LockState::PolicyLocked => "policy_locked",
         LockState::PolicyConstrained => "policy_constrained",
+        LockState::CapabilityLocked => "capability_locked",
         LockState::UnsupportedScope | LockState::DegradedReadOnly => "read_only_surface",
     }
 }
@@ -929,8 +930,11 @@ fn lock_reason_token(lock_reason: LockReason) -> &'static str {
         LockReason::Inherited => "inherited",
         LockReason::PolicyLocked => "policy_pins_value",
         LockReason::PolicyConstrainsAllowedSet => "policy_constrains_allowed_set",
+        LockReason::CapabilityDependencyUnmet => "capability_dependency_unmet",
         LockReason::UnsupportedScope => "surface_cannot_write_this_scope",
         LockReason::DegradedReadOnly => "degraded_read_only",
+        LockReason::SettingRetired => "setting_retired",
+        LockReason::ManagedModeOnly => "managed_mode_only",
     }
 }
 
@@ -1015,6 +1019,9 @@ fn write_preview_verdict(
     if matches!(outcome.verdict, WriteIntent::Denied) {
         return "denied".to_owned();
     }
+    if !matches!(outcome.verdict, WriteIntent::Allowed) {
+        return outcome.verdict.as_str().to_owned();
+    }
     match preview_class {
         Some(PreviewClass::RollbackCheckpointAndApprovalRequired) => {
             "allowed_with_rollback_checkpoint_and_approval".to_owned()
@@ -1062,10 +1069,18 @@ fn write_denial_reason_token(reason: &WriteDenialReason) -> &'static str {
     match reason {
         WriteDenialReason::UnknownSetting { .. } => "setting_unknown_at_registry",
         WriteDenialReason::ScopeNotAllowed => "scope_not_allowed_for_setting",
+        WriteDenialReason::ScopeBroadeningWouldWidenTrust => "scope_broadening_would_widen_trust",
         WriteDenialReason::PolicyLocked => "policy_locked_value",
         WriteDenialReason::PolicyConstrainedValue => "policy_constrained_value",
+        WriteDenialReason::CapabilityDependencyUnmet => "capability_dependency_unmet",
+        WriteDenialReason::PreviewRequiredNotAcknowledged => "preview_required_not_acknowledged",
+        WriteDenialReason::RollbackCheckpointNotCreated => "rollback_checkpoint_not_created",
+        WriteDenialReason::ApprovalTicketMissing => "approval_ticket_missing",
+        WriteDenialReason::RestartRequiredNotAcknowledged => "restart_required_not_acknowledged",
         WriteDenialReason::ValidationFailed { .. } => "validation_failed",
         WriteDenialReason::RetiredSetting => "setting_retired",
+        WriteDenialReason::ManagedModeOnly => "managed_mode_only",
+        WriteDenialReason::ReadOnlySurface => "read_only_surface",
     }
 }
 

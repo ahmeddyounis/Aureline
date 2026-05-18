@@ -12,11 +12,17 @@ use serde::{Deserialize, Serialize};
 pub enum RestartPosture {
     /// Change is picked up live; no restart required.
     NoRestart,
+    /// Reload affected views to apply.
+    ReloadView,
     /// Reload the active workspace to apply.
     ReloadWorkspace,
     /// Restart extension/runtime hosts to apply.
     RestartExtensions,
-    /// Restart the desktop shell process to apply.
+    /// Restart the application process to apply.
+    RestartProcess,
+    /// Reopen the active workspace to apply.
+    ReopenWorkspace,
+    /// Legacy token for the desktop shell process restart posture.
     RestartShell,
 }
 
@@ -24,8 +30,11 @@ impl RestartPosture {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::NoRestart => "no_restart",
+            Self::ReloadView => "reload_view",
             Self::ReloadWorkspace => "reload_workspace",
             Self::RestartExtensions => "restart_extensions",
+            Self::RestartProcess => "restart_process",
+            Self::ReopenWorkspace => "reopen_workspace",
             Self::RestartShell => "restart_shell",
         }
     }

@@ -20,11 +20,18 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::{
+    CapabilityDependency, LifecycleLabel, PreviewClass, RedactionClass, RestartPosture,
     SchemaRegistry, SettingDefinition, SettingScope, SettingValue, ValueValidationError,
 };
 
-use super::effective::{EffectiveValue, ShadowChainEntry, ShadowRelation};
+use super::effective::{
+    write_denial_token, write_intent_token, EffectiveCapabilityDependency, EffectiveControlStack,
+    EffectiveLastWritten, EffectiveSettingRecord, EffectiveValue, ShadowChainEntry, ShadowRelation,
+};
 use super::lock::{LockReason, LockState, WriteDenialReason, WriteIntent};
+
+const EFFECTIVE_SETTINGS_SCHEMA_VERSION: u32 = 1;
+const SETTING_DEFINITION_SCHEMA_VERSION: &str = "settings_definition:v1";
 
 /// Per-scope overlay carrying the values the resolver should layer
 /// at that scope. Overlays own the human-readable `source_label`
@@ -54,6 +61,34 @@ pub struct ScopeOverlay {
 pub enum PolicyConstraint {
     SingleValue { value: SettingValue },
     NarrowedSet { allowed: Vec<SettingValue> },
+}
+
+/// Resolver-observed state for one declared capability dependency.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapabilityState {
+    /// True when the dependency is currently satisfied.
+    pub satisfied: bool,
+    /// Redaction-safe state label supplied by the capability owner.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_state: Option<String>,
+}
+
+impl CapabilityState {
+    /// Builds a state row for a satisfied dependency.
+    pub fn satisfied(observed_state: impl Into<String>) -> Self {
+        Self {
+            satisfied: true,
+            observed_state: Some(observed_state.into()),
+        }
+    }
+
+    /// Builds a state row for an unmet dependency.
+    pub fn unmet(observed_state: impl Into<String>) -> Self {
+        Self {
+            satisfied: false,
+            observed_state: Some(observed_state.into()),
+        }
+    }
 }
 
 impl PolicyConstraint {
@@ -166,6 +201,7 @@ impl std::error::Error for ResolveError {}
 pub struct EffectiveSettingsResolver {
     registry: SchemaRegistry,
     overlays: BTreeMap<SettingScope, ScopeOverlay>,
+    capability_states: BTreeMap<String, CapabilityState>,
 }
 
 impl EffectiveSettingsResolver {
@@ -175,6 +211,7 @@ impl EffectiveSettingsResolver {
         Self {
             registry,
             overlays: BTreeMap::new(),
+            capability_states: BTreeMap::new(),
         }
     }
 
@@ -229,6 +266,34 @@ impl EffectiveSettingsResolver {
         self.overlays.remove(&scope)
     }
 
+    /// Records the current state for one capability dependency.
+    ///
+    /// Dependencies without an explicit state remain visible on exported
+    /// records as satisfied by default; callers that know a dependency is
+    /// unavailable must mark it unmet so the resolver can lock the setting.
+    pub fn set_capability_state(
+        &mut self,
+        dependency: &CapabilityDependency,
+        state: CapabilityState,
+    ) -> Option<CapabilityState> {
+        self.capability_states.insert(dependency.key(), state)
+    }
+
+    /// Removes the recorded state for one capability dependency.
+    pub fn clear_capability_state(
+        &mut self,
+        dependency: &CapabilityDependency,
+    ) -> Option<CapabilityState> {
+        self.capability_states.remove(&dependency.key())
+    }
+
+    /// Iterate over explicit capability states in deterministic order.
+    pub fn capability_states(&self) -> impl Iterator<Item = (&str, &CapabilityState)> {
+        self.capability_states
+            .iter()
+            .map(|(key, state)| (key.as_str(), state))
+    }
+
     /// Iterate over installed overlays in deterministic scope order.
     pub fn overlays(&self) -> impl Iterator<Item = &ScopeOverlay> {
         self.overlays.values()
@@ -243,6 +308,18 @@ impl EffectiveSettingsResolver {
                     setting_id: setting_id.to_owned(),
                 })?;
         Ok(self.resolve_with_definition(def))
+    }
+
+    /// Resolve and project the canonical effective-setting record.
+    pub fn resolve_record(&self, setting_id: &str) -> Result<EffectiveSettingRecord, ResolveError> {
+        let def =
+            self.registry
+                .definition(setting_id)
+                .ok_or_else(|| ResolveError::UnknownSetting {
+                    setting_id: setting_id.to_owned(),
+                })?;
+        let effective = self.resolve_with_definition(def);
+        Ok(self.effective_record_from(def, &effective, None))
     }
 
     fn resolve_with_definition(&self, def: &SettingDefinition) -> EffectiveValue {
@@ -343,6 +420,11 @@ impl EffectiveSettingsResolver {
             }
         }
 
+        if self.has_unmet_capability(def) && !matches!(lock_state, LockState::PolicyLocked) {
+            lock_state = LockState::CapabilityLocked;
+            lock_reason = LockReason::CapabilityDependencyUnmet;
+        }
+
         // Step 3: build the shadow chain.
         let mut shadow_chain: Vec<ShadowChainEntry> = Vec::new();
         for (scope, value, label) in ordinary.iter() {
@@ -362,6 +444,8 @@ impl EffectiveSettingsResolver {
                 scope: *scope,
                 source_label: label.clone(),
                 value_preview: value.preview(),
+                value_present: true,
+                winner: matches!(relation, ShadowRelation::Winner),
                 relation,
             });
         }
@@ -384,6 +468,8 @@ impl EffectiveSettingsResolver {
                     scope: SettingScope::AdminPolicyNarrowing,
                     source_label: overlay.source_label.clone(),
                     value_preview,
+                    value_present: true,
+                    winner: matches!(relation, ShadowRelation::Winner),
                     relation,
                 });
             }
@@ -466,6 +552,16 @@ impl EffectiveSettingsResolver {
             );
         }
 
+        if self.has_unmet_capability(&def) {
+            return self.deny(
+                &def,
+                target_scope,
+                value,
+                effective_before,
+                WriteDenialReason::CapabilityDependencyUnmet,
+            );
+        }
+
         // Policy lock check: if policy pins the value and the proposed
         // value would not be admitted, deny.
         if let Some(overlay) = self.overlays.get(&SettingScope::AdminPolicyNarrowing) {
@@ -500,12 +596,13 @@ impl EffectiveSettingsResolver {
         overlay.values.insert(setting_id.to_owned(), value.clone());
 
         let effective_after = self.resolve_with_definition(&def);
+        let verdict = allowed_intent_for(&def);
 
         WriteAttemptOutcome {
             setting_id: setting_id.to_owned(),
             target_scope,
             proposed_value: value,
-            verdict: WriteIntent::Allowed,
+            verdict,
             denial_reason: None,
             effective_after: Some(effective_after),
             effective_before,
@@ -537,6 +634,80 @@ impl EffectiveSettingsResolver {
         }
     }
 
+    fn has_unmet_capability(&self, def: &SettingDefinition) -> bool {
+        def.capability_dependencies.iter().any(|dependency| {
+            self.capability_states
+                .get(&dependency.key())
+                .is_some_and(|state| !state.satisfied)
+        })
+    }
+
+    fn effective_record_from(
+        &self,
+        def: &SettingDefinition,
+        effective: &EffectiveValue,
+        denial_reason: Option<&WriteDenialReason>,
+    ) -> EffectiveSettingRecord {
+        let write_intent = if denial_reason.is_some() {
+            WriteIntent::Denied
+        } else {
+            allowed_intent_for(def)
+        };
+        EffectiveSettingRecord {
+            record_kind: "effective_setting_record".to_owned(),
+            settings_schema_version: EFFECTIVE_SETTINGS_SCHEMA_VERSION,
+            setting_id: def.setting_id.clone(),
+            value: redacted_json_value(def, &effective.value),
+            resolved_scope: effective.winning_scope.as_str().to_owned(),
+            source_label: effective.source_label.clone(),
+            lifecycle_label: lifecycle_token(def.lifecycle_label).to_owned(),
+            shadow_chain: effective.shadow_chain.clone(),
+            lock_state: exported_lock_state(effective.lock_state).to_owned(),
+            lock_reason: exported_lock_reason(effective.lock_reason).to_owned(),
+            write_intent: write_intent_token(write_intent).to_owned(),
+            write_denial_reason: write_denial_token(denial_reason).to_owned(),
+            restart_posture: def.restart_posture.as_str().to_owned(),
+            preview_class: def.preview_class.as_str().to_owned(),
+            capability_dependencies: self.effective_capability_dependencies(def),
+            control_stack: EffectiveControlStack {
+                source_label: effective.source_label.clone(),
+                lifecycle_label: lifecycle_token(def.lifecycle_label).to_owned(),
+                last_refresh_at: None,
+                expires_at: None,
+                offline_fallback: Some("authoritative_local".to_owned()),
+                explain_why_ref: Some(format!("settings://explain/{}", def.setting_id)),
+                control_authority: control_authority_for(effective).to_owned(),
+                narrowing_ceiling_active: effective.policy_ceiling_active,
+            },
+            last_written: EffectiveLastWritten {
+                at: "1970-01-01T00:00:00Z".to_owned(),
+                actor_class: "user_command".to_owned(),
+                mutation_journal_ref: None,
+                rollback_checkpoint_ref: None,
+            },
+            schema_version: SETTING_DEFINITION_SCHEMA_VERSION.to_owned(),
+            redaction_class: def.redaction_class.as_str().to_owned(),
+        }
+    }
+
+    fn effective_capability_dependencies(
+        &self,
+        def: &SettingDefinition,
+    ) -> Vec<EffectiveCapabilityDependency> {
+        def.capability_dependencies
+            .iter()
+            .map(|dependency| {
+                let state = self.capability_states.get(&dependency.key());
+                EffectiveCapabilityDependency {
+                    kind: dependency.kind.as_str().to_owned(),
+                    required_ref: dependency.required_ref.clone(),
+                    satisfied: state.map(|state| state.satisfied).unwrap_or(true),
+                    observed_state: state.and_then(|state| state.observed_state.clone()),
+                }
+            })
+            .collect()
+    }
+
     /// Export the current overlay state as a JSON value. Round-trips
     /// losslessly through [`Self::import_state`]. The export is
     /// deterministic (BTreeMap-backed); fixtures can diff cleanly
@@ -547,6 +718,7 @@ impl EffectiveSettingsResolver {
             "record_kind": "effective_settings_resolver_state",
             "schema_version": 1,
             "overlays": overlays,
+            "capability_states": &self.capability_states,
         })
     }
 
@@ -557,6 +729,8 @@ impl EffectiveSettingsResolver {
         #[derive(Deserialize)]
         struct Envelope {
             overlays: Vec<ScopeOverlay>,
+            #[serde(default)]
+            capability_states: BTreeMap<String, CapabilityState>,
         }
         let envelope: Envelope = serde_json::from_value(value.clone()).map_err(|err| {
             ResolveError::InvalidOverlayValue {
@@ -566,10 +740,92 @@ impl EffectiveSettingsResolver {
             }
         })?;
         self.overlays.clear();
+        self.capability_states = envelope.capability_states;
         for overlay in envelope.overlays {
             self.set_overlay(overlay)?;
         }
         Ok(())
+    }
+}
+
+fn allowed_intent_for(def: &SettingDefinition) -> WriteIntent {
+    match def.preview_class {
+        PreviewClass::RollbackCheckpointAndApprovalRequired => {
+            WriteIntent::AllowedWithRollbackCheckpointAndApproval
+        }
+        PreviewClass::RollbackCheckpointRequired => WriteIntent::AllowedWithRollbackCheckpoint,
+        PreviewClass::ManagedActionOnly => WriteIntent::AllowedRequiresApprovalTicket,
+        PreviewClass::PreviewRequired => WriteIntent::AllowedWithPreview,
+        PreviewClass::SafeApply
+            if !matches!(
+                def.restart_posture,
+                RestartPosture::NoRestart | RestartPosture::ReloadView
+            ) =>
+        {
+            WriteIntent::AllowedWithRestart
+        }
+        PreviewClass::SafeApply => WriteIntent::Allowed,
+    }
+}
+
+fn lifecycle_token(lifecycle: LifecycleLabel) -> &'static str {
+    match lifecycle {
+        LifecycleLabel::Stable => "stable",
+        LifecycleLabel::Preview => "beta",
+        LifecycleLabel::Experimental => "experimental",
+        LifecycleLabel::Deprecated => "deprecated",
+        LifecycleLabel::Retired => "retired",
+    }
+}
+
+fn exported_lock_state(lock_state: LockState) -> &'static str {
+    match lock_state {
+        LockState::Open | LockState::Inherited => "unlocked",
+        LockState::PolicyLocked => "policy_locked",
+        LockState::PolicyConstrained => "policy_constrained",
+        LockState::CapabilityLocked => "capability_locked",
+        LockState::UnsupportedScope | LockState::DegradedReadOnly => "read_only_surface",
+    }
+}
+
+fn exported_lock_reason(lock_reason: LockReason) -> &'static str {
+    match lock_reason {
+        LockReason::None | LockReason::Inherited => "none",
+        LockReason::PolicyLocked => "policy_pins_value",
+        LockReason::PolicyConstrainsAllowedSet => "policy_constrains_allowed_set",
+        LockReason::CapabilityDependencyUnmet => "capability_dependency_unmet",
+        LockReason::UnsupportedScope => "surface_cannot_write_this_scope",
+        LockReason::DegradedReadOnly => "degraded_read_only",
+        LockReason::SettingRetired => "setting_retired",
+        LockReason::ManagedModeOnly => "managed_mode_only",
+    }
+}
+
+fn redacted_json_value(def: &SettingDefinition, value: &SettingValue) -> serde_json::Value {
+    match def.redaction_class {
+        RedactionClass::None | RedactionClass::UiStringOnly => value.to_json(),
+        RedactionClass::RedactValuePreserveShape => serde_json::json!({
+            "redacted": true,
+            "kind": def.value_type.kind_token(),
+        }),
+        RedactionClass::RedactToClassLabel => serde_json::json!({
+            "class_label": def.sensitivity_class.as_str(),
+        }),
+        RedactionClass::ExcludeFromExport => serde_json::json!({
+            "excluded_from_export": true,
+        }),
+    }
+}
+
+fn control_authority_for(effective: &EffectiveValue) -> &'static str {
+    if effective.policy_ceiling_active {
+        "signed_admin_bundle"
+    } else if effective.winning_scope == SettingScope::ChannelOrExperimentDefault {
+        "experiment_rollout"
+    } else if effective.winning_scope == SettingScope::BuiltInDefault {
+        "embedded_default"
+    } else {
+        "user_profile_workspace"
     }
 }
 
@@ -790,13 +1046,94 @@ mod tests {
             SettingScope::UserGlobal,
             SettingValue::String("disabled".into()),
         );
-        assert_eq!(outcome.verdict, WriteIntent::Allowed);
+        assert!(outcome.verdict.is_allowed());
         let after = outcome.effective_after.unwrap();
         // Layered winner is now the user value, but policy
         // constraint stays visible.
         assert_eq!(after.value, SettingValue::String("disabled".into()));
         assert_eq!(after.winning_scope, SettingScope::UserGlobal);
         assert_eq!(after.lock_state, LockState::PolicyConstrained);
+    }
+
+    #[test]
+    fn capability_dependency_state_locks_reads_and_writes() {
+        let mut resolver = EffectiveSettingsResolver::new(registry());
+        let dependency = resolver
+            .registry()
+            .definition("security.ai.egress_policy")
+            .unwrap()
+            .capability_dependencies[0]
+            .clone();
+        resolver.set_capability_state(&dependency, CapabilityState::unmet("identity_mode=local"));
+
+        let effective = resolver.resolve("security.ai.egress_policy").unwrap();
+        assert_eq!(effective.lock_state, LockState::CapabilityLocked);
+        assert_eq!(effective.lock_reason, LockReason::CapabilityDependencyUnmet);
+
+        let outcome = resolver.attempt_write(
+            "security.ai.egress_policy",
+            SettingScope::UserGlobal,
+            SettingValue::String("approved_hosted_providers_only".into()),
+        );
+        assert_eq!(outcome.verdict, WriteIntent::Denied);
+        assert!(matches!(
+            outcome.denial_reason,
+            Some(WriteDenialReason::CapabilityDependencyUnmet)
+        ));
+
+        let record = resolver
+            .resolve_record("security.ai.egress_policy")
+            .expect("record resolves");
+        assert_eq!(record.lock_state, "capability_locked");
+        assert_eq!(record.lock_reason, "capability_dependency_unmet");
+        assert_eq!(record.capability_dependencies[0].satisfied, false);
+    }
+
+    #[test]
+    fn effective_setting_record_carries_schema_shadow_and_control_stack() {
+        let mut resolver = EffectiveSettingsResolver::new(registry());
+        let mut user = ScopeOverlay::new(SettingScope::UserGlobal, "User settings");
+        user.set_value("editor.tab_size", SettingValue::Integer(8));
+        resolver.set_overlay(user).unwrap();
+
+        let record = resolver.resolve_record("editor.tab_size").unwrap();
+
+        assert_eq!(record.record_kind, "effective_setting_record");
+        assert_eq!(record.setting_id, "editor.tab_size");
+        assert_eq!(record.resolved_scope, "user_global");
+        assert_eq!(record.write_intent, "allowed");
+        assert_eq!(record.write_denial_reason, "none");
+        assert_eq!(record.preview_class, "safe_apply");
+        assert_eq!(
+            record.control_stack.control_authority,
+            "user_profile_workspace"
+        );
+        assert!(record
+            .shadow_chain
+            .iter()
+            .any(|row| row.scope == SettingScope::UserGlobal && row.winner));
+    }
+
+    #[test]
+    fn write_intent_names_restart_and_preview_requirements() {
+        let mut resolver = EffectiveSettingsResolver::new(registry());
+        let restart_outcome = resolver.attempt_write(
+            "vfs.watcher.fallback_polling_ms",
+            SettingScope::Workspace,
+            SettingValue::Integer(500),
+        );
+        assert_eq!(restart_outcome.verdict, WriteIntent::AllowedWithRestart);
+
+        let mut high_risk = EffectiveSettingsResolver::new(registry());
+        let high_risk_outcome = high_risk.attempt_write(
+            "security.ai.egress_policy",
+            SettingScope::Workspace,
+            SettingValue::String("approved_hosted_providers_only".into()),
+        );
+        assert_eq!(
+            high_risk_outcome.verdict,
+            WriteIntent::AllowedWithRollbackCheckpointAndApproval
+        );
     }
 
     #[test]

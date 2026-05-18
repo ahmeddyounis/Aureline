@@ -144,7 +144,7 @@ use aureline_runtime::{
 };
 use aureline_settings::{
     EffectiveSettingsResolver, EffectiveValue, SchemaRegistry, ScopeOverlay, SettingScope,
-    SettingValue, WriteAttemptOutcome, WriteDenialReason, WriteIntent,
+    SettingValue, WriteAttemptOutcome, WriteDenialReason,
 };
 use aureline_telemetry::hot_path_metrics::{
     HotPathMetrics, HotPathMetricsConfig, HotPathMetricsContext,
@@ -6902,7 +6902,7 @@ impl AppearanceRuntimeState {
             target_scope,
             SettingValue::String(value.to_string()),
         );
-        if outcome.verdict == WriteIntent::Allowed {
+        if outcome.verdict.is_allowed() {
             self.sync_session_from_effective_settings();
             self.persist();
         }
@@ -13177,33 +13177,30 @@ fn apply_settings_overlay_decision(
         decision.value.as_str(),
         SettingScope::UserGlobal,
     );
-    let status_line = match outcome.verdict {
-        WriteIntent::Allowed => {
-            let line = format!(
-                "applied {}={} at {}",
-                outcome.setting_id,
-                outcome.proposed_value.preview(),
-                outcome.target_scope.as_str()
-            );
-            command_runtime.note_non_command_action(format!("settings updated - {}", line));
-            line
-        }
-        WriteIntent::Denied => {
-            let reason = outcome
-                .denial_reason
-                .as_ref()
-                .map(settings_denial_reason_label)
-                .unwrap_or_else(|| "unknown".to_string());
-            let line = format!(
-                "denied {}={} - {}",
-                outcome.setting_id,
-                outcome.proposed_value.preview(),
-                reason
-            );
-            command_runtime.note_non_command_action(format!("settings write denied - {}", line));
-            activity_center.note_settings_write_denied(&outcome);
-            line
-        }
+    let status_line = if outcome.verdict.is_allowed() {
+        let line = format!(
+            "applied {}={} at {}",
+            outcome.setting_id,
+            outcome.proposed_value.preview(),
+            outcome.target_scope.as_str()
+        );
+        command_runtime.note_non_command_action(format!("settings updated - {}", line));
+        line
+    } else {
+        let reason = outcome
+            .denial_reason
+            .as_ref()
+            .map(settings_denial_reason_label)
+            .unwrap_or_else(|| "unknown".to_string());
+        let line = format!(
+            "denied {}={} - {}",
+            outcome.setting_id,
+            outcome.proposed_value.preview(),
+            reason
+        );
+        command_runtime.note_non_command_action(format!("settings write denied - {}", line));
+        activity_center.note_settings_write_denied(&outcome);
+        line
     };
 
     if let Some(ShellOverlayState {
@@ -13222,12 +13219,28 @@ fn settings_denial_reason_label(reason: &WriteDenialReason) -> String {
             format!("unknown_setting:{setting_id}")
         }
         WriteDenialReason::ScopeNotAllowed => "scope_not_allowed".to_string(),
+        WriteDenialReason::ScopeBroadeningWouldWidenTrust => {
+            "scope_broadening_would_widen_trust".to_string()
+        }
         WriteDenialReason::PolicyLocked => "policy_locked".to_string(),
         WriteDenialReason::PolicyConstrainedValue => "policy_constrained_value".to_string(),
+        WriteDenialReason::CapabilityDependencyUnmet => "capability_dependency_unmet".to_string(),
+        WriteDenialReason::PreviewRequiredNotAcknowledged => {
+            "preview_required_not_acknowledged".to_string()
+        }
+        WriteDenialReason::RollbackCheckpointNotCreated => {
+            "rollback_checkpoint_not_created".to_string()
+        }
+        WriteDenialReason::ApprovalTicketMissing => "approval_ticket_missing".to_string(),
+        WriteDenialReason::RestartRequiredNotAcknowledged => {
+            "restart_required_not_acknowledged".to_string()
+        }
         WriteDenialReason::ValidationFailed { detail } => {
             format!("validation_failed:{detail}")
         }
         WriteDenialReason::RetiredSetting => "retired_setting".to_string(),
+        WriteDenialReason::ManagedModeOnly => "managed_mode_only".to_string(),
+        WriteDenialReason::ReadOnlySurface => "read_only_surface".to_string(),
     }
 }
 

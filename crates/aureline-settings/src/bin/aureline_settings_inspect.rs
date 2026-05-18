@@ -75,6 +75,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let export = project_support_export("support-export:settings:alpha", records);
             print_json(&export)?;
         }
+        Some("effective-record") => {
+            let setting_id = args
+                .get(1)
+                .map(String::as_str)
+                .unwrap_or("security.ai.egress_policy");
+            let record = resolver.resolve_record(setting_id)?;
+            print_json(&record)?;
+        }
         Some("ui-beta-page") => {
             let page = project_settings_ui_beta_page(&resolver, &context, "all", "All settings")?;
             print_json(&page)?;

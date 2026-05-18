@@ -5,8 +5,12 @@ pub mod effective;
 pub mod engine;
 pub mod lock;
 
-pub use effective::{EffectiveValue, ShadowChainEntry, ShadowRelation};
+pub use effective::{
+    EffectiveCapabilityDependency, EffectiveControlStack, EffectiveLastWritten,
+    EffectiveSettingRecord, EffectiveValue, ShadowChainEntry, ShadowRelation,
+};
 pub use engine::{
-    EffectiveSettingsResolver, PolicyConstraint, ResolveError, ScopeOverlay, WriteAttemptOutcome,
+    CapabilityState, EffectiveSettingsResolver, PolicyConstraint, ResolveError, ScopeOverlay,
+    WriteAttemptOutcome,
 };
 pub use lock::{LockReason, LockState, WriteDenialReason, WriteIntent};

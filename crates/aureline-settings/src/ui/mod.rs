@@ -645,6 +645,7 @@ fn lock_label_for(state: &str) -> String {
         "unlocked" => "Unlocked",
         "policy_locked" => "Policy locked",
         "policy_constrained" => "Policy constrained",
+        "capability_locked" => "Capability locked",
         "read_only_surface" => "Read only here",
         other => other,
     }
@@ -674,6 +675,11 @@ fn lock_owner_remediation(record: &EffectiveSettingInspectionRecord) -> (String,
             "Surface restriction".to_owned(),
             "Open the matching scope to edit this setting.".to_owned(),
             format!("settings://scope/edit/{}", record.setting_id),
+        ),
+        "capability_locked" => (
+            "Capability dependency".to_owned(),
+            "Resolve the required capability before editing this setting.".to_owned(),
+            format!("settings://capability/{}", record.setting_id),
         ),
         _ => (
             "Open for editing".to_owned(),
@@ -721,6 +727,18 @@ fn restart_badge_from_state(state: &InspectorRestartState) -> RestartBadge {
         "restart_extensions" => (
             "Restart extensions",
             "Restart extension or runtime hosts for the new value to fully apply.",
+        ),
+        "restart_process" => (
+            "Restart app",
+            "Restart the application process for the new value to fully apply.",
+        ),
+        "reopen_workspace" => (
+            "Reopen workspace",
+            "Reopen the active workspace for the new value to fully apply.",
+        ),
+        "reload_view" => (
+            "Reload view",
+            "Reload affected views for the new value to fully apply.",
         ),
         "restart_shell" => (
             "Restart shell",
@@ -777,6 +795,12 @@ fn write_affordance_for(record: &EffectiveSettingInspectionRecord) -> WriteAffor
             state: "read_only".to_owned(),
             label: "Read only".to_owned(),
             explanation: "This surface cannot edit the setting in the current scope.".to_owned(),
+        },
+        "capability_locked" => WriteAffordance {
+            state: "capability_locked".to_owned(),
+            label: "Capability required".to_owned(),
+            explanation: "A declared capability dependency must be resolved before editing."
+                .to_owned(),
         },
         _ => match record.definition.preview_class.as_str() {
             "rollback_checkpoint_and_approval_required" => WriteAffordance {
@@ -858,6 +882,31 @@ fn denial_explanation_from_preview(preview: &SettingWritePreviewRecord) -> Denia
             "Adjust the value to satisfy the declared type and bounds.".to_owned(),
             format!("settings://scope/edit/{}", preview.setting_id),
         ),
+        "capability_dependency_unmet" => (
+            "Capability dependency".to_owned(),
+            "Resolve the required capability before applying this setting.".to_owned(),
+            format!("settings://capability/{}", preview.setting_id),
+        ),
+        "preview_required_not_acknowledged" => (
+            "Preview required".to_owned(),
+            "Review and acknowledge the setting preview before apply.".to_owned(),
+            format!("settings://preview/{}", preview.setting_id),
+        ),
+        "rollback_checkpoint_not_created" => (
+            "Rollback checkpoint".to_owned(),
+            "Create the required rollback checkpoint before apply.".to_owned(),
+            format!("settings://checkpoint/{}", preview.setting_id),
+        ),
+        "approval_ticket_missing" => (
+            "Approval required".to_owned(),
+            "Request the required approval ticket before apply.".to_owned(),
+            format!("settings://approval/{}", preview.setting_id),
+        ),
+        "restart_required_not_acknowledged" => (
+            "Restart acknowledgement".to_owned(),
+            "Acknowledge the declared restart posture before apply.".to_owned(),
+            format!("settings://restart/{}", preview.setting_id),
+        ),
         "setting_unknown_at_registry" => (
             "Schema registry".to_owned(),
             "The setting id is not registered. Check the registry.".to_owned(),
@@ -896,7 +945,10 @@ fn restart_summary_from_records(
         if record.restart_state.restart_required {
             required += 1;
         }
-        if posture == "restart_shell" || posture == "restart_extensions" {
+        if posture == "restart_shell"
+            || posture == "restart_extensions"
+            || posture == "restart_process"
+        {
             any_process_restart = true;
         }
     }

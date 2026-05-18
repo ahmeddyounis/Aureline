@@ -68,9 +68,10 @@ pub use keybindings::{
     KEYBINDING_SETTINGS_SCHEMA_VERSION,
 };
 pub use resolver::{
-    EffectiveSettingsResolver, EffectiveValue, LockReason, LockState, PolicyConstraint,
-    ResolveError, ScopeOverlay, ShadowChainEntry, ShadowRelation, WriteAttemptOutcome,
-    WriteDenialReason, WriteIntent,
+    CapabilityState, EffectiveCapabilityDependency, EffectiveControlStack, EffectiveLastWritten,
+    EffectiveSettingRecord, EffectiveSettingsResolver, EffectiveValue, LockReason, LockState,
+    PolicyConstraint, ResolveError, ScopeOverlay, ShadowChainEntry, ShadowRelation,
+    WriteAttemptOutcome, WriteDenialReason, WriteIntent,
 };
 pub use schema::{
     AliasDirection, CapabilityDependency, CapabilityDependencyKind, LifecycleLabel, MigrationRule,
