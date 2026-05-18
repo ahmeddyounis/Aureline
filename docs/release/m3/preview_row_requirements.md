@@ -9,8 +9,10 @@ The packet register is:
 
 - `artifacts/compat/m3/preview_row_packets/preview_row_packets.json`
 - `artifacts/compat/m3/preview_row_packets/support_export_projection.json`
+- `artifacts/compat/m3/qualified_preview_rows.json`
 - `schemas/compat/m3_preview_row_packet.schema.json`
 - `fixtures/ai/m3/preview_row_inputs/`
+- `fixtures/compat/m3/preview_scope_and_handoff/`
 
 ## Required lanes
 
@@ -43,6 +45,21 @@ explicit kernel attach are allowed; notebook-first parity remains out of
 scope until its own trust, repair, install-review, compatibility, and
 activation-budget packets are current.
 
+## Scope labels and handoff
+
+Notebook-first parity, voice/dictation, browser companion, and preview
+canvas scope labels are generated into
+`artifacts/compat/m3/qualified_preview_rows.json` from the claimed-surface
+register. Those rows carry lifecycle label, support label, client-scope
+chip, evidence freshness, handoff target, and downgrade reason tokens for
+Start Center, docs/help, Help/About, service health, compatibility reports,
+marketplace/help metadata, and support exports.
+
+Browser-companion and voice-adjacent rows must not imply native-depth
+capability. When the current client cannot perform an action safely, the
+row must keep the limitation visible and route to the configured desktop
+handoff target.
+
 ## Consumer rule
 
 The support-export projection quotes the packet register directly. It
@@ -69,4 +86,5 @@ The validator cross-checks the packet rows against
 `artifacts/release/m3/claim_manifest.json`, allows held rows only when
 they are listed in `artifacts/milestones/m3/claimed_surface_register.json`,
 and verifies that the support-export projection has no row-state drift.
-
+Run `python3 ci/check_m3_qualified_preview_rows.py --repo-root . --check`
+beside it to enforce scope-label parity and handoff smoke fixtures.

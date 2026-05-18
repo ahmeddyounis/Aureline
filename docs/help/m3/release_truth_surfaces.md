@@ -143,6 +143,15 @@ activation-budget, and promotion-gate states. Rows without a current packet
 render as downgraded out of the claimed set rather than inheriting adjacent
 runtime or notebook truth.
 
+Notebook, voice, browser-companion, and preview-canvas scope labels are
+read through `artifacts/compat/m3/qualified_preview_rows.json`. Help /
+About, service health, Start Center, docs/help, compatibility reports,
+marketplace/help metadata, and support exports quote the same lifecycle,
+support, client-scope, freshness, handoff, and downgrade-reason fields.
+Browser-companion and voice rows must keep their desktop handoff or
+limitation visible whenever the requested action exceeds the current
+client scope.
+
 ## Release-control rehearsals
 
 Publish, rollback, revocation, and advisory rehearsal state is read
@@ -284,6 +293,13 @@ The projection is read-only and does not:
   report for the current claim and compatibility artifacts.
 - `fixtures/release/beta_truth_cases/*.json` — protected walk plus the
   named failure drills.
+- `artifacts/compat/m3/qualified_preview_rows.json` — generated
+  notebook, voice, browser-companion, and preview-canvas lifecycle,
+  client-scope, handoff, and downgrade labels consumed by product,
+  docs/help, compatibility, marketplace/help metadata, and support export.
+- `fixtures/compat/m3/preview_scope_and_handoff/` — smoke fixtures for
+  desktop handoff, stale-evidence downgrade, and missing-evidence
+  downgrade.
 - `artifacts/release/m3/claim_manifest.json` — the generated truth source
   consumed by both surfaces.
 - `artifacts/release/m3/artifact_graph.json` — the beta artifact graph
