@@ -361,8 +361,12 @@ Re-export of
 `dependency_bump`, `generated_artifact_regeneration`,
 `policy_change`, `ownership_change`, `provider_resource_update`,
 `imported_bundle_rollover`, `workset_scope_narrowed`,
-`workset_scope_widened`, `inferred_transitive_impact`. Impact
-panels never invent a reason class.
+`workset_scope_widened`, `inferred_transitive_impact`,
+`exact_edge`, `shared_target`, `ownership_rule`,
+`generated_linkage`, `heuristic_similarity`, `policy_coupling`.
+The last six tokens are the shared UI, CLI/headless, export, and
+support-packet vocabulary required for impact rows. Impact panels
+never invent a reason class.
 
 ### 3.3 Confidence class
 

@@ -299,7 +299,7 @@ string_enum! {
 }
 
 string_enum! {
-    /// Twelve-member impact-reason class.
+    /// Eighteen-member impact-reason class.
     pub enum ImpactReasonClass {
         DirectEdit => "direct_edit",
         SymbolRename => "symbol_rename",
@@ -313,6 +313,12 @@ string_enum! {
         WorksetScopeNarrowed => "workset_scope_narrowed",
         WorksetScopeWidened => "workset_scope_widened",
         InferredTransitiveImpact => "inferred_transitive_impact",
+        ExactEdge => "exact_edge",
+        SharedTarget => "shared_target",
+        OwnershipRule => "ownership_rule",
+        GeneratedLinkage => "generated_linkage",
+        HeuristicSimilarity => "heuristic_similarity",
+        PolicyCoupling => "policy_coupling",
     }
 }
 

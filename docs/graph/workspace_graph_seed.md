@@ -222,9 +222,11 @@ every later graph-reading surface:
   `generated_artifact_regeneration`, `policy_change`,
   `ownership_change`, `provider_resource_update`,
   `imported_bundle_rollover`, `workset_scope_narrowed`,
-  `workset_scope_widened`, `inferred_transitive_impact`) plus a
-  redaction-aware short rationale and optional mutation-journal /
-  review refs.
+  `workset_scope_widened`, `inferred_transitive_impact`,
+  `exact_edge`, `shared_target`, `ownership_rule`,
+  `generated_linkage`, `heuristic_similarity`, `policy_coupling`)
+  plus a redaction-aware short rationale and optional
+  mutation-journal / review refs.
 - **`explainer_citations`** — optional. Cited-explainer overlays
   and AI context assemblers emit citations using the SAME node and
   edge ids the graph exposes, via this slot; they do NOT mint a
