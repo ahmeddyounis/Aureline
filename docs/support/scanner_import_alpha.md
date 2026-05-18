@@ -25,18 +25,20 @@ Machine-readable companions:
 
 ## Runtime Consumer
 
-The shell consumer lives in
+The runtime consumer lives in
+[`crates/aureline-runtime/src/scanner_import/`](../../crates/aureline-runtime/src/scanner_import/).
+The shell facade re-exports that runtime model from
 [`crates/aureline-shell/src/diagnostics/imported/mod.rs`](../../crates/aureline-shell/src/diagnostics/imported/mod.rs).
-It parses the supported SARIF-shaped payload, preserves raw scanner
-bodies only by opaque `raw_payload_ref`, publishes imported findings to
-the existing diagnostic bus as `scanner_import` / `imported_snapshot`
-rows, and emits:
+It parses SARIF-shaped and structured scanner payloads, preserves raw scanner
+bodies only by opaque `raw_payload_ref` or an explicit redaction policy,
+publishes imported findings to the existing diagnostic bus as
+`scanner_import` / `imported_snapshot` rows, and emits:
 
 - a diagnostic delta packet;
 - a suppression/baseline register;
 - a diagnostic review packet;
 - a Problems projection; and
-- a support export bound to `support.item.imported_diagnostics`.
+- CLI, support, and release projections bound to the same imported evidence.
 
 The support export includes import lineage, delta state, local
 confirmation refs, release-visible debt counts, and raw-payload backlinks

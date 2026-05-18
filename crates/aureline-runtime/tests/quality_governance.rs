@@ -192,6 +192,9 @@ fn quality_schemas_parse() {
         "../../schemas/quality/quality_action_proposal.schema.json",
         "../../schemas/quality/quality_session.schema.json",
         "../../schemas/quality/suppression_record.schema.json",
+        "../../schemas/quality/scanner_import_session.schema.json",
+        "../../schemas/quality/diagnostic_delta_packet.schema.json",
+        "../../schemas/quality/review_quality_packet.schema.json",
     ] {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(rel);
         let payload =

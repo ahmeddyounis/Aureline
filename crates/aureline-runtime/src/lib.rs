@@ -51,6 +51,7 @@ pub mod recipes;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
 pub mod rerun;
+pub mod scanner_import;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
 pub mod support_matrix_beta;
