@@ -15,6 +15,13 @@ partner packet, support export, or docs page that wants broader benchmark
 copy must first update the packet, refresh the council notes, and pass
 `python3 ci/check_m3_public_benchmark_beta.py --repo-root .`.
 
+Corpus lineage and freshness are governed by
+`fixtures/registry/corpus_registry.yaml` and the derived report at
+`artifacts/registry/corpus_freshness_report.json`. The benchmark row
+uses `corpus_claim_binding.benchmark_publication`; if that binding
+expires, public benchmark copy downgrades to `retest_pending` until the
+publication packet is rerun.
+
 ## Current Public Copy Boundary
 
 Allowed public language:
@@ -39,6 +46,7 @@ Run:
 
 ```sh
 python3 ci/check_m3_public_benchmark_beta.py --repo-root .
+python3 ci/check_corpus_freshness.py --repo-root .
 ```
 
 The gate scans this release doc and the partner packet projection listed

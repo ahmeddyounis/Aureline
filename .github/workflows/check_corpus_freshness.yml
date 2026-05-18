@@ -1,0 +1,68 @@
+# Corpus lineage and freshness gate.
+#
+# Validates the governed corpus registry, privacy-cleared intake posture,
+# and claim-binding freshness report.
+
+name: check_corpus_freshness
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_corpus_freshness.yml"
+      - "ci/check_corpus_freshness.py"
+      - "scripts/ci/check_corpus_freshness.py"
+      - "fixtures/registry/corpus_registry.yaml"
+      - "fixtures/registry/evidence_freshness_policy.yaml"
+      - "fixtures/registry/corpus_intake_checklist.md"
+      - "docs/release/m3/corpus_lineage_and_public_proof.md"
+      - "artifacts/registry/corpus_freshness_report.json"
+      - "artifacts/benchmarks/m3/publication_packet/packet.md"
+      - "artifacts/compat/m3/reference_workspace_register.yaml"
+      - "artifacts/compat/m3/reference_workspace_report.json"
+      - "artifacts/migration/m3/migration_scoreboard.md"
+      - "artifacts/compat/m3/extension_conformance_kit_report.json"
+      - "fixtures/support/m3/scenario_corpus/manifest.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-corpus-freshness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  corpus_freshness:
+    name: Corpus freshness
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run corpus freshness validator
+        run: |
+          python3 ci/check_corpus_freshness.py --repo-root . --check
+
+      - name: Upload corpus freshness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-freshness-${{ github.run_id }}
+          path: artifacts/registry/corpus_freshness_report.json
+          if-no-files-found: error
+          retention-days: 30

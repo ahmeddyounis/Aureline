@@ -10,6 +10,8 @@ Reviewer-facing entrypoints:
 
 - Public benchmark release doc: `docs/release/m3/public_benchmark_beta.md`
 - Benchmark council notes: `artifacts/benchmarks/m3/benchmark_council_notes.md`
+- Corpus lineage registry: `fixtures/registry/corpus_registry.yaml`
+- Corpus freshness report: `artifacts/registry/corpus_freshness_report.json`
 - Partner packet projection:
   `artifacts/benchmarks/m3/publication_packet/partner_packet.md`
 - Validator:
@@ -248,9 +250,13 @@ artifact_links:
   fixture_register_ref: artifacts/benchmarks/m2_fixture_register.yaml
   source_anchor_refs:
     - artifacts/milestones/m3/public_proof_index.md
+    - fixtures/registry/corpus_registry.yaml
+    - fixtures/registry/evidence_freshness_policy.yaml
+    - artifacts/registry/corpus_freshness_report.json
     - artifacts/compat/m3/reference_workspace_register.yaml
     - artifacts/compat/m3/reference_workspace_report.json
     - artifacts/compat/m3/reference_workspace_badges.json
+    - docs/release/m3/corpus_lineage_and_public_proof.md
     - docs/governance/m3/publication_shelf_life_policy.md
     - docs/benchmarks/benchmark_publication_pack_template.md
     - artifacts/benchmarks/m3/benchmark_council_notes.md

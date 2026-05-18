@@ -32,6 +32,10 @@ Related control artifacts:
 - docs/governance/evidence_freshness_policy.md
 - artifacts/governance/evidence_freshness_slos.yaml
 - artifacts/governance/evidence_rerun_triggers.yaml
+- fixtures/registry/corpus_registry.yaml
+- fixtures/registry/evidence_freshness_policy.yaml
+- artifacts/registry/corpus_freshness_report.json
+- docs/release/m3/corpus_lineage_and_public_proof.md
 - schemas/governance/evidence_packet_header.schema.json
 - schemas/release/ring_history_packet.schema.json
 - docs/build/exact_build_identity_model.md
@@ -166,6 +170,10 @@ preview-only, or claim-narrowed.
 
 ## Benchmark and fitness evidence
 
+- **Corpus lineage binding:** cite the relevant
+  `corpus_claim_binding.*` row from
+  `fixtures/registry/corpus_registry.yaml` and the derived status in
+  `artifacts/registry/corpus_freshness_report.json`.
 - **Protected metrics file:** `artifacts/bench/protected_metrics.yaml` (`metrics_file_revision: <n>`)
 - **Catalog:** `artifacts/bench/fitness_function_catalog.yaml` (`catalog_revision: <n>`)
 - **Protected-path ledger:** `artifacts/perf/protected_path_ledger.yaml` (`ledger_revision: <n>`)
@@ -185,6 +193,10 @@ preview-only, or claim-narrowed.
 
 ## Qualification and compatibility
 
+- **Corpus lineage binding:** cite the relevant
+  `corpus_claim_binding.*` row for reference workspaces, conformance
+  packs, migration suites, or support-scenario seeds. The release packet
+  state must not be greener than that binding's effective claim state.
 - **Qualification row refs:**
   - `<compat-row-id>` — verdict, evidence status, and source path.
   - ...

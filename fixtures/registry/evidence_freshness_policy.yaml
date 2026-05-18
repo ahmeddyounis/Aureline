@@ -1,0 +1,119 @@
+schema_version: 1
+policy_id: aureline.corpus_evidence_freshness_policy
+policy_revision: 1
+status: active
+as_of: "2026-05-18"
+owner: "@ahmeddyounis"
+
+registry_ref: fixtures/registry/corpus_registry.yaml
+intake_checklist_ref: fixtures/registry/corpus_intake_checklist.md
+shared_slo_catalog_ref: artifacts/governance/evidence_freshness_slos.yaml
+shared_rerun_trigger_catalog_ref: artifacts/governance/evidence_rerun_triggers.yaml
+public_proof_index_ref: artifacts/milestones/m3/public_proof_index.md
+
+freshness_states:
+  - state_id: current
+    meaning: Evidence age is inside the declared stale_after window.
+    claim_effect: declared claim state may render.
+  - state_id: near_expiry
+    meaning: Evidence has consumed at least 80 percent of its window.
+    claim_effect: declared claim state may render with owner review queued.
+  - state_id: stale
+    meaning: Evidence age is outside the declared stale_after window.
+    claim_effect: claim rows downgrade to retest_pending, claim_narrowed, or blocked.
+  - state_id: missing
+    meaning: Evidence timestamp or stale_after metadata is absent or invalid.
+    claim_effect: fail closed and remove green badges.
+
+stale_propagation_profiles:
+  - profile_id: claim_narrow_and_hold
+    effective_claim_state_on_stale: retest_pending
+    release_packet_readiness_cap: narrow_claims
+    compatibility_badge: Retest pending
+    shiproom_state: hold_for_refresh
+  - profile_id: compatibility_retest_pending
+    effective_claim_state_on_stale: retest_pending
+    release_packet_readiness_cap: narrow_claims
+    compatibility_badge: Retest pending
+    shiproom_state: hold_for_refresh
+  - profile_id: migration_narrow_or_block
+    effective_claim_state_on_stale: retest_pending
+    release_packet_readiness_cap: narrow_claims
+    compatibility_badge: Retest pending
+    shiproom_state: hold_for_refresh
+  - profile_id: supportability_release_block
+    effective_claim_state_on_stale: retest_pending
+    release_packet_readiness_cap: blocked
+    compatibility_badge: Retest pending
+    shiproom_state: no_go
+
+proof_classes:
+  - proof_class_id: benchmark_publication_proof
+    max_stale_after: P14D
+    required_rerun_trigger_refs:
+      - reference_hardware_image_changed
+      - corpus_or_fixture_revision_changed
+      - protected_metrics_or_fitness_catalog_changed
+      - exact_build_identity_chain_changed
+      - schema_or_packet_header_contract_changed
+      - claim_row_or_channel_binding_changed
+    stale_propagation_profile: claim_narrow_and_hold
+  - proof_class_id: compatibility_report_proof
+    max_stale_after: P21D
+    required_rerun_trigger_refs:
+      - corpus_or_fixture_revision_changed
+      - interface_or_version_skew_window_changed
+      - exact_build_identity_chain_changed
+      - schema_or_packet_header_contract_changed
+      - claim_row_or_channel_binding_changed
+    stale_propagation_profile: compatibility_retest_pending
+  - proof_class_id: migration_parity_proof
+    max_stale_after: P14D
+    required_rerun_trigger_refs:
+      - corpus_or_fixture_revision_changed
+      - interface_or_version_skew_window_changed
+      - schema_or_packet_header_contract_changed
+      - claim_row_or_channel_binding_changed
+    stale_propagation_profile: migration_narrow_or_block
+  - proof_class_id: conformance_pack_proof
+    max_stale_after: P14D
+    required_rerun_trigger_refs:
+      - corpus_or_fixture_revision_changed
+      - interface_or_version_skew_window_changed
+      - schema_or_packet_header_contract_changed
+      - claim_row_or_channel_binding_changed
+    stale_propagation_profile: compatibility_retest_pending
+  - proof_class_id: support_scenario_quality_proof
+    max_stale_after: P7D
+    required_rerun_trigger_refs:
+      - corpus_or_fixture_revision_changed
+      - deployment_topology_or_boundary_changed
+      - schema_or_packet_header_contract_changed
+      - claim_row_or_channel_binding_changed
+      - support_window_or_release_family_changed
+    stale_propagation_profile: supportability_release_block
+
+privacy_clearance_rules:
+  external_source_classes:
+    - partner_customer_derived
+    - design_partner_derived
+    - field_derived
+  required_before_ci_or_public_proof:
+    - intake_record_ref
+    - redaction_state: approved_redacted_or_synthetic_summary_only
+    - license_clearance: approved_license_or_written_permission
+    - retention_approval: approved_retention_window
+    - reviewer_refs:
+        - privacy_reviewer_ref
+        - legal_reviewer_ref
+        - corpus_owner_ref
+  fail_closed_rule: >
+    External, partner, customer, or field-derived material may remain in
+    manual review, but it cannot appear in CI, public proof, release
+    packets, or claim bindings until every clearance field is approved.
+
+automation:
+  validator_ref: ci/check_corpus_freshness.py
+  default_command: python3 ci/check_corpus_freshness.py --repo-root .
+  report_ref: artifacts/registry/corpus_freshness_report.json
+  check_command: python3 ci/check_corpus_freshness.py --repo-root . --check

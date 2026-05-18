@@ -36,6 +36,8 @@ Public-proof evidence lives under these governed roots:
 - Docs / public-truth outputs and captures: `artifacts/docs/m3/`
 - Release / claim manifest outputs and captures: `artifacts/release/m3/`
 - Shared build-identity anchor: `artifacts/build/build_identity.json`
+- Corpus lineage registry: `fixtures/registry/`
+- Corpus freshness report: `artifacts/registry/`
 
 Public-proof evidence for an M3 row MUST be stored under one of these roots.
 New roots MUST be declared in the canonical block before any packet writes
@@ -138,6 +140,10 @@ storage_roots:
     root_ref: artifacts/release/m3/
   - root_id: build_identity_root
     root_ref: artifacts/build/
+  - root_id: corpus_registry_root
+    root_ref: fixtures/registry/
+  - root_id: corpus_freshness_root
+    root_ref: artifacts/registry/
 
 rows:
   - row_id: m3_public_proof:boundary_truth
@@ -222,11 +228,14 @@ rows:
       - artifacts/benchmarks/m3/dashboard_snapshot.json
       - artifacts/benchmarks/m3/protected_fitness_catalog.yaml
       - artifacts/milestones/m3/waiver_register.yaml
+      - artifacts/registry/corpus_freshness_report.json
     supporting_evidence_refs:
       - docs/milestones/m3/protected_fitness_catalog.md
       - artifacts/benchmarks/m3/publication_dry_run/packet.md
       - docs/release/m3/public_benchmark_beta.md
       - ci/check_m3_public_benchmark_beta.py
+      - fixtures/registry/corpus_registry.yaml
+      - docs/release/m3/corpus_lineage_and_public_proof.md
       - artifacts/milestones/m3/proof_consumption_walkthrough.md
     exact_build_identity_ref: artifacts/build/build_identity.json
     rerun_trigger_refs:
@@ -291,9 +300,11 @@ rows:
       - artifacts/compat/m3/compatibility_report.json
       - artifacts/compat/m3/compatibility_report.md
       - artifacts/compat/m3/skew_window_matrix.yaml
+      - artifacts/registry/corpus_freshness_report.json
     supporting_evidence_refs:
       - artifacts/compat/version_skew_register.yaml
       - docs/release/compatibility_report_template.md
+      - fixtures/registry/corpus_registry.yaml
     exact_build_identity_ref: artifacts/build/build_identity.json
     rerun_trigger_refs:
       - interface_or_version_skew_window_changed
@@ -321,9 +332,11 @@ rows:
       - artifacts/compat/m3/archetype_scorecards/scorecard_index.yaml
       - artifacts/milestones/m3/captures/cohort_archetype_scorecard_register.json
       - artifacts/milestones/m3/cohorts/scorecard_index.yaml
+      - artifacts/registry/corpus_freshness_report.json
     supporting_evidence_refs:
       - docs/release/certified_archetype_report_template.md
       - artifacts/compat/reference_workspace_rows.yaml
+      - fixtures/registry/corpus_registry.yaml
     exact_build_identity_ref: artifacts/build/build_identity.json
     rerun_trigger_refs:
       - reference_hardware_image_changed

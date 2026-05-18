@@ -80,6 +80,17 @@ authoritative until the corresponding beta evidence is current.
 - Alpha partner guide:
   [`docs/alpha/design_partner_guide.md`](../../alpha/design_partner_guide.md)
 
+Partner or customer samples are not admissible as benchmark,
+compatibility, migration, conformance, supportability, CI, or public
+proof corpora until the corpus intake checklist is complete and the
+lineage registry marks the asset cleared. The blocked holding row is
+`corpus.asset.external.partner_intake_holding_area`.
+
+- Corpus intake checklist:
+  [`fixtures/registry/corpus_intake_checklist.md`](../../../fixtures/registry/corpus_intake_checklist.md)
+- Corpus lineage registry:
+  [`fixtures/registry/corpus_registry.yaml`](../../../fixtures/registry/corpus_registry.yaml)
+
 ## Known-limits vocabulary
 
 Partners read the same known-limits surface as every other M3 lane.

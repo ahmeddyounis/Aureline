@@ -17,6 +17,14 @@ The reviewer-facing baseline projection is the markdown report at
 [`artifacts/support/m3/drill_harness_report.md`](../../../artifacts/support/m3/drill_harness_report.md),
 re-derived from the corpus by the protected drill-harness test at
 [`crates/aureline-support/tests/m3_scenario_corpus_drill.rs`](../../../crates/aureline-support/tests/m3_scenario_corpus_drill.rs).
+Release evidence and support exports read the same corpus through the
+lineage registry at
+[`fixtures/registry/corpus_registry.yaml`](../../../fixtures/registry/corpus_registry.yaml)
+and the freshness report at
+[`artifacts/registry/corpus_freshness_report.json`](../../../artifacts/registry/corpus_freshness_report.json).
+The supportability binding is `corpus_claim_binding.support_scenarios`;
+when it ages out, the affected supportability claim state becomes
+`retest_pending`.
 
 ## What this row owns
 

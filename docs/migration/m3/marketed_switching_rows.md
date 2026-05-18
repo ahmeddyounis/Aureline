@@ -17,6 +17,10 @@ Authoritative artifacts:
   [`artifacts/migration/m3/restore_provenance_packet.md`](../../../artifacts/migration/m3/restore_provenance_packet.md)
 - Claim manifest:
   [`artifacts/release/m3/claim_manifest.json`](../../../artifacts/release/m3/claim_manifest.json)
+- Corpus lineage registry:
+  [`fixtures/registry/corpus_registry.yaml`](../../../fixtures/registry/corpus_registry.yaml)
+- Corpus freshness report:
+  [`artifacts/registry/corpus_freshness_report.json`](../../../artifacts/registry/corpus_freshness_report.json)
 
 ## Required Row Truth
 
@@ -31,6 +35,7 @@ Each row below must keep these fields aligned:
 | Import rollback | `import_diff_and_rollback_packet.md` for lossy or failed import rows. |
 | Restore provenance | `restore_provenance_packet.md` for restore/import/workspace-switch rows. |
 | Claim downgrade | `claim_evidence:switching.first_useful_work_scorecard` in the generated claim manifest. |
+| Corpus freshness | `corpus_claim_binding.migration_suite` in `corpus_freshness_report.json`. |
 
 ## Marketed Entry Rows
 
