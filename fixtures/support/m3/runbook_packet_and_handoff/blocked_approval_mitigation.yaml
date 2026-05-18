@@ -1,0 +1,140 @@
+# yaml-language-server: $schema=../../../../schemas/support/incident_action_ledger.schema.json
+schema_version: 1
+record_kind: incident_workspace_runbook_beta_record
+workspace_packet_id: incident-workspace-runbook:payments-queue:blocked-approval
+incident_header:
+  incident_id: incident:payments-queue:blocked-approval
+  title: Payments queue approval blocked
+  severity: sev2
+  owner_ref: owner:payments-reliability
+  started_at: "2026-05-18T06:00:00Z"
+  current_state: waiting_approval
+environment_scope:
+  environment_scope_id: env:prod:payments:us-east
+  service_ref: service:payments-queue
+  deployment_profile_class: enterprise_online
+  target_context_ref: target-context:prod:payments:queue-shard-d
+  trust_posture: trusted
+  write_posture: approval_required
+drill_classes:
+  - blocked_approval
+evidence_timeline:
+  - entry_id: evidence:approval:queue-drain-pending
+    evidence_class: approval_state
+    source_class: reviewed_docs_pack
+    source_ref: approval-route:payments-queue-drain:pending
+    occurred_at: "2026-05-18T06:00:30Z"
+    freshness_state: live
+    sensitivity_class: metadata
+    target_context_ref: target-context:prod:payments:queue-shard-d
+    redacted_by_default: false
+    omission_declared: false
+runbook_packet:
+  runbook_packet_id: runbook-packet:payments-queue-drain:v4
+  runbook_id: runbook:payments-queue-drain
+  packet_version: "4.2.0"
+  title: Payments queue bounded drain
+  source_class: reviewed_docs_pack
+  source_ref: docs-pack:runbooks:payments-queue-drain:v4
+  docs_freshness_state: exact_current
+  required_approvals:
+    - approval_requirement_id: approval:req:queue-drain
+      requirement_class: runtime_approval_ticket
+      current_state: pending
+      approval_ticket_ref: null
+      preview_hash_ref: preview-hash:payments-queue-drain:shard-d:aa10
+      required_for_mutation: true
+  target_selector_rules:
+    - target_selector_rule_id: selector:payments-queue-shard-d
+      target_selector_scope: service_resource
+      target_identity_ref: target:prod:payments:queue-shard-d
+      selector_summary: Resolved prod payments queue shard target.
+  expected_evidence_outputs:
+    - evidence_output_id: evidence-output:approval-state
+      evidence_class: approval_ticket_ref
+      required_for_completion: true
+      redaction_state: metadata_embedded
+  steps:
+    - step_id: step:payments-queue:mitigate
+      ordinal: 0
+      title: Drain one queue shard after approval
+      step_class: mitigate
+      source_class: reviewed_docs_pack
+      target_selector_scope: service_resource
+      target_identity_ref: target:prod:payments:queue-shard-d
+      approval_requirement:
+        approval_requirement_id: approval:req:queue-drain
+        requirement_class: runtime_approval_ticket
+        current_state: pending
+        approval_ticket_ref: null
+        preview_hash_ref: preview-hash:payments-queue-drain:shard-d:aa10
+        required_for_mutation: true
+      expected_evidence_outputs:
+        - evidence_output_id: evidence-output:mitigate:approval
+          evidence_class: approval_ticket_ref
+          required_for_completion: true
+          redaction_state: metadata_embedded
+      current_state: waiting_approval
+      evidence_refs:
+        - evidence:approval:queue-drain-pending
+      deviation_note_policy:
+        deviation_notes_supported: true
+        deviation_note_required_for_deviation: true
+        follow_up_gate_ref: gate:approval-required
+      deviation_note: null
+      handoff_required: false
+      console_handoff_ref: null
+  deviation_policy:
+    deviation_notes_supported: true
+    deviation_note_required_for_deviation: true
+    follow_up_gate_ref: gate:approval-required
+  action_ledger_required: true
+action_ledger:
+  - action_id: action:payments-queue:drain-shard-d:blocked-approval
+    runbook_id_ref: runbook:payments-queue-drain
+    runbook_packet_version_ref: "4.2.0"
+    step_id_ref: step:payments-queue:mitigate
+    step_class: mitigate
+    action_class: mitigate
+    actor_ref: user:oncall:primary
+    target_selector_scope: service_resource
+    target_identity_ref: target:prod:payments:queue-shard-d
+    preview_hash_ref: preview-hash:payments-queue-drain:shard-d:aa10
+    approval_ticket_ref: null
+    approval_state: pending
+    sandbox_profile_ref: sandbox:runtime-action:bounded-drain
+    evidence_refs:
+      - evidence:approval:queue-drain-pending
+    raw_request_ref: null
+    console_handoff_ref: null
+    deviation_note: null
+    outcome: failed_closed
+    occurred_at: "2026-05-18T06:01:00Z"
+    exportable_as_metadata: true
+    redaction_class: metadata_safe_default
+console_handoffs: []
+export_bundle:
+  bundle_id: export:incident:payments-queue:blocked-approval
+  redaction_profile_ref: redaction-profile:metadata-safe-default
+  manifest_digest_ref: digest:export:payments-queue:blocked-approval
+  included_evidence_refs:
+    - evidence:approval:queue-drain-pending
+  omitted_evidence_refs: []
+  action_ledger_entry_refs:
+    - action:payments-queue:drain-shard-d:blocked-approval
+  console_handoff_refs: []
+  raw_private_material_excluded: true
+  secrets_excluded: true
+  can_reconstruct_runbook_lineage: true
+privacy_baseline:
+  raw_private_material_excluded: true
+  ambient_authority_excluded: true
+  raw_console_sessions_excluded: true
+  raw_provider_urls_excluded: true
+  secrets_excluded: true
+references:
+  doc_ref: docs/support/m3/incident_workspace_runbook_beta.md
+  schema_ref: schemas/support/incident_action_ledger.schema.json
+  runbook_schema_ref: schemas/support/runbook_packet.schema.json
+  fixture_manifest_ref: fixtures/support/m3/runbook_packet_and_handoff/manifest.yaml
+emitted_at: "2026-05-18T06:02:00Z"
