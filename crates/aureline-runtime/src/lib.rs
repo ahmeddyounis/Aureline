@@ -33,6 +33,7 @@ pub mod capability_negotiation;
 pub mod capsule_resolver;
 pub mod debug;
 pub mod detectors;
+pub mod diagnostics;
 pub mod discovery;
 pub mod drift_repair;
 pub mod env_inspect;
