@@ -15,6 +15,8 @@
 #![doc(html_root_url = "https://docs.rs/aureline-install/0.0.0")]
 
 pub mod ownership_audit;
+pub mod profile_cards;
+pub mod repair_verify;
 pub mod rollback;
 pub mod topology;
 
@@ -25,6 +27,36 @@ pub use ownership_audit::{
     OwnershipAuditValidationFinding, OwnershipAuditValidationReport, PortableOwnershipClaim,
     SideBySideDisclosureClass, OWNERSHIP_AUDIT_PACKET_RECORD_KIND, OWNERSHIP_AUDIT_SCHEMA_VERSION,
     OWNERSHIP_AUDIT_SHARED_CONTRACT_REF, OWNERSHIP_AUDIT_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use profile_cards::{
+    CheckpointAvailabilityState, CheckpointExpectation, CollisionClass, CollisionPolicyClass,
+    CollisionResolutionClass, CollisionRiskClass, CompareSemantics, DefaultHandlerSelectionRule,
+    DiagnosticsExportAction, DiagnosticsExportActionClass, DiagnosticsVisibilityClass,
+    DurableStateRootClass, DurableStateRootRow, EvidenceFreshnessStateClass,
+    FileAssociationOwnership, FileAssociationRegistrationClass, HumanReadableSummaryRequirement,
+    ImportDomain, ImportDomainAction, ImportDomainRow, ImportReasonClass, ImportSheetSupportRow,
+    InstallProfileBetaCoverage, InstallProfileBetaPacket, InstallProfileBetaSourceRefs,
+    InstallProfileBetaSupportExport, InstallProfileBetaValidationFinding,
+    InstallProfileBetaValidationReport, InstallProfileCardRecord, InstallProfileCardSupportRow,
+    InstallSurfaceClass, InstallSurfaceProjectionRow, LaneScopeClass, PortableIntegrationPosture,
+    PortableModeRestrictions, PromotionState, ProtocolHandlerOwnership,
+    ProtocolHandlerOwnershipClass, RollbackExpectationClass, RollbackTargetClass,
+    RolloutEvidenceLink, RolloutEvidenceTypeClass, RolloutLaneClass, RolloutPromotionStateClass,
+    RolloutRingRowRecord, RolloutRingSupportRow, RolloutRollbackState, RolloutRollbackStateClass,
+    SharedSchemeResolutionRule, SharedStateCollisionDisclosure, SideBySideImportSheetRecord,
+    StateAuthorityClass, UninstallOrDisablePath, UninstallPathClass,
+    INSTALL_PROFILE_BETA_PACKET_RECORD_KIND, INSTALL_PROFILE_BETA_SCHEMA_VERSION,
+    INSTALL_PROFILE_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use repair_verify::{
+    FailureReasonClass, InstallOperationDiagnostic, InstallOperationKind, OperationProfileClass,
+    OperationRedactionClass, OperationStatusClass, RemediationPointerClass, RepairVerifyCoverage,
+    RepairVerifyPacket, RepairVerifySourceRefs, RepairVerifySupportExport,
+    RepairVerifySupportOperationRow, RepairVerifyValidationFinding, RepairVerifyValidationReport,
+    ReturnCodeFamily, UninstallBehaviorExpectation, REPAIR_VERIFY_PACKET_RECORD_KIND,
+    REPAIR_VERIFY_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use rollback::{

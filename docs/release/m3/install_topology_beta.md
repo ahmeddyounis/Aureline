@@ -19,6 +19,10 @@ enterprise inventory surfaces must render before they describe an install.
   [`artifacts/release/m3/install_diagnostics/install_diagnostics_packet.json`](../../../artifacts/release/m3/install_diagnostics/install_diagnostics_packet.json)
 - Support-export projection:
   [`artifacts/release/m3/install_diagnostics/support_export_projection.json`](../../../artifacts/release/m3/install_diagnostics/support_export_projection.json)
+- Install-profile, import, rollout, repair, verify, and uninstall packet:
+  [`fixtures/install/m3/profile_cards_and_repair/`](../../../fixtures/install/m3/profile_cards_and_repair/)
+- Reviewer-facing topology and rollout truth packet:
+  [`artifacts/release/m3/install_topology_and_rollout_truth.md`](../../../artifacts/release/m3/install_topology_and_rollout_truth.md)
 
 ## Product And CLI Truth
 
@@ -84,3 +88,13 @@ The test validates the packet, compares product/CLI/support truth
 fingerprints, confirms side-by-side and portable root isolation, verifies the
 checked-in support-export projection, and rejects representative stale or
 unsafe diagnostics mutations.
+
+Run the profile-card and repair diagnostics contract:
+
+```bash
+cargo test -p aureline-install --test profile_cards_and_repair_beta
+```
+
+This validates install-profile cards, side-by-side import choices, portable
+integration suppression, rollout ring coverage, repair/verify diagnostics,
+uninstall preservation, and support-export projection drift.
