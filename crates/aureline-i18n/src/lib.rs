@@ -805,6 +805,411 @@ pub struct LocalePackProtectedProof {
     pub exercised_axes: Vec<String>,
 }
 
+/// Schema version shared by dense i18n conformance corpus records.
+pub const DENSE_I18N_CORPUS_SCHEMA_VERSION: u32 = 1;
+
+/// Record kind for [`DenseI18nConformanceCorpus`].
+pub const DENSE_I18N_CORPUS_RECORD_KIND: &str = "dense_i18n_conformance_corpus_record";
+
+/// Record kind for [`DenseI18nConformanceReviewPacket`].
+pub const DENSE_I18N_REVIEW_PACKET_RECORD_KIND: &str =
+    "dense_i18n_conformance_review_packet_record";
+
+/// Stable id for the beta dense-surface i18n corpus.
+pub const DENSE_I18N_CORPUS_ID: &str = "i18n-conformance:dense-beta:v1";
+
+/// Dense product surface family covered by the beta i18n corpus.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DenseI18nSurfaceFamily {
+    /// Editor buffers, rename fields, completion surfaces, and snippet traversal.
+    Editor,
+    /// Command palette query input, result rows, and command preview panes.
+    CommandPalette,
+    /// Settings rows, schema-backed help, locale rows, and validation messages.
+    Settings,
+    /// File, symbol, docs, or workspace trees with dense row chrome.
+    TreeView,
+    /// Data, settings, search, or evidence tables with sticky headers and counts.
+    TableView,
+    /// Logs, traces, timelines, and diagnostic streams.
+    LogView,
+    /// Terminal transcript, terminal input, and raw or escaped copy routes.
+    Terminal,
+    /// Diff, review, conflict, and hosted-review panes.
+    ReviewPane,
+    /// Guided tours, onboarding exercises, and learning steps.
+    GuidedTour,
+    /// Docs, help, glossary, and support knowledge surfaces.
+    DocsHelp,
+}
+
+/// Stress mode exercised by a dense i18n conformance case.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DenseI18nStressMode {
+    /// Source-language rendering baseline.
+    SourceLanguageBaseline,
+    /// Pseudolocalization expansion and accent wrapping.
+    PseudolocExpansion,
+    /// Right-to-left chrome mirroring.
+    RtlChrome,
+    /// Bidirectional prose with literal technical tokens.
+    MixedDirectionTechnicalText,
+    /// IME preedit, candidate, and commit behavior.
+    ImeComposition,
+    /// CJK, full-width glyph, emoji, and font-fallback rendering.
+    CjkFontFallback,
+    /// Long translated strings and explicit expansion budgets.
+    TextExpansion,
+    /// Missing, partial, stale, blocked, or failed locale-pack fallback.
+    LocaleFallbackReview,
+    /// Translated docs, help, command, citation, and policy parity.
+    TranslatedSurfaceParity,
+    /// Locale-sensitive date, number, and count formatting.
+    LocalizedDateNumberFormatting,
+}
+
+/// Failure class the dense i18n corpus must catch before beta release.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DenseI18nFailureClass {
+    /// Text clips, overflows, or overlaps nearby UI.
+    TextClippedOrOverflow,
+    /// Truncation hides scope, severity, count, or action meaning.
+    TruncationHidesScopeOrAction,
+    /// Placeholder order or literal technical token semantics drift.
+    PlaceholderOrderDrift,
+    /// Directional chrome mirrors incorrectly or focus order stays stale.
+    MirroredChromeOrFocusOrderError,
+    /// Literal code, path, hostname, flag, or command id is mirrored.
+    LiteralTechnicalStringMirrored,
+    /// Raw, rendered, or escaped copy output diverges without disclosure.
+    BidiCopyDrift,
+    /// IME preedit is lost, committed, cancelled, or moved silently.
+    ImePreeditLoss,
+    /// Candidate strip or active caret is occluded by dense UI.
+    CandidateWindowOccluded,
+    /// Focus churn silently commits or cancels composition.
+    FocusChurnSilentCommitOrCancel,
+    /// Completion preview silently commits or cancels composition.
+    CompletionPreviewSilentCommitOrCancel,
+    /// Snippet traversal silently commits or cancels composition.
+    SnippetTraversalSilentCommitOrCancel,
+    /// Command preview silently commits or cancels composition.
+    CommandPreviewSilentCommitOrCancel,
+    /// CJK, full-width, or emoji glyph fallback fails.
+    MissingGlyphOrWrongFontFallback,
+    /// Locale-sensitive date, number, or count formatting drifts.
+    LocalizedDateNumberDrift,
+    /// Stable command, citation, keyboard, schema, or policy id drifts.
+    StableIdDrift,
+    /// Required source-language escape hatch is missing.
+    SourceLanguageEscapeHatchMissing,
+    /// Policy, trust, recovery, or legal copy drifts from governed terms.
+    PolicyTrustCopyDrift,
+    /// Missing or stale locale pack blocks core use instead of falling back.
+    LocalePackFallbackBlockedCoreUse,
+}
+
+/// Assertion class required by a dense i18n conformance case.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DenseI18nAssertionClass {
+    /// Pseudoloc and text expansion cannot clip or obscure critical meaning.
+    NoTruncationOrOverflow,
+    /// Directional chrome mirrors while literal technical tokens do not.
+    RtlChromeMirrorsOnlyDirectionalUi,
+    /// Literal code, paths, hostnames, flags, and ids remain copy-safe.
+    LiteralTechnicalTokensPreserved,
+    /// IME composition cannot be silently committed, cancelled, or retargeted.
+    ImeCompositionNotSilentlyCommittedOrCancelled,
+    /// Candidate windows and active carets remain visible.
+    CandidateAndCaretRemainVisible,
+    /// CJK, emoji, and full-width glyphs render through an accepted fallback chain.
+    FontFallbackWorks,
+    /// Missing or stale locale packs disclose fallback and continue core use.
+    LocaleFallbackDisclosedAndNonBlocking,
+    /// Command ids, keyboard paths, citations, scope labels, and policy ids persist.
+    StableTranslatedSurfaceRefsPreserved,
+    /// Source-language access remains reachable on translated or fallback surfaces.
+    SourceLanguageEscapeHatchAvailable,
+    /// Locale-sensitive dates, numbers, and counts keep meaning and stable ids.
+    LocalizedFormattingKeepsStableSemantics,
+}
+
+/// Event that can churn focus or previews during IME composition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImeCompositionChurnEvent {
+    /// Focus changes to a related dense row or inspector and returns.
+    FocusChange,
+    /// Completion or inline suggestion preview opens or re-ranks.
+    CompletionPreview,
+    /// Snippet placeholder traversal advances while composition is active.
+    SnippetTraversal,
+    /// Command preview opens, updates, or closes while composition is active.
+    CommandPreview,
+    /// Palette, table, tree, or log filtering re-ranks rows.
+    FilterRerank,
+    /// Dialog, side sheet, or source-language route opens and returns.
+    OverlayTransition,
+}
+
+/// Release lane cadence for the dense i18n corpus.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DenseI18nLaneCadence {
+    /// Runs on the scheduled nightly lane.
+    Nightly,
+    /// Runs on release-candidate promotion lanes.
+    ReleaseCandidate,
+    /// Runs on pull requests that touch localization, dense surfaces, or input paths.
+    PullRequest,
+}
+
+/// Technical token that must remain literal under translation or RTL rendering.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LiteralTechnicalToken {
+    /// Literal token value as authored.
+    pub token: String,
+    /// Token class such as `command_id`, `file_path`, `hostname`, `flag`, or `citation`.
+    pub token_class: String,
+    /// Whether RTL mirroring must leave this token's order unchanged.
+    pub must_remain_unmirrored: bool,
+    /// Whether raw copy is required for this token.
+    pub copy_raw_required: bool,
+    /// Whether escaped copy is required when directionality or invisibles matter.
+    pub copy_escaped_required: bool,
+}
+
+/// IME composition scenario exercised by one dense surface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImeCompositionScenario {
+    /// Stable scenario id.
+    pub scenario_id: String,
+    /// Input method, layout, or platform route under test.
+    pub input_method: String,
+    /// Text shown while composition is active.
+    pub preedit_text: String,
+    /// Text expected after commit.
+    pub expected_commit_text: String,
+    /// Churn events that occur while composition is active.
+    pub churn_events: Vec<ImeCompositionChurnEvent>,
+    /// Whether silent commit is forbidden.
+    pub silent_commit_forbidden: bool,
+    /// Whether silent cancel is forbidden.
+    pub silent_cancel_forbidden: bool,
+    /// Whether active caret and candidate location must stay visible.
+    pub candidate_and_caret_visibility_required: bool,
+}
+
+/// Expansion budget a surface must absorb before truncating critical copy.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TextExpansionBudget {
+    /// Minimum expansion ratio for one-line chrome and state labels.
+    pub single_line_min_ratio: f32,
+    /// Minimum expansion ratio for multi-line banners, reviews, and guided steps.
+    pub multiline_min_ratio: f32,
+    /// Whether overflow is forbidden for the case.
+    pub overflow_forbidden: bool,
+    /// Whether a same-flow full-text route is required before truncation.
+    pub full_text_route_required: bool,
+}
+
+/// RTL and bidi rendering expectations for one surface case.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RtlMirroringExpectation {
+    /// Whether directional UI chrome mirrors.
+    pub directional_chrome_mirrors: bool,
+    /// Whether literal technical strings remain unmirrored.
+    pub literal_technical_strings_unmirrored: bool,
+    /// Whether keyboard and screen-reader order tracks visual order.
+    pub focus_order_tracks_visual_order: bool,
+    /// Whether raw copy preserves authored logical order.
+    pub raw_copy_preserves_author_order: bool,
+}
+
+/// Dense i18n conformance case for one beta surface.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DenseI18nSurfaceCase {
+    /// Stable case id.
+    pub case_id: String,
+    /// Dense surface family under test.
+    pub surface_family: DenseI18nSurfaceFamily,
+    /// Product surface ref or projection id.
+    pub surface_ref: String,
+    /// Runtime crates that own or project this surface.
+    pub crate_refs: Vec<String>,
+    /// Dense workflow represented by the case.
+    pub dense_workflow: String,
+    /// Locales used by this case.
+    pub locale_tags: Vec<String>,
+    /// Stress modes exercised by this case.
+    pub stress_modes: Vec<DenseI18nStressMode>,
+    /// Readiness rows joined from `artifacts/i18n/test_mode_matrix.yaml`.
+    pub readiness_row_refs: Vec<String>,
+    /// Fixture refs used as input or evidence for this case.
+    pub fixture_refs: Vec<String>,
+    /// Stable source strings or seed refs used by the case.
+    pub source_seed_refs: Vec<String>,
+    /// Literal technical tokens that must remain unmirrored and copy-safe.
+    pub literal_tokens: Vec<LiteralTechnicalToken>,
+    /// IME scenarios for surfaces that exercise composition.
+    pub ime_scenarios: Vec<ImeCompositionScenario>,
+    /// Text expansion budget applied to this surface.
+    pub expansion_budget: TextExpansionBudget,
+    /// RTL or bidi expectation when the case exercises directionality.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rtl_expectation: Option<RtlMirroringExpectation>,
+    /// Assertion classes this case must satisfy.
+    pub assertion_refs: Vec<DenseI18nAssertionClass>,
+    /// Failure classes this case is expected to catch.
+    pub expected_failure_classes: Vec<DenseI18nFailureClass>,
+    /// Optional bounded waiver ref when a case is not fully green.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bounded_waiver_ref: Option<String>,
+}
+
+/// Stable ref that translated surfaces must preserve.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreservedTranslatedSurfaceRef {
+    /// Ref kind such as `command_id`, `keyboard_path`, `citation_anchor`, or `scope_label`.
+    pub ref_kind: String,
+    /// Literal ref value.
+    pub value: String,
+}
+
+/// Assertion that translated or fallback surfaces preserve stable truth.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TranslatedSurfaceAssertion {
+    /// Stable assertion id.
+    pub assertion_id: String,
+    /// Surface family the assertion applies to.
+    pub surface_family: DenseI18nSurfaceFamily,
+    /// Stable refs that must be preserved.
+    pub preserved_refs: Vec<PreservedTranslatedSurfaceRef>,
+    /// Whether source-language access is required on the same surface.
+    pub open_in_source_language_required: bool,
+    /// Whether machine output remains locale-neutral.
+    pub machine_output_locale_neutral: bool,
+    /// Whether governed trust, policy, or recovery terminology is preserved.
+    pub governed_terminology_preserved: bool,
+}
+
+/// CI or release lane binding for running the dense i18n corpus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DenseI18nLaneBinding {
+    /// Stable lane id.
+    pub lane_id: String,
+    /// Lane cadence.
+    pub cadence: DenseI18nLaneCadence,
+    /// Exact command the lane runs.
+    pub command: String,
+    /// Artifact refs exported by the lane.
+    pub artifact_refs: Vec<String>,
+    /// Whether this lane is release-blocking for claimed localized beta surfaces.
+    pub release_blocking_for_claimed_surfaces: bool,
+}
+
+/// Bounded waiver for a non-green dense i18n corpus row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DenseI18nBoundedWaiver {
+    /// Stable waiver ref.
+    pub waiver_ref: String,
+    /// Surface case ref covered by the waiver.
+    pub case_ref: String,
+    /// Export-safe reason.
+    pub reason: String,
+    /// Expiry timestamp.
+    pub expires_at: String,
+    /// Failure classes covered by the waiver.
+    pub bounded_failure_classes: Vec<DenseI18nFailureClass>,
+    /// Required fallback, workaround, or claim narrowing while waiver is active.
+    pub required_fallback_or_workaround: String,
+}
+
+/// Exportable dense-surface corpus used by nightly and release-candidate lanes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DenseI18nConformanceCorpus {
+    /// Boundary record kind.
+    pub record_kind: String,
+    /// Integer schema version.
+    pub schema_version: u32,
+    /// Stable corpus id.
+    pub corpus_id: String,
+    /// Deterministic generation timestamp.
+    pub generated_at: String,
+    /// Release channel this corpus defends.
+    pub release_channel: String,
+    /// Fixture directory relative to the repository root.
+    pub fixture_root: String,
+    /// Source contracts that govern this corpus.
+    pub source_contract_refs: BTreeMap<String, String>,
+    /// Runtime crates that must consume the corpus when their surfaces claim beta parity.
+    pub runtime_consumer_refs: Vec<String>,
+    /// CI and release lane bindings that run this corpus.
+    pub lane_bindings: Vec<DenseI18nLaneBinding>,
+    /// Surface cases in the corpus.
+    pub surface_cases: Vec<DenseI18nSurfaceCase>,
+    /// Cross-surface translated parity assertions.
+    pub translated_surface_assertions: Vec<TranslatedSurfaceAssertion>,
+    /// Explicit bounded waivers, if any.
+    pub waivers: Vec<DenseI18nBoundedWaiver>,
+    /// Review packet artifact ref.
+    pub review_packet_ref: String,
+    /// RTL and expansion audit artifact ref.
+    pub rtl_and_text_expansion_audit_ref: String,
+    /// User-facing contract document ref.
+    pub documentation_ref: String,
+}
+
+/// Review row exported from one dense i18n surface case.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DenseI18nReviewRow {
+    /// Stable row id.
+    pub row_id: String,
+    /// Surface family reviewed by this row.
+    pub surface_family: DenseI18nSurfaceFamily,
+    /// Surface case ref.
+    pub case_ref: String,
+    /// Stress modes exercised by the row.
+    pub stress_modes: Vec<DenseI18nStressMode>,
+    /// Assertion classes covered by the row.
+    pub assertion_refs: Vec<DenseI18nAssertionClass>,
+    /// Export-safe result state.
+    pub result_state: String,
+    /// Whether the row has an active bounded waiver.
+    pub bounded_waiver_active: bool,
+}
+
+/// Exportable review packet derived from [`DenseI18nConformanceCorpus`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DenseI18nConformanceReviewPacket {
+    /// Boundary record kind.
+    pub record_kind: String,
+    /// Integer schema version.
+    pub schema_version: u32,
+    /// Stable review packet id.
+    pub packet_id: String,
+    /// Deterministic generation timestamp.
+    pub generated_at: String,
+    /// Source corpus id.
+    pub source_corpus_id: String,
+    /// Covered surface families.
+    pub covered_surface_families: Vec<DenseI18nSurfaceFamily>,
+    /// Covered stress modes.
+    pub covered_stress_modes: Vec<DenseI18nStressMode>,
+    /// Lane ids that must run the corpus.
+    pub lane_refs: Vec<String>,
+    /// Review rows.
+    pub rows: Vec<DenseI18nReviewRow>,
+    /// Number of active bounded waivers.
+    pub active_waiver_count: usize,
+    /// Exported artifact refs.
+    pub artifact_refs: Vec<String>,
+}
+
 /// Metadata-only support export for active locale-pack state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalePackSupportExport {
@@ -1363,6 +1768,444 @@ impl LocalePackSupportExport {
             Err(findings)
         }
     }
+}
+
+impl DenseI18nConformanceCorpus {
+    /// Validates dense-surface i18n coverage, lane bindings, and invariants.
+    pub fn validate(&self) -> Result<(), Vec<LocalePackValidationFinding>> {
+        let mut findings = Vec::new();
+
+        if self.record_kind != DENSE_I18N_CORPUS_RECORD_KIND {
+            findings.push(LocalePackValidationFinding::new(
+                self.corpus_id.clone(),
+                "dense i18n corpus record_kind is unsupported",
+            ));
+        }
+        if self.schema_version != DENSE_I18N_CORPUS_SCHEMA_VERSION {
+            findings.push(LocalePackValidationFinding::new(
+                self.corpus_id.clone(),
+                "dense i18n corpus schema_version is unsupported",
+            ));
+        }
+        if self.corpus_id != DENSE_I18N_CORPUS_ID {
+            findings.push(LocalePackValidationFinding::new(
+                self.corpus_id.clone(),
+                "dense i18n corpus id drifted",
+            ));
+        }
+
+        validate_dense_i18n_lane_bindings(&self.lane_bindings, &mut findings);
+
+        let case_ids = self
+            .surface_cases
+            .iter()
+            .map(|case| case.case_id.as_str())
+            .collect::<BTreeSet<_>>();
+        let waiver_ids = self
+            .waivers
+            .iter()
+            .map(|waiver| waiver.waiver_ref.as_str())
+            .collect::<BTreeSet<_>>();
+        let mut covered_surfaces = BTreeSet::new();
+        let mut covered_stress_modes = BTreeSet::new();
+        let mut ime_churn_events = BTreeSet::new();
+
+        for case in &self.surface_cases {
+            validate_dense_i18n_case(
+                case,
+                &waiver_ids,
+                &mut covered_surfaces,
+                &mut covered_stress_modes,
+                &mut ime_churn_events,
+                &mut findings,
+            );
+        }
+
+        for surface in dense_i18n_required_surface_families() {
+            if !covered_surfaces.contains(&surface) {
+                findings.push(LocalePackValidationFinding::new(
+                    self.corpus_id.clone(),
+                    format!("dense i18n corpus is missing {surface:?} coverage"),
+                ));
+            }
+        }
+
+        for stress_mode in dense_i18n_required_stress_modes() {
+            if !covered_stress_modes.contains(&stress_mode) {
+                findings.push(LocalePackValidationFinding::new(
+                    self.corpus_id.clone(),
+                    format!("dense i18n corpus is missing {stress_mode:?} stress coverage"),
+                ));
+            }
+        }
+
+        for event in [
+            ImeCompositionChurnEvent::FocusChange,
+            ImeCompositionChurnEvent::CompletionPreview,
+            ImeCompositionChurnEvent::SnippetTraversal,
+            ImeCompositionChurnEvent::CommandPreview,
+        ] {
+            if !ime_churn_events.contains(&event) {
+                findings.push(LocalePackValidationFinding::new(
+                    self.corpus_id.clone(),
+                    format!("IME corpus is missing {event:?} churn coverage"),
+                ));
+            }
+        }
+
+        validate_translated_surface_assertions(&self.translated_surface_assertions, &mut findings);
+
+        for waiver in &self.waivers {
+            if !case_ids.contains(waiver.case_ref.as_str()) {
+                findings.push(LocalePackValidationFinding::new(
+                    waiver.waiver_ref.clone(),
+                    "dense i18n waiver references an unknown case",
+                ));
+            }
+            if waiver.bounded_failure_classes.is_empty()
+                || waiver.expires_at.trim().is_empty()
+                || waiver.required_fallback_or_workaround.trim().is_empty()
+            {
+                findings.push(LocalePackValidationFinding::new(
+                    waiver.waiver_ref.clone(),
+                    "dense i18n waiver must be bounded, expiring, and paired with fallback",
+                ));
+            }
+        }
+
+        if findings.is_empty() {
+            Ok(())
+        } else {
+            Err(findings)
+        }
+    }
+
+    /// Projects an exportable review packet from the corpus.
+    pub fn review_packet(&self) -> DenseI18nConformanceReviewPacket {
+        let mut covered_surface_families = BTreeSet::new();
+        let mut covered_stress_modes = BTreeSet::new();
+        let waiver_refs = self
+            .waivers
+            .iter()
+            .map(|waiver| waiver.waiver_ref.as_str())
+            .collect::<BTreeSet<_>>();
+        let rows = self
+            .surface_cases
+            .iter()
+            .map(|case| {
+                covered_surface_families.insert(case.surface_family);
+                covered_stress_modes.extend(case.stress_modes.iter().copied());
+                let bounded_waiver_active = case
+                    .bounded_waiver_ref
+                    .as_deref()
+                    .is_some_and(|waiver_ref| waiver_refs.contains(waiver_ref));
+                DenseI18nReviewRow {
+                    row_id: format!("review-row:{}", case.case_id),
+                    surface_family: case.surface_family,
+                    case_ref: case.case_id.clone(),
+                    stress_modes: case.stress_modes.clone(),
+                    assertion_refs: case.assertion_refs.clone(),
+                    result_state: if bounded_waiver_active {
+                        "waived_bounded".to_owned()
+                    } else {
+                        "passed".to_owned()
+                    },
+                    bounded_waiver_active,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        DenseI18nConformanceReviewPacket {
+            record_kind: DENSE_I18N_REVIEW_PACKET_RECORD_KIND.to_owned(),
+            schema_version: DENSE_I18N_CORPUS_SCHEMA_VERSION,
+            packet_id: "i18n-conformance-review:dense-beta:v1".to_owned(),
+            generated_at: self.generated_at.clone(),
+            source_corpus_id: self.corpus_id.clone(),
+            covered_surface_families: covered_surface_families.into_iter().collect(),
+            covered_stress_modes: covered_stress_modes.into_iter().collect(),
+            lane_refs: self
+                .lane_bindings
+                .iter()
+                .map(|lane| lane.lane_id.clone())
+                .collect(),
+            rows,
+            active_waiver_count: self.waivers.len(),
+            artifact_refs: vec![
+                format!("{}/manifest.json", self.fixture_root),
+                format!("{}/review_export.json", self.fixture_root),
+                self.review_packet_ref.clone(),
+                self.rtl_and_text_expansion_audit_ref.clone(),
+                self.documentation_ref.clone(),
+            ],
+        }
+    }
+}
+
+fn validate_dense_i18n_lane_bindings(
+    lanes: &[DenseI18nLaneBinding],
+    findings: &mut Vec<LocalePackValidationFinding>,
+) {
+    let cadences = lanes
+        .iter()
+        .map(|lane| lane.cadence)
+        .collect::<BTreeSet<_>>();
+    for cadence in [
+        DenseI18nLaneCadence::Nightly,
+        DenseI18nLaneCadence::ReleaseCandidate,
+    ] {
+        if !cadences.contains(&cadence) {
+            findings.push(LocalePackValidationFinding::new(
+                DENSE_I18N_CORPUS_ID,
+                format!("dense i18n corpus is missing {cadence:?} lane binding"),
+            ));
+        }
+    }
+
+    let mut lane_ids = BTreeSet::new();
+    for lane in lanes {
+        if !lane_ids.insert(lane.lane_id.as_str()) {
+            findings.push(LocalePackValidationFinding::new(
+                lane.lane_id.clone(),
+                "duplicate dense i18n lane id",
+            ));
+        }
+        if lane.command.trim().is_empty() || !lane.command.contains("pseudoloc_rtl_ime_corpus") {
+            findings.push(LocalePackValidationFinding::new(
+                lane.lane_id.clone(),
+                "dense i18n lane must run the pseudoloc RTL IME corpus test",
+            ));
+        }
+        if matches!(
+            lane.cadence,
+            DenseI18nLaneCadence::Nightly | DenseI18nLaneCadence::ReleaseCandidate
+        ) && !lane.release_blocking_for_claimed_surfaces
+        {
+            findings.push(LocalePackValidationFinding::new(
+                lane.lane_id.clone(),
+                "nightly and release-candidate dense i18n lanes must be release-blocking",
+            ));
+        }
+        if lane.artifact_refs.is_empty() {
+            findings.push(LocalePackValidationFinding::new(
+                lane.lane_id.clone(),
+                "dense i18n lane must export review artifacts",
+            ));
+        }
+    }
+}
+
+fn validate_dense_i18n_case(
+    case: &DenseI18nSurfaceCase,
+    waiver_ids: &BTreeSet<&str>,
+    covered_surfaces: &mut BTreeSet<DenseI18nSurfaceFamily>,
+    covered_stress_modes: &mut BTreeSet<DenseI18nStressMode>,
+    ime_churn_events: &mut BTreeSet<ImeCompositionChurnEvent>,
+    findings: &mut Vec<LocalePackValidationFinding>,
+) {
+    covered_surfaces.insert(case.surface_family);
+    covered_stress_modes.extend(case.stress_modes.iter().copied());
+
+    if case.crate_refs.is_empty()
+        || case.readiness_row_refs.is_empty()
+        || case.fixture_refs.is_empty()
+        || case.assertion_refs.is_empty()
+        || case.expected_failure_classes.is_empty()
+    {
+        findings.push(LocalePackValidationFinding::new(
+            case.case_id.clone(),
+            "dense i18n case must cite owners, readiness rows, fixtures, assertions, and failure classes",
+        ));
+    }
+
+    if case.expansion_budget.single_line_min_ratio < 1.35
+        || case.expansion_budget.multiline_min_ratio < 1.60
+        || !case.expansion_budget.overflow_forbidden
+        || !case.expansion_budget.full_text_route_required
+    {
+        findings.push(LocalePackValidationFinding::new(
+            case.case_id.clone(),
+            "dense i18n case expansion budget is below beta conformance minimums",
+        ));
+    }
+
+    let stress_modes = case.stress_modes.iter().copied().collect::<BTreeSet<_>>();
+    let assertions = case.assertion_refs.iter().copied().collect::<BTreeSet<_>>();
+
+    if stress_modes.contains(&DenseI18nStressMode::ImeComposition) {
+        if case.ime_scenarios.is_empty() {
+            findings.push(LocalePackValidationFinding::new(
+                case.case_id.clone(),
+                "IME stress case must include composition scenarios",
+            ));
+        }
+        if !assertions
+            .contains(&DenseI18nAssertionClass::ImeCompositionNotSilentlyCommittedOrCancelled)
+        {
+            findings.push(LocalePackValidationFinding::new(
+                case.case_id.clone(),
+                "IME stress case must assert no silent commit or cancel",
+            ));
+        }
+        for scenario in &case.ime_scenarios {
+            ime_churn_events.extend(scenario.churn_events.iter().copied());
+            if !scenario.silent_commit_forbidden
+                || !scenario.silent_cancel_forbidden
+                || !scenario.candidate_and_caret_visibility_required
+            {
+                findings.push(LocalePackValidationFinding::new(
+                    scenario.scenario_id.clone(),
+                    "IME scenario must forbid silent commit/cancel and keep caret visible",
+                ));
+            }
+        }
+    }
+
+    let exercises_directionality = stress_modes.contains(&DenseI18nStressMode::RtlChrome)
+        || stress_modes.contains(&DenseI18nStressMode::MixedDirectionTechnicalText);
+    if exercises_directionality {
+        match &case.rtl_expectation {
+            Some(expectation)
+                if expectation.directional_chrome_mirrors
+                    && expectation.literal_technical_strings_unmirrored
+                    && expectation.focus_order_tracks_visual_order
+                    && expectation.raw_copy_preserves_author_order => {}
+            Some(_) => findings.push(LocalePackValidationFinding::new(
+                case.case_id.clone(),
+                "RTL case must mirror directional chrome, preserve literals, track focus, and keep raw copy",
+            )),
+            None => findings.push(LocalePackValidationFinding::new(
+                case.case_id.clone(),
+                "directionality stress case must declare RTL expectations",
+            )),
+        }
+        if case.literal_tokens.is_empty() {
+            findings.push(LocalePackValidationFinding::new(
+                case.case_id.clone(),
+                "directionality stress case must include literal technical tokens",
+            ));
+        }
+    }
+
+    for token in &case.literal_tokens {
+        if !token.must_remain_unmirrored || !token.copy_raw_required {
+            findings.push(LocalePackValidationFinding::new(
+                case.case_id.clone(),
+                "literal technical tokens must remain unmirrored and raw-copyable",
+            ));
+        }
+        if exercises_directionality && !token.copy_escaped_required {
+            findings.push(LocalePackValidationFinding::new(
+                case.case_id.clone(),
+                "directionality tokens must keep escaped copy available",
+            ));
+        }
+    }
+
+    if stress_modes.contains(&DenseI18nStressMode::CjkFontFallback)
+        && !assertions.contains(&DenseI18nAssertionClass::FontFallbackWorks)
+    {
+        findings.push(LocalePackValidationFinding::new(
+            case.case_id.clone(),
+            "CJK stress case must assert font fallback",
+        ));
+    }
+
+    if stress_modes.contains(&DenseI18nStressMode::LocaleFallbackReview)
+        && !assertions.contains(&DenseI18nAssertionClass::LocaleFallbackDisclosedAndNonBlocking)
+    {
+        findings.push(LocalePackValidationFinding::new(
+            case.case_id.clone(),
+            "locale fallback case must assert disclosed non-blocking fallback",
+        ));
+    }
+
+    if stress_modes.contains(&DenseI18nStressMode::TranslatedSurfaceParity)
+        && (!assertions.contains(&DenseI18nAssertionClass::StableTranslatedSurfaceRefsPreserved)
+            || !assertions.contains(&DenseI18nAssertionClass::SourceLanguageEscapeHatchAvailable))
+    {
+        findings.push(LocalePackValidationFinding::new(
+            case.case_id.clone(),
+            "translated-surface case must preserve stable refs and source-language access",
+        ));
+    }
+
+    if let Some(waiver_ref) = case.bounded_waiver_ref.as_deref() {
+        if !waiver_ids.contains(waiver_ref) {
+            findings.push(LocalePackValidationFinding::new(
+                case.case_id.clone(),
+                "dense i18n case references an unknown waiver",
+            ));
+        }
+    }
+}
+
+fn validate_translated_surface_assertions(
+    assertions: &[TranslatedSurfaceAssertion],
+    findings: &mut Vec<LocalePackValidationFinding>,
+) {
+    let mut ref_kinds = BTreeSet::new();
+    for assertion in assertions {
+        if assertion.preserved_refs.is_empty()
+            || !assertion.open_in_source_language_required
+            || !assertion.machine_output_locale_neutral
+            || !assertion.governed_terminology_preserved
+        {
+            findings.push(LocalePackValidationFinding::new(
+                assertion.assertion_id.clone(),
+                "translated-surface assertion must preserve refs, machine neutrality, terminology, and source access",
+            ));
+        }
+        ref_kinds.extend(
+            assertion
+                .preserved_refs
+                .iter()
+                .map(|item| item.ref_kind.as_str()),
+        );
+    }
+
+    for required_kind in [
+        "command_id",
+        "keyboard_path",
+        "citation_anchor",
+        "scope_label",
+    ] {
+        if !ref_kinds.contains(required_kind) {
+            findings.push(LocalePackValidationFinding::new(
+                DENSE_I18N_CORPUS_ID,
+                format!("translated-surface assertions are missing {required_kind} preservation"),
+            ));
+        }
+    }
+}
+
+fn dense_i18n_required_surface_families() -> Vec<DenseI18nSurfaceFamily> {
+    vec![
+        DenseI18nSurfaceFamily::Editor,
+        DenseI18nSurfaceFamily::CommandPalette,
+        DenseI18nSurfaceFamily::Settings,
+        DenseI18nSurfaceFamily::TreeView,
+        DenseI18nSurfaceFamily::TableView,
+        DenseI18nSurfaceFamily::LogView,
+        DenseI18nSurfaceFamily::Terminal,
+        DenseI18nSurfaceFamily::ReviewPane,
+        DenseI18nSurfaceFamily::GuidedTour,
+        DenseI18nSurfaceFamily::DocsHelp,
+    ]
+}
+
+fn dense_i18n_required_stress_modes() -> Vec<DenseI18nStressMode> {
+    vec![
+        DenseI18nStressMode::SourceLanguageBaseline,
+        DenseI18nStressMode::PseudolocExpansion,
+        DenseI18nStressMode::RtlChrome,
+        DenseI18nStressMode::MixedDirectionTechnicalText,
+        DenseI18nStressMode::ImeComposition,
+        DenseI18nStressMode::CjkFontFallback,
+        DenseI18nStressMode::TextExpansion,
+        DenseI18nStressMode::LocaleFallbackReview,
+        DenseI18nStressMode::TranslatedSurfaceParity,
+        DenseI18nStressMode::LocalizedDateNumberFormatting,
+    ]
 }
 
 /// Returns the seeded beta localization contract.
@@ -2042,6 +2885,805 @@ pub fn seeded_locale_pack_support_projection() -> LocalePackSurfaceProjection {
 /// Returns the seeded metadata-only support export.
 pub fn seeded_locale_pack_support_export() -> LocalePackSupportExport {
     seeded_locale_pack_beta_contract().support_export()
+}
+
+/// Returns the seeded dense-surface i18n conformance corpus.
+pub fn seeded_dense_i18n_conformance_corpus() -> DenseI18nConformanceCorpus {
+    let fixture_root = "fixtures/i18n/m3/pseudoloc_rtl_ime_corpus";
+    let lane_command = "cargo test -p aureline-i18n --test pseudoloc_rtl_ime_corpus --locked";
+    let review_artifact = "artifacts/ux/m3/localized_surface_review_packet.md";
+    let audit_artifact = "artifacts/ux/m3/rtl_and_text_expansion_audit.md";
+    let documentation_ref = "docs/ux/m3/localization_conformance_beta.md";
+
+    DenseI18nConformanceCorpus {
+        record_kind: DENSE_I18N_CORPUS_RECORD_KIND.to_owned(),
+        schema_version: DENSE_I18N_CORPUS_SCHEMA_VERSION,
+        corpus_id: DENSE_I18N_CORPUS_ID.to_owned(),
+        generated_at: GENERATED_AT.to_owned(),
+        release_channel: "beta".to_owned(),
+        fixture_root: fixture_root.to_owned(),
+        source_contract_refs: BTreeMap::from([
+            (
+                "locale_input_readiness".to_owned(),
+                "docs/i18n/locale_input_readiness.md".to_owned(),
+            ),
+            (
+                "test_mode_matrix".to_owned(),
+                "artifacts/i18n/test_mode_matrix.yaml".to_owned(),
+            ),
+            (
+                "localization_and_locale_pack_contract".to_owned(),
+                "docs/ux/localization_and_locale_pack_contract.md".to_owned(),
+            ),
+            (
+                "locale_surface_matrix".to_owned(),
+                "docs/i18n/locale_surface_matrix.md".to_owned(),
+            ),
+            (
+                "locale_fallback_copy_representation".to_owned(),
+                "docs/accessibility/locale_fallback_and_copy_representation_contract.md".to_owned(),
+            ),
+        ]),
+        runtime_consumer_refs: vec![
+            "crates/aureline-shell".to_owned(),
+            "crates/aureline-editor".to_owned(),
+            "crates/aureline-terminal".to_owned(),
+            "crates/aureline-docs".to_owned(),
+            "crates/aureline-settings".to_owned(),
+            "crates/aureline-support".to_owned(),
+        ],
+        lane_bindings: vec![
+            dense_lane(
+                "lane:i18n:dense-beta:nightly",
+                DenseI18nLaneCadence::Nightly,
+                lane_command,
+                fixture_root,
+                review_artifact,
+                audit_artifact,
+            ),
+            dense_lane(
+                "lane:i18n:dense-beta:release-candidate",
+                DenseI18nLaneCadence::ReleaseCandidate,
+                lane_command,
+                fixture_root,
+                review_artifact,
+                audit_artifact,
+            ),
+            dense_lane(
+                "lane:i18n:dense-beta:pull-request",
+                DenseI18nLaneCadence::PullRequest,
+                lane_command,
+                fixture_root,
+                review_artifact,
+                audit_artifact,
+            ),
+        ],
+        surface_cases: seeded_dense_i18n_cases(),
+        translated_surface_assertions: seeded_translated_surface_assertions(),
+        waivers: Vec::new(),
+        review_packet_ref: review_artifact.to_owned(),
+        rtl_and_text_expansion_audit_ref: audit_artifact.to_owned(),
+        documentation_ref: documentation_ref.to_owned(),
+    }
+}
+
+/// Returns the seeded dense-surface i18n conformance review packet.
+pub fn seeded_dense_i18n_conformance_review_packet() -> DenseI18nConformanceReviewPacket {
+    seeded_dense_i18n_conformance_corpus().review_packet()
+}
+
+fn dense_lane(
+    lane_id: &str,
+    cadence: DenseI18nLaneCadence,
+    command: &str,
+    fixture_root: &str,
+    review_artifact: &str,
+    audit_artifact: &str,
+) -> DenseI18nLaneBinding {
+    DenseI18nLaneBinding {
+        lane_id: lane_id.to_owned(),
+        cadence,
+        command: command.to_owned(),
+        artifact_refs: vec![
+            format!("{fixture_root}/manifest.json"),
+            format!("{fixture_root}/review_export.json"),
+            review_artifact.to_owned(),
+            audit_artifact.to_owned(),
+        ],
+        release_blocking_for_claimed_surfaces: true,
+    }
+}
+
+fn seeded_dense_i18n_cases() -> Vec<DenseI18nSurfaceCase> {
+    vec![
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:editor:ime-bidi-snippet",
+            surface_family: DenseI18nSurfaceFamily::Editor,
+            surface_ref: "surface:editor:buffer-and-assist",
+            crate_refs: vec!["crates/aureline-editor", "crates/aureline-render"],
+            dense_workflow: "Editor rename, completion preview, snippet traversal, and bidi inspector.",
+            locale_tags: vec!["ja-JP", "ar-IQ", "qps-ploc"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::MixedDirectionTechnicalText,
+                DenseI18nStressMode::ImeComposition,
+                DenseI18nStressMode::CjkFontFallback,
+                DenseI18nStressMode::TextExpansion,
+            ],
+            readiness_row_refs: vec![
+                "readiness.input.ime_preedit_and_commit",
+                "readiness.shell.rtl_chrome_and_mixed_direction_technical_content",
+                "readiness.text.cjk_font_fallback_and_full_width_layout",
+            ],
+            fixture_refs: vec![
+                "fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml",
+                "fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml",
+                "fixtures/text/renderer_decision_examples/bidi_ime_composition.md",
+            ],
+            source_seed_refs: vec![
+                "string.cjk.commit",
+                "string.rtl.path_in_prose",
+                "string.state.read_only_degraded",
+            ],
+            literal_tokens: vec![
+                token("cmd:editor.rename_symbol", "command_id"),
+                token(
+                    "--output ./\u{062a}\u{0642}\u{0627}\u{0631}\u{064a}\u{0631}/build.log",
+                    "file_path",
+                ),
+                token(
+                    "src/\u{062a}\u{062d}\u{0642}\u{0642}/rename.rs",
+                    "file_path",
+                ),
+            ],
+            ime_scenarios: vec![ime_scenario(
+                "ime:editor:completion-snippet-focus",
+                "Japanese IME",
+                "\u{30c6}\u{30b9}\u{30c8}\u{5165}\u{529b}",
+                "\u{30c6}\u{30b9}\u{30c8}\u{5165}\u{529b}",
+                vec![
+                    ImeCompositionChurnEvent::FocusChange,
+                    ImeCompositionChurnEvent::CompletionPreview,
+                    ImeCompositionChurnEvent::SnippetTraversal,
+                ],
+            )],
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::LiteralTechnicalTokensPreserved,
+                DenseI18nAssertionClass::ImeCompositionNotSilentlyCommittedOrCancelled,
+                DenseI18nAssertionClass::CandidateAndCaretRemainVisible,
+                DenseI18nAssertionClass::FontFallbackWorks,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::ImePreeditLoss,
+                DenseI18nFailureClass::CompletionPreviewSilentCommitOrCancel,
+                DenseI18nFailureClass::SnippetTraversalSilentCommitOrCancel,
+                DenseI18nFailureClass::BidiCopyDrift,
+                DenseI18nFailureClass::MissingGlyphOrWrongFontFallback,
+            ],
+            rtl_expectation: Some(rtl_expectation()),
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:palette:rtl-ime-command-preview",
+            surface_family: DenseI18nSurfaceFamily::CommandPalette,
+            surface_ref: "surface:shell:command-palette",
+            crate_refs: vec!["crates/aureline-shell", "crates/aureline-commands"],
+            dense_workflow: "Palette query, command preview, disabled reason, and alternate actions.",
+            locale_tags: vec!["ar-IQ", "he-IL", "qps-ploc", "ja-JP"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::RtlChrome,
+                DenseI18nStressMode::MixedDirectionTechnicalText,
+                DenseI18nStressMode::ImeComposition,
+                DenseI18nStressMode::TextExpansion,
+                DenseI18nStressMode::LocaleFallbackReview,
+                DenseI18nStressMode::TranslatedSurfaceParity,
+            ],
+            readiness_row_refs: vec![
+                "readiness.shell.source_language_and_pseudoloc_chrome",
+                "readiness.shell.rtl_chrome_and_mixed_direction_technical_content",
+                "readiness.input.ime_preedit_and_commit",
+                "readiness.locale.fallback_chain_and_locale_pack_contract",
+            ],
+            fixture_refs: vec![
+                "fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml",
+                "fixtures/i18n/locale_surface_examples/shell_commands_and_palette_localized_label_stable_ids.yaml",
+            ],
+            source_seed_refs: vec![
+                "string.primary.open_workspace",
+                "string.state.policy_blocked",
+                "string.fallback.open_source_language",
+            ],
+            literal_tokens: vec![
+                token("cmd:core:open_folder", "command_id"),
+                token("Ctrl+K Ctrl+O", "keyboard_path"),
+                token("--reuse-window", "flag"),
+            ],
+            ime_scenarios: vec![ime_scenario(
+                "ime:palette:command-preview-rerank",
+                "Japanese IME",
+                "\u{691c}\u{7d22}\u{30c6}\u{30b9}\u{30c8}",
+                "\u{691c}\u{7d22}\u{30c6}\u{30b9}\u{30c8}",
+                vec![
+                    ImeCompositionChurnEvent::FilterRerank,
+                    ImeCompositionChurnEvent::CommandPreview,
+                    ImeCompositionChurnEvent::CompletionPreview,
+                ],
+            )],
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::RtlChromeMirrorsOnlyDirectionalUi,
+                DenseI18nAssertionClass::LiteralTechnicalTokensPreserved,
+                DenseI18nAssertionClass::ImeCompositionNotSilentlyCommittedOrCancelled,
+                DenseI18nAssertionClass::CandidateAndCaretRemainVisible,
+                DenseI18nAssertionClass::LocaleFallbackDisclosedAndNonBlocking,
+                DenseI18nAssertionClass::StableTranslatedSurfaceRefsPreserved,
+                DenseI18nAssertionClass::SourceLanguageEscapeHatchAvailable,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::TextClippedOrOverflow,
+                DenseI18nFailureClass::MirroredChromeOrFocusOrderError,
+                DenseI18nFailureClass::CommandPreviewSilentCommitOrCancel,
+                DenseI18nFailureClass::StableIdDrift,
+                DenseI18nFailureClass::SourceLanguageEscapeHatchMissing,
+            ],
+            rtl_expectation: Some(rtl_expectation()),
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:settings:fallback-date-number",
+            surface_family: DenseI18nSurfaceFamily::Settings,
+            surface_ref: "surface:settings:locale-and-sync",
+            crate_refs: vec!["crates/aureline-settings", "crates/aureline-i18n"],
+            dense_workflow: "Settings locale row, schema-backed help, stale pack fallback, and date or count formatting.",
+            locale_tags: vec!["pt-BR", "ja-JP", "qps-ploc"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::TextExpansion,
+                DenseI18nStressMode::LocaleFallbackReview,
+                DenseI18nStressMode::TranslatedSurfaceParity,
+                DenseI18nStressMode::LocalizedDateNumberFormatting,
+            ],
+            readiness_row_refs: vec![
+                "readiness.shell.source_language_and_pseudoloc_chrome",
+                "readiness.locale.fallback_chain_and_locale_pack_contract",
+            ],
+            fixture_refs: vec![
+                "fixtures/i18n/m3/locale_fallback/settings_projection.json",
+                "fixtures/i18n/locale_surface_examples/settings_help_localized_prose_stable_setting_and_schema_ids.yaml",
+            ],
+            source_seed_refs: vec![
+                "string.fallback.locale_chain",
+                "string.fallback.open_source_language",
+            ],
+            literal_tokens: vec![
+                token("settings.i18n.active_locale", "setting_id"),
+                token("schemas/i18n/locale_pack_manifest.schema.json", "schema_id"),
+                token("pt-BR -> pt -> en-US", "fallback_chain"),
+            ],
+            ime_scenarios: Vec::new(),
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::LiteralTechnicalTokensPreserved,
+                DenseI18nAssertionClass::LocaleFallbackDisclosedAndNonBlocking,
+                DenseI18nAssertionClass::StableTranslatedSurfaceRefsPreserved,
+                DenseI18nAssertionClass::SourceLanguageEscapeHatchAvailable,
+                DenseI18nAssertionClass::LocalizedFormattingKeepsStableSemantics,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::TruncationHidesScopeOrAction,
+                DenseI18nFailureClass::LocalePackFallbackBlockedCoreUse,
+                DenseI18nFailureClass::LocalizedDateNumberDrift,
+                DenseI18nFailureClass::StableIdDrift,
+            ],
+            rtl_expectation: None,
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:tree:rtl-pseudoloc-paths",
+            surface_family: DenseI18nSurfaceFamily::TreeView,
+            surface_ref: "surface:shell:workspace-tree",
+            crate_refs: vec!["crates/aureline-shell", "crates/aureline-workspace"],
+            dense_workflow: "Workspace tree rows, nested disclosure chrome, path labels, and source-language action.",
+            locale_tags: vec!["ar-IQ", "qps-ploc"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::RtlChrome,
+                DenseI18nStressMode::MixedDirectionTechnicalText,
+                DenseI18nStressMode::TextExpansion,
+            ],
+            readiness_row_refs: vec![
+                "readiness.shell.source_language_and_pseudoloc_chrome",
+                "readiness.shell.rtl_chrome_and_mixed_direction_technical_content",
+            ],
+            fixture_refs: vec![
+                "fixtures/accessibility/ime_and_text_cases/virtualized_selection_scope.yaml",
+                "fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml",
+            ],
+            source_seed_refs: vec!["string.rtl.path_in_prose", "string.state.read_only_degraded"],
+            literal_tokens: vec![
+                token(
+                    "packages/\u{0645}\u{062b}\u{0627}\u{0644}/src/lib.rs",
+                    "file_path",
+                ),
+                token("cmd:workspace.reveal_in_tree", "command_id"),
+            ],
+            ime_scenarios: Vec::new(),
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::RtlChromeMirrorsOnlyDirectionalUi,
+                DenseI18nAssertionClass::LiteralTechnicalTokensPreserved,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::MirroredChromeOrFocusOrderError,
+                DenseI18nFailureClass::LiteralTechnicalStringMirrored,
+                DenseI18nFailureClass::TruncationHidesScopeOrAction,
+            ],
+            rtl_expectation: Some(rtl_expectation()),
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:table:cjk-expansion-counts",
+            surface_family: DenseI18nSurfaceFamily::TableView,
+            surface_ref: "surface:shell:dense-table",
+            crate_refs: vec!["crates/aureline-shell", "crates/aureline-ui"],
+            dense_workflow: "Dense table headers, selected counts, blocked rows, and CJK/full-width glyph fallback.",
+            locale_tags: vec!["ja-JP", "zh-CN", "ko-KR", "qps-ploc"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::CjkFontFallback,
+                DenseI18nStressMode::TextExpansion,
+                DenseI18nStressMode::LocalizedDateNumberFormatting,
+            ],
+            readiness_row_refs: vec![
+                "readiness.shell.source_language_and_pseudoloc_chrome",
+                "readiness.text.cjk_font_fallback_and_full_width_layout",
+            ],
+            fixture_refs: vec![
+                "fixtures/accessibility/ime_and_text_cases/virtualized_selection_scope.yaml",
+                "fixtures/text/renderer_decision_examples/cjk_latin_interleaved.md",
+                "fixtures/text/renderer_decision_examples/missing_glyph_fallback_chain.md",
+            ],
+            source_seed_refs: vec!["string.cjk.full_width", "string.emoji.status"],
+            literal_tokens: vec![
+                token("json-key:selected_count", "json_key"),
+                token("json-key:blocked_count", "json_key"),
+            ],
+            ime_scenarios: Vec::new(),
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::FontFallbackWorks,
+                DenseI18nAssertionClass::LocalizedFormattingKeepsStableSemantics,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::TextClippedOrOverflow,
+                DenseI18nFailureClass::MissingGlyphOrWrongFontFallback,
+                DenseI18nFailureClass::LocalizedDateNumberDrift,
+            ],
+            rtl_expectation: None,
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:log:mixed-direction-trace",
+            surface_family: DenseI18nSurfaceFamily::LogView,
+            surface_ref: "surface:runtime:log-trace-view",
+            crate_refs: vec!["crates/aureline-runtime", "crates/aureline-terminal"],
+            dense_workflow: "Log stream rows with hostnames, flags, timestamps, and locale-fallback headings.",
+            locale_tags: vec!["ar-IQ", "en-US", "qps-ploc"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::MixedDirectionTechnicalText,
+                DenseI18nStressMode::TextExpansion,
+                DenseI18nStressMode::LocaleFallbackReview,
+                DenseI18nStressMode::LocalizedDateNumberFormatting,
+            ],
+            readiness_row_refs: vec![
+                "readiness.shell.source_language_and_pseudoloc_chrome",
+                "readiness.shell.rtl_chrome_and_mixed_direction_technical_content",
+                "readiness.locale.fallback_chain_and_locale_pack_contract",
+            ],
+            fixture_refs: vec![
+                "fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml",
+                "fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml",
+            ],
+            source_seed_refs: vec!["string.rtl.host_flag", "string.fallback.locale_chain"],
+            literal_tokens: vec![
+                token(
+                    "api.\u{0645}\u{062b}\u{0627}\u{0644}.internal",
+                    "hostname",
+                ),
+                token("--since 2026-05-18T17:30:00Z", "flag"),
+                token("json-key:timestamp", "json_key"),
+            ],
+            ime_scenarios: Vec::new(),
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::LiteralTechnicalTokensPreserved,
+                DenseI18nAssertionClass::LocaleFallbackDisclosedAndNonBlocking,
+                DenseI18nAssertionClass::LocalizedFormattingKeepsStableSemantics,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::BidiCopyDrift,
+                DenseI18nFailureClass::LocalizedDateNumberDrift,
+                DenseI18nFailureClass::LocalePackFallbackBlockedCoreUse,
+            ],
+            rtl_expectation: Some(rtl_expectation()),
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:terminal:ime-raw-escaped-copy",
+            surface_family: DenseI18nSurfaceFamily::Terminal,
+            surface_ref: "surface:terminal:input-and-transcript",
+            crate_refs: vec!["crates/aureline-terminal"],
+            dense_workflow: "Terminal input, transcript export, target header, and raw or escaped copy.",
+            locale_tags: vec!["ja-JP", "ar-IQ"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::MixedDirectionTechnicalText,
+                DenseI18nStressMode::ImeComposition,
+                DenseI18nStressMode::CjkFontFallback,
+                DenseI18nStressMode::TextExpansion,
+            ],
+            readiness_row_refs: vec![
+                "readiness.input.ime_preedit_and_commit",
+                "readiness.shell.rtl_chrome_and_mixed_direction_technical_content",
+                "readiness.text.cjk_font_fallback_and_full_width_layout",
+            ],
+            fixture_refs: vec![
+                "fixtures/accessibility/ime_and_text_cases/editor_ime_dead_key_altgr_emoji_commit.yaml",
+                "fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml",
+                "fixtures/terminal/protocol_corpus_alpha/manifest.json",
+            ],
+            source_seed_refs: vec!["string.cjk.commit", "string.rtl.host_flag"],
+            literal_tokens: vec![
+                token(
+                    "ssh dev@\u{0645}\u{062b}\u{0627}\u{0644}.internal --port 2222",
+                    "command_line",
+                ),
+                token("cmd:terminal.copy_escaped", "command_id"),
+            ],
+            ime_scenarios: vec![ime_scenario(
+                "ime:terminal:overlay-focus",
+                "Japanese IME",
+                "\u{5165}\u{529b}\u{78ba}\u{8a8d}",
+                "\u{5165}\u{529b}\u{78ba}\u{8a8d}",
+                vec![
+                    ImeCompositionChurnEvent::FocusChange,
+                    ImeCompositionChurnEvent::OverlayTransition,
+                ],
+            )],
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::LiteralTechnicalTokensPreserved,
+                DenseI18nAssertionClass::ImeCompositionNotSilentlyCommittedOrCancelled,
+                DenseI18nAssertionClass::CandidateAndCaretRemainVisible,
+                DenseI18nAssertionClass::FontFallbackWorks,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::ImePreeditLoss,
+                DenseI18nFailureClass::FocusChurnSilentCommitOrCancel,
+                DenseI18nFailureClass::BidiCopyDrift,
+            ],
+            rtl_expectation: Some(rtl_expectation()),
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:review:bidi-policy-copy",
+            surface_family: DenseI18nSurfaceFamily::ReviewPane,
+            surface_ref: "surface:review:diff-and-thread",
+            crate_refs: vec!["crates/aureline-review", "crates/aureline-preview"],
+            dense_workflow: "Diff review with suspicious bidi text, policy copy, and source-language export.",
+            locale_tags: vec!["ar-IQ", "pt-BR", "qps-ploc"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::RtlChrome,
+                DenseI18nStressMode::MixedDirectionTechnicalText,
+                DenseI18nStressMode::TextExpansion,
+                DenseI18nStressMode::TranslatedSurfaceParity,
+            ],
+            readiness_row_refs: vec![
+                "readiness.shell.source_language_and_pseudoloc_chrome",
+                "readiness.shell.rtl_chrome_and_mixed_direction_technical_content",
+            ],
+            fixture_refs: vec![
+                "fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml",
+                "fixtures/accessibility/ime_and_text_cases/copy_representation_parity.yaml",
+                "fixtures/git/diff_view_alpha/rust_suspicious_safe_copy.yaml",
+            ],
+            source_seed_refs: vec!["string.state.policy_blocked", "string.rtl.path_in_prose"],
+            literal_tokens: vec![
+                token("cmd:review.apply_patch", "command_id"),
+                token("citation:review:suspicious-bidi", "citation_anchor"),
+                token("--allow-dirty", "flag"),
+            ],
+            ime_scenarios: Vec::new(),
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::RtlChromeMirrorsOnlyDirectionalUi,
+                DenseI18nAssertionClass::LiteralTechnicalTokensPreserved,
+                DenseI18nAssertionClass::StableTranslatedSurfaceRefsPreserved,
+                DenseI18nAssertionClass::SourceLanguageEscapeHatchAvailable,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::PolicyTrustCopyDrift,
+                DenseI18nFailureClass::BidiCopyDrift,
+                DenseI18nFailureClass::StableIdDrift,
+                DenseI18nFailureClass::SourceLanguageEscapeHatchMissing,
+            ],
+            rtl_expectation: Some(rtl_expectation()),
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:guided-tour:locale-fallback-ime",
+            surface_family: DenseI18nSurfaceFamily::GuidedTour,
+            surface_ref: "surface:help:guided-tour",
+            crate_refs: vec!["crates/aureline-docs", "crates/aureline-shell"],
+            dense_workflow: "Guided exercise with command tips, progress row, source-language route, and localized entry field.",
+            locale_tags: vec!["pt-BR", "ja-JP", "qps-ploc"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::ImeComposition,
+                DenseI18nStressMode::TextExpansion,
+                DenseI18nStressMode::LocaleFallbackReview,
+                DenseI18nStressMode::TranslatedSurfaceParity,
+            ],
+            readiness_row_refs: vec![
+                "readiness.shell.source_language_and_pseudoloc_chrome",
+                "readiness.input.ime_preedit_and_commit",
+                "readiness.locale.fallback_chain_and_locale_pack_contract",
+            ],
+            fixture_refs: vec![
+                "fixtures/help/m3/guided_tours/manifest.json",
+                "fixtures/help/m3/guided_tours/source_projection.json",
+                "fixtures/i18n/m3/locale_fallback/help_about_projection.json",
+            ],
+            source_seed_refs: vec![
+                "string.fallback.open_source_language",
+                "string.primary.open_workspace",
+            ],
+            literal_tokens: vec![
+                token("cmd:core:open_folder", "command_id"),
+                token("keyboard:palette.open", "keyboard_path"),
+                token("tour:open-folder:first-useful-work", "docs_anchor"),
+            ],
+            ime_scenarios: vec![ime_scenario(
+                "ime:guided-tour:exercise-field",
+                "Japanese IME",
+                "\u{30d7}\u{30ed}\u{30b8}\u{30a7}\u{30af}\u{30c8}",
+                "\u{30d7}\u{30ed}\u{30b8}\u{30a7}\u{30af}\u{30c8}",
+                vec![
+                    ImeCompositionChurnEvent::FocusChange,
+                    ImeCompositionChurnEvent::OverlayTransition,
+                ],
+            )],
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::ImeCompositionNotSilentlyCommittedOrCancelled,
+                DenseI18nAssertionClass::CandidateAndCaretRemainVisible,
+                DenseI18nAssertionClass::LocaleFallbackDisclosedAndNonBlocking,
+                DenseI18nAssertionClass::StableTranslatedSurfaceRefsPreserved,
+                DenseI18nAssertionClass::SourceLanguageEscapeHatchAvailable,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::TextClippedOrOverflow,
+                DenseI18nFailureClass::ImePreeditLoss,
+                DenseI18nFailureClass::LocalePackFallbackBlockedCoreUse,
+                DenseI18nFailureClass::SourceLanguageEscapeHatchMissing,
+            ],
+            rtl_expectation: None,
+        }),
+        dense_case(DenseCaseSeed {
+            case_id: "case:i18n:docs-help:citation-rtl-parity",
+            surface_family: DenseI18nSurfaceFamily::DocsHelp,
+            surface_ref: "surface:docs:help-and-glossary",
+            crate_refs: vec!["crates/aureline-docs", "crates/aureline-i18n"],
+            dense_workflow: "Docs/help page with citations, glossary term, RTL technical examples, and source-language toggle.",
+            locale_tags: vec!["ar-IQ", "pt-BR", "qps-ploc"],
+            stress_modes: vec![
+                DenseI18nStressMode::SourceLanguageBaseline,
+                DenseI18nStressMode::PseudolocExpansion,
+                DenseI18nStressMode::RtlChrome,
+                DenseI18nStressMode::MixedDirectionTechnicalText,
+                DenseI18nStressMode::TextExpansion,
+                DenseI18nStressMode::LocaleFallbackReview,
+                DenseI18nStressMode::TranslatedSurfaceParity,
+            ],
+            readiness_row_refs: vec![
+                "readiness.shell.source_language_and_pseudoloc_chrome",
+                "readiness.shell.rtl_chrome_and_mixed_direction_technical_content",
+                "readiness.locale.fallback_chain_and_locale_pack_contract",
+            ],
+            fixture_refs: vec![
+                "fixtures/i18n/locale_surface_examples/docs_tour_localized_text_citation_parity.yaml",
+                "fixtures/i18n/m3/locale_fallback/help_about_projection.json",
+                "fixtures/accessibility/ime_and_text_cases/mixed_direction_technical_strings.yaml",
+            ],
+            source_seed_refs: vec!["string.fallback.open_source_language", "string.rtl.path_in_prose"],
+            literal_tokens: vec![
+                token("citation:docs:onboarding:open-folder", "citation_anchor"),
+                token("docs-pack:onboarding:first-useful-work:open-folder", "docs_anchor"),
+                token("cmd:core:open_folder", "command_id"),
+            ],
+            ime_scenarios: Vec::new(),
+            assertions: vec![
+                DenseI18nAssertionClass::NoTruncationOrOverflow,
+                DenseI18nAssertionClass::RtlChromeMirrorsOnlyDirectionalUi,
+                DenseI18nAssertionClass::LiteralTechnicalTokensPreserved,
+                DenseI18nAssertionClass::LocaleFallbackDisclosedAndNonBlocking,
+                DenseI18nAssertionClass::StableTranslatedSurfaceRefsPreserved,
+                DenseI18nAssertionClass::SourceLanguageEscapeHatchAvailable,
+            ],
+            expected_failure_classes: vec![
+                DenseI18nFailureClass::StableIdDrift,
+                DenseI18nFailureClass::SourceLanguageEscapeHatchMissing,
+                DenseI18nFailureClass::LiteralTechnicalStringMirrored,
+                DenseI18nFailureClass::TextClippedOrOverflow,
+            ],
+            rtl_expectation: Some(rtl_expectation()),
+        }),
+    ]
+}
+
+fn seeded_translated_surface_assertions() -> Vec<TranslatedSurfaceAssertion> {
+    vec![
+        translated_assertion(
+            "assert:i18n:command-palette:stable-command-keybinding",
+            DenseI18nSurfaceFamily::CommandPalette,
+            vec![
+                preserved("command_id", "cmd:core:open_folder"),
+                preserved("keyboard_path", "Ctrl+K Ctrl+O"),
+                preserved("scope_label", "workspace"),
+            ],
+        ),
+        translated_assertion(
+            "assert:i18n:docs-help:citation-source",
+            DenseI18nSurfaceFamily::DocsHelp,
+            vec![
+                preserved("citation_anchor", "citation:docs:onboarding:open-folder"),
+                preserved("command_id", "cmd:core:open_folder"),
+                preserved("scope_label", "docs_pack"),
+            ],
+        ),
+        translated_assertion(
+            "assert:i18n:settings:schema-policy",
+            DenseI18nSurfaceFamily::Settings,
+            vec![
+                preserved("schema_id", "schemas/i18n/locale_pack_manifest.schema.json"),
+                preserved(
+                    "policy_id",
+                    "policy.locale.source_language_fallback_required",
+                ),
+                preserved("scope_label", "user_profile"),
+            ],
+        ),
+        translated_assertion(
+            "assert:i18n:review:policy-trust-copy",
+            DenseI18nSurfaceFamily::ReviewPane,
+            vec![
+                preserved("command_id", "cmd:review.apply_patch"),
+                preserved("citation_anchor", "citation:review:suspicious-bidi"),
+                preserved("scope_label", "review_thread"),
+            ],
+        ),
+    ]
+}
+
+fn translated_assertion(
+    assertion_id: &str,
+    surface_family: DenseI18nSurfaceFamily,
+    preserved_refs: Vec<PreservedTranslatedSurfaceRef>,
+) -> TranslatedSurfaceAssertion {
+    TranslatedSurfaceAssertion {
+        assertion_id: assertion_id.to_owned(),
+        surface_family,
+        preserved_refs,
+        open_in_source_language_required: true,
+        machine_output_locale_neutral: true,
+        governed_terminology_preserved: true,
+    }
+}
+
+fn preserved(ref_kind: &str, value: &str) -> PreservedTranslatedSurfaceRef {
+    PreservedTranslatedSurfaceRef {
+        ref_kind: ref_kind.to_owned(),
+        value: value.to_owned(),
+    }
+}
+
+fn token(token: &str, token_class: &str) -> LiteralTechnicalToken {
+    LiteralTechnicalToken {
+        token: token.to_owned(),
+        token_class: token_class.to_owned(),
+        must_remain_unmirrored: true,
+        copy_raw_required: true,
+        copy_escaped_required: true,
+    }
+}
+
+fn ime_scenario(
+    scenario_id: &str,
+    input_method: &str,
+    preedit_text: &str,
+    expected_commit_text: &str,
+    churn_events: Vec<ImeCompositionChurnEvent>,
+) -> ImeCompositionScenario {
+    ImeCompositionScenario {
+        scenario_id: scenario_id.to_owned(),
+        input_method: input_method.to_owned(),
+        preedit_text: preedit_text.to_owned(),
+        expected_commit_text: expected_commit_text.to_owned(),
+        churn_events,
+        silent_commit_forbidden: true,
+        silent_cancel_forbidden: true,
+        candidate_and_caret_visibility_required: true,
+    }
+}
+
+fn expansion_budget() -> TextExpansionBudget {
+    TextExpansionBudget {
+        single_line_min_ratio: 1.35,
+        multiline_min_ratio: 1.60,
+        overflow_forbidden: true,
+        full_text_route_required: true,
+    }
+}
+
+fn rtl_expectation() -> RtlMirroringExpectation {
+    RtlMirroringExpectation {
+        directional_chrome_mirrors: true,
+        literal_technical_strings_unmirrored: true,
+        focus_order_tracks_visual_order: true,
+        raw_copy_preserves_author_order: true,
+    }
+}
+
+struct DenseCaseSeed<'a> {
+    case_id: &'a str,
+    surface_family: DenseI18nSurfaceFamily,
+    surface_ref: &'a str,
+    crate_refs: Vec<&'a str>,
+    dense_workflow: &'a str,
+    locale_tags: Vec<&'a str>,
+    stress_modes: Vec<DenseI18nStressMode>,
+    readiness_row_refs: Vec<&'a str>,
+    fixture_refs: Vec<&'a str>,
+    source_seed_refs: Vec<&'a str>,
+    literal_tokens: Vec<LiteralTechnicalToken>,
+    ime_scenarios: Vec<ImeCompositionScenario>,
+    assertions: Vec<DenseI18nAssertionClass>,
+    expected_failure_classes: Vec<DenseI18nFailureClass>,
+    rtl_expectation: Option<RtlMirroringExpectation>,
+}
+
+fn dense_case(seed: DenseCaseSeed<'_>) -> DenseI18nSurfaceCase {
+    DenseI18nSurfaceCase {
+        case_id: seed.case_id.to_owned(),
+        surface_family: seed.surface_family,
+        surface_ref: seed.surface_ref.to_owned(),
+        crate_refs: seed.crate_refs.into_iter().map(str::to_owned).collect(),
+        dense_workflow: seed.dense_workflow.to_owned(),
+        locale_tags: seed.locale_tags.into_iter().map(str::to_owned).collect(),
+        stress_modes: seed.stress_modes,
+        readiness_row_refs: seed
+            .readiness_row_refs
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        fixture_refs: seed.fixture_refs.into_iter().map(str::to_owned).collect(),
+        source_seed_refs: seed
+            .source_seed_refs
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        literal_tokens: seed.literal_tokens,
+        ime_scenarios: seed.ime_scenarios,
+        expansion_budget: expansion_budget(),
+        rtl_expectation: seed.rtl_expectation,
+        assertion_refs: seed.assertions,
+        expected_failure_classes: seed.expected_failure_classes,
+        bounded_waiver_ref: None,
+    }
 }
 
 fn policy_context() -> PolicyContext {

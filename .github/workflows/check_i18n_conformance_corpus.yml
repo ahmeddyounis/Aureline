@@ -1,0 +1,91 @@
+# Dense i18n conformance corpus gate.
+#
+# Replays the pseudoloc, RTL, bidi, IME, CJK/font fallback, locale fallback,
+# translated-surface parity, localized date/number, and text-expansion corpus
+# used by beta release evidence.
+
+name: check_i18n_conformance_corpus
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_i18n_conformance_corpus.yml"
+      - "crates/aureline-i18n/**"
+      - "fixtures/i18n/m3/pseudoloc_rtl_ime_corpus/**"
+      - "fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml"
+      - "artifacts/i18n/test_mode_matrix.yaml"
+      - "docs/i18n/locale_input_readiness.md"
+      - "docs/i18n/locale_surface_matrix.md"
+      - "docs/ux/localization_and_locale_pack_contract.md"
+      - "docs/ux/m3/localization_conformance_beta.md"
+      - "artifacts/ux/m3/localized_surface_review_packet.md"
+      - "artifacts/ux/m3/rtl_and_text_expansion_audit.md"
+  schedule:
+    - cron: "29 9 * * *"
+  workflow_dispatch:
+    inputs:
+      lane_class:
+        description: "Lane class"
+        required: true
+        default: "release_candidate"
+        type: choice
+        options:
+          - nightly
+          - release_candidate
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-i18n-conformance-corpus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dense_i18n_corpus:
+    name: Dense i18n conformance corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-i18n-conformance-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-i18n-conformance-
+
+      - name: Validate dense i18n corpus
+        run: |
+          cargo test -p aureline-i18n --test pseudoloc_rtl_ime_corpus --locked
+
+      - name: Validate generated corpus seed
+        run: |
+          cargo run -q -p aureline-i18n --bin aureline_i18n_locale_pack_beta -- dense-validate
+
+      - name: Upload review export
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-conformance-corpus-${{ github.run_id }}
+          path: |
+            fixtures/i18n/m3/pseudoloc_rtl_ime_corpus/manifest.json
+            fixtures/i18n/m3/pseudoloc_rtl_ime_corpus/review_export.json
+            artifacts/ux/m3/localized_surface_review_packet.md
+            artifacts/ux/m3/rtl_and_text_expansion_audit.md
+          if-no-files-found: error
+          retention-days: 30

@@ -70,3 +70,13 @@ The test verifies fixture parity, fallback inspection across Settings and
 Help/About, metadata-only support exports, extension host-id protection,
 source-language fallback disclosure, signature-failure blocking, and
 locale-neutral machine identifiers.
+
+Dense pseudoloc, RTL, bidi, IME, CJK/font fallback, translated-surface parity,
+and text-expansion proof is covered by:
+
+```sh
+cargo test -p aureline-i18n --test pseudoloc_rtl_ime_corpus --locked
+```
+
+That corpus lives at `fixtures/i18n/m3/pseudoloc_rtl_ime_corpus/` and exports
+the review packet consumed by `docs/ux/m3/localization_conformance_beta.md`.

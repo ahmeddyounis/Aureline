@@ -9,6 +9,10 @@ companion to:
 - [`/fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml`](../../fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml)
   — harness-plan manifest naming test modes, seed strings, fixture
   surfaces, expected failure classes, and owners.
+- [`/fixtures/i18n/m3/pseudoloc_rtl_ime_corpus/`](../../fixtures/i18n/m3/pseudoloc_rtl_ime_corpus/)
+  — beta dense-surface conformance corpus and review export covering
+  pseudoloc, RTL, bidi, IME, text expansion, fallback, CJK/font fallback,
+  translated-surface parity, and localized date/number formatting.
 - [`/docs/i18n/locale_surface_matrix.md`](./locale_surface_matrix.md)
   — cross-surface matrix for what localizes vs. what stays machine-stable
   on UI/CLI/docs/extension surfaces.
