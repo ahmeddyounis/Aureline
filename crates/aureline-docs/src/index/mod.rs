@@ -9,7 +9,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CitationAnchorAvailability, CitationLocalityClass, DocsFreshnessClass, DocsNodeIdentity,
+    CitationAnchorAvailability, CitationLocalityClass, DocsExampleValidationClass,
+    DocsExternalOpenFallback, DocsFreshnessClass, DocsKnowledgeObjectKind,
+    DocsKnowledgeSurfaceKind, DocsKnowledgeSurfaceProjection, DocsKnowledgeSurfaceProjectionInput,
+    DocsMirrorOfflinePosture, DocsNodeIdentity, DocsNodeProvenance, DocsNodeProvenanceInput,
     DocsPack, DocsPackNode, VersionMatchState,
 };
 
@@ -77,9 +80,11 @@ impl DocsSearchIndex {
         let mut entries = Vec::new();
         for pack in packs {
             pack_refs.push(pack.pack_id.clone());
-            entries.extend(pack.nodes.iter().map(|node| {
-                DocsSearchIndexEntry::from_pack_node(&workspace_id, &pack.index_source_ref(), node)
-            }));
+            entries.extend(
+                pack.nodes
+                    .iter()
+                    .map(|node| DocsSearchIndexEntry::from_pack_node(&workspace_id, &pack, node)),
+            );
         }
         entries.sort_by(|a, b| {
             a.title
@@ -212,12 +217,38 @@ pub struct DocsSearchIndexEntry {
     /// Hidden, omitted, fallback, or missing-anchor disclosure note.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hidden_or_omitted_note: Option<String>,
+    /// Shared knowledge-surface provenance consumed by docs browser, search, help, AI, and support.
+    pub docs_node_provenance: DocsNodeProvenance,
+    /// Surface projection preserving source-strip, citation, and keyboard-open truth.
+    pub knowledge_surface_projection: DocsKnowledgeSurfaceProjection,
 }
 
 impl DocsSearchIndexEntry {
-    fn from_pack_node(workspace_id: &str, pack_source_ref: &str, node: &DocsPackNode) -> Self {
+    fn from_pack_node(workspace_id: &str, pack: &DocsPack, node: &DocsPackNode) -> Self {
         let docs_node = node.docs_node.clone();
         let canonical_ref = canonical_ref_for_node(&docs_node);
+        let pack_source_ref = pack.index_source_ref();
+        let docs_node_provenance =
+            docs_node_provenance_for_search(pack, &canonical_ref, &docs_node);
+        let knowledge_surface_projection =
+            DocsKnowledgeSurfaceProjection::new(DocsKnowledgeSurfaceProjectionInput {
+                surface_kind: DocsKnowledgeSurfaceKind::DocsBackedSearch,
+                surface_id_ref: canonical_ref.clone(),
+                provenance: docs_node_provenance.clone(),
+                citation_inspection_action_ref: format!(
+                    "action:inspect-citations:{}",
+                    sanitize_ref(&canonical_ref)
+                ),
+                open_supporting_source_action_ref: Some(format!(
+                    "action:open-supporting-source:{}",
+                    sanitize_ref(&canonical_ref)
+                )),
+                keyboard_accessible_actions: true,
+                export_packet_refs: vec![format!(
+                    "docs-evidence-packet:search:{}",
+                    sanitize_ref(&canonical_ref)
+                )],
+            });
         let primary_anchor_ref = docs_node
             .citation_availability
             .is_exact()
@@ -227,7 +258,7 @@ impl DocsSearchIndexEntry {
         let search_text = [
             node.title.as_str(),
             node.summary.as_deref().unwrap_or_default(),
-            node.source_ref.as_deref().unwrap_or(pack_source_ref),
+            node.source_ref.as_deref().unwrap_or(&pack_source_ref),
             node.body_markdown.as_str(),
             docs_node.docs_node_id.as_str(),
             docs_node.exact_reopen_ref.as_str(),
@@ -246,7 +277,7 @@ impl DocsSearchIndexEntry {
             source_ref: node
                 .source_ref
                 .clone()
-                .or_else(|| Some(pack_source_ref.to_owned())),
+                .or_else(|| Some(pack_source_ref.clone())),
             search_text,
             primary_anchor_ref,
             citation_anchor_refs: docs_node.citation_anchor_refs.clone(),
@@ -259,6 +290,8 @@ impl DocsSearchIndexEntry {
             locality_class_token: docs_node.locality_class.as_str().to_owned(),
             citation_anchor_availability_token: docs_node.citation_availability.as_str().to_owned(),
             hidden_or_omitted_note: docs_node.hidden_or_omitted_note.clone(),
+            docs_node_provenance,
+            knowledge_surface_projection,
         }
     }
 
@@ -410,4 +443,48 @@ impl DocsPackIndexSource for DocsPack {
     fn index_source_ref(&self) -> String {
         format!("{}#{}", self.pack_id, self.pack_revision_ref)
     }
+}
+
+fn docs_node_provenance_for_search(
+    pack: &DocsPack,
+    canonical_ref: &str,
+    docs_node: &DocsNodeIdentity,
+) -> DocsNodeProvenance {
+    let external_open = if matches!(
+        docs_node.locality_class,
+        CitationLocalityClass::VendorLive | CitationLocalityClass::NotInstalled
+    ) {
+        DocsExternalOpenFallback::available(
+            format!(
+                "action:open-external-source:{}",
+                sanitize_ref(canonical_ref)
+            ),
+            "Open supporting source",
+            format!("browser-handoff:{}", sanitize_ref(canonical_ref)),
+        )
+    } else {
+        DocsExternalOpenFallback::not_required()
+    };
+    DocsNodeProvenance::new(DocsNodeProvenanceInput {
+        provenance_id: format!("docs-provenance:{}", sanitize_ref(canonical_ref)),
+        docs_node: docs_node.clone(),
+        knowledge_object_kind: DocsKnowledgeObjectKind::from(docs_node.doc_kind),
+        derived_explanation_kind: (docs_node.source_class
+            == crate::CitationSourceClass::DerivedExplanation)
+            .then_some(crate::DocsDerivedExplanationKind::Generated),
+        source_build_at: pack
+            .source_truth
+            .source_build_at
+            .clone()
+            .unwrap_or_else(|| pack.pack_revision_ref.clone()),
+        running_build_identity_ref: pack.source_truth.running_build_identity_ref.clone(),
+        mirror_offline_posture: DocsMirrorOfflinePosture::from_locality(docs_node.locality_class),
+        external_open,
+        example_validation: DocsExampleValidationClass::NotApplicable,
+        citation_drawer_ref: Some(format!(
+            "citation-drawer:{}",
+            sanitize_ref(&docs_node.docs_node_id)
+        )),
+        surface_refs: vec!["surface:docs-backed-search".to_owned()],
+    })
 }

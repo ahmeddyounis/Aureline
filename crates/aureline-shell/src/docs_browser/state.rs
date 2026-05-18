@@ -84,6 +84,7 @@ impl DocsBrowserSurfaceState {
             publisher_or_service_label: card.publisher_or_service_identity.label.clone(),
             origin_label: card.origin_identity.origin_label.clone(),
             host_or_domain_label: card.origin_identity.host_or_domain_label.clone(),
+            knowledge_surface_projection: None,
             source_row,
             version_row,
             freshness_row,
@@ -101,6 +102,8 @@ pub struct DocsBrowserRowCard {
     pub publisher_or_service_label: String,
     pub origin_label: String,
     pub host_or_domain_label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub knowledge_surface_projection: Option<aureline_docs::DocsKnowledgeSurfaceProjection>,
     pub source_row: DocsBrowserSourceRow,
     pub version_row: DocsBrowserVersionRow,
     pub freshness_row: DocsBrowserFreshnessRow,
@@ -130,6 +133,26 @@ impl DocsBrowserRowCard {
             self.version_row.running_build_identity_ref
         ));
         lines.push(format!("Freshness: {}", self.freshness_row.label));
+        if let Some(projection) = &self.knowledge_surface_projection {
+            lines.push(format!(
+                "Source build: {}",
+                projection.source_strip.source_build_at
+            ));
+            lines.push(format!(
+                "Locality: {} / {}",
+                projection.source_strip.locality_class_token,
+                projection.source_strip.mirror_offline_posture_token
+            ));
+            lines.push(format!(
+                "Citations: {} [{}]",
+                projection.source_strip.citation_availability_token,
+                projection.citation_inspection_action_ref
+            ));
+            lines.push(format!(
+                "Docs truth: {}",
+                projection.source_strip.truth_label
+            ));
+        }
         lines.push(format!(
             "Client scope: {}",
             self.client_scope_row.data_boundary_label

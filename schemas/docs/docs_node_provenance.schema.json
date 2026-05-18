@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/docs_node_provenance.schema.json",
+  "title": "Docs Node Provenance Record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "provenance_id",
+    "docs_node",
+    "knowledge_object_kind",
+    "source_build_at",
+    "running_build_identity_ref",
+    "mirror_offline_posture",
+    "external_open",
+    "example_validation",
+    "surface_refs",
+    "truth_label"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "docs_node_provenance_record"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "provenance_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "docs_node": {
+      "$ref": "docs_node_alpha.schema.json"
+    },
+    "knowledge_object_kind": {
+      "enum": [
+        "docs_node",
+        "glossary_entry",
+        "curated_knowledge_card",
+        "derived_explanation"
+      ]
+    },
+    "derived_explanation_kind": {
+      "enum": ["curated", "generated"]
+    },
+    "source_build_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "running_build_identity_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mirror_offline_posture": {
+      "enum": [
+        "live_online",
+        "local_project_pack",
+        "generated_local",
+        "mirrored_pack",
+        "offline_pinned_pack",
+        "cached_local",
+        "not_installed",
+        "support_pack"
+      ]
+    },
+    "external_open": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "enum": ["available", "blocked_by_policy", "not_required", "unavailable"]
+        },
+        "action_ref": { "type": "string", "minLength": 1 },
+        "action_label": { "type": "string", "minLength": 1 },
+        "browser_handoff_packet_ref": { "type": "string", "minLength": 1 },
+        "disclosure_note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "example_validation": {
+      "enum": [
+        "verified",
+        "retest_pending",
+        "illustrative_only",
+        "failed_stale",
+        "not_applicable"
+      ]
+    },
+    "citation_drawer_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "surface_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "truth_label": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["label_class", "label", "reason_tokens"],
+      "properties": {
+        "label_class": {
+          "enum": ["current_docs", "retest_pending", "illustrative"]
+        },
+        "label": {
+          "enum": ["Current docs", "Retest pending", "Illustrative"]
+        },
+        "reason_tokens": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "repair_action_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "Derived explanations must disclose whether they are curated or generated.",
+      "if": {
+        "properties": {
+          "knowledge_object_kind": { "const": "derived_explanation" }
+        },
+        "required": ["knowledge_object_kind"]
+      },
+      "then": {
+        "required": ["derived_explanation_kind"]
+      }
+    },
+    {
+      "description": "Stale or unverified docs must not remain current.",
+      "if": {
+        "properties": {
+          "docs_node": {
+            "properties": {
+              "freshness_class": { "enum": ["stale", "unverified"] }
+            },
+            "required": ["freshness_class"]
+          }
+        },
+        "required": ["docs_node"]
+      },
+      "then": {
+        "properties": {
+          "truth_label": {
+            "properties": {
+              "label_class": { "const": "retest_pending" }
+            },
+            "required": ["label_class"]
+          }
+        }
+      }
+    }
+  ]
+}

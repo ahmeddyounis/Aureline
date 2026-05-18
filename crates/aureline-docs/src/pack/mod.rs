@@ -127,6 +127,9 @@ pub struct DocsPackSourceTruth {
     pub citation_availability: CitationAnchorAvailability,
     /// Running build identity used by shell-side docs/browser rows.
     pub running_build_identity_ref: String,
+    /// Source build date or deterministic build stamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_build_at: Option<String>,
     /// Optional source snapshot age label for UI rows.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot_age_label: Option<String>,

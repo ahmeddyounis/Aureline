@@ -11,9 +11,12 @@ use std::collections::BTreeSet;
 use aureline_docs::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
     CitationConfidenceClass, CitationDrawerEvidenceView, CitationInferenceMarker,
-    CitationLocalityClass, CitationSourceClass, DocsFreshnessClass, DocsNodeIdentity,
-    DocsNodeIdentityInput, DocsNodeKind, DocsScopeClass, LocaleOverlayState, SourcePrecedenceClass,
-    VersionMatchState,
+    CitationLocalityClass, CitationSourceClass, DocsDerivedExplanationKind,
+    DocsExampleValidationClass, DocsExternalOpenFallback, DocsFreshnessClass,
+    DocsKnowledgeObjectKind, DocsKnowledgeSurfaceKind, DocsKnowledgeSurfaceProjection,
+    DocsKnowledgeSurfaceProjectionInput, DocsMirrorOfflinePosture, DocsNodeIdentity,
+    DocsNodeIdentityInput, DocsNodeKind, DocsNodeProvenance, DocsNodeProvenanceInput,
+    DocsScopeClass, LocaleOverlayState, SourcePrecedenceClass, VersionMatchState,
 };
 use aureline_graph_proto::{
     AnchorKind, ConfidenceLevel, EdgeClass, EdgeEvidenceState, Freshness, GraphEdge, GraphNode,
@@ -285,6 +288,10 @@ pub struct EvidenceCitation {
     pub doc_ref: Option<String>,
     /// Canonical docs-node identity when the citation points at docs or help.
     pub docs_node_identity: Option<DocsNodeIdentity>,
+    /// Shared docs provenance when the citation points at docs or help.
+    pub docs_node_provenance: Option<DocsNodeProvenance>,
+    /// Shared surface projection for docs-backed explainer citations.
+    pub knowledge_surface_projection: Option<DocsKnowledgeSurfaceProjection>,
 }
 
 /// Compact evidence card rendered beside an impact explainer packet.
@@ -835,6 +842,13 @@ fn edge_projection(edge: &GraphEdge) -> TopologyEdgeProjection {
 }
 
 fn node_citation(index: usize, node: &GraphNode) -> EvidenceCitation {
+    let docs_node_identity = docs_node_identity_for_node(node);
+    let docs_node_provenance = docs_node_identity
+        .as_ref()
+        .map(|identity| docs_node_provenance_for_graph_node(index, node, identity));
+    let knowledge_surface_projection = docs_node_provenance
+        .as_ref()
+        .map(|provenance| docs_surface_projection_for_graph_node(index, node, provenance.clone()));
     EvidenceCitation {
         citation_id: format!("citation:node:{index}:{}", node.node_id),
         subject_kind: "graph_node_record".to_owned(),
@@ -847,7 +861,9 @@ fn node_citation(index: usize, node: &GraphNode) -> EvidenceCitation {
         file_path: file_path_for_node(node),
         symbol_ref: symbol_ref_for_node(node),
         doc_ref: doc_ref_for_node(node),
-        docs_node_identity: docs_node_identity_for_node(node),
+        docs_node_identity,
+        docs_node_provenance,
+        knowledge_surface_projection,
     }
 }
 
@@ -865,6 +881,8 @@ fn edge_citation(index: usize, edge: &GraphEdge) -> EvidenceCitation {
         symbol_ref: None,
         doc_ref: None,
         docs_node_identity: None,
+        docs_node_provenance: None,
+        knowledge_surface_projection: None,
     }
 }
 
@@ -1125,6 +1143,66 @@ fn docs_citation_view_for_evidence(
     ))
 }
 
+fn docs_node_provenance_for_graph_node(
+    index: usize,
+    node: &GraphNode,
+    docs_node: &DocsNodeIdentity,
+) -> DocsNodeProvenance {
+    DocsNodeProvenance::new(DocsNodeProvenanceInput {
+        provenance_id: format!(
+            "graph-docs-provenance:{index}:{}",
+            sanitize_ref(&node.node_id)
+        ),
+        docs_node: docs_node.clone(),
+        knowledge_object_kind: DocsKnowledgeObjectKind::from(docs_node.doc_kind),
+        derived_explanation_kind: (docs_node.source_class
+            == CitationSourceClass::DerivedExplanation)
+            .then_some(DocsDerivedExplanationKind::Generated),
+        source_build_at: node.provenance_stamp.recorded_at.clone(),
+        running_build_identity_ref: node
+            .provenance_stamp
+            .producer_version
+            .clone()
+            .unwrap_or_else(|| "id:build:aureline:graph-unknown".to_owned()),
+        mirror_offline_posture: DocsMirrorOfflinePosture::from_locality(docs_node.locality_class),
+        external_open: DocsExternalOpenFallback::not_required(),
+        example_validation: DocsExampleValidationClass::NotApplicable,
+        citation_drawer_ref: Some(format!(
+            "citation-drawer:graph:{}",
+            sanitize_ref(&node.node_id)
+        )),
+        surface_refs: vec![format!(
+            "surface:graph-explainer:{}",
+            sanitize_ref(&node.node_id)
+        )],
+    })
+}
+
+fn docs_surface_projection_for_graph_node(
+    index: usize,
+    node: &GraphNode,
+    provenance: DocsNodeProvenance,
+) -> DocsKnowledgeSurfaceProjection {
+    DocsKnowledgeSurfaceProjection::new(DocsKnowledgeSurfaceProjectionInput {
+        surface_kind: DocsKnowledgeSurfaceKind::CodebaseExplainer,
+        surface_id_ref: format!("graph-docs-citation:{index}:{}", node.node_id),
+        provenance,
+        citation_inspection_action_ref: format!(
+            "action:graph-explainer-inspect-citations:{}",
+            sanitize_ref(&node.node_id)
+        ),
+        open_supporting_source_action_ref: Some(format!(
+            "action:graph-explainer-open-source:{}",
+            sanitize_ref(&node.node_id)
+        )),
+        keyboard_accessible_actions: true,
+        export_packet_refs: vec![format!(
+            "docs-evidence-packet:graph-explainer:{}",
+            sanitize_ref(&node.node_id)
+        )],
+    })
+}
+
 fn first_source_anchor_ref(node: &GraphNode) -> Option<String> {
     node.source_anchors
         .iter()
@@ -1138,6 +1216,19 @@ fn first_source_anchor_ref(node: &GraphNode) -> Option<String> {
             ) && !anchor.anchor_ref.trim().is_empty()
         })
         .map(|anchor| anchor.anchor_ref.clone())
+}
+
+fn sanitize_ref(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect()
 }
 
 fn docs_node_kind_from_graph_doc_kind(doc_kind: &str) -> DocsNodeKind {

@@ -225,6 +225,7 @@ fn docs_sources() -> Vec<CitedSourceReference> {
             docs_pack_revision_ref: None,
             exact_anchor_ref: None,
             docs_node_identity: None,
+            docs_node_provenance: None,
             citation_anchor: None,
             citation_visibility_class: CitationVisibilityClass::NotCitationBearing,
             hidden_or_omitted_citation_note: None,
@@ -249,6 +250,7 @@ fn docs_sources() -> Vec<CitedSourceReference> {
 fn derived_explanations() -> Vec<DerivedExplanationLineage> {
     vec![DerivedExplanationLineage {
         explanation_ref: "derived-explanation:payments-charge-path".to_owned(),
+        docs_derived_explanation: None,
         basis_source_reference_refs: vec![
             "source-ref:workspace-symbol:payments-handler".to_owned(),
             "source-ref:docs-pack:payments-guide".to_owned(),
@@ -391,6 +393,7 @@ fn tainted_rejected_packet() -> AiMutationEvidencePacket {
         docs_pack_revision_ref: None,
         exact_anchor_ref: None,
         docs_node_identity: None,
+        docs_node_provenance: None,
         citation_anchor: None,
         citation_visibility_class: CitationVisibilityClass::NotCitationBearing,
         hidden_or_omitted_citation_note: None,

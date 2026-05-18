@@ -6,7 +6,11 @@
 //! the shell context owns client-scope and browser-handoff labels.
 
 use aureline_docs::{
-    CitationSourceClass, DocsFreshnessClass, DocsNodeIdentity, DocsPack, VersionMatchState,
+    CitationLocalityClass, CitationSourceClass, DocsDerivedExplanationKind,
+    DocsExampleValidationClass, DocsExternalOpenFallback, DocsFreshnessClass,
+    DocsKnowledgeObjectKind, DocsKnowledgeSurfaceKind, DocsKnowledgeSurfaceProjection,
+    DocsKnowledgeSurfaceProjectionInput, DocsMirrorOfflinePosture, DocsNodeIdentity,
+    DocsNodeProvenance, DocsNodeProvenanceInput, DocsPack, VersionMatchState,
 };
 use serde::{Deserialize, Serialize};
 
@@ -102,6 +106,9 @@ fn docs_browser_row_card_from_node(
         publisher_or_service_label: context.publisher_or_service_label.clone(),
         origin_label: context.origin_label.clone(),
         host_or_domain_label: context.host_or_domain_label.clone(),
+        knowledge_surface_projection: Some(docs_browser_projection_from_node(
+            pack, context, docs_node,
+        )),
         source_row: DocsBrowserSourceRow {
             class_token: docs_node.source_class.as_str().to_owned(),
             label: source_class_label(docs_node.source_class).to_owned(),
@@ -137,6 +144,85 @@ fn docs_browser_row_card_from_node(
             fallback_target_class_token: serialize_token(&context.fallback_target_class),
         },
     }
+}
+
+fn docs_browser_projection_from_node(
+    pack: &DocsPack,
+    context: &DocsBrowserContentContext,
+    docs_node: &DocsNodeIdentity,
+) -> DocsKnowledgeSurfaceProjection {
+    let external_open = context
+        .browser_handoff_packet_ref
+        .as_ref()
+        .filter(|packet| !packet.trim().is_empty())
+        .map(|packet| {
+            DocsExternalOpenFallback::available(
+                format!(
+                    "action:docs-browser-open-source:{}",
+                    sanitize_id(&docs_node.docs_node_id)
+                ),
+                context.action_label.clone(),
+                packet.clone(),
+            )
+        })
+        .unwrap_or_else(|| {
+            if matches!(
+                docs_node.locality_class,
+                CitationLocalityClass::VendorLive | CitationLocalityClass::NotInstalled
+            ) {
+                DocsExternalOpenFallback::blocked_by_policy(
+                    "External docs source is not available in this context.",
+                )
+            } else {
+                DocsExternalOpenFallback::not_required()
+            }
+        });
+    let provenance = DocsNodeProvenance::new(DocsNodeProvenanceInput {
+        provenance_id: format!(
+            "docs-browser-provenance:{}",
+            sanitize_id(&docs_node.docs_node_id)
+        ),
+        docs_node: docs_node.clone(),
+        knowledge_object_kind: DocsKnowledgeObjectKind::from(docs_node.doc_kind),
+        derived_explanation_kind: (docs_node.source_class
+            == CitationSourceClass::DerivedExplanation)
+            .then_some(DocsDerivedExplanationKind::Generated),
+        source_build_at: pack
+            .source_truth
+            .source_build_at
+            .clone()
+            .unwrap_or_else(|| pack.pack_revision_ref.clone()),
+        running_build_identity_ref: pack.source_truth.running_build_identity_ref.clone(),
+        mirror_offline_posture: DocsMirrorOfflinePosture::from_locality(docs_node.locality_class),
+        external_open,
+        example_validation: DocsExampleValidationClass::NotApplicable,
+        citation_drawer_ref: Some(format!(
+            "citation-drawer:{}",
+            sanitize_id(&docs_node.docs_node_id)
+        )),
+        surface_refs: vec![format!(
+            "surface:docs-browser:{}",
+            sanitize_id(&docs_node.docs_node_id)
+        )],
+    });
+    DocsKnowledgeSurfaceProjection::new(DocsKnowledgeSurfaceProjectionInput {
+        surface_kind: DocsKnowledgeSurfaceKind::DocsBrowser,
+        surface_id_ref: docs_node.docs_node_id.clone(),
+        provenance,
+        citation_inspection_action_ref: format!(
+            "action:docs-browser-inspect-citations:{}",
+            sanitize_id(&docs_node.docs_node_id)
+        ),
+        open_supporting_source_action_ref: Some(format!(
+            "action:docs-browser-open-source:{}",
+            sanitize_id(&docs_node.docs_node_id)
+        )),
+        keyboard_accessible_actions: true,
+        export_packet_refs: vec![format!(
+            "docs-evidence-packet:docs-browser:{}",
+            sanitize_id(&docs_node.docs_node_id)
+        )],
+    })
 }
 
 fn source_class_label(value: CitationSourceClass) -> &'static str {

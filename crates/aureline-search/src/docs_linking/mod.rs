@@ -11,8 +11,12 @@ use std::collections::BTreeMap;
 use aureline_docs::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
     CitationConfidenceClass, CitationDrawerEvidenceView, CitationInferenceMarker,
-    CitationLocalityClass, CitationSourceClass, DocsFreshnessClass as CanonicalDocsFreshnessClass,
-    DocsNodeIdentity, DocsNodeIdentityInput, DocsNodeKind, DocsScopeClass, LocaleOverlayState,
+    CitationLocalityClass, CitationSourceClass, DocsDerivedExplanationKind,
+    DocsExampleValidationClass, DocsExternalOpenFallback,
+    DocsFreshnessClass as CanonicalDocsFreshnessClass, DocsKnowledgeObjectKind,
+    DocsKnowledgeSurfaceKind, DocsKnowledgeSurfaceProjection, DocsKnowledgeSurfaceProjectionInput,
+    DocsMirrorOfflinePosture, DocsNodeIdentity, DocsNodeIdentityInput, DocsNodeKind,
+    DocsNodeProvenance, DocsNodeProvenanceInput, DocsScopeClass, LocaleOverlayState,
     SourcePrecedenceClass, VersionMatchState,
 };
 use serde::{Deserialize, Serialize};
@@ -600,6 +604,9 @@ pub struct DocsExactAnchor {
     pub pack_revision_ref: String,
     /// Display version or revision label.
     pub source_version: String,
+    /// Source build date or deterministic build stamp.
+    #[serde(default = "default_source_build_at")]
+    pub source_build_at: String,
     /// Locality class for this anchor.
     pub locality: DocsLocalityClass,
     /// Freshness class captured at projection time.
@@ -916,6 +923,93 @@ impl DocsLinkedReference {
             self.citation_drawer_hook.exact_reopen_ref.clone(),
         )
     }
+
+    fn docs_node_provenance(&self, docs_node: &DocsNodeIdentity) -> DocsNodeProvenance {
+        let external_open = self
+            .browser_handoff_reason
+            .as_ref()
+            .filter(|reason| !reason.trim().is_empty())
+            .map(|reason| {
+                DocsExternalOpenFallback::available(
+                    format!(
+                        "action:docs-search-open-source:{}",
+                        sanitize_planner_id(&self.reference_id)
+                    ),
+                    "Open supporting source",
+                    format!(
+                        "browser-handoff:{}:{}",
+                        reason,
+                        sanitize_planner_id(&self.reference_id)
+                    ),
+                )
+            })
+            .unwrap_or_else(|| {
+                if self.exact_anchor.locality == DocsLocalityClass::VendorLive {
+                    DocsExternalOpenFallback::blocked_by_policy(
+                        "External docs handoff was not available for this search result.",
+                    )
+                } else {
+                    DocsExternalOpenFallback::not_required()
+                }
+            });
+        DocsNodeProvenance::new(DocsNodeProvenanceInput {
+            provenance_id: format!(
+                "docs-search-provenance:{}",
+                sanitize_planner_id(&self.reference_id)
+            ),
+            docs_node: docs_node.clone(),
+            knowledge_object_kind: DocsKnowledgeObjectKind::from(docs_node.doc_kind),
+            derived_explanation_kind: (docs_node.source_class
+                == CitationSourceClass::DerivedExplanation)
+                .then_some(DocsDerivedExplanationKind::Generated),
+            source_build_at: self.exact_anchor.source_build_at.clone(),
+            running_build_identity_ref: self.exact_anchor.source_version.clone(),
+            mirror_offline_posture: DocsMirrorOfflinePosture::from_locality(
+                docs_node.locality_class,
+            ),
+            external_open,
+            example_validation: self
+                .stale_example_signal
+                .as_ref()
+                .map(|signal| match signal.stale_detection_state {
+                    DocsStaleDetectionState::NotApplicable => DocsExampleValidationClass::Verified,
+                    DocsStaleDetectionState::ProvenBroken
+                    | DocsStaleDetectionState::SuspectedStale => {
+                        DocsExampleValidationClass::FailedStale
+                    }
+                    DocsStaleDetectionState::UnchangedUnverified => {
+                        DocsExampleValidationClass::RetestPending
+                    }
+                })
+                .unwrap_or(DocsExampleValidationClass::NotApplicable),
+            citation_drawer_ref: Some(self.citation_drawer_hook.hook_id.clone()),
+            surface_refs: vec![format!(
+                "surface:docs-linked-search:{}",
+                sanitize_planner_id(&self.reference_id)
+            )],
+        })
+    }
+
+    fn knowledge_surface_projection(
+        &self,
+        provenance: &DocsNodeProvenance,
+    ) -> DocsKnowledgeSurfaceProjection {
+        DocsKnowledgeSurfaceProjection::new(DocsKnowledgeSurfaceProjectionInput {
+            surface_kind: DocsKnowledgeSurfaceKind::DocsBackedSearch,
+            surface_id_ref: self.reference_id.clone(),
+            provenance: provenance.clone(),
+            citation_inspection_action_ref: self.citation_drawer_hook.hook_id.clone(),
+            open_supporting_source_action_ref: Some(format!(
+                "action:docs-search-open-source:{}",
+                sanitize_planner_id(&self.reference_id)
+            )),
+            keyboard_accessible_actions: true,
+            export_packet_refs: vec![format!(
+                "docs-evidence-packet:docs-linked-search:{}",
+                sanitize_planner_id(&self.reference_id)
+            )],
+        })
+    }
 }
 
 /// Inputs for one docs-linked search projection.
@@ -1067,6 +1161,12 @@ impl DocsLinkedSearchProjection {
                     "docs row citation evidence view failed canonical validation",
                 ));
             }
+            if !row.knowledge_surface_projection.validate().is_empty() {
+                findings.push(DocsLinkingValidationFinding::new(
+                    row.result_id.clone(),
+                    "docs row knowledge-surface provenance failed canonical validation",
+                ));
+            }
             match row.citation_availability {
                 DocsCitationAvailability::Available
                     if row.citation_drawer_hook.citation_anchor_refs.is_empty() =>
@@ -1153,6 +1253,10 @@ pub struct DocsLinkedSearchResult {
     pub docs_node_identity: DocsNodeIdentity,
     /// Canonical citation drawer or equivalent evidence view.
     pub citation_evidence_view: CitationDrawerEvidenceView,
+    /// Shared knowledge-surface provenance consumed by docs/search/help/AI/support.
+    pub docs_node_provenance: DocsNodeProvenance,
+    /// Surface projection preserving source-strip, citation, and open-source truth.
+    pub knowledge_surface_projection: DocsKnowledgeSurfaceProjection,
     /// Project-docs versus vendor-docs precedence cue.
     pub project_vs_vendor_truth_cue: DocsProjectVendorTruthCue,
     /// Symbol-link resolution class.
@@ -1180,6 +1284,10 @@ pub struct DocsLinkedSearchResult {
 
 impl DocsLinkedSearchResult {
     fn from_planned_result(planned: &PlannedSearchResult, reference: &DocsLinkedReference) -> Self {
+        let docs_node_identity = reference.docs_node_identity();
+        let docs_node_provenance = reference.docs_node_provenance(&docs_node_identity);
+        let knowledge_surface_projection =
+            reference.knowledge_surface_projection(&docs_node_provenance);
         Self {
             result_id: planned.result_id.clone(),
             canonical_id: planned.canonical_id.clone(),
@@ -1196,8 +1304,10 @@ impl DocsLinkedSearchResult {
             freshness: reference.exact_anchor.freshness,
             citation_availability: reference.exact_anchor.citation_availability,
             citation_drawer_hook: reference.citation_drawer_hook.clone(),
-            docs_node_identity: reference.docs_node_identity(),
+            docs_node_identity,
             citation_evidence_view: reference.citation_evidence_view(),
+            docs_node_provenance,
+            knowledge_surface_projection,
             project_vs_vendor_truth_cue: reference.project_vs_vendor_truth_cue,
             resolution_class: reference.resolution_class,
             missing_anchor_downgrade_state: reference
@@ -1283,6 +1393,10 @@ pub struct DocsLinkingSupportRow {
     pub exact_anchor_ref: String,
     /// Canonical docs-node identity for support reconstruction.
     pub docs_node_identity: DocsNodeIdentity,
+    /// Shared docs-node provenance for support reconstruction.
+    pub docs_node_provenance: DocsNodeProvenance,
+    /// Surface projection preserving source-strip and citation action truth.
+    pub knowledge_surface_projection: DocsKnowledgeSurfaceProjection,
     /// Doc kind token.
     pub doc_kind_token: String,
     /// Source class token.
@@ -1329,6 +1443,8 @@ impl DocsLinkingSupportRow {
             subject_ref: row.subject_ref.clone(),
             exact_anchor_ref: row.exact_anchor.exact_anchor_ref.clone(),
             docs_node_identity: row.docs_node_identity.clone(),
+            docs_node_provenance: row.docs_node_provenance.clone(),
+            knowledge_surface_projection: row.knowledge_surface_projection.clone(),
             doc_kind_token: row.doc_kind.as_str().to_string(),
             source_class_token: row.source_class.as_str().to_string(),
             source_version: row.exact_anchor.source_version.clone(),
@@ -1385,6 +1501,23 @@ fn push_unique(target: &mut Vec<String>, value: &str) {
     if !target.iter().any(|existing| existing == value) {
         target.push(value.to_string());
     }
+}
+
+fn sanitize_planner_id(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect()
+}
+
+fn default_source_build_at() -> String {
+    "source-build:unknown".to_owned()
 }
 
 fn docs_node_kind_from_doc_kind(kind: DocsDocKind) -> DocsNodeKind {
@@ -1501,6 +1634,7 @@ mod tests {
             pack_id: "pack:project:aureline:alpha".to_string(),
             pack_revision_ref: "pack-rev:project:aureline:alpha:2026.05.13".to_string(),
             source_version: "alpha-help-2026.05".to_string(),
+            source_build_at: "2026-05-13T00:00:00Z".to_string(),
             locality: DocsLocalityClass::LocalProjectPack,
             freshness: DocsFreshnessClass::AuthoritativeLive,
             version_match_state: DocsVersionMatchState::ExactBuildMatch,

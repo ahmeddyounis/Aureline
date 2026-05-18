@@ -14,7 +14,10 @@
 
 use aureline_docs::{
     CitationAnchorAlpha, CitationAnchorAvailability as DocsCitationAnchorAvailability,
-    CitationSourceClass, DocsFreshnessClass, DocsNodeIdentity,
+    CitationSourceClass, DocsDerivedExplanation, DocsDerivedExplanationKind,
+    DocsExampleValidationClass, DocsExternalOpenFallback, DocsFreshnessClass,
+    DocsKnowledgeObjectKind, DocsMirrorOfflinePosture, DocsNodeIdentity, DocsNodeProvenance,
+    DocsNodeProvenanceInput,
 };
 use aureline_history::{
     emit_ai_apply_record, AiApplyLineage, ApprovalRef, MutationJournalEntryRecord,
@@ -592,6 +595,9 @@ pub struct CitedSourceReference {
     /// Canonical docs-node identity when the source came from docs/help knowledge.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub docs_node_identity: Option<DocsNodeIdentity>,
+    /// Shared docs-node provenance when the source came from docs/help knowledge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_node_provenance: Option<DocsNodeProvenance>,
     /// Canonical citation anchor record when the source can preserve one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub citation_anchor: Option<CitationAnchorAlpha>,
@@ -617,6 +623,32 @@ impl CitedSourceReference {
         let source_class = cited_source_class_from_docs_source(citation_anchor.source_class);
         let citation_visibility_class =
             citation_visibility_from_docs_anchor(citation_anchor.citation_availability);
+        let docs_node_provenance = DocsNodeProvenance::new(DocsNodeProvenanceInput {
+            provenance_id: format!(
+                "ai-docs-provenance:{}",
+                sanitize_evidence_ref(&docs_node_identity.docs_node_id)
+            ),
+            docs_node: docs_node_identity.clone(),
+            knowledge_object_kind: DocsKnowledgeObjectKind::from(docs_node_identity.doc_kind),
+            derived_explanation_kind: (docs_node_identity.source_class
+                == CitationSourceClass::DerivedExplanation)
+                .then_some(DocsDerivedExplanationKind::Generated),
+            source_build_at: docs_node_identity.source_pack_revision_ref.clone(),
+            running_build_identity_ref: docs_node_identity.version_or_revision_ref.clone(),
+            mirror_offline_posture: DocsMirrorOfflinePosture::from_locality(
+                docs_node_identity.locality_class,
+            ),
+            external_open: DocsExternalOpenFallback::not_required(),
+            example_validation: DocsExampleValidationClass::NotApplicable,
+            citation_drawer_ref: Some(format!(
+                "citation-drawer:ai:{}",
+                sanitize_evidence_ref(&docs_node_identity.docs_node_id)
+            )),
+            surface_refs: vec![format!(
+                "surface:docs-backed-ai:{}",
+                sanitize_evidence_ref(&docs_node_identity.docs_node_id)
+            )],
+        });
         Self {
             source_reference_id: source_reference_id.into(),
             source_class,
@@ -626,6 +658,7 @@ impl CitedSourceReference {
             docs_pack_revision_ref: Some(docs_node_identity.source_pack_revision_ref.clone()),
             exact_anchor_ref: citation_anchor.exact_anchor_ref.clone(),
             docs_node_identity: Some(docs_node_identity),
+            docs_node_provenance: Some(docs_node_provenance),
             citation_anchor: Some(citation_anchor.clone()),
             citation_visibility_class,
             hidden_or_omitted_citation_note: citation_anchor.hidden_or_omitted_note,
@@ -658,6 +691,9 @@ impl CitedSourceReference {
 pub struct DerivedExplanationLineage {
     /// Stable explanation id.
     pub explanation_ref: String,
+    /// Canonical docs-derived explanation record, when this lineage is docs-backed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_derived_explanation: Option<DocsDerivedExplanation>,
     /// Source-reference ids this explanation bridged.
     pub basis_source_reference_refs: Vec<String>,
     /// Inference posture.
@@ -1337,6 +1373,13 @@ impl AiMutationEvidencePacket {
                 violations.push(AiMutationEvidenceViolation::DocsCitationRecordInvalid);
             }
             if source
+                .docs_node_provenance
+                .as_ref()
+                .is_some_and(|provenance| !provenance.validate().is_empty())
+            {
+                violations.push(AiMutationEvidenceViolation::DocsCitationRecordInvalid);
+            }
+            if source
                 .citation_anchor
                 .as_ref()
                 .is_some_and(|anchor| !anchor.validate().is_empty())
@@ -1383,6 +1426,13 @@ impl AiMutationEvidencePacket {
                 )
             {
                 violations.push(AiMutationEvidenceViolation::DerivedExplanationMissingConfidence);
+            }
+            if explanation
+                .docs_derived_explanation
+                .as_ref()
+                .is_some_and(|record| !record.validate().is_empty())
+            {
+                violations.push(AiMutationEvidenceViolation::DocsCitationRecordInvalid);
             }
         }
 
@@ -1623,6 +1673,9 @@ pub struct AiMutationEvidenceCitationSupportRow {
     /// Canonical docs-node identity preserved for support reconstruction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub docs_node_identity: Option<DocsNodeIdentity>,
+    /// Shared docs-node provenance preserved for support reconstruction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_node_provenance: Option<DocsNodeProvenance>,
     /// Canonical citation anchor preserved for support reconstruction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub citation_anchor: Option<CitationAnchorAlpha>,
@@ -1648,6 +1701,7 @@ impl AiMutationEvidenceCitationSupportRow {
             docs_pack_revision_ref: source.docs_pack_revision_ref.clone(),
             exact_anchor_ref: source.exact_anchor_ref.clone(),
             docs_node_identity: source.docs_node_identity.clone(),
+            docs_node_provenance: source.docs_node_provenance.clone(),
             citation_anchor: source.citation_anchor.clone(),
             citation_visibility_token: source.citation_visibility_class.as_str().to_owned(),
             hidden_or_omitted_citation_note: source.hidden_or_omitted_citation_note.clone(),
@@ -1662,6 +1716,15 @@ impl AiMutationEvidenceCitationSupportRow {
 pub struct AiMutationEvidenceDerivedSupportRow {
     /// Explanation ref.
     pub explanation_ref: String,
+    /// Canonical docs-derived explanation preserved for docs-backed AI evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_derived_explanation: Option<DocsDerivedExplanation>,
+    /// Docs truth label token, when the canonical docs-derived record is present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_truth_label_token: Option<String>,
+    /// Docs freshness token, when the canonical docs-derived record is present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_freshness_token: Option<String>,
     /// Basis source-reference ids.
     pub basis_source_reference_refs: Vec<String>,
     /// Inference token.
@@ -1676,6 +1739,23 @@ impl AiMutationEvidenceDerivedSupportRow {
     fn from_lineage(lineage: &DerivedExplanationLineage) -> Self {
         Self {
             explanation_ref: lineage.explanation_ref.clone(),
+            docs_derived_explanation: lineage.docs_derived_explanation.clone(),
+            docs_truth_label_token: lineage.docs_derived_explanation.as_ref().map(|record| {
+                record
+                    .provenance
+                    .truth_label
+                    .label_class
+                    .as_str()
+                    .to_owned()
+            }),
+            docs_freshness_token: lineage.docs_derived_explanation.as_ref().map(|record| {
+                record
+                    .provenance
+                    .docs_node
+                    .freshness_class
+                    .as_str()
+                    .to_owned()
+            }),
             basis_source_reference_refs: lineage.basis_source_reference_refs.clone(),
             inference_token: lineage.inference_class.as_str().to_owned(),
             confidence_token: lineage.confidence_class.as_str().to_owned(),
@@ -1879,6 +1959,19 @@ fn evidence_freshness_from_docs(freshness_class: DocsFreshnessClass) -> Evidence
     }
 }
 
+fn sanitize_evidence_ref(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect()
+}
+
 fn packet_contains_forbidden_boundary_material(packet: &AiMutationEvidencePacket) -> bool {
     let mut values = vec![
         packet.evidence_packet_id.as_str(),
@@ -2015,6 +2108,10 @@ fn source_contains_forbidden_boundary_material(source: &CitedSourceReference) ->
             .as_ref()
             .is_some_and(docs_node_identity_contains_forbidden_boundary_material)
         || source
+            .docs_node_provenance
+            .as_ref()
+            .is_some_and(docs_node_provenance_contains_forbidden_boundary_material)
+        || source
             .citation_anchor
             .as_ref()
             .is_some_and(citation_anchor_contains_forbidden_boundary_material)
@@ -2048,6 +2145,28 @@ fn docs_node_identity_contains_forbidden_boundary_material(identity: &DocsNodeId
             .any(|value| contains_forbidden_boundary_material(value))
 }
 
+fn docs_node_provenance_contains_forbidden_boundary_material(
+    provenance: &DocsNodeProvenance,
+) -> bool {
+    [
+        provenance.record_kind.as_str(),
+        provenance.provenance_id.as_str(),
+        provenance.source_build_at.as_str(),
+        provenance.running_build_identity_ref.as_str(),
+    ]
+    .iter()
+    .any(|value| contains_forbidden_boundary_material(value))
+        || docs_node_identity_contains_forbidden_boundary_material(&provenance.docs_node)
+        || provenance
+            .citation_drawer_ref
+            .as_deref()
+            .is_some_and(contains_forbidden_boundary_material)
+        || provenance
+            .surface_refs
+            .iter()
+            .any(|value| contains_forbidden_boundary_material(value))
+}
+
 fn citation_anchor_contains_forbidden_boundary_material(anchor: &CitationAnchorAlpha) -> bool {
     [
         anchor.record_kind.as_str(),
@@ -2075,6 +2194,18 @@ fn explanation_contains_forbidden_boundary_material(
 ) -> bool {
     contains_forbidden_boundary_material(&explanation.explanation_ref)
         || contains_forbidden_boundary_material(&explanation.confidence_reason_label)
+        || explanation
+            .docs_derived_explanation
+            .as_ref()
+            .is_some_and(|record| {
+                contains_forbidden_boundary_material(&record.explanation_id)
+                    || contains_forbidden_boundary_material(&record.summary_label)
+                    || docs_node_provenance_contains_forbidden_boundary_material(&record.provenance)
+                    || record
+                        .upstream_citation_anchor_refs
+                        .iter()
+                        .any(|value| contains_forbidden_boundary_material(value))
+            })
         || explanation
             .basis_source_reference_refs
             .iter()
