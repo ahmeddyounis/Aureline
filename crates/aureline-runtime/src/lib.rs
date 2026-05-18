@@ -51,6 +51,7 @@ pub mod quality;
 pub mod recipes;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
+pub mod request_workspace_contracts;
 pub mod rerun;
 pub mod scanner_import;
 pub mod shared_debug_alpha;
@@ -341,10 +342,19 @@ pub use request_workspace::{
     RequestDocument, RequestMethodClass, RequestWorkspaceAlphaRecord,
     RequestWorkspaceAlphaViolation, RequestWorkspaceSeededScenario, RequestWorkspaceSupportExport,
     ResponseArtifact, ResponsePreviewClass, ResponseRedactionClass, SchemaSnapshot,
-    SchemaSnapshotFreshness, SchemaSnapshotKind, SendInspectorBanner, SendInspectorReadiness,
-    SendInspectorReport, SideEffectClass, REQUEST_WORKSPACE_ALPHA_LANE_ID,
+    SchemaSnapshotFreshness, SchemaSnapshotKind, SchemaSnapshotSourceClass, SendInspectorBanner,
+    SendInspectorReadiness, SendInspectorReport, SideEffectClass, REQUEST_WORKSPACE_ALPHA_LANE_ID,
     REQUEST_WORKSPACE_ALPHA_RECORD_KIND, REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION,
     REQUEST_WORKSPACE_SEND_INSPECTOR_RECORD_KIND, REQUEST_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use request_workspace_contracts::{
+    AssertionEvidenceState, AssertionSuite, AssertionSuiteLineageClass, AuthSourceClass,
+    EndpointIdentity, EndpointSourceClass, EnvironmentFingerprintState, FingerprintDigestClass,
+    PortableExportClass, PortableExportContract, RequestEnvironmentFingerprint,
+    RequestHistoryPosture, RequestHistoryRetentionClass, ResponseCopyExportClass,
+    ResponsePayloadSizeClass, ResponsePreviewComponentClass, ResponsePreviewRule,
+    ResponseSafePreviewClass, REQUEST_ASSERTION_SUITE_SCHEMA_ID,
+    REQUEST_ENVIRONMENT_FINGERPRINT_SCHEMA_ID, REQUEST_RESPONSE_PREVIEW_SCHEMA_ID,
 };
 pub use rerun::{
     built_in_rerun_command_bindings, RerunAttemptSummary, RerunCommandBinding, RerunContractKind,

@@ -12,7 +12,7 @@
   "$defs": {
     "schema_version": {
       "type": "integer",
-      "const": 1,
+      "const": 2,
       "description": "Request-workspace alpha schema version. Bumped on breaking payload changes; additive-optional fields do not bump this version."
     },
     "lane_id": {
@@ -59,6 +59,29 @@
         "secret_handle"
       ]
     },
+    "endpoint_source_class": {
+      "type": "string",
+      "enum": [
+        "environment_layer",
+        "request_template",
+        "mirrored_schema",
+        "imported_example",
+        "unknown_requires_review"
+      ]
+    },
+    "fingerprint_digest_class": {
+      "type": "string",
+      "enum": ["sha256", "blake3", "opaque_stable"]
+    },
+    "environment_fingerprint_state": {
+      "type": "string",
+      "enum": [
+        "current_local_resolution",
+        "imported_from_export",
+        "stale_requires_review",
+        "blocked_unresolved_variable"
+      ]
+    },
     "auth_strategy_kind": {
       "type": "string",
       "enum": [
@@ -82,6 +105,19 @@
         "raw_inline_disallowed"
       ]
     },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "no_auth",
+        "secret_broker_handle",
+        "delegated_identity",
+        "policy_injected",
+        "mtls_certificate_handle",
+        "signed_request_handle",
+        "raw_inline_disallowed",
+        "unsupported_blocked"
+      ]
+    },
     "assertion_kind": {
       "type": "string",
       "enum": [
@@ -101,6 +137,24 @@
         "failed",
         "skipped_no_response",
         "errored_during_evaluation",
+        "not_executed"
+      ]
+    },
+    "assertion_suite_lineage_class": {
+      "type": "string",
+      "enum": [
+        "current_local",
+        "imported_artifact",
+        "stale_artifact",
+        "mirrored_schema"
+      ]
+    },
+    "assertion_evidence_state": {
+      "type": "string",
+      "enum": [
+        "current_local_run",
+        "imported_run",
+        "stale_imported_artifact",
         "not_executed"
       ]
     },
@@ -129,9 +183,54 @@
       "type": "string",
       "enum": ["structured_tokens_only", "body_omitted_at_rest"]
     },
+    "response_preview_component_class": {
+      "type": "string",
+      "enum": ["body", "headers", "cookies", "tokens", "large_payload"]
+    },
+    "response_safe_preview_class": {
+      "type": "string",
+      "enum": [
+        "json_tree",
+        "raw_text",
+        "sanitized_rich",
+        "metadata_only",
+        "digest_only",
+        "large_payload_summary",
+        "redacted"
+      ]
+    },
+    "response_copy_export_class": {
+      "type": "string",
+      "enum": [
+        "redacted_with_label",
+        "structured_summary_with_label",
+        "digest_only_with_label",
+        "local_only_raw_opt_in",
+        "blocked_sensitive"
+      ]
+    },
+    "response_payload_size_class": {
+      "type": "string",
+      "enum": [
+        "small",
+        "medium_virtualized",
+        "large_safe_preview_only",
+        "unknown_streaming"
+      ]
+    },
     "schema_snapshot_kind": {
       "type": "string",
       "enum": ["openapi", "graphql_sdl", "json_schema", "none_declared"]
+    },
+    "schema_snapshot_source_class": {
+      "type": "string",
+      "enum": [
+        "live_introspection",
+        "workspace_file",
+        "mirrored_schema",
+        "imported_example",
+        "none_declared"
+      ]
     },
     "schema_snapshot_freshness": {
       "type": "string",
@@ -166,6 +265,73 @@
         "blocked_policy"
       ]
     },
+    "request_history_retention_class": {
+      "type": "string",
+      "enum": [
+        "local_only_redactable",
+        "local_only_body_omitted",
+        "imported_read_only",
+        "export_summary_only"
+      ]
+    },
+    "portable_export_class": {
+      "type": "string",
+      "enum": [
+        "metadata_aliases_and_evidence",
+        "redacted_response_summary",
+        "imported_stale_evidence_only",
+        "local_only_raw_opt_in_blocked"
+      ]
+    },
+    "endpoint_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint_identity_ref",
+        "endpoint_alias",
+        "target_endpoint_id",
+        "source_class",
+        "source_class_token",
+        "silent_retarget_allowed"
+      ],
+      "properties": {
+        "endpoint_identity_ref": { "type": "string" },
+        "endpoint_alias": { "type": "string" },
+        "target_endpoint_id": { "type": "string" },
+        "source_class": { "$ref": "#/$defs/endpoint_source_class" },
+        "source_class_token": { "type": "string" },
+        "silent_retarget_allowed": { "type": "boolean" }
+      }
+    },
+    "request_environment_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprint_ref",
+        "digest_class",
+        "digest_class_token",
+        "environment_id",
+        "endpoint_identity_ref",
+        "layer_refs",
+        "state",
+        "state_token",
+        "captured_at"
+      ],
+      "properties": {
+        "fingerprint_ref": { "type": "string" },
+        "digest_class": { "$ref": "#/$defs/fingerprint_digest_class" },
+        "digest_class_token": { "type": "string" },
+        "environment_id": { "type": "string" },
+        "endpoint_identity_ref": { "type": "string" },
+        "layer_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "state": { "$ref": "#/$defs/environment_fingerprint_state" },
+        "state_token": { "type": "string" },
+        "captured_at": { "type": "string" }
+      }
+    },
     "environment_variable_layer": {
       "type": "object",
       "additionalProperties": false,
@@ -195,7 +361,8 @@
         "environment_id",
         "scope_label",
         "base_url_template",
-        "effective_fingerprint"
+        "effective_fingerprint",
+        "fingerprint"
       ],
       "properties": {
         "environment_id": { "type": "string" },
@@ -205,7 +372,8 @@
           "type": "array",
           "items": { "$ref": "#/$defs/environment_variable_layer" }
         },
-        "effective_fingerprint": { "type": "string" }
+        "effective_fingerprint": { "type": "string" },
+        "fingerprint": { "$ref": "#/$defs/request_environment_fingerprint" }
       }
     },
     "auth_profile": {
@@ -215,13 +383,19 @@
         "strategy_kind",
         "strategy_kind_token",
         "credential_class",
-        "credential_class_token"
+        "credential_class_token",
+        "auth_source_class",
+        "auth_source_class_token",
+        "auth_source_alias"
       ],
       "properties": {
         "strategy_kind": { "$ref": "#/$defs/auth_strategy_kind" },
         "strategy_kind_token": { "type": "string" },
         "credential_class": { "$ref": "#/$defs/credential_class" },
         "credential_class_token": { "type": "string" },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "auth_source_class_token": { "type": "string" },
+        "auth_source_alias": { "type": "string" },
         "broker_handle_refs": {
           "type": "array",
           "items": { "type": "string" }
@@ -274,13 +448,73 @@
     "assertion_result_row": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["assertion_ref", "outcome", "outcome_token", "expected_token"],
+      "required": [
+        "result_id",
+        "suite_id",
+        "assertion_ref",
+        "outcome",
+        "outcome_token",
+        "expected_token",
+        "evidence_state",
+        "evidence_state_token",
+        "evidence_ref",
+        "bound_environment_fingerprint_ref"
+      ],
       "properties": {
+        "result_id": { "type": "string" },
+        "suite_id": { "type": "string" },
         "assertion_ref": { "type": "string" },
         "outcome": { "$ref": "#/$defs/assertion_outcome_class" },
         "outcome_token": { "type": "string" },
         "observed_token": { "type": "string" },
-        "expected_token": { "type": "string" }
+        "expected_token": { "type": "string" },
+        "evidence_state": { "$ref": "#/$defs/assertion_evidence_state" },
+        "evidence_state_token": { "type": "string" },
+        "evidence_ref": { "type": "string" },
+        "bound_environment_fingerprint_ref": { "type": "string" }
+      }
+    },
+    "assertion_suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite_id",
+        "suite_alias",
+        "lineage_class",
+        "lineage_class_token",
+        "assertions"
+      ],
+      "properties": {
+        "suite_id": { "type": "string" },
+        "suite_alias": { "type": "string" },
+        "lineage_class": { "$ref": "#/$defs/assertion_suite_lineage_class" },
+        "lineage_class_token": { "type": "string" },
+        "assertions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/assertion_descriptor" }
+        }
+      }
+    },
+    "response_preview_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "component_token",
+        "safe_preview_class",
+        "safe_preview_class_token",
+        "representation_label",
+        "copy_export_class",
+        "copy_export_class_token"
+      ],
+      "properties": {
+        "component": { "$ref": "#/$defs/response_preview_component_class" },
+        "component_token": { "type": "string" },
+        "safe_preview_class": { "$ref": "#/$defs/response_safe_preview_class" },
+        "safe_preview_class_token": { "type": "string" },
+        "representation_label": { "type": "string" },
+        "copy_export_class": { "$ref": "#/$defs/response_copy_export_class" },
+        "copy_export_class_token": { "type": "string" }
       }
     },
     "response_artifact": {
@@ -295,7 +529,10 @@
         "preview_class",
         "preview_class_token",
         "redaction_class",
-        "redaction_class_token"
+        "redaction_class_token",
+        "payload_size_class",
+        "payload_size_class_token",
+        "preview_rules"
       ],
       "properties": {
         "status_code": { "type": "integer", "minimum": 0, "maximum": 999 },
@@ -308,6 +545,12 @@
         "preview_class_token": { "type": "string" },
         "redaction_class": { "$ref": "#/$defs/response_redaction_class" },
         "redaction_class_token": { "type": "string" },
+        "payload_size_class": { "$ref": "#/$defs/response_payload_size_class" },
+        "payload_size_class_token": { "type": "string" },
+        "preview_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/response_preview_rule" }
+        },
         "assertion_results": {
           "type": "array",
           "items": { "$ref": "#/$defs/assertion_result_row" }
@@ -320,6 +563,8 @@
       "required": [
         "kind",
         "kind_token",
+        "source_class",
+        "source_class_token",
         "source_ref",
         "digest",
         "freshness",
@@ -329,6 +574,8 @@
       "properties": {
         "kind": { "$ref": "#/$defs/schema_snapshot_kind" },
         "kind_token": { "type": "string" },
+        "source_class": { "$ref": "#/$defs/schema_snapshot_source_class" },
+        "source_class_token": { "type": "string" },
         "source_ref": { "type": "string" },
         "digest": { "type": "string" },
         "freshness": { "$ref": "#/$defs/schema_snapshot_freshness" },
@@ -355,6 +602,51 @@
         "summary": { "type": "string" }
       }
     },
+    "request_history_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_class",
+        "retention_class_token",
+        "sync_enabled_by_default",
+        "raw_payload_retained_by_default",
+        "redactable"
+      ],
+      "properties": {
+        "retention_class": { "$ref": "#/$defs/request_history_retention_class" },
+        "retention_class_token": { "type": "string" },
+        "sync_enabled_by_default": { "type": "boolean" },
+        "raw_payload_retained_by_default": { "type": "boolean" },
+        "redactable": { "type": "boolean" }
+      }
+    },
+    "portable_export_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_class",
+        "export_class_token",
+        "alias_bundle_ref",
+        "redaction_profile",
+        "evidence_refs",
+        "includes_raw_credentials",
+        "includes_raw_cookies",
+        "includes_raw_tokens"
+      ],
+      "properties": {
+        "export_class": { "$ref": "#/$defs/portable_export_class" },
+        "export_class_token": { "type": "string" },
+        "alias_bundle_ref": { "type": "string" },
+        "redaction_profile": { "type": "string" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "includes_raw_credentials": { "type": "boolean" },
+        "includes_raw_cookies": { "type": "boolean" },
+        "includes_raw_tokens": { "type": "boolean" }
+      }
+    },
     "request_workspace_alpha_record": {
       "type": "object",
       "additionalProperties": false,
@@ -368,11 +660,15 @@
         "execution_context_ref",
         "target_class",
         "target_class_token",
+        "endpoint_identity",
         "boundary_cue_visible",
         "request",
         "environment",
         "auth",
+        "assertion_suite",
         "schema_snapshot",
+        "history_posture",
+        "portable_export",
         "summary"
       ],
       "properties": {
@@ -385,6 +681,7 @@
         "execution_context_ref": { "type": "string" },
         "target_class": { "$ref": "#/$defs/target_class" },
         "target_class_token": { "type": "string" },
+        "endpoint_identity": { "$ref": "#/$defs/endpoint_identity" },
         "boundary_cue_visible": { "type": "boolean" },
         "request": { "$ref": "#/$defs/request_document" },
         "environment": { "$ref": "#/$defs/environment_set" },
@@ -393,12 +690,15 @@
           "type": "array",
           "items": { "$ref": "#/$defs/assertion_descriptor" }
         },
+        "assertion_suite": { "$ref": "#/$defs/assertion_suite" },
         "schema_snapshot": { "$ref": "#/$defs/schema_snapshot" },
         "expected_side_effects": {
           "type": "array",
           "items": { "$ref": "#/$defs/expected_side_effect_row" }
         },
         "response_artifact": { "$ref": "#/$defs/response_artifact" },
+        "history_posture": { "$ref": "#/$defs/request_history_posture" },
+        "portable_export": { "$ref": "#/$defs/portable_export_contract" },
         "summary": { "type": "string" }
       }
     },
@@ -413,16 +713,24 @@
         "execution_context_ref",
         "target_class",
         "target_class_token",
+        "endpoint_identity_ref",
+        "endpoint_alias",
         "boundary_cue_visible",
         "method_token",
         "effective_url_template",
         "environment_fingerprint",
+        "environment_fingerprint_state_token",
         "credential_class",
         "credential_class_token",
+        "auth_source_class",
+        "auth_source_class_token",
         "auth_strategy",
         "auth_strategy_token",
         "expected_side_effects",
         "schema_freshness_token",
+        "schema_source_token",
+        "history_retention_token",
+        "portable_export_token",
         "readiness",
         "readiness_token",
         "requires_review_before_dispatch",
@@ -438,12 +746,17 @@
         "execution_context_ref": { "type": "string" },
         "target_class": { "$ref": "#/$defs/target_class" },
         "target_class_token": { "type": "string" },
+        "endpoint_identity_ref": { "type": "string" },
+        "endpoint_alias": { "type": "string" },
         "boundary_cue_visible": { "type": "boolean" },
         "method_token": { "type": "string" },
         "effective_url_template": { "type": "string" },
         "environment_fingerprint": { "type": "string" },
+        "environment_fingerprint_state_token": { "type": "string" },
         "credential_class": { "$ref": "#/$defs/credential_class" },
         "credential_class_token": { "type": "string" },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "auth_source_class_token": { "type": "string" },
         "auth_strategy": { "$ref": "#/$defs/auth_strategy_kind" },
         "auth_strategy_token": { "type": "string" },
         "expected_side_effects": {
@@ -451,6 +764,9 @@
           "items": { "$ref": "#/$defs/expected_side_effect_row" }
         },
         "schema_freshness_token": { "type": "string" },
+        "schema_source_token": { "type": "string" },
+        "history_retention_token": { "type": "string" },
+        "portable_export_token": { "type": "string" },
         "readiness": { "$ref": "#/$defs/send_inspector_readiness" },
         "readiness_token": { "type": "string" },
         "requires_review_before_dispatch": { "type": "boolean" },
@@ -473,8 +789,12 @@
         "generated_at",
         "records",
         "send_inspector_reports",
+        "portable_export_contracts",
         "any_requires_review",
-        "any_blocks_dispatch"
+        "any_blocks_dispatch",
+        "includes_raw_credentials",
+        "includes_raw_cookies",
+        "includes_raw_tokens"
       ],
       "properties": {
         "record_kind": { "const": "request_workspace_support_export_record" },
@@ -490,8 +810,15 @@
           "type": "array",
           "items": { "$ref": "#/$defs/request_workspace_send_inspector_record" }
         },
+        "portable_export_contracts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/portable_export_contract" }
+        },
         "any_requires_review": { "type": "boolean" },
-        "any_blocks_dispatch": { "type": "boolean" }
+        "any_blocks_dispatch": { "type": "boolean" },
+        "includes_raw_credentials": { "type": "boolean" },
+        "includes_raw_cookies": { "type": "boolean" },
+        "includes_raw_tokens": { "type": "boolean" }
       }
     }
   }

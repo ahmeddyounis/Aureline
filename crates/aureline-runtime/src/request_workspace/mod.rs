@@ -3,8 +3,9 @@
 //! One typed workspace for API / GraphQL request workflows so the product can
 //! claim request execution, inspectability, and export parity without
 //! inventing a second runtime truth model. The canonical record bundles the
-//! request document, the layered environment set, the auth/credential class,
-//! the assertion suite, the optional response artifact, and the schema
+//! request document, endpoint identity, the layered environment fingerprint,
+//! the auth-source/credential class, the assertion suite, the optional
+//! response artifact, response preview/export posture, and the schema
 //! snapshot for one workspace row, and binds them all to one canonical
 //! [`ExecutionContext`] reference via `execution_context_ref` and
 //! `target_class`.
@@ -22,9 +23,16 @@
 use serde::{Deserialize, Serialize};
 
 use crate::execution_context::TargetClass;
+use crate::request_workspace_contracts::{
+    AssertionEvidenceState, AssertionSuite, AssertionSuiteLineageClass, AuthSourceClass,
+    EndpointIdentity, EndpointSourceClass, EnvironmentFingerprintState, FingerprintDigestClass,
+    PortableExportClass, PortableExportContract, RequestEnvironmentFingerprint,
+    RequestHistoryPosture, ResponseCopyExportClass, ResponsePayloadSizeClass,
+    ResponsePreviewComponentClass, ResponsePreviewRule, ResponseSafePreviewClass,
+};
 
 /// Schema version of the request-workspace alpha lane records.
-pub const REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION: u32 = 1;
+pub const REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION: u32 = 2;
 
 /// Stable lane id for this bounded alpha contract.
 pub const REQUEST_WORKSPACE_ALPHA_LANE_ID: &str = "request_workspace_alpha";
@@ -186,6 +194,8 @@ pub struct EnvironmentSet {
     /// Effective fingerprint over the layered variable set. Used by the
     /// send inspector to prove the environment that backs a send.
     pub effective_fingerprint: String,
+    /// Structured fingerprint evidence for the resolved environment.
+    pub fingerprint: RequestEnvironmentFingerprint,
 }
 
 impl EnvironmentSet {
@@ -289,6 +299,12 @@ pub struct AuthProfile {
     pub credential_class: CredentialClass,
     /// Stable credential-class token.
     pub credential_class_token: String,
+    /// Auth source class explaining where credential material resolves.
+    pub auth_source_class: AuthSourceClass,
+    /// Stable auth-source-class token.
+    pub auth_source_class_token: String,
+    /// Human-safe auth source alias rendered in UI and support exports.
+    pub auth_source_alias: String,
     /// Broker handle refs in canonical order (empty when no credential
     /// material is required).
     #[serde(default)]
@@ -316,14 +332,47 @@ impl AuthProfile {
         broker_handle_refs: impl IntoIterator<Item = impl Into<String>>,
         refresh_metadata_ref: Option<String>,
     ) -> Self {
+        let auth_source_class = auth_source_class_for(strategy_kind, credential_class);
         Self {
             strategy_kind,
             strategy_kind_token: strategy_kind.as_str().to_owned(),
             credential_class,
             credential_class_token: credential_class.as_str().to_owned(),
+            auth_source_class,
+            auth_source_class_token: auth_source_class.as_str().to_owned(),
+            auth_source_alias: auth_source_alias_for(auth_source_class).to_owned(),
             broker_handle_refs: broker_handle_refs.into_iter().map(Into::into).collect(),
             refresh_metadata_ref,
         }
+    }
+}
+
+fn auth_source_class_for(
+    strategy_kind: AuthStrategyKind,
+    credential_class: CredentialClass,
+) -> AuthSourceClass {
+    match (strategy_kind, credential_class) {
+        (_, CredentialClass::RawInlineDisallowed) => AuthSourceClass::RawInlineDisallowed,
+        (_, CredentialClass::DelegatedIdentity) => AuthSourceClass::DelegatedIdentity,
+        (_, CredentialClass::PolicyInjectedToken) => AuthSourceClass::PolicyInjected,
+        (_, CredentialClass::MtlsCertificate) => AuthSourceClass::MtlsCertificateHandle,
+        (AuthStrategyKind::SignedRequest, _) => AuthSourceClass::SignedRequestHandle,
+        (AuthStrategyKind::None, CredentialClass::NoCredentials) => AuthSourceClass::NoAuth,
+        (_, CredentialClass::BrokerHandle) => AuthSourceClass::SecretBrokerHandle,
+        _ => AuthSourceClass::UnsupportedBlocked,
+    }
+}
+
+fn auth_source_alias_for(auth_source_class: AuthSourceClass) -> &'static str {
+    match auth_source_class {
+        AuthSourceClass::NoAuth => "No auth",
+        AuthSourceClass::SecretBrokerHandle => "Secret broker handle",
+        AuthSourceClass::DelegatedIdentity => "Delegated identity",
+        AuthSourceClass::PolicyInjected => "Policy injected credential",
+        AuthSourceClass::MtlsCertificateHandle => "mTLS certificate handle",
+        AuthSourceClass::SignedRequestHandle => "Signed request handle",
+        AuthSourceClass::RawInlineDisallowed => "Raw inline credential blocked",
+        AuthSourceClass::UnsupportedBlocked => "Unsupported auth source",
     }
 }
 
@@ -463,6 +512,10 @@ impl AssertionOutcomeClass {
 /// One assertion result row attached to a response artifact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AssertionResultRow {
+    /// Opaque result id.
+    pub result_id: String,
+    /// Suite that produced this result.
+    pub suite_id: String,
     /// Ref into the originating [`AssertionDescriptor::assertion_id`].
     pub assertion_ref: String,
     /// Outcome class.
@@ -474,6 +527,15 @@ pub struct AssertionResultRow {
     pub observed_token: Option<String>,
     /// Expected value token quoted from the descriptor at evaluation time.
     pub expected_token: String,
+    /// Evidence state distinguishing current runs from imported or stale
+    /// artifacts.
+    pub evidence_state: AssertionEvidenceState,
+    /// Stable evidence-state token.
+    pub evidence_state_token: String,
+    /// Opaque evidence ref safe for support exports.
+    pub evidence_ref: String,
+    /// Environment fingerprint used when this result was evaluated.
+    pub bound_environment_fingerprint_ref: String,
 }
 
 /// Closed response-preview vocabulary.
@@ -571,6 +633,13 @@ pub struct ResponseArtifact {
     pub redaction_class: ResponseRedactionClass,
     /// Stable redaction-class token.
     pub redaction_class_token: String,
+    /// Payload-size class used to decide preview and retention posture.
+    pub payload_size_class: ResponsePayloadSizeClass,
+    /// Stable payload-size-class token.
+    pub payload_size_class_token: String,
+    /// Safe-preview and representation-labeled copy/export rules.
+    #[serde(default)]
+    pub preview_rules: Vec<ResponsePreviewRule>,
     /// Assertion result rows.
     #[serde(default)]
     pub assertion_results: Vec<AssertionResultRow>,
@@ -616,6 +685,35 @@ impl SchemaSnapshotKind {
     }
 }
 
+/// Source class for schema snapshots bound to request workspaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SchemaSnapshotSourceClass {
+    /// Snapshot was captured from live introspection.
+    LiveIntrospection,
+    /// Snapshot came from a committed workspace file.
+    WorkspaceFile,
+    /// Snapshot came from a mirrored contract source.
+    MirroredSchema,
+    /// Snapshot came from an imported example or support bundle.
+    ImportedExample,
+    /// No schema snapshot was declared.
+    NoneDeclared,
+}
+
+impl SchemaSnapshotSourceClass {
+    /// Stable string token recorded in fixtures and support exports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LiveIntrospection => "live_introspection",
+            Self::WorkspaceFile => "workspace_file",
+            Self::MirroredSchema => "mirrored_schema",
+            Self::ImportedExample => "imported_example",
+            Self::NoneDeclared => "none_declared",
+        }
+    }
+}
+
 /// Closed schema-snapshot-freshness vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -652,6 +750,10 @@ pub struct SchemaSnapshot {
     pub kind: SchemaSnapshotKind,
     /// Stable snapshot-kind token.
     pub kind_token: String,
+    /// Source class for the snapshot.
+    pub source_class: SchemaSnapshotSourceClass,
+    /// Stable source-class token.
+    pub source_class_token: String,
     /// Opaque source ref (workspace file id, registry mirror id, or cache
     /// id). Empty when [`Self::kind`] is `none_declared`.
     pub source_ref: String,
@@ -804,6 +906,10 @@ pub struct SendInspectorReport {
     pub target_class: TargetClass,
     /// Stable target-class token.
     pub target_class_token: String,
+    /// Opaque endpoint identity ref.
+    pub endpoint_identity_ref: String,
+    /// Human-safe endpoint alias.
+    pub endpoint_alias: String,
     /// True when the local-vs-managed boundary cue MUST be rendered.
     pub boundary_cue_visible: bool,
     /// Method class.
@@ -813,10 +919,16 @@ pub struct SendInspectorReport {
     pub effective_url_template: String,
     /// Effective environment fingerprint.
     pub environment_fingerprint: String,
+    /// Structured environment-fingerprint state token.
+    pub environment_fingerprint_state_token: String,
     /// Credential class.
     pub credential_class: CredentialClass,
     /// Stable credential-class token.
     pub credential_class_token: String,
+    /// Auth source class.
+    pub auth_source_class: AuthSourceClass,
+    /// Stable auth-source-class token.
+    pub auth_source_class_token: String,
     /// Auth strategy.
     pub auth_strategy: AuthStrategyKind,
     /// Stable auth-strategy token.
@@ -825,6 +937,12 @@ pub struct SendInspectorReport {
     pub expected_side_effects: Vec<ExpectedSideEffectRow>,
     /// Schema snapshot freshness token.
     pub schema_freshness_token: String,
+    /// Schema snapshot source token.
+    pub schema_source_token: String,
+    /// Request history retention token.
+    pub history_retention_token: String,
+    /// Portable export class token.
+    pub portable_export_token: String,
     /// Readiness band.
     pub readiness: SendInspectorReadiness,
     /// Stable readiness token.
@@ -862,6 +980,8 @@ pub struct RequestWorkspaceAlphaRecord {
     pub target_class: TargetClass,
     /// Stable target-class token.
     pub target_class_token: String,
+    /// Endpoint identity bound to the request.
+    pub endpoint_identity: EndpointIdentity,
     /// True when the local-vs-managed boundary cue MUST be rendered on this
     /// row.
     pub boundary_cue_visible: bool,
@@ -874,6 +994,8 @@ pub struct RequestWorkspaceAlphaRecord {
     /// Assertion suite authored against the request.
     #[serde(default)]
     pub assertions: Vec<AssertionDescriptor>,
+    /// Typed assertion suite carrying lineage for the authored assertions.
+    pub assertion_suite: AssertionSuite<AssertionDescriptor>,
     /// Schema snapshot bound to the target endpoint.
     pub schema_snapshot: SchemaSnapshot,
     /// Expected side-effect rows. The inspector renders these verbatim.
@@ -883,6 +1005,10 @@ pub struct RequestWorkspaceAlphaRecord {
     /// have not been sent yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub response_artifact: Option<ResponseArtifact>,
+    /// Local history and redaction posture for this request run.
+    pub history_posture: RequestHistoryPosture,
+    /// Portable export posture for aliases, evidence, and redaction.
+    pub portable_export: PortableExportContract,
     /// Review-safe summary.
     pub summary: String,
 }
@@ -893,11 +1019,13 @@ impl RequestWorkspaceAlphaRecord {
         let readiness = self.derive_readiness();
         let banners = self.derive_banners(readiness);
         let summary_line = format!(
-            "request={} method={} target={} credential={} readiness={} side_effects={}",
+            "request={} method={} target={} endpoint={} credential={} auth_source={} readiness={} side_effects={}",
             self.request.request_id,
             self.request.method_token,
             self.target_class_token,
+            self.endpoint_identity.endpoint_alias,
             self.auth.credential_class_token,
+            self.auth.auth_source_class_token,
             readiness.as_str(),
             if self.expected_side_effects.is_empty() {
                 "none".to_owned()
@@ -917,16 +1045,24 @@ impl RequestWorkspaceAlphaRecord {
             execution_context_ref: self.execution_context_ref.clone(),
             target_class: self.target_class,
             target_class_token: self.target_class_token.clone(),
+            endpoint_identity_ref: self.endpoint_identity.endpoint_identity_ref.clone(),
+            endpoint_alias: self.endpoint_identity.endpoint_alias.clone(),
             boundary_cue_visible: self.boundary_cue_visible,
             method_token: self.request.method_token.clone(),
             effective_url_template: self.request.url_template.clone(),
             environment_fingerprint: self.environment.effective_fingerprint.clone(),
+            environment_fingerprint_state_token: self.environment.fingerprint.state_token.clone(),
             credential_class: self.auth.credential_class,
             credential_class_token: self.auth.credential_class_token.clone(),
+            auth_source_class: self.auth.auth_source_class,
+            auth_source_class_token: self.auth.auth_source_class_token.clone(),
             auth_strategy: self.auth.strategy_kind,
             auth_strategy_token: self.auth.strategy_kind_token.clone(),
             expected_side_effects: self.expected_side_effects.clone(),
             schema_freshness_token: self.schema_snapshot.freshness_token.clone(),
+            schema_source_token: self.schema_snapshot.source_class_token.clone(),
+            history_retention_token: self.history_posture.retention_class_token.clone(),
+            portable_export_token: self.portable_export.export_class_token.clone(),
             readiness,
             readiness_token: readiness.as_str().to_owned(),
             requires_review_before_dispatch: readiness.requires_review(),
@@ -968,6 +1104,69 @@ impl RequestWorkspaceAlphaRecord {
                 "request workspaces must not persist raw inline credentials",
             ));
         }
+        if !self
+            .auth
+            .auth_source_class
+            .is_portable_without_secret_material()
+        {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "auth_source_not_portable",
+                "auth.auth_source_class",
+                "auth source must resolve to a secret-safe portable class",
+            ));
+        }
+        if self.auth.auth_source_class_token != self.auth.auth_source_class.as_str() {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "auth_source_token_mismatch",
+                "auth.auth_source_class_token",
+                "auth_source_class_token must match auth_source_class",
+            ));
+        }
+        if self.endpoint_identity.source_class_token != self.endpoint_identity.source_class.as_str()
+        {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "endpoint_source_token_mismatch",
+                "endpoint_identity.source_class_token",
+                "endpoint source token must match endpoint source class",
+            ));
+        }
+        if self.endpoint_identity.silent_retarget_allowed {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "silent_retarget_allowed",
+                "endpoint_identity.silent_retarget_allowed",
+                "request workspaces must not silently retarget endpoints",
+            ));
+        }
+        if self.environment.effective_fingerprint != self.environment.fingerprint.fingerprint_ref {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "environment_fingerprint_ref_mismatch",
+                "environment.fingerprint",
+                "environment effective fingerprint must match the structured fingerprint ref",
+            ));
+        }
+        if self.environment.environment_id != self.environment.fingerprint.environment_id {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "environment_fingerprint_environment_mismatch",
+                "environment.fingerprint.environment_id",
+                "environment fingerprint must cite the same environment id",
+            ));
+        }
+        if self.environment.fingerprint.endpoint_identity_ref
+            != self.endpoint_identity.endpoint_identity_ref
+        {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "environment_endpoint_mismatch",
+                "environment.fingerprint.endpoint_identity_ref",
+                "environment fingerprint must cite the bound endpoint identity",
+            ));
+        }
+        if self.environment.fingerprint.state_token != self.environment.fingerprint.state.as_str() {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "environment_fingerprint_state_token_mismatch",
+                "environment.fingerprint.state_token",
+                "environment fingerprint state token must match the state",
+            ));
+        }
         for layer in &self.environment.layered_variables {
             if layer.is_secret_handle && layer.value_token.is_some() {
                 issues.push(RequestWorkspaceAlphaViolation::new(
@@ -1000,6 +1199,20 @@ impl RequestWorkspaceAlphaRecord {
                 "boundary_cue_visible must follow the canonical target-class rule",
             ));
         }
+        if self.schema_snapshot.source_class_token != self.schema_snapshot.source_class.as_str() {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "schema_source_token_mismatch",
+                "schema_snapshot.source_class_token",
+                "schema source token must match the source class",
+            ));
+        }
+        if self.schema_snapshot.target_endpoint_id != self.endpoint_identity.target_endpoint_id {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "schema_endpoint_mismatch",
+                "schema_snapshot.target_endpoint_id",
+                "schema snapshot endpoint must match the bound endpoint identity",
+            ));
+        }
         if self
             .expected_side_effects
             .iter()
@@ -1011,9 +1224,69 @@ impl RequestWorkspaceAlphaRecord {
                 "expected_side_effects rows must carry canonical class tokens",
             ));
         }
+        if self.assertion_suite.lineage_class_token != self.assertion_suite.lineage_class.as_str() {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "assertion_suite_lineage_token_mismatch",
+                "assertion_suite.lineage_class_token",
+                "assertion suite lineage token must match the lineage class",
+            ));
+        }
+        if self.assertion_suite.assertions != self.assertions {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "assertion_suite_descriptor_drift",
+                "assertion_suite.assertions",
+                "assertion suite descriptors must match the authored assertion list",
+            ));
+        }
+        if self.history_posture.sync_enabled_by_default
+            || self.history_posture.raw_payload_retained_by_default
+            || !self.history_posture.redactable
+        {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "history_not_local_first_redactable",
+                "history_posture",
+                "request history must be local-first, redactable, and raw-payload-light by default",
+            ));
+        }
+        if !self.portable_export.excludes_raw_secret_material() {
+            issues.push(RequestWorkspaceAlphaViolation::new(
+                "portable_export_raw_secret_material",
+                "portable_export",
+                "portable exports must not include raw credentials, cookies, or tokens by default",
+            ));
+        }
         if let Some(response) = &self.response_artifact {
+            if response.payload_size_class_token != response.payload_size_class.as_str() {
+                issues.push(RequestWorkspaceAlphaViolation::new(
+                    "response_payload_size_token_mismatch",
+                    "response_artifact.payload_size_class_token",
+                    "response payload-size token must match the payload-size class",
+                ));
+            }
+            for rule in &response.preview_rules {
+                if rule.component_token != rule.component.as_str()
+                    || rule.safe_preview_class_token != rule.safe_preview_class.as_str()
+                    || rule.copy_export_class_token != rule.copy_export_class.as_str()
+                {
+                    issues.push(RequestWorkspaceAlphaViolation::new(
+                        "response_preview_rule_token_mismatch",
+                        "response_artifact.preview_rules",
+                        "response preview rules must carry canonical class tokens",
+                    ));
+                    break;
+                }
+                if !rule.copy_export_class.is_default_portable() {
+                    issues.push(RequestWorkspaceAlphaViolation::new(
+                        "response_preview_not_default_portable",
+                        "response_artifact.preview_rules",
+                        "portable response preview rules must not default to raw local-only export",
+                    ));
+                    break;
+                }
+            }
             for row in &response.assertion_results {
                 let referenced = self
+                    .assertion_suite
                     .assertions
                     .iter()
                     .any(|descriptor| descriptor.assertion_id == row.assertion_ref);
@@ -1025,13 +1298,45 @@ impl RequestWorkspaceAlphaRecord {
                     ));
                     break;
                 }
+                if row.suite_id != self.assertion_suite.suite_id {
+                    issues.push(RequestWorkspaceAlphaViolation::new(
+                        "assertion_result_suite_mismatch",
+                        "response_artifact.assertion_results",
+                        "assertion result must cite the bound assertion suite",
+                    ));
+                    break;
+                }
+                if row.evidence_state_token != row.evidence_state.as_str() {
+                    issues.push(RequestWorkspaceAlphaViolation::new(
+                        "assertion_evidence_state_token_mismatch",
+                        "response_artifact.assertion_results",
+                        "assertion evidence-state token must match the evidence state",
+                    ));
+                    break;
+                }
+                if row.bound_environment_fingerprint_ref
+                    != self.environment.fingerprint.fingerprint_ref
+                    && row.evidence_state == AssertionEvidenceState::CurrentLocalRun
+                {
+                    issues.push(RequestWorkspaceAlphaViolation::new(
+                        "assertion_result_environment_mismatch",
+                        "response_artifact.assertion_results",
+                        "current assertion results must cite the current environment fingerprint",
+                    ));
+                    break;
+                }
             }
         }
         issues
     }
 
     fn derive_readiness(&self) -> SendInspectorReadiness {
-        if !self.auth.credential_class.is_safe_to_dispatch() {
+        if !self.auth.credential_class.is_safe_to_dispatch()
+            || !self
+                .auth
+                .auth_source_class
+                .is_portable_without_secret_material()
+        {
             return SendInspectorReadiness::BlockedMissingCredential;
         }
         if self.schema_snapshot.kind != SchemaSnapshotKind::NoneDeclared
@@ -1176,10 +1481,18 @@ pub struct RequestWorkspaceSupportExport {
     pub records: Vec<RequestWorkspaceAlphaRecord>,
     /// Bundled send-inspector reports, one per record, in the same order.
     pub send_inspector_reports: Vec<SendInspectorReport>,
+    /// Portable export contracts, one per record, in the same order.
+    pub portable_export_contracts: Vec<PortableExportContract>,
     /// True when any bundled report requires review before dispatch.
     pub any_requires_review: bool,
     /// True when any bundled report blocks dispatch outright.
     pub any_blocks_dispatch: bool,
+    /// True when raw credential material is included in the export.
+    pub includes_raw_credentials: bool,
+    /// True when raw cookie material is included in the export.
+    pub includes_raw_cookies: bool,
+    /// True when raw token material is included in the export.
+    pub includes_raw_tokens: bool,
 }
 
 impl RequestWorkspaceSupportExport {
@@ -1202,6 +1515,19 @@ impl RequestWorkspaceSupportExport {
         let any_blocks_dispatch = send_inspector_reports
             .iter()
             .any(|report| report.blocks_dispatch);
+        let portable_export_contracts: Vec<PortableExportContract> = records
+            .iter()
+            .map(|record| record.portable_export.clone())
+            .collect();
+        let includes_raw_credentials = portable_export_contracts
+            .iter()
+            .any(|contract| contract.includes_raw_credentials);
+        let includes_raw_cookies = portable_export_contracts
+            .iter()
+            .any(|contract| contract.includes_raw_cookies);
+        let includes_raw_tokens = portable_export_contracts
+            .iter()
+            .any(|contract| contract.includes_raw_tokens);
         Self {
             record_kind: REQUEST_WORKSPACE_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
             schema_version: REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION,
@@ -1210,8 +1536,12 @@ impl RequestWorkspaceSupportExport {
             generated_at: generated_at.into(),
             records,
             send_inspector_reports,
+            portable_export_contracts,
             any_requires_review,
             any_blocks_dispatch,
+            includes_raw_credentials,
+            includes_raw_cookies,
+            includes_raw_tokens,
         }
     }
 
@@ -1230,6 +1560,18 @@ impl RequestWorkspaceSupportExport {
         out.push_str(&format!(
             "  any_blocks_dispatch: {}\n",
             self.any_blocks_dispatch
+        ));
+        out.push_str(&format!(
+            "  includes_raw_credentials: {}\n",
+            self.includes_raw_credentials
+        ));
+        out.push_str(&format!(
+            "  includes_raw_cookies: {}\n",
+            self.includes_raw_cookies
+        ));
+        out.push_str(&format!(
+            "  includes_raw_tokens: {}\n",
+            self.includes_raw_tokens
         ));
         for report in &self.send_inspector_reports {
             out.push_str(&format!(
@@ -1268,15 +1610,19 @@ pub enum RequestWorkspaceSeededScenario {
     /// GraphQL operation against a remote target with no auth and a
     /// fresh schema; the send inspector flags it as review-required.
     RemoteGraphqlNoAuth,
+    /// Imported stale response evidence with a failed assertion and
+    /// export-safe preview/copy posture.
+    ImportedStaleAssertionExportTruth,
 }
 
 impl RequestWorkspaceSeededScenario {
     /// Every seeded scenario in canonical order.
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 5] = [
         Self::LocalReadOnlyGet,
         Self::RemoteMutatingPostStaleSchema,
         Self::ManagedDeleteMissingSchema,
         Self::RemoteGraphqlNoAuth,
+        Self::ImportedStaleAssertionExportTruth,
     ];
 
     /// Stable string token recorded in CLI output and reviewer fixtures.
@@ -1286,6 +1632,7 @@ impl RequestWorkspaceSeededScenario {
             Self::RemoteMutatingPostStaleSchema => "remote_mutating_post_stale_schema",
             Self::ManagedDeleteMissingSchema => "managed_delete_missing_schema",
             Self::RemoteGraphqlNoAuth => "remote_graphql_no_auth",
+            Self::ImportedStaleAssertionExportTruth => "imported_stale_assertion_export_truth",
         }
     }
 }
@@ -1303,6 +1650,9 @@ pub fn seeded_request_workspace_record(
             managed_delete_missing_schema_record()
         }
         RequestWorkspaceSeededScenario::RemoteGraphqlNoAuth => remote_graphql_no_auth_record(),
+        RequestWorkspaceSeededScenario::ImportedStaleAssertionExportTruth => {
+            imported_stale_assertion_export_truth_record()
+        }
     }
 }
 
@@ -1325,6 +1675,139 @@ pub fn seeded_request_workspace_support_export(
     RequestWorkspaceSupportExport::from_records(manifest_id, generated_at, records)
 }
 
+fn current_environment_fingerprint(
+    fingerprint_ref: &str,
+    environment_id: &str,
+    endpoint_identity: &EndpointIdentity,
+    layer_refs: &[&str],
+) -> RequestEnvironmentFingerprint {
+    RequestEnvironmentFingerprint::new(
+        fingerprint_ref,
+        FingerprintDigestClass::Sha256,
+        environment_id,
+        endpoint_identity.endpoint_identity_ref.clone(),
+        layer_refs.iter().copied(),
+        EnvironmentFingerprintState::CurrentLocalResolution,
+        "2026-05-15T00:00:00Z",
+    )
+}
+
+fn imported_environment_fingerprint(
+    fingerprint_ref: &str,
+    environment_id: &str,
+    endpoint_identity: &EndpointIdentity,
+    layer_refs: &[&str],
+) -> RequestEnvironmentFingerprint {
+    RequestEnvironmentFingerprint::new(
+        fingerprint_ref,
+        FingerprintDigestClass::OpaqueStable,
+        environment_id,
+        endpoint_identity.endpoint_identity_ref.clone(),
+        layer_refs.iter().copied(),
+        EnvironmentFingerprintState::StaleRequiresReview,
+        "2026-05-12T00:00:00Z",
+    )
+}
+
+fn assertion_suite(
+    suite_id: &str,
+    suite_alias: &str,
+    lineage_class: AssertionSuiteLineageClass,
+    assertions: &[AssertionDescriptor],
+) -> AssertionSuite<AssertionDescriptor> {
+    AssertionSuite::new(suite_id, suite_alias, lineage_class, assertions.to_vec())
+}
+
+fn assertion_result(
+    result_id: &str,
+    suite_id: &str,
+    assertion_ref: &str,
+    outcome: AssertionOutcomeClass,
+    observed_token: Option<&str>,
+    expected_token: &str,
+    evidence_state: AssertionEvidenceState,
+    evidence_ref: &str,
+    bound_environment_fingerprint_ref: &str,
+) -> AssertionResultRow {
+    AssertionResultRow {
+        result_id: result_id.to_owned(),
+        suite_id: suite_id.to_owned(),
+        assertion_ref: assertion_ref.to_owned(),
+        outcome,
+        outcome_token: outcome.as_str().to_owned(),
+        observed_token: observed_token.map(str::to_owned),
+        expected_token: expected_token.to_owned(),
+        evidence_state,
+        evidence_state_token: evidence_state.as_str().to_owned(),
+        evidence_ref: evidence_ref.to_owned(),
+        bound_environment_fingerprint_ref: bound_environment_fingerprint_ref.to_owned(),
+    }
+}
+
+fn json_response_preview_rules() -> Vec<ResponsePreviewRule> {
+    vec![
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::Body,
+            ResponseSafePreviewClass::JsonTree,
+            "body:json_tree:redacted",
+            ResponseCopyExportClass::StructuredSummaryWithLabel,
+        ),
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::Headers,
+            ResponseSafePreviewClass::MetadataOnly,
+            "headers:metadata_only",
+            ResponseCopyExportClass::StructuredSummaryWithLabel,
+        ),
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::Cookies,
+            ResponseSafePreviewClass::Redacted,
+            "cookies:redacted",
+            ResponseCopyExportClass::RedactedWithLabel,
+        ),
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::Tokens,
+            ResponseSafePreviewClass::DigestOnly,
+            "tokens:digest_only",
+            ResponseCopyExportClass::DigestOnlyWithLabel,
+        ),
+    ]
+}
+
+fn large_imported_response_preview_rules() -> Vec<ResponsePreviewRule> {
+    vec![
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::Body,
+            ResponseSafePreviewClass::LargePayloadSummary,
+            "body:large_payload_summary:imported",
+            ResponseCopyExportClass::StructuredSummaryWithLabel,
+        ),
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::Headers,
+            ResponseSafePreviewClass::MetadataOnly,
+            "headers:metadata_only:imported",
+            ResponseCopyExportClass::StructuredSummaryWithLabel,
+        ),
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::Cookies,
+            ResponseSafePreviewClass::Redacted,
+            "cookies:redacted:imported",
+            ResponseCopyExportClass::RedactedWithLabel,
+        ),
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::Tokens,
+            ResponseSafePreviewClass::DigestOnly,
+            "tokens:digest_only:imported",
+            ResponseCopyExportClass::DigestOnlyWithLabel,
+        ),
+        ResponsePreviewRule::new(
+            ResponsePreviewComponentClass::LargePayload,
+            ResponseSafePreviewClass::LargePayloadSummary,
+            "payload:large_summary_only",
+            ResponseCopyExportClass::DigestOnlyWithLabel,
+        ),
+    ]
+}
+
 fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
     let mut request = RequestDocument::new(
         "req:local:read_only_get",
@@ -1337,6 +1820,14 @@ fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
         "assert:latency_under_250ms".to_owned(),
     ];
     request.collection_tags = vec!["payments".to_owned(), "read_only".to_owned()];
+
+    let endpoint_identity = EndpointIdentity::new(
+        "endpoint_identity:payments:dev",
+        "payments-dev",
+        "endpoint:payments:v1",
+        EndpointSourceClass::EnvironmentLayer,
+        false,
+    );
 
     let environment = EnvironmentSet {
         environment_id: "env:dev".to_owned(),
@@ -1358,6 +1849,16 @@ fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
             EnvironmentVariableLayer::secret_handle("api_token", "secret://payments/api-token"),
         ],
         effective_fingerprint: "env:fp:dev:read_only_get:01".to_owned(),
+        fingerprint: current_environment_fingerprint(
+            "env:fp:dev:read_only_get:01",
+            "env:dev",
+            &endpoint_identity,
+            &[
+                "profile:dev",
+                "session:override:001",
+                "secret://payments/api-token",
+            ],
+        ),
     };
 
     let auth = AuthProfile::new(
@@ -1385,6 +1886,8 @@ fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
     let schema_snapshot = SchemaSnapshot {
         kind: SchemaSnapshotKind::Openapi,
         kind_token: SchemaSnapshotKind::Openapi.as_str().to_owned(),
+        source_class: SchemaSnapshotSourceClass::WorkspaceFile,
+        source_class_token: SchemaSnapshotSourceClass::WorkspaceFile.as_str().to_owned(),
         source_ref: "schema:payments:openapi:v1".to_owned(),
         digest: "sha256:openapi:payments:fresh".to_owned(),
         freshness: SchemaSnapshotFreshness::Current,
@@ -1396,6 +1899,13 @@ fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
         SideEffectClass::ReadOnlyGet,
         "Read-only payment lookup",
     )];
+
+    let assertion_suite = assertion_suite(
+        "suite:payments:read_only_get",
+        "payments read-only checks",
+        AssertionSuiteLineageClass::CurrentLocal,
+        &assertions,
+    );
 
     let response_artifact = Some(ResponseArtifact {
         status_code: 200,
@@ -1410,21 +1920,32 @@ fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
         redaction_class_token: ResponseRedactionClass::StructuredTokensOnly
             .as_str()
             .to_owned(),
+        payload_size_class: ResponsePayloadSizeClass::Small,
+        payload_size_class_token: ResponsePayloadSizeClass::Small.as_str().to_owned(),
+        preview_rules: json_response_preview_rules(),
         assertion_results: vec![
-            AssertionResultRow {
-                assertion_ref: "assert:status_200".to_owned(),
-                outcome: AssertionOutcomeClass::Passed,
-                outcome_token: AssertionOutcomeClass::Passed.as_str().to_owned(),
-                observed_token: Some("200".to_owned()),
-                expected_token: "200".to_owned(),
-            },
-            AssertionResultRow {
-                assertion_ref: "assert:latency_under_250ms".to_owned(),
-                outcome: AssertionOutcomeClass::Passed,
-                outcome_token: AssertionOutcomeClass::Passed.as_str().to_owned(),
-                observed_token: Some("under_250_ms".to_owned()),
-                expected_token: "under_250_ms".to_owned(),
-            },
+            assertion_result(
+                "result:local:status_200",
+                "suite:payments:read_only_get",
+                "assert:status_200",
+                AssertionOutcomeClass::Passed,
+                Some("200"),
+                "200",
+                AssertionEvidenceState::CurrentLocalRun,
+                "evidence:request:local:read_only_get:status",
+                "env:fp:dev:read_only_get:01",
+            ),
+            assertion_result(
+                "result:local:latency_under_250ms",
+                "suite:payments:read_only_get",
+                "assert:latency_under_250ms",
+                AssertionOutcomeClass::Passed,
+                Some("under_250_ms"),
+                "under_250_ms",
+                AssertionEvidenceState::CurrentLocalRun,
+                "evidence:request:local:read_only_get:latency",
+                "env:fp:dev:read_only_get:01",
+            ),
         ],
     });
 
@@ -1439,14 +1960,26 @@ fn local_read_only_get_record() -> RequestWorkspaceAlphaRecord {
         execution_context_ref: "exec:ws-request-workspace-alpha:task:0".to_owned(),
         target_class,
         target_class_token: target_class.as_str().to_owned(),
+        endpoint_identity,
         boundary_cue_visible: target_class.is_remote_or_managed(),
         request,
         environment,
         auth,
         assertions,
+        assertion_suite,
         schema_snapshot,
         expected_side_effects,
         response_artifact,
+        history_posture: RequestHistoryPosture::local_redactable(),
+        portable_export: PortableExportContract::new(
+            PortableExportClass::RedactedResponseSummary,
+            "aliases:payments:dev",
+            "request_safe_default",
+            [
+                "evidence:request:local:read_only_get:status",
+                "evidence:request:local:read_only_get:latency",
+            ],
+        ),
         summary: "Local read-only GET against payments lookup, broker-handle credential."
             .to_owned(),
     }
@@ -1463,6 +1996,14 @@ fn remote_mutating_post_stale_schema_record() -> RequestWorkspaceAlphaRecord {
     request.assertion_refs = vec!["assert:status_202".to_owned()];
     request.collection_tags = vec!["payments".to_owned(), "refund".to_owned()];
 
+    let endpoint_identity = EndpointIdentity::new(
+        "endpoint_identity:payments:staging",
+        "payments-staging",
+        "endpoint:payments:v1",
+        EndpointSourceClass::EnvironmentLayer,
+        false,
+    );
+
     let environment = EnvironmentSet {
         environment_id: "env:staging".to_owned(),
         scope_label: "workspace.profile.staging".to_owned(),
@@ -1477,6 +2018,12 @@ fn remote_mutating_post_stale_schema_record() -> RequestWorkspaceAlphaRecord {
             EnvironmentVariableLayer::secret_handle("api_token", "secret://payments/api-token"),
         ],
         effective_fingerprint: "env:fp:staging:mutating_post:01".to_owned(),
+        fingerprint: current_environment_fingerprint(
+            "env:fp:staging:mutating_post:01",
+            "env:staging",
+            &endpoint_identity,
+            &["profile:staging", "secret://payments/api-token"],
+        ),
     };
 
     let auth = AuthProfile::new(
@@ -1496,6 +2043,10 @@ fn remote_mutating_post_stale_schema_record() -> RequestWorkspaceAlphaRecord {
     let schema_snapshot = SchemaSnapshot {
         kind: SchemaSnapshotKind::Openapi,
         kind_token: SchemaSnapshotKind::Openapi.as_str().to_owned(),
+        source_class: SchemaSnapshotSourceClass::MirroredSchema,
+        source_class_token: SchemaSnapshotSourceClass::MirroredSchema
+            .as_str()
+            .to_owned(),
         source_ref: "schema:payments:openapi:v1".to_owned(),
         digest: "sha256:openapi:payments:stale".to_owned(),
         freshness: SchemaSnapshotFreshness::StaleUnderWeek,
@@ -1508,6 +2059,13 @@ fn remote_mutating_post_stale_schema_record() -> RequestWorkspaceAlphaRecord {
         "Refund mutates payment state and is not idempotent",
     )];
 
+    let assertion_suite = assertion_suite(
+        "suite:payments:refund",
+        "payments refund checks",
+        AssertionSuiteLineageClass::MirroredSchema,
+        &assertions,
+    );
+
     let target_class = TargetClass::SshRemote;
     RequestWorkspaceAlphaRecord {
         record_kind: REQUEST_WORKSPACE_ALPHA_RECORD_KIND.to_owned(),
@@ -1519,14 +2077,23 @@ fn remote_mutating_post_stale_schema_record() -> RequestWorkspaceAlphaRecord {
         execution_context_ref: "exec:ws-request-workspace-alpha:task:1".to_owned(),
         target_class,
         target_class_token: target_class.as_str().to_owned(),
+        endpoint_identity,
         boundary_cue_visible: target_class.is_remote_or_managed(),
         request,
         environment,
         auth,
         assertions,
+        assertion_suite,
         schema_snapshot,
         expected_side_effects,
         response_artifact: None,
+        history_posture: RequestHistoryPosture::local_redactable(),
+        portable_export: PortableExportContract::new(
+            PortableExportClass::MetadataAliasesAndEvidence,
+            "aliases:payments:staging",
+            "request_safe_default",
+            ["evidence:request:remote:mutating_post:inspector"],
+        ),
         summary: "Mutating POST against staging refund endpoint, stale schema snapshot.".to_owned(),
     }
 }
@@ -1540,6 +2107,14 @@ fn managed_delete_missing_schema_record() -> RequestWorkspaceAlphaRecord {
     request.header_refs.push("headers:default_json".to_owned());
     request.assertion_refs = vec!["assert:status_204".to_owned()];
     request.collection_tags = vec!["payments".to_owned(), "destructive".to_owned()];
+
+    let endpoint_identity = EndpointIdentity::new(
+        "endpoint_identity:payments:managed",
+        "payments-managed",
+        "endpoint:payments:v1",
+        EndpointSourceClass::EnvironmentLayer,
+        false,
+    );
 
     let environment = EnvironmentSet {
         environment_id: "env:managed".to_owned(),
@@ -1564,6 +2139,16 @@ fn managed_delete_missing_schema_record() -> RequestWorkspaceAlphaRecord {
             ),
         ],
         effective_fingerprint: "env:fp:managed:destructive_delete:01".to_owned(),
+        fingerprint: current_environment_fingerprint(
+            "env:fp:managed:destructive_delete:01",
+            "env:managed",
+            &endpoint_identity,
+            &[
+                "profile:managed",
+                "session:override:002",
+                "secret://payments/managed-api-token",
+            ],
+        ),
     };
 
     let auth = AuthProfile::new(
@@ -1583,6 +2168,8 @@ fn managed_delete_missing_schema_record() -> RequestWorkspaceAlphaRecord {
     let schema_snapshot = SchemaSnapshot {
         kind: SchemaSnapshotKind::Openapi,
         kind_token: SchemaSnapshotKind::Openapi.as_str().to_owned(),
+        source_class: SchemaSnapshotSourceClass::NoneDeclared,
+        source_class_token: SchemaSnapshotSourceClass::NoneDeclared.as_str().to_owned(),
         source_ref: "".to_owned(),
         digest: "".to_owned(),
         freshness: SchemaSnapshotFreshness::Missing,
@@ -1595,6 +2182,13 @@ fn managed_delete_missing_schema_record() -> RequestWorkspaceAlphaRecord {
         "Destructive refund deletion against managed-workspace endpoint",
     )];
 
+    let assertion_suite = assertion_suite(
+        "suite:payments:managed_delete",
+        "managed refund delete checks",
+        AssertionSuiteLineageClass::CurrentLocal,
+        &assertions,
+    );
+
     let target_class = TargetClass::ManagedWorkspace;
     RequestWorkspaceAlphaRecord {
         record_kind: REQUEST_WORKSPACE_ALPHA_RECORD_KIND.to_owned(),
@@ -1606,14 +2200,23 @@ fn managed_delete_missing_schema_record() -> RequestWorkspaceAlphaRecord {
         execution_context_ref: "exec:ws-request-workspace-alpha:task:2".to_owned(),
         target_class,
         target_class_token: target_class.as_str().to_owned(),
+        endpoint_identity,
         boundary_cue_visible: target_class.is_remote_or_managed(),
         request,
         environment,
         auth,
         assertions,
+        assertion_suite,
         schema_snapshot,
         expected_side_effects,
         response_artifact: None,
+        history_posture: RequestHistoryPosture::local_redactable(),
+        portable_export: PortableExportContract::new(
+            PortableExportClass::MetadataAliasesAndEvidence,
+            "aliases:payments:managed",
+            "request_safe_default",
+            ["evidence:request:managed:delete:inspector"],
+        ),
         summary: "Destructive DELETE against managed-workspace endpoint with missing schema."
             .to_owned(),
     }
@@ -1629,6 +2232,14 @@ fn remote_graphql_no_auth_record() -> RequestWorkspaceAlphaRecord {
     request.assertion_refs = vec!["assert:status_200".to_owned()];
     request.collection_tags = vec!["graphql".to_owned(), "public".to_owned()];
 
+    let endpoint_identity = EndpointIdentity::new(
+        "endpoint_identity:public:graphql",
+        "public-graphql",
+        "endpoint:public:graphql",
+        EndpointSourceClass::EnvironmentLayer,
+        false,
+    );
+
     let environment = EnvironmentSet {
         environment_id: "env:public".to_owned(),
         scope_label: "workspace.profile.public".to_owned(),
@@ -1640,6 +2251,12 @@ fn remote_graphql_no_auth_record() -> RequestWorkspaceAlphaRecord {
             "https://graphql.public.example.com/v1",
         )],
         effective_fingerprint: "env:fp:public:graphql:01".to_owned(),
+        fingerprint: current_environment_fingerprint(
+            "env:fp:public:graphql:01",
+            "env:public",
+            &endpoint_identity,
+            &["profile:public"],
+        ),
     };
 
     let auth = AuthProfile::none();
@@ -1654,6 +2271,10 @@ fn remote_graphql_no_auth_record() -> RequestWorkspaceAlphaRecord {
     let schema_snapshot = SchemaSnapshot {
         kind: SchemaSnapshotKind::GraphqlSdl,
         kind_token: SchemaSnapshotKind::GraphqlSdl.as_str().to_owned(),
+        source_class: SchemaSnapshotSourceClass::LiveIntrospection,
+        source_class_token: SchemaSnapshotSourceClass::LiveIntrospection
+            .as_str()
+            .to_owned(),
         source_ref: "schema:public:graphql:sdl".to_owned(),
         digest: "sha256:graphql:public:fresh".to_owned(),
         freshness: SchemaSnapshotFreshness::Current,
@@ -1666,6 +2287,13 @@ fn remote_graphql_no_auth_record() -> RequestWorkspaceAlphaRecord {
         "GraphQL introspection / read query against the public schema",
     )];
 
+    let assertion_suite = assertion_suite(
+        "suite:public:graphql",
+        "public GraphQL checks",
+        AssertionSuiteLineageClass::CurrentLocal,
+        &assertions,
+    );
+
     let target_class = TargetClass::SshRemote;
     RequestWorkspaceAlphaRecord {
         record_kind: REQUEST_WORKSPACE_ALPHA_RECORD_KIND.to_owned(),
@@ -1677,15 +2305,201 @@ fn remote_graphql_no_auth_record() -> RequestWorkspaceAlphaRecord {
         execution_context_ref: "exec:ws-request-workspace-alpha:task:3".to_owned(),
         target_class,
         target_class_token: target_class.as_str().to_owned(),
+        endpoint_identity,
         boundary_cue_visible: target_class.is_remote_or_managed(),
         request,
         environment,
         auth,
         assertions,
+        assertion_suite,
         schema_snapshot,
         expected_side_effects,
         response_artifact: None,
+        history_posture: RequestHistoryPosture::local_redactable(),
+        portable_export: PortableExportContract::new(
+            PortableExportClass::MetadataAliasesAndEvidence,
+            "aliases:public:graphql",
+            "request_safe_default",
+            ["evidence:request:remote:graphql_no_auth:inspector"],
+        ),
         summary: "GraphQL operation against public endpoint with no auth.".to_owned(),
+    }
+}
+
+fn imported_stale_assertion_export_truth_record() -> RequestWorkspaceAlphaRecord {
+    let mut request = RequestDocument::new(
+        "req:imported:stale_assertion",
+        RequestMethodClass::Get,
+        "{{api_base}}/v1/reports/{{report_id}}",
+    );
+    request.header_refs.push("headers:imported_json".to_owned());
+    request.assertion_refs = vec![
+        "assert:status_200".to_owned(),
+        "assert:body_state_ready".to_owned(),
+    ];
+    request.collection_tags = vec!["reports".to_owned(), "imported_example".to_owned()];
+
+    let endpoint_identity = EndpointIdentity::new(
+        "endpoint_identity:reports:imported",
+        "reports-imported",
+        "endpoint:reports:v1",
+        EndpointSourceClass::ImportedExample,
+        false,
+    );
+
+    let environment = EnvironmentSet {
+        environment_id: "env:imported".to_owned(),
+        scope_label: "imported.bundle.example".to_owned(),
+        base_url_template: "https://api.imported.example.com".to_owned(),
+        layered_variables: vec![
+            EnvironmentVariableLayer::plain(
+                "api_base",
+                EnvironmentLayerKind::RequestFile,
+                "import:bundle:reports:env",
+                "https://api.imported.example.com",
+            ),
+            EnvironmentVariableLayer::plain(
+                "report_id",
+                EnvironmentLayerKind::RequestFile,
+                "import:bundle:reports:request",
+                "report_demo_001",
+            ),
+        ],
+        effective_fingerprint: "env:fp:imported:reports:stale:01".to_owned(),
+        fingerprint: imported_environment_fingerprint(
+            "env:fp:imported:reports:stale:01",
+            "env:imported",
+            &endpoint_identity,
+            &["import:bundle:reports:env", "import:bundle:reports:request"],
+        ),
+    };
+
+    let auth = AuthProfile::none();
+
+    let assertions = vec![
+        AssertionDescriptor::new(
+            "assert:status_200",
+            AssertionKind::StatusMatch,
+            "$.status",
+            "200",
+        ),
+        AssertionDescriptor::new(
+            "assert:body_state_ready",
+            AssertionKind::BodyJsonPath,
+            "$.body.state",
+            "ready",
+        ),
+    ];
+
+    let assertion_suite = assertion_suite(
+        "suite:reports:imported",
+        "imported reports checks",
+        AssertionSuiteLineageClass::StaleArtifact,
+        &assertions,
+    );
+
+    let schema_snapshot = SchemaSnapshot {
+        kind: SchemaSnapshotKind::JsonSchema,
+        kind_token: SchemaSnapshotKind::JsonSchema.as_str().to_owned(),
+        source_class: SchemaSnapshotSourceClass::ImportedExample,
+        source_class_token: SchemaSnapshotSourceClass::ImportedExample
+            .as_str()
+            .to_owned(),
+        source_ref: "schema:reports:json_schema:imported".to_owned(),
+        digest: "sha256:jsonschema:reports:imported:stale".to_owned(),
+        freshness: SchemaSnapshotFreshness::StaleOverWeek,
+        freshness_token: SchemaSnapshotFreshness::StaleOverWeek.as_str().to_owned(),
+        target_endpoint_id: "endpoint:reports:v1".to_owned(),
+    };
+
+    let expected_side_effects = vec![ExpectedSideEffectRow::new(
+        SideEffectClass::ReadOnlyGet,
+        "Imported read-only report lookup",
+    )];
+
+    let response_artifact = Some(ResponseArtifact {
+        status_code: 200,
+        header_digest: "sha256:resp:headers:imported_reports".to_owned(),
+        body_digest: "sha256:resp:body:imported_reports".to_owned(),
+        body_ref: Some("response:imported:reports:summary".to_owned()),
+        latency_band: LatencyBandClass::Under1Second,
+        latency_band_token: LatencyBandClass::Under1Second.as_str().to_owned(),
+        preview_class: ResponsePreviewClass::RedactedBody,
+        preview_class_token: ResponsePreviewClass::RedactedBody.as_str().to_owned(),
+        redaction_class: ResponseRedactionClass::BodyOmittedAtRest,
+        redaction_class_token: ResponseRedactionClass::BodyOmittedAtRest
+            .as_str()
+            .to_owned(),
+        payload_size_class: ResponsePayloadSizeClass::LargeSafePreviewOnly,
+        payload_size_class_token: ResponsePayloadSizeClass::LargeSafePreviewOnly
+            .as_str()
+            .to_owned(),
+        preview_rules: large_imported_response_preview_rules(),
+        assertion_results: vec![
+            assertion_result(
+                "result:imported:status_200",
+                "suite:reports:imported",
+                "assert:status_200",
+                AssertionOutcomeClass::Passed,
+                Some("200"),
+                "200",
+                AssertionEvidenceState::StaleImportedArtifact,
+                "evidence:request:imported:reports:status",
+                "env:fp:imported:reports:stale:01",
+            ),
+            assertion_result(
+                "result:imported:body_state_ready",
+                "suite:reports:imported",
+                "assert:body_state_ready",
+                AssertionOutcomeClass::Failed,
+                Some("pending"),
+                "ready",
+                AssertionEvidenceState::StaleImportedArtifact,
+                "evidence:request:imported:reports:body_state",
+                "env:fp:imported:reports:stale:01",
+            ),
+        ],
+    });
+
+    let target_class = TargetClass::RemoteWorkspaceVm;
+    RequestWorkspaceAlphaRecord {
+        record_kind: REQUEST_WORKSPACE_ALPHA_RECORD_KIND.to_owned(),
+        schema_version: REQUEST_WORKSPACE_ALPHA_SCHEMA_VERSION,
+        lane_id: REQUEST_WORKSPACE_ALPHA_LANE_ID.to_owned(),
+        request_workspace_ref: "rwsr:imported:stale_assertion".to_owned(),
+        workspace_id: "ws:request-workspace-alpha".to_owned(),
+        captured_at: "2026-05-15T00:00:00Z".to_owned(),
+        execution_context_ref: "exec:ws-request-workspace-alpha:task:4".to_owned(),
+        target_class,
+        target_class_token: target_class.as_str().to_owned(),
+        endpoint_identity,
+        boundary_cue_visible: target_class.is_remote_or_managed(),
+        request,
+        environment,
+        auth,
+        assertions,
+        assertion_suite,
+        schema_snapshot,
+        expected_side_effects,
+        response_artifact,
+        history_posture: RequestHistoryPosture::new(
+            crate::request_workspace_contracts::RequestHistoryRetentionClass::ImportedReadOnly,
+            false,
+            false,
+            true,
+        ),
+        portable_export: PortableExportContract::new(
+            PortableExportClass::ImportedStaleEvidenceOnly,
+            "aliases:reports:imported",
+            "request_safe_default",
+            [
+                "evidence:request:imported:reports:status",
+                "evidence:request:imported:reports:body_state",
+            ],
+        ),
+        summary:
+            "Imported read-only report request with stale schema and failed assertion evidence."
+                .to_owned(),
     }
 }
 
@@ -1746,6 +2560,31 @@ mod tests {
     }
 
     #[test]
+    fn imported_stale_assertion_keeps_evidence_and_preview_truth() {
+        let record = seeded_request_workspace_record(
+            RequestWorkspaceSeededScenario::ImportedStaleAssertionExportTruth,
+        );
+        assert!(record.validation_issues().is_empty());
+        assert_eq!(
+            record.assertion_suite.lineage_class,
+            AssertionSuiteLineageClass::StaleArtifact
+        );
+        let response = record
+            .response_artifact
+            .as_ref()
+            .expect("response artifact");
+        assert!(response.any_assertion_failed());
+        assert!(response
+            .assertion_results
+            .iter()
+            .any(|row| row.evidence_state == AssertionEvidenceState::StaleImportedArtifact));
+        assert!(response.preview_rules.iter().any(|rule| rule.component
+            == ResponsePreviewComponentClass::Cookies
+            && rule.copy_export_class == ResponseCopyExportClass::RedactedWithLabel));
+        assert!(record.portable_export.excludes_raw_secret_material());
+    }
+
+    #[test]
     fn raw_inline_credential_flags_violation_and_blocks_dispatch() {
         let mut record =
             seeded_request_workspace_record(RequestWorkspaceSeededScenario::LocalReadOnlyGet);
@@ -1787,6 +2626,9 @@ mod tests {
         );
         assert!(round.any_requires_review);
         assert!(round.any_blocks_dispatch);
+        assert!(!round.includes_raw_credentials);
+        assert!(!round.includes_raw_cookies);
+        assert!(!round.includes_raw_tokens);
     }
 
     #[test]

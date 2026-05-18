@@ -9,8 +9,10 @@ CLI all surface. The integration test in
 every fixture through the canonical
 `RequestWorkspaceAlphaRecord::send_inspector_report` projection and
 asserts UI / CLI parity over target class, method, credential class,
-boundary cue, readiness band, review posture, expected side-effect
-tokens, and banner kinds.
+auth-source class, endpoint alias, environment fingerprint state,
+schema source/freshness, boundary cue, readiness band, review
+posture, expected side-effect tokens, banner kinds, assertion-evidence
+state, and response preview labels.
 
 Fixtures:
 
@@ -25,3 +27,7 @@ Fixtures:
 - `remote_graphql_no_auth.json` - remote (SSH) GraphQL operation
   against a public endpoint with no credentials, fresh schema; review
   required.
+- `imported_stale_assertion_export_truth.json` - imported read-only
+  request evidence with stale schema/source labels, stale assertion
+  evidence, one failed assertion, and response copy/export labels that
+  omit raw cookies, tokens, and credentials.

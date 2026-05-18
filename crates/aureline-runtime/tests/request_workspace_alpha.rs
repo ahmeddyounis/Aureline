@@ -7,22 +7,18 @@
 //! the runtime record, the canonical send-inspector report, the shell panel
 //! projection, and the headless CLI all surface.
 //!
-//! The test enforces the three acceptance bullets from the request-workspace
-//! alpha spec:
+//! The test enforces the request-workspace alpha hardening contract:
 //!
-//! 1. Requests, environments, assertions, and artifacts are represented by
-//!    one schema shared by UI and CLI/headless lanes. The canonical
-//!    [`RequestWorkspaceAlphaRecord`] bundles all four; the shell panel
-//!    projection and the integration test consume the same record verbatim.
-//! 2. A send inspector can explain target, credential class, execution
-//!    context, and expected side effects before execution. The fixture's
-//!    `expect` block pins those fields and the test asserts the canonical
-//!    [`SendInspectorReport`] surfaces them character-identically.
-//! 3. Support and artifact exports can reopen or compare request-workspace
-//!    runs truthfully. The [`RequestWorkspaceSupportExport`] wrapper
-//!    round-trips through serde, carries every record verbatim, and carries
-//!    one [`SendInspectorReport`] per record so reviewer / support flows do
-//!    not re-derive readiness locally.
+//! 1. Requests, endpoint identity, environment fingerprints, auth-source
+//!    class, assertions, schema snapshots, and artifacts are represented by
+//!    one schema shared by UI and CLI/headless lanes.
+//! 2. A send inspector can explain target, endpoint alias, credential/auth
+//!    source, execution context, schema source/freshness, environment
+//!    fingerprint state, and expected side effects before execution.
+//! 3. Assertion results carry suite/evidence attribution and distinguish
+//!    current local runs from imported or stale artifacts.
+//! 4. Support and artifact exports preserve response preview labels and omit
+//!    raw credentials, cookies, and token material by default.
 
 use std::path::{Path, PathBuf};
 
@@ -58,6 +54,9 @@ struct CaseExpect {
     method_token: String,
     credential_class: CredentialClass,
     auth_strategy: AuthStrategyKind,
+    auth_source_class_token: String,
+    endpoint_alias: String,
+    environment_fingerprint_state_token: String,
     boundary_cue_visible: bool,
     readiness: SendInspectorReadiness,
     requires_review_before_dispatch: bool,
@@ -65,7 +64,11 @@ struct CaseExpect {
     expected_side_effect_tokens: Vec<String>,
     expected_banner_kinds: Vec<String>,
     schema_freshness_token: String,
+    schema_source_token: String,
+    export_class_token: String,
     any_secret_handle: bool,
+    assertion_evidence_state_tokens: Vec<String>,
+    response_preview_labels: Vec<String>,
 }
 
 fn scenario_for(name: &str) -> RequestWorkspaceSeededScenario {
@@ -78,6 +81,9 @@ fn scenario_for(name: &str) -> RequestWorkspaceSeededScenario {
             RequestWorkspaceSeededScenario::ManagedDeleteMissingSchema
         }
         "remote_graphql_no_auth" => RequestWorkspaceSeededScenario::RemoteGraphqlNoAuth,
+        "imported_stale_assertion_export_truth" => {
+            RequestWorkspaceSeededScenario::ImportedStaleAssertionExportTruth
+        }
         other => panic!("unknown request-workspace scenario: {other}"),
     }
 }
@@ -89,6 +95,7 @@ fn every_seeded_scenario_fixture_replays_through_canonical_send_inspector() {
         "remote_mutating_post_stale_schema.json",
         "managed_delete_missing_schema.json",
         "remote_graphql_no_auth.json",
+        "imported_stale_assertion_export_truth.json",
     ] {
         let path = fixture_root().join(fixture_name);
         let payload = std::fs::read_to_string(&path)
@@ -127,6 +134,27 @@ fn every_seeded_scenario_fixture_replays_through_canonical_send_inspector() {
             record.schema_snapshot.freshness_token, fixture.expect.schema_freshness_token,
             "{fixture_name}: schema_freshness_token"
         );
+        assert_eq!(
+            record.schema_snapshot.source_class_token, fixture.expect.schema_source_token,
+            "{fixture_name}: schema_source_token"
+        );
+        assert_eq!(
+            record.endpoint_identity.endpoint_alias, fixture.expect.endpoint_alias,
+            "{fixture_name}: endpoint_alias"
+        );
+        assert_eq!(
+            record.environment.fingerprint.state_token,
+            fixture.expect.environment_fingerprint_state_token,
+            "{fixture_name}: environment_fingerprint_state_token"
+        );
+        assert_eq!(
+            record.portable_export.export_class_token, fixture.expect.export_class_token,
+            "{fixture_name}: export_class_token"
+        );
+        assert!(
+            record.portable_export.excludes_raw_secret_material(),
+            "{fixture_name}: portable export must exclude raw secret material"
+        );
 
         let report = record.send_inspector_report();
         assert_eq!(
@@ -144,6 +172,19 @@ fn every_seeded_scenario_fixture_replays_through_canonical_send_inspector() {
         assert_eq!(
             report.auth_strategy, fixture.expect.auth_strategy,
             "{fixture_name}: auth_strategy"
+        );
+        assert_eq!(
+            report.auth_source_class_token, fixture.expect.auth_source_class_token,
+            "{fixture_name}: auth_source_class_token"
+        );
+        assert_eq!(
+            report.endpoint_alias, fixture.expect.endpoint_alias,
+            "{fixture_name}: report endpoint_alias"
+        );
+        assert_eq!(
+            report.environment_fingerprint_state_token,
+            fixture.expect.environment_fingerprint_state_token,
+            "{fixture_name}: report environment_fingerprint_state_token"
         );
         assert_eq!(
             report.readiness, fixture.expect.readiness,
@@ -176,6 +217,38 @@ fn every_seeded_scenario_fixture_replays_through_canonical_send_inspector() {
         assert_eq!(
             actual_banner_kinds, fixture.expect.expected_banner_kinds,
             "{fixture_name}: expected_banner_kinds"
+        );
+
+        let actual_assertion_evidence_state_tokens: Vec<String> = record
+            .response_artifact
+            .as_ref()
+            .map(|response| {
+                response
+                    .assertion_results
+                    .iter()
+                    .map(|row| row.evidence_state_token.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        assert_eq!(
+            actual_assertion_evidence_state_tokens, fixture.expect.assertion_evidence_state_tokens,
+            "{fixture_name}: assertion_evidence_state_tokens"
+        );
+
+        let actual_response_preview_labels: Vec<String> = record
+            .response_artifact
+            .as_ref()
+            .map(|response| {
+                response
+                    .preview_rules
+                    .iter()
+                    .map(|rule| rule.representation_label.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        assert_eq!(
+            actual_response_preview_labels, fixture.expect.response_preview_labels,
+            "{fixture_name}: response_preview_labels"
         );
     }
 }
@@ -225,6 +298,13 @@ fn support_export_round_trips_and_bundles_every_scenario() {
         export.any_blocks_dispatch,
         "support export must surface at least one blocked scenario"
     );
+    assert!(!export.includes_raw_credentials);
+    assert!(!export.includes_raw_cookies);
+    assert!(!export.includes_raw_tokens);
+    assert_eq!(
+        export.portable_export_contracts.len(),
+        RequestWorkspaceSeededScenario::ALL.len()
+    );
 
     let json = serde_json::to_string(&export).expect("serialize support export");
     let round: RequestWorkspaceSupportExport =
@@ -238,6 +318,7 @@ fn support_export_round_trips_and_bundles_every_scenario() {
     assert!(!json.contains("AWS_SECRET_ACCESS_KEY"));
     assert!(!json.contains("Bearer "));
     assert!(!json.contains("password"));
+    assert!(!json.contains("Set-Cookie"));
 }
 
 #[test]
@@ -258,6 +339,14 @@ fn support_export_send_inspector_reports_match_canonical_records() {
         let local_report = record.send_inspector_report();
         assert_eq!(report, &local_report);
         assert_eq!(report.request_workspace_ref, record.request_workspace_ref);
+        assert_eq!(
+            report.auth_source_class_token,
+            record.auth.auth_source_class_token
+        );
+        assert_eq!(
+            report.endpoint_alias,
+            record.endpoint_identity.endpoint_alias
+        );
     }
 }
 

@@ -4,8 +4,8 @@
 //! [`aureline_runtime::RequestWorkspaceAlphaRecord`]. This module wraps that
 //! record in the panel-shaped projection chrome inspectors render: one panel
 //! header per request workspace row, structured request / environment /
-//! credential / side-effect / response blocks, and one banner row per
-//! send-inspector banner.
+//! endpoint / credential-source / side-effect / response-preview blocks, and
+//! one banner row per send-inspector banner.
 //!
 //! UI / CLI parity invariant: the panel projection MUST iterate the
 //! canonical send-inspector report verbatim. It does not invent banners,
@@ -49,8 +49,20 @@ pub struct RequestWorkspacePanelProjection {
     pub execution_context_ref: String,
     /// Stable target-class token.
     pub target_class_token: String,
+    /// Human-safe endpoint alias.
+    pub endpoint_alias: String,
     /// Stable method token.
     pub method_token: String,
+    /// Effective environment fingerprint.
+    pub environment_fingerprint: String,
+    /// Stable auth-source-class token.
+    pub auth_source_class_token: String,
+    /// Schema source token.
+    pub schema_source_token: String,
+    /// Request-history retention token.
+    pub history_retention_token: String,
+    /// Portable export class token.
+    pub portable_export_token: String,
     /// True when the inspector chrome MUST render the boundary cue.
     pub boundary_cue_visible: bool,
     /// True when the inspector chrome MUST render a review-required banner.
@@ -80,7 +92,13 @@ impl RequestWorkspacePanelProjection {
             request_id: report.request_id.clone(),
             execution_context_ref: report.execution_context_ref.clone(),
             target_class_token: report.target_class_token.clone(),
+            endpoint_alias: report.endpoint_alias.clone(),
             method_token: report.method_token.clone(),
+            environment_fingerprint: report.environment_fingerprint.clone(),
+            auth_source_class_token: report.auth_source_class_token.clone(),
+            schema_source_token: report.schema_source_token.clone(),
+            history_retention_token: report.history_retention_token.clone(),
+            portable_export_token: report.portable_export_token.clone(),
             boundary_cue_visible: report.boundary_cue_visible,
             requires_review_before_dispatch: report.requires_review_before_dispatch,
             blocks_dispatch: report.blocks_dispatch,
@@ -123,6 +141,8 @@ mod tests {
         assert_eq!(panel.readiness_token, "ready_to_send");
         assert!(!panel.boundary_cue_visible);
         assert_eq!(panel.target_class_token, TargetClass::LocalHost.as_str());
+        assert_eq!(panel.endpoint_alias, "payments-dev");
+        assert_eq!(panel.auth_source_class_token, "secret_broker_handle");
         assert_eq!(
             panel.expected_side_effects.len(),
             record.expected_side_effects.len()
@@ -156,6 +176,14 @@ mod tests {
             assert_eq!(
                 panel.expected_side_effects,
                 panel.send_inspector_report.expected_side_effects
+            );
+            assert_eq!(
+                panel.auth_source_class_token,
+                panel.send_inspector_report.auth_source_class_token
+            );
+            assert_eq!(
+                panel.endpoint_alias,
+                panel.send_inspector_report.endpoint_alias
             );
         }
     }

@@ -18,7 +18,7 @@
 //!
 //! Valid scenarios: `local_read_only_get`,
 //! `remote_mutating_post_stale_schema`, `managed_delete_missing_schema`,
-//! `remote_graphql_no_auth`.
+//! `remote_graphql_no_auth`, `imported_stale_assertion_export_truth`.
 
 use aureline_shell::request_workspace::{
     render_support_export_plaintext, seeded_record, seeded_send_inspector_report,
@@ -88,6 +88,9 @@ fn parse_scenario(
             Ok(RequestWorkspaceSeededScenario::ManagedDeleteMissingSchema)
         }
         "remote_graphql_no_auth" => Ok(RequestWorkspaceSeededScenario::RemoteGraphqlNoAuth),
+        "imported_stale_assertion_export_truth" => {
+            Ok(RequestWorkspaceSeededScenario::ImportedStaleAssertionExportTruth)
+        }
         other => Err(format!("unknown scenario: {other}").into()),
     }
 }
