@@ -46,6 +46,7 @@ pub mod managed_workspace_lifecycle_beta;
 pub mod packages;
 pub mod preview_drift;
 pub mod provenance;
+pub mod quality;
 pub mod recipes;
 pub mod remote_helper_skew_beta;
 pub mod request_workspace;
@@ -276,6 +277,24 @@ pub use provenance::{
     ExecutionProvenanceEventClass, ExecutionProvenanceInputDecision,
     ExecutionProvenanceRedactionClass, EXECUTION_EVENT_PROVENANCE_RECORD_KIND,
     EXECUTION_EVENT_PROVENANCE_SCHEMA_VERSION, EXECUTION_PROVENANCE_EVENT_RECORD_KIND,
+};
+pub use quality::{
+    BaselineCompatibilityStateClass, BaselineRecord, BaselineRecordRequest,
+    EffectiveQualityProfile, QualityActionClass, QualityActionDisclosureClass,
+    QualityActionProposal, QualityActionProposalRequest, QualityActorClass,
+    QualityApplyPostureClass, QualityDebtReopenStateClass, QualityGovernanceError,
+    QualityGovernanceSupportExport, QualityLockReasonClass, QualityLockStateClass,
+    QualityMutationScopeClass, QualityOwnerClass, QualityPolicyLockStateClass,
+    QualityPreviewRequirementClass, QualityProfileResolutionRequest, QualityProfileResolver,
+    QualityProfileSourceCandidate, QualityProfileSourceLayer, QualityProfileSourceRow,
+    QualityProfileSourceStateClass, QualityProfileSurfaceProjection, QualityReopenRuleClass,
+    QualityRollbackBoundaryClass, QualitySafetyClass, QualitySession, QualitySessionOutcomeClass,
+    QualitySessionRequest, QualitySessionTriggerClass, QualitySurfaceClass,
+    QualityTargetScopeClass, QualityToolFamilyClass, QualityTruthMutationClass, SuppressionRecord,
+    SuppressionRecordRequest, BASELINE_RECORD_KIND, EFFECTIVE_QUALITY_PROFILE_RECORD_KIND,
+    QUALITY_ACTION_PROPOSAL_RECORD_KIND, QUALITY_GOVERNANCE_SCHEMA_VERSION,
+    QUALITY_GOVERNANCE_SUPPORT_EXPORT_RECORD_KIND, QUALITY_SESSION_RECORD_KIND,
+    SUPPRESSION_RECORD_KIND,
 };
 pub use recipes::{
     RecipeAlphaContractRefs, RecipeAlphaCoverage, RecipeAlphaFinding, RecipeAlphaFindingSeverity,
