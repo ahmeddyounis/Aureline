@@ -23,6 +23,7 @@ pub mod object_model;
 pub mod publish_later;
 pub mod registry;
 pub mod route_resolution;
+pub mod work_items;
 
 pub use account_scope::{
     audit_account_scope_beta_page, seeded_account_scope_beta_page,
@@ -155,4 +156,34 @@ pub use route_resolution::{
     ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND, ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
     ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF, ROUTE_RESOLUTION_BETA_SOURCE_MATRIX_REF,
     ROUTE_RESOLUTION_BETA_SUMMARY_RECORD_KIND, ROUTE_RESOLUTION_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use work_items::{
+    audit_work_item_transition_beta_page, seeded_work_item_transition_beta_page,
+    validate_work_item_transition_beta_page, AuthoritySourceClass, ChangeIntentClass,
+    EngineeringArtifactRelations, HandoffAdmissionReasonClass, HandoffDrainStateClass,
+    HandoffExportRouteClass, HandoffProviderAcceptanceClass, HandoffRetryRouteClass,
+    IssueToBranchLinkClass, LinkedArtifactChangeClass, LinkedReviewClass,
+    NotificationSideEffectClass, OfflineDeferredHandlingClass, OfflineHandoffPacketRecord,
+    OfflineHandoffSupportSummary, OpenExternalAction, OpenExternalActionClass, OwnerOrAssigneeRow,
+    OwnerRoleClass, PermissionScopeClass, ProviderWorkflowCorpusCase, ProviderWorkflowCorpusClass,
+    ProviderWorkflowCorpusSupportSummary, PublishPreviewClass, SideEffectFanoutKindClass,
+    SideEffectFanoutRow, SnapshotEngineeringRelation, SnapshotOwnerRow, SnapshotRelationAxisClass,
+    SnapshotStateRow, StateFamilyClass, StateValueOriginClass, StatusTransitionPacketRecord,
+    TargetAccountClass, TransitionActionAffordances, TransitionActionClass,
+    TransitionAdmissibilityClass, TransitionEntry, TransitionKindClass,
+    TransitionReviewAuthorizationClass, TransitionReviewDispositionClass,
+    TransitionReviewSheetRecord, TransitionTriggerClass, TrustPosture, UndoRollbackPostureClass,
+    ValidationEvidenceClass, WorkItemAuthorityClass, WorkItemCurrentStateRow, WorkItemDetailRecord,
+    WorkItemDetailSupportSummary, WorkItemFreshnessClass, WorkItemMutationMode,
+    WorkItemObjectClass, WorkItemObjectIdentity, WorkItemOriginDisclosure, WorkItemPolicyContext,
+    WorkItemPublishPostureClass, WorkItemRowPostureClass, WorkItemTransitionBetaCoverage,
+    WorkItemTransitionBetaDefect, WorkItemTransitionBetaDefectKind, WorkItemTransitionBetaPage,
+    WorkItemTransitionBetaSupportExport, WorkItemTransitionBetaValidationReport,
+    WorkItemTransitionContractRefs, WorkItemTransitionFixtureMetadata, WriteAuthorityClass,
+    OFFLINE_HANDOFF_PACKET_RECORD_KIND, PROVIDER_WORKFLOW_CORPUS_CASE_RECORD_KIND,
+    STATUS_TRANSITION_PACKET_RECORD_KIND, TRANSITION_REVIEW_RECORD_KIND,
+    WORK_ITEM_DETAIL_RECORD_KIND, WORK_ITEM_TRANSITION_BETA_PAGE_RECORD_KIND,
+    WORK_ITEM_TRANSITION_BETA_SCHEMA_VERSION, WORK_ITEM_TRANSITION_BETA_SHARED_CONTRACT_REF,
+    WORK_ITEM_TRANSITION_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    WORK_ITEM_TRANSITION_BETA_VALIDATION_REPORT_RECORD_KIND,
 };
