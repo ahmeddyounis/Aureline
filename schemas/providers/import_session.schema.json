@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/import_session.schema.json",
+  "title": "Aureline provider import session",
+  "description": "Boundary schema for provider_import_session_record. An import session explains how provider state was materialized or why it was only partially materialized, mirror-derived, delayed, denied, or dry-run inspected. Imported provider objects cite this session so freshness, omissions, rate-limit posture, and partial/full class survive support export.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "import_session_id",
+    "provider_descriptor_ref",
+    "source_event_refs",
+    "object_scope_ref",
+    "snapshot_time",
+    "freshness",
+    "truth_class",
+    "omissions",
+    "rate_limit_posture",
+    "imported_object_refs",
+    "retryability",
+    "final_disposition",
+    "support_export_summary",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": { "const": "provider_import_session_record" },
+    "schema_version": { "const": 1 },
+    "shared_contract_ref": { "const": "providers:provider_event_reconciliation:v1" },
+    "import_session_id": { "$ref": "#/$defs/opaque_id" },
+    "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+    "source_event_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "object_scope_ref": { "$ref": "#/$defs/opaque_id" },
+    "snapshot_time": { "$ref": "#/$defs/timestamp" },
+    "freshness": { "$ref": "#/$defs/freshness" },
+    "truth_class": { "$ref": "#/$defs/truth_class" },
+    "omissions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/omission" }
+    },
+    "rate_limit_posture": {
+      "type": "string",
+      "enum": [
+        "not_rate_limited",
+        "bounded_backoff",
+        "partial_rate_limit",
+        "unknown_review_required"
+      ]
+    },
+    "imported_object_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "retryability": { "$ref": "#/$defs/retryability" },
+    "final_disposition": { "$ref": "#/$defs/disposition" },
+    "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "truth_class": {
+            "enum": ["bounded_partial_snapshot", "unbounded_partial_snapshot"]
+          }
+        },
+        "required": ["truth_class"]
+      },
+      "then": {
+        "properties": {
+          "omissions": { "minItems": 1 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "truth_class": {
+      "type": "string",
+      "enum": [
+        "full_snapshot",
+        "bounded_partial_snapshot",
+        "unbounded_partial_snapshot",
+        "delayed_delivery",
+        "backfilled_snapshot",
+        "mirror_derived_snapshot",
+        "no_state_imported",
+        "dry_run_no_write"
+      ]
+    },
+    "retryability": {
+      "type": "string",
+      "enum": [
+        "no_retry_needed",
+        "retryable_after_refresh",
+        "retryable_after_reauth",
+        "retryable_after_rescope",
+        "retryable_after_backfill",
+        "not_retryable_policy_denied",
+        "not_retryable_target_mismatch"
+      ]
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "applied_once",
+        "deduped_noop",
+        "freshness_refreshed_only",
+        "held_pending_sequence",
+        "partial_import_applied",
+        "denied_no_mutation",
+        "reconciliation_required",
+        "publish_drained_after_review",
+        "publish_blocked_drift",
+        "dry_run_only"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["freshness_class", "freshness_floor_ref"],
+      "properties": {
+        "freshness_class": {
+          "type": "string",
+          "enum": [
+            "fresh",
+            "stale_within_window",
+            "expired_beyond_window",
+            "never_observed",
+            "revoked_or_disconnected"
+          ]
+        },
+        "freshness_floor_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "omission_id",
+        "omission_class",
+        "scope_ref",
+        "reason_summary"
+      ],
+      "properties": {
+        "omission_id": { "$ref": "#/$defs/opaque_id" },
+        "omission_class": { "$ref": "#/$defs/opaque_id" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "reason_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}

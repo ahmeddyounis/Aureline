@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/replay_ledger_item.schema.json",
+  "title": "Aureline provider replay and redelivery ledger item",
+  "description": "Boundary schema for provider_replay_ledger_item_record. The ledger item records first seen and last seen times, replay counts, dedupe windows, disposition, and audit refs for a provider delivery identity. It prevents duplicate callbacks and replayed webhooks from creating duplicate comments, state transitions, or provider-linked artifacts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "replay_ledger_item_id",
+    "delivery_identity",
+    "first_seen_at",
+    "last_seen_at",
+    "dedupe_window",
+    "replay_count",
+    "final_disposition",
+    "retryability",
+    "event_refs",
+    "audit_event_refs",
+    "support_export_summary",
+    "raw_payload_refs_present",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": { "const": "provider_replay_ledger_item_record" },
+    "schema_version": { "const": 1 },
+    "shared_contract_ref": { "const": "providers:provider_event_reconciliation:v1" },
+    "replay_ledger_item_id": { "$ref": "#/$defs/opaque_id" },
+    "delivery_identity": { "$ref": "#/$defs/delivery_identity" },
+    "first_seen_at": { "$ref": "#/$defs/timestamp" },
+    "last_seen_at": { "$ref": "#/$defs/timestamp" },
+    "dedupe_window": { "$ref": "#/$defs/opaque_id" },
+    "replay_count": { "type": "integer", "minimum": 0 },
+    "final_disposition": { "$ref": "#/$defs/disposition" },
+    "retryability": { "$ref": "#/$defs/retryability" },
+    "event_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "import_session_ref": { "$ref": "#/$defs/opaque_id" },
+    "audit_event_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "raw_payload_refs_present": { "const": false },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "final_disposition": {
+            "enum": ["deduped_noop", "freshness_refreshed_only"]
+          }
+        },
+        "required": ["final_disposition"]
+      },
+      "then": {
+        "properties": {
+          "replay_count": { "minimum": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "final_disposition": { "const": "denied_no_mutation" }
+        },
+        "required": ["final_disposition"]
+      },
+      "then": {
+        "properties": {
+          "audit_event_refs": { "minItems": 1 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "delivery_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "external_delivery_id",
+        "scoped_object_ref",
+        "provider_host_ref",
+        "tenant_or_org_scope_ref"
+      ],
+      "properties": {
+        "external_delivery_id": { "$ref": "#/$defs/opaque_id" },
+        "scoped_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_or_org_scope_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "retryability": {
+      "type": "string",
+      "enum": [
+        "no_retry_needed",
+        "retryable_after_refresh",
+        "retryable_after_reauth",
+        "retryable_after_rescope",
+        "retryable_after_backfill",
+        "not_retryable_policy_denied",
+        "not_retryable_target_mismatch"
+      ]
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "applied_once",
+        "deduped_noop",
+        "freshness_refreshed_only",
+        "held_pending_sequence",
+        "partial_import_applied",
+        "denied_no_mutation",
+        "reconciliation_required",
+        "publish_drained_after_review",
+        "publish_blocked_drift",
+        "dry_run_only"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}

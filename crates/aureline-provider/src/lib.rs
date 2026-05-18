@@ -21,6 +21,7 @@ pub mod browser_handoff;
 pub mod infrastructure_intelligence;
 pub mod object_model;
 pub mod publish_later;
+pub mod reconciliation;
 pub mod registry;
 pub mod route_resolution;
 pub mod work_items;
@@ -124,6 +125,26 @@ pub use publish_later::{
     DependencyClass, DependencyState, ExportSafetyClass, PublishLaterQueueAlphaItem,
     QueueActionKind, QueueDependency, QueueNextSafeActionClass, QueueState, ReauthRequirementClass,
     RescopeRequirementClass,
+};
+pub use reconciliation::{
+    seeded_provider_event_reconciliation_page, CallbackDenyReasonClass, CallbackRouteClass,
+    EventDispositionClass, ImportSession, ProviderCallbackDenyEvent,
+    ProviderCallbackDenyEventSummary, ProviderDeliveryIdentity, ProviderDriftClass,
+    ProviderEventEnvelope, ProviderEventEnvelopeSummary, ProviderEventReconciliationContractRefs,
+    ProviderEventReconciliationCoverage, ProviderEventReconciliationFinding,
+    ProviderEventReconciliationFindingSeverity, ProviderEventReconciliationFixtureMetadata,
+    ProviderEventReconciliationPage, ProviderEventReconciliationSupportExport,
+    ProviderEventReconciliationValidationReport, ProviderEventSourceClass, ProviderEventTypeClass,
+    ProviderImportSessionSummary, ProviderOmission, ProviderScopedObjectRef, RateLimitPostureClass,
+    ReconciliationNextActionClass, ReconciliationResult, ReconciliationResultSummary,
+    ReconciliationSubject, ReplayLedgerItem, ReplayLedgerItemSummary, RetryabilityClass,
+    SourceProofClass, TruthCompletenessClass, IMPORT_SESSION_RECORD_KIND,
+    PROVIDER_CALLBACK_DENY_EVENT_RECORD_KIND, PROVIDER_EVENT_ENVELOPE_RECORD_KIND,
+    PROVIDER_EVENT_RECONCILIATION_PAGE_RECORD_KIND, PROVIDER_EVENT_RECONCILIATION_SCHEMA_VERSION,
+    PROVIDER_EVENT_RECONCILIATION_SHARED_CONTRACT_REF,
+    PROVIDER_EVENT_RECONCILIATION_SUPPORT_EXPORT_RECORD_KIND,
+    PROVIDER_EVENT_RECONCILIATION_VALIDATION_REPORT_RECORD_KIND, RECONCILIATION_RESULT_RECORD_KIND,
+    REPLAY_LEDGER_ITEM_RECORD_KIND,
 };
 pub use registry::{
     validate_provider_capability_lifecycle_claim, ActorScope, ArtifactTrustClass,

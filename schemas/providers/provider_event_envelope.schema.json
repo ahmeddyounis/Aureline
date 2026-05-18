@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/provider_event_envelope.schema.json",
+  "title": "Aureline provider event envelope",
+  "description": "Boundary schema for provider_event_envelope_record. Browser-return callbacks, webhooks, polling refreshes, mirror syncs, import-session deliveries, operator replays, and deferred-publish drain results normalize through this envelope before they can affect provider-linked state. Idempotency is based on delivery_identity.external_delivery_id plus delivery_identity.scoped_object_ref, with provider host and tenant scope retained to prevent cross-target collisions. Raw headers, raw callback bodies, raw webhook bodies, raw provider payloads, raw URLs, and tokens never appear in this record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "event_id",
+    "provider_descriptor_ref",
+    "provider_family",
+    "source_class",
+    "event_type",
+    "delivery_identity",
+    "source_proof",
+    "object_refs",
+    "event_time",
+    "ingested_at",
+    "replay_ledger_item_ref",
+    "freshness",
+    "truth_class",
+    "omissions",
+    "retryability",
+    "final_disposition",
+    "policy_epoch_ref",
+    "support_export_summary",
+    "raw_payload_refs_present",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": { "const": "provider_event_envelope_record" },
+    "schema_version": { "const": 1 },
+    "shared_contract_ref": { "const": "providers:provider_event_reconciliation:v1" },
+    "event_id": { "$ref": "#/$defs/opaque_id" },
+    "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+    "provider_family": { "$ref": "#/$defs/provider_family" },
+    "source_class": { "$ref": "#/$defs/source_class" },
+    "event_type": { "$ref": "#/$defs/event_type" },
+    "delivery_identity": { "$ref": "#/$defs/delivery_identity" },
+    "source_proof": { "$ref": "#/$defs/source_proof" },
+    "object_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/object_ref" }
+    },
+    "event_time": { "$ref": "#/$defs/timestamp" },
+    "ingested_at": { "$ref": "#/$defs/timestamp" },
+    "import_session_ref": { "$ref": "#/$defs/opaque_id" },
+    "replay_ledger_item_ref": { "$ref": "#/$defs/opaque_id" },
+    "freshness": { "$ref": "#/$defs/freshness" },
+    "truth_class": { "$ref": "#/$defs/truth_class" },
+    "omissions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/omission" }
+    },
+    "retryability": { "$ref": "#/$defs/retryability" },
+    "final_disposition": { "$ref": "#/$defs/disposition" },
+    "deny_event_ref": { "$ref": "#/$defs/opaque_id" },
+    "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+    "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "raw_payload_refs_present": { "const": false },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "truth_class": {
+            "enum": ["bounded_partial_snapshot", "unbounded_partial_snapshot"]
+          }
+        },
+        "required": ["truth_class"]
+      },
+      "then": {
+        "properties": {
+          "omissions": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "final_disposition": { "const": "denied_no_mutation" }
+        },
+        "required": ["final_disposition"]
+      },
+      "then": {
+        "required": ["deny_event_ref"]
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "provider_family": {
+      "type": "string",
+      "enum": ["code_host", "issue_tracker", "ci_checks"]
+    },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "webhook",
+        "browser_return_callback",
+        "polling_refresh",
+        "mirror_sync",
+        "import_session",
+        "deferred_publish_queue",
+        "operator_replay"
+      ]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "object_created",
+        "object_updated",
+        "comment_created",
+        "status_transition",
+        "check_state_changed",
+        "permission_changed",
+        "callback_denied",
+        "import_page_backfilled",
+        "publish_drain_result"
+      ]
+    },
+    "source_proof": {
+      "type": "string",
+      "enum": [
+        "verified_signature",
+        "unsigned_expected_with_route_proof",
+        "browser_return_packet",
+        "mirror_signed_digest",
+        "policy_denied_proof",
+        "proof_missing_denied"
+      ]
+    },
+    "truth_class": {
+      "type": "string",
+      "enum": [
+        "full_snapshot",
+        "bounded_partial_snapshot",
+        "unbounded_partial_snapshot",
+        "delayed_delivery",
+        "backfilled_snapshot",
+        "mirror_derived_snapshot",
+        "no_state_imported",
+        "dry_run_no_write"
+      ]
+    },
+    "retryability": {
+      "type": "string",
+      "enum": [
+        "no_retry_needed",
+        "retryable_after_refresh",
+        "retryable_after_reauth",
+        "retryable_after_rescope",
+        "retryable_after_backfill",
+        "not_retryable_policy_denied",
+        "not_retryable_target_mismatch"
+      ]
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "applied_once",
+        "deduped_noop",
+        "freshness_refreshed_only",
+        "held_pending_sequence",
+        "partial_import_applied",
+        "denied_no_mutation",
+        "reconciliation_required",
+        "publish_drained_after_review",
+        "publish_blocked_drift",
+        "dry_run_only"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "object_kind": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "branch",
+        "issue_or_work_item",
+        "check_run",
+        "pipeline_run",
+        "pipeline_log",
+        "pipeline_artifact",
+        "pipeline_annotation"
+      ]
+    },
+    "delivery_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "external_delivery_id",
+        "scoped_object_ref",
+        "provider_host_ref",
+        "tenant_or_org_scope_ref"
+      ],
+      "properties": {
+        "external_delivery_id": { "$ref": "#/$defs/opaque_id" },
+        "scoped_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_or_org_scope_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "target_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["target_ref_class", "target_ref", "target_label"],
+      "properties": {
+        "target_ref_class": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "object_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_ref",
+        "object_kind",
+        "provider_remote_ref",
+        "target_ref",
+        "truth_class"
+      ],
+      "properties": {
+        "object_ref": { "$ref": "#/$defs/opaque_id" },
+        "object_kind": { "$ref": "#/$defs/object_kind" },
+        "provider_remote_ref": { "$ref": "#/$defs/opaque_id" },
+        "local_surrogate_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/target_ref" },
+        "truth_class": { "$ref": "#/$defs/truth_class" }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["freshness_class", "freshness_floor_ref"],
+      "properties": {
+        "freshness_class": {
+          "type": "string",
+          "enum": [
+            "fresh",
+            "stale_within_window",
+            "expired_beyond_window",
+            "never_observed",
+            "revoked_or_disconnected"
+          ]
+        },
+        "freshness_floor_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "omission_id",
+        "omission_class",
+        "scope_ref",
+        "reason_summary"
+      ],
+      "properties": {
+        "omission_id": { "$ref": "#/$defs/opaque_id" },
+        "omission_class": { "$ref": "#/$defs/opaque_id" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "reason_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}

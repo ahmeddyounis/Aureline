@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/reconciliation_result.schema.json",
+  "title": "Aureline provider reconciliation result",
+  "description": "Boundary schema for provider_reconciliation_result_record. A result reconciles a local draft or deferred publish queue item against a latest provider snapshot before mutation. Material drift blocks silent publish and forces compare, rebase, review, repair, or export instead of last-writer-wins behavior.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "reconciliation_result_id",
+    "subject",
+    "baseline_import_session_ref",
+    "latest_import_session_ref",
+    "latest_provider_snapshot_ref",
+    "matched_object_refs",
+    "created_count",
+    "updated_count",
+    "skipped_count",
+    "conflict_refs",
+    "drift_class",
+    "retryability",
+    "final_disposition",
+    "next_action",
+    "safe_to_mutate_provider",
+    "policy_epoch_ref",
+    "auth_scope_ref",
+    "support_export_summary",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": { "const": "provider_reconciliation_result_record" },
+    "schema_version": { "const": 1 },
+    "shared_contract_ref": { "const": "providers:provider_event_reconciliation:v1" },
+    "reconciliation_result_id": { "$ref": "#/$defs/opaque_id" },
+    "subject": { "$ref": "#/$defs/subject" },
+    "baseline_import_session_ref": { "$ref": "#/$defs/opaque_id" },
+    "latest_import_session_ref": { "$ref": "#/$defs/opaque_id" },
+    "latest_provider_snapshot_ref": { "$ref": "#/$defs/opaque_id" },
+    "matched_object_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "created_count": { "type": "integer", "minimum": 0 },
+    "updated_count": { "type": "integer", "minimum": 0 },
+    "skipped_count": { "type": "integer", "minimum": 0 },
+    "conflict_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "drift_class": { "$ref": "#/$defs/drift_class" },
+    "retryability": { "$ref": "#/$defs/retryability" },
+    "final_disposition": { "$ref": "#/$defs/disposition" },
+    "next_action": { "$ref": "#/$defs/next_action" },
+    "safe_to_mutate_provider": { "type": "boolean" },
+    "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+    "auth_scope_ref": { "$ref": "#/$defs/opaque_id" },
+    "support_export_summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "drift_class": {
+            "enum": [
+              "freshness_floor_unsatisfied",
+              "target_content_drifted",
+              "target_identity_changed",
+              "actor_scope_changed",
+              "policy_epoch_changed",
+              "provider_object_deleted",
+              "unknown_material_drift"
+            ]
+          }
+        },
+        "required": ["drift_class"]
+      },
+      "then": {
+        "properties": {
+          "safe_to_mutate_provider": { "const": false },
+          "final_disposition": {
+            "enum": ["publish_blocked_drift", "reconciliation_required"]
+          },
+          "next_action": {
+            "enum": [
+              "refresh_then_retry",
+              "reauth_then_retry",
+              "rescope_then_retry",
+              "compare_rebase_review",
+              "cancel_or_export",
+              "open_in_provider",
+              "hold_for_backfill"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": { "type": "string", "minLength": 1 },
+    "delivery_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "external_delivery_id",
+        "scoped_object_ref",
+        "provider_host_ref",
+        "tenant_or_org_scope_ref"
+      ],
+      "properties": {
+        "external_delivery_id": { "$ref": "#/$defs/opaque_id" },
+        "scoped_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_host_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_or_org_scope_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "target_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["target_ref_class", "target_ref", "target_label"],
+      "properties": {
+        "target_ref_class": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_draft_ref",
+        "deferred_publish_queue_item_ref",
+        "target_ref",
+        "expected_identity"
+      ],
+      "properties": {
+        "local_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "deferred_publish_queue_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/target_ref" },
+        "expected_identity": { "$ref": "#/$defs/delivery_identity" }
+      }
+    },
+    "drift_class": {
+      "type": "string",
+      "enum": [
+        "no_material_drift",
+        "freshness_floor_unsatisfied",
+        "target_content_drifted",
+        "target_identity_changed",
+        "actor_scope_changed",
+        "policy_epoch_changed",
+        "provider_object_deleted",
+        "unknown_material_drift"
+      ]
+    },
+    "next_action": {
+      "type": "string",
+      "enum": [
+        "mutate_provider_now",
+        "refresh_then_retry",
+        "reauth_then_retry",
+        "rescope_then_retry",
+        "compare_rebase_review",
+        "cancel_or_export",
+        "open_in_provider",
+        "hold_for_backfill"
+      ]
+    },
+    "retryability": {
+      "type": "string",
+      "enum": [
+        "no_retry_needed",
+        "retryable_after_refresh",
+        "retryable_after_reauth",
+        "retryable_after_rescope",
+        "retryable_after_backfill",
+        "not_retryable_policy_denied",
+        "not_retryable_target_mismatch"
+      ]
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "applied_once",
+        "deduped_noop",
+        "freshness_refreshed_only",
+        "held_pending_sequence",
+        "partial_import_applied",
+        "denied_no_mutation",
+        "reconciliation_required",
+        "publish_drained_after_review",
+        "publish_blocked_drift",
+        "dry_run_only"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}
