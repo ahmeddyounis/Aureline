@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/saved_query.schema.json",
+  "title": "Aureline saved-query, scope-pack binding, and search deep-link artifact contract",
+  "description": "Boundary schema for versioned saved queries, scope-pack bindings, and search deep links. Records in this family are local-first by default, carry explicit privacy, retention, sync, redaction, source, schema-version, scope-honesty, and live-versus-captured semantics, and do not grant ambient access to matching results. Raw query text may appear only on local-only literal records or higher-trust exports with explicit consent; shared links and saved queries carry intent and scope metadata, and recipients re-resolve under their own current permissions.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/saved_query" },
+    { "$ref": "#/$defs/scope_pack_binding" },
+    { "$ref": "#/$defs/search_deep_link" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "timestamp_or_fixture_time": { "type": "string", "minLength": 1 },
+    "reviewable_label": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "user_authored",
+        "repo_provided",
+        "policy_provided",
+        "team_shared",
+        "support_captured",
+        "session_history"
+      ]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "local_only_private",
+        "workspace_shared_redacted",
+        "support_export_redacted",
+        "policy_withheld"
+      ]
+    },
+    "retention_mode": {
+      "type": "string",
+      "enum": [
+        "local_only_default",
+        "local_only_ephemeral",
+        "workspace_shared_explicit",
+        "repo_provided_read_only",
+        "policy_owned_managed",
+        "support_export_bounded"
+      ]
+    },
+    "sync_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "explicit_user_sync",
+        "workspace_shared",
+        "repo_provided",
+        "policy_managed",
+        "support_export_only"
+      ]
+    },
+    "redaction_profile": {
+      "type": "string",
+      "enum": [
+        "literal_local_only",
+        "hashes_scope_and_result_refs",
+        "metadata_only_no_query_material",
+        "policy_withheld",
+        "explicit_literal_consent"
+      ]
+    },
+    "retention_widening_basis": {
+      "type": "string",
+      "enum": [
+        "not_widened_local_default",
+        "explicit_user_opt_in",
+        "policy_owned",
+        "repo_provided_artifact",
+        "team_shared_artifact",
+        "support_case_export"
+      ]
+    },
+    "share_policy": {
+      "type": "string",
+      "enum": [
+        "local_only_no_share",
+        "workspace_share_explicit",
+        "support_export_redacted_only",
+        "share_disabled_by_policy"
+      ]
+    },
+    "migration_state": {
+      "type": "string",
+      "enum": ["current", "migrated_from_previous_version", "migration_required"]
+    },
+    "search_surface": {
+      "type": "string",
+      "enum": ["quick_open", "file_search", "symbol_search", "docs_search"]
+    },
+    "query_text_mode": {
+      "type": "string",
+      "enum": ["local_text", "hash_only", "omitted_by_policy"]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ]
+    },
+    "result_semantics": {
+      "type": "string",
+      "enum": [
+        "current_live_results",
+        "captured_snapshot",
+        "live_rerun_required",
+        "scope_changed_since_capture",
+        "empty_because_scope_changed"
+      ]
+    },
+    "scope_honesty_state": {
+      "type": "string",
+      "enum": [
+        "captured_scope_still_current",
+        "recipient_must_re_resolve",
+        "current_scope_wider_narrowed_to_captured",
+        "current_scope_narrower_disclosed",
+        "current_scope_changed_rebind_required"
+      ]
+    },
+    "scope_pack_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "scope_binding_id",
+        "source_class",
+        "privacy_class",
+        "retention_mode",
+        "sync_class",
+        "redaction_profile",
+        "retention_widening_basis",
+        "captured_scope_class",
+        "captured_stable_scope_id",
+        "captured_scope_label",
+        "scope_mode",
+        "include_rule_summaries",
+        "exclude_rule_summaries",
+        "missing_scope_reasons",
+        "scope_honesty_state",
+        "resolved_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "scope_pack_binding" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "scope_binding_id": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "retention_mode": { "$ref": "#/$defs/retention_mode" },
+        "sync_class": { "$ref": "#/$defs/sync_class" },
+        "redaction_profile": { "$ref": "#/$defs/redaction_profile" },
+        "retention_widening_basis": { "$ref": "#/$defs/retention_widening_basis" },
+        "captured_scope_class": { "$ref": "#/$defs/scope_class" },
+        "captured_stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_scope_label": { "$ref": "#/$defs/reviewable_label" },
+        "scope_mode": { "type": "string", "minLength": 1 },
+        "workset_id": { "$ref": "#/$defs/opaque_id" },
+        "include_rule_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        },
+        "exclude_rule_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        },
+        "missing_scope_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_label" }
+        },
+        "scope_honesty_state": { "$ref": "#/$defs/scope_honesty_state" },
+        "resolved_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+      }
+    },
+    "saved_query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "saved_query_id",
+        "display_name",
+        "source_class",
+        "privacy_class",
+        "retention_mode",
+        "sync_class",
+        "redaction_profile",
+        "retention_widening_basis",
+        "share_policy",
+        "migration_state",
+        "default_surface",
+        "query_session_id_ref",
+        "query_text_mode",
+        "scope_binding_id_ref",
+        "scope_class",
+        "stable_scope_id",
+        "scope_label",
+        "captured_readiness_state",
+        "planner_version",
+        "result_semantics",
+        "scope_honesty_state",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "saved_query" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "saved_query_id": { "$ref": "#/$defs/opaque_id" },
+        "display_name": { "$ref": "#/$defs/reviewable_label" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "retention_mode": { "$ref": "#/$defs/retention_mode" },
+        "sync_class": { "$ref": "#/$defs/sync_class" },
+        "redaction_profile": { "$ref": "#/$defs/redaction_profile" },
+        "retention_widening_basis": { "$ref": "#/$defs/retention_widening_basis" },
+        "share_policy": { "$ref": "#/$defs/share_policy" },
+        "migration_state": { "$ref": "#/$defs/migration_state" },
+        "default_surface": { "$ref": "#/$defs/search_surface" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "query_text_mode": { "$ref": "#/$defs/query_text_mode" },
+        "query_text": { "type": "string" },
+        "query_hash": { "type": "string", "minLength": 1 },
+        "scope_binding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "stable_scope_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" },
+        "captured_readiness_state": { "type": "string", "minLength": 1 },
+        "planner_version": { "type": "string", "minLength": 1 },
+        "result_semantics": { "$ref": "#/$defs/result_semantics" },
+        "scope_honesty_state": { "$ref": "#/$defs/scope_honesty_state" },
+        "created_at": { "$ref": "#/$defs/timestamp_or_fixture_time" },
+        "updated_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+      }
+    },
+    "search_deep_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "deep_link_id",
+        "source_class",
+        "privacy_class",
+        "retention_mode",
+        "sync_class",
+        "redaction_profile",
+        "retention_widening_basis",
+        "migration_state",
+        "target_surface",
+        "query_session_id_ref",
+        "scope_binding_id_ref",
+        "result_semantics",
+        "scope_honesty_state",
+        "rerun_required",
+        "recipient_re_resolves_under_current_permissions",
+        "access_widening_allowed",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_deep_link" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "deep_link_id": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "retention_mode": { "$ref": "#/$defs/retention_mode" },
+        "sync_class": { "$ref": "#/$defs/sync_class" },
+        "redaction_profile": { "$ref": "#/$defs/redaction_profile" },
+        "retention_widening_basis": { "$ref": "#/$defs/retention_widening_basis" },
+        "migration_state": { "$ref": "#/$defs/migration_state" },
+        "target_surface": { "$ref": "#/$defs/search_surface" },
+        "saved_query_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "query_session_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_binding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "result_semantics": { "$ref": "#/$defs/result_semantics" },
+        "scope_honesty_state": { "$ref": "#/$defs/scope_honesty_state" },
+        "rerun_required": { "type": "boolean", "const": true },
+        "recipient_re_resolves_under_current_permissions": { "type": "boolean", "const": true },
+        "access_widening_allowed": { "type": "boolean", "const": false },
+        "expires_at": { "$ref": "#/$defs/timestamp_or_fixture_time" },
+        "return_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/timestamp_or_fixture_time" }
+      }
+    }
+  }
+}

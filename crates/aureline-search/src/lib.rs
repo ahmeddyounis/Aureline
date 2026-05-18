@@ -66,6 +66,7 @@ pub mod index_scheduler;
 pub mod infrastructure_intelligence;
 pub mod lexical;
 pub mod planner;
+pub mod query_artifacts;
 pub mod query_session;
 pub mod ranking_reason;
 pub mod readiness;
@@ -153,6 +154,19 @@ pub use planner::{
 pub use query_session::{
     stable_query_hash, QueryTextMode, SearchQuerySession, SearchSurface,
     SEARCH_QUERY_SESSION_SCHEMA_VERSION,
+};
+
+pub use query_artifacts::{
+    QueryHistoryEntry, SavedQuery, ScopePackBinding, SearchArtifactMaterializationInput,
+    SearchArtifactMigrationState, SearchArtifactSet, SearchArtifactValidationFinding,
+    SearchArtifactValidationFindingKind, SearchCollectionSnapshot, SearchDeepLink,
+    SearchRedactionProfile, SearchResultSemantics, SearchRetentionMode,
+    SearchRetentionWideningBasis, SearchScopeHonestyState, SearchSyncClass,
+    QUERY_HISTORY_ENTRY_RECORD_KIND, QUERY_HISTORY_SCHEMA_REF, SAVED_QUERY_EXPORT_PRIVACY_DOC_REF,
+    SAVED_QUERY_PRIVACY_FIXTURE_DIR, SAVED_QUERY_RECORD_KIND, SAVED_QUERY_SCHEMA_REF,
+    SCOPE_PACK_BINDING_RECORD_KIND, SEARCH_COLLECTION_SNAPSHOT_RECORD_KIND,
+    SEARCH_DEEP_LINK_RECORD_KIND, SEARCH_EXPORT_SNAPSHOT_SCHEMA_REF,
+    SEARCH_QUERY_ARTIFACT_SCHEMA_VERSION,
 };
 
 pub use ranking_reason::{
