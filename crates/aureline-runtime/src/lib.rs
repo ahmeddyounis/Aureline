@@ -29,6 +29,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-runtime/0.0.0")]
 
+pub mod build_intelligence;
 pub mod capability_negotiation;
 pub mod capsule_resolver;
 pub mod debug;
@@ -68,6 +69,18 @@ pub mod testing_triage;
 pub mod tests;
 pub mod trace_replay_alpha;
 
+pub use build_intelligence::{
+    AdapterHealthReason, AdapterHealthState, AdapterHealthStrip, AdapterIdentity,
+    ArtifactSourceClass, BuildIntelligenceAction, BuildIntelligenceActionClass,
+    BuildIntelligenceCoverageManifest, BuildIntelligenceLaneType, BuildIntelligenceReceipt,
+    BuildIntelligenceRunConfigCard, BuildIntelligenceSupportExport, BuildIntelligenceTargetRow,
+    DiscoveryDiffChangeClass, DiscoveryDiffItem, DiscoveryDiffReview, HighTrustActionPosture,
+    ImportedLiveState, RefreshLineage, TargetExactnessStatus, ADAPTER_HEALTH_STRIP_RECORD_KIND,
+    BUILD_INTELLIGENCE_COVERAGE_MANIFEST_RECORD_KIND, BUILD_INTELLIGENCE_RECEIPT_RECORD_KIND,
+    BUILD_INTELLIGENCE_RUN_CONFIG_CARD_RECORD_KIND, BUILD_INTELLIGENCE_SCHEMA_VERSION,
+    BUILD_INTELLIGENCE_SUPPORT_EXPORT_RECORD_KIND, BUILD_INTELLIGENCE_TARGET_ROW_RECORD_KIND,
+    DISCOVERY_DIFF_REVIEW_RECORD_KIND,
+};
 pub use capability_negotiation::{
     CapabilityEffectClass, CapabilityNegotiationParseError, CapabilityRequirementClass,
     CompatibilityWindow, CompatibilityWindowStatus, DroppedHelperCapability,

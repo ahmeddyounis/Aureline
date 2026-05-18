@@ -42,6 +42,7 @@ pub mod app_frame;
 pub mod badges;
 pub mod bootstrap;
 pub mod breadcrumbs;
+pub mod build_intelligence_beta;
 pub mod change_object_inspector;
 pub mod chrome;
 pub mod clone;
