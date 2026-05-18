@@ -1,0 +1,631 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/remote/route_object.schema.json",
+  "title": "Aureline governed route object (port-forward, tunnel, preview-route, exposed service)",
+  "description": "Boundary schema for the governed route_object_record. One record is the stable truth row for port-forward, tunnel, preview-route, and exposed-service governance. It preserves source process/service identity, host/workspace identity, opaque port/path handles, exposure class, audience, auth/TLS posture, expiry, last-access disclosure, viewer-state and data-sensitivity labels, controlled-exposure label, copy/share disclosure, downgrade truth, and revocation summary. Raw URLs, hostnames, IPs, ports, paths, query strings, cookies, headers, bearer tokens, and secret bytes never appear; opaque handles and closed-vocabulary tokens do. Adding enum values or optional fields is additive-minor with a route_object_schema_version bump when payloads change; repurposing a value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "route_object_schema_version",
+    "route_id",
+    "captured_at",
+    "updated_at",
+    "route_kind",
+    "lifecycle_state",
+    "source",
+    "host_identity",
+    "endpoint_handles",
+    "exposure_label",
+    "audience",
+    "auth",
+    "viewer_state_class",
+    "data_sensitivity_class",
+    "expiry",
+    "last_access",
+    "copy_share",
+    "revocation",
+    "downgrade",
+    "controlled_exposure_label",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "route_object_record"
+    },
+    "route_object_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "route_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable opaque route identity. Shared verbatim by UI rows, audit events, support exports, and issue reports."
+    },
+    "captured_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "updated_at": {
+      "$ref": "#/$defs/monotonic_timestamp"
+    },
+    "route_kind": {
+      "$ref": "#/$defs/route_kind"
+    },
+    "lifecycle_state": {
+      "$ref": "#/$defs/lifecycle_state"
+    },
+    "source": {
+      "$ref": "#/$defs/source_block"
+    },
+    "host_identity": {
+      "$ref": "#/$defs/host_identity_block"
+    },
+    "endpoint_handles": {
+      "$ref": "#/$defs/endpoint_handles_block"
+    },
+    "exposure_label": {
+      "$ref": "#/$defs/exposure_label_class"
+    },
+    "controlled_exposure_label": {
+      "$ref": "#/$defs/controlled_exposure_label_class"
+    },
+    "audience": {
+      "$ref": "#/$defs/audience_block"
+    },
+    "auth": {
+      "$ref": "#/$defs/auth_block"
+    },
+    "viewer_state_class": {
+      "$ref": "#/$defs/viewer_state_class"
+    },
+    "data_sensitivity_class": {
+      "$ref": "#/$defs/data_sensitivity_class"
+    },
+    "expiry": {
+      "$ref": "#/$defs/expiry_block"
+    },
+    "last_access": {
+      "$ref": "#/$defs/last_access_block"
+    },
+    "copy_share": {
+      "$ref": "#/$defs/copy_share_block"
+    },
+    "revocation": {
+      "$ref": "#/$defs/revocation_block"
+    },
+    "downgrade": {
+      "$ref": "#/$defs/downgrade_block"
+    },
+    "summary": {
+      "$ref": "#/$defs/short_summary"
+    },
+    "review_ref": {
+      "$ref": "#/$defs/opaque_ref_nullable"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Local-only routes are not shareable and cannot carry a share-link handle or non-loopback auth.",
+      "if": {
+        "properties": {
+          "controlled_exposure_label": { "const": "local_only" }
+        },
+        "required": ["controlled_exposure_label"]
+      },
+      "then": {
+        "properties": {
+          "copy_share": {
+            "properties": {
+              "share_link_handle_ref": { "type": "null" },
+              "copy_disclosure_class": { "const": "local_only_copy" }
+            },
+            "required": ["share_link_handle_ref", "copy_disclosure_class"]
+          },
+          "auth": {
+            "properties": {
+              "auth_source_class": { "const": "no_auth_loopback_only" }
+            },
+            "required": ["auth_source_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Public ephemeral routes must declare an expiry and step-up copy disclosure.",
+      "if": {
+        "properties": {
+          "controlled_exposure_label": { "const": "public_route" }
+        },
+        "required": ["controlled_exposure_label"]
+      },
+      "then": {
+        "properties": {
+          "expiry": {
+            "properties": {
+              "expires_at": { "type": "string" }
+            },
+            "required": ["expires_at"]
+          },
+          "copy_share": {
+            "properties": {
+              "copy_disclosure_class": { "const": "public_link_step_up_required" }
+            },
+            "required": ["copy_disclosure_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Revoked, expired, suspended, blocked, or stale routes cannot remain active.",
+      "if": {
+        "properties": {
+          "lifecycle_state": {
+            "enum": [
+              "revoked",
+              "expired",
+              "suspended_reconnect",
+              "policy_denied",
+              "approval_expired",
+              "capability_narrowed",
+              "stale_target",
+              "blocked"
+            ]
+          }
+        },
+        "required": ["lifecycle_state"]
+      },
+      "then": {
+        "properties": {
+          "revocation": {
+            "properties": {
+              "teardown_state": {
+                "enum": [
+                  "pending_revoke",
+                  "suspended_no_traffic",
+                  "revoked",
+                  "expired",
+                  "closed"
+                ]
+              }
+            },
+            "required": ["teardown_state"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Stale-target routes must surface a stale label.",
+      "if": {
+        "properties": {
+          "lifecycle_state": { "const": "stale_target" }
+        },
+        "required": ["lifecycle_state"]
+      },
+      "then": {
+        "properties": {
+          "downgrade": {
+            "properties": {
+              "downgrade_state": {
+                "enum": ["stale_target_inspect_only", "retarget_pending_review"]
+              }
+            },
+            "required": ["downgrade_state"]
+          },
+          "viewer_state_class": {
+            "enum": ["stale_mirrored_state", "captured_snapshot", "no_live_viewer"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque identifier safe to log and export. It MUST NOT contain raw URLs, hostnames, IPs, ports, paths, query strings, tokens, or secret material."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640,
+      "description": "Review-safe summary. MUST NOT include raw endpoint URLs, hostnames, ports, paths, query strings, cookies, headers, or token fragments."
+    },
+    "route_kind": {
+      "type": "string",
+      "enum": [
+        "local_port_forward",
+        "remote_port_forward",
+        "reverse_tunnel",
+        "managed_workspace_tunnel",
+        "browser_preview_route",
+        "devcontainer_exposed_service",
+        "remote_agent_exposed_service",
+        "notebook_endpoint",
+        "debugger_socket"
+      ]
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "pending_review",
+        "active",
+        "suspended_reconnect",
+        "paused",
+        "degraded",
+        "stale_target",
+        "policy_denied",
+        "approval_expired",
+        "capability_narrowed",
+        "provider_unavailable",
+        "revoked",
+        "expired",
+        "closed",
+        "blocked"
+      ]
+    },
+    "host_class": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "user_mode_sandbox",
+        "container_local",
+        "devcontainer",
+        "remote_ssh",
+        "remote_agent",
+        "managed_workspace",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "tunnel_exposed",
+        "bridged_helper",
+        "unknown_host"
+      ]
+    },
+    "protocol_class": {
+      "type": "string",
+      "enum": [
+        "http",
+        "https",
+        "tcp",
+        "tls_tcp",
+        "websocket",
+        "grpc",
+        "debug_protocol",
+        "unknown_protocol_requires_review"
+      ]
+    },
+    "tls_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_tls_loopback_only",
+        "tls_terminated_at_helper",
+        "tls_terminated_at_tunnel_edge",
+        "tls_passthrough_to_target",
+        "tls_unknown_requires_review"
+      ]
+    },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_loopback_only",
+        "workspace_session_auth",
+        "organization_sso",
+        "signed_preview_link",
+        "machine_to_machine_allowlist",
+        "external_auth_passthrough",
+        "approval_ticket_required",
+        "auth_unknown_requires_review"
+      ]
+    },
+    "audience_class": {
+      "type": "string",
+      "enum": [
+        "self_only",
+        "same_device_lan",
+        "workspace_members",
+        "organization_members",
+        "tenant_members",
+        "signed_link_holders",
+        "public_ephemeral_holders",
+        "machine_callback_allowlist",
+        "audience_unknown_requires_review"
+      ]
+    },
+    "viewer_state_class": {
+      "type": "string",
+      "enum": [
+        "live_service",
+        "captured_snapshot",
+        "mock_or_sample_data",
+        "stale_mirrored_state",
+        "no_live_viewer"
+      ]
+    },
+    "data_sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "public_demo",
+        "workspace_private",
+        "secrets_or_user_data_possible",
+        "admin_or_infrastructure",
+        "unknown_requires_review"
+      ]
+    },
+    "copy_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "local_only_copy",
+        "authenticated_route_copy",
+        "public_link_step_up_required",
+        "copy_blocked",
+        "unknown_requires_review"
+      ]
+    },
+    "exposure_label_class": {
+      "type": "string",
+      "enum": [
+        "no_side_effect_local_read",
+        "local_only_mutation",
+        "workspace_visible_mutation",
+        "provider_visible_mutation",
+        "publicly_visible_publish",
+        "cross_tenant_visible",
+        "browser_session_visible",
+        "tunnel_exposed_public",
+        "exposure_unknown_requires_review"
+      ]
+    },
+    "controlled_exposure_label_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "same_device_lan",
+        "authenticated_org_route",
+        "signed_preview_link",
+        "public_route"
+      ]
+    },
+    "teardown_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "pending_revoke",
+        "suspended_no_traffic",
+        "revoked",
+        "expired",
+        "closed"
+      ]
+    },
+    "revoke_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_live_route",
+        "user_self_revoke",
+        "workspace_admin_revoke",
+        "managed_admin_revoke",
+        "policy_revocation_only",
+        "automatic_expiry_only",
+        "provider_revoke_required",
+        "unknown_revoke_requires_review"
+      ]
+    },
+    "downgrade_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "network_loss_suspended",
+        "retarget_pending_review",
+        "policy_denied_blocked",
+        "approval_expired_reissue_required",
+        "capability_narrowed_no_share",
+        "provider_unavailable_suspended",
+        "paused_no_traffic",
+        "degraded_read_only",
+        "stale_target_inspect_only",
+        "closed_no_recovery"
+      ]
+    },
+    "reopen_class": {
+      "type": "string",
+      "enum": [
+        "reopen_same_identity",
+        "reopen_requires_reapproval",
+        "reopen_requires_new_target",
+        "reopen_blocked_no_recovery"
+      ]
+    },
+    "last_access_class": {
+      "type": "string",
+      "enum": [
+        "not_observed",
+        "observed_metadata_only",
+        "redacted_by_policy"
+      ]
+    },
+    "source_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_ref",
+        "process_ref",
+        "service_label",
+        "protocol_class"
+      ],
+      "properties": {
+        "service_ref": { "$ref": "#/$defs/opaque_ref" },
+        "process_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "service_label": { "$ref": "#/$defs/short_summary" },
+        "protocol_class": { "$ref": "#/$defs/protocol_class" }
+      }
+    },
+    "host_identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_class",
+        "host_identity_ref",
+        "workspace_identity_ref",
+        "environment_identity_ref",
+        "target_identity_witness_ref"
+      ],
+      "properties": {
+        "host_class": { "$ref": "#/$defs/host_class" },
+        "host_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "workspace_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "environment_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_identity_witness_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "endpoint_handles_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_port_handle_ref",
+        "local_bind_handle_ref",
+        "public_route_handle_ref",
+        "target_path_handle_ref"
+      ],
+      "properties": {
+        "target_port_handle_ref": { "$ref": "#/$defs/opaque_ref" },
+        "local_bind_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "public_route_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "target_path_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "audience_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audience_class", "audience_ref", "audience_summary"],
+      "properties": {
+        "audience_class": { "$ref": "#/$defs/audience_class" },
+        "audience_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "audience_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "auth_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auth_source_class",
+        "tls_posture_class",
+        "authority_ticket_ref"
+      ],
+      "properties": {
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "tls_posture_class": { "$ref": "#/$defs/tls_posture_class" },
+        "authority_ticket_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "session_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" }
+      }
+    },
+    "expiry_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expires_at", "ttl_seconds", "renewable"],
+      "properties": {
+        "expires_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "ttl_seconds": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "renewable": { "type": "boolean" }
+      }
+    },
+    "last_access_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["last_access_class", "last_access_at"],
+      "properties": {
+        "last_access_class": { "$ref": "#/$defs/last_access_class" },
+        "last_access_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      }
+    },
+    "copy_share_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "copy_disclosure_class",
+        "share_link_handle_ref",
+        "open_action_allowed",
+        "copy_action_allowed",
+        "share_action_allowed"
+      ],
+      "properties": {
+        "copy_disclosure_class": { "$ref": "#/$defs/copy_disclosure_class" },
+        "share_link_handle_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "open_action_allowed": { "type": "boolean" },
+        "copy_action_allowed": { "type": "boolean" },
+        "share_action_allowed": { "type": "boolean" }
+      }
+    },
+    "revocation_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "teardown_state",
+        "revoke_posture_class",
+        "affected_link_refs",
+        "session_impact_summary",
+        "stale_shared_link_state",
+        "reopen_class",
+        "summary"
+      ],
+      "properties": {
+        "teardown_state": { "$ref": "#/$defs/teardown_state" },
+        "revoke_posture_class": { "$ref": "#/$defs/revoke_posture_class" },
+        "revocation_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "affected_link_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "session_impact_summary": { "$ref": "#/$defs/short_summary" },
+        "stale_shared_link_state": {
+          "type": "string",
+          "enum": [
+            "no_shared_link",
+            "shared_link_now_stale",
+            "shared_link_revoked",
+            "shared_link_expired",
+            "shared_link_unknown_requires_review"
+          ]
+        },
+        "reopen_class": { "$ref": "#/$defs/reopen_class" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "downgrade_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgrade_state",
+        "local_continuation_allowed",
+        "summary"
+      ],
+      "properties": {
+        "downgrade_state": { "$ref": "#/$defs/downgrade_state" },
+        "local_continuation_allowed": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+__fixture__:
+  name: stale_target_remote_port_forward
+  scenario: >
+    A remote_port_forward to an upstream gateway has detected that the target
+    identity changed (the upstream pod was rescheduled and the witness no
+    longer matches). The route is in stale_target lifecycle, downgraded to
+    stale_target_inspect_only so viewers see a stale_mirrored_state banner
+    instead of a confidently-live one. Reopening requires selecting a new
+    target after a retarget review.
+  expected:
+    controlled_exposure_label: same_device_lan
+    audience_class: workspace_members
+    auth_source_class: workspace_session_auth
+    teardown_state: suspended_no_traffic
+    revoke_posture_class: user_self_revoke
+    findings: []
+
+route:
+  record_kind: route_object_record
+  route_object_schema_version: 1
+  route_id: route:remote:port_forward:gateway:01
+  captured_at: "2026-05-18T12:00:00Z"
+  updated_at: "2026-05-18T12:45:00Z"
+  route_kind: remote_port_forward
+  lifecycle_state: stale_target
+  source:
+    service_ref: svc:gateway:upstream
+    process_ref: proc:gateway:upstream:01
+    service_label: Upstream API gateway pod
+    protocol_class: https
+  host_identity:
+    host_class: remote_agent
+    host_identity_ref: host:remote_agent:gateway:01
+    workspace_identity_ref: wks:platform
+    environment_identity_ref: env:platform:eu-1
+    target_identity_witness_ref: witness:gateway:upstream:01
+  endpoint_handles:
+    target_port_handle_ref: port:gateway:upstream:01
+    local_bind_handle_ref: bind:platform:gateway:01
+    public_route_handle_ref: null
+    target_path_handle_ref: null
+  exposure_label: workspace_visible_mutation
+  controlled_exposure_label: same_device_lan
+  audience:
+    audience_class: workspace_members
+    audience_summary: Workspace members on the same LAN segment.
+  auth:
+    auth_source_class: workspace_session_auth
+    tls_posture_class: tls_terminated_at_helper
+    authority_ticket_ref: workspace_ticket:platform:01
+  viewer_state_class: stale_mirrored_state
+  data_sensitivity_class: workspace_private
+  expiry:
+    expires_at: "2026-05-18T20:00:00Z"
+    ttl_seconds: 28800
+    renewable: true
+  last_access:
+    last_access_class: observed_metadata_only
+    last_access_at: "2026-05-18T12:44:51Z"
+  copy_share:
+    copy_disclosure_class: authenticated_route_copy
+    share_link_handle_ref: share:platform:gateway:01
+    open_action_allowed: true
+    copy_action_allowed: false
+    share_action_allowed: false
+  revocation:
+    teardown_state: suspended_no_traffic
+    revoke_posture_class: user_self_revoke
+    affected_link_refs:
+      - link:platform:gateway:01
+    session_impact_summary: Traffic is suspended; existing links continue to render the stale banner.
+    stale_shared_link_state: shared_link_now_stale
+    reopen_class: reopen_requires_new_target
+    summary: Target identity changed; route is suspended pending a retarget review.
+  downgrade:
+    downgrade_state: stale_target_inspect_only
+    local_continuation_allowed: true
+    summary: Inspect-only downgrade; reopen requires selecting a new target.
+  summary: Remote port forward to upstream gateway detected stale target identity.

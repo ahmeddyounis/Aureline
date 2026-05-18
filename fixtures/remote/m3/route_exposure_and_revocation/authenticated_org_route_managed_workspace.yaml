@@ -1,0 +1,123 @@
+__fixture__:
+  name: authenticated_org_route_managed_workspace
+  scenario: >
+    A managed workspace exposes an internal staging app behind organization SSO
+    via a managed-workspace tunnel. The route is authenticated_org_route,
+    visible to organization members, with a 24-hour expiry and an org-admin
+    revoke path. Revoking suspends authenticated sessions; the route stays
+    re-openable under the same identity if reapproved.
+  expected:
+    controlled_exposure_label: authenticated_org_route
+    audience_class: organization_members
+    auth_source_class: organization_sso
+    teardown_state: active
+    revoke_posture_class: workspace_admin_revoke
+    findings: []
+
+route:
+  record_kind: route_object_record
+  route_object_schema_version: 1
+  route_id: route:org:managed:staging:01
+  captured_at: "2026-05-18T11:00:00Z"
+  updated_at: "2026-05-18T11:05:42Z"
+  route_kind: managed_workspace_tunnel
+  lifecycle_state: active
+  source:
+    service_ref: svc:staging:webapp
+    process_ref: proc:staging:webapp:01
+    service_label: Staging web application
+    protocol_class: https
+  host_identity:
+    host_class: managed_workspace
+    host_identity_ref: host:managed:staging:01
+    workspace_identity_ref: wks:staging
+    environment_identity_ref: env:staging:eu-1
+    target_identity_witness_ref: witness:managed:staging:01
+  endpoint_handles:
+    target_port_handle_ref: port:staging:webapp:01
+    local_bind_handle_ref: null
+    public_route_handle_ref: public_route:org:managed:staging:01
+    target_path_handle_ref: path:staging:webapp:root
+  exposure_label: workspace_visible_mutation
+  controlled_exposure_label: authenticated_org_route
+  audience:
+    audience_class: organization_members
+    audience_ref: org:acme
+    audience_summary: Organization members signed in via SSO.
+  auth:
+    auth_source_class: organization_sso
+    tls_posture_class: tls_terminated_at_tunnel_edge
+    authority_ticket_ref: approval_ticket:staging:01
+    session_handle_ref: session:org:sso:01
+  viewer_state_class: live_service
+  data_sensitivity_class: workspace_private
+  expiry:
+    expires_at: "2026-05-19T11:00:00Z"
+    ttl_seconds: 86400
+    renewable: true
+  last_access:
+    last_access_class: observed_metadata_only
+    last_access_at: "2026-05-18T11:05:30Z"
+  copy_share:
+    copy_disclosure_class: authenticated_route_copy
+    share_link_handle_ref: share:org:managed:staging:01
+    open_action_allowed: true
+    copy_action_allowed: true
+    share_action_allowed: true
+  revocation:
+    teardown_state: active
+    revoke_posture_class: workspace_admin_revoke
+    affected_link_refs:
+      - link:org:managed:staging:01
+    session_impact_summary: Revoke suspends authenticated org sessions on this route.
+    stale_shared_link_state: no_shared_link
+    reopen_class: reopen_requires_reapproval
+    summary: Workspace admin can revoke; reopening requires reapproval against the same identity.
+  downgrade:
+    downgrade_state: none
+    local_continuation_allowed: true
+    summary: No downgrade active.
+  summary: Managed-workspace tunnel exposing staging to organization members behind SSO.
+
+review:
+  record_kind: exposure_review_record
+  exposure_review_schema_version: 1
+  review_id: review:org:managed:staging:01
+  route_id: route:org:managed:staging:01
+  captured_at: "2026-05-18T10:58:11Z"
+  reviewer_ref: user:org:staging-admin
+  review_outcome: approved_with_narrowing
+  proposed_transition:
+    from_controlled_exposure_label: local_only
+    to_controlled_exposure_label: authenticated_org_route
+    transition_admitted: true
+    narrowing_applied: true
+    narrowing_summary: Narrowed audience from tenant_members to organization_members and required SSO.
+  audience:
+    audience_class: organization_members
+    audience_ref: org:acme
+    audience_summary: Approved for organization members only.
+  data_sensitivity:
+    data_sensitivity_class: workspace_private
+    data_sensitivity_summary: Staging dataset is workspace-private; no production user data.
+  cookie_session_behavior:
+    cookie_session_class: session_cookie_inherits_org
+    summary: Session cookie inherits the org SSO session.
+  idle_timeout:
+    idle_timeout_seconds: 3600
+    summary: Idle org session times out after 60 minutes.
+  reachability:
+    reachability_local_class: loopback_unreachable
+    reachability_public_class: not_public
+    summary: Reachable only via managed tunnel; not public.
+  lingering_local_preview:
+    lingering_local_preview_class: no_local_preview_remains
+    summary: No local preview is retained; the managed workspace owns the service.
+  viewer_state_truth:
+    viewer_state_class: live_service
+    summary: Viewers see live staging state.
+  cross_origin_disclosure:
+    cross_origin_class: system_browser_required_step_up
+    system_browser_required: true
+    summary: First open requires the system browser for SSO step-up.
+  summary: Widen to authenticated_org_route with narrowing to org members and SSO step-up.

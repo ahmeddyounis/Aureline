@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/remote/exposure_review.schema.json",
+  "title": "Aureline exposure-review sheet for route widening, copy, and share",
+  "description": "Boundary schema for the exposure_review_record. One record is the typed review sheet a route widening, share, copy, or open step MUST surface before a port-forward, tunnel, preview-route, or exposed-service row becomes reachable beyond its current audience. It binds the proposed transition by route_id, declares the audience, data sensitivity, cookie/session behavior, idle timeout, local-vs-public reachability, lingering local preview availability, cross-origin/browser-handoff limits, and the viewer-state truth the reviewer is approving. Reviews can be approved, denied, or widened-with-narrowing; raw URLs, hostnames, ports, paths, query strings, cookies, headers, and secret bytes never appear.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "exposure_review_schema_version",
+    "review_id",
+    "route_id",
+    "captured_at",
+    "review_outcome",
+    "proposed_transition",
+    "audience",
+    "data_sensitivity",
+    "cookie_session_behavior",
+    "idle_timeout",
+    "reachability",
+    "lingering_local_preview",
+    "viewer_state_truth",
+    "cross_origin_disclosure",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "exposure_review_record"
+    },
+    "exposure_review_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "review_id": { "$ref": "#/$defs/opaque_id" },
+    "route_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque route identity shared verbatim with the route_object_record."
+    },
+    "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "reviewer_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+    "review_outcome": {
+      "$ref": "#/$defs/review_outcome_class"
+    },
+    "proposed_transition": {
+      "$ref": "#/$defs/proposed_transition_block"
+    },
+    "audience": {
+      "$ref": "#/$defs/audience_block"
+    },
+    "data_sensitivity": {
+      "$ref": "#/$defs/data_sensitivity_block"
+    },
+    "cookie_session_behavior": {
+      "$ref": "#/$defs/cookie_session_block"
+    },
+    "idle_timeout": {
+      "$ref": "#/$defs/idle_timeout_block"
+    },
+    "reachability": {
+      "$ref": "#/$defs/reachability_block"
+    },
+    "lingering_local_preview": {
+      "$ref": "#/$defs/lingering_local_preview_block"
+    },
+    "viewer_state_truth": {
+      "$ref": "#/$defs/viewer_state_truth_block"
+    },
+    "cross_origin_disclosure": {
+      "$ref": "#/$defs/cross_origin_block"
+    },
+    "summary": { "$ref": "#/$defs/short_summary" }
+  },
+  "allOf": [
+    {
+      "description": "Denied or blocked reviews cannot also report approval as granted.",
+      "if": {
+        "properties": {
+          "review_outcome": {
+            "enum": ["denied", "blocked_pending_policy_review"]
+          }
+        },
+        "required": ["review_outcome"]
+      },
+      "then": {
+        "properties": {
+          "proposed_transition": {
+            "properties": {
+              "transition_admitted": { "const": false }
+            },
+            "required": ["transition_admitted"]
+          }
+        }
+      }
+    },
+    {
+      "description": "When the proposed transition widens to a public route, the review must declare reachability_public_class and idle timeout.",
+      "if": {
+        "properties": {
+          "proposed_transition": {
+            "properties": {
+              "to_controlled_exposure_label": { "const": "public_route" }
+            },
+            "required": ["to_controlled_exposure_label"]
+          }
+        },
+        "required": ["proposed_transition"]
+      },
+      "then": {
+        "properties": {
+          "reachability": {
+            "properties": {
+              "reachability_public_class": {
+                "enum": [
+                  "public_ephemeral_with_ttl",
+                  "public_via_signed_link",
+                  "public_blocked_by_policy"
+                ]
+              }
+            },
+            "required": ["reachability_public_class"]
+          },
+          "idle_timeout": {
+            "properties": {
+              "idle_timeout_seconds": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["idle_timeout_seconds"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref_nullable": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640
+    },
+    "review_outcome_class": {
+      "type": "string",
+      "enum": [
+        "approved_as_proposed",
+        "approved_with_narrowing",
+        "denied",
+        "blocked_pending_policy_review",
+        "deferred_pending_information"
+      ]
+    },
+    "controlled_exposure_label_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "same_device_lan",
+        "authenticated_org_route",
+        "signed_preview_link",
+        "public_route"
+      ]
+    },
+    "audience_class": {
+      "type": "string",
+      "enum": [
+        "self_only",
+        "same_device_lan",
+        "workspace_members",
+        "organization_members",
+        "tenant_members",
+        "signed_link_holders",
+        "public_ephemeral_holders",
+        "machine_callback_allowlist",
+        "audience_unknown_requires_review"
+      ]
+    },
+    "data_sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "public_demo",
+        "workspace_private",
+        "secrets_or_user_data_possible",
+        "admin_or_infrastructure",
+        "unknown_requires_review"
+      ]
+    },
+    "cookie_session_class": {
+      "type": "string",
+      "enum": [
+        "no_cookies_no_session",
+        "session_cookie_scoped_to_route",
+        "session_cookie_inherits_org",
+        "shared_browser_session_attached",
+        "cookie_behavior_unknown_requires_review"
+      ]
+    },
+    "reachability_local_class": {
+      "type": "string",
+      "enum": [
+        "loopback_only",
+        "loopback_plus_lan",
+        "loopback_unreachable"
+      ]
+    },
+    "reachability_public_class": {
+      "type": "string",
+      "enum": [
+        "not_public",
+        "public_ephemeral_with_ttl",
+        "public_via_signed_link",
+        "public_blocked_by_policy"
+      ]
+    },
+    "viewer_state_class": {
+      "type": "string",
+      "enum": [
+        "live_service",
+        "captured_snapshot",
+        "mock_or_sample_data",
+        "stale_mirrored_state",
+        "no_live_viewer"
+      ]
+    },
+    "lingering_local_preview_class": {
+      "type": "string",
+      "enum": [
+        "no_local_preview_remains",
+        "local_preview_remains_available",
+        "local_preview_inspect_only",
+        "local_preview_revoked_by_policy"
+      ]
+    },
+    "cross_origin_class": {
+      "type": "string",
+      "enum": [
+        "no_browser_handoff",
+        "embedded_webview_only",
+        "system_browser_required_step_up",
+        "cross_origin_blocked_by_policy"
+      ]
+    },
+    "proposed_transition_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from_controlled_exposure_label",
+        "to_controlled_exposure_label",
+        "transition_admitted",
+        "narrowing_applied"
+      ],
+      "properties": {
+        "from_controlled_exposure_label": {
+          "$ref": "#/$defs/controlled_exposure_label_class"
+        },
+        "to_controlled_exposure_label": {
+          "$ref": "#/$defs/controlled_exposure_label_class"
+        },
+        "transition_admitted": { "type": "boolean" },
+        "narrowing_applied": { "type": "boolean" },
+        "narrowing_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "audience_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audience_class", "audience_summary"],
+      "properties": {
+        "audience_class": { "$ref": "#/$defs/audience_class" },
+        "audience_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "audience_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "data_sensitivity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["data_sensitivity_class", "data_sensitivity_summary"],
+      "properties": {
+        "data_sensitivity_class": { "$ref": "#/$defs/data_sensitivity_class" },
+        "data_sensitivity_summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "cookie_session_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cookie_session_class", "summary"],
+      "properties": {
+        "cookie_session_class": { "$ref": "#/$defs/cookie_session_class" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "idle_timeout_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idle_timeout_seconds", "summary"],
+      "properties": {
+        "idle_timeout_seconds": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "reachability_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reachability_local_class",
+        "reachability_public_class",
+        "summary"
+      ],
+      "properties": {
+        "reachability_local_class": {
+          "$ref": "#/$defs/reachability_local_class"
+        },
+        "reachability_public_class": {
+          "$ref": "#/$defs/reachability_public_class"
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "lingering_local_preview_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lingering_local_preview_class", "summary"],
+      "properties": {
+        "lingering_local_preview_class": {
+          "$ref": "#/$defs/lingering_local_preview_class"
+        },
+        "local_preview_handle_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable"
+        },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "viewer_state_truth_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["viewer_state_class", "summary"],
+      "properties": {
+        "viewer_state_class": { "$ref": "#/$defs/viewer_state_class" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    },
+    "cross_origin_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cross_origin_class", "system_browser_required", "summary"],
+      "properties": {
+        "cross_origin_class": { "$ref": "#/$defs/cross_origin_class" },
+        "system_browser_required": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      }
+    }
+  }
+}

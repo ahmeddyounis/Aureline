@@ -1,0 +1,121 @@
+__fixture__:
+  name: signed_preview_link_browser_preview
+  scenario: >
+    A reviewer shares a signed, time-boxed preview link to a browser-preview
+    route hosted by a remote agent. The route is signed_preview_link with a
+    1-hour TTL; opening the link in the system browser steps the viewer up.
+    Revocation honors the signed-link semantics: revoking invalidates issued
+    links, and the route can only be re-opened by issuing a new signed link.
+  expected:
+    controlled_exposure_label: signed_preview_link
+    audience_class: signed_link_holders
+    auth_source_class: signed_preview_link
+    teardown_state: active
+    revoke_posture_class: user_self_revoke
+    findings: []
+
+route:
+  record_kind: route_object_record
+  route_object_schema_version: 1
+  route_id: route:preview:signed:01
+  captured_at: "2026-05-18T13:30:00Z"
+  updated_at: "2026-05-18T13:30:00Z"
+  route_kind: browser_preview_route
+  lifecycle_state: active
+  source:
+    service_ref: svc:preview:storefront
+    process_ref: proc:preview:storefront:01
+    service_label: Storefront preview build
+    protocol_class: https
+  host_identity:
+    host_class: remote_agent
+    host_identity_ref: host:remote_agent:preview:01
+    workspace_identity_ref: wks:storefront
+    environment_identity_ref: env:storefront:preview
+    target_identity_witness_ref: witness:remote_agent:preview:01
+  endpoint_handles:
+    target_port_handle_ref: port:preview:storefront:01
+    local_bind_handle_ref: null
+    public_route_handle_ref: public_route:preview:signed:01
+    target_path_handle_ref: path:preview:storefront:root
+  exposure_label: browser_session_visible
+  controlled_exposure_label: signed_preview_link
+  audience:
+    audience_class: signed_link_holders
+    audience_ref: link_audience:preview:signed:01
+    audience_summary: Holders of the signed preview link only.
+  auth:
+    auth_source_class: signed_preview_link
+    tls_posture_class: tls_terminated_at_tunnel_edge
+    authority_ticket_ref: signed_link_ticket:preview:01
+  viewer_state_class: live_service
+  data_sensitivity_class: workspace_private
+  expiry:
+    expires_at: "2026-05-18T14:30:00Z"
+    ttl_seconds: 3600
+    renewable: false
+  last_access:
+    last_access_class: observed_metadata_only
+    last_access_at: "2026-05-18T13:32:55Z"
+  copy_share:
+    copy_disclosure_class: authenticated_route_copy
+    share_link_handle_ref: share:preview:signed:01
+    open_action_allowed: true
+    copy_action_allowed: true
+    share_action_allowed: true
+  revocation:
+    teardown_state: active
+    revoke_posture_class: user_self_revoke
+    affected_link_refs:
+      - link:preview:signed:01
+    session_impact_summary: Revoking invalidates the signed link; in-progress sessions are dropped.
+    stale_shared_link_state: no_shared_link
+    reopen_class: reopen_requires_new_target
+    summary: Signed preview link; revoke invalidates the link and forces issuing a new one to reopen.
+  downgrade:
+    downgrade_state: none
+    local_continuation_allowed: true
+    summary: No downgrade active.
+  summary: Signed preview link to remote-agent-hosted storefront preview with 1-hour TTL.
+
+review:
+  record_kind: exposure_review_record
+  exposure_review_schema_version: 1
+  review_id: review:preview:signed:01
+  route_id: route:preview:signed:01
+  captured_at: "2026-05-18T13:28:40Z"
+  reviewer_ref: user:product:reviewer
+  review_outcome: approved_as_proposed
+  proposed_transition:
+    from_controlled_exposure_label: authenticated_org_route
+    to_controlled_exposure_label: signed_preview_link
+    transition_admitted: true
+    narrowing_applied: false
+  audience:
+    audience_class: signed_link_holders
+    audience_ref: link_audience:preview:signed:01
+    audience_summary: Approved for holders of the signed preview link only.
+  data_sensitivity:
+    data_sensitivity_class: workspace_private
+    data_sensitivity_summary: Workspace-private storefront draft; no live customer data.
+  cookie_session_behavior:
+    cookie_session_class: session_cookie_scoped_to_route
+    summary: Per-route session cookie scoped to the signed link.
+  idle_timeout:
+    idle_timeout_seconds: 600
+    summary: Idle session times out after 10 minutes.
+  reachability:
+    reachability_local_class: loopback_unreachable
+    reachability_public_class: public_via_signed_link
+    summary: Reachable to holders of the signed link only during the TTL window.
+  lingering_local_preview:
+    lingering_local_preview_class: no_local_preview_remains
+    summary: No local preview is retained; the remote agent owns the build.
+  viewer_state_truth:
+    viewer_state_class: live_service
+    summary: Viewers see the live preview build.
+  cross_origin_disclosure:
+    cross_origin_class: system_browser_required_step_up
+    system_browser_required: true
+    summary: System browser is required to open the signed link.
+  summary: Issue a signed preview link with a 1-hour TTL for a single review session.
