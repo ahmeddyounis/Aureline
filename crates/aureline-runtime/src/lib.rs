@@ -54,6 +54,7 @@ pub mod remote_helper_skew_beta;
 pub mod request_workspace;
 pub mod request_workspace_contracts;
 pub mod rerun;
+pub mod resource_governor;
 pub mod run_lineage;
 pub mod scanner_import;
 pub mod shared_debug_alpha;
@@ -379,6 +380,16 @@ pub use rerun::{
     RERUN_COMMAND_BINDING_RECORD_KIND, RERUN_LAST_LAUNCH_RECORD_KIND, RERUN_LAST_TASK_COMMAND_ID,
     RERUN_LAST_TEST_COMMAND_ID, RERUN_LOOP_SCHEMA_VERSION, RERUN_PREPARED_ATTEMPT_RECORD_KIND,
     RERUN_SUPPORT_EXPORT_RECORD_KIND, RERUN_TARGET_COMPARISON_RECORD_KIND,
+};
+pub use resource_governor::{
+    seeded_resource_governor_snapshot, seeded_resource_governor_support_export,
+    AdmissionControlDecision, AdmissionDecisionClass, CheckpointMetadata, GovernorHealthState,
+    GovernorTransition, GovernorWorkClass, OverrideDecisionClass, OverrideScope, OverrideSheet,
+    PressureDimension, PressureInput, ProtectedForegroundAction, QueueLane, QueueLaneState,
+    QueueLaneStateFlag, ResourceGovernorSnapshot, ResourceGovernorSupportExport,
+    ResourceGovernorValidationReport, ResourceGovernorValidationViolation, VisibleHealthState,
+    QUEUE_LANE_STATE_RECORD_KIND, RESOURCE_GOVERNOR_SCHEMA_VERSION,
+    RESOURCE_GOVERNOR_SNAPSHOT_RECORD_KIND, RESOURCE_GOVERNOR_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use run_lineage::{
     seeded_run_history_support_export, DurableJobRow, RerunReviewDriftField, RerunReviewDriftRow,

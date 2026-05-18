@@ -1,0 +1,494 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/queue_lane_state.schema.json",
+  "title": "Aureline resource-governor queue-lane state",
+  "description": "Boundary schema for resource-governor snapshots, queue-lane states, and support exports that explain pressure inputs, admission decisions, coalesced work, checkpoint metadata, override posture, and protected foreground continuity. The schema reuses the queue-lane, work-class, governor-state, and visible-health-state vocabularies from docs/runtime/resource_governor_contract.md and docs/runtime/background_queue_contract.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/resource_governor_snapshot" },
+    { "$ref": "#/$defs/queue_lane_state" },
+    { "$ref": "#/$defs/resource_governor_support_export" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "governor_state": {
+      "type": "string",
+      "enum": ["nominal", "constrained", "degraded", "protect_core", "recovery"]
+    },
+    "visible_state": {
+      "type": "string",
+      "enum": ["ready", "warming", "partial", "degraded", "offline", "unsupported", "overloaded"]
+    },
+    "pressure_dimension": {
+      "type": "string",
+      "enum": ["cpu", "memory", "disk", "battery_thermal", "network", "optional_service_quota"]
+    },
+    "queue_lane": {
+      "type": "string",
+      "enum": ["foreground", "interactive_background", "maintenance", "provider_overlay", "upload_replication"]
+    },
+    "work_class": {
+      "type": "string",
+      "enum": [
+        "core_interaction",
+        "core_navigation",
+        "short_foreground_task",
+        "background_knowledge_work",
+        "optional_assistance",
+        "upload_and_replication"
+      ]
+    },
+    "lane_state_flag": {
+      "type": "string",
+      "enum": ["running", "narrowed", "paused", "coalesced", "checkpointed", "denied", "staged_resume"]
+    },
+    "protected_action": {
+      "type": "string",
+      "enum": ["editing", "save", "explicit_cancellation", "quick_open", "navigation"]
+    },
+    "admission_decision": {
+      "type": "string",
+      "enum": ["admit", "defer", "pause", "deny"]
+    },
+    "override_scope": {
+      "type": "string",
+      "enum": ["workspace", "profile"]
+    },
+    "override_decision": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "blocked_by_policy",
+        "blocked_by_power_saver",
+        "blocked_by_quota",
+        "blocked_by_protect_core"
+      ]
+    },
+    "pressure_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "state",
+        "source_token",
+        "current_value_label",
+        "threshold_label",
+        "reason",
+        "affected_lanes"
+      ],
+      "properties": {
+        "dimension": { "$ref": "#/$defs/pressure_dimension" },
+        "state": { "$ref": "#/$defs/governor_state" },
+        "source_token": { "$ref": "#/$defs/opaque_id" },
+        "current_value_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "threshold_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "affected_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/queue_lane" }
+        }
+      }
+    },
+    "checkpoint_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_class",
+        "checkpoint_ref",
+        "boundary_label",
+        "captured_at",
+        "replay_note",
+        "resume_note"
+      ],
+      "properties": {
+        "checkpoint_class": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "boundary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/timestamp" },
+        "replay_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "resume_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "override_sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "override_id",
+        "scope",
+        "lane",
+        "decision",
+        "label",
+        "reason",
+        "blocked_control_explanation",
+        "action_label"
+      ],
+      "properties": {
+        "override_id": { "$ref": "#/$defs/opaque_id" },
+        "scope": { "$ref": "#/$defs/override_scope" },
+        "lane": { "$ref": "#/$defs/queue_lane" },
+        "decision": { "$ref": "#/$defs/override_decision" },
+        "label": { "$ref": "#/$defs/reviewable_sentence" },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "blocking_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "blocked_control_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "action_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Blocked override decisions must render an explanation instead of a dead control.",
+          "if": {
+            "properties": {
+              "decision": {
+                "enum": [
+                  "blocked_by_policy",
+                  "blocked_by_power_saver",
+                  "blocked_by_quota",
+                  "blocked_by_protect_core"
+                ]
+              }
+            },
+            "required": ["decision"]
+          },
+          "then": {
+            "properties": {
+              "blocked_control_explanation": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "queue_lane_state": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "workspace_id",
+        "lane",
+        "lane_token",
+        "work_class",
+        "budget_domains",
+        "visible_state",
+        "primary_state",
+        "state_flags",
+        "lane_depth",
+        "collapse_count",
+        "coalesce_count",
+        "replace_count",
+        "restart_count",
+        "affected_work_labels",
+        "affected_surface_refs",
+        "reason",
+        "remains_usable",
+        "protected_actions_preserved",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "queue_lane_state" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "lane": { "$ref": "#/$defs/queue_lane" },
+        "lane_token": { "$ref": "#/$defs/queue_lane" },
+        "work_class": { "$ref": "#/$defs/work_class" },
+        "budget_domains": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "visible_state": { "$ref": "#/$defs/visible_state" },
+        "primary_state": { "$ref": "#/$defs/lane_state_flag" },
+        "state_flags": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/lane_state_flag" }
+        },
+        "lane_depth": { "type": "integer", "minimum": 0 },
+        "oldest_age_seconds": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ]
+        },
+        "collapse_count": { "type": "integer", "minimum": 0 },
+        "coalesce_count": { "type": "integer", "minimum": 0 },
+        "replace_count": { "type": "integer", "minimum": 0 },
+        "restart_count": { "type": "integer", "minimum": 0 },
+        "cancellation_lag_ms": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number", "minimum": 0 }
+          ]
+        },
+        "affected_work_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "affected_surface_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "remains_usable": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "checkpoint": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/checkpoint_metadata" }
+          ]
+        },
+        "replay_resume_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "denied_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "override_sheet": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/override_sheet" }
+          ]
+        },
+        "protected_actions_preserved": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/protected_action" }
+        },
+        "observed_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Coalesced lanes must carry queue age and collapse metadata.",
+          "if": {
+            "properties": {
+              "state_flags": { "contains": { "const": "coalesced" } }
+            },
+            "required": ["state_flags"]
+          },
+          "then": {
+            "properties": {
+              "collapse_count": { "type": "integer", "minimum": 1 },
+              "oldest_age_seconds": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        {
+          "description": "Checkpointed lanes must carry checkpoint metadata.",
+          "if": {
+            "properties": {
+              "state_flags": { "contains": { "const": "checkpointed" } }
+            },
+            "required": ["state_flags"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint": { "$ref": "#/$defs/checkpoint_metadata" }
+            }
+          }
+        }
+      ]
+    },
+    "admission_control_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_id",
+        "request_label",
+        "work_class",
+        "lane",
+        "decision",
+        "reason",
+        "outranked_by",
+        "observed_at"
+      ],
+      "properties": {
+        "request_id": { "$ref": "#/$defs/opaque_id" },
+        "request_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "work_class": { "$ref": "#/$defs/work_class" },
+        "lane": { "$ref": "#/$defs/queue_lane" },
+        "decision": { "$ref": "#/$defs/admission_decision" },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "outranked_by": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/protected_action" }
+        },
+        "observed_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "governor_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "previous_state",
+        "current_state",
+        "entered_at",
+        "trigger_dimensions",
+        "reason",
+        "exit_condition"
+      ],
+      "properties": {
+        "previous_state": { "$ref": "#/$defs/governor_state" },
+        "current_state": { "$ref": "#/$defs/governor_state" },
+        "entered_at": { "$ref": "#/$defs/timestamp" },
+        "trigger_dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/pressure_dimension" }
+        },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "exit_condition": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "resource_governor_snapshot": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "snapshot_id",
+        "workspace_id",
+        "profile_id",
+        "governor_state",
+        "pressure_inputs",
+        "lane_states",
+        "admission_decisions",
+        "override_sheets",
+        "last_transition",
+        "protected_actions_preserved",
+        "status_summary",
+        "diagnostics_ref",
+        "observed_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "resource_governor_snapshot" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "governor_state": { "$ref": "#/$defs/governor_state" },
+        "pressure_inputs": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/pressure_input" }
+        },
+        "lane_states": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/queue_lane_state" }
+        },
+        "admission_decisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/admission_control_decision" }
+        },
+        "override_sheets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/override_sheet" }
+        },
+        "last_transition": { "$ref": "#/$defs/governor_transition" },
+        "protected_actions_preserved": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/protected_action" }
+        },
+        "status_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "diagnostics_ref": { "$ref": "#/$defs/opaque_id" },
+        "observed_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "resource_governor_support_export": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "export_id",
+        "snapshot_id",
+        "workspace_id",
+        "profile_id",
+        "governor_state",
+        "pressure_inputs",
+        "lane_states",
+        "admission_decisions",
+        "override_sheets",
+        "last_transition",
+        "protected_actions_preserved",
+        "raw_private_material_excluded",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "resource_governor_support_export" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "export_id": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "profile_id": { "$ref": "#/$defs/opaque_id" },
+        "governor_state": { "$ref": "#/$defs/governor_state" },
+        "pressure_inputs": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/pressure_input" }
+        },
+        "lane_states": {
+          "type": "array",
+          "minItems": 5,
+          "items": { "$ref": "#/$defs/queue_lane_state" }
+        },
+        "admission_decisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/admission_control_decision" }
+        },
+        "override_sheets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/override_sheet" }
+        },
+        "last_transition": { "$ref": "#/$defs/governor_transition" },
+        "protected_actions_preserved": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/protected_action" }
+        },
+        "raw_private_material_excluded": { "const": true },
+        "generated_at": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}
