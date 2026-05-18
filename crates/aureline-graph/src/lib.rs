@@ -4,6 +4,9 @@
 //! stores validated [`aureline_graph_proto::WorkspaceGraph`] snapshots and
 //! exposes a bounded query-family surface for launch-wedge symbols, imports,
 //! ownership edges, and the future impact/explainer packet lanes.
+//! Graph-backed navigation projections use
+//! [`aureline_navigation::target_model`] for relation, proof, freshness,
+//! ambiguity, and scope-completeness truth.
 
 pub mod drift_packets;
 pub mod explainers;
@@ -64,3 +67,4 @@ pub use aureline_graph_proto::{
     ConfidenceLevel, EdgeClass, EdgeEvidenceState, Freshness, FreshnessFrame, GraphEdge, GraphNode,
     NodeBody, NodeClass, QueryFamilyTag, WorksetScopeRef,
 };
+pub use aureline_navigation::target_model as navigation_target_model;

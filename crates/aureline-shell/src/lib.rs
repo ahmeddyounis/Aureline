@@ -2,7 +2,9 @@
 //!
 //! This crate is the production shell container. It defines the canonical
 //! shell-zone ids, default metrics, and a small live desktop frame that renders
-//! placeholder occupants in each declared zone.
+//! placeholder occupants in each declared zone. Breadcrumbs, bookmarks, and
+//! navigation history can project through [`aureline_navigation::target_model`]
+//! when they need semantic target fidelity rather than path-only ancestry.
 
 #![doc(html_root_url = "https://docs.rs/aureline-shell/0.0.0")]
 #![allow(
@@ -141,3 +143,5 @@ pub mod windows;
 pub mod workset_switcher;
 pub mod workspace_switcher;
 pub mod workspace_trust_beta;
+
+pub use aureline_navigation::target_model as navigation_target_model;

@@ -5,7 +5,9 @@
 //! alpha diff packets with syntax labels, suspicious-text cues, representation
 //! safe copy actions, exact path truth, reopen continuity records, review
 //! workspace seeds, stable row anchors, work-item relation projections, and
-//! shared collection-view batch-review packets.
+//! shared collection-view batch-review packets. Review exports consume
+//! [`aureline_navigation::target_model`] when semantic navigation, reference,
+//! hierarchy, or rename-preview evidence appears in a packet.
 
 #![doc(html_root_url = "https://docs.rs/aureline-review/0.0.0")]
 
@@ -17,6 +19,7 @@ pub mod review_pack_dsl;
 pub mod review_pack_parity_harness;
 pub mod workspace;
 
+pub use aureline_navigation::target_model as navigation_target_model;
 pub use change_inspector::{
     project_change_lineage, ChangeLineageAncestorEntry, ChangeLineageAncestryView,
     ChangeLineageConflictState, ChangeLineageError, ChangeLineageProjection,

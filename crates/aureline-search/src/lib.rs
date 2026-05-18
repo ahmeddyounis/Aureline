@@ -47,6 +47,9 @@
 //! - [`session_ledger::QuerySessionLedgerRecord`] records query sessions,
 //!   saved-query privacy projections, and export-safe support/docs packets
 //!   without cloning the planner or result identity model.
+//! - [`aureline_navigation::target_model`] is the shared semantic target
+//!   model for definitions, references, hierarchy edges, rename previews, and
+//!   continuity refs used when search rows promote into navigation.
 //!
 //! Higher layers (the shell `search_shell` module) convert this vocabulary
 //! into chrome and persistable diagnostics; this crate only owns the
@@ -203,4 +206,5 @@ pub use session_ledger::{
     SearchPacketRedactionState, SAVED_QUERY_ALPHA_SCHEMA_VERSION,
 };
 
+pub use aureline_navigation::target_model as navigation_target_model;
 pub use aureline_workspace::{GeneratedArtifactClass, LineageFreshnessClass, LineageHintRecord};

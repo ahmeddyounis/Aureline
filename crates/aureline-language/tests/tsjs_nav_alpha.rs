@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use aureline_language::{
+    navigation_target_model::{AccessKind, RelationKind},
+    tsjs_navigation_target, tsjs_reference_occurrences, tsjs_rename_preview_set,
     CodeActionRefactorScopeAdmissionClass, CodeActionScopeWideningReviewTriggerClass,
     LanguageServerHostIdentity, LanguageServerHostStatus, RouterCapabilityClass,
     RouterCompletenessClass, RouterFallbackClass, RouterFaultDomainId, RouterFreshnessClass,
@@ -90,6 +92,14 @@ fn tsjs_wedge_emits_hover_definition_references_and_rename_preview() {
             case.case_id
         );
         assert_semantic_result_round_trips(&definition);
+        let shared_target = tsjs_navigation_target(&definition);
+        assert_eq!(shared_target.relation_kind, RelationKind::Definition);
+        assert_eq!(
+            shared_target.requires_downgrade_disclosure(),
+            case.expect.definition_requires_disclosure,
+            "shared target disclosure mismatch for {}",
+            case.case_id
+        );
 
         let references = wedge
             .references("symbol:tsjs:formatPrice", &host_statuses)
@@ -106,6 +116,22 @@ fn tsjs_wedge_emits_hover_definition_references_and_rename_preview() {
             case.case_id
         );
         assert_reference_set_round_trips(&references);
+        let shared_occurrences = tsjs_reference_occurrences(&references);
+        assert_eq!(
+            shared_occurrences.len(),
+            case.expect.references_materialized_count,
+            "shared reference count mismatch for {}",
+            case.case_id
+        );
+        if case.expect.references_materialized_count > 1 {
+            assert!(
+                shared_occurrences
+                    .iter()
+                    .any(|occurrence| occurrence.access_kind == AccessKind::Call),
+                "shared references must preserve call access for {}",
+                case.case_id
+            );
+        }
 
         let rename_preview = wedge
             .rename_preview(
@@ -179,6 +205,25 @@ fn tsjs_wedge_emits_hover_definition_references_and_rename_preview() {
             case.case_id
         );
         assert_rename_preview_round_trips(&rename_preview);
+        let shared_preview = tsjs_rename_preview_set(&rename_preview);
+        assert_eq!(
+            shared_preview.count_summary.changed_count, case.expect.rename_changed_count,
+            "shared rename changed count mismatch for {}",
+            case.case_id
+        );
+        assert_eq!(
+            shared_preview.requires_downgrade_disclosure(),
+            case.expect.rename_requires_disclosure,
+            "shared rename disclosure mismatch for {}",
+            case.case_id
+        );
+        if case.expect.rename_generated_count > 0 {
+            assert!(
+                !shared_preview.generated_scope_notes.is_empty(),
+                "shared rename preview must preserve generated notes for {}",
+                case.case_id
+            );
+        }
     }
 
     let ready_case = fixture

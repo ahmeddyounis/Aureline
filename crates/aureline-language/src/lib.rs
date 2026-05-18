@@ -5,6 +5,9 @@
 //! parse, degraded, failure, and shutdown states as reusable records. Editor,
 //! search, support, and future router surfaces should consume these records
 //! rather than embedding grammar metadata or parser fallback rules privately.
+//! Definition, reference, and rename-preview outputs project into the shared
+//! [`aureline_navigation::target_model`] contract before crossing into UI,
+//! CLI/headless, AI, review, or support evidence.
 
 #![doc(html_root_url = "https://docs.rs/aureline-language/0.0.0")]
 
@@ -15,6 +18,7 @@ pub mod lsp_router;
 pub mod packs;
 pub mod python;
 pub mod symbol_snapshot;
+pub mod target_model;
 pub mod tree_sitter;
 pub mod tsjs;
 
@@ -114,6 +118,10 @@ pub use symbol_snapshot::{
     SymbolSnapshotCompletenessClass, SymbolSnapshotExportRequest, SymbolSnapshotExporter,
     SymbolSnapshotRecord, SymbolSnapshotSchemaVersion, SymbolSnapshotState,
 };
+pub use target_model::{
+    python_navigation_target, python_reference_occurrences, python_rename_preview_set,
+    tsjs_navigation_target, tsjs_reference_occurrences, tsjs_rename_preview_set,
+};
 pub use tsjs::{
     TsJsAccessKindClass, TsJsAmbiguityDescriptor, TsJsAnchorRef, TsJsAnswerLayerClass,
     TsJsApplyPostureClass, TsJsCheckpointClass, TsJsCompletenessClass,
@@ -135,6 +143,7 @@ pub use tsjs::{
     TSJS_NAV_ALPHA_SCHEMA_VERSION, TSJS_QUALITY_ALPHA_SCHEMA_VERSION,
 };
 
+pub use aureline_navigation::target_model as navigation_target_model;
 pub use tree_sitter::{
     default_launch_grammar_registry, BudgetPolicyClass, BufferRef, CacheRecord, CacheStatusClass,
     DerivedCueClass, DerivedCuePostureClass, DerivedCueRecord, EpochBinding, EpochRoleClass,

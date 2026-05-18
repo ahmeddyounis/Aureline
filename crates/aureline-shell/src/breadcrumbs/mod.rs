@@ -25,6 +25,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_navigation::target_model::{
+    ContinuityArtifactKind, ContinuityState, DowngradeReason, TargetContinuityRef,
+};
+
 use crate::explorer::{ExplorerNodeId, ExplorerNodeKind, ExplorerTree};
 
 const BREADCRUMB_PATH_SCHEMA_VERSION: u32 = 1;
@@ -139,6 +143,33 @@ pub fn breadcrumb_lines(path: &BreadcrumbPath) -> Vec<String> {
     ]
 }
 
+/// Projects a breadcrumb path into the shared semantic target-continuity model.
+///
+/// The returned target ref is the opaque explorer leaf id, not a raw path. A
+/// drifted breadcrumb must supply either a disambiguation set or downgrade
+/// reasons so reopen code does not silently jump to a guessed successor.
+pub fn breadcrumb_target_continuity_ref(
+    path: &BreadcrumbPath,
+    continuity_state: ContinuityState,
+    remapped_target_ref: Option<String>,
+    disambiguation_set_ref: Option<String>,
+    downgrade_reasons: Vec<DowngradeReason>,
+) -> TargetContinuityRef {
+    TargetContinuityRef {
+        continuity_ref_id: format!("nav:continuity:breadcrumb:{}", path.leaf_node_id.as_str()),
+        artifact_kind: ContinuityArtifactKind::Breadcrumb,
+        target_ref: path.leaf_node_id.as_str().to_owned(),
+        continuity_state,
+        remapped_target_ref,
+        disambiguation_set_ref,
+        downgrade_reasons,
+        summary: format!(
+            "Breadcrumb leaf {} is projected through the shared navigation target continuity model.",
+            path.leaf_node_id.as_str()
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,5 +265,16 @@ mod tests {
         assert!(lines.iter().any(|l| l.contains("canonical:")));
         assert!(lines.iter().any(|l| l.contains("logical:")));
         assert!(lines[0].contains("bc / crates / lib.rs"));
+    }
+
+    #[test]
+    fn breadcrumb_projects_shared_continuity_target() {
+        let (tree, _root_id, leaf_id) = three_level_tree();
+        let path = materialize_breadcrumb_path(&tree, &leaf_id).expect("path must exist");
+        let continuity =
+            breadcrumb_target_continuity_ref(&path, ContinuityState::Bound, None, None, vec![]);
+        assert_eq!(continuity.target_ref, leaf_id.as_str());
+        assert_eq!(continuity.artifact_kind, ContinuityArtifactKind::Breadcrumb);
+        assert_eq!(continuity.continuity_state, ContinuityState::Bound);
     }
 }

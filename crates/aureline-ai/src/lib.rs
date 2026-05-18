@@ -30,6 +30,9 @@
 //! [`/docs/ai/routing_cost_alpha.md`](../../../docs/ai/routing_cost_alpha.md).
 //! The records cover bounded, honest subsets of the frozen vocabularies and
 //! grow additively without forking truth.
+//! Semantic navigation citations use [`aureline_navigation::target_model`] so
+//! AI context rows carry relation, access, proof, freshness, ambiguity, and
+//! scope-completeness labels instead of copied UI strings.
 
 #![doc(html_root_url = "https://docs.rs/aureline-ai/0.0.0")]
 
@@ -42,6 +45,7 @@ pub mod routing;
 pub mod routing_policy;
 pub mod tainted_context;
 
+pub use aureline_navigation::target_model as navigation_target_model;
 pub use composer::beta::{
     current_beta_composer_context_evidence_support_export,
     ComposerContextEvidenceBetaArtifactError, ComposerContextEvidenceBetaInput,
