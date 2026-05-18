@@ -16,8 +16,17 @@ Companion artifacts:
 - [`/schemas/release/release_center_object.schema.json`](../../schemas/release/release_center_object.schema.json)
   - boundary schema for release candidates, artifact-family rows,
   stages, audiences, publication actions, and worked publication cases.
+- [`/schemas/release/release_candidate.schema.json`](../../schemas/release/release_candidate.schema.json)
+  - boundary schema for release-candidate objects and version-bump
+  proposal objects.
 - [`/schemas/release/publish_target.schema.json`](../../schemas/release/publish_target.schema.json)
   - boundary schema for publish-target descriptors.
+- [`/schemas/release/promotion_timeline.schema.json`](../../schemas/release/promotion_timeline.schema.json)
+  - boundary schema for promotion timeline steps, artifact bundle cards,
+  and rollback or revocation records.
+- [`/crates/aureline-release/src/release_center_model/`](../../crates/aureline-release/src/release_center_model/)
+  - Rust object model consumed by UI, headless, support, and audit
+  projections.
 - [`/fixtures/release/publish_target_cases/`](../../fixtures/release/publish_target_cases/)
   - structural fixtures for staged preview, stable publication,
   mirror-only emergency push, support-bundle backreference, and

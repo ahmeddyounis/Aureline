@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/release_candidate.schema.json",
+  "title": "Aureline release candidate and version-bump proposal",
+  "description": "Boundary schema for release_candidate_record and version_bump_proposal_record objects shared by release center, headless publication, support export, and audit flows. Records carry stable refs, typed freshness and compatibility classes, exact-build linkage, rollback targets, auth-source class, rollout ring, public-surface impacts, and continuity notes without raw artifacts, raw logs, or credentials.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/release_candidate_record" },
+    { "$ref": "#/$defs/version_bump_proposal_record" }
+  ],
+  "$defs": {
+    "release_candidate_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "release_stage_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "local_preview",
+        "internal_ring",
+        "public_preview",
+        "stable_candidate",
+        "stable",
+        "lts_candidate",
+        "lts",
+        "mirror_staged",
+        "mirror_published",
+        "registry_published",
+        "emergency_active",
+        "paused",
+        "rolled_back",
+        "revoked",
+        "yanked",
+        "repinned",
+        "reconciled"
+      ]
+    },
+    "semantic_change_class": {
+      "type": "string",
+      "enum": [
+        "no_public_change",
+        "patch",
+        "minor",
+        "major",
+        "pre_release",
+        "hotfix",
+        "security_only",
+        "backport",
+        "schema_epoch",
+        "manual_review_required"
+      ]
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "current_with_waiver",
+        "stale_blocking",
+        "stale_non_blocking",
+        "missing_blocking",
+        "not_applicable"
+      ]
+    },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "none_local",
+        "local_dev_keychain",
+        "ci_oidc_release_identity",
+        "release_vault_token",
+        "security_emergency_quorum",
+        "mirror_operator_receipt",
+        "registry_publisher_identity",
+        "support_export_ref"
+      ]
+    },
+    "rollout_ring": {
+      "type": "string",
+      "enum": [
+        "local_preview",
+        "internal",
+        "canary",
+        "pilot",
+        "beta",
+        "stable",
+        "lts",
+        "mirror_only",
+        "emergency"
+      ]
+    },
+    "compatibility_impact_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "manifest_change",
+        "schema_change",
+        "sdk_range_change",
+        "abi_range_change",
+        "extension_compatibility",
+        "docs_pack_change",
+        "mirror_import_change",
+        "state_migration_change"
+      ]
+    },
+    "continuity_class": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "known_issue_linked",
+        "rollback_coordinated",
+        "mirror_continuity",
+        "support_continuity",
+        "emergency_reconciliation"
+      ]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_ref",
+        "evidence_kind",
+        "freshness_class",
+        "generated_at",
+        "required_for_promotion",
+        "summary"
+      ],
+      "properties": {
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_kind": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "generated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/utc_datetime" }
+          ]
+        },
+        "required_for_promotion": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "compatibility_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "impact_class",
+        "affected_surface",
+        "public_surface",
+        "summary",
+        "source_refs"
+      ],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/non_empty_string" },
+        "impact_class": { "$ref": "#/$defs/compatibility_impact_class" },
+        "affected_surface": { "$ref": "#/$defs/non_empty_string" },
+        "public_surface": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "source_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "continuity_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "continuity_class",
+        "summary",
+        "known_issue_refs",
+        "support_refs"
+      ],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_class": { "$ref": "#/$defs/continuity_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "known_issue_refs": { "$ref": "#/$defs/ref_array" },
+        "support_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "release_candidate_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_candidate_schema_version",
+        "record_kind",
+        "candidate_id",
+        "version",
+        "channel_family",
+        "current_stage_class",
+        "artifact_graph_ref",
+        "artifact_bundle_refs",
+        "publish_target_refs",
+        "version_bump_proposal_refs",
+        "exact_build_identity_refs",
+        "evidence_refs",
+        "blocker_refs",
+        "known_issue_refs",
+        "rollback_target_ref",
+        "auth_source_class",
+        "rollout_ring",
+        "compatibility_notes",
+        "continuity_notes"
+      ],
+      "properties": {
+        "release_candidate_schema_version": { "$ref": "#/$defs/release_candidate_schema_version" },
+        "record_kind": { "type": "string", "const": "release_candidate_record" },
+        "candidate_id": { "$ref": "#/$defs/non_empty_string" },
+        "version": { "$ref": "#/$defs/non_empty_string" },
+        "channel_family": { "$ref": "#/$defs/non_empty_string" },
+        "current_stage_class": { "$ref": "#/$defs/release_stage_class" },
+        "artifact_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_bundle_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "publish_target_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "version_bump_proposal_refs": { "$ref": "#/$defs/ref_array" },
+        "exact_build_identity_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_ref" }
+        },
+        "blocker_refs": { "$ref": "#/$defs/ref_array" },
+        "known_issue_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "rollback_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "rollout_ring": { "$ref": "#/$defs/rollout_ring" },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_note" }
+        },
+        "continuity_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/continuity_note" }
+        }
+      }
+    },
+    "version_bump_proposal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_candidate_schema_version",
+        "record_kind",
+        "proposal_id",
+        "prior_version",
+        "target_version",
+        "semantic_change_class",
+        "affected_artifact_refs",
+        "manifest_schema_change_refs",
+        "sdk_abi_range_refs",
+        "extension_compatibility_refs",
+        "docs_pack_change_refs",
+        "mirror_import_implication_refs",
+        "evidence_refs",
+        "compatibility_notes",
+        "approval_refs"
+      ],
+      "properties": {
+        "release_candidate_schema_version": { "$ref": "#/$defs/release_candidate_schema_version" },
+        "record_kind": { "type": "string", "const": "version_bump_proposal_record" },
+        "proposal_id": { "$ref": "#/$defs/non_empty_string" },
+        "prior_version": { "$ref": "#/$defs/non_empty_string" },
+        "target_version": { "$ref": "#/$defs/non_empty_string" },
+        "semantic_change_class": { "$ref": "#/$defs/semantic_change_class" },
+        "affected_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "manifest_schema_change_refs": { "$ref": "#/$defs/ref_array" },
+        "sdk_abi_range_refs": { "$ref": "#/$defs/ref_array" },
+        "extension_compatibility_refs": { "$ref": "#/$defs/ref_array" },
+        "docs_pack_change_refs": { "$ref": "#/$defs/ref_array" },
+        "mirror_import_implication_refs": { "$ref": "#/$defs/ref_array" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_ref" }
+        },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_note" }
+        },
+        "approval_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    }
+  }
+}

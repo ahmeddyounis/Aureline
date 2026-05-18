@@ -1,0 +1,542 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/promotion_timeline.schema.json",
+  "title": "Aureline promotion timeline, artifact bundle, and rollback or revocation records",
+  "description": "Boundary schema for promotion_timeline_step_record, rollback_or_revocation_record, and artifact_bundle_card_record objects. The records keep UI, headless, support, and audit views on the same artifact-graph history, including immutable digest refs, evidence refs, auth-source class, rollout ring, compatibility notes, continuity notes, break-glass state, scoped rollback, and revocation history.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/promotion_timeline_step_record" },
+    { "$ref": "#/$defs/rollback_or_revocation_record" },
+    { "$ref": "#/$defs/artifact_bundle_card_record" }
+  ],
+  "$defs": {
+    "promotion_timeline_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "release_stage_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "local_preview",
+        "internal_ring",
+        "public_preview",
+        "stable_candidate",
+        "stable",
+        "lts_candidate",
+        "lts",
+        "mirror_staged",
+        "mirror_published",
+        "registry_published",
+        "emergency_active",
+        "paused",
+        "rolled_back",
+        "revoked",
+        "yanked",
+        "repinned",
+        "reconciled"
+      ]
+    },
+    "timeline_event_class": {
+      "type": "string",
+      "enum": [
+        "local_build_recorded",
+        "target_staged",
+        "candidate_promoted",
+        "stable_published",
+        "lts_published",
+        "mirror_published",
+        "registry_published",
+        "rollback_applied",
+        "artifact_yanked",
+        "artifact_revoked",
+        "channel_repinned",
+        "deprecation_announced",
+        "reconciled"
+      ]
+    },
+    "semantic_change_class": {
+      "type": "string",
+      "enum": [
+        "no_public_change",
+        "patch",
+        "minor",
+        "major",
+        "pre_release",
+        "hotfix",
+        "security_only",
+        "backport",
+        "schema_epoch",
+        "manual_review_required"
+      ]
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "current_with_waiver",
+        "stale_blocking",
+        "stale_non_blocking",
+        "missing_blocking",
+        "not_applicable"
+      ]
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "cli_binary",
+        "remote_agent",
+        "debug_symbols",
+        "source_map_bundle",
+        "sdk_artifact",
+        "docs_pack",
+        "schema_export",
+        "sbom_document",
+        "signed_attestation",
+        "compatibility_report",
+        "advisory",
+        "mirror_metadata",
+        "update_metadata",
+        "release_evidence_packet",
+        "policy_bundle",
+        "extension_package"
+      ]
+    },
+    "signature_state_class": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "present_unverified",
+        "pending_release_signature",
+        "missing",
+        "revoked"
+      ]
+    },
+    "auth_source_class": {
+      "type": "string",
+      "enum": [
+        "none_local",
+        "local_dev_keychain",
+        "ci_oidc_release_identity",
+        "release_vault_token",
+        "security_emergency_quorum",
+        "mirror_operator_receipt",
+        "registry_publisher_identity",
+        "support_export_ref"
+      ]
+    },
+    "rollout_ring": {
+      "type": "string",
+      "enum": [
+        "local_preview",
+        "internal",
+        "canary",
+        "pilot",
+        "beta",
+        "stable",
+        "lts",
+        "mirror_only",
+        "emergency"
+      ]
+    },
+    "break_glass_state_class": {
+      "type": "string",
+      "enum": [
+        "not_used",
+        "eligible_but_not_used",
+        "active_pending_reconciliation",
+        "reconciled",
+        "superseded_by_signed_action",
+        "expired_without_reconciliation",
+        "forbidden_for_action"
+      ]
+    },
+    "rollback_or_revocation_kind": {
+      "type": "string",
+      "enum": [
+        "rollback",
+        "revoke",
+        "yank",
+        "repin",
+        "emergency_disable"
+      ]
+    },
+    "blast_radius_class": {
+      "type": "string",
+      "enum": [
+        "single_artifact_node",
+        "artifact_family_scoped",
+        "channel_pointer_scoped",
+        "registry_namespace_scoped",
+        "mirror_scoped",
+        "full_artifact_graph"
+      ]
+    },
+    "artifact_graph_consistency": {
+      "type": "string",
+      "enum": [
+        "consistent_full_graph",
+        "consistent_scoped_exception",
+        "pending_reconciliation",
+        "broken"
+      ]
+    },
+    "compatibility_impact_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "manifest_change",
+        "schema_change",
+        "sdk_range_change",
+        "abi_range_change",
+        "extension_compatibility",
+        "docs_pack_change",
+        "mirror_import_change",
+        "state_migration_change"
+      ]
+    },
+    "continuity_class": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "known_issue_linked",
+        "rollback_coordinated",
+        "mirror_continuity",
+        "support_continuity",
+        "emergency_reconciliation"
+      ]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_ref",
+        "evidence_kind",
+        "freshness_class",
+        "generated_at",
+        "required_for_promotion",
+        "summary"
+      ],
+      "properties": {
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_kind": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "generated_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/utc_datetime" }
+          ]
+        },
+        "required_for_promotion": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "compatibility_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "impact_class",
+        "affected_surface",
+        "public_surface",
+        "summary",
+        "source_refs"
+      ],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/non_empty_string" },
+        "impact_class": { "$ref": "#/$defs/compatibility_impact_class" },
+        "affected_surface": { "$ref": "#/$defs/non_empty_string" },
+        "public_surface": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "source_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "continuity_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_id",
+        "continuity_class",
+        "summary",
+        "known_issue_refs",
+        "support_refs"
+      ],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_class": { "$ref": "#/$defs/continuity_class" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "known_issue_refs": { "$ref": "#/$defs/ref_array" },
+        "support_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "immutable_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digest_id",
+        "artifact_ref",
+        "family_class",
+        "algorithm",
+        "digest_ref"
+      ],
+      "properties": {
+        "digest_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "algorithm": { "$ref": "#/$defs/non_empty_string" },
+        "digest_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "artifact_payload_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol_refs",
+        "docs_pack_refs",
+        "schema_refs",
+        "compatibility_note_refs",
+        "advisory_refs",
+        "mirror_metadata_refs"
+      ],
+      "properties": {
+        "symbol_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "docs_pack_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "schema_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "compatibility_note_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "advisory_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "mirror_metadata_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "break_glass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_class",
+        "actor_class",
+        "break_glass_event_ref",
+        "reason_class",
+        "reconciliation_state",
+        "reconcile_by",
+        "follow_up_refs"
+      ],
+      "properties": {
+        "state_class": { "$ref": "#/$defs/break_glass_state_class" },
+        "actor_class": { "$ref": "#/$defs/nullable_string" },
+        "break_glass_event_ref": { "$ref": "#/$defs/nullable_string" },
+        "reason_class": { "$ref": "#/$defs/non_empty_string" },
+        "reconciliation_state": { "$ref": "#/$defs/nullable_string" },
+        "reconcile_by": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/utc_datetime" }
+          ]
+        },
+        "follow_up_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "promotion_timeline_step_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promotion_timeline_schema_version",
+        "record_kind",
+        "timeline_step_id",
+        "candidate_ref",
+        "artifact_graph_ref",
+        "source_stage_class",
+        "destination_stage_class",
+        "event_class",
+        "semantic_change_class",
+        "publish_target_refs",
+        "artifact_bundle_refs",
+        "digest_refs",
+        "evidence_refs",
+        "approving_actor_refs",
+        "auth_source_class",
+        "rollout_ring",
+        "reversible_window",
+        "rollback_target_ref",
+        "payload_refs",
+        "break_glass",
+        "compatibility_notes",
+        "continuity_notes"
+      ],
+      "properties": {
+        "promotion_timeline_schema_version": { "$ref": "#/$defs/promotion_timeline_schema_version" },
+        "record_kind": { "type": "string", "const": "promotion_timeline_step_record" },
+        "timeline_step_id": { "$ref": "#/$defs/non_empty_string" },
+        "candidate_ref": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_stage_class": { "$ref": "#/$defs/release_stage_class" },
+        "destination_stage_class": { "$ref": "#/$defs/release_stage_class" },
+        "event_class": { "$ref": "#/$defs/timeline_event_class" },
+        "semantic_change_class": { "$ref": "#/$defs/semantic_change_class" },
+        "publish_target_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "artifact_bundle_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "digest_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_ref" }
+        },
+        "approving_actor_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "rollout_ring": { "$ref": "#/$defs/rollout_ring" },
+        "reversible_window": { "$ref": "#/$defs/nullable_string" },
+        "rollback_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "payload_refs": { "$ref": "#/$defs/artifact_payload_refs" },
+        "break_glass": { "$ref": "#/$defs/break_glass" },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_note" }
+        },
+        "continuity_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/continuity_note" }
+        }
+      }
+    },
+    "rollback_or_revocation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promotion_timeline_schema_version",
+        "record_kind",
+        "record_id",
+        "kind",
+        "artifact_graph_ref",
+        "affected_artifact_refs",
+        "unaffected_artifact_refs",
+        "blast_radius_class",
+        "last_known_good_ref",
+        "rollback_manifest_ref",
+        "revocation_record_refs",
+        "advisory_refs",
+        "known_issue_refs",
+        "support_export_refs",
+        "auth_source_class",
+        "rollout_ring",
+        "artifact_graph_consistency",
+        "evidence_refs",
+        "break_glass",
+        "compatibility_notes",
+        "continuity_notes"
+      ],
+      "properties": {
+        "promotion_timeline_schema_version": { "$ref": "#/$defs/promotion_timeline_schema_version" },
+        "record_kind": { "type": "string", "const": "rollback_or_revocation_record" },
+        "record_id": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "$ref": "#/$defs/rollback_or_revocation_kind" },
+        "artifact_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+        "affected_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "unaffected_artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "blast_radius_class": { "$ref": "#/$defs/blast_radius_class" },
+        "last_known_good_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rollback_manifest_ref": { "$ref": "#/$defs/nullable_string" },
+        "revocation_record_refs": { "$ref": "#/$defs/ref_array" },
+        "advisory_refs": { "$ref": "#/$defs/ref_array" },
+        "known_issue_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "auth_source_class": { "$ref": "#/$defs/auth_source_class" },
+        "rollout_ring": { "$ref": "#/$defs/rollout_ring" },
+        "artifact_graph_consistency": { "$ref": "#/$defs/artifact_graph_consistency" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_ref" }
+        },
+        "break_glass": { "$ref": "#/$defs/break_glass" },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_note" }
+        },
+        "continuity_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/continuity_note" }
+        }
+      }
+    },
+    "artifact_bundle_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promotion_timeline_schema_version",
+        "record_kind",
+        "bundle_id",
+        "artifact_graph_ref",
+        "exact_build_identity_refs",
+        "artifact_refs",
+        "digest_set",
+        "signature_state",
+        "attestation_state",
+        "evidence_refs",
+        "payload_refs",
+        "export_actions",
+        "compatibility_notes",
+        "continuity_notes"
+      ],
+      "properties": {
+        "promotion_timeline_schema_version": { "$ref": "#/$defs/promotion_timeline_schema_version" },
+        "record_kind": { "type": "string", "const": "artifact_bundle_card_record" },
+        "bundle_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+        "exact_build_identity_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "digest_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/immutable_digest" }
+        },
+        "signature_state": { "$ref": "#/$defs/signature_state_class" },
+        "attestation_state": { "$ref": "#/$defs/signature_state_class" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_ref" }
+        },
+        "payload_refs": { "$ref": "#/$defs/artifact_payload_refs" },
+        "export_actions": { "$ref": "#/$defs/non_empty_ref_array" },
+        "compatibility_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compatibility_note" }
+        },
+        "continuity_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/continuity_note" }
+        }
+      }
+    }
+  }
+}

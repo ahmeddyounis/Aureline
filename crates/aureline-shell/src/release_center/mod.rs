@@ -60,6 +60,7 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_build_info::BuildIdentityRecord;
+pub use aureline_release::release_center_model;
 use aureline_support::bundle::ReleaseChannelClass;
 
 use crate::help_about::{InstallModeClass, ProvenanceRowClass, ProvenanceRowState, TreeStateClass};
