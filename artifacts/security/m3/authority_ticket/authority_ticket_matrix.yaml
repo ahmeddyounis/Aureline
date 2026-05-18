@@ -1,0 +1,178 @@
+# Authority-ticket beta matrix.
+#
+# Declares the ticket classes, side-effect classes, projection modes,
+# root-authority proof classes, spend outcomes, and defect kinds the beta
+# projection must inspect. The matrix mirrors the vocabulary owned by
+# `crates/aureline-policy/src/authority/mod.rs`.
+
+shared_contract_ref: "security:authority_ticket_beta:v1"
+schema_version: 1
+
+record_kinds:
+  page: "security_authority_ticket_page_record"
+  ticket: "security_authority_ticket_record"
+  credential_projection: "security_credential_projection_record"
+  root_authority_change: "security_root_authority_change_record"
+  spend_attempt: "security_authority_ticket_spend_attempt_record"
+  defect: "security_authority_ticket_defect_record"
+  summary: "security_authority_ticket_summary_record"
+  support_export: "security_authority_ticket_support_export_record"
+
+ticket_classes:
+  - token: "local_mutation"
+    side_effect_class: "local_workspace_write"
+    max_lifetime_seconds: 900
+    remembered_rule_allowed: true
+  - token: "external_provider_mutation"
+    side_effect_class: "external_provider_write"
+    max_lifetime_seconds: 600
+    remembered_rule_allowed: false
+  - token: "credential_projection"
+    side_effect_class: "credential_projection_to_consumer"
+    max_lifetime_seconds: 180
+    remembered_rule_allowed: false
+  - token: "privileged_debug_attach"
+    side_effect_class: "privileged_inspection_attach"
+    max_lifetime_seconds: 300
+    remembered_rule_allowed: false
+  - token: "policy_trust_admin_change"
+    side_effect_class: "policy_trust_mutation"
+    max_lifetime_seconds: 300
+    remembered_rule_allowed: false
+
+issuer_classes:
+  - token: "shell"
+  - token: "policy_service"
+  - token: "supervisor"
+
+request_origin_classes:
+  intrinsic_issuer_surfaces:
+    - token: "user_shell_prompt"
+    - token: "policy_decision"
+    - token: "supervisor_control_path"
+  routed_requesting_surfaces:
+    - token: "admin_console_request"
+    - token: "local_admin_request"
+    - token: "ai_tool_plan"
+    - token: "extension_request"
+    - token: "cli_script_request"
+    - token: "browser_companion_request"
+    - token: "remote_helper_request"
+    - token: "automation_scheduler_request"
+
+actor_classes:
+  - token: "human_account"
+  - token: "local_admin"
+  - token: "organization_admin"
+  - token: "installation_or_app_grant"
+  - token: "delegated_credential"
+  - token: "policy_injected_service_identity"
+  - token: "local_only_authority"
+
+target_classes:
+  - token: "local_workspace"
+  - token: "provider_object"
+  - token: "credential_consumer"
+  - token: "debug_attach_target"
+  - token: "trust_store"
+  - token: "policy_admin_object"
+
+credential_projection_modes:
+  - token: "handle_only"
+  - token: "delegated_handle"
+  - token: "session_only_secret"
+  - token: "request_header_signer"
+  - token: "sign_only"
+  - token: "token_exchange"
+  - token: "ephemeral_file_descriptor"
+  - token: "metadata_only"
+
+credential_reference_classes:
+  - token: "broker_handle"
+  - token: "delegated_credential"
+  - token: "session_only_secret"
+  - token: "projected_credential"
+
+root_authority_change_classes:
+  - token: "policy_admin_change"
+  - token: "trust_store_change"
+  - token: "signing_root_rotation"
+  - token: "governance_elevation"
+
+root_authority_source_proofs:
+  signed:
+    - token: "signed_policy_bundle"
+    - token: "signed_trust_root_rotation"
+    - token: "signed_admin_command"
+  local_authority:
+    - token: "local_root_authority"
+    - token: "hardware_backed_admin_step_up"
+  invalid:
+    - token: "missing_or_unverified"
+
+spend_outcomes:
+  admitted:
+    - token: "admitted"
+  denied:
+    - token: "denied_missing_ticket"
+    - token: "denied_expired"
+    - token: "denied_revoked"
+    - token: "denied_target_drift"
+    - token: "denied_policy_epoch_drift"
+    - token: "denied_sandbox_drift"
+    - token: "denied_authority_source_mismatch"
+    - token: "denied_credential_projection_missing"
+    - token: "denied_root_proof_missing"
+    - token: "denied_lineage_mismatch"
+
+use_postures:
+  - token: "single_use"
+  - token: "bounded_reuse"
+
+revocation_states:
+  - token: "live"
+    spendable: true
+  - token: "expired"
+    spendable: false
+  - token: "revoked"
+    spendable: false
+  - token: "invalidated"
+    spendable: false
+
+defect_kinds:
+  record_shape_and_tokens:
+    - token: "record_shape_drift"
+    - token: "token_drift"
+    - token: "side_effect_class_mismatch"
+    - token: "missing_requesting_surface_ref"
+  lifetime_and_remembered_rules:
+    - token: "ticket_lifetime_mismatch"
+    - token: "ticket_lifetime_exceeds_budget"
+    - token: "remembered_rule_too_broad"
+    - token: "remembered_rule_forbidden"
+  credential_projection:
+    - token: "credential_projection_missing"
+    - token: "raw_secret_material_present"
+    - token: "credential_projection_consumer_missing"
+  root_authority:
+    - token: "root_authority_change_missing"
+    - token: "root_authority_proof_missing"
+    - token: "root_authority_proof_incomplete"
+    - token: "root_authority_change_not_exportable"
+  spend_attempts:
+    - token: "spend_admitted_without_ticket"
+    - token: "spend_admitted_under_drift"
+    - token: "spend_denial_missing_audit_ref"
+    - token: "spend_denial_missing_reapproval"
+    - token: "spend_denial_outcome_mismatch"
+  coverage:
+    - token: "ticket_class_coverage_missing"
+    - token: "credential_projection_coverage_missing"
+    - token: "spend_outcome_coverage_missing"
+  guardrails:
+    - token: "guardrail_violation"
+
+support_export_guarantees:
+  - "Privileged-action lineage is reconstructable from ticket, spend, projection, root-change, source-proof, target, actor, sandbox, and audit refs."
+  - "Raw credentials, raw authority bodies, raw policy payloads, and plaintext secret material are excluded."
+  - "Root-authority changes remain attributable and exportable through signed or local-authority proof refs."

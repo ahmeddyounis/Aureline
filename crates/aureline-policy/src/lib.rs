@@ -1,14 +1,34 @@
-//! Policy simulation, exception lifecycle, and remembered-decision contracts.
+//! Policy simulation, authority-ticket, and remembered-decision contracts.
 //!
 //! This crate owns the beta policy-governance object model consumed by shell,
 //! support, admin, and offline-file control paths. It does not evaluate a full
 //! policy language; it provides typed preview records, bounded exception and
-//! waiver rows, remembered-decision drift checks, and metadata-safe support
-//! exports.
+//! waiver rows, authority-ticket lineage for privileged actions,
+//! remembered-decision drift checks, and metadata-safe support exports.
 
 #![doc(html_root_url = "https://docs.rs/aureline-policy/0.0.0")]
 
+pub mod authority;
 pub mod simulation;
+
+pub use authority::{
+    audit_authority_ticket_page, seeded_authority_ticket_page, validate_authority_ticket_page,
+    AuthorityActorBinding, AuthorityActorClass, AuthorityEvaluationOutcome, AuthorityGuardrails,
+    AuthorityIssuerClass, AuthorityLineage, AuthorityRequestOriginClass, AuthorityRevocationHook,
+    AuthorityRevocationState, AuthoritySandboxBinding, AuthoritySideEffectClass,
+    AuthoritySourceProof, AuthoritySourceProofClass, AuthorityTargetClass, AuthorityTargetIdentity,
+    AuthorityTicketClass, AuthorityTicketDefect, AuthorityTicketDefectKind, AuthorityTicketPage,
+    AuthorityTicketRecord, AuthorityTicketSpendAttempt, AuthorityTicketSummary,
+    AuthorityTicketSupportExport, AuthorityUsePosture, CredentialConsumerIdentity,
+    CredentialProjectionMode, CredentialProjectionRecord, CredentialReferenceClass,
+    RememberedAuthorityRule, RootAuthorityChangeClass, RootAuthorityChangeRecord,
+    AUTHORITY_TICKET_DEFECT_RECORD_KIND, AUTHORITY_TICKET_PAGE_RECORD_KIND,
+    AUTHORITY_TICKET_RECORD_KIND, AUTHORITY_TICKET_SCHEMA_VERSION,
+    AUTHORITY_TICKET_SHARED_CONTRACT_REF, AUTHORITY_TICKET_SOURCE_MATRIX_REF,
+    AUTHORITY_TICKET_SPEND_ATTEMPT_RECORD_KIND, AUTHORITY_TICKET_SUMMARY_RECORD_KIND,
+    AUTHORITY_TICKET_SUPPORT_EXPORT_RECORD_KIND, CREDENTIAL_PROJECTION_RECORD_KIND,
+    ROOT_AUTHORITY_CHANGE_RECORD_KIND,
+};
 
 pub use simulation::{
     audit_policy_simulation_beta_page, revalidate_remembered_decision,

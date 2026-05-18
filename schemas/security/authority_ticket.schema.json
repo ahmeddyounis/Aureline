@@ -1,0 +1,709 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/authority_ticket.schema.json",
+  "title": "Aureline authority-ticket beta page",
+  "description": "Boundary schema for authority-ticket beta records consumed by the aureline-policy authority module. The page binds credential projection, privileged debug attach, and policy/trust/admin changes to explicit shell, policy-service, or supervisor authority tickets. Support exports preserve actor, target, sandbox, policy epoch, source proof, projection, and spend lineage by opaque reference only; raw credentials, raw authority material, raw policy payloads, and plaintext secret material do not cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/authority_ticket_page" },
+    { "$ref": "#/$defs/support_export" },
+    { "$ref": "#/$defs/authority_ticket" },
+    { "$ref": "#/$defs/spend_attempt" },
+    { "$ref": "#/$defs/defect" },
+    { "$ref": "#/$defs/summary" },
+    {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/authority_ticket" },
+          { "$ref": "#/$defs/spend_attempt" },
+          { "$ref": "#/$defs/defect" }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "security:authority_ticket_beta:v1"
+    },
+    "source_matrix_ref": {
+      "type": "string",
+      "const": "artifacts/security/m3/authority_ticket/authority_ticket_matrix.yaml"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable ref safe for logs, audit rows, support exports, and fixture manifests."
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewable label that contains no secret bytes or raw external payloads."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ticket_class": {
+      "type": "string",
+      "enum": [
+        "local_mutation",
+        "external_provider_mutation",
+        "credential_projection",
+        "privileged_debug_attach",
+        "policy_trust_admin_change"
+      ]
+    },
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_write",
+        "external_provider_write",
+        "credential_projection_to_consumer",
+        "privileged_inspection_attach",
+        "policy_trust_mutation"
+      ]
+    },
+    "issuer_class": {
+      "type": "string",
+      "enum": ["shell", "policy_service", "supervisor"]
+    },
+    "request_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_shell_prompt",
+        "policy_decision",
+        "supervisor_control_path",
+        "admin_console_request",
+        "local_admin_request",
+        "ai_tool_plan",
+        "extension_request",
+        "cli_script_request",
+        "browser_companion_request",
+        "remote_helper_request",
+        "automation_scheduler_request"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "local_admin",
+        "organization_admin",
+        "installation_or_app_grant",
+        "delegated_credential",
+        "policy_injected_service_identity",
+        "local_only_authority"
+      ]
+    },
+    "target_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace",
+        "provider_object",
+        "credential_consumer",
+        "debug_attach_target",
+        "trust_store",
+        "policy_admin_object"
+      ]
+    },
+    "projection_mode": {
+      "type": "string",
+      "enum": [
+        "handle_only",
+        "delegated_handle",
+        "session_only_secret",
+        "request_header_signer",
+        "sign_only",
+        "token_exchange",
+        "ephemeral_file_descriptor",
+        "metadata_only"
+      ]
+    },
+    "credential_reference_class": {
+      "type": "string",
+      "enum": [
+        "broker_handle",
+        "delegated_credential",
+        "session_only_secret",
+        "projected_credential"
+      ]
+    },
+    "root_authority_change_class": {
+      "type": "string",
+      "enum": [
+        "policy_admin_change",
+        "trust_store_change",
+        "signing_root_rotation",
+        "governance_elevation"
+      ]
+    },
+    "source_proof_class": {
+      "type": "string",
+      "enum": [
+        "signed_policy_bundle",
+        "signed_trust_root_rotation",
+        "signed_admin_command",
+        "local_root_authority",
+        "hardware_backed_admin_step_up",
+        "missing_or_unverified"
+      ]
+    },
+    "use_posture": {
+      "type": "string",
+      "enum": ["single_use", "bounded_reuse"]
+    },
+    "revocation_state": {
+      "type": "string",
+      "enum": ["live", "expired", "revoked", "invalidated"]
+    },
+    "evaluation_outcome": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "denied_missing_ticket",
+        "denied_expired",
+        "denied_revoked",
+        "denied_target_drift",
+        "denied_policy_epoch_drift",
+        "denied_sandbox_drift",
+        "denied_authority_source_mismatch",
+        "denied_credential_projection_missing",
+        "denied_root_proof_missing",
+        "denied_lineage_mismatch"
+      ]
+    },
+    "defect_kind": {
+      "type": "string",
+      "enum": [
+        "record_shape_drift",
+        "token_drift",
+        "side_effect_class_mismatch",
+        "missing_requesting_surface_ref",
+        "ticket_lifetime_mismatch",
+        "ticket_lifetime_exceeds_budget",
+        "credential_projection_missing",
+        "raw_secret_material_present",
+        "credential_projection_consumer_missing",
+        "root_authority_change_missing",
+        "root_authority_proof_missing",
+        "root_authority_proof_incomplete",
+        "root_authority_change_not_exportable",
+        "remembered_rule_too_broad",
+        "remembered_rule_forbidden",
+        "spend_admitted_without_ticket",
+        "spend_admitted_under_drift",
+        "spend_denial_missing_audit_ref",
+        "spend_denial_missing_reapproval",
+        "spend_denial_outcome_mismatch",
+        "ticket_class_coverage_missing",
+        "credential_projection_coverage_missing",
+        "spend_outcome_coverage_missing",
+        "guardrail_violation"
+      ]
+    },
+    "actor_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "actor_class_token",
+        "actor_subject_ref",
+        "authority_source_ref",
+        "granted_scope_refs"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_class_token": { "$ref": "#/$defs/actor_class" },
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_ref" },
+        "authority_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "granted_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        }
+      }
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_class",
+        "target_class_token",
+        "target_ref",
+        "target_label",
+        "target_fingerprint_ref"
+      ],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "target_class_token": { "$ref": "#/$defs/target_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_label": { "$ref": "#/$defs/label" },
+        "target_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "sandbox_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sandbox_profile_ref",
+        "sandbox_profile_fingerprint_ref",
+        "capability_envelope_ref",
+        "policy_epoch_ref"
+      ],
+      "properties": {
+        "sandbox_profile_ref": { "$ref": "#/$defs/opaque_ref" },
+        "sandbox_profile_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "capability_envelope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "revocation_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revocation_state",
+        "revocation_state_token",
+        "revoke_path_ref"
+      ],
+      "properties": {
+        "revocation_state": { "$ref": "#/$defs/revocation_state" },
+        "revocation_state_token": { "$ref": "#/$defs/revocation_state" },
+        "revoke_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "revoke_event_ref": { "$ref": "#/$defs/opaque_ref" },
+        "revoke_path_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "remembered_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reusable_rule_id",
+        "scope_ref",
+        "renewable_ticket_lifetime_seconds",
+        "owner_policy_source_ref",
+        "revoke_path_ref"
+      ],
+      "properties": {
+        "reusable_rule_id": { "$ref": "#/$defs/opaque_ref" },
+        "scope_ref": { "$ref": "#/$defs/opaque_ref" },
+        "renewable_ticket_lifetime_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 900
+        },
+        "owner_policy_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "revoke_path_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_ticket_refs",
+        "authority_source_ref",
+        "lineage_fingerprint_ref"
+      ],
+      "properties": {
+        "parent_ticket_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "authority_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "lineage_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_authority_material_present",
+        "plaintext_secret_present",
+        "ambient_authority_grant_present",
+        "silent_authority_widening_present",
+        "local_editing_preserved"
+      ],
+      "properties": {
+        "raw_authority_material_present": { "type": "boolean" },
+        "plaintext_secret_present": { "type": "boolean" },
+        "ambient_authority_grant_present": { "type": "boolean" },
+        "silent_authority_widening_present": { "type": "boolean" },
+        "local_editing_preserved": { "type": "boolean" }
+      }
+    },
+    "consumer_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_id",
+        "consumer_label",
+        "consumer_capability_hash_ref"
+      ],
+      "properties": {
+        "consumer_id": { "$ref": "#/$defs/opaque_ref" },
+        "consumer_label": { "$ref": "#/$defs/label" },
+        "consumer_capability_hash_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "credential_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "projection_id",
+        "ticket_ref",
+        "projection_mode",
+        "projection_mode_token",
+        "credential_reference_class",
+        "credential_reference_class_token",
+        "consumer_identity",
+        "secret_class_ref",
+        "projected_credential_ref",
+        "target_identity_ref",
+        "expires_at",
+        "revocation_path_ref",
+        "guardrails"
+      ],
+      "properties": {
+        "record_kind": { "const": "security_credential_projection_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "projection_id": { "$ref": "#/$defs/opaque_ref" },
+        "ticket_ref": { "$ref": "#/$defs/opaque_ref" },
+        "projection_mode": { "$ref": "#/$defs/projection_mode" },
+        "projection_mode_token": { "$ref": "#/$defs/projection_mode" },
+        "credential_reference_class": { "$ref": "#/$defs/credential_reference_class" },
+        "credential_reference_class_token": { "$ref": "#/$defs/credential_reference_class" },
+        "consumer_identity": { "$ref": "#/$defs/consumer_identity" },
+        "secret_class_ref": { "$ref": "#/$defs/opaque_ref" },
+        "projected_credential_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "expires_at": { "$ref": "#/$defs/timestamp" },
+        "revocation_path_ref": { "$ref": "#/$defs/opaque_ref" },
+        "guardrails": { "$ref": "#/$defs/guardrails" }
+      }
+    },
+    "source_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof_class",
+        "proof_class_token",
+        "source_ref",
+        "proof_fingerprint_ref",
+        "verified_at"
+      ],
+      "properties": {
+        "proof_class": { "$ref": "#/$defs/source_proof_class" },
+        "proof_class_token": { "$ref": "#/$defs/source_proof_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "signer_ref": { "$ref": "#/$defs/opaque_ref" },
+        "signature_blob_ref": { "$ref": "#/$defs/opaque_ref" },
+        "local_authority_ref": { "$ref": "#/$defs/opaque_ref" },
+        "proof_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "verified_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "root_authority_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "change_id",
+        "ticket_ref",
+        "change_class",
+        "change_class_token",
+        "source_proof",
+        "admin_actor",
+        "target_identity",
+        "policy_epoch_ref",
+        "effective_at",
+        "rollback_ref",
+        "audit_event_refs",
+        "exportable"
+      ],
+      "properties": {
+        "record_kind": { "const": "security_root_authority_change_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "change_id": { "$ref": "#/$defs/opaque_ref" },
+        "ticket_ref": { "$ref": "#/$defs/opaque_ref" },
+        "change_class": { "$ref": "#/$defs/root_authority_change_class" },
+        "change_class_token": { "$ref": "#/$defs/root_authority_change_class" },
+        "source_proof": { "$ref": "#/$defs/source_proof" },
+        "admin_actor": { "$ref": "#/$defs/actor_binding" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "effective_at": { "$ref": "#/$defs/timestamp" },
+        "rollback_ref": { "$ref": "#/$defs/opaque_ref" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "exportable": { "type": "boolean" }
+      }
+    },
+    "authority_ticket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "ticket_id",
+        "display_label",
+        "ticket_class",
+        "ticket_class_token",
+        "side_effect_class",
+        "side_effect_class_token",
+        "issuer_class",
+        "issuer_class_token",
+        "issuing_surface_ref",
+        "request_origin_class",
+        "request_origin_class_token",
+        "actor_binding",
+        "target_identity",
+        "sandbox_binding",
+        "issued_at",
+        "expires_at",
+        "lifetime_seconds",
+        "use_posture",
+        "use_posture_token",
+        "revocation_hook",
+        "lineage",
+        "audit_event_refs",
+        "guardrails"
+      ],
+      "properties": {
+        "record_kind": { "const": "security_authority_ticket_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "ticket_id": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "$ref": "#/$defs/label" },
+        "ticket_class": { "$ref": "#/$defs/ticket_class" },
+        "ticket_class_token": { "$ref": "#/$defs/ticket_class" },
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "side_effect_class_token": { "$ref": "#/$defs/side_effect_class" },
+        "issuer_class": { "$ref": "#/$defs/issuer_class" },
+        "issuer_class_token": { "$ref": "#/$defs/issuer_class" },
+        "issuing_surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "request_origin_class": { "$ref": "#/$defs/request_origin_class" },
+        "request_origin_class_token": { "$ref": "#/$defs/request_origin_class" },
+        "requesting_surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "actor_binding": { "$ref": "#/$defs/actor_binding" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "sandbox_binding": { "$ref": "#/$defs/sandbox_binding" },
+        "issued_at": { "$ref": "#/$defs/timestamp" },
+        "expires_at": { "$ref": "#/$defs/timestamp" },
+        "lifetime_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 900
+        },
+        "use_posture": { "$ref": "#/$defs/use_posture" },
+        "use_posture_token": { "$ref": "#/$defs/use_posture" },
+        "revocation_hook": { "$ref": "#/$defs/revocation_hook" },
+        "credential_projection_ref": { "$ref": "#/$defs/opaque_ref" },
+        "root_authority_change_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_proof": { "$ref": "#/$defs/source_proof" },
+        "remembered_rule": { "$ref": "#/$defs/remembered_rule" },
+        "lineage": { "$ref": "#/$defs/lineage" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "guardrails": { "$ref": "#/$defs/guardrails" }
+      }
+    },
+    "spend_attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "spend_attempt_id",
+        "attempted_ticket_class",
+        "attempted_ticket_class_token",
+        "current_actor_binding",
+        "current_target_identity",
+        "current_sandbox_binding",
+        "current_authority_source_ref",
+        "evaluated_at",
+        "evaluation_outcome",
+        "evaluation_outcome_token",
+        "reapproval_required",
+        "safely_replayable",
+        "explanation",
+        "audit_event_refs"
+      ],
+      "properties": {
+        "record_kind": { "const": "security_authority_ticket_spend_attempt_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "spend_attempt_id": { "$ref": "#/$defs/opaque_ref" },
+        "attempted_ticket_class": { "$ref": "#/$defs/ticket_class" },
+        "attempted_ticket_class_token": { "$ref": "#/$defs/ticket_class" },
+        "presented_ticket_ref": { "$ref": "#/$defs/opaque_ref" },
+        "current_actor_binding": { "$ref": "#/$defs/actor_binding" },
+        "current_target_identity": { "$ref": "#/$defs/target_identity" },
+        "current_sandbox_binding": { "$ref": "#/$defs/sandbox_binding" },
+        "current_authority_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evaluated_at": { "$ref": "#/$defs/timestamp" },
+        "evaluation_outcome": { "$ref": "#/$defs/evaluation_outcome" },
+        "evaluation_outcome_token": { "$ref": "#/$defs/evaluation_outcome" },
+        "reapproval_required": { "type": "boolean" },
+        "safely_replayable": { "type": "boolean" },
+        "explanation": { "$ref": "#/$defs/label" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_kind",
+        "defect_kind_token",
+        "subject_id",
+        "field",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "security_authority_ticket_defect_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "defect_kind": { "$ref": "#/$defs/defect_kind" },
+        "defect_kind_token": { "$ref": "#/$defs/defect_kind" },
+        "subject_id": { "$ref": "#/$defs/opaque_ref" },
+        "field": { "$ref": "#/$defs/opaque_ref" },
+        "note": { "$ref": "#/$defs/label" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "ticket_count",
+        "credential_projection_count",
+        "root_authority_change_count",
+        "spend_attempt_count",
+        "ticket_classes_present",
+        "credential_projection_modes_present",
+        "root_authority_change_classes_present",
+        "spend_attempts_by_outcome",
+        "defect_count",
+        "defect_counts_by_kind"
+      ],
+      "properties": {
+        "record_kind": { "const": "security_authority_ticket_summary_record" },
+        "ticket_count": { "type": "integer", "minimum": 0 },
+        "credential_projection_count": { "type": "integer", "minimum": 0 },
+        "root_authority_change_count": { "type": "integer", "minimum": 0 },
+        "spend_attempt_count": { "type": "integer", "minimum": 0 },
+        "ticket_classes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ticket_class" }
+        },
+        "credential_projection_modes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/projection_mode" }
+        },
+        "root_authority_change_classes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/root_authority_change_class" }
+        },
+        "spend_attempts_by_outcome": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "defect_count": { "type": "integer", "minimum": 0 },
+        "defect_counts_by_kind": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "authority_ticket_page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "source_matrix_ref",
+        "tickets",
+        "credential_projections",
+        "root_authority_changes",
+        "spend_attempts",
+        "defects",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "security_authority_ticket_page_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "source_matrix_ref": { "$ref": "#/$defs/source_matrix_ref" },
+        "tickets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_ticket" }
+        },
+        "credential_projections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/credential_projection" }
+        },
+        "root_authority_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/root_authority_change" }
+        },
+        "spend_attempts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/spend_attempt" }
+        },
+        "defects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect" }
+        },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "exported_at",
+        "page",
+        "privileged_action_lineage_preserved",
+        "raw_credentials_excluded",
+        "root_authority_proof_refs_preserved",
+        "redaction_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "security_authority_ticket_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/opaque_ref" },
+        "exported_at": { "$ref": "#/$defs/timestamp" },
+        "page": { "$ref": "#/$defs/authority_ticket_page" },
+        "privileged_action_lineage_preserved": { "type": "boolean" },
+        "raw_credentials_excluded": { "type": "boolean" },
+        "root_authority_proof_refs_preserved": { "type": "boolean" },
+        "redaction_summary": { "$ref": "#/$defs/label" }
+      }
+    }
+  }
+}
