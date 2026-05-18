@@ -32,6 +32,7 @@
 pub mod capability_negotiation;
 pub mod capsule_resolver;
 pub mod debug;
+pub mod dependencies;
 pub mod detectors;
 pub mod diagnostics;
 pub mod discovery;
@@ -102,6 +103,20 @@ pub use debug::{
     DebugSessionSupportPacket, DebugSessionTargetIdentity, DEBUG_SESSION_EVENT_RECORD_KIND,
     DEBUG_SESSION_LIFECYCLE_SCHEMA_VERSION, DEBUG_SESSION_RECORD_KIND,
     DEBUG_SESSION_SUPPORT_PACKET_RECORD_KIND,
+};
+pub use dependencies::{
+    manifest_delta_token, validation_task_tokens, AdvisoryAffectedRange, AdvisoryLifecycleClass,
+    AdvisorySeverityClass, AdvisorySourceClass, AdvisoryTruthClass, DebtReleaseVisibilityClass,
+    DependencyAdvisoryRecord, DependencyAdvisoryRecordSeed, DependencyDebtKindClass,
+    DependencyDebtPacket, DependencyDebtPacketSeed, DependencyDebtRow, DependencyEdgeRecord,
+    DependencyFreshnessClass, DependencyGraphRecord, DependencyIntelligenceViolation,
+    DependencyProvenanceClass, DependencyRecord, DependencyRecordSeed, DependencyRelationshipClass,
+    DependencyResolutionClass, DependencySourceClass, LicenseDecisionClass,
+    LockfileMutationPreview, LockfilePreviewActionClass, LockfilePreviewOutcomeClass,
+    SuppressionRef, SuppressionStateClass, DEPENDENCY_ADVISORY_RECORD_KIND,
+    DEPENDENCY_DEBT_PACKET_RECORD_KIND, DEPENDENCY_GRAPH_RECORD_KIND,
+    DEPENDENCY_INTELLIGENCE_REVIEWER_VERSION, DEPENDENCY_INTELLIGENCE_SCHEMA_VERSION,
+    DEPENDENCY_RECORD_KIND, LOCKFILE_MUTATION_PREVIEW_RECORD_KIND,
 };
 pub use detectors::node::{
     NodePackageManagerKind, NodePackageManagerRequirement, NodePackageManagerResolution,

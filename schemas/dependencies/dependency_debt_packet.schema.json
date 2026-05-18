@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/dependencies/dependency_debt_packet.schema.json",
+  "title": "Aureline dependency debt packet boundary",
+  "description": "Boundary schema for dependency_debt_packet payloads. The packet summarizes active advisories, suppressions, stale or offline advisory sources, lockfile-preview gaps, and notice/license implications for release and support evidence without scraping package-manager output. Raw manifests, raw lockfiles, registry URLs, package bodies, tokens, and scanner payloads never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "debt_packet_id",
+    "generated_at",
+    "release_candidate_ref",
+    "artifact_family_refs",
+    "dependency_graph_ref",
+    "rows",
+    "active_advisory_count",
+    "active_suppression_count",
+    "stale_or_offline_source_count",
+    "unresolved_license_notice_count",
+    "release_visible_debt_count",
+    "mirror_or_offline_state_class",
+    "mirror_or_offline_state_token",
+    "export_safe"
+  ],
+  "properties": {
+    "record_kind": { "const": "dependency_debt_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "debt_packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "release_candidate_ref": { "$ref": "#/$defs/non_empty_string" },
+    "artifact_family_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "dependency_graph_ref": { "$ref": "#/$defs/non_empty_string" },
+    "advisory_refs": { "$ref": "#/$defs/ref_array" },
+    "suppression_refs": { "$ref": "#/$defs/ref_array" },
+    "lockfile_preview_refs": { "$ref": "#/$defs/ref_array" },
+    "notice_license_implication_refs": { "$ref": "#/$defs/ref_array" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/dependency_debt_row" }
+    },
+    "active_advisory_count": { "type": "integer", "minimum": 0 },
+    "active_suppression_count": { "type": "integer", "minimum": 0 },
+    "stale_or_offline_source_count": { "type": "integer", "minimum": 0 },
+    "unresolved_license_notice_count": { "type": "integer", "minimum": 0 },
+    "release_visible_debt_count": { "type": "integer", "minimum": 1 },
+    "mirror_or_offline_state_class": { "$ref": "#/$defs/mirror_or_offline_state_class" },
+    "mirror_or_offline_state_token": { "$ref": "#/$defs/mirror_or_offline_state_class" },
+    "export_safe": { "type": "boolean", "const": true }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_non_empty_string": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "dependency_debt_kind_class": {
+      "type": "string",
+      "enum": [
+        "active_advisory",
+        "active_suppression",
+        "expired_suppression",
+        "unresolved_license_notice",
+        "stale_advisory_source",
+        "lockfile_preview_missing"
+      ]
+    },
+    "debt_release_visibility_class": {
+      "type": "string",
+      "enum": [
+        "beta_release_visible",
+        "support_packet_visible",
+        "internal_review_only"
+      ]
+    },
+    "mirror_or_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_default_origin_admissible",
+        "online_mirror_pinned_no_direct_origin",
+        "offline_grace_window_using_warm_cache",
+        "offline_air_gapped_using_offline_bundle_only",
+        "network_disabled_user_setting_or_policy",
+        "mirror_or_offline_state_unknown_requires_review"
+      ]
+    },
+    "dependency_debt_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "debt_id",
+        "debt_kind_class",
+        "debt_kind_token",
+        "dependency_ref",
+        "source_truth_token",
+        "release_visibility_class",
+        "release_visibility_token",
+        "owner_ref"
+      ],
+      "properties": {
+        "debt_id": { "$ref": "#/$defs/non_empty_string" },
+        "debt_kind_class": { "$ref": "#/$defs/dependency_debt_kind_class" },
+        "debt_kind_token": { "$ref": "#/$defs/dependency_debt_kind_class" },
+        "dependency_ref": { "$ref": "#/$defs/non_empty_string" },
+        "advisory_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "suppression_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "license_notice_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "lockfile_preview_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "severity_token": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "source_truth_token": { "$ref": "#/$defs/non_empty_string" },
+        "release_visibility_class": { "$ref": "#/$defs/debt_release_visibility_class" },
+        "release_visibility_token": { "$ref": "#/$defs/debt_release_visibility_class" },
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "due_at": { "type": "string", "format": "date-time" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "debt_kind_class": { "const": "unresolved_license_notice" } },
+            "required": ["debt_kind_class"]
+          },
+          "then": { "required": ["license_notice_ref"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "debt_kind_class": {
+                "enum": ["active_advisory", "stale_advisory_source"]
+              }
+            },
+            "required": ["debt_kind_class"]
+          },
+          "then": { "required": ["advisory_ref"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "debt_kind_class": {
+                "enum": ["active_suppression", "expired_suppression"]
+              }
+            },
+            "required": ["debt_kind_class"]
+          },
+          "then": { "required": ["suppression_ref"] }
+        }
+      ]
+    }
+  }
+}

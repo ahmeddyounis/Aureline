@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/dependencies/advisory_record.schema.json",
+  "title": "Aureline dependency advisory record boundary",
+  "description": "Boundary schema for dependency_advisory_record payloads. Advisory rows distinguish current local analysis, imported feed data, mirrored data, and stale/offline state while preserving severity, affected ranges, source class, suppressions, and export parity. Raw scanner reports, registry URLs, package sources, exploit payloads, tokens, and certificate material never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "advisory_id",
+    "advisory_source_ref",
+    "source_class",
+    "source_token",
+    "truth_class",
+    "truth_token",
+    "severity_class",
+    "severity_token",
+    "lifecycle_class",
+    "lifecycle_token",
+    "affected_dependency_refs",
+    "affected_ranges",
+    "matched_at",
+    "export_safe"
+  ],
+  "properties": {
+    "record_kind": { "const": "dependency_advisory_record" },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "advisory_id": { "$ref": "#/$defs/non_empty_string" },
+    "advisory_source_ref": { "$ref": "#/$defs/non_empty_string" },
+    "source_class": { "$ref": "#/$defs/advisory_source_class" },
+    "source_token": { "$ref": "#/$defs/advisory_source_class" },
+    "truth_class": { "$ref": "#/$defs/advisory_truth_class" },
+    "truth_token": { "$ref": "#/$defs/advisory_truth_class" },
+    "severity_class": { "$ref": "#/$defs/advisory_severity_class" },
+    "severity_token": { "$ref": "#/$defs/advisory_severity_class" },
+    "lifecycle_class": { "$ref": "#/$defs/advisory_lifecycle_class" },
+    "lifecycle_token": { "$ref": "#/$defs/advisory_lifecycle_class" },
+    "affected_dependency_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "affected_ranges": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/affected_range" }
+    },
+    "feed_epoch_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+    "mirror_snapshot_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+    "offline_bundle_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+    "imported_report_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+    "stale_reason": { "$ref": "#/$defs/nullable_non_empty_string" },
+    "suppression_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/suppression_ref" }
+    },
+    "evidence_refs": { "$ref": "#/$defs/ref_array" },
+    "export_object_refs": { "$ref": "#/$defs/ref_array" },
+    "matched_at": { "type": "string", "format": "date-time" },
+    "export_safe": { "type": "boolean", "const": true }
+  },
+  "allOf": [
+    {
+      "description": "Mirrored advisory truth requires a mirror snapshot ref.",
+      "if": {
+        "properties": { "truth_class": { "const": "mirrored_data" } },
+        "required": ["truth_class"]
+      },
+      "then": {
+        "properties": { "mirror_snapshot_ref": { "not": { "type": "null" } } },
+        "required": ["mirror_snapshot_ref"]
+      }
+    },
+    {
+      "description": "Stale/offline advisory truth requires a stale reason.",
+      "if": {
+        "properties": { "truth_class": { "const": "stale_offline_state" } },
+        "required": ["truth_class"]
+      },
+      "then": {
+        "properties": { "stale_reason": { "$ref": "#/$defs/non_empty_string" } },
+        "required": ["stale_reason"]
+      }
+    },
+    {
+      "description": "Suppressed advisories must carry at least one suppression ref.",
+      "if": {
+        "properties": { "lifecycle_class": { "const": "suppressed_until_expiry" } },
+        "required": ["lifecycle_class"]
+      },
+      "then": {
+        "properties": { "suppression_refs": { "minItems": 1 } },
+        "required": ["suppression_refs"]
+      }
+    }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_non_empty_string": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "advisory_source_class": {
+      "type": "string",
+      "enum": [
+        "local_scanner",
+        "public_advisory_feed",
+        "enterprise_mirror",
+        "offline_bundle",
+        "imported_scanner_report",
+        "stale_cache"
+      ]
+    },
+    "advisory_truth_class": {
+      "type": "string",
+      "enum": [
+        "fresh_local_analysis",
+        "imported_feed_data",
+        "mirrored_data",
+        "stale_offline_state"
+      ]
+    },
+    "advisory_severity_class": {
+      "type": "string",
+      "enum": ["low", "moderate", "high", "critical", "unknown"]
+    },
+    "advisory_lifecycle_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suppressed_until_expiry",
+        "remediated",
+        "stale_feed_needs_review",
+        "withdrawn"
+      ]
+    },
+    "suppression_state_class": {
+      "type": "string",
+      "enum": [
+        "not_suppressed",
+        "active_time_bound",
+        "expired_reopened",
+        "policy_locked"
+      ]
+    },
+    "affected_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package_coordinate_ref", "affected_range"],
+      "properties": {
+        "package_coordinate_ref": { "$ref": "#/$defs/non_empty_string" },
+        "affected_range": { "$ref": "#/$defs/non_empty_string" },
+        "fixed_version_requirement": { "$ref": "#/$defs/nullable_non_empty_string" }
+      }
+    },
+    "suppression_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suppression_ref",
+        "suppression_state_class",
+        "suppression_state_token",
+        "reason_ref",
+        "actor_ref",
+        "scoped_to_ref"
+      ],
+      "properties": {
+        "suppression_ref": { "$ref": "#/$defs/non_empty_string" },
+        "suppression_state_class": { "$ref": "#/$defs/suppression_state_class" },
+        "suppression_state_token": { "$ref": "#/$defs/suppression_state_class" },
+        "reason_ref": { "$ref": "#/$defs/non_empty_string" },
+        "actor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scoped_to_ref": { "$ref": "#/$defs/non_empty_string" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "suppression_state_class": { "const": "active_time_bound" } },
+            "required": ["suppression_state_class"]
+          },
+          "then": { "required": ["expires_at"] }
+        }
+      ]
+    }
+  }
+}

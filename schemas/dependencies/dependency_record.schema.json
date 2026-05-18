@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/dependencies/dependency_record.schema.json",
+  "title": "Aureline dependency graph and record boundary",
+  "description": "Boundary schema for dependency_record and dependency_graph_record payloads. The records normalize manifest, lockfile, workspace-path, registry, mirror, offline-bundle, and imported-inventory dependency facts into one export-safe graph. Raw manifests, raw lockfiles, registry URLs, package bodies, tokens, certificate material, and package-manager logs never cross this boundary.",
+  "oneOf": [
+    { "$ref": "#/$defs/dependency_record" },
+    { "$ref": "#/$defs/dependency_graph_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "nullable_non_empty_string": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "dependency_relationship_class": {
+      "type": "string",
+      "enum": ["direct", "transitive", "workspace_local", "path_or_vcs_source"]
+    },
+    "dependency_source_class": {
+      "type": "string",
+      "enum": [
+        "manifest_dependency",
+        "lockfile_node",
+        "workspace_path_dependency",
+        "registry_dependency",
+        "mirror_registry_dependency",
+        "vcs_dependency",
+        "imported_inventory",
+        "offline_bundle_dependency"
+      ]
+    },
+    "dependency_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh_local_analysis",
+        "imported_feed_data",
+        "mirrored_data",
+        "stale_offline_state",
+        "freshness_unknown_requires_review"
+      ]
+    },
+    "dependency_provenance_class": {
+      "type": "string",
+      "enum": [
+        "manifest_declared",
+        "lockfile_resolved",
+        "workspace_path_resolved",
+        "registry_metadata",
+        "mirror_snapshot",
+        "offline_bundle",
+        "imported_report",
+        "inferred_transitive"
+      ]
+    },
+    "dependency_resolution_class": {
+      "type": "string",
+      "enum": [
+        "requested_only",
+        "requested_and_resolved",
+        "resolved_exact_lockfile",
+        "policy_pinned",
+        "unknown_stale"
+      ]
+    },
+    "license_decision_class": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "allowed_with_notice",
+        "review_required",
+        "denied_by_policy",
+        "unknown_requires_review"
+      ]
+    },
+    "mirror_or_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_default_origin_admissible",
+        "online_mirror_pinned_no_direct_origin",
+        "offline_grace_window_using_warm_cache",
+        "offline_air_gapped_using_offline_bundle_only",
+        "network_disabled_user_setting_or_policy",
+        "mirror_or_offline_state_unknown_requires_review"
+      ]
+    },
+    "dependency_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "dependency_id",
+        "package_manager_family_token",
+        "package_coordinate_ref",
+        "package_name",
+        "relationship_class",
+        "relationship_token",
+        "source_class",
+        "source_token",
+        "freshness_class",
+        "freshness_token",
+        "provenance_class",
+        "provenance_token",
+        "resolution_class",
+        "resolution_token",
+        "license_decision_class",
+        "license_decision_token",
+        "export_safe"
+      ],
+      "properties": {
+        "record_kind": { "const": "dependency_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "dependency_id": { "$ref": "#/$defs/non_empty_string" },
+        "package_manager_family_token": { "$ref": "#/$defs/non_empty_string" },
+        "package_coordinate_ref": { "$ref": "#/$defs/non_empty_string" },
+        "package_name": { "$ref": "#/$defs/non_empty_string" },
+        "relationship_class": { "$ref": "#/$defs/dependency_relationship_class" },
+        "relationship_token": { "$ref": "#/$defs/dependency_relationship_class" },
+        "source_class": { "$ref": "#/$defs/dependency_source_class" },
+        "source_token": { "$ref": "#/$defs/dependency_source_class" },
+        "freshness_class": { "$ref": "#/$defs/dependency_freshness_class" },
+        "freshness_token": { "$ref": "#/$defs/dependency_freshness_class" },
+        "provenance_class": { "$ref": "#/$defs/dependency_provenance_class" },
+        "provenance_token": { "$ref": "#/$defs/dependency_provenance_class" },
+        "resolution_class": { "$ref": "#/$defs/dependency_resolution_class" },
+        "resolution_token": { "$ref": "#/$defs/dependency_resolution_class" },
+        "requested_requirement": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "resolved_version": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "manifest_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "manifest_path": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "lockfile_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "lockfile_path": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "workspace_member_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "registry_source_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "advisory_refs": { "$ref": "#/$defs/ref_array" },
+        "license_decision_class": { "$ref": "#/$defs/license_decision_class" },
+        "license_decision_token": { "$ref": "#/$defs/license_decision_class" },
+        "notice_implication_refs": { "$ref": "#/$defs/ref_array" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "export_safe": { "type": "boolean", "const": true }
+      }
+    },
+    "dependency_edge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_id",
+        "from_node_ref",
+        "to_node_ref",
+        "relationship_class",
+        "relationship_token"
+      ],
+      "properties": {
+        "edge_id": { "$ref": "#/$defs/non_empty_string" },
+        "from_node_ref": { "$ref": "#/$defs/non_empty_string" },
+        "to_node_ref": { "$ref": "#/$defs/non_empty_string" },
+        "relationship_class": { "$ref": "#/$defs/dependency_relationship_class" },
+        "relationship_token": { "$ref": "#/$defs/dependency_relationship_class" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "dependency_graph_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "reviewer_version",
+        "graph_id",
+        "workspace_scope_ref",
+        "generated_at",
+        "source_freshness_class",
+        "source_freshness_token",
+        "mirror_or_offline_state_class",
+        "mirror_or_offline_state_token",
+        "dependencies",
+        "graph_source_refs",
+        "export_safe"
+      ],
+      "properties": {
+        "record_kind": { "const": "dependency_graph_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "reviewer_version": { "$ref": "#/$defs/non_empty_string" },
+        "graph_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "source_freshness_class": { "$ref": "#/$defs/dependency_freshness_class" },
+        "source_freshness_token": { "$ref": "#/$defs/dependency_freshness_class" },
+        "mirror_or_offline_state_class": { "$ref": "#/$defs/mirror_or_offline_state_class" },
+        "mirror_or_offline_state_token": { "$ref": "#/$defs/mirror_or_offline_state_class" },
+        "dependencies": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dependency_record" }
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dependency_edge_record" }
+        },
+        "graph_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "export_safe": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}
