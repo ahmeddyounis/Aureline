@@ -93,6 +93,11 @@
 //!   route-origin matrix, transport-decision fixtures, and reconstruction
 //!   packet so support/export previews can rebuild command, target, route,
 //!   traffic-origin, policy, outcome, and fallback truth.
+//! - The [`route_exposure_beta`] projection — consumes the checked-in
+//!   route/exposure matrix so Help/About, service health, diagnostics,
+//!   release evidence, and support exports quote the same origin, target,
+//!   route, exposure, approval-reuse, reapproval-trigger, privacy-consequence,
+//!   and browser/system handoff vocabulary.
 //! - The [`bundle::records`] records-governance projection — consumes the
 //!   record-class registry alongside typed governance inputs and emits one
 //!   typed records-governance packet per artifact so support exports
@@ -153,6 +158,7 @@ pub mod release_evidence;
 pub mod repair;
 pub mod repair_transactions;
 pub mod reproducible_rc;
+pub mod route_exposure_beta;
 pub mod route_origin_alpha;
 pub mod runtime_evidence;
 pub mod runtime_health_alpha;
@@ -165,3 +171,10 @@ pub use fault_domain_views::{
     FAULT_DOMAIN_VIEW_ROW_RECORD_KIND,
 };
 pub use locale_beta::current_locale_pack_support_export;
+pub use route_exposure_beta::{
+    audit_route_exposure_matrix, current_route_exposure_matrix, validate_route_exposure_matrix,
+    RouteExposureFinding, RouteExposureMatrix, RouteExposureSupportExport,
+    ROUTE_EXPOSURE_MATRIX_PATH, ROUTE_EXPOSURE_MATRIX_RECORD_KIND,
+    ROUTE_EXPOSURE_MATRIX_SCHEMA_PATH, ROUTE_EXPOSURE_MATRIX_SCHEMA_VERSION,
+    ROUTE_EXPOSURE_SUPPORT_EXPORT_RECORD_KIND,
+};

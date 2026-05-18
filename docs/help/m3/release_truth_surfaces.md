@@ -152,6 +152,17 @@ Browser-companion and voice rows must keep their desktop handoff or
 limitation visible whenever the requested action exceeds the current
 client scope.
 
+Route/exposure and provider/browser-handoff truth is read through
+`artifacts/routes/m3/route_exposure_matrix.json`, the release packet at
+`artifacts/release/m3/route_exposure_matrix.md`, and the support audit at
+`artifacts/support/m3/provider_and_browser_handoff_audit.md`. Help /
+About, service health, diagnostics, docs/help, release evidence, and
+support exports quote the same origin, target, route, exposure, approval
+reuse, reapproval-trigger, privacy-consequence, and handoff tokens. High-
+risk rows with an unknown exposure class, an uncategorized gap, a missing
+provider route row, or a missing claimed handoff route render as blocking
+or downgraded rather than inheriting adjacent provider or browser truth.
+
 ## Release-control rehearsals
 
 Publish, rollback, revocation, and advisory rehearsal state is read

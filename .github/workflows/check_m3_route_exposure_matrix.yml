@@ -1,0 +1,58 @@
+# Route/exposure and browser-handoff audit gate.
+#
+# Validates the route/exposure matrix, release packet, UX contract, support
+# audit packet, and checked-in validation capture together.
+
+name: check_m3_route_exposure_matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m3_route_exposure_matrix.yml"
+      - "ci/check_m3_route_exposure_matrix.py"
+      - "schemas/routes/exposure_matrix.schema.json"
+      - "artifacts/routes/m3/route_exposure_matrix.json"
+      - "artifacts/release/m3/route_exposure_matrix.md"
+      - "artifacts/support/m3/provider_and_browser_handoff_audit.md"
+      - "docs/ux/m3/route_exposure_and_handoff_beta.md"
+      - "docs/help/m3/release_truth_surfaces.md"
+      - "artifacts/release/m3/captures/route_exposure_matrix_validation_capture.json"
+      - "artifacts/milestones/m3/claimed_surface_register.json"
+      - "artifacts/security/m3/route_resolution_panels/baseline_support_export.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m3-route-exposure-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  route_exposure_matrix:
+    name: Route/exposure matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run route/exposure matrix validator
+        run: |
+          python3 ci/check_m3_route_exposure_matrix.py --repo-root . --check
+
+      - name: Upload route/exposure validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-route-exposure-matrix-${{ github.run_id }}
+          path: artifacts/release/m3/captures/route_exposure_matrix_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
