@@ -77,6 +77,9 @@ pub const COMPOSER_DRAFT_SCHEMA_VERSION: u32 = 1;
 pub enum MentionKind {
     SymbolMention,
     FileMention,
+    RootMention,
+    RunMention,
+    ObjectReferenceMention,
     WorksetMention,
     SearchResultMention,
     DocsAnchorMention,
@@ -90,6 +93,9 @@ impl MentionKind {
         match self {
             Self::SymbolMention => "symbol_mention",
             Self::FileMention => "file_mention",
+            Self::RootMention => "root_mention",
+            Self::RunMention => "run_mention",
+            Self::ObjectReferenceMention => "object_reference_mention",
             Self::WorksetMention => "workset_mention",
             Self::SearchResultMention => "search_result_mention",
             Self::DocsAnchorMention => "docs_anchor_mention",

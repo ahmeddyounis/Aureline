@@ -40,6 +40,7 @@ pub mod composer;
 pub mod context_inspector;
 pub mod evidence;
 pub mod graduation;
+pub mod prompt_composer;
 pub mod registry;
 pub mod routing;
 pub mod routing_policy;
@@ -99,6 +100,21 @@ pub use graduation::{
     AiGraduationSupportClass, AiGraduationSurfaceStatus, AiGraduationSurfaceSupportSummary,
     AiGraduationViolation, AI_GRADUATION_PACKET_RECORD_KIND, AI_GRADUATION_STATE_RECORD_KIND,
     AI_GRADUATION_STATE_SCHEMA_VERSION, REQUIRED_BETA_EVIDENCE_KINDS,
+};
+pub use prompt_composer::{
+    current_beta_prompt_composer_conformance_export, DraftRetentionScopeClass,
+    PreviewBranchComposerRow, PromptBudgetActionClass, PromptBudgetDecisionRow, PromptBudgetStrip,
+    PromptComposerConformanceArtifactError, PromptComposerConformanceInput,
+    PromptComposerConformancePacket, PromptComposerConformanceViolation,
+    PromptComposerEdgeCaseClass, PromptComposerEdgeCaseRow, PromptComposerSafeFallbackClass,
+    PromptContextAttachment, PromptDraftPersistence, PromptEvidenceLineage,
+    PromptEvidencePacketClass, PromptInputSemantics, PromptIntentRow, PromptMentionKind,
+    PromptMentionResolution, PromptMentionResolutionClass, PromptSlashCommandBinding,
+    PROMPT_COMPOSER_AI_DOC_REF, PROMPT_COMPOSER_BETA_UX_DOC_REF,
+    PROMPT_COMPOSER_CONFORMANCE_ARTIFACT_REF, PROMPT_COMPOSER_CONFORMANCE_RECORD_KIND,
+    PROMPT_COMPOSER_CONFORMANCE_SCHEMA_VERSION, PROMPT_COMPOSER_CONFORMANCE_SUMMARY_REF,
+    PROMPT_COMPOSER_DRAFT_SCHEMA_REF, PROMPT_COMPOSER_DRILL_FIXTURE_DIR,
+    PROMPT_CONTEXT_ATTACHMENT_SCHEMA_REF,
 };
 pub use registry::{
     AiFeatureClass, ClaimedAiSurface, ExternalToolExecutionLocusClass, ExternalToolRegistryEntry,
