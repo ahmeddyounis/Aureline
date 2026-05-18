@@ -16,13 +16,22 @@ use aureline_vfs::{
 };
 
 use super::drift_detection::detect_external_drift;
-use super::source_fidelity::{encode_for_save, SourceFidelityRecord};
+use super::risk::{
+    summarize_staged_file_effect, SaveParticipantRiskDeclaration, SaveParticipantRiskOutcomeClass,
+    SaveParticipantRiskReview,
+};
+use super::source_fidelity::{encode_for_save, source_fidelity_adjustments, SourceFidelityRecord};
 use super::write_strategy::{select_write_strategy, WriteStrategy};
 
 /// A transformation step that can run on staged save content.
 pub trait SaveParticipant {
     /// Returns the stable id for this participant.
     fn participant_id(&self) -> &'static str;
+
+    /// Returns the participant's risk declaration before staged mutation.
+    fn risk_declaration(&self) -> SaveParticipantRiskDeclaration {
+        SaveParticipantRiskDeclaration::safe_local(self.participant_id())
+    }
 
     /// Runs the participant on the staged content and returns the resulting bytes.
     fn run(&mut self, staged: &[u8]) -> Result<Vec<u8>, String>;
@@ -66,6 +75,8 @@ pub struct SaveResult {
     pub write_strategy: WriteStrategy,
     pub manifest: SaveManifest,
     pub source_fidelity: SourceFidelityRecord,
+    /// Save-participant risk review emitted for support and review surfaces.
+    pub save_participant_risk_review: SaveParticipantRiskReview,
     /// The token that should be used for the next save attempt.
     pub next_token: SaveTargetToken,
     /// Participant failure detail when `outcome == save_participant_failed`.
@@ -105,16 +116,85 @@ impl StagedSaveCoordinator {
         let packet_id = self.mint_packet_id();
         let source_fidelity = request.source_fidelity.clone();
         let mut staged = request.new_content;
+        let participant_count = participants.len();
+        let declarations: Vec<_> = participants
+            .iter()
+            .map(|participant| participant.risk_declaration())
+            .collect();
+        let mut risk_review = SaveParticipantRiskReview::open(
+            format!("{packet_id}:save_participant_risk"),
+            packet_id.clone(),
+            request.checkpoint_ref.clone(),
+            declarations,
+        );
+
+        if risk_review.outcome_class
+            == SaveParticipantRiskOutcomeClass::ReviewRequiredBeforeMutation
+        {
+            let token = request.token;
+            let manifest = make_manifest(
+                root,
+                &token,
+                request.save_participant_group_id,
+                request.checkpoint_ref,
+                request.committed_at,
+                SaveOutcome::ReviewRequiredBeforeSave,
+                Some("save participant requires review before staged mutation".to_owned()),
+            );
+            return SaveResult {
+                packet_id,
+                write_strategy: select_write_strategy(&token),
+                manifest,
+                source_fidelity: source_fidelity.clone(),
+                save_participant_risk_review: risk_review,
+                next_token: token,
+                participant_error: None,
+            };
+        }
+
         let mut participant_error: Option<SaveParticipantError> = None;
 
         for participant in participants.iter_mut() {
+            let participant_id = participant.participant_id();
+            let before = staged.clone();
             match participant.run(&staged) {
-                Ok(next) => staged = next,
+                Ok(next) => {
+                    let actual = summarize_staged_file_effect(&before, &next);
+                    risk_review.record_actual_effect(participant_id, actual);
+                    staged = next;
+                    if risk_review.outcome_class
+                        == SaveParticipantRiskOutcomeClass::ReviewRequiredBeforeCommit
+                    {
+                        let token = request.token;
+                        let manifest = make_manifest(
+                            root,
+                            &token,
+                            request.save_participant_group_id,
+                            request.checkpoint_ref,
+                            request.committed_at,
+                            SaveOutcome::ReviewRequiredBeforeSave,
+                            Some(
+                                "save participant output widened to review-required write"
+                                    .to_owned(),
+                            ),
+                        );
+                        return SaveResult {
+                            packet_id,
+                            write_strategy: select_write_strategy(&token),
+                            manifest,
+                            source_fidelity: source_fidelity.clone(),
+                            save_participant_risk_review: risk_review,
+                            next_token: token,
+                            participant_error: None,
+                        };
+                    }
+                }
                 Err(detail) => {
                     participant_error = Some(SaveParticipantError {
-                        participant_id: participant.participant_id().to_owned(),
+                        participant_id: participant_id.to_owned(),
                         detail,
                     });
+                    risk_review.mark_participant_failed(participant_id);
                     break;
                 }
             }
@@ -136,6 +216,7 @@ impl StagedSaveCoordinator {
                 write_strategy: select_write_strategy(&token),
                 manifest,
                 source_fidelity: source_fidelity.clone(),
+                save_participant_risk_review: risk_review,
                 next_token: token,
                 participant_error: Some(err),
             };
@@ -167,6 +248,7 @@ impl StagedSaveCoordinator {
                 write_strategy,
                 manifest,
                 source_fidelity: source_fidelity.clone(),
+                save_participant_risk_review: risk_review,
                 next_token: token,
                 participant_error: None,
             };
@@ -190,6 +272,7 @@ impl StagedSaveCoordinator {
                 write_strategy,
                 manifest,
                 source_fidelity: source_fidelity.clone(),
+                save_participant_risk_review: risk_review,
                 next_token: token,
                 participant_error: None,
             };
@@ -210,6 +293,7 @@ impl StagedSaveCoordinator {
                 write_strategy,
                 manifest,
                 source_fidelity: source_fidelity.clone(),
+                save_participant_risk_review: risk_review,
                 next_token: token,
                 participant_error: None,
             };
@@ -235,6 +319,7 @@ impl StagedSaveCoordinator {
                 write_strategy,
                 manifest,
                 source_fidelity: source_fidelity.clone(),
+                save_participant_risk_review: risk_review,
                 next_token: token,
                 participant_error: None,
             };
@@ -257,12 +342,15 @@ impl StagedSaveCoordinator {
                 write_strategy,
                 manifest,
                 source_fidelity: source_fidelity.clone(),
+                save_participant_risk_review: risk_review,
                 next_token: token,
                 participant_error: None,
             };
         }
 
         if let Err(conflict) = detect_external_drift(root, &token) {
+            risk_review
+                .mark_external_change(format!("external_change:{}", conflict.outcome.as_str()));
             let manifest = make_manifest(
                 root,
                 &token,
@@ -277,9 +365,65 @@ impl StagedSaveCoordinator {
                 write_strategy,
                 manifest,
                 source_fidelity: source_fidelity.clone(),
+                save_participant_risk_review: risk_review,
                 next_token: token,
                 participant_error: None,
             };
+        }
+
+        if participant_count > 0 {
+            match source_fidelity_adjustments(&source_fidelity, &staged) {
+                Ok(adjustments) if !adjustments.is_empty() => {
+                    risk_review.mark_source_fidelity_adjustments(adjustments);
+                    let manifest = make_manifest(
+                        root,
+                        &token,
+                        request.save_participant_group_id,
+                        request.checkpoint_ref,
+                        request.committed_at,
+                        SaveOutcome::ReviewRequiredBeforeSave,
+                        Some(
+                            "save participant output would change source-fidelity posture"
+                                .to_owned(),
+                        ),
+                    );
+                    return SaveResult {
+                        packet_id,
+                        write_strategy,
+                        manifest,
+                        source_fidelity: source_fidelity.clone(),
+                        save_participant_risk_review: risk_review,
+                        next_token: token,
+                        participant_error: None,
+                    };
+                }
+                Ok(_) => {}
+                Err(detail) => {
+                    let err = SaveParticipantError {
+                        participant_id: "source_fidelity_risk_review".to_owned(),
+                        detail,
+                    };
+                    risk_review.mark_participant_failed("source_fidelity_risk_review");
+                    let manifest = make_manifest(
+                        root,
+                        &token,
+                        request.save_participant_group_id,
+                        request.checkpoint_ref,
+                        request.committed_at,
+                        SaveOutcome::SaveParticipantFailed,
+                        Some(err.to_string()),
+                    );
+                    return SaveResult {
+                        packet_id,
+                        write_strategy,
+                        manifest,
+                        source_fidelity: source_fidelity.clone(),
+                        save_participant_risk_review: risk_review,
+                        next_token: token,
+                        participant_error: Some(err),
+                    };
+                }
+            }
         }
 
         let staged = match encode_for_save(&source_fidelity, &staged) {
@@ -303,6 +447,7 @@ impl StagedSaveCoordinator {
                     write_strategy,
                     manifest,
                     source_fidelity: source_fidelity.clone(),
+                    save_participant_risk_review: risk_review,
                     next_token: token,
                     participant_error: Some(err),
                 };
@@ -349,6 +494,18 @@ impl StagedSaveCoordinator {
             outcome,
             failure_detail.clone(),
         );
+        if matches!(
+            outcome,
+            SaveOutcome::Committed | SaveOutcome::DegradedGuaranteeDeclared
+        ) {
+            risk_review.mark_committed();
+        } else {
+            risk_review.mark_blocked_no_write(
+                failure_detail
+                    .clone()
+                    .unwrap_or_else(|| "save did not commit durable bytes".to_owned()),
+            );
+        }
 
         // After commit, refresh the token so the next save attempts compare
         // against the new on-disk generation token and updated identity.
@@ -367,6 +524,7 @@ impl StagedSaveCoordinator {
             write_strategy,
             manifest,
             source_fidelity,
+            save_participant_risk_review: risk_review,
             next_token,
             participant_error: None,
         }

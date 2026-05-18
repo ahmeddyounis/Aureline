@@ -6,8 +6,8 @@ use aureline_vfs::save::open_save_target;
 use aureline_vfs::{HookCounters, LocalFilesystemRoot, SaveOutcome, VfsUri};
 
 use aureline_workspace::save::{
-    detect_and_decode_for_buffer, encode_for_save, DetectedEncoding, NewlineModeDetected,
-    StagedSaveCoordinator, StagedSaveRequest,
+    detect_and_decode_for_buffer, encode_for_save, source_fidelity_adjustments, DetectedEncoding,
+    NewlineModeDetected, SourceFidelityAdjustment, StagedSaveCoordinator, StagedSaveRequest,
 };
 
 fn unique_temp_path(label: &str) -> PathBuf {
@@ -108,6 +108,28 @@ fn preserves_utf16le_bom_and_lf_on_save() {
 
     let observed = fs::read(&tmp_path).expect("read saved bytes");
     assert_eq!(observed, expected);
+
+    let _ = fs::remove_file(&tmp_path);
+}
+
+#[test]
+fn encode_for_save_preserves_crlf_and_final_newline_posture() {
+    let tmp_path = unique_temp_path("crlf_layout");
+    let on_disk = b"a\r\nb\r\n";
+    write_temp_file(&tmp_path, on_disk);
+
+    let (_root, _uri, token) = open_token(&tmp_path);
+    let open = detect_and_decode_for_buffer(on_disk, &token.permission_snapshot);
+    assert_eq!(open.record.newline_mode_detected, NewlineModeDetected::Crlf);
+
+    let staged = b"x\ny";
+    let adjustments =
+        source_fidelity_adjustments(&open.record, staged).expect("adjustments compute");
+    assert!(adjustments.contains(&SourceFidelityAdjustment::LineEndingPosturePreserved));
+    assert!(adjustments.contains(&SourceFidelityAdjustment::FinalNewlinePosturePreserved));
+
+    let encoded = encode_for_save(&open.record, staged).expect("encode");
+    assert_eq!(encoded, b"x\r\ny\r\n");
 
     let _ = fs::remove_file(&tmp_path);
 }

@@ -14,6 +14,7 @@ pub mod clipboard;
 pub mod find_replace;
 pub mod highlight;
 pub mod large_file;
+pub mod large_file_mode;
 pub mod modes;
 pub mod orientation;
 pub mod outline;
@@ -47,6 +48,12 @@ pub use large_file::{
     DocumentOpenError, DocumentOpenOutcome, FileMode, LargeFileDocument, LargeFileModeNotice,
     LargeFileOverrideInfo, LargeFileTrigger, LargeFileViewer, LargeFileViewerConfig,
     LargeFileViewerError, NormalDocument, ReaderMetrics,
+};
+pub use large_file_mode::{
+    default_limited_mode_capabilities, LimitedModeActivationTrigger, LimitedModeCapabilityRecord,
+    LimitedModeCapabilityState, LimitedModeEditPolicyClass, LimitedModeFileRecord,
+    LimitedModeOverrideAction, LimitedModeSafePreviewClass, LimitedModeWritePolicyClass,
+    LIMITED_MODE_FILE_RECORD_KIND, LIMITED_MODE_FILE_SCHEMA_REF, LIMITED_MODE_FILE_SCHEMA_VERSION,
 };
 pub use modes::{
     build_alpha_mode_state_record, AlphaModeStateInput, EditorModeClass, EditorModeStateRecord,

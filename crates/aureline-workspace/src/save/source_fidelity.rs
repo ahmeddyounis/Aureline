@@ -154,6 +154,26 @@ impl ExecutableIntent {
     }
 }
 
+/// Save-time source-fidelity adjustment applied before encoding durable bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceFidelityAdjustment {
+    /// Staged line endings were converted back to the open-time line-ending posture.
+    LineEndingPosturePreserved,
+    /// Staged final-newline state was converted back to the open-time posture.
+    FinalNewlinePosturePreserved,
+}
+
+impl SourceFidelityAdjustment {
+    /// Returns the stable string vocabulary for this adjustment.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LineEndingPosturePreserved => "line_ending_posture_preserved",
+            Self::FinalNewlinePosturePreserved => "final_newline_posture_preserved",
+        }
+    }
+}
+
 /// Source-fidelity metadata detected at open time.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceFidelityRecord {
@@ -232,24 +252,45 @@ pub fn encode_for_save(
 ) -> Result<Vec<u8>, String> {
     let text = std::str::from_utf8(buffer_utf8_bytes)
         .map_err(|err| format!("buffer bytes must be UTF-8: {err}"))?;
+    let text = preserve_source_layout(record, text);
 
     match record.detected_encoding {
-        DetectedEncoding::Utf8 => Ok(text.as_bytes().to_vec()),
+        DetectedEncoding::Utf8 => Ok(text.into_bytes()),
         DetectedEncoding::Utf8Bom => {
-            let mut out = Vec::with_capacity(3 + buffer_utf8_bytes.len());
+            let mut out = Vec::with_capacity(3 + text.len());
             out.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
-            out.extend_from_slice(buffer_utf8_bytes);
+            out.extend_from_slice(text.as_bytes());
             Ok(out)
         }
-        DetectedEncoding::Utf16LeBom => encode_utf16(text, Endianness::Little, true),
-        DetectedEncoding::Utf16BeBom => encode_utf16(text, Endianness::Big, true),
-        DetectedEncoding::Utf32LeBom => encode_utf32(text, Endianness::Little, true),
-        DetectedEncoding::Utf32BeBom => encode_utf32(text, Endianness::Big, true),
+        DetectedEncoding::Utf16LeBom => encode_utf16(&text, Endianness::Little, true),
+        DetectedEncoding::Utf16BeBom => encode_utf16(&text, Endianness::Big, true),
+        DetectedEncoding::Utf32LeBom => encode_utf32(&text, Endianness::Little, true),
+        DetectedEncoding::Utf32BeBom => encode_utf32(&text, Endianness::Big, true),
         DetectedEncoding::UnknownBinaryLike => Err(
             "cannot encode: open-time encoding is unknown_binary_like; decode recovery must resolve before save"
                 .to_owned(),
         ),
     }
+}
+
+/// Returns the source-fidelity adjustments that would be applied at save time.
+pub fn source_fidelity_adjustments(
+    record: &SourceFidelityRecord,
+    buffer_utf8_bytes: &[u8],
+) -> Result<Vec<SourceFidelityAdjustment>, String> {
+    let text = std::str::from_utf8(buffer_utf8_bytes)
+        .map_err(|err| format!("buffer bytes must be UTF-8: {err}"))?;
+    let newline_preserved = normalize_newlines_for_record(record, text);
+    let final_preserved = preserve_final_newline_for_record(record, &newline_preserved);
+
+    let mut adjustments = Vec::new();
+    if newline_preserved != text {
+        adjustments.push(SourceFidelityAdjustment::LineEndingPosturePreserved);
+    }
+    if final_preserved != newline_preserved {
+        adjustments.push(SourceFidelityAdjustment::FinalNewlinePosturePreserved);
+    }
+    Ok(adjustments)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -448,6 +489,87 @@ fn detect_final_newline(text: &str) -> FinalNewlineDetected {
         return FinalNewlineDetected::Present;
     }
     FinalNewlineDetected::Absent
+}
+
+fn preserve_source_layout(record: &SourceFidelityRecord, text: &str) -> String {
+    let newline_preserved = normalize_newlines_for_record(record, text);
+    preserve_final_newline_for_record(record, &newline_preserved)
+}
+
+fn normalize_newlines_for_record(record: &SourceFidelityRecord, text: &str) -> String {
+    match record.newline_mode_detected {
+        NewlineModeDetected::Lf => normalize_newline_sequences(text, "\n"),
+        NewlineModeDetected::Crlf => normalize_newline_sequences(text, "\r\n"),
+        NewlineModeDetected::CrOnly => normalize_newline_sequences(text, "\r"),
+        NewlineModeDetected::Mixed | NewlineModeDetected::UnknownOrDegraded => text.to_owned(),
+    }
+}
+
+fn normalize_newline_sequences(text: &str, target: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\r' if i + 1 < bytes.len() && bytes[i + 1] == b'\n' => {
+                out.push_str(target);
+                i += 2;
+            }
+            b'\r' | b'\n' => {
+                out.push_str(target);
+                i += 1;
+            }
+            _ => {
+                let ch = text[i..]
+                    .chars()
+                    .next()
+                    .expect("byte index must remain on a UTF-8 boundary");
+                out.push(ch);
+                i += ch.len_utf8();
+            }
+        }
+    }
+    out
+}
+
+fn preserve_final_newline_for_record(record: &SourceFidelityRecord, text: &str) -> String {
+    match record.final_newline_detected {
+        FinalNewlineDetected::Present => {
+            if detect_final_newline(text) == FinalNewlineDetected::Present {
+                text.to_owned()
+            } else {
+                let mut out = String::with_capacity(text.len() + 2);
+                out.push_str(text);
+                out.push_str(canonical_newline_for(record.newline_mode_detected));
+                out
+            }
+        }
+        FinalNewlineDetected::Absent => strip_all_terminal_newlines(text),
+        FinalNewlineDetected::UnknownOrDegraded => text.to_owned(),
+    }
+}
+
+fn canonical_newline_for(mode: NewlineModeDetected) -> &'static str {
+    match mode {
+        NewlineModeDetected::Crlf => "\r\n",
+        NewlineModeDetected::CrOnly => "\r",
+        NewlineModeDetected::Lf
+        | NewlineModeDetected::Mixed
+        | NewlineModeDetected::UnknownOrDegraded => "\n",
+    }
+}
+
+fn strip_all_terminal_newlines(text: &str) -> String {
+    let mut out = text.to_owned();
+    loop {
+        if out.ends_with("\r\n") {
+            out.truncate(out.len() - 2);
+        } else if out.ends_with('\n') || out.ends_with('\r') {
+            out.truncate(out.len() - 1);
+        } else {
+            return out;
+        }
+    }
 }
 
 fn executable_intent_from_snapshot(snapshot: &PermissionSnapshot) -> ExecutableIntent {
