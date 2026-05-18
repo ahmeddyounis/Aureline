@@ -88,9 +88,34 @@ fn projection_renders_tree_inline_and_parity_rows_for_pytest_workspace() {
     assert!(!projection.tree_rows.is_empty());
     assert!(!projection.inline_rows.is_empty());
     assert_eq!(projection.parity_rows.len(), projection.inline_rows.len());
+    for inline in &projection.inline_rows {
+        let tree = projection
+            .tree_rows
+            .iter()
+            .find(|tree| tree.tree_row_id == inline.tree_row_ref)
+            .expect("tree row for inline marker");
+        assert_eq!(
+            tree.canonical_test_item_ref.as_deref(),
+            Some(inline.canonical_test_item_ref.as_str())
+        );
+        assert_eq!(
+            tree.selector_ref.as_deref(),
+            Some(inline.selector_ref.as_str())
+        );
+        assert_eq!(
+            tree.test_session_ref.as_deref(),
+            Some(inline.test_session_ref.as_str())
+        );
+    }
     for parity in &projection.parity_rows {
         assert_eq!(parity.rerun_last_command_id, "cmd:test.rerun_last");
         assert_eq!(parity.agreement_state_token, "rerun_lane_unset");
+        let inline = projection
+            .inline_rows
+            .iter()
+            .find(|inline| inline.inline_row_id == parity.inline_row_ref)
+            .expect("inline row for parity");
+        assert_eq!(parity.test_session_ref, inline.test_session_ref);
     }
     assert!(!projection.artifact_rows.is_empty());
 

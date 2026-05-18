@@ -6,6 +6,9 @@ structured artifact identity. The machine-readable boundary lives at
 [`/schemas/testing/test_runner_beta.schema.json`](../../../schemas/testing/test_runner_beta.schema.json).
 The runtime implementation lives at
 [`/crates/aureline-runtime/src/testing/`](../../../crates/aureline-runtime/src/testing/).
+The promoted item/session/attempt ledger lives at
+[`test_identity_beta.md`](test_identity_beta.md) and
+[`/crates/aureline-runtime/src/testing_identity/`](../../../crates/aureline-runtime/src/testing_identity/).
 The shell consumer lives at
 [`/crates/aureline-shell/src/test_runner_beta/`](../../../crates/aureline-shell/src/test_runner_beta/).
 
@@ -113,6 +116,7 @@ accessing live workspace state, that:
 - Beta run / debug profile model — [`run_debug_profiles_beta.md`](run_debug_profiles_beta.md)
 - Rerun-last task and test loop —
   [`/crates/aureline-runtime/src/rerun/`](../../../crates/aureline-runtime/src/rerun/)
+- Promoted identity/session/attempt ledger — [`test_identity_beta.md`](test_identity_beta.md)
 - Pytest discovery —
   [`/crates/aureline-runtime/src/discovery/pytest/`](../../../crates/aureline-runtime/src/discovery/pytest/)
 

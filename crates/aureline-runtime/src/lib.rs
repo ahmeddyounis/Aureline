@@ -53,6 +53,7 @@ pub mod targets;
 pub mod task_events;
 pub mod tasks;
 pub mod testing;
+pub mod testing_identity;
 pub mod testing_quality;
 pub mod tests;
 pub mod trace_replay_alpha;
@@ -395,6 +396,18 @@ pub use testing::{
     TEST_RUNNER_BETA_RERUN_PARITY_RECORD_KIND, TEST_RUNNER_BETA_SCHEMA_VERSION,
     TEST_RUNNER_BETA_SUPPORT_EXPORT_RECORD_KIND, TEST_RUNNER_BETA_TREE_PROJECTION_RECORD_KIND,
     TEST_RUNNER_BETA_TREE_ROW_RECORD_KIND,
+};
+pub use testing_identity::{
+    CanonicalTestAttempt, CanonicalTestItem, CanonicalTestItemKind, CanonicalTestSession,
+    ImportedCiTruthClass, ImportedCiTruthOverlay, TestAdapterKind, TestAttemptLineageClass,
+    TestEvidenceClass, TestIdentityBetaBundle, TestIdentityLedgerError, TestIdentitySupportExport,
+    TestIdentitySurface, TestItemIdentityClass, TestResultFreshnessClass, TestSelectionOrigin,
+    TestSelectorBinding, TestSurfaceIdentityBinding, TestTargetEnvironmentClass,
+    TestTargetEnvironmentIdentity, CANONICAL_TEST_ATTEMPT_RECORD_KIND,
+    CANONICAL_TEST_ITEM_RECORD_KIND, CANONICAL_TEST_SESSION_RECORD_KIND,
+    IMPORTED_CI_TRUTH_OVERLAY_RECORD_KIND, TEST_IDENTITY_BETA_BUNDLE_RECORD_KIND,
+    TEST_IDENTITY_BETA_SCHEMA_VERSION, TEST_IDENTITY_SUPPORT_EXPORT_RECORD_KIND,
+    TEST_SELECTOR_BINDING_RECORD_KIND, TEST_SURFACE_IDENTITY_BINDING_RECORD_KIND,
 };
 pub use testing_quality::{
     BaselineTruthPacket, CoverageTruthPacket, FlakyTruthPacket, SnapshotTruthPacket,

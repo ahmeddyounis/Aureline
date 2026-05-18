@@ -40,6 +40,10 @@ pub struct TestRunnerBetaTreeRowProjection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub canonical_test_item_ref: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selector_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_session_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_attempt_ref: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_result_state_token: Option<String>,
@@ -58,6 +62,8 @@ impl TestRunnerBetaTreeRowProjection {
             source_file_ref: row.source_file_ref.clone(),
             line_number: row.line_number,
             canonical_test_item_ref: row.canonical_test_item_ref.clone(),
+            selector_ref: row.selector_ref.clone(),
+            test_session_ref: row.test_session_ref.clone(),
             latest_attempt_ref: row.latest_attempt_ref.clone(),
             latest_result_state_token: row.latest_result_state_token.clone(),
             rerun_last_command_id: row.rerun_last_command_id.clone(),
@@ -71,6 +77,8 @@ impl TestRunnerBetaTreeRowProjection {
 pub struct TestRunnerBetaInlineRowProjection {
     pub inline_row_id: String,
     pub canonical_test_item_ref: String,
+    pub selector_ref: String,
+    pub test_session_ref: String,
     pub source_file_ref: String,
     pub line_number: u32,
     pub tree_row_ref: String,
@@ -86,6 +94,8 @@ impl TestRunnerBetaInlineRowProjection {
         Self {
             inline_row_id: row.inline_row_id.clone(),
             canonical_test_item_ref: row.canonical_test_item_ref.clone(),
+            selector_ref: row.selector_ref.clone(),
+            test_session_ref: row.test_session_ref.clone(),
             source_file_ref: row.source_file_ref.clone(),
             line_number: row.line_number,
             tree_row_ref: row.tree_row_ref.clone(),
@@ -100,9 +110,12 @@ impl TestRunnerBetaInlineRowProjection {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TestRunnerBetaParityRowProjection {
     pub parity_id: String,
+    pub test_session_ref: String,
     pub canonical_test_item_ref: String,
     pub tree_row_ref: String,
     pub inline_row_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_attempt_ref: Option<String>,
     pub agreement_state_token: String,
     pub rerun_last_command_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -114,9 +127,11 @@ impl TestRunnerBetaParityRowProjection {
     fn project(row: &TestRunnerBetaRerunParity) -> Self {
         Self {
             parity_id: row.parity_id.clone(),
+            test_session_ref: row.test_session_ref.clone(),
             canonical_test_item_ref: row.canonical_test_item_ref.clone(),
             tree_row_ref: row.tree_row_ref.clone(),
             inline_row_ref: row.inline_row_ref.clone(),
+            latest_attempt_ref: row.latest_attempt_ref.clone(),
             agreement_state_token: row.agreement_state_token.clone(),
             rerun_last_command_id: row.rerun_last_command_id.clone(),
             rerun_dispatch_state_token: row.rerun_dispatch_state_token.clone(),
@@ -131,6 +146,8 @@ pub struct TestRunnerBetaArtifactIdentityProjection {
     pub artifact_identity_id: String,
     pub artifact_kind_token: String,
     pub artifact_ref: String,
+    pub test_session_ref: String,
+    pub selector_ref: String,
     pub canonical_test_item_refs: Vec<String>,
     pub test_attempt_ref: String,
     pub identity_stability_token: String,
@@ -142,6 +159,8 @@ impl TestRunnerBetaArtifactIdentityProjection {
             artifact_identity_id: identity.artifact_identity_id.clone(),
             artifact_kind_token: identity.artifact_kind_token.clone(),
             artifact_ref: identity.artifact_ref.clone(),
+            test_session_ref: identity.test_session_ref.clone(),
+            selector_ref: identity.selector_ref.clone(),
             canonical_test_item_refs: identity.canonical_test_item_refs.clone(),
             test_attempt_ref: identity.test_attempt_ref.clone(),
             identity_stability_token: identity.identity_stability_token.clone(),
@@ -251,6 +270,12 @@ impl TestRunnerBetaProjectionView {
             if let Some(canonical) = &row.canonical_test_item_ref {
                 line.push_str(&format!(" canonical={canonical}"));
             }
+            if let Some(selector) = &row.selector_ref {
+                line.push_str(&format!(" selector={selector}"));
+            }
+            if let Some(session) = &row.test_session_ref {
+                line.push_str(&format!(" session={session}"));
+            }
             if let Some(state) = &row.latest_result_state_token {
                 line.push_str(&format!(" state={state}"));
             }
@@ -260,8 +285,10 @@ impl TestRunnerBetaProjectionView {
         out.push_str(&format!("Inline rows: {}\n", self.inline_rows.len()));
         for row in &self.inline_rows {
             out.push_str(&format!(
-                "  - {} @ {}:{} -> tree={} ({})\n",
+                "  - {} selector={} session={} @ {}:{} -> tree={} ({})\n",
                 row.canonical_test_item_ref,
+                row.selector_ref,
+                row.test_session_ref,
                 row.source_file_ref,
                 row.line_number,
                 row.tree_row_ref,
@@ -271,8 +298,9 @@ impl TestRunnerBetaProjectionView {
         out.push_str(&format!("Parity rows: {}\n", self.parity_rows.len()));
         for row in &self.parity_rows {
             out.push_str(&format!(
-                "  - {} canonical={} tree={} inline={} command={} state={}\n",
+                "  - {} session={} canonical={} tree={} inline={} command={} state={}\n",
                 row.parity_id,
+                row.test_session_ref,
                 row.canonical_test_item_ref,
                 row.tree_row_ref,
                 row.inline_row_ref,
@@ -283,9 +311,11 @@ impl TestRunnerBetaProjectionView {
         out.push_str(&format!("Artifact rows: {}\n", self.artifact_rows.len()));
         for row in &self.artifact_rows {
             out.push_str(&format!(
-                "  - [{}] {} attempt={} stability={}\n",
+                "  - [{}] {} session={} selector={} attempt={} stability={}\n",
                 row.artifact_kind_token,
                 row.artifact_ref,
+                row.test_session_ref,
+                row.selector_ref,
                 row.test_attempt_ref,
                 row.identity_stability_token
             ));

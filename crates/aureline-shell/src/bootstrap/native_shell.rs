@@ -7160,6 +7160,7 @@ fn motion_posture_for_settings(motion: &str) -> AccessibilityPostureClass {
 #[cfg(test)]
 mod appearance_settings_runtime_tests {
     use super::*;
+    use aureline_settings::WriteIntent;
 
     fn appearance_state_for_test(name: &str) -> AppearanceRuntimeState {
         let root = std::env::temp_dir().join(format!(
