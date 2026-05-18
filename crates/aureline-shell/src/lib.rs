@@ -48,6 +48,7 @@ pub mod change_object_inspector;
 pub mod chrome;
 pub mod clone;
 pub mod command_parity;
+pub mod command_reference;
 pub mod commands;
 pub mod companion_handoff;
 pub mod debug_seed;

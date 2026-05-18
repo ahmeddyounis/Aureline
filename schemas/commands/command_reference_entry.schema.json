@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/command_reference_entry.schema.json",
+  "title": "Aureline command reference entry and catalog",
+  "description": "Boundary schema for the keyboard-reachable command detail surface published by the desktop shell. Each entry is projected directly from the canonical command descriptor and the registry-owned invocation metadata so palette, menus, CLI/headless help, in-product docs/help, onboarding, and migration surfaces all read identity, lifecycle, alias/deprecation truth, argument schema, preview posture, idempotency hints, risk class, availability (trust, policy, dependency, disabled reasons), keybinding facts (default, active, shadowed, platform variants), automation/recipe eligibility, and migration notes from one shared record rather than separate handwritten copies.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/command_reference_entry_record" },
+    { "$ref": "#/$defs/command_reference_catalog_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "string_array": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": ["alpha", "beta", "stable", "lts_facing", "deprecated", "labs"]
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": [
+        "inert_metadata_only",
+        "reversible_local_read",
+        "reversible_local_mutation",
+        "recoverable_durable_mutation",
+        "destructive_bulk_mutation",
+        "irreversible_publish"
+      ]
+    },
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "no_preview_required",
+        "structured_diff_preview",
+        "destructive_bulk_mutation_preview",
+        "policy_authoring_or_waiver_preview",
+        "irreversible_publish_preview"
+      ]
+    },
+    "idempotency_class": {
+      "type": "string",
+      "enum": [
+        "idempotent",
+        "idempotent_with_visible_redirect",
+        "non_idempotent_observable_only",
+        "non_idempotent_destructive"
+      ]
+    },
+    "alias_lifecycle_state": {
+      "type": "string",
+      "enum": ["active", "deprecated", "retired"]
+    },
+    "alias_kind": {
+      "type": "string",
+      "enum": [
+        "legacy_command_id",
+        "alternate_palette_phrasing",
+        "alternate_cli_verb",
+        "ai_tool_handle",
+        "keybinding_target"
+      ]
+    },
+    "automation_label": {
+      "type": "string",
+      "enum": [
+        "ui_only",
+        "headless_safe",
+        "recipe_safe",
+        "macro_safe",
+        "ai_callable_with_approval",
+        "ai_not_callable"
+      ]
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "menu_or_button",
+        "keybinding_help",
+        "cli_headless",
+        "ai_tool_surface",
+        "docs_help",
+        "onboarding"
+      ]
+    },
+    "binding_state": {
+      "type": "string",
+      "enum": ["default", "overriding_user_binding", "shadowed_by_user_binding", "conflict", "unassigned"]
+    },
+    "platform_variant": {
+      "type": "string",
+      "enum": ["macos", "windows", "linux", "all"]
+    },
+    "argument_schema_slot": {
+      "type": "object",
+      "required": ["argument_name", "argument_kind", "is_required", "narration_label_ref"],
+      "properties": {
+        "argument_name": { "$ref": "#/$defs/non_empty_string" },
+        "argument_kind": { "$ref": "#/$defs/non_empty_string" },
+        "is_required": { "type": "boolean" },
+        "default_provenance_when_omitted": { "type": ["string", "null"] },
+        "narration_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "enum_value_refs": { "$ref": "#/$defs/string_array" },
+        "policy_pinned_when_trust_state_is": { "$ref": "#/$defs/string_array" }
+      },
+      "additionalProperties": false
+    },
+    "alias_reference": {
+      "type": "object",
+      "required": ["alias_id", "alias_kind", "lifecycle_state"],
+      "properties": {
+        "alias_id": { "$ref": "#/$defs/non_empty_string" },
+        "alias_kind": { "$ref": "#/$defs/alias_kind" },
+        "lifecycle_state": { "$ref": "#/$defs/alias_lifecycle_state" },
+        "introduced_version": { "type": ["string", "null"] },
+        "retirement_version": { "type": ["string", "null"] },
+        "replacement_command_id": { "type": ["string", "null"] },
+        "replacement_note_ref": { "type": ["string", "null"] },
+        "import_impact_class": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "no_action_required",
+            "rebind_keymap",
+            "rewrite_recipe",
+            "ai_tool_handle_renames",
+            "remove_invocation"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "deprecation_record": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["active", "deprecated", "retired"]
+        },
+        "deprecated_in_version": { "type": ["string", "null"] },
+        "retires_in_version": { "type": ["string", "null"] },
+        "replacement_command_id": { "type": ["string", "null"] },
+        "import_impact_class": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "no_action_required",
+            "rebind_keymap",
+            "rewrite_recipe",
+            "ai_tool_handle_renames",
+            "remove_invocation"
+          ]
+        },
+        "migration_note_ref": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "availability_section": {
+      "type": "object",
+      "required": ["supported_surfaces", "trust_gate_class", "policy_gate_class", "dependency_presence_class"],
+      "properties": {
+        "supported_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_family" }
+        },
+        "trust_gate_class": { "$ref": "#/$defs/non_empty_string" },
+        "policy_gate_class": { "$ref": "#/$defs/non_empty_string" },
+        "dependency_presence_class": { "$ref": "#/$defs/non_empty_string" },
+        "current_disabled_reason_codes": { "$ref": "#/$defs/string_array" },
+        "current_disabled_reason_explanation_refs": { "$ref": "#/$defs/string_array" }
+      },
+      "additionalProperties": false
+    },
+    "keybinding_fact": {
+      "type": "object",
+      "required": ["chord_ref", "platform_variant", "binding_state"],
+      "properties": {
+        "chord_ref": { "$ref": "#/$defs/non_empty_string" },
+        "platform_variant": { "$ref": "#/$defs/platform_variant" },
+        "binding_state": { "$ref": "#/$defs/binding_state" },
+        "shadowed_by_chord_ref": { "type": ["string", "null"] },
+        "shadowed_by_command_id": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "automation_eligibility": {
+      "type": "object",
+      "required": ["headless_eligible", "recipe_eligible", "macro_eligible", "ai_eligible"],
+      "properties": {
+        "headless_eligible": { "type": "boolean" },
+        "recipe_eligible": { "type": "boolean" },
+        "macro_eligible": { "type": "boolean" },
+        "ai_eligible": { "type": "boolean" },
+        "automation_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/automation_label" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "search_index_token": {
+      "type": "object",
+      "required": ["token_class", "value"],
+      "properties": {
+        "token_class": {
+          "type": "string",
+          "enum": [
+            "human_label",
+            "command_id",
+            "canonical_verb",
+            "alias_id",
+            "key_sequence"
+          ]
+        },
+        "value": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "discoverability_link": {
+      "type": "object",
+      "required": ["surface_family", "anchor_ref"],
+      "properties": {
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "command_reference_entry_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "command_id",
+        "command_revision_ref",
+        "canonical_verb",
+        "primary_label_ref",
+        "title",
+        "summary",
+        "lifecycle_state",
+        "origin_class",
+        "risk_class",
+        "preview_class",
+        "idempotency_class",
+        "aliases",
+        "deprecation",
+        "argument_schema",
+        "availability",
+        "keybindings",
+        "automation",
+        "search_index",
+        "discoverability_links",
+        "docs_help_anchor_ref",
+        "migration_notes_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "command_reference_entry_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_verb": { "$ref": "#/$defs/non_empty_string" },
+        "primary_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "origin_class": { "$ref": "#/$defs/non_empty_string" },
+        "risk_class": { "$ref": "#/$defs/risk_class" },
+        "preview_class": { "$ref": "#/$defs/preview_class" },
+        "idempotency_class": { "$ref": "#/$defs/idempotency_class" },
+        "supports_dry_run": { "type": "boolean" },
+        "aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/alias_reference" }
+        },
+        "deprecation": { "$ref": "#/$defs/deprecation_record" },
+        "argument_schema": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/argument_schema_slot" }
+        },
+        "availability": { "$ref": "#/$defs/availability_section" },
+        "keybindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keybinding_fact" }
+        },
+        "automation": { "$ref": "#/$defs/automation_eligibility" },
+        "search_index": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/search_index_token" },
+          "minItems": 1
+        },
+        "discoverability_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/discoverability_link" }
+        },
+        "docs_help_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "migration_notes_refs": { "$ref": "#/$defs/string_array" },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "command_reference_catalog_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "catalog_id",
+        "source_descriptor_schema_ref",
+        "entries",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "command_reference_catalog_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/non_empty_string" },
+        "catalog_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_descriptor_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_reference_entry_record" },
+          "minItems": 1
+        },
+        "generated_at": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
