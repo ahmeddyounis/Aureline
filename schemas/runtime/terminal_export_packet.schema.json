@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/terminal_export_packet.schema.json",
+  "title": "Aureline terminal export packet",
+  "description": "Support-export / AI-promoted-slice export packet projected by crates/aureline-terminal/src/protocol_contract/mod.rs. The packet bundles a terminal session summary, an optional bounded scrollback snapshot, and optional AI-promoted slice provenance. Export class names the redaction posture: metadata_only carries provenance and timestamps only; support_bundle_scoped carries scrollback bodies under the support-bundle redaction class; ai_promoted_slice carries bodies under broadened_capture with an explicit promoted-range provenance. Raw command bodies, raw env, raw secrets, and raw clipboard payloads MUST NOT cross this boundary.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "export_id",
+    "summary",
+    "export_class",
+    "export_class_token",
+    "scrollback_redaction_class_token",
+    "support_export_summary",
+    "raw_bodies_exported_by_default",
+    "raw_environment_or_secret_present",
+    "minted_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "record_kind": { "const": "terminal_export_packet_record" },
+    "schema_version": { "const": 1 },
+    "export_id": { "type": "string", "minLength": 1 },
+    "summary": {
+      "$ref": "https://aureline.dev/schemas/runtime/terminal_session_summary.schema.json"
+    },
+    "export_class": { "$ref": "#/$defs/export_class" },
+    "export_class_token": { "$ref": "#/$defs/export_class" },
+    "scrollback_redaction_class_token": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ]
+    },
+    "transcript": { "$ref": "#/$defs/scrollback_snapshot" },
+    "promoted_slice": { "$ref": "#/$defs/promoted_slice" },
+    "promoted_range_provenance": { "$ref": "#/$defs/promoted_range_provenance" },
+    "support_export_summary": { "type": "string", "minLength": 1 },
+    "raw_bodies_exported_by_default": { "const": false },
+    "raw_environment_or_secret_present": { "const": false },
+    "minted_at": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "export_class": { "const": "metadata_only" } } },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["transcript"] },
+            { "required": ["promoted_slice"] },
+            { "required": ["promoted_range_provenance"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "export_class": { "const": "ai_promoted_slice" } } },
+      "then": {
+        "required": ["promoted_slice", "promoted_range_provenance"]
+      }
+    }
+  ],
+  "$defs": {
+    "export_class": {
+      "type": "string",
+      "enum": ["metadata_only", "support_bundle_scoped", "ai_promoted_slice"]
+    },
+    "promoted_range_provenance": {
+      "type": "object",
+      "required": [
+        "slice_id",
+        "first_line_index",
+        "last_line_index",
+        "promoter_class_token",
+        "admission_ref",
+        "promoted_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "slice_id": { "type": "string", "minLength": 1 },
+        "first_line_index": { "type": "integer", "minimum": 0 },
+        "last_line_index": { "type": "integer", "minimum": 0 },
+        "promoter_class_token": {
+          "type": "string",
+          "enum": [
+            "ai_tool_call",
+            "support_export",
+            "user_explicit_promotion",
+            "shared_terminal_audit"
+          ]
+        },
+        "admission_ref": { "type": "string", "minLength": 1 },
+        "promoted_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scrollback_snapshot": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "session_id",
+        "bound",
+        "observed_line_count",
+        "dropped_line_count",
+        "captured_at",
+        "lines"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "const": "terminal_scrollback_snapshot_record" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "session_id": { "type": "string", "minLength": 1 },
+        "bound": { "type": "integer", "minimum": 1 },
+        "observed_line_count": { "type": "integer", "minimum": 0 },
+        "dropped_line_count": { "type": "integer", "minimum": 0 },
+        "captured_at": { "type": "string", "minLength": 1 },
+        "lines": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scrollback_line" }
+        }
+      }
+    },
+    "scrollback_line": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "line_index",
+        "redaction_class",
+        "redaction_class_token",
+        "byte_length",
+        "digest",
+        "observed_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "const": "terminal_scrollback_line_record" },
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "line_index": { "type": "integer", "minimum": 0 },
+        "redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_and_hashes_only",
+            "support_bundle_scoped",
+            "broadened_capture"
+          ]
+        },
+        "redaction_class_token": {
+          "type": "string",
+          "enum": [
+            "metadata_and_hashes_only",
+            "support_bundle_scoped",
+            "broadened_capture"
+          ]
+        },
+        "byte_length": { "type": "integer", "minimum": 0 },
+        "digest": { "type": "string", "minLength": 1 },
+        "text": { "type": "string" },
+        "observed_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "promoted_slice": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "slice_id",
+        "summary_id",
+        "session_id",
+        "provenance",
+        "transcript",
+        "export_class",
+        "export_class_token",
+        "admitted_with_intent",
+        "raw_environment_or_secret_present"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record_kind": { "const": "terminal_ai_promoted_slice_record" },
+        "schema_version": { "const": 1 },
+        "slice_id": { "type": "string", "minLength": 1 },
+        "summary_id": { "type": "string", "minLength": 1 },
+        "session_id": { "type": "string", "minLength": 1 },
+        "provenance": { "$ref": "#/$defs/promoted_range_provenance" },
+        "transcript": { "$ref": "#/$defs/scrollback_snapshot" },
+        "export_class": { "$ref": "#/$defs/export_class" },
+        "export_class_token": { "$ref": "#/$defs/export_class" },
+        "admitted_with_intent": { "const": true },
+        "raw_environment_or_secret_present": { "const": false }
+      }
+    }
+  }
+}

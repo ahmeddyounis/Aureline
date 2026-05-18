@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/terminal_session_summary.schema.json",
+  "title": "Aureline terminal session summary",
+  "description": "Canonical terminal session summary projected by crates/aureline-terminal/src/protocol_contract/mod.rs. Every claimed M3 beta terminal row (local, remote, shared, export/support view, or AI-promoted slice) consumes this record so the chrome, CLI/headless, support packets, and AI tool surfaces read one truth about boundary, clipboard posture, bracketed-paste state, linkification, shared-control role, restore class, reconnect/drift state, and renewed-intent requirements. Raw PTY bytes, raw command lines, raw env, raw secrets, and raw clipboard payloads MUST NOT cross this boundary.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "summary_id",
+    "session_id",
+    "workspace_id",
+    "display_title",
+    "execution_context_ref",
+    "trust_state",
+    "trust_state_token",
+    "session_class",
+    "session_class_token",
+    "boundary",
+    "lifecycle_state_token",
+    "live_authority",
+    "live_authority_token",
+    "recovery",
+    "clipboard_posture",
+    "clipboard_posture_token",
+    "bracketed_paste",
+    "bracketed_paste_token",
+    "linkification",
+    "linkification_token",
+    "shared_role",
+    "shared_role_token",
+    "recording_class",
+    "recording_class_token",
+    "denial_reason",
+    "denial_reason_token",
+    "raw_pty_bytes_present",
+    "raw_command_body_present",
+    "raw_clipboard_payload_present",
+    "local_terminal_continuity_preserved",
+    "observed_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "record_kind": { "const": "terminal_session_summary_record" },
+    "schema_version": { "const": 1 },
+    "summary_id": { "$ref": "#/$defs/non_empty_string" },
+    "session_id": { "$ref": "#/$defs/non_empty_string" },
+    "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+    "display_title": { "type": "string" },
+    "execution_context_ref": { "$ref": "#/$defs/non_empty_string" },
+    "trust_state": { "$ref": "#/$defs/trust_state" },
+    "trust_state_token": { "$ref": "#/$defs/trust_state_token" },
+    "session_class": { "$ref": "#/$defs/session_class" },
+    "session_class_token": { "$ref": "#/$defs/session_class" },
+    "boundary": { "$ref": "#/$defs/boundary" },
+    "lifecycle_state_token": { "type": "string" },
+    "live_authority": { "$ref": "#/$defs/live_authority" },
+    "live_authority_token": { "$ref": "#/$defs/live_authority" },
+    "recovery": { "$ref": "#/$defs/recovery_posture" },
+    "clipboard_posture": { "$ref": "#/$defs/clipboard_posture" },
+    "clipboard_posture_token": { "$ref": "#/$defs/clipboard_posture" },
+    "bracketed_paste": { "$ref": "#/$defs/bracketed_paste" },
+    "bracketed_paste_token": { "$ref": "#/$defs/bracketed_paste" },
+    "linkification": { "$ref": "#/$defs/linkification" },
+    "linkification_token": { "$ref": "#/$defs/linkification" },
+    "shared_role": { "$ref": "#/$defs/shared_role" },
+    "shared_role_token": { "$ref": "#/$defs/shared_role" },
+    "control_grant_ref": { "type": "string", "minLength": 1 },
+    "recording_class": { "$ref": "#/$defs/recording_class" },
+    "recording_class_token": { "$ref": "#/$defs/recording_class" },
+    "cwd_hint": { "type": "string" },
+    "prompt_hint": { "type": "string" },
+    "denial_reason": { "$ref": "#/$defs/denial_reason" },
+    "denial_reason_token": { "$ref": "#/$defs/denial_reason" },
+    "denial_label": { "type": "string" },
+    "raw_pty_bytes_present": { "const": false },
+    "raw_command_body_present": { "const": false },
+    "raw_clipboard_payload_present": { "const": false },
+    "local_terminal_continuity_preserved": { "const": true },
+    "observed_at": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "session_class": { "const": "shared_terminal" } } },
+      "then": { "not": { "properties": { "shared_role": { "const": "not_shared" } } } }
+    },
+    {
+      "if": { "properties": { "shared_role": { "const": "active_writer_grantee" } } },
+      "then": { "required": ["control_grant_ref"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "clipboard_posture": {
+            "enum": ["blocked_by_policy", "blocked_by_trust", "blocked_by_secret_class"]
+          }
+        }
+      },
+      "then": {
+        "not": { "properties": { "denial_reason": { "const": "no_denial" } } }
+      }
+    },
+    {
+      "if": { "properties": { "session_class": { "enum": ["export_support_view", "ai_promoted_slice"] } } },
+      "then": {
+        "properties": {
+          "clipboard_posture": { "const": "not_applicable" },
+          "bracketed_paste": { "const": "forced_no_auto_submit" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"]
+    },
+    "trust_state_token": { "$ref": "#/$defs/trust_state" },
+    "session_class": {
+      "type": "string",
+      "enum": [
+        "local_terminal",
+        "remote_terminal",
+        "shared_terminal",
+        "export_support_view",
+        "ai_promoted_slice"
+      ]
+    },
+    "live_authority": {
+      "type": "string",
+      "enum": [
+        "live",
+        "warming",
+        "reconnecting",
+        "recovered_transcript_only",
+        "ended_requires_fresh_session",
+        "read_only_degraded",
+        "shared_narrowed_authority",
+        "authority_blocked",
+        "inspect_only"
+      ]
+    },
+    "clipboard_posture": {
+      "type": "string",
+      "enum": [
+        "local_allowed_with_preview",
+        "remote_bridge_allowed_with_preview",
+        "shared_scoped_allowed_with_preview",
+        "blocked_by_policy",
+        "blocked_by_trust",
+        "blocked_by_secret_class",
+        "not_applicable"
+      ]
+    },
+    "bracketed_paste": {
+      "type": "string",
+      "enum": [
+        "not_advertised",
+        "advertised_disabled",
+        "advertised_enabled",
+        "forced_no_auto_submit"
+      ]
+    },
+    "linkification": {
+      "type": "string",
+      "enum": ["disabled", "metadata_only", "enabled_with_boundary_label"]
+    },
+    "shared_role": {
+      "type": "string",
+      "enum": [
+        "not_shared",
+        "owner_host",
+        "view_only_observer",
+        "follower",
+        "active_writer_grantee",
+        "approver_non_driving",
+        "admin_non_driving"
+      ]
+    },
+    "recording_class": {
+      "type": "string",
+      "enum": [
+        "not_recorded",
+        "workspace_scoped_retention",
+        "support_bundle_retention",
+        "admin_scoped_retention"
+      ]
+    },
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "no_denial",
+        "admin_policy_blocked",
+        "workspace_trust_narrowed",
+        "protocol_budget_exceeded",
+        "secret_class_detected",
+        "restore_root_missing",
+        "shared_control_grant_required",
+        "target_identity_drift",
+        "route_identity_drift",
+        "reconnect_required",
+        "fresh_session_required"
+      ]
+    },
+    "reconnect_drift": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "identity_unchanged",
+        "host_or_workspace_drift",
+        "toolchain_drift",
+        "trust_narrowed",
+        "policy_epoch_regressed",
+        "unknown_requires_review"
+      ]
+    },
+    "boundary": {
+      "type": "object",
+      "required": [
+        "host_class_token",
+        "target_badge",
+        "boundary_cue_token",
+        "cue_visible"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "host_class_token": {
+          "type": "string",
+          "enum": ["host_desktop", "remote_agent_primary", "local_container"]
+        },
+        "target_badge": { "type": "string", "minLength": 1 },
+        "boundary_cue_token": {
+          "type": "string",
+          "enum": [
+            "boundary_cue_local_session",
+            "boundary_cue_remote_session",
+            "boundary_cue_container_session"
+          ]
+        },
+        "cue_visible": { "type": "boolean" }
+      }
+    },
+    "recovery_posture": {
+      "type": "object",
+      "required": [
+        "restore_state_token",
+        "reconnect_drift_class",
+        "reconnect_drift_token",
+        "auto_rerun_forbidden",
+        "fresh_session_required",
+        "renewed_intent_required"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "restore_state_token": {
+          "type": "string",
+          "enum": [
+            "live",
+            "warming",
+            "transcript_restored",
+            "command_rerun_required",
+            "reconnect_required",
+            "inspect_only",
+            "restore_blocked"
+          ]
+        },
+        "reconnect_drift_class": { "$ref": "#/$defs/reconnect_drift" },
+        "reconnect_drift_token": { "$ref": "#/$defs/reconnect_drift" },
+        "auto_rerun_forbidden": { "const": true },
+        "fresh_session_required": { "type": "boolean" },
+        "open_fresh_session_command_id": {
+          "type": "string",
+          "const": "cmd:terminal.open_fresh_session"
+        },
+        "renewed_intent_required": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "fresh_session_required": { "const": true } } },
+          "then": { "required": ["open_fresh_session_command_id"] }
+        }
+      ]
+    }
+  }
+}

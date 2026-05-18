@@ -15,6 +15,10 @@
 
 /// Terminal header strip and target/cwd/runtime/restore chip projection.
 pub mod headers;
+/// Canonical terminal-session summary, export packet, clipboard posture,
+/// shared-role, and restore-class contract consumed by every claimed M3 beta
+/// terminal surface.
+pub mod protocol_contract;
 /// Terminal protocol corpus and conformance projections for escape handling,
 /// paste review, clipboard writes, and restore-state proofs.
 pub mod protocol_corpus;
@@ -30,6 +34,17 @@ pub use headers::{
     TerminalHeaderChip, TerminalHeaderChipKind, TerminalHeaderChipState, TerminalHeaderRecord,
     TerminalHeaderRestoreState, TerminalHeaderSourceKind, TerminalRuntimeChipSource,
     TERMINAL_HEADER_RECORD_KIND, TERMINAL_HEADER_SCHEMA_VERSION,
+};
+pub use protocol_contract::{
+    lifecycle_state_requires_reconnect, TerminalAiPromotedSlice, TerminalBoundary,
+    TerminalBracketedPasteClass, TerminalClipboardPostureClass, TerminalDenialReasonClass,
+    TerminalExportClass, TerminalExportPacket, TerminalLinkificationClass,
+    TerminalLiveAuthorityClass, TerminalPromotedRangeProvenance, TerminalReconnectDriftClass,
+    TerminalRecordingClass, TerminalRecoveryPosture, TerminalSessionClass, TerminalSessionSummary,
+    TerminalSessionSummaryValidationReport, TerminalSharedRoleClass,
+    TERMINAL_AI_PROMOTED_SLICE_RECORD_KIND, TERMINAL_EXPORT_PACKET_RECORD_KIND,
+    TERMINAL_PROTOCOL_CONTRACT_SCHEMA_VERSION, TERMINAL_SESSION_SUMMARY_RECORD_KIND,
+    TERMINAL_SESSION_SUMMARY_VALIDATION_REPORT_KIND,
 };
 pub use portable_pty::PtySize;
 pub use protocol_corpus::{
