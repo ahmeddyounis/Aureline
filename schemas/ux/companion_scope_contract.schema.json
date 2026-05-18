@@ -1,0 +1,624 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/companion_scope_contract.schema.json",
+  "title": "Aureline scoped companion and desktop-handoff beta contract",
+  "description": "Boundary schema for the shell companion-scope beta projection. The record keeps browser and mobile companion rows explicit about client scope, target identity, stale/offline state, read-only or desktop-handoff state, desktop-owned approval, device-policy inheritance, quiet-hours inheritance, and support-export provenance. Raw paths, raw URLs, raw provider payloads, raw secrets, raw approval bodies, raw lock-screen payloads, and raw actor identities are excluded.",
+  "type": "object",
+  "$ref": "#/$defs/companion_scope_beta_page",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:companion_scope_and_handoff_beta:v1"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_ref": {
+      "anyOf": [
+        { "$ref": "#/$defs/non_empty_string" },
+        { "type": "null" }
+      ]
+    },
+    "workflow": {
+      "type": "string",
+      "enum": [
+        "review_triage",
+        "docs_and_help",
+        "light_remote_edit",
+        "remote_session_join",
+        "ci_status",
+        "incident_awareness"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "browser_web_companion",
+        "browser_extension_companion",
+        "mobile_native_companion",
+        "mobile_web_pwa_companion"
+      ]
+    },
+    "client_scope_label": {
+      "type": "string",
+      "enum": [
+        "review_only",
+        "comment_capable",
+        "light_edit",
+        "follow_capable",
+        "status_only",
+        "light_incident_tooling",
+        "desktop_required"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative_fresh_within_grace",
+        "warm_snapshot_within_grace",
+        "stale_snapshot_beyond_grace",
+        "offline_snapshot_no_refresh_path",
+        "imported_snapshot_no_live_target"
+      ]
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only_no_mutation",
+        "comment_or_ack_via_canonical_event",
+        "light_edit_via_desktop_command_policy",
+        "scoped_follow_grant_request",
+        "approval_request_only_desktop_owned",
+        "desktop_handoff_required"
+      ]
+    },
+    "handoff_reason_class": {
+      "type": "string",
+      "enum": [
+        "broad_mutation",
+        "protected_approval",
+        "sensitive_admin_flow",
+        "high_risk_publish",
+        "unmanaged_secret_entry",
+        "deep_local_project_editing",
+        "native_depth_workflow"
+      ]
+    },
+    "step_up_reuse_class": {
+      "type": "string",
+      "enum": [
+        "no_step_up_inspect_only",
+        "desktop_approval_ticket_reused",
+        "desktop_step_up_challenge_reused",
+        "managed_admin_approval_required_on_desktop",
+        "step_up_blocked_companion_must_handoff"
+      ]
+    },
+    "approval_owner_surface": {
+      "type": "string",
+      "enum": [
+        "no_approval_applies",
+        "native_desktop_review_surface",
+        "provider_handoff_surface",
+        "companion_request_only"
+      ]
+    },
+    "device_policy_class": {
+      "type": "string",
+      "enum": [
+        "inherits_desktop_notification_policy",
+        "inherits_managed_device_policy",
+        "push_denied_local_only"
+      ]
+    },
+    "quiet_hours_class": {
+      "type": "string",
+      "enum": [
+        "inherits_unified_quiet_hours_policy",
+        "held_by_quiet_hours",
+        "critical_safety_bypass_audited"
+      ]
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "target_object_ref",
+        "execution_context_ref",
+        "target_identity_label",
+        "target_identity_label_visible",
+        "canonical_event_id_ref"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/non_empty_string" },
+        "target_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_identity_label": { "$ref": "#/$defs/non_empty_string" },
+        "target_identity_label_visible": { "type": "boolean", "const": true },
+        "canonical_event_id_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "freshness_token",
+        "snapshot_as_of",
+        "stale_or_offline_label_visible",
+        "live_claim_permitted"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "freshness_token": { "$ref": "#/$defs/freshness_class" },
+        "snapshot_as_of": { "type": "string", "format": "date-time" },
+        "stale_or_offline_label_visible": { "type": "boolean" },
+        "live_claim_permitted": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "freshness_class": {
+                "enum": [
+                  "warm_snapshot_within_grace",
+                  "stale_snapshot_beyond_grace",
+                  "offline_snapshot_no_refresh_path",
+                  "imported_snapshot_no_live_target"
+                ]
+              }
+            },
+            "required": ["freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "stale_or_offline_label_visible": { "const": true },
+              "live_claim_permitted": { "const": false }
+            }
+          }
+        }
+      ]
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_scope_label_visible",
+        "target_identity_label_visible",
+        "freshness_label_visible",
+        "read_only_label_visible",
+        "desktop_handoff_label_visible",
+        "label_tokens"
+      ],
+      "properties": {
+        "client_scope_label_visible": { "type": "boolean", "const": true },
+        "target_identity_label_visible": { "type": "boolean", "const": true },
+        "freshness_label_visible": { "type": "boolean" },
+        "read_only_label_visible": { "type": "boolean" },
+        "desktop_handoff_label_visible": { "type": "boolean" },
+        "label_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "read_only_label_visible": { "const": true }
+          }
+        },
+        {
+          "properties": {
+            "desktop_handoff_label_visible": { "const": true }
+          }
+        }
+      ]
+    },
+    "step_up": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_up_reuse_class",
+        "step_up_reuse_token",
+        "step_up_required",
+        "desktop_approval_ticket_ref",
+        "desktop_review_surface_ref",
+        "approval_owner_surface",
+        "approval_owner_surface_token"
+      ],
+      "properties": {
+        "step_up_reuse_class": { "$ref": "#/$defs/step_up_reuse_class" },
+        "step_up_reuse_token": { "$ref": "#/$defs/step_up_reuse_class" },
+        "step_up_required": { "type": "boolean" },
+        "desktop_approval_ticket_ref": { "$ref": "#/$defs/nullable_ref" },
+        "desktop_review_surface_ref": { "$ref": "#/$defs/nullable_ref" },
+        "approval_owner_surface": { "$ref": "#/$defs/approval_owner_surface" },
+        "approval_owner_surface_token": { "$ref": "#/$defs/approval_owner_surface" }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_class",
+        "authority_token",
+        "companion_can_request_approval",
+        "companion_can_grant_approval",
+        "broad_mutation_allowed_on_companion",
+        "protected_approval_allowed_on_companion",
+        "sensitive_admin_allowed_on_companion",
+        "high_risk_publish_allowed_on_companion",
+        "step_up"
+      ],
+      "properties": {
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "authority_token": { "$ref": "#/$defs/authority_class" },
+        "companion_can_request_approval": { "type": "boolean" },
+        "companion_can_grant_approval": { "type": "boolean", "const": false },
+        "broad_mutation_allowed_on_companion": { "type": "boolean", "const": false },
+        "protected_approval_allowed_on_companion": { "type": "boolean", "const": false },
+        "sensitive_admin_allowed_on_companion": { "type": "boolean", "const": false },
+        "high_risk_publish_allowed_on_companion": { "type": "boolean", "const": false },
+        "step_up": { "$ref": "#/$defs/step_up" }
+      }
+    },
+    "desktop_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mandatory_desktop_handoff",
+        "reason_classes",
+        "desktop_handoff_ref",
+        "exact_reopen_target_ref",
+        "handoff_preserves_target_identity",
+        "handoff_label"
+      ],
+      "properties": {
+        "mandatory_desktop_handoff": { "type": "boolean" },
+        "reason_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/handoff_reason_class" },
+          "uniqueItems": true
+        },
+        "desktop_handoff_ref": { "$ref": "#/$defs/nullable_ref" },
+        "exact_reopen_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "handoff_preserves_target_identity": { "type": "boolean", "const": true },
+        "handoff_label": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reason_classes": {
+                "contains": { "$ref": "#/$defs/handoff_reason_class" }
+              }
+            },
+            "required": ["reason_classes"]
+          },
+          "then": {
+            "properties": {
+              "mandatory_desktop_handoff": { "const": true },
+              "desktop_handoff_ref": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        }
+      ]
+    },
+    "notification_fanout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notification_surface_ref",
+        "device_policy_class",
+        "device_policy_token",
+        "device_policy_inherited",
+        "quiet_hours_class",
+        "quiet_hours_token",
+        "quiet_hours_inherited",
+        "fanout_dedupe_key_ref",
+        "companion_push_allowed",
+        "hidden_attention_spam_prevented",
+        "shortcut_bypass_forbidden",
+        "exact_reopen_target_ref"
+      ],
+      "properties": {
+        "notification_surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "device_policy_class": { "$ref": "#/$defs/device_policy_class" },
+        "device_policy_token": { "$ref": "#/$defs/device_policy_class" },
+        "device_policy_inherited": { "type": "boolean", "const": true },
+        "quiet_hours_class": { "$ref": "#/$defs/quiet_hours_class" },
+        "quiet_hours_token": { "$ref": "#/$defs/quiet_hours_class" },
+        "quiet_hours_inherited": { "type": "boolean", "const": true },
+        "fanout_dedupe_key_ref": { "$ref": "#/$defs/non_empty_string" },
+        "companion_push_allowed": { "type": "boolean" },
+        "hidden_attention_spam_prevented": { "type": "boolean", "const": true },
+        "shortcut_bypass_forbidden": { "type": "boolean", "const": true },
+        "exact_reopen_target_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_surface_ref",
+        "displayed_object_surface",
+        "approval_owner_surface",
+        "desktop_handoff_destination_ref",
+        "support_export_ref",
+        "canonical_event_id_ref",
+        "audit_event_id_ref"
+      ],
+      "properties": {
+        "origin_surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "displayed_object_surface": { "$ref": "#/$defs/non_empty_string" },
+        "approval_owner_surface": { "$ref": "#/$defs/approval_owner_surface" },
+        "desktop_handoff_destination_ref": { "$ref": "#/$defs/nullable_ref" },
+        "support_export_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_event_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "audit_event_id_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "explicit_non_promises": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "desktop_parity_claimed",
+        "unmanaged_secret_entry_allowed",
+        "deep_local_project_editing_allowed",
+        "terminal_or_debugger_parity_claimed",
+        "admin_console_replacement_claimed",
+        "non_promise_tokens"
+      ],
+      "properties": {
+        "desktop_parity_claimed": { "type": "boolean", "const": false },
+        "unmanaged_secret_entry_allowed": { "type": "boolean", "const": false },
+        "deep_local_project_editing_allowed": { "type": "boolean", "const": false },
+        "terminal_or_debugger_parity_claimed": { "type": "boolean", "const": false },
+        "admin_console_replacement_claimed": { "type": "boolean", "const": false },
+        "non_promise_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 3,
+          "uniqueItems": true
+        }
+      }
+    },
+    "companion_scope_beta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "case_id",
+        "workflow",
+        "workflow_token",
+        "surface_class",
+        "client_scope_label",
+        "client_scope_token",
+        "target_identity",
+        "freshness",
+        "labels",
+        "authority",
+        "desktop_handoff",
+        "notification_fanout",
+        "provenance",
+        "explicit_non_promises",
+        "raw_private_material_excluded",
+        "reviewer_note"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_companion_scope_beta_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "workflow": { "$ref": "#/$defs/workflow" },
+        "workflow_token": { "$ref": "#/$defs/workflow" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "client_scope_label": { "$ref": "#/$defs/client_scope_label" },
+        "client_scope_token": { "$ref": "#/$defs/client_scope_label" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "labels": { "$ref": "#/$defs/labels" },
+        "authority": { "$ref": "#/$defs/authority" },
+        "desktop_handoff": { "$ref": "#/$defs/desktop_handoff" },
+        "notification_fanout": { "$ref": "#/$defs/notification_fanout" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "explicit_non_promises": { "$ref": "#/$defs/explicit_non_promises" },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "reviewer_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "case_id",
+        "workflow_token",
+        "client_scope_token",
+        "target_object_ref",
+        "freshness_token",
+        "read_only_label_visible",
+        "desktop_handoff_label_visible",
+        "mandatory_desktop_handoff",
+        "handoff_reason_tokens",
+        "approval_owner_surface_token",
+        "origin_surface_ref",
+        "displayed_object_surface",
+        "desktop_handoff_destination_ref",
+        "device_policy_inherited",
+        "quiet_hours_inherited",
+        "canonical_event_id_ref",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_companion_scope_beta_support_row_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "workflow_token": { "$ref": "#/$defs/workflow" },
+        "client_scope_token": { "$ref": "#/$defs/client_scope_label" },
+        "target_object_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_token": { "$ref": "#/$defs/freshness_class" },
+        "read_only_label_visible": { "type": "boolean" },
+        "desktop_handoff_label_visible": { "type": "boolean" },
+        "mandatory_desktop_handoff": { "type": "boolean" },
+        "handoff_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/handoff_reason_class" },
+          "uniqueItems": true
+        },
+        "approval_owner_surface_token": { "$ref": "#/$defs/approval_owner_surface" },
+        "origin_surface_ref": { "$ref": "#/$defs/non_empty_string" },
+        "displayed_object_surface": { "$ref": "#/$defs/non_empty_string" },
+        "desktop_handoff_destination_ref": { "$ref": "#/$defs/nullable_ref" },
+        "device_policy_inherited": { "type": "boolean", "const": true },
+        "quiet_hours_inherited": { "type": "boolean", "const": true },
+        "canonical_event_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["defect_kind", "defect_kind_token", "row_id", "field", "note"],
+      "properties": {
+        "defect_kind": { "$ref": "#/$defs/non_empty_string" },
+        "defect_kind_token": { "$ref": "#/$defs/non_empty_string" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "field": { "$ref": "#/$defs/non_empty_string" },
+        "note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "workflows_present",
+        "stale_or_offline_row_count",
+        "mandatory_desktop_handoff_row_count",
+        "desktop_owned_approval_row_count",
+        "quiet_hours_integrated_row_count",
+        "defect_count",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "workflows_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workflow" },
+          "uniqueItems": true
+        },
+        "stale_or_offline_row_count": { "type": "integer", "minimum": 0 },
+        "mandatory_desktop_handoff_row_count": { "type": "integer", "minimum": 0 },
+        "desktop_owned_approval_row_count": { "type": "integer", "minimum": 0 },
+        "quiet_hours_integrated_row_count": { "type": "integer", "minimum": 0 },
+        "defect_count": { "type": "integer", "minimum": 0 },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "exported_at",
+        "page",
+        "rows",
+        "case_ids",
+        "raw_private_material_excluded",
+        "defect_kinds_present",
+        "defect_counts_by_kind"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_companion_scope_beta_support_export_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/non_empty_string" },
+        "exported_at": { "type": "string", "format": "date-time" },
+        "page": { "$ref": "#/$defs/companion_scope_beta_page" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_row" }
+        },
+        "case_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true },
+        "defect_kinds_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "defect_counts_by_kind": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "companion_scope_beta_page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "rows",
+        "support_rows",
+        "defects",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_companion_scope_beta_page_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/companion_scope_beta_row" },
+          "minItems": 6
+        },
+        "support_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_row" }
+        },
+        "defects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect" }
+        },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    }
+  }
+}

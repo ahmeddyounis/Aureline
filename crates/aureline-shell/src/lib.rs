@@ -49,6 +49,7 @@ pub mod chrome;
 pub mod clone;
 pub mod command_parity;
 pub mod commands;
+pub mod companion_handoff;
 pub mod debug_seed;
 pub mod debug_ui;
 pub mod debugger_host_beta;
