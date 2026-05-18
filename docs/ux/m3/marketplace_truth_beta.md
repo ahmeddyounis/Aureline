@@ -12,6 +12,7 @@ consumer in `crates/aureline-shell/src/extensions/marketplace/`.
 | Publisher, registry source, moderation, revocation, and mirrorability | `CatalogDescriptorRecord` |
 | Current support class and downgrade triggers | `artifacts/compat/m3/compatibility_report.json` |
 | Marketplace row and support export shape | `schemas/extensions/marketplace_truth.schema.json` |
+| Shared fact grid for result rows, detail pages, install review, diagnostics, and support exports | `schemas/extensions/marketplace_fact_grid.schema.json` |
 | Shell/headless projection fixtures | `fixtures/ux/m3/marketplace_truth/` |
 
 Compatibility labels on the row are generated from the current compatibility
@@ -38,6 +39,16 @@ Support-class chips are separate from lifecycle badges. For example, a beta
 extension row may render `beta`, `limited`, and `mirrored` while the support
 chip says `experimental`.
 
+## Fact Grid Parity
+
+Every claimed row also carries a shared fact grid with client scope, registry
+source, compatibility, script/native-build risk, manifest changes, permission
+deltas, lockfile or generated-file impact, revocation state, rollback posture,
+and activation budget. Public rows, approved mirrors, private registries,
+offline rows, and manual imports use the same vocabulary; unsupported or
+unknown scopes block or narrow mutation instead of disappearing from install
+review.
+
 ## Validation Rules
 
 - Every row must include at least one lifecycle badge, one support-class chip,
@@ -48,12 +59,16 @@ chip says `experimental`.
 - A `revoked` badge must block install and update.
 - Support exports must quote the row badges, compatibility label, support
   chips, trust chips, and install-review ref without drift.
+- Fact-grid support exports must quote client scope, source lane,
+  compatibility, script/native-build risk, lockfile impact, permission-delta
+  count, and block posture without drift.
 
 ## Verification
 
 ```sh
 cargo test -p aureline-extensions marketplace_truth
-cargo test -p aureline-shell extensions::marketplace
+cargo test -p aureline-extensions fact_grid
+cargo test -p aureline-shell --lib extensions::marketplace
 cargo test -p aureline-shell --test marketplace_truth_beta_fixtures
 cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- validate
 ```

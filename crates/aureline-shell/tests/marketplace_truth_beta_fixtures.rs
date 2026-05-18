@@ -4,7 +4,9 @@
 //! by the `aureline_shell_marketplace_truth` headless inspector.
 
 use aureline_extensions::{
-    MarketplaceCompatibilityLabelClass, MarketplaceSupportChipClass, MarketplaceTruthBadgeClass,
+    CatalogRegistrySourceClass, ClientScopeClass, MarketplaceCompatibilityLabelClass,
+    MarketplaceFactGridRecord, MarketplaceFactGridSupportExportRecord,
+    MarketplaceFactGridSurfaceClass, MarketplaceSupportChipClass, MarketplaceTruthBadgeClass,
     MarketplaceTruthRowRecord, MarketplaceTruthSupportExportRecord,
 };
 use aureline_shell::extensions::marketplace::{
@@ -16,18 +18,26 @@ const FIXTURE_DIR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/ux/m3/marketplace_truth"
 );
+const EXTENSION_FIXTURE_DIR: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/extensions/m3/fact_grid_and_install_review"
+);
 
-fn load<T: serde::de::DeserializeOwned>(filename: &str) -> T {
-    let path = format!("{}/{}", FIXTURE_DIR, filename);
+fn load_from<T: serde::de::DeserializeOwned>(dir: &str, filename: &str) -> T {
+    let path = format!("{}/{}", dir, filename);
     let body =
         std::fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {path}: {err}"));
     serde_json::from_str(&body).unwrap_or_else(|err| panic!("failed to parse {path}: {err}"))
 }
 
+fn load<T: serde::de::DeserializeOwned>(filename: &str) -> T {
+    load_from(FIXTURE_DIR, filename)
+}
+
 #[test]
 fn fixtures_round_trip_through_shared_types() {
     let rows: Vec<MarketplaceTruthRowRecord> = load("rows.json");
-    assert_eq!(rows.len(), 4);
+    assert_eq!(rows.len(), 6);
     for row in &rows {
         assert_eq!(row.marketplace_truth_schema_version, 1);
         assert_eq!(
@@ -118,6 +128,57 @@ fn fixtures_round_trip_through_shared_types() {
         );
     }
 
+    let fact_grids: Vec<MarketplaceFactGridRecord> = load("fact_grids.json");
+    assert_eq!(fact_grids.len(), rows.len());
+    for grid in &fact_grids {
+        assert_eq!(grid.marketplace_fact_grid_schema_version, 1);
+        assert!(!grid.client_scope_summary.trim().is_empty());
+        assert!(!grid.manifest_changes.is_empty());
+        assert_eq!(
+            grid.permission_delta_count,
+            grid.permission_delta_entries.len()
+        );
+        assert!(!grid.lockfile_impact.summary.trim().is_empty());
+    }
+    assert!(fact_grids
+        .iter()
+        .any(|grid| { grid.client_scope_class == ClientScopeClass::DesktopPlusBrowserCompanion }));
+    assert!(fact_grids
+        .iter()
+        .any(|grid| grid.client_scope_class == ClientScopeClass::BrowserCompanion));
+    assert!(fact_grids
+        .iter()
+        .any(|grid| grid.registry_source_class == CatalogRegistrySourceClass::OfflineBundle));
+    assert!(fact_grids
+        .iter()
+        .any(|grid| grid.registry_source_class == CatalogRegistrySourceClass::LocalArchive));
+    assert!(fact_grids
+        .iter()
+        .any(|grid| grid.surface_class == MarketplaceFactGridSurfaceClass::OfflineRegistryRow));
+    assert!(fact_grids
+        .iter()
+        .any(|grid| grid.surface_class == MarketplaceFactGridSurfaceClass::ManualImportReview));
+
+    let fact_grid_support_rows: Vec<MarketplaceFactGridSupportExportRecord> =
+        load("fact_grid_support_rows.json");
+    assert_eq!(fact_grid_support_rows.len(), fact_grids.len());
+    for grid in &fact_grids {
+        let export = fact_grid_support_rows
+            .iter()
+            .find(|export| export.fact_grid_ref == grid.fact_grid_id)
+            .expect("fact-grid support row exists");
+        assert_eq!(export.client_scope_class, grid.client_scope_class);
+        assert_eq!(export.registry_source_class, grid.registry_source_class);
+        assert_eq!(
+            export.compatibility_label_class,
+            grid.compatibility_label_class
+        );
+        assert_eq!(
+            export.lockfile_impact_class,
+            grid.lockfile_impact.impact_class
+        );
+    }
+
     let page: MarketplaceTruthPageRecord = load("page.json");
     assert_eq!(page.schema_version, MARKETPLACE_TRUTH_PAGE_SCHEMA_VERSION);
     assert_eq!(
@@ -133,6 +194,18 @@ fn fixtures_round_trip_through_shared_types() {
         MarketplaceTruthBadgeClass::required_acceptance_states().to_vec()
     );
     validate_marketplace_truth_page(&page).expect("page fixture must validate");
+}
+
+#[test]
+fn extension_fixture_corpus_matches_shell_fact_grids() {
+    let extension_grids: Vec<MarketplaceFactGridRecord> =
+        load_from(EXTENSION_FIXTURE_DIR, "fact_grids.json");
+    let extension_exports: Vec<MarketplaceFactGridSupportExportRecord> =
+        load_from(EXTENSION_FIXTURE_DIR, "support_exports.json");
+    let page = seeded_marketplace_truth_page();
+
+    assert_eq!(extension_grids, page.fact_grids);
+    assert_eq!(extension_exports, page.fact_grid_support_rows);
 }
 
 #[test]

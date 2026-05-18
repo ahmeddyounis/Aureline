@@ -1,6 +1,10 @@
 //! Unit coverage for shell marketplace truth page projection.
 
-use aureline_extensions::{MarketplaceCompatibilityLabelClass, MarketplaceSupportChipClass};
+use aureline_extensions::{
+    CatalogRegistrySourceClass, ClientScopeClass, LockfileImpactClass,
+    MarketplaceCompatibilityLabelClass, MarketplaceFactGridSurfaceClass,
+    MarketplaceSupportChipClass, MarketplaceTrustChipClass, ScriptRiskClass,
+};
 
 use super::*;
 
@@ -18,6 +22,8 @@ fn seeded_marketplace_truth_page_validates() {
         "artifacts/compat/m3/extension_compatibility_report.md"
     );
     assert_eq!(page.rows.len(), page.support_rows.len());
+    assert_eq!(page.rows.len(), page.fact_grids.len());
+    assert_eq!(page.fact_grids.len(), page.fact_grid_support_rows.len());
     assert_eq!(
         page.controlled_badge_vocabulary,
         MarketplaceTruthBadgeClass::required_acceptance_states().to_vec()
@@ -96,8 +102,14 @@ fn seeded_rows_cover_preinstall_trust_states() {
             badge
         );
     }
-    assert_eq!(page.summary.row_count, 4);
+    assert_eq!(page.summary.row_count, 6);
     assert!(page.summary.blocked_install_or_update_count >= 2);
+    assert!(page.rows.iter().any(|row| row
+        .trust_chips
+        .contains(&MarketplaceTrustChipClass::OfflineBundle)));
+    assert!(page.rows.iter().any(|row| row
+        .trust_chips
+        .contains(&MarketplaceTrustChipClass::LocalArchive)));
 }
 
 #[test]
@@ -123,6 +135,152 @@ fn support_export_rows_quote_source_rows() {
             row.extension_bridge_matrix_row_id
         );
     }
+}
+
+#[test]
+fn fact_grids_cover_client_scope_and_workspace_change_truth() {
+    let page = seeded_marketplace_truth_page();
+
+    for scope in [
+        ClientScopeClass::Desktop,
+        ClientScopeClass::BrowserCompanion,
+        ClientScopeClass::DesktopPlusBrowserCompanion,
+        ClientScopeClass::HeadlessOnly,
+    ] {
+        assert!(
+            page.fact_grids
+                .iter()
+                .any(|grid| grid.client_scope_class == scope),
+            "seeded fact grids should cover {:?}",
+            scope
+        );
+    }
+
+    for source in [
+        CatalogRegistrySourceClass::PublicRegistry,
+        CatalogRegistrySourceClass::ApprovedMirror,
+        CatalogRegistrySourceClass::PrivateRegistry,
+        CatalogRegistrySourceClass::OfflineBundle,
+        CatalogRegistrySourceClass::LocalArchive,
+    ] {
+        assert!(
+            page.fact_grids
+                .iter()
+                .any(|grid| grid.registry_source_class == source),
+            "seeded fact grids should cover {:?}",
+            source
+        );
+    }
+
+    for surface in [
+        MarketplaceFactGridSurfaceClass::ResultRow,
+        MarketplaceFactGridSurfaceClass::ManualImportReview,
+        MarketplaceFactGridSurfaceClass::OfflineRegistryRow,
+    ] {
+        assert!(
+            page.fact_grids
+                .iter()
+                .any(|grid| grid.surface_class == surface),
+            "seeded fact grids should cover {:?}",
+            surface
+        );
+    }
+
+    let public_grid = page
+        .fact_grids
+        .iter()
+        .find(|grid| grid.fact_grid_id.ends_with(":public-beta"))
+        .expect("public fact grid exists");
+    assert_eq!(
+        public_grid.client_scope_class,
+        ClientScopeClass::DesktopPlusBrowserCompanion
+    );
+    assert_eq!(
+        public_grid.script_risk.script_risk_class,
+        ScriptRiskClass::NoScriptsOrNativeBuild
+    );
+    assert_eq!(
+        public_grid.lockfile_impact.impact_class,
+        LockfileImpactClass::LockfileChurnExpected
+    );
+    assert_eq!(
+        public_grid.permission_delta_count,
+        public_grid.permission_delta_entries.len()
+    );
+    assert!(!public_grid.manifest_changes.is_empty());
+
+    let bridge_grid = page
+        .fact_grids
+        .iter()
+        .find(|grid| grid.fact_grid_id.ends_with(":mirror-retest-pending"))
+        .expect("bridge-backed fact grid exists");
+    assert_eq!(
+        bridge_grid.script_risk.script_risk_class,
+        ScriptRiskClass::NativeBuildRequired
+    );
+    assert!(bridge_grid.blocks_install_or_update);
+
+    let manual_grid = page
+        .fact_grids
+        .iter()
+        .find(|grid| grid.fact_grid_id.ends_with(":manual-import"))
+        .expect("manual-import fact grid exists");
+    assert_eq!(
+        manual_grid.surface_class,
+        MarketplaceFactGridSurfaceClass::ManualImportReview
+    );
+    assert_eq!(
+        manual_grid.registry_source_class,
+        CatalogRegistrySourceClass::LocalArchive
+    );
+    assert_eq!(
+        manual_grid.script_risk.script_risk_class,
+        ScriptRiskClass::UnknownScriptRiskBlocked
+    );
+    assert_eq!(
+        manual_grid.lockfile_impact.impact_class,
+        LockfileImpactClass::RegenerateAndReview
+    );
+    assert!(manual_grid.blocks_install_or_update);
+}
+
+#[test]
+fn fact_grid_support_exports_quote_source_grids() {
+    let page = seeded_marketplace_truth_page();
+
+    for grid in &page.fact_grids {
+        let export = page
+            .fact_grid_support_rows
+            .iter()
+            .find(|export| export.fact_grid_ref == grid.fact_grid_id)
+            .expect("support row exists for fact grid");
+        assert_eq!(export.client_scope_class, grid.client_scope_class);
+        assert_eq!(export.registry_source_class, grid.registry_source_class);
+        assert_eq!(
+            export.compatibility_label_class,
+            grid.compatibility_label_class
+        );
+        assert_eq!(export.script_risk_class, grid.script_risk.script_risk_class);
+        assert_eq!(
+            export.lockfile_impact_class,
+            grid.lockfile_impact.impact_class
+        );
+        assert_eq!(export.permission_delta_count, grid.permission_delta_count);
+    }
+}
+
+#[test]
+fn validator_detects_fact_grid_support_export_drift() {
+    let mut page = seeded_marketplace_truth_page();
+    page.fact_grid_support_rows[0].permission_delta_count += 1;
+
+    let errors =
+        validate_marketplace_truth_page(&page).expect_err("fact-grid drift must fail validation");
+    assert!(errors.iter().any(|error| matches!(
+        error,
+        MarketplaceTruthPageValidationError::FactGridSupportExportParityDrift { field, .. }
+            if field == "permission_delta_count"
+    )));
 }
 
 #[test]

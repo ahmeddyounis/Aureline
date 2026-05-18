@@ -66,6 +66,11 @@
 //! - one [`marketplace_truth::MarketplaceTruthRowRecord`] row projection
 //!   that binds catalog descriptor truth to the current generated
 //!   compatibility report before any marketplace row can open install review.
+//! - one [`fact_grid::MarketplaceFactGridRecord`] shared fact-grid projection
+//!   that carries client scope, registry source, compatibility, script/native
+//!   risk, manifest changes, permission deltas, lockfile churn, revocation,
+//!   rollback, and activation-budget truth across marketplace rows, detail
+//!   pages, install review, diagnostics, and support exports.
 //! - one [`compatibility_matrix::ExtensionBridgeMatrix`] compatibility
 //!   matrix that names the runtime, SDK, manifest, and bridge windows for
 //!   claimed beta extension lanes so marketplace, SDK docs, publication
@@ -96,6 +101,7 @@
 
 pub mod collections;
 pub mod compatibility_matrix;
+pub mod fact_grid;
 pub mod install_review;
 pub mod lifecycle_metadata;
 pub mod manifest_baseline;
@@ -122,6 +128,16 @@ pub use compatibility_matrix::{
     ExtensionBridgeWindow, ExtensionCompatibilityLabel, ExtensionCompatibilityWindow,
     ExtensionDowngradeBehavior, ExtensionParityClaimClass, CURRENT_EXTENSION_BRIDGE_MATRIX_PATH,
     EXTENSION_BRIDGE_MATRIX_RECORD_KIND, EXTENSION_BRIDGE_MATRIX_SCHEMA_VERSION,
+};
+pub use fact_grid::{
+    project_marketplace_fact_grid, project_marketplace_fact_grid_support_export,
+    validate_marketplace_fact_grid, validate_marketplace_fact_grid_support_export,
+    ClientScopeClass, LockfileImpact, LockfileImpactClass, ManifestChangeClass, ManifestChangeRow,
+    MarketplaceFactGridFinding, MarketplaceFactGridInput, MarketplaceFactGridRecord,
+    MarketplaceFactGridSupportExportRecord, MarketplaceFactGridSurfaceClass,
+    QuarantineRevocationState, ScriptRiskClass, ScriptRiskDisclosure,
+    MARKETPLACE_FACT_GRID_RECORD_KIND, MARKETPLACE_FACT_GRID_SCHEMA_VERSION,
+    MARKETPLACE_FACT_GRID_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use install_review::{
     evaluate_install_review_alpha, project_install_review_alpha_surface,

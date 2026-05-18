@@ -6,6 +6,8 @@
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- page
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- rows
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- support-rows
+//! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- fact-grids
+//! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- fact-grid-support-rows
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- bridge-matrix
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- validate-bridge-matrix
 //! cargo run -q -p aureline-shell --bin aureline_shell_marketplace_truth -- validate
@@ -36,6 +38,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
         Some("support-rows") => {
             print_json(&page.support_rows)?;
+        }
+        Some("fact-grids") => {
+            print_json(&page.fact_grids)?;
+        }
+        Some("fact-grid-support-rows") => {
+            print_json(&page.fact_grid_support_rows)?;
         }
         Some("bridge-matrix") => {
             print_json(&current_extension_bridge_matrix()?)?;

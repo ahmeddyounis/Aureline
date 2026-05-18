@@ -9,13 +9,26 @@
 use serde::{Deserialize, Serialize};
 
 use aureline_extensions::{
-    current_extension_bridge_matrix, evaluate_catalog_descriptor, project_marketplace_truth_row,
-    project_marketplace_truth_support_export, validate_extension_bridge_matrix,
-    validate_marketplace_truth_row, validate_marketplace_truth_support_export,
-    CatalogDescriptorInput, CatalogDescriptorRecord, CompatibilityReportSnapshot,
-    ExtensionBridgeMatrix, MarketplaceTruthBadgeClass, MarketplaceTruthFinding,
+    current_extension_bridge_matrix, evaluate_catalog_descriptor, evaluate_install_review_alpha,
+    project_marketplace_fact_grid, project_marketplace_fact_grid_support_export,
+    project_marketplace_truth_row, project_marketplace_truth_support_export,
+    validate_extension_bridge_matrix, validate_marketplace_fact_grid,
+    validate_marketplace_fact_grid_support_export, validate_marketplace_truth_row,
+    validate_marketplace_truth_support_export, ActivationBudgetDisclosure, CatalogDescriptorInput,
+    CatalogDescriptorRecord, CatalogLifecycleStateClass, CatalogMirrorabilityClass,
+    CatalogModerationStateClass, CatalogRegistrySourceClass, CatalogRevocationSnapshotAgeClass,
+    CatalogTrustBadgeInheritanceRuleClass, ClientScopeClass, CompatibilityLabelBlock,
+    CompatibilityReportSnapshot, EffectivePermissionBaselineRecord, ExtensionBridgeMatrix,
+    ExtensionReviewAlphaPacketRecord, InstallReviewAlphaEvaluation, InstallReviewAlphaInput,
+    InstallReviewAlphaPacketRecord, InstallReviewBoundaryTruth, InstallReviewContentSourceClass,
+    LockfileImpact, LockfileImpactClass, ManifestChangeClass, ManifestChangeRow,
+    ManifestOriginSourceClass, MarketplaceFactGridFinding, MarketplaceFactGridInput,
+    MarketplaceFactGridRecord, MarketplaceFactGridSupportExportRecord,
+    MarketplaceFactGridSurfaceClass, MarketplaceTruthBadgeClass, MarketplaceTruthFinding,
     MarketplaceTruthRowInput, MarketplaceTruthRowRecord, MarketplaceTruthSupportExportRecord,
+    RevocationStateClass, ScriptRiskClass, ScriptRiskDisclosure,
 };
+use aureline_install::InstallTopologyAlphaPacket;
 
 #[cfg(test)]
 mod tests;
@@ -54,6 +67,10 @@ pub struct MarketplaceTruthPageRecord {
     pub rows: Vec<MarketplaceTruthRowRecord>,
     /// Support-export rows paired to the marketplace rows.
     pub support_rows: Vec<MarketplaceTruthSupportExportRecord>,
+    /// Shared fact-grid rows paired to marketplace rows and native review.
+    pub fact_grids: Vec<MarketplaceFactGridRecord>,
+    /// Support-export fact-grid rows paired to the shared fact grids.
+    pub fact_grid_support_rows: Vec<MarketplaceFactGridSupportExportRecord>,
 }
 
 /// Summary counts for a marketplace truth page.
@@ -143,6 +160,48 @@ pub enum MarketplaceTruthPageValidationError {
         /// Field that drifted.
         field: String,
     },
+    /// A row has no paired shared fact grid.
+    FactGridMissing {
+        /// Row id missing a fact grid.
+        row_id: String,
+    },
+    /// A shared fact grid failed the lower-level validator.
+    FactGridFinding {
+        /// Fact-grid id that failed validation.
+        fact_grid_id: String,
+        /// Validation check id.
+        check_id: String,
+        /// Validation message.
+        message: String,
+    },
+    /// A shared fact grid drifted from its source row.
+    FactGridParityDrift {
+        /// Fact-grid id whose source parity drifted.
+        fact_grid_id: String,
+        /// Field that drifted.
+        field: String,
+    },
+    /// A shared fact grid has no paired support export.
+    FactGridSupportExportMissing {
+        /// Fact-grid id missing a support export.
+        fact_grid_id: String,
+    },
+    /// A fact-grid support export failed the lower-level validator.
+    FactGridSupportExportFinding {
+        /// Support export id that failed validation.
+        export_id: String,
+        /// Validation check id.
+        check_id: String,
+        /// Validation message.
+        message: String,
+    },
+    /// A fact-grid support export drifted from its source grid.
+    FactGridSupportExportParityDrift {
+        /// Fact-grid id whose support export drifted.
+        fact_grid_id: String,
+        /// Field that drifted.
+        field: String,
+    },
     /// Summary count does not match row contents.
     SummaryDrift {
         /// Field that drifted.
@@ -184,6 +243,36 @@ impl std::fmt::Display for MarketplaceTruthPageValidationError {
             Self::SupportExportParityDrift { row_id, field } => {
                 write!(f, "support export for {row_id} drifted on {field}")
             }
+            Self::FactGridMissing { row_id } => {
+                write!(f, "row {row_id} has no paired marketplace fact grid")
+            }
+            Self::FactGridFinding {
+                fact_grid_id,
+                check_id,
+                message,
+            } => write!(f, "fact grid {fact_grid_id} failed {check_id}: {message}"),
+            Self::FactGridParityDrift {
+                fact_grid_id,
+                field,
+            } => write!(f, "fact grid {fact_grid_id} drifted on {field}"),
+            Self::FactGridSupportExportMissing { fact_grid_id } => {
+                write!(f, "fact grid {fact_grid_id} has no paired support export")
+            }
+            Self::FactGridSupportExportFinding {
+                export_id,
+                check_id,
+                message,
+            } => write!(
+                f,
+                "fact-grid support export {export_id} failed {check_id}: {message}"
+            ),
+            Self::FactGridSupportExportParityDrift {
+                fact_grid_id,
+                field,
+            } => write!(
+                f,
+                "fact-grid support export for {fact_grid_id} drifted on {field}"
+            ),
             Self::SummaryDrift { field } => {
                 write!(f, "marketplace truth summary drifted on {field}")
             }
@@ -197,46 +286,46 @@ impl std::error::Error for MarketplaceTruthPageValidationError {}
 pub fn seeded_marketplace_truth_page() -> MarketplaceTruthPageRecord {
     let report = compatibility_report();
     let bridge_matrix = bridge_matrix();
-    let rows = vec![
-        project_seeded_row(
-            "public-beta",
-            &catalog_record(),
-            &report,
-            &bridge_matrix,
-            "extension_bridge_row:wasm_component_native_beta",
-            "install_review_alpha:dev.aureline.samples/wasm-notes:1.0.0-beta.1",
-        ),
-        project_seeded_row(
-            "mirror-preview",
-            &evaluated_catalog_fixture("staged_pending_moderation"),
-            &report,
-            &bridge_matrix,
-            "extension_bridge_row:wasm_component_native_beta",
-            "install_review_alpha:dev.aureline.samples/wasm-notes:mirror-staged",
-        ),
-        project_seeded_row(
-            "mirror-retest-pending",
-            &evaluated_catalog_fixture("limited_compatibility_catalog"),
-            &report,
-            &bridge_matrix,
-            "extension_bridge_row:vscode_api_bridge_beta",
-            "install_review_alpha:dev.aureline.samples/wasm-notes:limited",
-        ),
-        project_seeded_row(
-            "revoked",
-            &evaluated_catalog_fixture("revoked_catalog_refused"),
-            &report,
-            &bridge_matrix,
-            "extension_bridge_row:unsupported_webview_runtime",
-            "install_review_alpha:dev.aureline.samples/wasm-notes:revoked",
-        ),
-    ];
+    let specs = seeded_row_specs();
+    let rows: Vec<MarketplaceTruthRowRecord> = specs
+        .iter()
+        .map(|spec| {
+            project_seeded_row(
+                spec.row_suffix,
+                &spec.catalog,
+                &report,
+                &bridge_matrix,
+                spec.bridge_matrix_row_ref,
+                spec.install_review_ref,
+            )
+        })
+        .collect();
     let support_rows = rows
         .iter()
         .map(|row| {
             project_marketplace_truth_support_export(
                 row,
                 &format!("marketplace_truth_support_export:{}", row.row_id),
+            )
+        })
+        .collect();
+    let install_reviews: Vec<InstallReviewAlphaPacketRecord> = rows
+        .iter()
+        .zip(specs.iter())
+        .map(|(row, spec)| seeded_install_review_packet(row, &spec.catalog))
+        .collect();
+    let fact_grids: Vec<MarketplaceFactGridRecord> = rows
+        .iter()
+        .zip(specs.iter())
+        .zip(install_reviews.iter())
+        .map(|((row, spec), install_review)| project_seeded_fact_grid(row, spec, install_review))
+        .collect();
+    let fact_grid_support_rows = fact_grids
+        .iter()
+        .map(|grid| {
+            project_marketplace_fact_grid_support_export(
+                grid,
+                &format!("marketplace_fact_grid_support_export:{}", grid.fact_grid_id),
             )
         })
         .collect();
@@ -256,6 +345,8 @@ pub fn seeded_marketplace_truth_page() -> MarketplaceTruthPageRecord {
         summary: MarketplaceTruthPageSummary::from_rows(&rows),
         rows,
         support_rows,
+        fact_grids,
+        fact_grid_support_rows,
     }
 }
 
@@ -385,6 +476,109 @@ pub fn validate_marketplace_truth_page(
                 },
             );
         }
+
+        let Some(fact_grid) = page
+            .fact_grids
+            .iter()
+            .find(|grid| grid.marketplace_row_ref == row.row_id)
+        else {
+            errors.push(MarketplaceTruthPageValidationError::FactGridMissing {
+                row_id: row.row_id.clone(),
+            });
+            continue;
+        };
+        for finding in validate_marketplace_fact_grid(fact_grid) {
+            errors.push(fact_grid_finding(fact_grid, finding));
+        }
+        if fact_grid.compatibility_label_class != row.compatibility_label_class {
+            errors.push(MarketplaceTruthPageValidationError::FactGridParityDrift {
+                fact_grid_id: fact_grid.fact_grid_id.clone(),
+                field: "compatibility_label_class".to_string(),
+            });
+        }
+        if fact_grid.registry_source_class != row.registry_source_class {
+            errors.push(MarketplaceTruthPageValidationError::FactGridParityDrift {
+                fact_grid_id: fact_grid.fact_grid_id.clone(),
+                field: "registry_source_class".to_string(),
+            });
+        }
+        let Some(fact_grid_export) = page
+            .fact_grid_support_rows
+            .iter()
+            .find(|export| export.fact_grid_ref == fact_grid.fact_grid_id)
+        else {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportMissing {
+                    fact_grid_id: fact_grid.fact_grid_id.clone(),
+                },
+            );
+            continue;
+        };
+        for finding in validate_marketplace_fact_grid_support_export(fact_grid_export) {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportFinding {
+                    export_id: fact_grid_export.export_id.clone(),
+                    check_id: finding.check_id,
+                    message: finding.message,
+                },
+            );
+        }
+        if fact_grid_export.client_scope_class != fact_grid.client_scope_class {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportParityDrift {
+                    fact_grid_id: fact_grid.fact_grid_id.clone(),
+                    field: "client_scope_class".to_string(),
+                },
+            );
+        }
+        if fact_grid_export.registry_source_class != fact_grid.registry_source_class {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportParityDrift {
+                    fact_grid_id: fact_grid.fact_grid_id.clone(),
+                    field: "registry_source_class".to_string(),
+                },
+            );
+        }
+        if fact_grid_export.compatibility_label_class != fact_grid.compatibility_label_class {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportParityDrift {
+                    fact_grid_id: fact_grid.fact_grid_id.clone(),
+                    field: "compatibility_label_class".to_string(),
+                },
+            );
+        }
+        if fact_grid_export.script_risk_class != fact_grid.script_risk.script_risk_class {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportParityDrift {
+                    fact_grid_id: fact_grid.fact_grid_id.clone(),
+                    field: "script_risk_class".to_string(),
+                },
+            );
+        }
+        if fact_grid_export.lockfile_impact_class != fact_grid.lockfile_impact.impact_class {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportParityDrift {
+                    fact_grid_id: fact_grid.fact_grid_id.clone(),
+                    field: "lockfile_impact_class".to_string(),
+                },
+            );
+        }
+        if fact_grid_export.permission_delta_count != fact_grid.permission_delta_count {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportParityDrift {
+                    fact_grid_id: fact_grid.fact_grid_id.clone(),
+                    field: "permission_delta_count".to_string(),
+                },
+            );
+        }
+        if fact_grid_export.blocks_install_or_update != fact_grid.blocks_install_or_update {
+            errors.push(
+                MarketplaceTruthPageValidationError::FactGridSupportExportParityDrift {
+                    fact_grid_id: fact_grid.fact_grid_id.clone(),
+                    field: "blocks_install_or_update".to_string(),
+                },
+            );
+        }
     }
 
     let expected_summary = MarketplaceTruthPageSummary::from_rows(&page.rows);
@@ -407,6 +601,17 @@ fn row_finding(
 ) -> MarketplaceTruthPageValidationError {
     MarketplaceTruthPageValidationError::RowFinding {
         row_id: row.row_id.clone(),
+        check_id: finding.check_id,
+        message: finding.message,
+    }
+}
+
+fn fact_grid_finding(
+    fact_grid: &MarketplaceFactGridRecord,
+    finding: MarketplaceFactGridFinding,
+) -> MarketplaceTruthPageValidationError {
+    MarketplaceTruthPageValidationError::FactGridFinding {
+        fact_grid_id: fact_grid.fact_grid_id.clone(),
         check_id: finding.check_id,
         message: finding.message,
     }
@@ -439,6 +644,282 @@ fn project_seeded_row(
     .expect("seeded marketplace truth row must project")
 }
 
+fn project_seeded_fact_grid(
+    row: &MarketplaceTruthRowRecord,
+    spec: &SeededMarketplaceRowSpec,
+    install_review: &InstallReviewAlphaPacketRecord,
+) -> MarketplaceFactGridRecord {
+    project_marketplace_fact_grid(MarketplaceFactGridInput {
+        fact_grid_id: &format!(
+            "marketplace_fact_grid:dev.aureline.samples/wasm-notes:{}",
+            spec.row_suffix
+        ),
+        surface_class: spec.surface_class,
+        marketplace_row: row,
+        catalog: &spec.catalog,
+        install_review,
+        client_scope_class: spec.client_scope_class,
+        client_scope_summary: spec.client_scope_class.label(),
+        script_risk: script_risk_for(spec),
+        manifest_changes: manifest_changes_for(row, &spec.catalog),
+        lockfile_impact: lockfile_impact_for(spec),
+        generated_at: "2026-05-16T19:35:00Z",
+    })
+    .expect("seeded marketplace fact grid must project")
+}
+
+fn seeded_row_specs() -> Vec<SeededMarketplaceRowSpec> {
+    vec![
+        SeededMarketplaceRowSpec {
+            row_suffix: "public-beta",
+            catalog: catalog_record(),
+            bridge_matrix_row_ref: "extension_bridge_row:wasm_component_native_beta",
+            install_review_ref: "install_review_alpha:dev.aureline.samples/wasm-notes:1.0.0-beta.1",
+            surface_class: MarketplaceFactGridSurfaceClass::ResultRow,
+            client_scope_class: ClientScopeClass::DesktopPlusBrowserCompanion,
+            script_risk_class: ScriptRiskClass::NoScriptsOrNativeBuild,
+        },
+        SeededMarketplaceRowSpec {
+            row_suffix: "mirror-preview",
+            catalog: evaluated_catalog_fixture("staged_pending_moderation"),
+            bridge_matrix_row_ref: "extension_bridge_row:wasm_component_native_beta",
+            install_review_ref:
+                "install_review_alpha:dev.aureline.samples/wasm-notes:mirror-staged",
+            surface_class: MarketplaceFactGridSurfaceClass::ResultRow,
+            client_scope_class: ClientScopeClass::Desktop,
+            script_risk_class: ScriptRiskClass::LifecycleScriptsDeclared,
+        },
+        SeededMarketplaceRowSpec {
+            row_suffix: "mirror-retest-pending",
+            catalog: evaluated_catalog_fixture("limited_compatibility_catalog"),
+            bridge_matrix_row_ref: "extension_bridge_row:vscode_api_bridge_beta",
+            install_review_ref: "install_review_alpha:dev.aureline.samples/wasm-notes:limited",
+            surface_class: MarketplaceFactGridSurfaceClass::ResultRow,
+            client_scope_class: ClientScopeClass::BrowserCompanion,
+            script_risk_class: ScriptRiskClass::NativeBuildRequired,
+        },
+        SeededMarketplaceRowSpec {
+            row_suffix: "offline-bundle",
+            catalog: catalog_source_variant(
+                "offline-bundle",
+                CatalogRegistrySourceClass::OfflineBundle,
+                CatalogMirrorabilityClass::MirrorableCappedTrust,
+                CatalogTrustBadgeInheritanceRuleClass::CappedAtCommunityOnApprovedMirror,
+                CatalogRevocationSnapshotAgeClass::WarmCached,
+                "offline_bundle:enterprise-airgap:dev.aureline.samples/wasm-notes",
+            ),
+            bridge_matrix_row_ref: "extension_bridge_row:wasm_component_native_beta",
+            install_review_ref:
+                "install_review_alpha:dev.aureline.samples/wasm-notes:offline-bundle",
+            surface_class: MarketplaceFactGridSurfaceClass::OfflineRegistryRow,
+            client_scope_class: ClientScopeClass::Desktop,
+            script_risk_class: ScriptRiskClass::LifecycleScriptsDeclared,
+        },
+        SeededMarketplaceRowSpec {
+            row_suffix: "manual-import",
+            catalog: catalog_source_variant(
+                "manual-import",
+                CatalogRegistrySourceClass::LocalArchive,
+                CatalogMirrorabilityClass::MirrorableCappedTrust,
+                CatalogTrustBadgeInheritanceRuleClass::CappedAtUnverifiedOnLocalArchive,
+                CatalogRevocationSnapshotAgeClass::DegradedCached,
+                "local_archive:downloads:dev.aureline.samples/wasm-notes",
+            ),
+            bridge_matrix_row_ref: "extension_bridge_row:wasm_component_native_beta",
+            install_review_ref:
+                "install_review_alpha:dev.aureline.samples/wasm-notes:manual-import",
+            surface_class: MarketplaceFactGridSurfaceClass::ManualImportReview,
+            client_scope_class: ClientScopeClass::Desktop,
+            script_risk_class: ScriptRiskClass::UnknownScriptRiskBlocked,
+        },
+        SeededMarketplaceRowSpec {
+            row_suffix: "revoked",
+            catalog: evaluated_catalog_fixture("revoked_catalog_refused"),
+            bridge_matrix_row_ref: "extension_bridge_row:unsupported_webview_runtime",
+            install_review_ref: "install_review_alpha:dev.aureline.samples/wasm-notes:revoked",
+            surface_class: MarketplaceFactGridSurfaceClass::ResultRow,
+            client_scope_class: ClientScopeClass::HeadlessOnly,
+            script_risk_class: ScriptRiskClass::ExternalHelperOrHost,
+        },
+    ]
+}
+
+fn seeded_install_review_packet(
+    row: &MarketplaceTruthRowRecord,
+    catalog: &CatalogDescriptorRecord,
+) -> InstallReviewAlphaPacketRecord {
+    let mut fixture = install_review_fixture();
+    fixture.input.review_id = row.install_review_ref.clone();
+    fixture.input.subject_ref = row.extension_identity.clone();
+    fixture.boundary_truth.content_source_class =
+        content_source_for_registry(catalog.lifecycle.source_registry_class);
+    fixture.boundary_truth.manifest_origin_source_class =
+        manifest_origin_for_registry(catalog.lifecycle.source_registry_class);
+    fixture.boundary_truth.canonical_native_review_ref =
+        format!("native_review:{}", row.install_review_ref);
+    fixture.boundary_truth.owner_origin_summary = format!(
+        "{} is served from {:?}; publisher {}; catalog descriptor {}.",
+        row.extension_identity,
+        catalog.lifecycle.source_registry_class,
+        row.publisher_display_label,
+        catalog.descriptor_id
+    );
+
+    let topology = install_topology_packet();
+    let topology_row = topology
+        .row_by_id(&fixture.install_topology_row_id)
+        .expect("install-review fixture must cite an install-topology row");
+
+    evaluate_install_review_alpha(InstallReviewAlphaEvaluation {
+        input: fixture.input,
+        extension_review: &fixture.extension_review,
+        effective_permission: &fixture.effective_permission,
+        boundary_truth: fixture.boundary_truth,
+        compatibility: fixture.compatibility,
+        activation_budget: fixture.activation_budget,
+        install_topology_row: topology_row,
+        decided_at: "2026-05-16T19:32:00Z",
+    })
+}
+
+fn install_review_fixture() -> InstallReviewFixture {
+    serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/extensions/install_review_alpha/native_marketplace_package_lane.json"
+    )))
+    .expect("install-review fixture must parse")
+}
+
+fn install_topology_packet() -> InstallTopologyAlphaPacket {
+    serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/install/topology_alpha/install_topology_alpha_packet.json"
+    )))
+    .expect("install-topology fixture must parse")
+}
+
+fn script_risk_for(spec: &SeededMarketplaceRowSpec) -> ScriptRiskDisclosure {
+    ScriptRiskDisclosure {
+        script_risk_class: spec.script_risk_class,
+        risk_source_refs: vec![format!("registry_manifest:script-risk:{}", spec.row_suffix)],
+        native_build_requirement_refs: if spec.script_risk_class
+            == ScriptRiskClass::NativeBuildRequired
+        {
+            vec!["toolchain:native-build-reviewed".to_string()]
+        } else {
+            Vec::new()
+        },
+        policy_block_refs: Vec::new(),
+        summary: match spec.script_risk_class {
+            ScriptRiskClass::NoScriptsOrNativeBuild => {
+                "No lifecycle scripts or native build steps are declared.".to_string()
+            }
+            ScriptRiskClass::LifecycleScriptsDeclared => {
+                "Lifecycle scripts are declared and must stay visible before commit.".to_string()
+            }
+            ScriptRiskClass::NativeBuildRequired => {
+                "A native build or toolchain step is required before activation.".to_string()
+            }
+            ScriptRiskClass::ExternalHelperOrHost => {
+                "An external helper or host process is part of the package posture.".to_string()
+            }
+            ScriptRiskClass::UnknownScriptRiskBlocked => {
+                "Script/native-build risk is unknown and blocks mutation.".to_string()
+            }
+        },
+    }
+}
+
+fn manifest_changes_for(
+    row: &MarketplaceTruthRowRecord,
+    catalog: &CatalogDescriptorRecord,
+) -> Vec<ManifestChangeRow> {
+    vec![
+        ManifestChangeRow {
+            change_id: format!("manifest_change:{}:catalog_manifest", row.row_id),
+            change_class: ManifestChangeClass::Added,
+            manifest_ref: catalog.registry_manifest_ref.clone(),
+            field_path: "extension_manifest".to_string(),
+            before_summary: Some("not installed".to_string()),
+            after_summary: Some(format!(
+                "{}@{} from {:?}",
+                row.extension_identity, row.extension_version, row.registry_source_class
+            )),
+            review_required: true,
+            summary: "Install review shows the extension manifest entry before commit.".to_string(),
+        },
+        ManifestChangeRow {
+            change_id: format!("manifest_change:{}:permission_delta", row.row_id),
+            change_class: ManifestChangeClass::PermissionDelta,
+            manifest_ref: catalog.permission_manifest_ref.clone(),
+            field_path: "permissions".to_string(),
+            before_summary: Some("not installed".to_string()),
+            after_summary: Some("declared permissions plus effective policy delta".to_string()),
+            review_required: true,
+            summary: "Permission changes are reviewed through the native install sheet."
+                .to_string(),
+        },
+    ]
+}
+
+fn lockfile_impact_for(spec: &SeededMarketplaceRowSpec) -> LockfileImpact {
+    let (impact_class, generated_file_refs) = match spec.surface_class {
+        MarketplaceFactGridSurfaceClass::ManualImportReview => (
+            LockfileImpactClass::RegenerateAndReview,
+            vec!["generated:manual-import-manifest-review".to_string()],
+        ),
+        _ if spec.script_risk_class == ScriptRiskClass::NativeBuildRequired => (
+            LockfileImpactClass::GeneratedFilesExpected,
+            vec!["generated:native-helper-build-plan".to_string()],
+        ),
+        _ => (LockfileImpactClass::LockfileChurnExpected, Vec::new()),
+    };
+
+    LockfileImpact {
+        impact_class,
+        resolver_ref: "resolver:aureline-extension-lock:v1".to_string(),
+        affected_lockfile_refs: vec!["aureline.extensions.lock".to_string()],
+        generated_file_refs,
+        environment_factor_refs: vec!["platform:any".to_string(), "profile:current".to_string()],
+        rollback_checkpoint_ref: Some("checkpoint:extension-lock:last-known-good".to_string()),
+        summary: "Extension lockfile or generated-file churn is declared before commit."
+            .to_string(),
+    }
+}
+
+fn content_source_for_registry(
+    registry_source_class: CatalogRegistrySourceClass,
+) -> InstallReviewContentSourceClass {
+    match registry_source_class {
+        CatalogRegistrySourceClass::PublicRegistry => InstallReviewContentSourceClass::FirstParty,
+        CatalogRegistrySourceClass::ApprovedMirror | CatalogRegistrySourceClass::OfflineBundle => {
+            InstallReviewContentSourceClass::Mirrored
+        }
+        CatalogRegistrySourceClass::PrivateRegistry => {
+            InstallReviewContentSourceClass::AccountOwned
+        }
+        CatalogRegistrySourceClass::LocalArchive
+        | CatalogRegistrySourceClass::QuarantinedLocalCopy => {
+            InstallReviewContentSourceClass::Community
+        }
+    }
+}
+
+fn manifest_origin_for_registry(
+    registry_source_class: CatalogRegistrySourceClass,
+) -> ManifestOriginSourceClass {
+    match registry_source_class {
+        CatalogRegistrySourceClass::PublicRegistry => ManifestOriginSourceClass::PublicRegistry,
+        CatalogRegistrySourceClass::ApprovedMirror => ManifestOriginSourceClass::Mirror,
+        CatalogRegistrySourceClass::PrivateRegistry => ManifestOriginSourceClass::PrivateRegistry,
+        CatalogRegistrySourceClass::OfflineBundle => ManifestOriginSourceClass::OfflineBundle,
+        CatalogRegistrySourceClass::LocalArchive
+        | CatalogRegistrySourceClass::QuarantinedLocalCopy => {
+            ManifestOriginSourceClass::VendoredLocal
+        }
+    }
+}
+
 fn compatibility_report() -> CompatibilityReportSnapshot {
     serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -458,6 +939,66 @@ fn catalog_record() -> CatalogDescriptorRecord {
         "/../../artifacts/extensions/m3/registry_moderation/catalog_descriptor_record.json"
     )))
     .expect("catalog descriptor artifact must parse")
+}
+
+fn catalog_source_variant(
+    row_suffix: &str,
+    registry_source_class: CatalogRegistrySourceClass,
+    mirrorability_class: CatalogMirrorabilityClass,
+    trust_rule_class: CatalogTrustBadgeInheritanceRuleClass,
+    snapshot_age_class: CatalogRevocationSnapshotAgeClass,
+    source_endpoint_ref: &str,
+) -> CatalogDescriptorRecord {
+    let mut input = catalog_input_from_record(catalog_record());
+    let package_suffix = format!("dev.aureline.samples/wasm-notes:{row_suffix}");
+
+    input.descriptor_id = format!("catalog_descriptor:{package_suffix}");
+    input.package_id = format!("dev.aureline.samples.wasm-notes.{row_suffix}");
+    input.publication_ref = format!("publication:{package_suffix}");
+    input.registry_manifest_ref = format!("registry_manifest:{package_suffix}");
+    input.permission_manifest_ref = format!("permission_manifest:{package_suffix}");
+    input.lifecycle.lifecycle_state_class = CatalogLifecycleStateClass::Approved;
+    input.lifecycle.source_registry_class = registry_source_class;
+    input.lifecycle.source_endpoint_ref = source_endpoint_ref.to_string();
+    input.lifecycle.support_class = format!("{registry_source_class:?}");
+    input.lifecycle.lifecycle_event_refs = vec![format!("catalog_lifecycle:{package_suffix}")];
+    input.moderation.moderation_state_class = CatalogModerationStateClass::Admitted;
+    input.moderation.moderation_review_ref = format!("moderation_review:{package_suffix}");
+    input.revocation.revocation_state_class = RevocationStateClass::NoKnownRevocation;
+    input.revocation.revocation_snapshot_ref = format!("revocation_snapshot:{package_suffix}");
+    input.revocation.revocation_snapshot_age_class = snapshot_age_class;
+    input.revocation.rollback_manifest_ref = format!("rollback_manifest:{package_suffix}");
+    input.mirror.mirrorability_class = mirrorability_class;
+    input.mirror.mirror_descriptor_ref = format!("mirror_descriptor:{package_suffix}");
+    input.mirror.mirror_registry_source_class = registry_source_class;
+    input.mirror.signature_ref = format!("signature:{package_suffix}");
+    input.mirror.trust_badge_inheritance_rule_class = trust_rule_class;
+    input.mirror.parity_assertion_refs = vec![format!("parity_assertion:{package_suffix}")];
+    input.generated_at = "2026-05-16T19:29:00Z".to_string();
+
+    evaluate_catalog_descriptor(input)
+}
+
+fn catalog_input_from_record(record: CatalogDescriptorRecord) -> CatalogDescriptorInput {
+    CatalogDescriptorInput {
+        descriptor_id: record.descriptor_id,
+        extension_identity: record.extension_identity,
+        extension_version: record.extension_version,
+        package_id: record.package_id,
+        display_name: record.display_name,
+        publication_ref: record.publication_ref,
+        registry_manifest_ref: record.registry_manifest_ref,
+        permission_manifest_ref: record.permission_manifest_ref,
+        runtime_contract_ref: record.runtime_contract_ref,
+        compatibility_report_ref: record.compatibility_report_ref,
+        publisher: record.publisher,
+        lifecycle: record.lifecycle,
+        moderation: record.moderation,
+        revocation: record.revocation,
+        mirror: record.mirror,
+        rendered_disclosures: record.rendered_disclosures,
+        generated_at: record.generated_at,
+    }
 }
 
 fn evaluated_catalog_fixture(name: &str) -> CatalogDescriptorRecord {
@@ -483,4 +1024,25 @@ fn evaluated_catalog_fixture(name: &str) -> CatalogDescriptorRecord {
 #[derive(Debug, Deserialize)]
 struct CatalogFixture {
     input: CatalogDescriptorInput,
+}
+
+struct SeededMarketplaceRowSpec {
+    row_suffix: &'static str,
+    catalog: CatalogDescriptorRecord,
+    bridge_matrix_row_ref: &'static str,
+    install_review_ref: &'static str,
+    surface_class: MarketplaceFactGridSurfaceClass,
+    client_scope_class: ClientScopeClass,
+    script_risk_class: ScriptRiskClass,
+}
+
+#[derive(Debug, Deserialize)]
+struct InstallReviewFixture {
+    input: InstallReviewAlphaInput,
+    extension_review: ExtensionReviewAlphaPacketRecord,
+    effective_permission: EffectivePermissionBaselineRecord,
+    boundary_truth: InstallReviewBoundaryTruth,
+    compatibility: CompatibilityLabelBlock,
+    activation_budget: ActivationBudgetDisclosure,
+    install_topology_row_id: String,
 }
