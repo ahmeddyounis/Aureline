@@ -129,6 +129,7 @@ pub mod bundle;
 pub mod capabilities;
 pub mod distributed_compatibility;
 pub mod extension_bisect;
+pub mod fault_domain_views;
 pub mod fitness;
 pub mod generated_lineage;
 pub mod graph_drift;
@@ -151,3 +152,9 @@ pub mod runtime_evidence;
 pub mod runtime_health_alpha;
 pub mod safe_mode;
 pub mod scenario_scorecard;
+
+pub use fault_domain_views::{
+    seeded_fault_domain_view_packet, FaultDomainViewPacket, FaultDomainViewRow,
+    FaultDomainViewViolation, FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND,
+    FAULT_DOMAIN_VIEW_ROW_RECORD_KIND,
+};

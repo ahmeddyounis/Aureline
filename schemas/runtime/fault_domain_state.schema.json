@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/fault_domain_state.schema.json",
+  "title": "Aureline fault-domain state, restart, reattach, and lane-event records",
+  "description": "Boundary schema for restart-budget cards, reattach review sheets, crash-loop/quarantine banners, and lane-filtered event viewers derived from runtime host lanes.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/fault_domain_restart_card_record" },
+    { "$ref": "#/$defs/reattach_review_sheet_record" },
+    { "$ref": "#/$defs/crash_loop_quarantine_banner_record" },
+    { "$ref": "#/$defs/lane_filtered_event_viewer_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "restart_budget_state": {
+      "type": "string",
+      "enum": [
+        "within_budget",
+        "budget_warning",
+        "budget_exhausted",
+        "quarantined",
+        "no_automatic_restart",
+        "reattach_review_required",
+        "disabled"
+      ]
+    },
+    "reattach_decision": {
+      "type": "string",
+      "enum": [
+        "current",
+        "auto_reattached_stale_refresh",
+        "review_required",
+        "reapproval_required",
+        "rerun_required",
+        "blocked_manual_repair"
+      ]
+    },
+    "restart_marker": {
+      "type": "string",
+      "enum": [
+        "none",
+        "before_host_restart",
+        "restart_scheduled",
+        "after_host_restart",
+        "quarantine_entered",
+        "reattached_after_review"
+      ]
+    },
+    "fault_domain_restart_card_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "card_id",
+        "host_lane_ref",
+        "fault_domain_id",
+        "restart_budget_ref",
+        "restart_budget_state_token",
+        "affected_capability_tokens",
+        "preserved_checkpoint_refs",
+        "next_safe_action_tokens"
+      ],
+      "properties": {
+        "record_kind": { "const": "fault_domain_restart_card_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "host_lane_ref": { "$ref": "#/$defs/non_empty_string" },
+        "host_family_label": { "type": "string" },
+        "fault_domain_id": { "$ref": "#/$defs/non_empty_string" },
+        "restart_budget_ref": { "$ref": "#/$defs/non_empty_string" },
+        "restart_strike_count": { "type": "integer", "minimum": 0 },
+        "restart_budget_in_window": { "type": "integer", "minimum": 0 },
+        "restart_budget_state_token": { "$ref": "#/$defs/restart_budget_state" },
+        "affected_capability_tokens": { "type": "array", "items": { "type": "string" } },
+        "preserved_checkpoint_refs": { "type": "array", "items": { "type": "string" } },
+        "next_safe_action_tokens": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "reattach_review_sheet_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "review_id",
+        "previous_host_lane_ref",
+        "current_host_lane_ref",
+        "drift_rows",
+        "preserved_state_refs",
+        "lost_state_refs",
+        "replay_risk_token",
+        "rerun_requirement_token",
+        "decision_token",
+        "current_lane_accepted"
+      ],
+      "properties": {
+        "record_kind": { "const": "reattach_review_sheet_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "review_id": { "$ref": "#/$defs/non_empty_string" },
+        "previous_host_lane_ref": { "$ref": "#/$defs/non_empty_string" },
+        "current_host_lane_ref": { "$ref": "#/$defs/non_empty_string" },
+        "drift_rows": { "type": "array" },
+        "preserved_state_refs": { "type": "array", "items": { "type": "string" } },
+        "lost_state_refs": { "type": "array", "items": { "type": "string" } },
+        "replay_risk_token": { "type": "string" },
+        "rerun_requirement_token": { "type": "string" },
+        "policy_drift_present": { "type": "boolean" },
+        "auth_drift_present": { "type": "boolean" },
+        "decision_token": { "$ref": "#/$defs/reattach_decision" },
+        "current_lane_accepted": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "crash_loop_quarantine_banner_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "banner_id",
+        "failing_host_lane_ref",
+        "fault_domain_id",
+        "affected_capability_tokens",
+        "stale_visible_artifact_refs",
+        "evidence_ref",
+        "action_tokens",
+        "blocks_healthy_claim"
+      ],
+      "properties": {
+        "record_kind": { "const": "crash_loop_quarantine_banner_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "banner_id": { "$ref": "#/$defs/non_empty_string" },
+        "failing_host_lane_ref": { "$ref": "#/$defs/non_empty_string" },
+        "failing_host_label": { "type": "string" },
+        "health_token": { "type": "string" },
+        "fault_domain_id": { "$ref": "#/$defs/non_empty_string" },
+        "affected_capability_tokens": { "type": "array", "items": { "type": "string" } },
+        "stale_visible_artifact_refs": { "type": "array", "items": { "type": "string" } },
+        "safe_fallback_label": { "type": "string" },
+        "evidence_ref": { "$ref": "#/$defs/non_empty_string" },
+        "action_tokens": { "type": "array", "items": { "type": "string" } },
+        "blocks_healthy_claim": { "type": "boolean", "const": true }
+      },
+      "additionalProperties": false
+    },
+    "lane_filtered_event_viewer_record": {
+      "type": "object",
+      "required": ["record_kind", "schema_version", "viewer_id", "workspace_id", "rows"],
+      "properties": {
+        "record_kind": { "const": "lane_filtered_event_viewer_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "viewer_id": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "active_lane_filter": { "type": "string" },
+        "restart_marker_count": { "type": "integer", "minimum": 0 },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["event_id", "host_lane_ref", "timestamp", "event_class_token", "restart_marker_token", "redaction_class_token"],
+            "properties": {
+              "event_id": { "$ref": "#/$defs/non_empty_string" },
+              "host_lane_ref": { "$ref": "#/$defs/non_empty_string" },
+              "host_family_label": { "type": "string" },
+              "timestamp": { "type": "string" },
+              "event_class_token": { "type": "string" },
+              "restart_marker_token": { "$ref": "#/$defs/restart_marker" },
+              "related_run_ref": { "type": "string" },
+              "diagnostic_provenance_ref": { "type": "string" },
+              "redaction_class_token": { "type": "string" },
+              "summary": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

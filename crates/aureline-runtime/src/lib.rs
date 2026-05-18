@@ -67,6 +67,7 @@ pub mod testing_identity;
 pub mod testing_quality;
 pub mod testing_triage;
 pub mod tests;
+pub mod topology_inspector;
 pub mod trace_replay_alpha;
 
 pub use build_intelligence::{
@@ -507,6 +508,21 @@ pub use tests::{
     TEST_ATTEMPT_SUPPORT_EXPORT_RECORD_KIND, TEST_ITEM_IDENTITY_PROJECTION_RECORD_KIND,
     TEST_LAUNCH_WEDGE_PROJECTION_RECORD_KIND, TEST_SESSION_PLAN_RECORD_KIND,
     TEST_STABILITY_VERDICT_RECORD_KIND, TEST_WATCH_CONTROLLER_RECORD_KIND,
+};
+pub use topology_inspector::{
+    seeded_host_lanes, seeded_host_topology_inspector, seeded_lane_filtered_event_viewer,
+    seeded_reattach_review_sheet, CrashLoopQuarantineBanner, FaultDomainClass,
+    FaultDomainNextSafeActionClass, FaultDomainRestartCard, HostBadgeGroup, HostBoundaryBadge,
+    HostBoundaryBadgeClass, HostDetailAction, HostDetailOpenTarget, HostLaneFamily,
+    HostLaneHealthClass, HostLaneRecord, HostLaneSeed, HostResultFreshnessClass, LaneEventRow,
+    LaneFilteredEventViewer, ReattachDriftFieldClass, ReattachDriftRow, ReattachReplayRiskClass,
+    ReattachReviewDecisionClass, ReattachReviewInput, ReattachReviewSheet, RerunRequirementClass,
+    RestartBudgetStateClass, RestartMarkerClass, RuntimeResultSeed, RuntimeSurfaceClass,
+    RuntimeSurfaceResult, TopologyInspectorRecord, TopologyInspectorViolation,
+    CRASH_LOOP_QUARANTINE_BANNER_RECORD_KIND, FAULT_DOMAIN_RESTART_CARD_RECORD_KIND,
+    HOST_BADGE_GROUP_RECORD_KIND, HOST_LANE_RECORD_KIND, HOST_TOPOLOGY_SCHEMA_VERSION,
+    LANE_FILTERED_EVENT_VIEWER_RECORD_KIND, REATTACH_REVIEW_SHEET_RECORD_KIND,
+    TOPOLOGY_INSPECTOR_RECORD_KIND,
 };
 pub use trace_replay_alpha::{
     BuildRuntimeIdentity, CaptureMode, CaptureSource, CaptureWindow, ComparisonClass,
