@@ -45,6 +45,7 @@ pub mod registry;
 pub mod routing;
 pub mod routing_policy;
 pub mod tainted_context;
+pub mod tool_gateway;
 
 pub use aureline_navigation::target_model as navigation_target_model;
 pub use composer::beta::{
@@ -166,4 +167,17 @@ pub use tainted_context::{
     TAINTED_CONTEXT_BETA_ARTIFACT_REF, TAINTED_CONTEXT_BETA_FIXTURE_DIR,
     TAINTED_CONTEXT_BETA_PACKET_RECORD_KIND, TAINTED_CONTEXT_BETA_SCHEMA_REF,
     TAINTED_CONTEXT_BETA_SCHEMA_VERSION,
+};
+pub use tool_gateway::{
+    current_beta_tool_gateway_conformance_packet, FirstUseReviewStateClass,
+    ToolApprovalPostureClass, ToolAvailabilityStateClass, ToolCallClassificationStateClass,
+    ToolCallOutcomeClass, ToolCallTaintPostureClass, ToolCallTimelineEntry, ToolCapabilityClass,
+    ToolCredentialPostureClass, ToolGatewayArtifactError, ToolGatewayConformancePacket,
+    ToolGatewayConformancePacketInput, ToolGatewayDescriptor, ToolGatewayLifecycleStateClass,
+    ToolGatewaySurfaceClass, ToolGatewaySurfaceRow, ToolGatewayViolation, ToolNetworkBehaviorClass,
+    ToolOutputTrustPostureClass, ToolPublisherSourceClass, ToolRuntimeBoundaryClass,
+    ToolSideEffectClass, TOOL_CALL_TIMELINE_ENTRY_RECORD_KIND, TOOL_CALL_TIMELINE_ENTRY_SCHEMA_REF,
+    TOOL_GATEWAY_CONFORMANCE_ARTIFACT_REF, TOOL_GATEWAY_CONFORMANCE_PACKET_RECORD_KIND,
+    TOOL_GATEWAY_DESCRIPTOR_RECORD_KIND, TOOL_GATEWAY_DESCRIPTOR_SCHEMA_REF,
+    TOOL_GATEWAY_FIXTURE_DIR, TOOL_GATEWAY_SCHEMA_VERSION, TOOL_GATEWAY_SURFACE_ROW_RECORD_KIND,
 };

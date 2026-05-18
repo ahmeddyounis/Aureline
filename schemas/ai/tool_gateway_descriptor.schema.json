@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/tool_gateway_descriptor.schema.json",
+  "title": "Aureline AI tool-gateway descriptor: source, runtime boundary, capability, network behavior, credential posture, availability, first-use review, and output trust truth for one external/MCP/local-model tool row",
+  "description": "Boundary schema for the tool_gateway_descriptor_record owned by aureline_ai::tool_gateway. The gateway extends the provider/model registry into a typed contract for every connector/tool the product can invoke from an AI turn or a user-facing command: first-party native tools, signed-extension tools, MCP-style servers, user-registered external tools, and enterprise-registered tools. Each descriptor binds source/publisher truth, runtime boundary, capability classes, network behavior, credential posture, warm/cold/unavailable/policy-blocked availability state, first-use review state, side-effect allowlists, data-class allowlists, output trust posture, and approval lineage. The schema composes with (and does not replace) schemas/ai/external_tool_registry.schema.json, schemas/ai/provider_model_registry.schema.json, schemas/ai/context_assembly.schema.json, schemas/ai/tainted_context.schema.json, and schemas/integration/approval_ticket.schema.json. Raw endpoint URLs, raw spawn commands, raw environment variables, raw API keys, raw OAuth tokens, raw mTLS material, raw request/response bodies, and raw stdio frames never cross this boundary; records carry opaque refs, fingerprints, and structured fields only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "descriptor_id",
+    "display_label",
+    "tool_family_label",
+    "tool_capability_version",
+    "publisher_source_class",
+    "runtime_boundary_class",
+    "network_behavior_class",
+    "credential_posture_class",
+    "output_trust_posture_class",
+    "availability_state_class",
+    "lifecycle_state_class",
+    "approval_posture_class",
+    "first_use_review_state_class",
+    "capability_classes",
+    "allowed_side_effect_classes",
+    "allowed_data_classes",
+    "denied_data_classes",
+    "policy_context",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "tool_gateway_descriptor_record" },
+    "schema_version": { "const": 1 },
+    "descriptor_id": { "$ref": "#/$defs/opaque_ref" },
+    "external_tool_entry_ref": {
+      "type": "string",
+      "description": "Opaque ref to the matching schemas/ai/external_tool_registry.schema.json row. Empty string when the descriptor is for a first-party native tool that does not need a separate registry entry."
+    },
+    "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "tool_family_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "tool_capability_version": { "$ref": "#/$defs/non_empty_string" },
+    "publisher_source_class": { "$ref": "#/$defs/publisher_source_class" },
+    "publisher_identity_ref": {
+      "type": "string",
+      "description": "Opaque ref to the signed publisher identity record (signing-evidence ref, extension manifest ref, MCP capability ref, or enterprise registration ref). Empty string only when publisher_source_class is mocked_test_publisher."
+    },
+    "runtime_boundary_class": { "$ref": "#/$defs/runtime_boundary_class" },
+    "network_behavior_class": { "$ref": "#/$defs/network_behavior_class" },
+    "credential_posture_class": { "$ref": "#/$defs/credential_posture_class" },
+    "output_trust_posture_class": { "$ref": "#/$defs/output_trust_posture_class" },
+    "availability_state_class": { "$ref": "#/$defs/availability_state_class" },
+    "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+    "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+    "first_use_review_state_class": { "$ref": "#/$defs/first_use_review_state_class" },
+    "first_use_review_ticket_ref": {
+      "type": "string",
+      "description": "Opaque ref to the approval ticket that admitted this descriptor for first use. Required (non-empty) when first_use_review_state_class is approved_for_use or expired_requires_renewal. Empty string when never_required_native_tool."
+    },
+    "capability_classes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/capability_class" },
+      "description": "Capability classes the tool advertises. Used to evaluate whether the surface that requested the invocation needs that capability, and to declare what the tool can and cannot do."
+    },
+    "allowed_side_effect_classes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/side_effect_class" }
+    },
+    "allowed_data_classes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/data_class" }
+    },
+    "denied_data_classes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/data_class" },
+      "description": "Data classes denied unconditionally. MUST include credential_handle_denied_always and secret_projection_denied_always so the deny record is mechanically checkable."
+    },
+    "supersedes_descriptor_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_ref" }
+    },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "explanation_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "minted_at": { "type": "string", "format": "date-time" },
+    "last_refreshed_at": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "description": "trusted_first_party_local_tool_output requires a local runtime boundary and a signed publisher identity.",
+      "if": {
+        "properties": {
+          "output_trust_posture_class": {
+            "enum": ["trusted_first_party_local_tool_output", "trusted_signed_extension_local_tool_output"]
+          }
+        },
+        "required": ["output_trust_posture_class"]
+      },
+      "then": {
+        "properties": {
+          "runtime_boundary_class": {
+            "enum": [
+              "local_in_process",
+              "local_subprocess_same_device",
+              "local_sandboxed_container_same_device",
+              "local_companion_service_loopback"
+            ]
+          },
+          "publisher_identity_ref": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "required": ["runtime_boundary_class", "publisher_identity_ref"]
+      }
+    },
+    {
+      "description": "approval_posture above allowed_without_prompt requires a first_use_review_ticket_ref unless the tool is a native first-party tool that has never required first-use review.",
+      "if": {
+        "properties": {
+          "approval_posture_class": {
+            "enum": [
+              "allowed_with_one_time_prompt",
+              "allowed_with_per_session_prompt",
+              "allowed_with_per_invocation_prompt",
+              "requires_admin_approval"
+            ]
+          },
+          "first_use_review_state_class": {
+            "not": { "const": "never_required_native_tool" }
+          }
+        },
+        "required": ["approval_posture_class", "first_use_review_state_class"]
+      },
+      "then": {
+        "properties": { "first_use_review_ticket_ref": { "$ref": "#/$defs/non_empty_string" } },
+        "required": ["first_use_review_ticket_ref"]
+      }
+    },
+    {
+      "description": "Local-only runtime boundaries cannot carry remote_https / remote_grpc_over_tls / remote_mcp_over_streamable_http network behavior.",
+      "if": {
+        "properties": {
+          "runtime_boundary_class": {
+            "enum": [
+              "local_in_process",
+              "local_subprocess_same_device",
+              "local_sandboxed_container_same_device",
+              "local_companion_service_loopback"
+            ]
+          }
+        },
+        "required": ["runtime_boundary_class"]
+      },
+      "then": {
+        "properties": {
+          "network_behavior_class": {
+            "enum": [
+              "no_network_local_only",
+              "local_loopback_only",
+              "extension_mediated_local",
+              "unknown_must_disclose"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "://|api_key|oauth_token|Bearer " }
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "publisher_source_class": {
+      "enum": [
+        "first_party_native_publisher",
+        "signed_extension_publisher",
+        "mcp_server_publisher",
+        "user_registered_publisher",
+        "enterprise_registered_publisher",
+        "mocked_test_publisher"
+      ],
+      "description": "High-level source/publisher class. Distinguishes native (shipped with Aureline), signed-extension, MCP-server, user-registered, and enterprise-registered tools."
+    },
+    "runtime_boundary_class": {
+      "enum": [
+        "local_in_process",
+        "local_subprocess_same_device",
+        "local_sandboxed_container_same_device",
+        "local_companion_service_loopback",
+        "remote_vendor_managed_service",
+        "remote_self_hosted_service",
+        "enterprise_gateway_brokered_service",
+        "extension_provided_locus",
+        "mocked_test_locus"
+      ],
+      "description": "Runtime boundary naming where the tool actually executes. local_* never leaves the device; remote_* and enterprise_gateway_brokered_service cross the network."
+    },
+    "network_behavior_class": {
+      "enum": [
+        "no_network_local_only",
+        "local_loopback_only",
+        "remote_https",
+        "remote_grpc_over_tls",
+        "remote_mcp_over_streamable_http",
+        "extension_mediated_local",
+        "extension_mediated_remote",
+        "unknown_must_disclose"
+      ],
+      "description": "Network behavior the tool advertises. unknown_must_disclose forces a visible disclosure before first use."
+    },
+    "credential_posture_class": {
+      "enum": [
+        "no_credential_local_only",
+        "signed_manifest_only",
+        "byok_secret_broker",
+        "enterprise_gateway_managed",
+        "vendor_hosted_first_party_managed",
+        "extension_provided_credential",
+        "mocked_test_credential",
+        "disabled_no_credential"
+      ],
+      "description": "Credential posture. byok_secret_broker means the credential is addressed through the secret broker; the descriptor MUST NOT embed the credential."
+    },
+    "output_trust_posture_class": {
+      "enum": [
+        "always_tainted_external_tool_output",
+        "always_tainted_remote_service_output",
+        "always_tainted_extension_provided_output",
+        "tainted_unless_reviewed_then_fenced",
+        "trusted_first_party_local_tool_output",
+        "trusted_signed_extension_local_tool_output",
+        "posture_unknown_requires_fence_by_default"
+      ],
+      "description": "Output trust posture. Every value except trusted_first_party_local_tool_output and trusted_signed_extension_local_tool_output is tainted by default."
+    },
+    "availability_state_class": {
+      "enum": [
+        "warm_admitted_ready",
+        "cold_admit_pending_handshake",
+        "unavailable_temporary_transport",
+        "unavailable_quarantined_signature",
+        "policy_blocked",
+        "trust_blocked",
+        "withdrawn"
+      ],
+      "description": "Operational availability state. Distinct from lifecycle_state_class; this is the runtime hot/cold/unavailable disposition the gateway exposes."
+    },
+    "lifecycle_state_class": {
+      "enum": [
+        "preview_admitted",
+        "generally_admitted",
+        "soft_deprecated_still_admitted",
+        "hard_deprecated_denies_new_sessions",
+        "withdrawn",
+        "quarantined_pending_review",
+        "mocked_test_only"
+      ]
+    },
+    "approval_posture_class": {
+      "enum": [
+        "allowed_without_prompt",
+        "allowed_with_one_time_prompt",
+        "allowed_with_per_session_prompt",
+        "allowed_with_per_invocation_prompt",
+        "requires_admin_approval",
+        "denied_by_policy",
+        "denied_by_workspace_trust",
+        "denied_tool_not_admitted"
+      ]
+    },
+    "first_use_review_state_class": {
+      "enum": [
+        "never_required_native_tool",
+        "pending_first_use_review",
+        "approved_for_use",
+        "rejected_blocked",
+        "expired_requires_renewal"
+      ],
+      "description": "Whether first-use review of capabilities, data classes, side effects, and approval posture has cleared. MCP-style and user/enterprise-registered tools MUST clear approved_for_use before any material run."
+    },
+    "capability_class": {
+      "enum": [
+        "inspect_workspace_files",
+        "inspect_workspace_symbols",
+        "inspect_workspace_diagnostics",
+        "inspect_workspace_search",
+        "inspect_workspace_graph",
+        "edit_workspace_files_reversible",
+        "edit_workspace_files_destructive",
+        "execute_local_subprocess",
+        "fetch_external_documents",
+        "fetch_external_data",
+        "publish_external_comment",
+        "publish_external_artifact",
+        "mutate_policy_or_trust",
+        "manage_external_resource",
+        "synthesize_text",
+        "synthesize_code",
+        "summarize_evidence",
+        "answer_with_citations",
+        "unknown_must_disclose"
+      ]
+    },
+    "side_effect_class": {
+      "enum": [
+        "inspect_only",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "credential_handle_projection",
+        "privileged_inspection_attach",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "automation_admission_only"
+      ]
+    },
+    "data_class": {
+      "enum": [
+        "workspace_code_slice_allowed",
+        "workspace_symbol_allowed",
+        "workspace_diagnostic_allowed",
+        "workspace_search_result_allowed",
+        "workspace_graph_summary_allowed",
+        "docs_pack_excerpt_allowed",
+        "generated_reference_excerpt_allowed",
+        "terminal_transcript_excerpt_allowed",
+        "log_excerpt_allowed",
+        "request_response_excerpt_allowed",
+        "generated_artifact_excerpt_allowed",
+        "user_supplied_text_allowed",
+        "user_supplied_file_allowed",
+        "connected_provider_payload_allowed",
+        "extension_proposed_context_allowed",
+        "repo_instruction_bundle_allowed",
+        "ai_prior_turn_context_allowed",
+        "credential_handle_denied_always",
+        "secret_projection_denied_always"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch_ref", "trust_state", "deployment_profile_class"],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": { "enum": ["trusted", "restricted"] },
+        "deployment_profile_class": {
+          "enum": ["individual_local", "self_hosted", "managed_cloud", "managed_fleet", "air_gapped"]
+        },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}

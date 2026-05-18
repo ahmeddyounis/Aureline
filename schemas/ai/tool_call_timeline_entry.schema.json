@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/tool_call_timeline_entry.schema.json",
+  "title": "Aureline AI tool-call timeline entry: stable id, descriptor lineage, boundary label, side-effect class, outcome class, taint posture, classification truth, and inspect/remove action lineage for one tool invocation in the evidence timeline",
+  "description": "Boundary schema for the tool_call_timeline_entry_record owned by aureline_ai::tool_gateway. Tool-call results land in the same evidence timeline as built-in tool actions and preserve the descriptor lineage, runtime-boundary label, side-effect class, outcome summary, taint posture, provenance/confidence/effect classification, and inspect/remove action refs. Replay, rerun, and history surfaces never flatten this entry into trusted context: connector outputs remain tainted until provenance, confidence, and effect class are classified. Composes with schemas/ai/tool_gateway_descriptor.schema.json, schemas/ai/external_tool_registry.schema.json, schemas/ai/evidence_packet.schema.json, schemas/ai/tainted_context.schema.json, schemas/integration/approval_ticket.schema.json. Raw request/response bodies, raw URLs, raw spawn commands, raw env vars, and credential bodies never appear here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "tool_call_id",
+    "descriptor_ref",
+    "runtime_boundary_class",
+    "boundary_label",
+    "predicted_side_effect_class",
+    "observed_side_effect_class",
+    "outcome_class",
+    "outcome_summary_label",
+    "taint_posture_class",
+    "provenance_classification_state_class",
+    "confidence_classification_state_class",
+    "effect_classification_state_class",
+    "inspect_action_ref",
+    "remove_from_context_action_ref",
+    "originating_approval_ticket_ref",
+    "originating_disclosure_ref",
+    "data_classes_to_be_sent",
+    "evidence_timeline_ref",
+    "policy_context",
+    "emitted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "tool_call_timeline_entry_record" },
+    "schema_version": { "const": 1 },
+    "tool_call_id": { "$ref": "#/$defs/opaque_ref" },
+    "descriptor_ref": { "$ref": "#/$defs/opaque_ref" },
+    "runtime_boundary_class": { "$ref": "#/$defs/runtime_boundary_class" },
+    "boundary_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "predicted_side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+    "observed_side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+    "outcome_class": { "$ref": "#/$defs/outcome_class" },
+    "outcome_summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "taint_posture_class": { "$ref": "#/$defs/taint_posture_class" },
+    "provenance_classification_state_class": { "$ref": "#/$defs/classification_state_class" },
+    "confidence_classification_state_class": { "$ref": "#/$defs/classification_state_class" },
+    "effect_classification_state_class": { "$ref": "#/$defs/classification_state_class" },
+    "data_classes_to_be_sent": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/data_class" }
+    },
+    "data_classes_returned": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/data_class" }
+    },
+    "inspect_action_ref": { "$ref": "#/$defs/opaque_ref" },
+    "remove_from_context_action_ref": { "$ref": "#/$defs/opaque_ref" },
+    "replay_in_sandbox_action_ref": { "type": "string" },
+    "renew_approval_action_ref": { "type": "string" },
+    "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" },
+    "originating_disclosure_ref": { "$ref": "#/$defs/opaque_ref" },
+    "tainted_context_fence_ref": {
+      "type": "string",
+      "description": "Opaque ref to the tainted-context fence applied to bytes returned by the tool. Required (non-empty) when taint_posture_class is any tainted_* class. Empty string when taint_posture_class is trusted_first_party_local_signed."
+    },
+    "evidence_timeline_ref": { "$ref": "#/$defs/opaque_ref" },
+    "rerun_review_ref": { "type": "string" },
+    "rollback_history_ref": { "type": "string" },
+    "support_export_ref": { "type": "string" },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "emitted_at": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "description": "Any tainted_* taint posture MUST carry a non-empty tainted_context_fence_ref.",
+      "if": {
+        "properties": {
+          "taint_posture_class": {
+            "enum": [
+              "tainted_external_tool_output_default",
+              "tainted_unclassified_provenance",
+              "tainted_unclassified_confidence",
+              "tainted_unknown_effect_class",
+              "tainted_partial_or_stale_retrieval"
+            ]
+          }
+        },
+        "required": ["taint_posture_class"]
+      },
+      "then": {
+        "properties": { "tainted_context_fence_ref": { "$ref": "#/$defs/non_empty_string" } },
+        "required": ["tainted_context_fence_ref"]
+      }
+    },
+    {
+      "description": "trusted_first_party_local_signed taint posture MUST come from a local runtime boundary.",
+      "if": {
+        "properties": {
+          "taint_posture_class": { "const": "trusted_first_party_local_signed" }
+        },
+        "required": ["taint_posture_class"]
+      },
+      "then": {
+        "properties": {
+          "runtime_boundary_class": {
+            "enum": [
+              "local_in_process",
+              "local_subprocess_same_device",
+              "local_sandboxed_container_same_device",
+              "local_companion_service_loopback"
+            ]
+          }
+        },
+        "required": ["runtime_boundary_class"]
+      }
+    },
+    {
+      "description": "All three classification states must be classified_evidence_backed before the entry can drop the tainted posture.",
+      "if": {
+        "properties": {
+          "taint_posture_class": { "const": "trusted_first_party_local_signed" }
+        },
+        "required": ["taint_posture_class"]
+      },
+      "then": {
+        "properties": {
+          "provenance_classification_state_class": { "const": "classified_evidence_backed" },
+          "confidence_classification_state_class": { "const": "classified_evidence_backed" },
+          "effect_classification_state_class": { "const": "classified_evidence_backed" }
+        },
+        "required": [
+          "provenance_classification_state_class",
+          "confidence_classification_state_class",
+          "effect_classification_state_class"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "://|api_key|oauth_token|Bearer " }
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime_boundary_class": {
+      "enum": [
+        "local_in_process",
+        "local_subprocess_same_device",
+        "local_sandboxed_container_same_device",
+        "local_companion_service_loopback",
+        "remote_vendor_managed_service",
+        "remote_self_hosted_service",
+        "enterprise_gateway_brokered_service",
+        "extension_provided_locus",
+        "mocked_test_locus"
+      ]
+    },
+    "side_effect_class": {
+      "enum": [
+        "inspect_only",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "credential_handle_projection",
+        "privileged_inspection_attach",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "automation_admission_only"
+      ]
+    },
+    "outcome_class": {
+      "enum": [
+        "succeeded_inspect_only",
+        "succeeded_with_local_reversible_edit",
+        "succeeded_with_local_destructive_edit",
+        "succeeded_with_external_reversible_comment",
+        "succeeded_with_external_irreversible_publish",
+        "denied_by_policy",
+        "denied_by_workspace_trust",
+        "denied_by_approval_missing",
+        "denied_by_data_class_not_allowed",
+        "denied_by_side_effect_not_allowed",
+        "denied_by_taint_violation",
+        "error_transport",
+        "error_timeout",
+        "error_taint_violation",
+        "cancelled_by_user",
+        "support_replay_no_side_effect"
+      ]
+    },
+    "taint_posture_class": {
+      "enum": [
+        "tainted_external_tool_output_default",
+        "tainted_unclassified_provenance",
+        "tainted_unclassified_confidence",
+        "tainted_unknown_effect_class",
+        "tainted_partial_or_stale_retrieval",
+        "trusted_first_party_local_signed"
+      ],
+      "description": "Taint posture preserved by replay/rerun/history. Entries remain tainted_* until provenance, confidence, and effect class are classified; trusted_first_party_local_signed is only admitted for a signed, local, classified output."
+    },
+    "classification_state_class": {
+      "enum": [
+        "unclassified_pending_review",
+        "classified_evidence_backed",
+        "classified_inferred",
+        "classified_low_confidence",
+        "classified_unknown_must_treat_as_tainted"
+      ]
+    },
+    "data_class": {
+      "enum": [
+        "workspace_code_slice_allowed",
+        "workspace_symbol_allowed",
+        "workspace_diagnostic_allowed",
+        "workspace_search_result_allowed",
+        "workspace_graph_summary_allowed",
+        "docs_pack_excerpt_allowed",
+        "generated_reference_excerpt_allowed",
+        "terminal_transcript_excerpt_allowed",
+        "log_excerpt_allowed",
+        "request_response_excerpt_allowed",
+        "generated_artifact_excerpt_allowed",
+        "user_supplied_text_allowed",
+        "user_supplied_file_allowed",
+        "connected_provider_payload_allowed",
+        "extension_proposed_context_allowed",
+        "repo_instruction_bundle_allowed",
+        "ai_prior_turn_context_allowed",
+        "credential_handle_denied_always",
+        "secret_projection_denied_always"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch_ref", "trust_state", "deployment_profile_class"],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": { "enum": ["trusted", "restricted"] },
+        "deployment_profile_class": {
+          "enum": ["individual_local", "self_hosted", "managed_cloud", "managed_fleet", "air_gapped"]
+        },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}
