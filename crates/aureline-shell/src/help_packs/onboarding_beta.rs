@@ -9,6 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use aureline_commands::CommandRegistry;
+use aureline_docs::OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL;
 use serde::{Deserialize, Serialize};
 
 /// Schema version for beta onboarding/help-pack records.
@@ -194,6 +195,10 @@ impl OnboardingHelpPackBetaManifest {
                     requested_locale: item.locale.requested_locale.clone(),
                     effective_locale: item.locale.effective_locale.clone(),
                     locale_availability: item.locale.locale_availability.clone(),
+                    locale_overlay_ref: pack_locale_overlay_ref(self, item),
+                    translation_badge_class: translation_badge_class(item).to_owned(),
+                    translation_badge_label: translation_badge_label(item).to_owned(),
+                    source_language_action_label: OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL.to_owned(),
                     source_language_fallback_class: item
                         .source_language_fallback
                         .fallback_class
@@ -235,6 +240,7 @@ impl OnboardingHelpPackBetaManifest {
                 freshness_class: pack.freshness_class.clone(),
                 version_match_state: pack.version_match_state.clone(),
                 mirror_posture: pack.mirror_posture.clone(),
+                locale_overlay_refs: pack.locale_overlay_refs.clone(),
                 client_scope_token: pack.release_truth_badges.client_scope_token.clone(),
             })
             .collect::<Vec<_>>();
@@ -255,6 +261,10 @@ impl OnboardingHelpPackBetaManifest {
                 requested_locale: item.locale.requested_locale.clone(),
                 effective_locale: item.locale.effective_locale.clone(),
                 locale_availability: item.locale.locale_availability.clone(),
+                locale_overlay_ref: pack_locale_overlay_ref(self, item),
+                translation_badge_class: translation_badge_class(item).to_owned(),
+                translation_badge_label: translation_badge_label(item).to_owned(),
+                source_language_action_label: OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL.to_owned(),
                 source_language_fallback_class: item
                     .source_language_fallback
                     .fallback_class
@@ -778,6 +788,15 @@ pub struct OnboardingHelpPackBetaSurfaceRow {
     pub effective_locale: String,
     /// Locale availability token.
     pub locale_availability: String,
+    /// Locale-overlay ref that owns translated pack metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locale_overlay_ref: Option<String>,
+    /// Translation badge class token.
+    pub translation_badge_class: String,
+    /// User-facing translation badge label.
+    pub translation_badge_label: String,
+    /// Stable source-language action label.
+    pub source_language_action_label: String,
     /// Source-language fallback class token.
     pub source_language_fallback_class: String,
     /// Offline posture token.
@@ -895,6 +914,10 @@ impl OnboardingHelpPackBetaSupportExport {
                 || row.active_pack_version_ref != item.pack_version_ref
                 || row.command_id != item.command_hint.command_id
                 || row.help_anchor_id != item.command_hint.help_anchor_id
+                || row.locale_overlay_ref != pack_locale_overlay_ref(manifest, item)
+                || row.translation_badge_class != translation_badge_class(item)
+                || row.translation_badge_label != translation_badge_label(item)
+                || row.source_language_action_label != OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL
                 || row.exact_reopen_ref != item.exact_reopen_ref
                 || row.dismissed_state_ref != item.state_refs.dismissed_state_ref
                 || row.helpful_state_ref != item.state_refs.helpful_state_ref
@@ -934,6 +957,8 @@ pub struct OnboardingHelpPackBetaActivePackVersion {
     pub version_match_state: String,
     /// Mirror posture token.
     pub mirror_posture: String,
+    /// Locale overlays active for this pack version.
+    pub locale_overlay_refs: Vec<String>,
     /// Client scope token.
     pub client_scope_token: String,
 }
@@ -959,6 +984,15 @@ pub struct OnboardingHelpPackBetaSupportRow {
     pub effective_locale: String,
     /// Locale availability token.
     pub locale_availability: String,
+    /// Locale-overlay ref that owns translated pack metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locale_overlay_ref: Option<String>,
+    /// Translation badge class token.
+    pub translation_badge_class: String,
+    /// User-facing translation badge label.
+    pub translation_badge_label: String,
+    /// Stable source-language action label.
+    pub source_language_action_label: String,
     /// Source-language fallback class token.
     pub source_language_fallback_class: String,
     /// Whether unresolved locale fallback was active.
@@ -1535,12 +1569,32 @@ fn pack(
         offline_posture: offline_posture.to_owned(),
         source_locale: "en-US".to_owned(),
         available_locales: available_locales.into_iter().map(str::to_owned).collect(),
-        locale_overlay_refs: vec!["locale-overlay:onboarding-help:en-US".to_owned()],
+        locale_overlay_refs: locale_overlay_refs_for_pack(pack_id, pack_role),
         citation_availability: "available".to_owned(),
         release_truth_badges: badges(source_class, version_match_state, freshness_class),
         client_scope: "desktop_product".to_owned(),
         support_owner_ref: "owner:docs-help-learnability".to_owned(),
     }
+}
+
+fn locale_overlay_refs_for_pack(pack_id: &str, pack_role: &str) -> Vec<String> {
+    let overlay_ref = match (pack_id, pack_role) {
+        ("pack:onboarding-help:first-run-beta", _) => {
+            "locale-overlay:help-pack:onboarding:first-run:es-MX:2026.05.18"
+        }
+        ("pack:onboarding-help:migration-beta", _) => {
+            "locale-overlay:onboarding:keymap-bridge:es-MX:2026.05.18"
+        }
+        ("pack:onboarding-help:glossary-beta", _) => {
+            "locale-overlay:glossary:truth-terms:es-MX:2026.05.18"
+        }
+        ("pack:onboarding-help:recovery-beta", _) => {
+            "locale-overlay:troubleshooting:recovery:de-DE:not-installed"
+        }
+        (_, PACK_ROLE_GUIDED) => "locale-overlay:guided-tour:cached-docs:fr-FR:2026.05.18",
+        _ => "locale-overlay:docs-pack:tsjs-launch:es-MX:2026.05.18",
+    };
+    vec![overlay_ref.to_owned()]
 }
 
 fn badges(
@@ -1775,6 +1829,46 @@ fn state_ref(item_id: &str, suffix: &str) -> String {
     )
 }
 
+fn pack_locale_overlay_ref(
+    manifest: &OnboardingHelpPackBetaManifest,
+    item: &OnboardingHelpPackBetaItem,
+) -> Option<String> {
+    manifest
+        .pack(&item.pack_id)
+        .and_then(|pack| pack.locale_overlay_refs.first())
+        .cloned()
+}
+
+fn translation_badge_class(item: &OnboardingHelpPackBetaItem) -> &'static str {
+    if item.locale.locale_availability == LOCALE_STALE || item.locale.stale_translation_marker {
+        "stale_translation"
+    } else if item.glossary_pack_id.is_some()
+        && item.locale.requested_locale != item.locale.source_locale
+    {
+        "partial_translation"
+    } else if item.locale.locale_availability == LOCALE_REVIEWED
+        && item.locale.requested_locale != item.locale.source_locale
+    {
+        "translated"
+    } else if item.locale.locale_availability == LOCALE_SOURCE_FALLBACK
+        || item.locale.locale_availability == LOCALE_NOT_INSTALLED
+        || item.source_language_fallback.fallback_class != FALLBACK_NONE
+    {
+        "source_language_fallback"
+    } else {
+        "source_language_fallback"
+    }
+}
+
+fn translation_badge_label(item: &OnboardingHelpPackBetaItem) -> &'static str {
+    match translation_badge_class(item) {
+        "translated" => "Translated",
+        "stale_translation" => "Stale translation",
+        "source_language_fallback" => "Source-language fallback",
+        _ => "Partial translation",
+    }
+}
+
 fn validate_pack(
     pack: &OnboardingHelpPackBetaPack,
     findings: &mut Vec<OnboardingHelpPackBetaFinding>,
@@ -1851,6 +1945,12 @@ fn validate_pack(
         findings.push(OnboardingHelpPackBetaFinding::new(
             pack.pack_id.clone(),
             "pack available_locales does not include source_locale",
+        ));
+    }
+    if pack.locale_overlay_refs.is_empty() {
+        findings.push(OnboardingHelpPackBetaFinding::new(
+            pack.pack_id.clone(),
+            "pack must declare at least one locale overlay ref",
         ));
     }
     if pack.pack_role == PACK_ROLE_GLOSSARY && pack.glossary_pack_ids.is_empty() {

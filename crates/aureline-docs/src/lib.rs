@@ -12,6 +12,7 @@
 pub mod citations;
 pub mod evidence_model;
 pub mod index;
+pub mod locale_overlay;
 pub mod pack;
 
 pub use citations::{
@@ -42,6 +43,22 @@ pub use index::{
     DOCS_SEARCH_INDEX_ENTRY_RECORD_KIND, DOCS_SEARCH_INDEX_RECORD_KIND,
     DOCS_SEARCH_INDEX_SCHEMA_VERSION, DOCS_SEARCH_QUERY_RESULT_RECORD_KIND,
     DOCS_SEARCH_RESULT_KIND_TOKEN,
+};
+pub use locale_overlay::{
+    seeded_translated_pack_locale_overlay_contract,
+    seeded_translated_pack_locale_overlay_support_export,
+    seeded_translated_pack_locale_overlay_surface_projection,
+    validate_seeded_translated_pack_locale_overlay, LocaleOverlayBadgeClass,
+    LocaleOverlayContract, LocaleOverlayCoverage, LocaleOverlayCoverageState,
+    LocaleOverlayFinding, LocaleOverlayMirrorOfflinePosture, LocaleOverlayPackKind,
+    LocaleOverlayRecord, LocaleOverlaySkewState, LocaleOverlaySourceLanguageAction,
+    LocaleOverlaySupportExport, LocaleOverlaySupportExportPolicy, LocaleOverlaySupportRow,
+    LocaleOverlaySurfaceProjection, LocaleOverlaySurfaceRow, LOCALE_OVERLAY_CONTRACT_RECORD_KIND,
+    LOCALE_OVERLAY_FIXTURE_REF, LOCALE_OVERLAY_RECORD_KIND, LOCALE_OVERLAY_SCHEMA_REF,
+    LOCALE_OVERLAY_SCHEMA_VERSION, LOCALE_OVERLAY_SUPPORT_EXPORT_FIXTURE_REF,
+    LOCALE_OVERLAY_SUPPORT_EXPORT_RECORD_KIND, LOCALE_OVERLAY_SURFACE_FIXTURE_REF,
+    LOCALE_OVERLAY_SURFACE_PROJECTION_RECORD_KIND, OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL,
+    TRANSLATED_PACK_LOCALE_OVERLAY_CONTRACT_ID, TRANSLATED_PACK_LOCALE_OVERLAY_VERSION_REF,
 };
 pub use pack::{
     DocsPack, DocsPackLoadError, DocsPackNode, DocsPackSourceTruth, DOCS_PACK_ALPHA_RECORD_KIND,
