@@ -9,6 +9,12 @@ use aureline_settings::inspector::{
     project_support_export, SettingWritePreviewRequest, SettingsInspectionContext, WriteActorClass,
     WriteReasonClass,
 };
+use aureline_settings::repair_review::{
+    build_repair_plan, project_review_sheet,
+    project_support_export as project_repair_support_export, ImportedProfileFragmentRef,
+    MigrationStepRef, RepairActionClass, RepairUserDecision, SettingsRepairPlan,
+    SettingsRepairPlanRequest,
+};
 use aureline_settings::sync::{
     build_review_row, project_review_page,
     project_support_export as project_sync_beta_support_export, DeviceParticipationState,
@@ -122,6 +128,67 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 page,
                 packets,
             );
+            print_json(&export)?;
+        }
+        Some("repair-plan-reset-value") => {
+            let plan = build_reset_value_plan(&resolver, &context)?;
+            print_json(&plan)?;
+        }
+        Some("repair-plan-reset-section") => {
+            let plan = build_reset_section_plan(&resolver, &context, false)?;
+            print_json(&plan)?;
+        }
+        Some("repair-plan-reset-section-checkpointed") => {
+            let plan = build_reset_section_plan(&resolver, &context, true)?;
+            print_json(&plan)?;
+        }
+        Some("repair-plan-repair-drift") => {
+            let plan = build_repair_drift_plan(&resolver, &context)?;
+            print_json(&plan)?;
+        }
+        Some("repair-plan-reapply-profile-fragment") => {
+            let plan = build_reapply_profile_fragment_plan(&resolver, &context, true)?;
+            print_json(&plan)?;
+        }
+        Some("repair-plan-revert-migration-step") => {
+            let plan = build_revert_migration_step_plan(&resolver, &context)?;
+            print_json(&plan)?;
+        }
+        Some("repair-plan-adjacent-refused") => {
+            let plan = build_adjacent_refused_plan(&resolver, &context)?;
+            print_json(&plan)?;
+        }
+        Some("repair-plan-policy-owned-refused") => {
+            let plan = build_policy_owned_refused_plan(&resolver, &context)?;
+            print_json(&plan)?;
+        }
+        Some("repair-review-sheet") => {
+            let plan = build_reset_value_plan(&resolver, &context)?;
+            let sheet = project_review_sheet(plan);
+            print_json(&sheet)?;
+        }
+        Some("repair-support-export") => {
+            let plans = vec![
+                with_decision(
+                    build_reset_value_plan(&resolver, &context)?,
+                    "accepted",
+                ),
+                with_decision(
+                    build_reset_section_plan(&resolver, &context, true)?,
+                    "accepted",
+                ),
+                with_decision(
+                    build_reapply_profile_fragment_plan(&resolver, &context, true)?,
+                    "accepted",
+                ),
+                with_decision(
+                    build_revert_migration_step_plan(&resolver, &context)?,
+                    "declined",
+                ),
+                build_adjacent_refused_plan(&resolver, &context)?,
+                build_policy_owned_refused_plan(&resolver, &context)?,
+            ];
+            let export = project_repair_support_export("support:repair:001", plans);
             print_json(&export)?;
         }
         Some("ui-beta-support-export") => {
@@ -409,4 +476,241 @@ fn seeded_context(resolver: &EffectiveSettingsResolver) -> SettingsInspectionCon
         }
     }
     context
+}
+
+fn with_decision(mut plan: SettingsRepairPlan, decision: &str) -> SettingsRepairPlan {
+    plan.user_decision = decision.to_owned();
+    plan
+}
+
+fn build_reset_value_plan(
+    resolver: &EffectiveSettingsResolver,
+    context: &SettingsInspectionContext,
+) -> Result<SettingsRepairPlan, Box<dyn std::error::Error>> {
+    let request = SettingsRepairPlanRequest {
+        plan_id: "repair:reset-tab-size:workspace:001".to_owned(),
+        action_class: RepairActionClass::ResetCurrentValue,
+        target_scope: SettingScope::Workspace,
+        section_id: None,
+        imported_profile_fragment: None,
+        migration_step: None,
+        actor_class: WriteActorClass::UserCommand,
+        reason_class: WriteReasonClass::UserEdit,
+        reason_note: Some(
+            "Reset workspace tab size back to the user-default value.".to_owned(),
+        ),
+        selected_setting_ids: vec!["editor.tab_size".to_owned()],
+        proposed_values: vec![("editor.tab_size".to_owned(), SettingValue::Integer(4))],
+        checkpoint_ref: None,
+        approval_ticket_ref: None,
+        user_decision: RepairUserDecision::Pending,
+    };
+    Ok(build_repair_plan(resolver, context, request)?)
+}
+
+fn build_reset_section_plan(
+    resolver: &EffectiveSettingsResolver,
+    context: &SettingsInspectionContext,
+    with_checkpoint: bool,
+) -> Result<SettingsRepairPlan, Box<dyn std::error::Error>> {
+    let request = SettingsRepairPlanRequest {
+        plan_id: if with_checkpoint {
+            "repair:reset-section-editor:user_global:002".to_owned()
+        } else {
+            "repair:reset-section-editor:user_global:001".to_owned()
+        },
+        action_class: RepairActionClass::ResetSection,
+        target_scope: SettingScope::UserGlobal,
+        section_id: Some("editor".to_owned()),
+        imported_profile_fragment: None,
+        migration_step: None,
+        actor_class: WriteActorClass::UserCommand,
+        reason_class: WriteReasonClass::UserEdit,
+        reason_note: Some(
+            "Reset every editor.* setting at user_global back to inherited sources."
+                .to_owned(),
+        ),
+        selected_setting_ids: vec![
+            "editor.tab_size".to_owned(),
+            "editor.format_on_save".to_owned(),
+        ],
+        proposed_values: vec![
+            ("editor.tab_size".to_owned(), SettingValue::Integer(4)),
+            (
+                "editor.format_on_save".to_owned(),
+                SettingValue::Boolean(false),
+            ),
+        ],
+        checkpoint_ref: if with_checkpoint {
+            Some("checkpoint:settings:user_global:editor:001".to_owned())
+        } else {
+            None
+        },
+        approval_ticket_ref: None,
+        user_decision: RepairUserDecision::Pending,
+    };
+    Ok(build_repair_plan(resolver, context, request)?)
+}
+
+fn build_repair_drift_plan(
+    resolver: &EffectiveSettingsResolver,
+    context: &SettingsInspectionContext,
+) -> Result<SettingsRepairPlan, Box<dyn std::error::Error>> {
+    let request = SettingsRepairPlanRequest {
+        plan_id: "repair:drift-tab-size:user_global:001".to_owned(),
+        action_class: RepairActionClass::RepairDrift,
+        target_scope: SettingScope::UserGlobal,
+        section_id: None,
+        imported_profile_fragment: None,
+        migration_step: None,
+        actor_class: WriteActorClass::UserCommand,
+        reason_class: WriteReasonClass::UserEdit,
+        reason_note: Some(
+            "Restore tab size at user_global to the last-known intended value.".to_owned(),
+        ),
+        selected_setting_ids: vec!["editor.tab_size".to_owned()],
+        proposed_values: vec![("editor.tab_size".to_owned(), SettingValue::Integer(4))],
+        checkpoint_ref: None,
+        approval_ticket_ref: None,
+        user_decision: RepairUserDecision::Pending,
+    };
+    Ok(build_repair_plan(resolver, context, request)?)
+}
+
+fn build_reapply_profile_fragment_plan(
+    resolver: &EffectiveSettingsResolver,
+    context: &SettingsInspectionContext,
+    with_checkpoint: bool,
+) -> Result<SettingsRepairPlan, Box<dyn std::error::Error>> {
+    let request = SettingsRepairPlanRequest {
+        plan_id: "repair:reapply-fragment:editor-cleanup:001".to_owned(),
+        action_class: RepairActionClass::ReapplyImportedProfileFragment,
+        target_scope: SettingScope::ImportedProfileDefault,
+        section_id: None,
+        imported_profile_fragment: Some(ImportedProfileFragmentRef {
+            profile_id: "profile:portable:dev-laptop".to_owned(),
+            fragment_id: "fragment:editor-cleanup".to_owned(),
+            fragment_label: "Editor cleanup".to_owned(),
+            source_label: "Imported profile: Dev laptop".to_owned(),
+        }),
+        migration_step: None,
+        actor_class: WriteActorClass::ImportedProfile,
+        reason_class: WriteReasonClass::Import,
+        reason_note: Some(
+            "Re-apply the editor-cleanup fragment from the imported portable profile.".to_owned(),
+        ),
+        selected_setting_ids: vec![
+            "editor.tab_size".to_owned(),
+            "editor.format_on_save".to_owned(),
+        ],
+        proposed_values: vec![
+            ("editor.tab_size".to_owned(), SettingValue::Integer(4)),
+            (
+                "editor.format_on_save".to_owned(),
+                SettingValue::Boolean(true),
+            ),
+        ],
+        checkpoint_ref: if with_checkpoint {
+            Some("checkpoint:settings:imported_profile:editor-cleanup:001".to_owned())
+        } else {
+            None
+        },
+        approval_ticket_ref: None,
+        user_decision: RepairUserDecision::Pending,
+    };
+    Ok(build_repair_plan(resolver, context, request)?)
+}
+
+fn build_revert_migration_step_plan(
+    resolver: &EffectiveSettingsResolver,
+    context: &SettingsInspectionContext,
+) -> Result<SettingsRepairPlan, Box<dyn std::error::Error>> {
+    let request = SettingsRepairPlanRequest {
+        plan_id: "repair:revert-migration:editor-tab-size:001".to_owned(),
+        action_class: RepairActionClass::RevertMigrationStep,
+        target_scope: SettingScope::UserGlobal,
+        section_id: None,
+        imported_profile_fragment: None,
+        migration_step: Some(MigrationStepRef {
+            migration_id: "migration:editor.tab_size:v1-to-v2".to_owned(),
+            from_version: "settings_definition:v1".to_owned(),
+            to_version: "settings_definition:v2".to_owned(),
+            transform_class: "narrow_enum".to_owned(),
+            is_lossy: false,
+            rollback_supported: true,
+        }),
+        actor_class: WriteActorClass::WorkspaceMigration,
+        reason_class: WriteReasonClass::Automation,
+        reason_note: Some(
+            "Revert the editor.tab_size migration step using the checkpoint captured before apply.".to_owned(),
+        ),
+        selected_setting_ids: vec!["editor.tab_size".to_owned()],
+        proposed_values: vec![("editor.tab_size".to_owned(), SettingValue::Integer(4))],
+        checkpoint_ref: Some(
+            "checkpoint:settings:migration:editor.tab_size:v1-to-v2:001".to_owned(),
+        ),
+        approval_ticket_ref: None,
+        user_decision: RepairUserDecision::Pending,
+    };
+    Ok(build_repair_plan(resolver, context, request)?)
+}
+
+fn build_adjacent_refused_plan(
+    resolver: &EffectiveSettingsResolver,
+    context: &SettingsInspectionContext,
+) -> Result<SettingsRepairPlan, Box<dyn std::error::Error>> {
+    let request = SettingsRepairPlanRequest {
+        plan_id: "repair:adjacent-refused:workspace:001".to_owned(),
+        action_class: RepairActionClass::ResetCurrentValue,
+        target_scope: SettingScope::Workspace,
+        section_id: None,
+        imported_profile_fragment: None,
+        migration_step: None,
+        actor_class: WriteActorClass::UserCommand,
+        reason_class: WriteReasonClass::UserEdit,
+        reason_note: Some(
+            "Attempt to reset only editor.tab_size; the plan would have touched editor.format_on_save too."
+                .to_owned(),
+        ),
+        selected_setting_ids: vec!["editor.tab_size".to_owned()],
+        proposed_values: vec![
+            ("editor.tab_size".to_owned(), SettingValue::Integer(4)),
+            (
+                "editor.format_on_save".to_owned(),
+                SettingValue::Boolean(false),
+            ),
+        ],
+        checkpoint_ref: None,
+        approval_ticket_ref: None,
+        user_decision: RepairUserDecision::Declined,
+    };
+    Ok(build_repair_plan(resolver, context, request)?)
+}
+
+fn build_policy_owned_refused_plan(
+    resolver: &EffectiveSettingsResolver,
+    context: &SettingsInspectionContext,
+) -> Result<SettingsRepairPlan, Box<dyn std::error::Error>> {
+    let request = SettingsRepairPlanRequest {
+        plan_id: "repair:policy-owned-refused:001".to_owned(),
+        action_class: RepairActionClass::ResetCurrentValue,
+        target_scope: SettingScope::AdminPolicyNarrowing,
+        section_id: None,
+        imported_profile_fragment: None,
+        migration_step: None,
+        actor_class: WriteActorClass::UserCommand,
+        reason_class: WriteReasonClass::UserEdit,
+        reason_note: Some(
+            "Attempt to repair an admin-policy-owned value from a user-initiated plan.".to_owned(),
+        ),
+        selected_setting_ids: vec!["security.ai.egress_policy".to_owned()],
+        proposed_values: vec![(
+            "security.ai.egress_policy".to_owned(),
+            SettingValue::String("any_hosted_provider".to_owned()),
+        )],
+        checkpoint_ref: None,
+        approval_ticket_ref: None,
+        user_decision: RepairUserDecision::Declined,
+    };
+    Ok(build_repair_plan(resolver, context, request)?)
 }

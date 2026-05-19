@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/config/settings_repair_plan.schema.json",
+  "title": "Aureline settings repair, reset, import, and migration review plan",
+  "description": "Boundary schema for the settings_repair_plan beta envelope. Every reset, repair, reapply-imported-fragment, or revert-migration-step action emitted by a UI, CLI, sync, policy, or support surface produces one of these plans. The plan names the exact target scope (user, profile, workspace, policy_owned, or machine_local) the write would land on, the explicit list of setting_ids the user selected, the per-setting write-intent records routed through the canonical write-intent pipeline, the rollback checkpoint preserved before any broad rewrite, and the hidden-reset guard verdict that proves the plan refuses to silently broaden scope or touch unselected rows. Adding a top-level field or a new enum value is additive-minor and bumps schema_version; repurposing an existing field is breaking. See docs/configuration/m3/settings_repair_beta.md and crates/aureline-settings/src/repair_review/.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "plan_id",
+    "action_class",
+    "target_scope",
+    "target_scope_class",
+    "target_artifact_ref",
+    "actor_class",
+    "reason_class",
+    "preview_class",
+    "checkpoint_required",
+    "approval_required",
+    "write_intents",
+    "blocked_write_reasons",
+    "locked_classes",
+    "hidden_reset_guard",
+    "verdict",
+    "user_decision",
+    "effective_before"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "settings_repair_plan"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "settings:repair_plan_beta:v1"
+    },
+    "plan_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id for this plan. Reused by the review sheet projection, the support export, and the mutation journal entry produced on apply."
+    },
+    "action_class": { "$ref": "#/$defs/action_class" },
+    "target_scope": { "$ref": "#/$defs/scope_id" },
+    "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+    "target_artifact_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable artifact ref that would receive the write. Settings file path, profile fragment ref, or migration step ref."
+    },
+    "section_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Section id for reset_section plans. Null for other action classes."
+    },
+    "imported_profile_fragment": {
+      "anyOf": [
+        { "$ref": "#/$defs/imported_profile_fragment" },
+        { "type": "null" }
+      ]
+    },
+    "migration_step": {
+      "anyOf": [
+        { "$ref": "#/$defs/migration_step" },
+        { "type": "null" }
+      ]
+    },
+    "actor_class": { "$ref": "#/$defs/actor_class" },
+    "reason_class": { "$ref": "#/$defs/reason_class" },
+    "reason_note": {
+      "type": ["string", "null"],
+      "description": "Short human-readable reason note. Redacted before export; never carries raw secret material."
+    },
+    "preview_class": { "$ref": "#/$defs/preview_class" },
+    "checkpoint_required": {
+      "type": "boolean",
+      "description": "True when a rollback checkpoint must be preserved before any apply. Multi-row actions (reset_section, reapply_imported_profile_fragment) and revert_migration_step always set this to true."
+    },
+    "checkpoint_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque rollback-checkpoint handle. MUST be non-null when verdict is ready_to_apply and checkpoint_required is true."
+    },
+    "rollback_action_ref": {
+      "type": ["string", "null"],
+      "description": "Opaque ref the user can route to after apply to roll the plan back. Null when the plan is denied."
+    },
+    "approval_ticket_ref": {
+      "type": ["string", "null"]
+    },
+    "approval_required": { "type": "boolean" },
+    "write_intents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/write_intent_row" },
+      "description": "Per-row write previews routed through the inspector's preview_write flow. Empty when no selected setting could be previewed (e.g. the only proposed row was unknown)."
+    },
+    "blocked_write_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blocked_write_reason" },
+      "description": "Typed blocked-write reasons explaining why the plan is denied or awaiting a precondition. Empty when the plan is fully ready to apply."
+    },
+    "locked_classes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "policy_owned_class",
+          "capability_locked",
+          "retired_setting",
+          "managed_mode_only",
+          "non_writable_scope"
+        ]
+      },
+      "description": "Locked classes encountered during plan validation."
+    },
+    "hidden_reset_guard": { "$ref": "#/$defs/hidden_reset_guard" },
+    "verdict": { "$ref": "#/$defs/verdict" },
+    "user_decision": { "$ref": "#/$defs/user_decision" },
+    "effective_before": {
+      "type": "array",
+      "description": "Effective-setting records for every affected row before the proposed apply. Opaque to this schema; mirrors the inspector record contract.",
+      "items": { "type": "object" }
+    }
+  },
+  "$defs": {
+    "scope_id": {
+      "type": "string",
+      "enum": [
+        "built_in_default",
+        "channel_or_experiment_default",
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override",
+        "session_override",
+        "admin_policy_narrowing"
+      ]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "profile",
+        "workspace",
+        "policy_owned",
+        "machine_local"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "reset_current_value",
+        "reset_section",
+        "repair_drift",
+        "reapply_imported_profile_fragment",
+        "revert_migration_step"
+      ]
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user_keystroke",
+        "user_command",
+        "imported_profile",
+        "workspace_migration",
+        "admin_policy_injector",
+        "experiment_rollout",
+        "session_override",
+        "extension_api",
+        "ai_apply"
+      ]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "user_edit",
+        "profile_apply",
+        "import",
+        "sync",
+        "policy",
+        "automation"
+      ]
+    },
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "safe_apply",
+        "preview_required",
+        "rollback_checkpoint_required",
+        "rollback_checkpoint_and_approval_required",
+        "managed_action_only"
+      ]
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "ready_to_apply",
+        "awaiting_preview",
+        "awaiting_checkpoint",
+        "awaiting_approval",
+        "denied"
+      ]
+    },
+    "user_decision": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "declined",
+        "withdrawn"
+      ]
+    },
+    "imported_profile_fragment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "fragment_id", "fragment_label", "source_label"],
+      "properties": {
+        "profile_id": { "type": "string", "minLength": 1 },
+        "fragment_id": { "type": "string", "minLength": 1 },
+        "fragment_label": { "type": "string", "minLength": 1 },
+        "source_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "migration_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migration_id",
+        "from_version",
+        "to_version",
+        "transform_class",
+        "is_lossy",
+        "rollback_supported"
+      ],
+      "properties": {
+        "migration_id": { "type": "string", "minLength": 1 },
+        "from_version": { "type": "string", "minLength": 1 },
+        "to_version": { "type": "string", "minLength": 1 },
+        "transform_class": {
+          "type": "string",
+          "enum": [
+            "identity",
+            "narrow_enum",
+            "widen_enum_additive",
+            "split_field",
+            "merge_field",
+            "rename_field",
+            "change_default_only"
+          ]
+        },
+        "is_lossy": { "type": "boolean" },
+        "rollback_supported": { "type": "boolean" }
+      }
+    },
+    "write_intent_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setting_id",
+        "selected_by_user",
+        "blocked",
+        "lock_state",
+        "lifecycle_label",
+        "write_preview"
+      ],
+      "properties": {
+        "setting_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+        },
+        "selected_by_user": { "type": "boolean" },
+        "blocked": { "type": "boolean" },
+        "lock_state": {
+          "type": "string",
+          "enum": [
+            "unknown",
+            "unlocked",
+            "policy_locked",
+            "policy_constrained",
+            "capability_locked",
+            "read_only_surface"
+          ]
+        },
+        "lifecycle_label": {
+          "type": "string",
+          "enum": ["stable", "beta", "experimental", "deprecated", "retired"]
+        },
+        "write_preview": {
+          "type": "object",
+          "description": "Preview record produced by the inspector preview_write flow. Opaque to this schema; mirrors the setting_write_preview_record contract."
+        }
+      }
+    },
+    "blocked_write_reason": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "policy_owned_class",
+            "non_writable_scope",
+            "retired_setting",
+            "capability_dependency_unmet",
+            "checkpoint_missing",
+            "approval_missing",
+            "managed_mode_only",
+            "scope_broadening_refused",
+            "adjacent_setting_refused",
+            "unknown_setting"
+          ]
+        },
+        "setting_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+        },
+        "target_scope": { "$ref": "#/$defs/scope_id" },
+        "proposed_scope": { "$ref": "#/$defs/scope_id" },
+        "selected_scope": { "$ref": "#/$defs/scope_id" }
+      }
+    },
+    "hidden_reset_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "would_broaden_scope",
+        "would_touch_adjacent_settings",
+        "selected_setting_ids",
+        "refused_setting_ids",
+        "summary"
+      ],
+      "properties": {
+        "would_broaden_scope": {
+          "type": "boolean",
+          "description": "True when the plan would have written to a broader scope than the user selected. Any true verdict pairs with at least one blocked-write reason and refuses apply."
+        },
+        "would_touch_adjacent_settings": {
+          "type": "boolean",
+          "description": "True when the plan would have touched a setting outside selected_setting_ids."
+        },
+        "selected_setting_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+          }
+        },
+        "refused_setting_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+          }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

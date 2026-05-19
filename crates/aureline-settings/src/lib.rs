@@ -35,6 +35,7 @@ pub mod experiments;
 pub mod inspector;
 pub mod keybindings;
 pub mod locale_beta;
+pub mod repair_review;
 pub mod resolver;
 pub mod schema;
 pub mod sync;
@@ -69,6 +70,15 @@ pub use keybindings::{
     KEYBINDING_SETTINGS_SCHEMA_VERSION,
 };
 pub use locale_beta::project_locale_beta_settings_panel;
+pub use repair_review::{
+    build_repair_plan, project_review_sheet,
+    project_support_export as project_repair_support_export, HiddenResetGuard,
+    ImportedProfileFragmentRef, MigrationStepRef, RepairActionClass, RepairBlockedWriteReason,
+    RepairPlanVerdict, RepairTargetScopeClass, RepairUserDecision, RepairWriteIntentRow,
+    SettingsRepairPlan, SettingsRepairPlanRequest, SettingsRepairReviewSheet,
+    SettingsRepairSupportExport, SETTINGS_REPAIR_PLAN_SCHEMA_VERSION,
+    SETTINGS_REPAIR_PLAN_SHARED_CONTRACT_REF,
+};
 pub use resolver::{
     CapabilityState, EffectiveCapabilityDependency, EffectiveControlStack, EffectiveLastWritten,
     EffectiveSettingRecord, EffectiveSettingsResolver, EffectiveValue, LockReason, LockState,
