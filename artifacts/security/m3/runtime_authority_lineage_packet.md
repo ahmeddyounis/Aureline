@@ -76,7 +76,19 @@ each of:
 
 The seeded `seeded_runtime_authority_issuer_page()` page covers all of these,
 and the policy crate validator surfaces typed defects whenever one of them
-goes missing.
+goes missing. The seeded page also covers privileged debug attach and a
+supervisor-mediated credential projection so the lineage row coverage spans
+every high-risk runtime-authority flow class.
+
+The conformance fixture corpus (page, drills, lineage packet, per-row
+lineage excerpts) lives at
+[`/fixtures/security/m3/runtime_authority_issuer/`](../../../fixtures/security/m3/runtime_authority_issuer/)
+and
+[`/fixtures/security/m3/privileged_action_lineage/`](../../../fixtures/security/m3/privileged_action_lineage/).
+The release red/green roll-up is
+[`/artifacts/security/m3/runtime_authority_conformance_report.md`](runtime_authority_conformance_report.md)
+and the support-facing example walk-through is
+[`/artifacts/support/m3/privileged_action_lineage_examples.md`](../../support/m3/privileged_action_lineage_examples.md).
 
 ## How to regenerate
 

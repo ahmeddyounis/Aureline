@@ -21,6 +21,15 @@ The machine-readable contracts live at:
 
 The release-evidence packet is
 [`/artifacts/security/m3/runtime_authority_lineage_packet.md`](../../../artifacts/security/m3/runtime_authority_lineage_packet.md).
+The red/green conformance roll-up is
+[`/artifacts/security/m3/runtime_authority_conformance_report.md`](../../../artifacts/security/m3/runtime_authority_conformance_report.md)
+and the support-facing example walk-through is
+[`/artifacts/support/m3/privileged_action_lineage_examples.md`](../../../artifacts/support/m3/privileged_action_lineage_examples.md).
+
+The conformance fixture corpus is checked in under
+[`/fixtures/security/m3/runtime_authority_issuer/`](../../../fixtures/security/m3/runtime_authority_issuer/)
+and the per-row lineage corpus under
+[`/fixtures/security/m3/privileged_action_lineage/`](../../../fixtures/security/m3/privileged_action_lineage/).
 
 ## Allowed issuer set
 
@@ -124,8 +133,10 @@ Provider-linked and local-only actions therefore never conflate.
 
 The seeded `seeded_runtime_authority_issuer_page()` covers:
 
-- a shell-issuer ticket minted for an AI tool plan;
-- a policy-service renewal of a remembered local-format rule;
+- a shell-issuer ticket minted for an AI tool plan (external provider
+  mutation, granted);
+- a policy-service renewal of a remembered local-format rule (local
+  mutation, remembered-decision-narrowed);
 - an extension self-authorization that is refused with
   `self_authorization_by_non_issuer` and `missing_issuer_binding`;
 - a browser companion ambient-privilege inference that is refused with
@@ -135,12 +146,20 @@ The seeded `seeded_runtime_authority_issuer_page()` covers:
   `remembered_decision_target_drift`;
 - a remote helper using a local-only authority against a provider target,
   refused with `authority_source_mismatch` and
-  `authority_source_unreachable_target`; and
+  `authority_source_unreachable_target`;
 - a supervisor-mediated trust-root rotation that is granted only because the
-  request carries a recorded root-authority proof.
+  request carries a recorded root-authority proof;
+- a shell-mediated privileged debug attach granted to a local admin after
+  step-up; and
+- a supervisor-mediated credential projection granted to an admin console as
+  a session-only broker handle.
 
 The validator unit and integration tests flip the seeded records to admitted
-states to confirm the corresponding defects fire.
+states to confirm the corresponding defects fire. The fixture-replay
+integration test in
+[`/crates/aureline-policy/tests/runtime_authority_issuer_cases.rs`](../../../crates/aureline-policy/tests/runtime_authority_issuer_cases.rs)
+parses the checked-in conformance corpus on disk and asserts every fixture
+round-trips through the projection without drift.
 
 ## What this does not own
 
