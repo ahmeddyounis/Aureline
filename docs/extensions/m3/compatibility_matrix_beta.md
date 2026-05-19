@@ -41,6 +41,16 @@ outside the named runtime, SDK, manifest, or bridge window, the host
 disables, quarantines, narrows, or refuses the row according to the
 matrix. It does not silently load ambiguous extension behavior.
 
+## Native versus compatibility-bridge scorecard
+
+Release notes, marketplace surfaces, and support packets cite the
+per-lane native-runtime versus compatibility-bridge scorecard at
+[`artifacts/extensions/m3/bridge_compatibility_scorecard.json`](../../../artifacts/extensions/m3/bridge_compatibility_scorecard.json)
+so native and bridge rows cannot share one undifferentiated green
+label. The scorecard is projected from this matrix by the SDK
+conformance packet generator described in
+[`sdk_conformance_beta.md`](./sdk_conformance_beta.md).
+
 ## Bridge Honesty
 
 Bridge and shimmed rows are not parity claims.

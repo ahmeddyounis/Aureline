@@ -104,6 +104,16 @@ python3 tools/extensions/m3/validator_cli/aureline_extension_validator.py \
   --check
 ```
 
+## SDK conformance packet
+
+The validator suite report is one of five inputs aggregated into the
+per-SDK / runtime line conformance packet at
+[`sdk_conformance_beta.md`](./sdk_conformance_beta.md). The packet binds
+validator results, sample-pack outcomes, lifecycle metadata, docs
+freshness, and bridge compatibility status into one checked-in record
+release notes, marketplace surfaces, and support exports cite verbatim
+instead of pointing only at the validator source tree.
+
 ## Relationship to existing contracts
 
 The validator does not replace the existing Rust-owned records. It is

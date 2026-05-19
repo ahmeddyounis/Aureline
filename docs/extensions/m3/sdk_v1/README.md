@@ -228,6 +228,19 @@ invent SDK-v1-shaped fields:
   record set when the SDK line is republished into a sealed bundle;
   the same closed vocabulary applies regardless of the origin source.
 
+## SDK conformance packet
+
+The starter pack is one of five inputs aggregated into the SDK
+conformance packet at
+[`docs/extensions/m3/sdk_conformance_beta.md`](../sdk_conformance_beta.md).
+The packet binds validator results, this sample-pack outcome,
+lifecycle metadata, docs-freshness findings, and the bridge
+compatibility scorecard into one checked-in record release notes,
+marketplace surfaces, and support packets cite verbatim. Drift
+between the contract, lifecycle, sample-pack outcome, or
+compatibility state refuses the packet closed and downgrades the
+stable-facing claim.
+
 ## How to verify
 
 ```text
