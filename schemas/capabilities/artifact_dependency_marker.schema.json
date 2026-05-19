@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/capabilities/artifact_dependency_marker.schema.json",
+  "title": "Aureline artifact dependency marker",
+  "description": "Boundary schema for an artifact_dependency_marker_record. Persisted inside any artifact_class in the closed set (settings_export, profile, workflow_bundle, portable_state_package, recipe, saved_view, migration_packet, support_export, sync_artifact) whenever behavior narrows or portability changes on targets lacking the capability. Surfaces (settings_inspector, import_review_sheet, bundle_detail_page, downgrade_flow, headless_cli_inspect, docs_help_page) read the marker before apply, before downgrade, and during inspect. Marker emits no raw provider tokens, raw policy-bundle bytes, or raw kill-switch material. Adding an enum value to artifact_class, dependency_class, effect_on_import, support_promise, or lifecycle_state is an additive-minor bump of schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "marker_id",
+    "artifact_class",
+    "artifact_ref",
+    "required_capability_id",
+    "required_lifecycle_state",
+    "dependency_class",
+    "support_promise",
+    "effect_on_import",
+    "behavior_on_missing"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "capabilities_artifact_dependency_marker",
+      "description": "Discriminator. The capabilities crate refuses to decode any other value."
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version pinned into the marker. Current value is 1."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "capabilities:artifact_dependency_marker:v1",
+      "description": "Shared contract ref consumed by every surface that renders the marker."
+    },
+    "marker_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque marker id. Unique within the owning artifact."
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "settings_export",
+        "profile",
+        "workflow_bundle",
+        "portable_state_package",
+        "recipe",
+        "saved_view",
+        "migration_packet",
+        "support_export",
+        "sync_artifact"
+      ],
+      "description": "Closed artifact-class vocabulary. Adding a new artifact class is an additive-minor bump."
+    },
+    "artifact_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref the marker is attached to."
+    },
+    "required_capability_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Capability id the marker depends on. Matches a capability_record.capability_id."
+    },
+    "required_lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta",
+        "stable",
+        "lts_facing",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ],
+      "description": "Lifecycle state the producer observed when the marker was minted."
+    },
+    "dependency_class": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta_only",
+        "policy_gated",
+        "host_specific"
+      ],
+      "description": "Why the artifact carries this dependency. Mirrors the capability record's dependency_class."
+    },
+    "support_promise": {
+      "type": "string",
+      "enum": [
+        "best_effort",
+        "community_supported",
+        "standard_support",
+        "extended_support",
+        "operator_only",
+        "no_support"
+      ],
+      "description": "Support promise recorded on the marker. Mirrors the capability record's support_promise."
+    },
+    "effect_on_import": {
+      "type": "string",
+      "enum": [
+        "block_apply_preserve_data",
+        "narrow_behavior_preserve_data",
+        "emulated_downgrade_preserve_data",
+        "hold_for_later_preserve_data",
+        "render_tombstone_preserve_data"
+      ],
+      "description": "Closed import-behavior vocabulary. Every variant preserves user-authored data: silent-drop variants are intentionally absent."
+    },
+    "behavior_on_missing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "fallback_path"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reviewer-facing 'what changed' copy surfaces render alongside the dependency chip."
+        },
+        "fallback_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Bounded fallback / recover / dismiss path. Surfaces use this for the inline recover affordance."
+        },
+        "docs_ref": {
+          "type": "string",
+          "description": "Optional docs / help ref the surface can open for context."
+        }
+      },
+      "description": "Behavior summary + fallback path the surfaces render."
+    },
+    "kill_switch_active": {
+      "type": "boolean",
+      "description": "True when an active kill switch / policy disable narrowed the dependency at mint time. A marker with kill_switch_active=true MUST carry a non-empty behavior_on_missing.fallback_path so the user can dismiss / wait / open the resolution flow."
+    },
+    "host_scope": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Closed list of hosts the dependency is admitted on. Required when dependency_class = host_specific."
+    },
+    "docs_ref": {
+      "type": "string",
+      "description": "Optional docs / help ref the surface can open for context."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "dependency_class": { "const": "host_specific" } } },
+      "then": {
+        "required": ["host_scope"],
+        "properties": {
+          "host_scope": { "type": "array", "minItems": 1 }
+        }
+      }
+    }
+  ]
+}

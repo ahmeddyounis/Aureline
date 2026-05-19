@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/capabilities/capability_record.schema.json",
+  "title": "Aureline capability record",
+  "description": "Boundary schema for a single capability record. Producers snapshot a capability_record when they mint an artifact_dependency_marker; the marker references the capability_id and pins the lifecycle_state, support_promise, dependency_class, default_effect_on_import, and default_fallback_path tokens that surfaces render. The record never travels with raw provider tokens, raw policy-bundle bytes, or raw kill-switch material. Adding an enum value to lifecycle_state, support_promise, dependency_class, or effect_on_import is an additive-minor bump of schema_version; repurposing an existing value is breaking and requires a new boundary release.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "capability_id",
+    "title",
+    "lifecycle_state",
+    "support_promise",
+    "dependency_class",
+    "default_effect_on_import",
+    "default_fallback_path"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "capabilities_capability_record",
+      "description": "Discriminator. The capabilities crate refuses to decode any other value."
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version pinned into the record. Current value is 1."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "capabilities:capability_record:v1",
+      "description": "Shared contract ref consumed by every surface that renders the record."
+    },
+    "capability_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable id of the capability. Opaque to consumers; safe to log and persist."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewer-facing capability title."
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta",
+        "stable",
+        "lts_facing",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ],
+      "description": "Closed lifecycle-state vocabulary. Mirrors schemas/governance/capability_lifecycle.schema.json so consumers branch on one closed token set."
+    },
+    "support_promise": {
+      "type": "string",
+      "enum": [
+        "best_effort",
+        "community_supported",
+        "standard_support",
+        "extended_support",
+        "operator_only",
+        "no_support"
+      ],
+      "description": "Closed support-promise vocabulary."
+    },
+    "dependency_class": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta_only",
+        "policy_gated",
+        "host_specific"
+      ],
+      "description": "Closed dependency-class vocabulary recorded on the marker. A consumer reading the marker can branch on this enum without inspecting the underlying capability registry."
+    },
+    "default_effect_on_import": {
+      "type": "string",
+      "enum": [
+        "block_apply_preserve_data",
+        "narrow_behavior_preserve_data",
+        "emulated_downgrade_preserve_data",
+        "hold_for_later_preserve_data",
+        "render_tombstone_preserve_data"
+      ],
+      "description": "Closed import-behavior vocabulary. Every variant preserves user-authored data: silent-drop variants are intentionally absent."
+    },
+    "default_fallback_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Bounded fallback / recover / dismiss path surfaces render when the capability is missing on a target. Per-marker fallback_path overrides this when present."
+    },
+    "docs_ref": {
+      "type": "string",
+      "description": "Optional docs / help ref the marker can carry forward."
+    },
+    "host_scope": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Closed list of hosts the capability is admitted on. Required when dependency_class = host_specific."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "dependency_class": { "const": "host_specific" } } },
+      "then": {
+        "required": ["host_scope"],
+        "properties": {
+          "host_scope": { "type": "array", "minItems": 1 }
+        }
+      }
+    }
+  ]
+}
