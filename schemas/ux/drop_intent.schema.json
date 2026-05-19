@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/drop_intent.schema.json",
+  "title": "Aureline drop-intent contract",
+  "description": "Boundary schema for drop_intent_record. Every covered editor, diff, review, result-grid, and provider-linked surface declares one drop intent per target slot before drop completes. The intent names the verb (move, copy, attach, open, import, split, or blocked), the modifier-key cue and its meaning, the destination scope, whether the drop triggers a broad workspace mutation that requires a checkpoint, whether a collision review is part of the path, and whether the verb is announced to assistive tech. Raw drop payloads, raw file contents, raw private paths, and raw provider tokens never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/drop_intent_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "drop_intent_record"
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:interaction_transfer_beta:v1"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1600
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "review",
+        "result_grid",
+        "provider_linked"
+      ]
+    },
+    "drop_verb": {
+      "type": "string",
+      "enum": [
+        "move",
+        "copy",
+        "attach",
+        "open",
+        "import",
+        "split",
+        "blocked"
+      ]
+    },
+    "modifier_cue": {
+      "type": "string",
+      "enum": [
+        "none",
+        "hold_copy_modifier",
+        "hold_move_modifier",
+        "hold_split_modifier",
+        "hold_import_modifier"
+      ]
+    },
+    "drop_intent_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "intent_id",
+        "surface_class",
+        "surface_class_token",
+        "target_slot_ref",
+        "destination_scope_label",
+        "advertised_verb",
+        "advertised_verb_token",
+        "modifier_cue",
+        "modifier_cue_token",
+        "modifier_meaning_label",
+        "broad_workspace_mutation",
+        "checkpoint_before_commit",
+        "collision_or_overwrite_review",
+        "blocked_before_commit",
+        "verb_announced_to_a11y"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "intent_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "surface_class_token": { "$ref": "#/$defs/surface_class" },
+        "target_slot_ref": { "$ref": "#/$defs/opaque_id" },
+        "destination_scope_label": { "$ref": "#/$defs/short_label" },
+        "advertised_verb": { "$ref": "#/$defs/drop_verb" },
+        "advertised_verb_token": { "$ref": "#/$defs/drop_verb" },
+        "modifier_cue": { "$ref": "#/$defs/modifier_cue" },
+        "modifier_cue_token": { "$ref": "#/$defs/modifier_cue" },
+        "modifier_meaning_label": { "$ref": "#/$defs/safe_text" },
+        "broad_workspace_mutation": { "type": "boolean" },
+        "checkpoint_before_commit": { "type": "boolean" },
+        "collision_or_overwrite_review": { "type": "boolean" },
+        "blocked_before_commit": { "type": "boolean" },
+        "blocked_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/safe_text" }
+          ]
+        },
+        "verb_announced_to_a11y": {
+          "type": "boolean",
+          "const": true,
+          "description": "True when the drop verb is announced to assistive tech before commit."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "advertised_verb": { "const": "blocked" }
+            }
+          },
+          "then": {
+            "required": ["blocked_reason_label"],
+            "properties": {
+              "blocked_before_commit": { "const": true },
+              "blocked_reason_label": { "$ref": "#/$defs/safe_text" }
+            }
+          },
+          "else": {
+            "properties": {
+              "blocked_before_commit": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "broad_workspace_mutation": { "const": true }
+            }
+          },
+          "then": {
+            "properties": {
+              "checkpoint_before_commit": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

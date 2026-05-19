@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/reopen_history_entry.schema.json",
+  "title": "Aureline reopen-history-entry contract",
+  "description": "Boundary schema for reopen_history_entry_record. Every covered editor, diff, review, result-grid, and provider-linked surface persists one entry per closed/recovered object. The entry names the source class (intentional close, back/forward navigation, crash recovery, disconnect recovery, or placeholder reopen), the restored target identity, the closed-at and last-activity timestamps, and a continuity label that tells the user whether live authority truly survived. Crash and disconnect recovery, and placeholder reopen, must forbid automatic rerun and must not claim live authority. Raw file bodies, raw private paths, raw provider tokens, and raw URLs never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/reopen_history_entry_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "reopen_history_entry_record"
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:interaction_transfer_beta:v1"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "safe_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1600
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "format": "date-time"
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "review",
+        "result_grid",
+        "provider_linked"
+      ]
+    },
+    "reopen_source_class": {
+      "type": "string",
+      "enum": [
+        "closed_intentionally",
+        "back_forward_navigation",
+        "crash_recovery",
+        "disconnect_recovery",
+        "placeholder_reopen"
+      ]
+    },
+    "reopen_history_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "history_entry_id",
+        "surface_class",
+        "surface_class_token",
+        "source_class",
+        "source_class_token",
+        "closed_object_ref",
+        "closed_object_label",
+        "reopen_command_id",
+        "restored_target_identity_ref",
+        "closed_at",
+        "continuity_label",
+        "restored_live_authority",
+        "auto_rerun_forbidden",
+        "workspace_scoped",
+        "source_label"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "history_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "surface_class_token": { "$ref": "#/$defs/surface_class" },
+        "source_class": { "$ref": "#/$defs/reopen_source_class" },
+        "source_class_token": { "$ref": "#/$defs/reopen_source_class" },
+        "closed_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "closed_object_label": { "$ref": "#/$defs/short_label" },
+        "reopen_command_id": { "$ref": "#/$defs/opaque_id" },
+        "restored_target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "restored_selection_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "restored_scroll_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "closed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_activity_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "continuity_label": { "$ref": "#/$defs/safe_text" },
+        "restored_live_authority": { "type": "boolean" },
+        "auto_rerun_forbidden": { "type": "boolean" },
+        "workspace_scoped": { "type": "boolean" },
+        "source_label": { "$ref": "#/$defs/short_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_class": {
+                "enum": ["crash_recovery", "disconnect_recovery"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "auto_rerun_forbidden": { "const": true },
+              "restored_live_authority": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_class": { "const": "placeholder_reopen" }
+            }
+          },
+          "then": {
+            "properties": {
+              "restored_live_authority": { "const": false }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
