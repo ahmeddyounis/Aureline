@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ai_run_history_entry.schema.json",
+  "title": "Aureline AI run history entry: stable canonical run id, task label, timestamp, actor identity, provider/model, runtime boundary, outcome, cost/quota band, approval timeline, evidence/diff/artifact lineage, support export ref, and replay/rerun action refs for one material AI run",
+  "description": "Boundary schema for the ai_run_history_entry_record owned by aureline_ai::run_history. One row preserves a material AI run end-to-end: composer thread, evidence packet, support packet, and replay view all share the same canonical_run_id. The approval timeline keeps every approve/deny event (pending, granted, revoked, expired, blocked-by-policy) with scope, policy epoch, actor identity, object identity, and expiry/revocation note rather than collapsing to one final status. The entry records diff/artifact lineage refs, validation outcome rollups, and a typed evidence-incomplete state when the original provider, connector, or policy can no longer reconstruct full fidelity. Raw prompts, raw provider payloads, raw diff bodies, raw endpoint URLs, raw token counts, raw cost amounts, and credential bodies never cross this boundary; the entry carries opaque refs and typed bands only. Composes with schemas/ai/evidence_packet.schema.json, schemas/ai/evidence_replay_packet.schema.json, schemas/ai/spend_receipt.schema.json, schemas/ai/tool_call_timeline_entry.schema.json, and schemas/ai/ai_rerun_review.schema.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "canonical_run_id",
+    "task_label",
+    "actor_class",
+    "actor_identity_ref",
+    "provider_entry_ref",
+    "model_entry_ref",
+    "provider_label",
+    "model_label",
+    "execution_boundary_class",
+    "boundary_label",
+    "outcome_class",
+    "outcome_summary_label",
+    "cost_band_class",
+    "quota_band_class",
+    "approval_timeline",
+    "evidence_lineage",
+    "thread_lineage",
+    "history_state_class",
+    "evidence_completeness_class",
+    "actions",
+    "policy_context",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_run_history_entry_record" },
+    "schema_version": { "const": 1 },
+    "canonical_run_id": {
+      "$ref": "#/$defs/opaque_ref",
+      "description": "Stable canonical run id shared by composer thread, evidence packet, support packet, and replay view. Never re-derived from local state once minted."
+    },
+    "task_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "actor_class": { "$ref": "#/$defs/actor_class" },
+    "actor_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+    "provider_entry_ref": { "$ref": "#/$defs/opaque_ref" },
+    "model_entry_ref": { "$ref": "#/$defs/opaque_ref" },
+    "provider_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "model_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "execution_boundary_class": { "$ref": "#/$defs/execution_boundary_class" },
+    "boundary_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "outcome_class": { "$ref": "#/$defs/outcome_class" },
+    "outcome_summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+    "cost_band_class": { "$ref": "#/$defs/cost_band_class" },
+    "quota_band_class": { "$ref": "#/$defs/quota_band_class" },
+    "approval_timeline": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/approval_event" },
+      "description": "Ordered approval/deny events. MUST preserve every transition (pending, granted, revoked, expired, blocked-by-policy); MUST NOT be collapsed into a single final status. Each event carries its own scope, policy epoch, actor identity, object identity, and optional expiry/revocation note."
+    },
+    "evidence_lineage": { "$ref": "#/$defs/evidence_lineage" },
+    "thread_lineage": { "$ref": "#/$defs/thread_lineage" },
+    "history_state_class": { "$ref": "#/$defs/history_state_class" },
+    "evidence_completeness_class": { "$ref": "#/$defs/evidence_completeness_class" },
+    "evidence_incompleteness_reason_class": {
+      "$ref": "#/$defs/evidence_incompleteness_reason_class",
+      "description": "Typed reason the entry cannot reconstruct full fidelity. Required when evidence_completeness_class is anything other than reconstructible_full."
+    },
+    "evidence_incompleteness_note": {
+      "type": "string",
+      "description": "Reviewer-visible note explaining the typed incompleteness reason. Required (non-empty) when evidence_completeness_class is not reconstructible_full."
+    },
+    "tool_call_lineage_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_ref" }
+    },
+    "rerun_review_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_ref" }
+    },
+    "actions": { "$ref": "#/$defs/actions" },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "minted_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "description": "Any non-full evidence_completeness_class MUST carry a typed reason and a reviewer-visible note.",
+      "if": {
+        "properties": {
+          "evidence_completeness_class": {
+            "not": { "const": "reconstructible_full" }
+          }
+        },
+        "required": ["evidence_completeness_class"]
+      },
+      "then": {
+        "required": ["evidence_incompleteness_reason_class", "evidence_incompleteness_note"],
+        "properties": {
+          "evidence_incompleteness_note": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    {
+      "description": "Applied or rejected entries MUST carry a completed_at timestamp.",
+      "if": {
+        "properties": {
+          "history_state_class": {
+            "enum": ["applied", "rejected", "cancelled"]
+          }
+        },
+        "required": ["history_state_class"]
+      },
+      "then": {
+        "required": ["completed_at"]
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "://|api_key|oauth_token|Bearer " }
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor_class": {
+      "enum": [
+        "local_user",
+        "admin_policy",
+        "platform_control",
+        "automated_policy_gate",
+        "background_branch_agent"
+      ],
+      "description": "Actor identity class that initiated or owns the run. Pairs with actor_identity_ref."
+    },
+    "execution_boundary_class": {
+      "enum": [
+        "local_in_process",
+        "local_subprocess_same_device",
+        "local_sandboxed_container_same_device",
+        "local_companion_service_loopback",
+        "remote_vendor_managed_service",
+        "remote_self_hosted_service",
+        "enterprise_gateway_brokered_service",
+        "extension_provided_locus"
+      ]
+    },
+    "outcome_class": {
+      "enum": [
+        "succeeded_inspect_only",
+        "succeeded_with_local_reversible_edit",
+        "succeeded_with_local_destructive_edit",
+        "succeeded_with_branch_agent_dispatch",
+        "succeeded_with_external_publish",
+        "denied_by_policy",
+        "denied_by_workspace_trust",
+        "denied_by_approval_missing",
+        "denied_by_quota",
+        "denied_by_tainted_context",
+        "error_provider",
+        "error_transport",
+        "error_timeout",
+        "cancelled_by_user",
+        "support_replay_no_side_effect"
+      ]
+    },
+    "cost_band_class": {
+      "enum": [
+        "no_cost",
+        "negligible_cost",
+        "small_cost",
+        "moderate_cost",
+        "large_cost",
+        "cost_unknown_must_disclose"
+      ],
+      "description": "Coarse cost band. Exact cost amounts never cross this boundary; only typed bands."
+    },
+    "quota_band_class": {
+      "enum": [
+        "quota_unconstrained",
+        "quota_healthy",
+        "quota_pressured",
+        "quota_exhausted",
+        "quota_revoked",
+        "quota_unknown_must_disclose"
+      ]
+    },
+    "approval_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "approval_ticket_ref",
+        "decision_class",
+        "scope_class",
+        "actor_class",
+        "actor_identity_ref",
+        "object_class",
+        "object_identity_ref",
+        "policy_epoch_ref",
+        "decided_at"
+      ],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/opaque_ref" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_ref" },
+        "decision_class": { "$ref": "#/$defs/approval_decision_class" },
+        "scope_class": { "$ref": "#/$defs/approval_scope_class" },
+        "actor_class": { "$ref": "#/$defs/approval_actor_class" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "object_class": { "$ref": "#/$defs/approval_object_class" },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "revocation_note": {
+          "type": "string",
+          "description": "Reviewer-visible explanation for revoked or expired entries. Required (non-empty) when decision_class is revoked or when expires_at is in the past relative to the entry's minted_at."
+        },
+        "decided_at": { "type": "string", "format": "date-time" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Revoked events MUST carry a non-empty revocation_note.",
+          "if": {
+            "properties": { "decision_class": { "const": "revoked" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "required": ["revocation_note"],
+            "properties": { "revocation_note": { "$ref": "#/$defs/non_empty_string" } }
+          }
+        }
+      ]
+    },
+    "approval_decision_class": {
+      "enum": [
+        "pending_user_review",
+        "granted",
+        "rejected",
+        "revoked",
+        "expired",
+        "blocked_by_policy"
+      ]
+    },
+    "approval_scope_class": {
+      "enum": [
+        "one_time_per_invocation",
+        "per_session",
+        "per_workspace",
+        "per_policy_epoch",
+        "admin_ticket"
+      ]
+    },
+    "approval_actor_class": {
+      "enum": [
+        "local_user",
+        "admin_policy",
+        "platform_control",
+        "automated_policy_gate"
+      ]
+    },
+    "approval_object_class": {
+      "enum": [
+        "ai_run",
+        "tool_invocation",
+        "branch_agent_dispatch",
+        "external_publish",
+        "policy_override",
+        "route_override",
+        "first_use_admission"
+      ]
+    },
+    "evidence_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_packet_ref",
+        "routing_packet_ref",
+        "spend_receipt_ref",
+        "running_build_identity_ref"
+      ],
+      "properties": {
+        "evidence_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "routing_packet_ref": { "$ref": "#/$defs/opaque_ref" },
+        "spend_receipt_ref": { "$ref": "#/$defs/opaque_ref" },
+        "route_receipt_ref": { "type": "string" },
+        "replay_packet_ref": { "type": "string" },
+        "mutation_journal_ref": { "type": "string" },
+        "rollback_checkpoint_ref": { "type": "string" },
+        "produced_artifact_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "diff_artifact_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "validation_summary_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "validation_outcome_class": {
+          "enum": [
+            "validation_not_run",
+            "validation_passed",
+            "validation_passed_with_warnings",
+            "validation_failed",
+            "validation_partial_unreproducible"
+          ]
+        },
+        "running_build_identity_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "thread_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "composer_session_ref",
+        "turn_draft_ref",
+        "request_workspace_ref"
+      ],
+      "properties": {
+        "composer_session_ref": { "$ref": "#/$defs/opaque_ref" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_ref" },
+        "request_workspace_ref": { "$ref": "#/$defs/opaque_ref" },
+        "assembly_ref": { "type": "string" }
+      }
+    },
+    "history_state_class": {
+      "enum": [
+        "active_in_review",
+        "applied",
+        "rejected",
+        "cancelled",
+        "expired_in_review"
+      ]
+    },
+    "evidence_completeness_class": {
+      "enum": [
+        "reconstructible_full",
+        "evidence_incomplete_degraded_replay",
+        "evidence_incomplete_replay_blocked"
+      ]
+    },
+    "evidence_incompleteness_reason_class": {
+      "enum": [
+        "provider_withdrawn",
+        "provider_unreachable",
+        "model_revision_no_longer_available",
+        "external_tool_descriptor_withdrawn",
+        "connector_credential_revoked",
+        "policy_epoch_changed",
+        "workspace_revision_unavailable",
+        "evidence_export_redacted_in_replay",
+        "user_deleted_history"
+      ]
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "open_details_action_ref",
+        "open_evidence_packet_action_ref",
+        "open_thread_action_ref",
+        "open_replay_action_ref",
+        "open_support_export_action_ref"
+      ],
+      "properties": {
+        "open_details_action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "open_evidence_packet_action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "open_thread_action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "open_replay_action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "open_support_export_action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "open_rerun_review_action_ref": { "type": "string" },
+        "open_as_recipe_action_ref": { "type": "string" },
+        "share_action_ref": { "type": "string" },
+        "export_action_ref": { "type": "string" }
+      }
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch_ref", "trust_state", "deployment_profile_class"],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": { "enum": ["trusted", "restricted"] },
+        "deployment_profile_class": {
+          "enum": ["individual_local", "self_hosted", "managed_cloud", "managed_fleet", "air_gapped"]
+        },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}

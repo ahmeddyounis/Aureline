@@ -44,6 +44,7 @@ pub mod prompt_composer;
 pub mod registry;
 pub mod routing;
 pub mod routing_policy;
+pub mod run_history;
 pub mod tainted_context;
 pub mod tool_gateway;
 
@@ -145,6 +146,24 @@ pub use routing::{
     RoutingRunStateClass, SelectedOutcomeClass, TokenCeilingClass, ToolCallCeilingClass,
     WallTimeCeilingClass, AI_ROUTING_PACKET_RECORD_KIND, AI_ROUTING_SCHEMA_VERSION,
     AI_ROUTING_SUPPORT_PACKET_RECORD_KIND,
+};
+pub use run_history::{
+    current_beta_ai_run_history_parity_packet, AiRerunReview, AiRunActorClass, AiRunCostBandClass,
+    AiRunEvidenceLineage, AiRunExecutionBoundaryClass, AiRunHistoryActions,
+    AiRunHistoryArtifactError, AiRunHistoryEntry, AiRunHistoryParityPacket,
+    AiRunHistoryParityPacketInput, AiRunHistoryRedactionClass, AiRunHistoryStateClass,
+    AiRunHistorySupportEntryRow, AiRunHistorySupportPacket, AiRunHistorySupportRerunRow,
+    AiRunHistorySurfaceClass, AiRunHistorySurfaceRow, AiRunHistoryViolation, AiRunOutcomeClass,
+    AiRunQuotaBandClass, AiRunThreadLineage, AiRunValidationOutcomeClass,
+    ApprovalEventActorClass, ApprovalEventDecisionClass, ApprovalObjectClass, ApprovalScopeClass,
+    ApprovalTimelineEvent, EvidenceCompletenessClass, EvidenceIncompletenessReasonClass,
+    RerunActionOffer, RerunAdmissionClass, RerunApprovalResolution,
+    RerunApprovalResolutionClass, RerunDeniedReasonClass, RerunDriftAxisClass, RerunDriftClass,
+    RerunDriftRow, AI_RERUN_REVIEW_RECORD_KIND, AI_RERUN_REVIEW_SCHEMA_REF,
+    AI_RUN_HISTORY_ENTRY_RECORD_KIND, AI_RUN_HISTORY_ENTRY_SCHEMA_REF,
+    AI_RUN_HISTORY_FIXTURE_DIR, AI_RUN_HISTORY_PARITY_ARTIFACT_REF,
+    AI_RUN_HISTORY_PARITY_PACKET_RECORD_KIND, AI_RUN_HISTORY_SCHEMA_VERSION,
+    AI_RUN_HISTORY_SUPPORT_PACKET_RECORD_KIND, AI_RUN_HISTORY_SURFACE_ROW_RECORD_KIND,
 };
 pub use routing_policy::{
     current_beta_cost_routing_packet, BudgetScopeClass, BudgetScopeOutcomeClass,

@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/ai_rerun_review.schema.json",
+  "title": "Aureline AI rerun review: original-vs-current workspace, policy, provider, model, and tool drift rows; re-resolved approval requirements; and Rerun / Cancel / Open-as-recipe action availability for one rerun of a recorded AI run",
+  "description": "Boundary schema for the ai_rerun_review_record owned by aureline_ai::run_history. A rerun review compares the original run identity (workspace revision, policy epoch, provider/model row, tool availability) against the current state, re-resolves any approvals that are not still valid in the current epoch, and lists the action offers (Rerun, Cancel, Open as recipe) for the operator. Drift is always shown verbatim; the sheet MUST NOT hide that workspace, policy, provider, or tool availability has changed. The Rerun action MUST NOT be admitted unless every required approval is freshly resolved against the current policy epoch and current connector authority. The sheet always preserves the canonical run id of the original run so the rerun output can be linked back to its source. Composes with schemas/ai/ai_run_history_entry.schema.json, schemas/ai/evidence_packet.schema.json, schemas/ai/tool_gateway_descriptor.schema.json, schemas/ai/provider_model_registry.schema.json, and schemas/integration/approval_ticket.schema.json. Raw prompts, raw diffs, raw provider payloads, and credential bodies never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "rerun_review_id",
+    "canonical_run_id",
+    "original_run_entry_ref",
+    "drift_rows",
+    "approval_resolution",
+    "action_offers",
+    "rerun_admission_class",
+    "policy_context",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "const": "ai_rerun_review_record" },
+    "schema_version": { "const": 1 },
+    "rerun_review_id": { "$ref": "#/$defs/opaque_ref" },
+    "canonical_run_id": {
+      "$ref": "#/$defs/opaque_ref",
+      "description": "Canonical run id of the original run. Preserved verbatim on the rerun review so the rerun output can be linked back to its source."
+    },
+    "original_run_entry_ref": { "$ref": "#/$defs/opaque_ref" },
+    "drift_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/drift_row" },
+      "description": "Typed drift comparison rows. MUST cover at least the workspace, policy, provider, model, and tool axes. A no-drift row is also recorded so the sheet shows verbatim what stayed stable."
+    },
+    "approval_resolution": { "$ref": "#/$defs/approval_resolution" },
+    "action_offers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/action_offer" },
+      "description": "Set of typed action offers shown to the operator. MUST always include open_as_recipe so the operator can recover a recipe even if Rerun is denied."
+    },
+    "rerun_admission_class": {
+      "$ref": "#/$defs/rerun_admission_class",
+      "description": "Whether Rerun may be invoked from this sheet. MUST NOT be admit_rerun when any required approval is unresolved or any blocking drift axis is present."
+    },
+    "rerun_denied_reason_class": {
+      "$ref": "#/$defs/rerun_denied_reason_class",
+      "description": "Typed reason Rerun is denied. Required when rerun_admission_class is not admit_rerun."
+    },
+    "rerun_denied_reason_note": {
+      "type": "string",
+      "description": "Reviewer-visible explanation for the typed denial reason. Required (non-empty) when rerun_admission_class is not admit_rerun."
+    },
+    "policy_context": { "$ref": "#/$defs/policy_context" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "minted_at": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "description": "Rerun denials must carry a typed reason and reviewer-visible note.",
+      "if": {
+        "properties": {
+          "rerun_admission_class": {
+            "not": { "const": "admit_rerun" }
+          }
+        },
+        "required": ["rerun_admission_class"]
+      },
+      "then": {
+        "required": ["rerun_denied_reason_class", "rerun_denied_reason_note"],
+        "properties": {
+          "rerun_denied_reason_note": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "://|api_key|oauth_token|Bearer " }
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "drift_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis_class",
+        "drift_class",
+        "original_identity_ref",
+        "current_identity_ref",
+        "original_label",
+        "current_label",
+        "summary_label"
+      ],
+      "properties": {
+        "axis_class": { "$ref": "#/$defs/drift_axis_class" },
+        "drift_class": { "$ref": "#/$defs/drift_class" },
+        "original_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "current_identity_ref": {
+          "type": "string",
+          "description": "Stable identity ref for the current state on this axis. May be empty when the original identity is no longer addressable; in that case drift_class MUST be removed_or_withdrawn."
+        },
+        "original_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "current_label": {
+          "type": "string",
+          "description": "Reviewer-visible current-state label. Empty only when drift_class is removed_or_withdrawn."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "drift_axis_class": {
+      "enum": [
+        "workspace_revision",
+        "policy_epoch",
+        "provider_lifecycle",
+        "model_lifecycle",
+        "tool_availability",
+        "approval_validity",
+        "connector_authority",
+        "execution_boundary",
+        "running_build_identity"
+      ]
+    },
+    "drift_class": {
+      "enum": [
+        "no_drift",
+        "minor_drift",
+        "material_drift",
+        "removed_or_withdrawn"
+      ]
+    },
+    "approval_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resolution_class", "required_approval_refs", "freshly_resolved_approval_refs"],
+      "properties": {
+        "resolution_class": { "$ref": "#/$defs/approval_resolution_class" },
+        "required_approval_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "freshly_resolved_approval_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "missing_approval_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "expired_approval_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "approval_resolution_class": {
+      "enum": [
+        "all_required_freshly_resolved",
+        "missing_required_approval",
+        "expired_required_approval",
+        "blocked_by_policy",
+        "not_applicable_no_approvals_required"
+      ]
+    },
+    "action_offer": {
+      "enum": [
+        "rerun",
+        "cancel",
+        "open_as_recipe",
+        "open_original_evidence",
+        "open_original_thread",
+        "request_approval_renewal"
+      ]
+    },
+    "rerun_admission_class": {
+      "enum": [
+        "admit_rerun",
+        "deny_rerun_drift_blocking",
+        "deny_rerun_approval_unresolved",
+        "deny_rerun_provider_unavailable",
+        "deny_rerun_tool_unavailable",
+        "deny_rerun_policy_blocked",
+        "deny_rerun_evidence_incomplete"
+      ]
+    },
+    "rerun_denied_reason_class": {
+      "enum": [
+        "material_drift_present",
+        "approval_missing",
+        "approval_expired",
+        "provider_withdrawn",
+        "tool_withdrawn",
+        "policy_blocked",
+        "evidence_incomplete",
+        "workspace_revision_unavailable"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch_ref", "trust_state", "deployment_profile_class"],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": { "enum": ["trusted", "restricted"] },
+        "deployment_profile_class": {
+          "enum": ["individual_local", "self_hosted", "managed_cloud", "managed_fleet", "air_gapped"]
+        },
+        "execution_context_ref": { "$ref": "#/$defs/opaque_ref" }
+      }
+    },
+    "redaction_class": {
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}
