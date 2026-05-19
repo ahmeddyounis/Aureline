@@ -1,0 +1,715 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/arbitration_decision.schema.json",
+  "title": "Aureline language-intelligence arbitration decision record",
+  "description": "Boundary schema for the arbitration_decision_record consumed by the language-intelligence arbitration and provider-health inspector. One arbitration decision binds, for one lane request (definition, references, rename, formatting, organize-imports, or code-action) on one subject, the ordered provider stack with their health-state inspector rows, the chosen winner, the explicit confidence outcome, the conflict and disagreement disclosure when providers diverged, the downgraded-promise label that must travel with the answer, the fallback label rendered when text or heuristic fallback won, the apply-gate the surface owes (ready / preview / side-branch / blocked) when completeness is partial or scope is wide, the routing back-references into the existing capability negotiation packet, the result provenance record, and the router decision record, and the support-export and CLI/headless inspect entry points that must read the same record. Raw source text, raw notebook bodies, raw generated artifacts, raw provider logs, raw hostnames, and raw secret material never cross this boundary; the record carries opaque ids, typed vocabulary, epoch refs, and export-safe summaries only. Adding a new lane class, confidence outcome, apply-gate class, disagreement class, downgraded-promise reason, fallback label, or shared vocabulary value is additive-minor and requires an arbitration_decision_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/arbitration_decision_record"
+    }
+  ],
+  "$defs": {
+    "arbitration_decision_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the arbitration-decision export. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "arbitration_decision_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "provider_family": {
+      "type": "string",
+      "enum": [
+        "syntax",
+        "project_graph",
+        "language_server",
+        "framework_pack",
+        "notebook_adapter",
+        "generated_source_bridge",
+        "ai_assist"
+      ]
+    },
+
+    "provider_role_class": {
+      "type": "string",
+      "enum": [
+        "primary_semantic",
+        "secondary_semantic",
+        "framework_overlay",
+        "notebook_projection",
+        "generated_overlay",
+        "text_fallback",
+        "assist_only"
+      ]
+    },
+
+    "language_action_lane_class": {
+      "type": "string",
+      "enum": [
+        "definition",
+        "references",
+        "rename",
+        "formatting",
+        "organize_imports",
+        "code_action"
+      ]
+    },
+
+    "requested_authority_floor_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_required",
+        "authoritative_preferred",
+        "advisory_allowed"
+      ]
+    },
+
+    "scope_claim_class": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "notebook_cell",
+        "loaded_slice",
+        "active_workset",
+        "whole_workspace",
+        "unavailable"
+      ]
+    },
+
+    "completeness_class": {
+      "type": "string",
+      "enum": [
+        "complete_for_claimed_scope",
+        "partial_for_claimed_scope",
+        "unavailable_for_claimed_scope"
+      ]
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+
+    "confidence_outcome_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "heuristic",
+        "partial",
+        "stale",
+        "unavailable"
+      ],
+      "description": "The single confidence label the inspector renders. `exact` means the chosen provider is `ready + authoritative_live + complete_for_claimed_scope`. `heuristic` means a non-semantic or syntax fallback won. `partial` means scope is narrower than claimed. `stale` means freshness fell below the floor. `unavailable` means no provider could honestly answer."
+    },
+
+    "conflict_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "target_set_disagreement",
+        "scope_coverage_disagreement",
+        "framework_language_disagreement",
+        "semantic_text_disagreement",
+        "edit_safety_disagreement",
+        "freshness_or_epoch_disagreement",
+        "generated_boundary_disagreement",
+        "notebook_boundary_disagreement",
+        "narrative_fact_disagreement"
+      ]
+    },
+
+    "disagreement_visibility_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "inline_conflict_panel",
+        "side_panel_disagreement_inspector",
+        "preview_blocked_until_review"
+      ],
+      "description": "How disagreement must be surfaced. Any value other than `none` means the disagreement is visible to the user; silent merging of inconsistent provider results is structurally impossible because no value here admits it."
+    },
+
+    "apply_gate_class": {
+      "type": "string",
+      "enum": [
+        "ready_to_apply",
+        "preview_required",
+        "side_branch_required",
+        "blocked_for_disagreement",
+        "blocked_for_partial_scope",
+        "blocked_for_health",
+        "inspect_only"
+      ],
+      "description": "Apply gate the surface must enforce. Wide-scope rename or refactor with `partial_for_claimed_scope` must require preview or side-branch review."
+    },
+
+    "fallback_label_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "text_fallback",
+        "heuristic_fallback",
+        "syntax_file_local_fallback",
+        "cached_semantic_reuse",
+        "advisory_ai_assist_only",
+        "unsupported_operation"
+      ],
+      "description": "Fallback label rendered next to the visible answer. Required vocabulary when the confidence outcome is not `exact`."
+    },
+
+    "downgraded_promise_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "narrowed_to_file_local",
+        "narrowed_to_active_workset",
+        "narrowed_to_notebook_cell",
+        "narrowed_to_loaded_slice",
+        "fallback_to_text",
+        "fallback_to_heuristic",
+        "stale_cache_reuse",
+        "crash_loop_excluded",
+        "policy_excluded",
+        "remote_unreachable",
+        "advisory_only_ai_assist"
+      ]
+    },
+
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "editor_chrome",
+        "quick_fix_preview",
+        "diagnostics_detail",
+        "command_result",
+        "cli_headless_inspect",
+        "support_export"
+      ],
+      "description": "Closed set of consumers that must read the same arbitration record."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+
+    "provider_order_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rank",
+        "provider_id",
+        "provider_family",
+        "provider_role_class",
+        "provider_health_state_ref",
+        "summary"
+      ],
+      "properties": {
+        "rank": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based ordering of the provider in the inspector stack. Lower ranks are preferred. Provider preference may shift ordering but cannot hide conflicts, stale state, or scope warnings."
+        },
+        "provider_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_family": {
+          "$ref": "#/$defs/provider_family"
+        },
+        "provider_role_class": {
+          "$ref": "#/$defs/provider_role_class"
+        },
+        "provider_health_state_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reference into the matching provider_health_state_record. Bound to the row that this decision was made against."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "consumer_routing_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_surface_class",
+        "summary"
+      ],
+      "properties": {
+        "consumer_surface_class": {
+          "$ref": "#/$defs/consumer_surface_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "disagreement_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conflict_class",
+        "disagreement_visibility_class",
+        "summary"
+      ],
+      "properties": {
+        "conflict_class": {
+          "$ref": "#/$defs/conflict_class"
+        },
+        "disagreement_visibility_class": {
+          "$ref": "#/$defs/disagreement_visibility_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "conflict_class": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            },
+            "required": [
+              "conflict_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "disagreement_visibility_class": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "downgraded_promise_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgraded_promise_reason_class",
+        "summary"
+      ],
+      "properties": {
+        "downgraded_promise_reason_class": {
+          "$ref": "#/$defs/downgraded_promise_reason_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+
+    "linked_record_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_negotiation_packet_ref",
+        "result_provenance_ref",
+        "router_decision_ref"
+      ],
+      "properties": {
+        "capability_negotiation_packet_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result_provenance_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "router_decision_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "description": "Back-references into the existing capability_negotiation_packet, result_provenance, and router_decision records that this arbitration decision projects from. Null values mean the underlying record does not apply to this lane."
+    },
+
+    "arbitration_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "arbitration_decision_schema_version",
+        "arbitration_decision_id",
+        "language_action_lane_class",
+        "requested_authority_floor_class",
+        "requested_scope_claim_class",
+        "requested_subject_ref",
+        "provider_order_rows",
+        "chosen_provider_id",
+        "confidence_outcome_class",
+        "negotiated_scope_claim_class",
+        "negotiated_completeness_class",
+        "negotiated_freshness_class",
+        "disagreement_block",
+        "downgraded_promise_block",
+        "fallback_label_class",
+        "apply_gate_class",
+        "consumer_routing_rows",
+        "linked_record_refs",
+        "policy_context",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "arbitration_decision_schema_version": {
+          "$ref": "#/$defs/arbitration_decision_schema_version"
+        },
+        "arbitration_decision_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "language_action_lane_class": {
+          "$ref": "#/$defs/language_action_lane_class"
+        },
+        "requested_authority_floor_class": {
+          "$ref": "#/$defs/requested_authority_floor_class"
+        },
+        "requested_scope_claim_class": {
+          "$ref": "#/$defs/scope_claim_class"
+        },
+        "requested_subject_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_order_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/provider_order_row"
+          },
+          "minItems": 1
+        },
+        "chosen_provider_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Provider id chosen as winner. Null only when the confidence outcome is `unavailable`."
+        },
+        "confidence_outcome_class": {
+          "$ref": "#/$defs/confidence_outcome_class"
+        },
+        "negotiated_scope_claim_class": {
+          "$ref": "#/$defs/scope_claim_class"
+        },
+        "negotiated_completeness_class": {
+          "$ref": "#/$defs/completeness_class"
+        },
+        "negotiated_freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "disagreement_block": {
+          "$ref": "#/$defs/disagreement_block"
+        },
+        "downgraded_promise_block": {
+          "$ref": "#/$defs/downgraded_promise_block"
+        },
+        "fallback_label_class": {
+          "$ref": "#/$defs/fallback_label_class"
+        },
+        "apply_gate_class": {
+          "$ref": "#/$defs/apply_gate_class"
+        },
+        "consumer_routing_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/consumer_routing_row"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "linked_record_refs": {
+          "$ref": "#/$defs/linked_record_refs"
+        },
+        "policy_context": {
+          "$ref": "#/$defs/policy_context"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "confidence_outcome_class": {
+                "const": "exact"
+              }
+            },
+            "required": [
+              "confidence_outcome_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "negotiated_completeness_class": {
+                "const": "complete_for_claimed_scope"
+              },
+              "negotiated_freshness_class": {
+                "const": "authoritative_live"
+              },
+              "fallback_label_class": {
+                "const": "none"
+              },
+              "downgraded_promise_block": {
+                "properties": {
+                  "downgraded_promise_reason_class": {
+                    "const": "none"
+                  }
+                },
+                "required": [
+                  "downgraded_promise_reason_class"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "confidence_outcome_class": {
+                "const": "unavailable"
+              }
+            },
+            "required": [
+              "confidence_outcome_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "chosen_provider_id": {
+                "type": "null"
+              },
+              "apply_gate_class": {
+                "enum": [
+                  "blocked_for_health",
+                  "blocked_for_partial_scope",
+                  "blocked_for_disagreement",
+                  "inspect_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "confidence_outcome_class": {
+                "enum": [
+                  "heuristic",
+                  "partial",
+                  "stale"
+                ]
+              }
+            },
+            "required": [
+              "confidence_outcome_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "fallback_label_class": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "confidence_outcome_class": {
+                "const": "partial"
+              }
+            },
+            "required": [
+              "confidence_outcome_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "apply_gate_class": {
+                "enum": [
+                  "preview_required",
+                  "side_branch_required",
+                  "blocked_for_partial_scope",
+                  "blocked_for_disagreement",
+                  "inspect_only"
+                ]
+              },
+              "negotiated_completeness_class": {
+                "const": "partial_for_claimed_scope"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "language_action_lane_class": {
+                "const": "rename"
+              },
+              "requested_scope_claim_class": {
+                "enum": [
+                  "active_workset",
+                  "whole_workspace"
+                ]
+              },
+              "negotiated_completeness_class": {
+                "const": "partial_for_claimed_scope"
+              }
+            },
+            "required": [
+              "language_action_lane_class",
+              "requested_scope_claim_class",
+              "negotiated_completeness_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "apply_gate_class": {
+                "enum": [
+                  "preview_required",
+                  "side_branch_required",
+                  "blocked_for_partial_scope",
+                  "inspect_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "disagreement_block": {
+                "properties": {
+                  "conflict_class": {
+                    "not": {
+                      "const": "none"
+                    }
+                  }
+                },
+                "required": [
+                  "conflict_class"
+                ]
+              }
+            },
+            "required": [
+              "disagreement_block"
+            ]
+          },
+          "then": {
+            "properties": {
+              "apply_gate_class": {
+                "not": {
+                  "const": "ready_to_apply"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

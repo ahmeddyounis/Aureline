@@ -16,6 +16,7 @@ pub mod diagnostics;
 pub mod invalidation;
 pub mod lsp_router;
 pub mod packs;
+pub mod provider_arbitration;
 pub mod python;
 pub mod refactor_preview;
 pub mod symbol_snapshot;
@@ -90,6 +91,31 @@ pub use packs::{
     TsJsWebLanguageSupportClass, TsJsWebProviderRoute, TsJsWebToolHook,
     TsJsWebTrustAndIntegrityPolicy, PYTHON_SERVICE_LANGUAGE_PACK_SCHEMA_VERSION,
     TSJS_WEB_LANGUAGE_PACK_SCHEMA_VERSION,
+};
+pub use provider_arbitration::{
+    current_provider_arbitration_corpus, current_provider_arbitration_fixture_refs,
+    load_provider_arbitration_case, ApplyGateClass as ArbitrationApplyGateClass,
+    ArbitrationCompletenessClass, ArbitrationCorpusValidationDefect,
+    ArbitrationCorpusValidationReport, ArbitrationDecisionAggregateCounts,
+    ArbitrationDecisionRecord, ArbitrationDecisionReportRow, ArbitrationDecisionSchemaVersion,
+    ArbitrationEpochBinding, ArbitrationEpochRoleClass, ArbitrationFreshnessClass,
+    ArbitrationHealthState, ArbitrationInspector, ArbitrationInspectorBetaReport,
+    ArbitrationLocalityClass, ArbitrationPolicyContext, ArbitrationRedactionClass,
+    ArbitrationScopeClaimClass, ArbitrationTrustState, ConfidenceOutcomeClass,
+    ConflictClass as ArbitrationConflictClass, ConsumerRoutingRow, ConsumerSurfaceClass,
+    DisagreementBlock, DisagreementVisibilityClass, DowngradedPromiseBlock,
+    DowngradedPromiseReasonClass, FallbackLabelClass, FaultDomainClass, IsolateActionClass,
+    LaneSupportClass, LaneSupportRow, LanguageActionLaneClass, LinkedRecordRefs,
+    ProviderArbitrationCorpus, ProviderArbitrationCorpusEntry,
+    ProviderFamily as ArbitrationProviderFamily, ProviderHealthStateRecord,
+    ProviderHealthStateSchemaVersion, ProviderOrderRow,
+    ProviderRoleClass as ArbitrationProviderRoleClass, RecoveryHintClass,
+    RequestedAuthorityFloorClass as ArbitrationRequestedAuthorityFloorClass, RetryActionClass,
+    RetryIsolateControls, ARBITRATION_DECISION_RECORD_KIND, ARBITRATION_DECISION_SCHEMA_REF,
+    ARBITRATION_DECISION_SCHEMA_VERSION, PROVIDER_ARBITRATION_BETA_DOC_REF,
+    PROVIDER_ARBITRATION_BETA_REPORT_RECORD_KIND, PROVIDER_ARBITRATION_CORPUS_DIR,
+    PROVIDER_HEALTH_STATE_RECORD_KIND, PROVIDER_HEALTH_STATE_SCHEMA_REF,
+    PROVIDER_HEALTH_STATE_SCHEMA_VERSION,
 };
 pub use python::{
     PythonAccessKindClass, PythonAmbiguityDescriptor, PythonAnchorRef, PythonAnswerLayerClass,
