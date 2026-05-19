@@ -61,8 +61,24 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-preview/0.0.0")]
 
+pub mod preview_origin;
 pub mod safe_preview;
 
+pub use preview_origin::{
+    BrowserRuntimeSessionOrigin, BrowserSessionOriginClass, BrowserSessionScopeClass,
+    CrossOriginPostureClass, DeviceCapabilityClass, HotReloadEventClass, HotReloadStateDescriptor,
+    HotReloadStateRecoveryRoute, HotReloadUnderlyingStateClass, MutationActionKind,
+    MutationBlastClass, MutationReviewRequirement, PreviewLaneClass, PreviewOriginClass,
+    PreviewOriginDescriptor, PreviewOriginFinding, PreviewOriginLifecyclePhase,
+    PreviewOriginSharingPosture, PreviewTargetClass, PreviewTargetDescriptor,
+    PreviewTargetReducedCapabilityReason, ProtocolPostureClass, RuntimeMutationActionPlan,
+    SourceMappingDescriptor, SourceMappingQualityClass, BROWSER_SESSION_ORIGIN_RECORD_KIND,
+    BROWSER_SESSION_ORIGIN_SCHEMA_VERSION, HOT_RELOAD_STATE_DESCRIPTOR_RECORD_KIND,
+    HOT_RELOAD_STATE_DESCRIPTOR_SCHEMA_VERSION, PREVIEW_ORIGIN_DESCRIPTOR_RECORD_KIND,
+    PREVIEW_ORIGIN_DESCRIPTOR_SCHEMA_VERSION, PREVIEW_TARGET_DESCRIPTOR_RECORD_KIND,
+    PREVIEW_TARGET_DESCRIPTOR_SCHEMA_VERSION, RUNTIME_MUTATION_ACTION_PLAN_RECORD_KIND,
+    RUNTIME_MUTATION_ACTION_PLAN_SCHEMA_VERSION,
+};
 pub use safe_preview::{
     build_generated_content_preview, build_oversized_artifact_preview, build_risky_text_preview,
     ContentClass, CopyExportActionKind, CopyExportOption, CurrentlyVisibleRepresentation,

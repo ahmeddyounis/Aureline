@@ -5,7 +5,8 @@
   "description": "Boundary schema for the hot_reload_state_record frozen in docs/preview/preview_runtime_surface_contract.md. Every preview-runtime hot-reload status badge emits one record. The record carries the spec-frozen six-class hot_reload_state_class vocabulary (applied / partial / restart_required / rebuild_required / failed / unavailable), the strip-projection three-class source_mapping_state_class vocabulary (exact / approximate / unavailable), the inspect-to-source and mapped-edit gating booleans, and the closed list of source-safe recovery routes admissible from the current state. The schema enforces the projection map between source_mapping_state_class and the underlying preview_snapshot mapping_confidence_class, the gate that mapped_edit_admissible requires source_mapping_state_class = exact and hot_reload_state_class in {applied, partial}, and the per-state allowed recovery-route set so failed and rebuild_required states never collapse into a vague stale label. Raw stack frames, raw stderr lines, raw rendered bytes, raw URLs, raw absolute paths, and raw secret values never cross this boundary; opaque snapshot / runtime / log / approval handles and class labels do. Adding a new last_failure_reason_class, recovery_route_class, hot_reload_state_class, source_mapping_state_class, or mapped_edit_blocked_reason_class value is additive-minor and bumps hot_reload_state_schema_version; repurposing an existing field is breaking and requires a new decision row.",
   "type": "object",
   "oneOf": [
-    { "$ref": "#/$defs/hot_reload_state_record" }
+    { "$ref": "#/$defs/hot_reload_state_record" },
+    { "$ref": "#/$defs/hot_reload_state_descriptor_record" }
   ],
   "$defs": {
     "hot_reload_state_schema_version": {
@@ -528,6 +529,302 @@
         }
       ],
       "description": "One hot-reload state record emitted by a preview-runtime hot-reload status badge. Carries the six-class hot-reload vocabulary, the strip-projection three-class source-mapping vocabulary, the inspect-to-source and mapped-edit admissibility booleans, and the closed list of source-safe recovery routes admissible from the current state."
+    },
+
+    "hot_reload_event_class": {
+      "type": "string",
+      "enum": [
+        "hot_reload",
+        "fast_refresh",
+        "reconnect",
+        "full_restart",
+        "stale_output",
+        "unavailable"
+      ],
+      "description": "Closed event-class vocabulary the descriptor uses. Each value is a distinct state — the chrome MUST surface the token directly rather than collapsing it. hot_reload: full module-graph swap that preserves the document but discards component state. fast_refresh: finer-grained reload that preserves component state where the framework adapter declares it safe. reconnect: previous runtime connection dropped and Aureline re-established a session against the same runtime. full_restart: runtime process itself restarted; all in-memory state lost. stale_output: runtime did not produce a new frame for the latest source change. unavailable: runtime adapter does not support live update."
+    },
+
+    "hot_reload_descriptor_underlying_state_class": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "partial",
+        "restart_required",
+        "rebuild_required",
+        "failed",
+        "unavailable"
+      ],
+      "description": "Closed underlying-state vocabulary mirrored from hot_reload_state_class so the descriptor and the strip-projection record stay in lockstep."
+    },
+
+    "hot_reload_state_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "hot_reload_state_descriptor_schema_version",
+        "hot_reload_state_descriptor_id",
+        "preview_origin_descriptor_ref",
+        "preview_snapshot_record_ref",
+        "observed_at",
+        "event_class",
+        "underlying_state_class",
+        "recovery_routes",
+        "component_state_preserved",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "hot_reload_state_descriptor_record"
+        },
+        "hot_reload_state_descriptor_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "hot_reload_state_descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "preview_origin_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_snapshot_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "event_class": { "$ref": "#/$defs/hot_reload_event_class" },
+        "underlying_state_class": {
+          "$ref": "#/$defs/hot_reload_descriptor_underlying_state_class"
+        },
+        "recovery_routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_route_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "component_state_preserved": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "Projection map: event_class = hot_reload requires underlying_state_class in {applied, partial}.",
+          "if": {
+            "properties": { "event_class": { "const": "hot_reload" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_state_class": { "enum": ["applied", "partial"] }
+            }
+          }
+        },
+        {
+          "description": "Projection map: event_class = fast_refresh requires underlying_state_class = applied.",
+          "if": {
+            "properties": { "event_class": { "const": "fast_refresh" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "underlying_state_class": { "const": "applied" } }
+          }
+        },
+        {
+          "description": "Projection map: event_class = reconnect requires underlying_state_class in {applied, partial}.",
+          "if": {
+            "properties": { "event_class": { "const": "reconnect" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_state_class": { "enum": ["applied", "partial"] }
+            }
+          }
+        },
+        {
+          "description": "Projection map: event_class = full_restart requires underlying_state_class in {restart_required, applied}.",
+          "if": {
+            "properties": { "event_class": { "const": "full_restart" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_state_class": { "enum": ["restart_required", "applied"] }
+            }
+          }
+        },
+        {
+          "description": "Projection map: event_class = stale_output requires underlying_state_class in {partial, failed, rebuild_required}.",
+          "if": {
+            "properties": { "event_class": { "const": "stale_output" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_state_class": {
+                "enum": ["partial", "failed", "rebuild_required"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Projection map: event_class = unavailable requires underlying_state_class = unavailable.",
+          "if": {
+            "properties": { "event_class": { "const": "unavailable" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "underlying_state_class": { "const": "unavailable" } }
+          }
+        },
+        {
+          "description": "fast_refresh implies component_state_preserved = true.",
+          "if": {
+            "properties": { "event_class": { "const": "fast_refresh" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "component_state_preserved": { "const": true } }
+          }
+        },
+        {
+          "description": "full_restart and unavailable forbid component_state_preserved = true.",
+          "if": {
+            "properties": {
+              "event_class": { "enum": ["full_restart", "unavailable"] }
+            },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": { "component_state_preserved": { "const": false } }
+          }
+        },
+        {
+          "description": "Recovery routes: event_class = hot_reload allows {no_recovery_required_applied, wait_for_partial_to_settle, open_canonical_source_recovery, inspect_only_with_diff_against_source_recovery}.",
+          "if": {
+            "properties": { "event_class": { "const": "hot_reload" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "items": {
+                  "enum": [
+                    "no_recovery_required_applied",
+                    "wait_for_partial_to_settle",
+                    "open_canonical_source_recovery",
+                    "inspect_only_with_diff_against_source_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery routes: event_class = fast_refresh allows {no_recovery_required_applied, open_canonical_source_recovery, inspect_only_with_diff_against_source_recovery}.",
+          "if": {
+            "properties": { "event_class": { "const": "fast_refresh" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "items": {
+                  "enum": [
+                    "no_recovery_required_applied",
+                    "open_canonical_source_recovery",
+                    "inspect_only_with_diff_against_source_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery routes: event_class = reconnect allows {no_recovery_required_applied, wait_for_partial_to_settle, open_runtime_logs_recovery, open_canonical_source_recovery, inspect_only_with_diff_against_source_recovery, request_managed_runtime_recovery}.",
+          "if": {
+            "properties": { "event_class": { "const": "reconnect" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "items": {
+                  "enum": [
+                    "no_recovery_required_applied",
+                    "wait_for_partial_to_settle",
+                    "open_runtime_logs_recovery",
+                    "open_canonical_source_recovery",
+                    "inspect_only_with_diff_against_source_recovery",
+                    "request_managed_runtime_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery routes: event_class = full_restart allows {restart_runtime_recovery, rebuild_then_reload_recovery, open_runtime_logs_recovery, open_canonical_source_recovery, inspect_only_with_diff_against_source_recovery, request_managed_runtime_recovery}.",
+          "if": {
+            "properties": { "event_class": { "const": "full_restart" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "items": {
+                  "enum": [
+                    "restart_runtime_recovery",
+                    "rebuild_then_reload_recovery",
+                    "open_runtime_logs_recovery",
+                    "open_canonical_source_recovery",
+                    "inspect_only_with_diff_against_source_recovery",
+                    "request_managed_runtime_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery routes: event_class = stale_output allows {restart_runtime_recovery, rebuild_then_reload_recovery, inspect_only_with_diff_against_source_recovery, export_metadata_only_recovery, open_canonical_source_recovery, open_runtime_logs_recovery}.",
+          "if": {
+            "properties": { "event_class": { "const": "stale_output" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "items": {
+                  "enum": [
+                    "restart_runtime_recovery",
+                    "rebuild_then_reload_recovery",
+                    "inspect_only_with_diff_against_source_recovery",
+                    "export_metadata_only_recovery",
+                    "open_canonical_source_recovery",
+                    "open_runtime_logs_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Recovery routes: event_class = unavailable allows {no_recovery_required_static_preview_unavailable, export_metadata_only_recovery, open_canonical_source_recovery, request_managed_runtime_recovery}.",
+          "if": {
+            "properties": { "event_class": { "const": "unavailable" } },
+            "required": ["event_class"]
+          },
+          "then": {
+            "properties": {
+              "recovery_routes": {
+                "items": {
+                  "enum": [
+                    "no_recovery_required_static_preview_unavailable",
+                    "export_metadata_only_recovery",
+                    "open_canonical_source_recovery",
+                    "request_managed_runtime_recovery"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Beta hot-reload state descriptor record. Layers the finer event-class vocabulary (hot_reload / fast_refresh / reconnect / full_restart / stale_output / unavailable) on top of the underlying six-class strip state so claimed beta rows never collapse them into one generic live-preview label."
     }
   }
 }

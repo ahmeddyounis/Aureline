@@ -1,0 +1,616 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/preview/preview_target_descriptor.schema.json",
+  "title": "Aureline preview-target descriptor and preview-origin descriptor records",
+  "description": "Boundary schema for the preview-origin / preview-target truth model frozen in docs/preview/m3/preview_target_and_hot_reload_beta.md. The preview_origin_descriptor_record names the runtime / renderer that produced the view a beta preview row is showing (local dev server, remote / container runtime, managed preview service, embedded renderer, imported / static evidence). The preview_target_descriptor_record names the target kind on screen right now (viewport preset, design renderer, simulator, physical device, browser tab, embedded webview, remote preview target) plus a closed device-capability vocabulary and a closed reduced-capability reason vocabulary so degraded targets never inherit the desktop default's capability set by silence. The runtime_mutation_action_plan_record names the next action's blast radius and review requirement so a reload / clear-storage / replay-request / live-style-edit / restart never implies local-only safety when it actually crosses a remote, managed, or shared-route boundary. Raw URLs, raw IPs, raw hostnames, raw device serial numbers, raw cookies, raw selectors, and raw bodies never cross this boundary; opaque runtime / target / session / approval handles and closed class labels do. Adding a new preview_origin_class, lifecycle_phase, sharing_posture_class, preview_target_class, device_capability_class, reduced_capability_reason, mutation_action_kind, mutation_blast_class, or mutation_review_requirement value is additive-minor and bumps the per-record schema_version. Repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/preview_origin_descriptor_record" },
+    { "$ref": "#/$defs/preview_target_descriptor_record" },
+    { "$ref": "#/$defs/runtime_mutation_action_plan_record" }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw device serial numbers, raw account handles, raw bearer tokens, and raw secret values never appear here."
+    },
+
+    "redacted_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Reviewer-facing short label safe to render on a chip. Raw URLs, raw hostnames, raw device serials, raw account handles, raw selectors, and raw secret values never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing one-sentence summary safe to render in chrome and support exports. Raw rendered bytes, raw stack frames, raw cookies, raw private app state never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "preview_lane_class": {
+      "type": "string",
+      "enum": [
+        "browser_preview_lane",
+        "native_preview_lane",
+        "embedded_preview_lane"
+      ]
+    },
+
+    "preview_origin_class": {
+      "type": "string",
+      "enum": [
+        "local_dev_server",
+        "remote_or_container_runtime",
+        "managed_preview_service",
+        "embedded_renderer",
+        "imported_or_static_evidence"
+      ],
+      "description": "Closed preview-origin vocabulary naming the runtime / renderer that produced the current view."
+    },
+
+    "preview_origin_lifecycle_phase": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "warming",
+        "running",
+        "reconnecting",
+        "restarting",
+        "suspended",
+        "stopped",
+        "unreachable",
+        "not_applicable_static_evidence"
+      ],
+      "description": "Closed lifecycle-phase vocabulary the descriptor uses to describe what the origin is doing right now."
+    },
+
+    "preview_origin_sharing_posture": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "same_device_or_lan",
+        "authenticated_org_route",
+        "signed_preview_link",
+        "public_route",
+        "not_applicable_no_network_surface"
+      ],
+      "description": "Closed sharing / exposure vocabulary mirroring the route-governance exposure classes."
+    },
+
+    "preview_target_class": {
+      "type": "string",
+      "enum": [
+        "viewport_preset_only",
+        "design_renderer_target",
+        "simulator_target",
+        "physical_device_target",
+        "browser_tab_target",
+        "embedded_webview_target",
+        "remote_preview_target"
+      ],
+      "description": "Closed preview-target vocabulary. Always rendered as a labeled chip; reduced-capability or unsupported targets degrade through device_capability_class + reduced_capability_reason rather than masquerading as desktop_default."
+    },
+
+    "device_capability_class": {
+      "type": "string",
+      "enum": [
+        "desktop_default",
+        "touch",
+        "mobile",
+        "tablet",
+        "wearable",
+        "television",
+        "high_dpi",
+        "low_resource",
+        "reduced_capability",
+        "not_applicable"
+      ],
+      "description": "Closed device-capability vocabulary naming the capability profile a target row can honestly claim. reduced_capability MUST cite a reason other than 'none'."
+    },
+
+    "reduced_capability_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "no_input_device",
+        "no_camera",
+        "no_gpu_acceleration",
+        "low_resource_mode",
+        "network_restricted",
+        "protocol_downgraded",
+        "policy_narrowed",
+        "unsupported_runtime_feature",
+        "emulator_fallback"
+      ],
+      "description": "Closed reduced-capability reason vocabulary. The chrome quotes the token verbatim so a degraded target never silently inherits the desktop default's capability claim."
+    },
+
+    "mutation_action_kind": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "reload_preview",
+        "clear_browser_storage",
+        "replay_network_request",
+        "live_style_edit",
+        "restart_runtime",
+        "navigate_browser_tab",
+        "trigger_hot_reload",
+        "toggle_device_condition",
+        "export_inspector_state"
+      ],
+      "description": "Closed action-kind vocabulary. Names what the action does without minting per-runtime synonyms."
+    },
+
+    "mutation_blast_class": {
+      "type": "string",
+      "enum": [
+        "no_mutation_inspect_only",
+        "local_runtime_only",
+        "local_browser_state_only",
+        "local_runtime_and_browser_state",
+        "remote_runtime_reachable",
+        "managed_preview_service_state",
+        "shared_route_audience",
+        "not_applicable_static_evidence"
+      ],
+      "description": "Closed blast-class vocabulary. Names how far the mutation reaches. The chrome MUST quote the class verbatim; local_runtime_only MUST NOT be inferred from a runtime that secretly mutates remote state."
+    },
+
+    "mutation_review_requirement": {
+      "type": "string",
+      "enum": [
+        "no_review_required_inspect_only",
+        "explicit_confirm_before_apply",
+        "managed_approval_required_before_apply",
+        "blocked_not_admissible"
+      ],
+      "description": "Closed review-requirement vocabulary. The chrome MUST satisfy the requirement before a mutation-capable action is admissible."
+    },
+
+    "preview_origin_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "preview_origin_descriptor_schema_version",
+        "preview_origin_descriptor_id",
+        "observed_at",
+        "preview_lane_class",
+        "origin_class",
+        "lifecycle_phase",
+        "sharing_posture",
+        "redacted_runtime_label",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "preview_origin_descriptor_record"
+        },
+        "preview_origin_descriptor_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "preview_origin_descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "preview_lane_class": { "$ref": "#/$defs/preview_lane_class" },
+        "origin_class": { "$ref": "#/$defs/preview_origin_class" },
+        "lifecycle_phase": { "$ref": "#/$defs/preview_origin_lifecycle_phase" },
+        "sharing_posture": { "$ref": "#/$defs/preview_origin_sharing_posture" },
+        "runtime_handle_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "exposure_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "preview_snapshot_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "managed_workspace_approval_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "redacted_runtime_label": { "$ref": "#/$defs/redacted_label" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "managed_preview_service requires a non-null managed_workspace_approval_ref.",
+          "if": {
+            "properties": { "origin_class": { "const": "managed_preview_service" } },
+            "required": ["origin_class"]
+          },
+          "then": {
+            "properties": {
+              "managed_workspace_approval_ref": { "type": "string" }
+            },
+            "required": ["managed_workspace_approval_ref"]
+          }
+        },
+        {
+          "description": "imported_or_static_evidence requires lifecycle_phase = not_applicable_static_evidence.",
+          "if": {
+            "properties": { "origin_class": { "const": "imported_or_static_evidence" } },
+            "required": ["origin_class"]
+          },
+          "then": {
+            "properties": {
+              "lifecycle_phase": { "const": "not_applicable_static_evidence" }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_phase = not_applicable_static_evidence is reserved for imported_or_static_evidence origins.",
+          "if": {
+            "properties": { "lifecycle_phase": { "const": "not_applicable_static_evidence" } },
+            "required": ["lifecycle_phase"]
+          },
+          "then": {
+            "properties": { "origin_class": { "const": "imported_or_static_evidence" } }
+          }
+        },
+        {
+          "description": "Remote-audience sharing posture requires a non-null exposure_record_ref.",
+          "if": {
+            "properties": {
+              "sharing_posture": {
+                "enum": ["authenticated_org_route", "signed_preview_link", "public_route"]
+              }
+            },
+            "required": ["sharing_posture"]
+          },
+          "then": {
+            "properties": { "exposure_record_ref": { "type": "string" } },
+            "required": ["exposure_record_ref"]
+          }
+        },
+        {
+          "description": "Remote / managed origin must not advertise local_only sharing posture.",
+          "if": {
+            "properties": {
+              "origin_class": {
+                "enum": ["remote_or_container_runtime", "managed_preview_service"]
+              }
+            },
+            "required": ["origin_class"]
+          },
+          "then": {
+            "properties": {
+              "sharing_posture": {
+                "not": { "const": "local_only" }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "preview_target_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "preview_target_descriptor_schema_version",
+        "preview_target_descriptor_id",
+        "observed_at",
+        "preview_target_class",
+        "device_capability_class",
+        "reduced_capability_reason",
+        "preview_origin_descriptor_ref",
+        "redacted_label",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "preview_target_descriptor_record"
+        },
+        "preview_target_descriptor_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "preview_target_descriptor_id": { "$ref": "#/$defs/opaque_id" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "preview_target_class": { "$ref": "#/$defs/preview_target_class" },
+        "device_capability_class": { "$ref": "#/$defs/device_capability_class" },
+        "reduced_capability_reason": { "$ref": "#/$defs/reduced_capability_reason" },
+        "preview_origin_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "device_target_descriptor_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "browser_runtime_session_origin_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "viewport_pixel_width": {
+          "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }]
+        },
+        "viewport_pixel_height": {
+          "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }]
+        },
+        "redacted_label": { "$ref": "#/$defs/redacted_label" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "device_capability_class = reduced_capability requires reduced_capability_reason other than 'none'.",
+          "if": {
+            "properties": { "device_capability_class": { "const": "reduced_capability" } },
+            "required": ["device_capability_class"]
+          },
+          "then": {
+            "properties": {
+              "reduced_capability_reason": {
+                "not": { "const": "none" }
+              }
+            }
+          }
+        },
+        {
+          "description": "device_capability_class != reduced_capability requires reduced_capability_reason = 'none'.",
+          "if": {
+            "properties": {
+              "device_capability_class": {
+                "enum": [
+                  "desktop_default",
+                  "touch",
+                  "mobile",
+                  "tablet",
+                  "wearable",
+                  "television",
+                  "high_dpi",
+                  "low_resource",
+                  "not_applicable"
+                ]
+              }
+            },
+            "required": ["device_capability_class"]
+          },
+          "then": {
+            "properties": { "reduced_capability_reason": { "const": "none" } }
+          }
+        },
+        {
+          "description": "browser_tab / embedded_webview / remote_preview targets require a non-null browser_runtime_session_origin_ref.",
+          "if": {
+            "properties": {
+              "preview_target_class": {
+                "enum": ["browser_tab_target", "embedded_webview_target", "remote_preview_target"]
+              }
+            },
+            "required": ["preview_target_class"]
+          },
+          "then": {
+            "properties": { "browser_runtime_session_origin_ref": { "type": "string" } },
+            "required": ["browser_runtime_session_origin_ref"]
+          }
+        },
+        {
+          "description": "Non-browser-runtime targets must not publish a browser_runtime_session_origin_ref.",
+          "if": {
+            "properties": {
+              "preview_target_class": {
+                "enum": [
+                  "viewport_preset_only",
+                  "design_renderer_target",
+                  "simulator_target",
+                  "physical_device_target"
+                ]
+              }
+            },
+            "required": ["preview_target_class"]
+          },
+          "then": {
+            "properties": { "browser_runtime_session_origin_ref": { "type": "null" } }
+          }
+        },
+        {
+          "description": "viewport_preset_only with desktop_default capability must publish viewport pixel width and height.",
+          "if": {
+            "allOf": [
+              {
+                "properties": { "preview_target_class": { "const": "viewport_preset_only" } },
+                "required": ["preview_target_class"]
+              },
+              {
+                "properties": { "device_capability_class": { "const": "desktop_default" } },
+                "required": ["device_capability_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "viewport_pixel_width": { "type": "integer", "minimum": 1 },
+              "viewport_pixel_height": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["viewport_pixel_width", "viewport_pixel_height"]
+          }
+        }
+      ]
+    },
+
+    "runtime_mutation_action_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "runtime_mutation_action_plan_schema_version",
+        "runtime_mutation_action_plan_id",
+        "observed_at",
+        "preview_origin_descriptor_ref",
+        "preview_target_descriptor_ref",
+        "action_kind",
+        "blast_class",
+        "review_requirement",
+        "side_effect_summary",
+        "support_export_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "runtime_mutation_action_plan_record"
+        },
+        "runtime_mutation_action_plan_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "runtime_mutation_action_plan_id": { "$ref": "#/$defs/opaque_id" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "preview_origin_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_target_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "browser_runtime_session_origin_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "managed_workspace_approval_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "action_kind": { "$ref": "#/$defs/mutation_action_kind" },
+        "blast_class": { "$ref": "#/$defs/mutation_blast_class" },
+        "review_requirement": { "$ref": "#/$defs/mutation_review_requirement" },
+        "side_effect_summary": { "$ref": "#/$defs/short_summary" },
+        "support_export_summary": { "$ref": "#/$defs/short_summary" },
+        "block_reason_summary": {
+          "anyOf": [{ "$ref": "#/$defs/short_summary" }, { "type": "null" }]
+        }
+      },
+      "allOf": [
+        {
+          "description": "inspect_only / export_inspector_state actions cannot declare a mutation blast class.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "enum": ["inspect_only", "export_inspector_state"]
+              }
+            },
+            "required": ["action_kind"]
+          },
+          "then": {
+            "properties": {
+              "blast_class": {
+                "enum": ["no_mutation_inspect_only", "not_applicable_static_evidence"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Mutation-capable actions cannot declare blast_class = no_mutation_inspect_only.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "enum": [
+                  "reload_preview",
+                  "clear_browser_storage",
+                  "replay_network_request",
+                  "live_style_edit",
+                  "restart_runtime",
+                  "navigate_browser_tab",
+                  "trigger_hot_reload",
+                  "toggle_device_condition"
+                ]
+              }
+            },
+            "required": ["action_kind"]
+          },
+          "then": {
+            "properties": {
+              "blast_class": {
+                "not": { "const": "no_mutation_inspect_only" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Remote / governed blast class requires managed_approval_required_before_apply.",
+          "if": {
+            "properties": {
+              "blast_class": {
+                "enum": [
+                  "remote_runtime_reachable",
+                  "managed_preview_service_state",
+                  "shared_route_audience"
+                ]
+              }
+            },
+            "required": ["blast_class"]
+          },
+          "then": {
+            "properties": {
+              "review_requirement": {
+                "enum": ["managed_approval_required_before_apply", "blocked_not_admissible"]
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_approval_required_before_apply requires a non-null managed_workspace_approval_ref.",
+          "if": {
+            "properties": {
+              "review_requirement": { "const": "managed_approval_required_before_apply" }
+            },
+            "required": ["review_requirement"]
+          },
+          "then": {
+            "properties": { "managed_workspace_approval_ref": { "type": "string" } },
+            "required": ["managed_workspace_approval_ref"]
+          }
+        },
+        {
+          "description": "blocked_not_admissible requires a non-null block_reason_summary.",
+          "if": {
+            "properties": { "review_requirement": { "const": "blocked_not_admissible" } },
+            "required": ["review_requirement"]
+          },
+          "then": {
+            "properties": { "block_reason_summary": { "type": "string" } },
+            "required": ["block_reason_summary"]
+          }
+        },
+        {
+          "description": "block_reason_summary is admissible only when review_requirement = blocked_not_admissible.",
+          "if": {
+            "properties": {
+              "review_requirement": {
+                "enum": [
+                  "no_review_required_inspect_only",
+                  "explicit_confirm_before_apply",
+                  "managed_approval_required_before_apply"
+                ]
+              }
+            },
+            "required": ["review_requirement"]
+          },
+          "then": {
+            "properties": { "block_reason_summary": { "type": "null" } }
+          }
+        },
+        {
+          "description": "Browser-state-mutating actions require a non-null browser_runtime_session_origin_ref.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "enum": [
+                  "clear_browser_storage",
+                  "navigate_browser_tab",
+                  "replay_network_request",
+                  "live_style_edit"
+                ]
+              }
+            },
+            "required": ["action_kind"]
+          },
+          "then": {
+            "properties": { "browser_runtime_session_origin_ref": { "type": "string" } },
+            "required": ["browser_runtime_session_origin_ref"]
+          }
+        }
+      ]
+    }
+  }
+}

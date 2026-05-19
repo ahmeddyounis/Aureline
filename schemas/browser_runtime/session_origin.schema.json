@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/browser_runtime/session_origin.schema.json",
+  "title": "Aureline browser-runtime session-origin record",
+  "description": "Boundary schema for the browser_runtime_session_origin_record frozen in docs/preview/m3/preview_target_and_hot_reload_beta.md. Every beta preview row that participates in the browser-runtime inspection lane publishes one session-origin record so the chrome can answer 'which browser session is producing this view and what cross-origin / protocol limits apply when we inspect it'. The schema enforces that external_handoff_browser sessions forbid a live session_handle_ref and require a non-null handoff_record_ref with session_scope_class = handoff_only; that no_session_attached sessions forbid a session_handle_ref and require cross_origin_posture = protocol_posture = not_applicable; that inspectable sessions (attached_local_browser, embedded_webview, remote_devtools_bridge) require a session_handle_ref; and that cross-origin postures that imply blocked targets cannot claim source_mapping.source_mapping_quality_class = exact on the same record. Raw URLs, raw cookies, raw origin hostnames, raw selectors, raw bodies never cross this boundary; opaque session / handoff handles, redacted labels, and closed class labels do. Adding a new browser_session_origin_class, browser_session_scope_class, cross_origin_posture_class, protocol_posture_class, or source_mapping_quality_class value is additive-minor and bumps browser_runtime_session_origin_schema_version. Repurposing an existing field is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/browser_runtime_session_origin_record" }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw cookies, raw origin hostnames, raw bearer tokens never appear here."
+    },
+
+    "redacted_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Reviewer-facing label safe to render on a chip. Raw origin hostnames, raw cookies, raw selectors never appear here."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing one-sentence summary safe to render in inspector chrome and support exports."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "browser_session_origin_class": {
+      "type": "string",
+      "enum": [
+        "attached_local_browser",
+        "embedded_webview",
+        "remote_devtools_bridge",
+        "external_handoff_browser",
+        "no_session_attached"
+      ],
+      "description": "Closed browser-session-origin vocabulary. Names which kind of session produced the inspectable target."
+    },
+
+    "browser_session_scope_class": {
+      "type": "string",
+      "enum": [
+        "per_tab",
+        "per_window",
+        "per_profile",
+        "per_webview",
+        "per_extension_host",
+        "handoff_only",
+        "not_applicable"
+      ],
+      "description": "Closed session-scope vocabulary naming the boundary the session is bound to."
+    },
+
+    "cross_origin_posture_class": {
+      "type": "string",
+      "enum": [
+        "same_origin",
+        "cross_origin_allowed",
+        "cross_origin_blocked",
+        "cross_origin_partially_blocked",
+        "mixed_content_blocked",
+        "not_applicable"
+      ],
+      "description": "Closed cross-origin posture vocabulary. Browser-runtime inspectors and source jumps must keep cross-origin limits explicit; the descriptor quotes the posture verbatim instead of silently downgrading."
+    },
+
+    "protocol_posture_class": {
+      "type": "string",
+      "enum": [
+        "secure_context",
+        "insecure_context_local",
+        "insecure_context_remote_downgraded",
+        "devtools_protocol_only",
+        "bridge_only_no_protocol",
+        "not_applicable"
+      ],
+      "description": "Closed protocol-posture vocabulary mirroring the cross-origin posture for protocol-level limits."
+    },
+
+    "source_mapping_quality_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "heuristic",
+        "stale",
+        "partial",
+        "unavailable"
+      ],
+      "description": "Closed source-mapping quality vocabulary. exact: every node maps unambiguously to a canonical-source byte. heuristic: best-effort map produced from naming / convention. stale: map was once accurate but the source has drifted. partial: only a subset of nodes maps. unavailable: no source mapping at all."
+    },
+
+    "source_mapping_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_mapping_quality_class",
+        "total_node_count",
+        "exact_mapped_node_count",
+        "unmappable_node_count",
+        "summary"
+      ],
+      "properties": {
+        "source_mapping_quality_class": { "$ref": "#/$defs/source_mapping_quality_class" },
+        "total_node_count": { "type": "integer", "minimum": 0 },
+        "exact_mapped_node_count": { "type": "integer", "minimum": 0 },
+        "unmappable_node_count": { "type": "integer", "minimum": 0 },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "exact mapping forbids unmappable nodes and requires full coverage (when total_node_count > 0).",
+          "if": {
+            "properties": { "source_mapping_quality_class": { "const": "exact" } },
+            "required": ["source_mapping_quality_class"]
+          },
+          "then": {
+            "properties": { "unmappable_node_count": { "const": 0 } }
+          }
+        },
+        {
+          "description": "partial mapping requires at least one unmappable node.",
+          "if": {
+            "properties": { "source_mapping_quality_class": { "const": "partial" } },
+            "required": ["source_mapping_quality_class"]
+          },
+          "then": {
+            "properties": {
+              "unmappable_node_count": { "type": "integer", "minimum": 1 },
+              "exact_mapped_node_count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        {
+          "description": "unavailable mapping cannot report mapped nodes.",
+          "if": {
+            "properties": { "source_mapping_quality_class": { "const": "unavailable" } },
+            "required": ["source_mapping_quality_class"]
+          },
+          "then": {
+            "properties": { "exact_mapped_node_count": { "const": 0 } }
+          }
+        }
+      ]
+    },
+
+    "browser_runtime_session_origin_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "browser_runtime_session_origin_schema_version",
+        "browser_runtime_session_origin_id",
+        "preview_origin_descriptor_ref",
+        "preview_target_descriptor_ref",
+        "session_origin_class",
+        "session_scope_class",
+        "cross_origin_posture",
+        "protocol_posture",
+        "source_mapping",
+        "redacted_session_label",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "browser_runtime_session_origin_record"
+        },
+        "browser_runtime_session_origin_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "browser_runtime_session_origin_id": { "$ref": "#/$defs/opaque_id" },
+        "preview_origin_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_target_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_origin_class": { "$ref": "#/$defs/browser_session_origin_class" },
+        "session_scope_class": { "$ref": "#/$defs/browser_session_scope_class" },
+        "cross_origin_posture": { "$ref": "#/$defs/cross_origin_posture_class" },
+        "protocol_posture": { "$ref": "#/$defs/protocol_posture_class" },
+        "source_mapping": { "$ref": "#/$defs/source_mapping_descriptor" },
+        "session_handle_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "handoff_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "redacted_session_label": { "$ref": "#/$defs/redacted_label" },
+        "summary": { "$ref": "#/$defs/short_summary" }
+      },
+      "allOf": [
+        {
+          "description": "external_handoff_browser forbids a live session_handle_ref and requires a non-null handoff_record_ref with session_scope_class = handoff_only.",
+          "if": {
+            "properties": { "session_origin_class": { "const": "external_handoff_browser" } },
+            "required": ["session_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "session_handle_ref": { "type": "null" },
+              "handoff_record_ref": { "type": "string" },
+              "session_scope_class": { "const": "handoff_only" }
+            },
+            "required": ["handoff_record_ref"]
+          }
+        },
+        {
+          "description": "no_session_attached forbids a session_handle_ref and requires cross_origin_posture = protocol_posture = not_applicable.",
+          "if": {
+            "properties": { "session_origin_class": { "const": "no_session_attached" } },
+            "required": ["session_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "session_handle_ref": { "type": "null" },
+              "cross_origin_posture": { "const": "not_applicable" },
+              "protocol_posture": { "const": "not_applicable" }
+            }
+          }
+        },
+        {
+          "description": "Inspectable sessions (attached_local_browser, embedded_webview, remote_devtools_bridge) require a session_handle_ref.",
+          "if": {
+            "properties": {
+              "session_origin_class": {
+                "enum": ["attached_local_browser", "embedded_webview", "remote_devtools_bridge"]
+              }
+            },
+            "required": ["session_origin_class"]
+          },
+          "then": {
+            "properties": { "session_handle_ref": { "type": "string" } },
+            "required": ["session_handle_ref"]
+          }
+        },
+        {
+          "description": "Cross-origin postures that imply blocked targets cannot claim source_mapping.source_mapping_quality_class = exact.",
+          "if": {
+            "properties": {
+              "cross_origin_posture": {
+                "enum": [
+                  "cross_origin_blocked",
+                  "cross_origin_partially_blocked",
+                  "mixed_content_blocked"
+                ]
+              }
+            },
+            "required": ["cross_origin_posture"]
+          },
+          "then": {
+            "properties": {
+              "source_mapping": {
+                "properties": {
+                  "source_mapping_quality_class": {
+                    "not": { "const": "exact" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
