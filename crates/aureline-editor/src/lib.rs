@@ -17,6 +17,7 @@ pub mod large_file;
 pub mod large_file_mode;
 pub mod modes;
 pub mod orientation;
+pub mod orientation_aids;
 pub mod outline;
 pub mod paint;
 pub mod selection;
@@ -66,6 +67,14 @@ pub use orientation::{
     EditorOrientationTruthRecord, FoldSummaryRecord, HiddenStateCounts, MultiCursorIndicatorRecord,
     OrientationAidAvailability, OverviewAidKind, OverviewAidRecord,
     ORIENTATION_TRUTH_SCHEMA_VERSION,
+};
+pub use orientation_aids::{
+    build_beta_orientation_aid_state_record, BetaOrientationAidInput,
+    BreadcrumbContinuityStateRecord, FoldSummaryStateRecord, GutterMarkerStateRecord,
+    HiddenMarkerCount, MarkerFamilyClass, MultiCursorAttributionRecord, MultiCursorModePosture,
+    OrientationAidAvailabilityClass, OrientationAidStateRecord, OrientationSurfaceClass,
+    OverviewAidKindClass, OverviewAidStateRecord, UndoGroupingClass,
+    FOLD_SUMMARY_STATE_SCHEMA_VERSION, ORIENTATION_AID_STATE_SCHEMA_VERSION,
 };
 pub use outline::{
     EditorStructuralSnapshot, FoldRange, FoldVisibilityState, OutlineNode, OutlineNodeKind,
