@@ -1,0 +1,478 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deployment/plane_status.schema.json",
+  "title": "Aureline control-plane/data-plane status strip record",
+  "description": "Beta-exit named contract for the plane_status_strip_record, the single record a status strip, banner, About panel sub-cell, diagnostics view, support-packet export, admin-audit excerpt, and CLI text formatter render when distinguishing identity / policy / catalog / relay impairment (control plane) from workspace / runtime / attach / stream impairment (data plane). The record never collapses control-plane outages into generic 'service degraded' copy where local editing remains safe: it carries one control_plane_summary (worst surviving service state plus impaired and healthy service-class lists), one data_plane_summary (worst surviving capability state plus impaired and available capability-class lists), and one bounded, inspect-only safest_next_action drawn from a closed vocabulary (continue_local, retry_policy_sync, switch_mirror, export_packet, reconnect_managed_session, recheck_boundary, await_resolution, open_outage_notice). The schema mints no new control_plane_service_class, control_plane_service_state_class, data_plane_capability_class, data_plane_capability_state_class, or redaction_class value; those re-export verbatim from /schemas/deployment/deployment_summary_card.schema.json and /schemas/deployment/local_core_continuity_packet.schema.json. Adding a new safest_next_action_class or consumer_surface_class is additive-minor and bumps schema_version; weakening the plane-separation invariant or relaxing the requirement that a safe local path remain available whenever data-plane capabilities stay available_local_safe is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "strip_id",
+    "emitted_at",
+    "control_plane_summary",
+    "data_plane_summary",
+    "safest_next_action",
+    "consumer_surfaces",
+    "redaction_class",
+    "export_safe"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "type": "string", "const": "plane_status_strip_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "strip_id": { "$ref": "#/$defs/opaque_id" },
+    "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "control_plane_summary": { "$ref": "#/$defs/control_plane_summary" },
+    "data_plane_summary": { "$ref": "#/$defs/data_plane_summary" },
+    "safest_next_action": { "$ref": "#/$defs/safest_next_action" },
+    "alternate_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/safest_next_action" }
+    },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_surface_class" },
+      "uniqueItems": true
+    },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "export_safe": { "type": "boolean" },
+    "linked_profile_summary_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_outage_notice_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "description": "Generic service-degraded copy is forbidden when local-safe data-plane capabilities remain: the safest_next_action MUST be continue_local (or an action that still preserves local work) whenever the data plane is available_local_safe AND the control plane is healthy or not-applicable.",
+      "if": {
+        "allOf": [
+          {
+            "properties": {
+              "data_plane_summary": {
+                "type": "object",
+                "properties": {
+                  "worst_state_class": { "const": "available_local_safe" }
+                },
+                "required": ["worst_state_class"]
+              }
+            },
+            "required": ["data_plane_summary"]
+          },
+          {
+            "properties": {
+              "control_plane_summary": {
+                "type": "object",
+                "properties": {
+                  "worst_state_class": { "enum": ["healthy", "not_applicable"] }
+                },
+                "required": ["worst_state_class"]
+              }
+            },
+            "required": ["control_plane_summary"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "safest_next_action": {
+            "type": "object",
+            "properties": {
+              "action_class": {
+                "enum": ["continue_local", "await_resolution"]
+              }
+            },
+            "required": ["action_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Control-plane impairment with local-safe data plane MUST keep the safest next action local (continue_local) or a bounded recovery (retry_policy_sync, switch_mirror, export_packet, reconnect_managed_session, recheck_boundary, open_outage_notice). It MUST NOT silently force the user to wait when local work remains safe.",
+      "if": {
+        "allOf": [
+          {
+            "properties": {
+              "control_plane_summary": {
+                "type": "object",
+                "properties": {
+                  "worst_state_class": {
+                    "enum": ["stale_cache", "unavailable", "mirror_only", "boundary_recheck_required"]
+                  }
+                },
+                "required": ["worst_state_class"]
+              }
+            },
+            "required": ["control_plane_summary"]
+          },
+          {
+            "properties": {
+              "data_plane_summary": {
+                "type": "object",
+                "properties": {
+                  "worst_state_class": {
+                    "enum": ["available_local_safe", "available_mirror_backed"]
+                  }
+                },
+                "required": ["worst_state_class"]
+              }
+            },
+            "required": ["data_plane_summary"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "safest_next_action": {
+            "type": "object",
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "continue_local",
+                  "retry_policy_sync",
+                  "switch_mirror",
+                  "export_packet",
+                  "reconnect_managed_session",
+                  "recheck_boundary",
+                  "open_outage_notice"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Records exported under export_safe MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+      "if": {
+        "properties": { "export_safe": { "const": true } },
+        "required": ["export_safe"]
+      },
+      "then": {
+        "properties": {
+          "redaction_class": {
+            "enum": ["metadata_safe_default", "operator_only_restricted"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "control_plane_service_class": {
+      "type": "string",
+      "enum": [
+        "sync_service",
+        "registry_service",
+        "relay_service",
+        "ai_broker_service",
+        "auth_identity_service",
+        "policy_service",
+        "docs_pack_service",
+        "catalog_service",
+        "telemetry_sink_service"
+      ]
+    },
+    "control_plane_service_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "stale_cache",
+        "unavailable",
+        "mirror_only",
+        "boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "data_plane_capability_class": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "local_save",
+        "local_search",
+        "local_git",
+        "local_tasks",
+        "local_docs_inspect",
+        "local_export",
+        "local_diagnostics"
+      ]
+    },
+    "data_plane_capability_state_class": {
+      "type": "string",
+      "enum": [
+        "available_local_safe",
+        "available_mirror_backed",
+        "reduced_read_only",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_by_policy",
+        "not_applicable"
+      ]
+    },
+    "safest_next_action_class": {
+      "type": "string",
+      "enum": [
+        "continue_local",
+        "retry_policy_sync",
+        "switch_mirror",
+        "export_packet",
+        "reconnect_managed_session",
+        "recheck_boundary",
+        "await_resolution",
+        "open_outage_notice"
+      ],
+      "description": "Closed safest-next-action vocabulary. Surfaces MUST resolve to one of these tokens rather than minting per-surface 'try again later' prose."
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "about_panel",
+        "diagnostics_view",
+        "support_packet_export",
+        "admin_audit_export",
+        "release_evidence_excerpt",
+        "status_bar_cell",
+        "banner_notice",
+        "companion_surface",
+        "cli_text_formatter"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "control_plane_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "worst_state_class",
+        "summary_label",
+        "impaired_service_classes",
+        "healthy_service_classes"
+      ],
+      "properties": {
+        "worst_state_class": { "$ref": "#/$defs/control_plane_service_state_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "impaired_service_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/control_plane_service_class" },
+          "uniqueItems": true
+        },
+        "healthy_service_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/control_plane_service_class" },
+          "uniqueItems": true
+        },
+        "last_sync_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "Worst state of healthy means no service class is impaired.",
+          "if": {
+            "properties": { "worst_state_class": { "const": "healthy" } },
+            "required": ["worst_state_class"]
+          },
+          "then": {
+            "properties": {
+              "impaired_service_classes": { "type": "array", "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "Any worst state other than healthy or not_applicable requires at least one impaired service class.",
+          "if": {
+            "properties": {
+              "worst_state_class": {
+                "not": { "enum": ["healthy", "not_applicable"] }
+              }
+            },
+            "required": ["worst_state_class"]
+          },
+          "then": {
+            "properties": {
+              "impaired_service_classes": { "type": "array", "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "data_plane_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "worst_state_class",
+        "summary_label",
+        "impaired_capability_classes",
+        "available_local_safe_capability_classes"
+      ],
+      "properties": {
+        "worst_state_class": { "$ref": "#/$defs/data_plane_capability_state_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "impaired_capability_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/data_plane_capability_class" },
+          "uniqueItems": true
+        },
+        "available_local_safe_capability_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/data_plane_capability_class" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "description": "Worst state of available_local_safe means no capability is impaired.",
+          "if": {
+            "properties": { "worst_state_class": { "const": "available_local_safe" } },
+            "required": ["worst_state_class"]
+          },
+          "then": {
+            "properties": {
+              "impaired_capability_classes": { "type": "array", "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "Any reduced or blocked state requires at least one impaired capability class.",
+          "if": {
+            "properties": {
+              "worst_state_class": {
+                "enum": [
+                  "reduced_read_only",
+                  "blocked_pending_reconnect",
+                  "blocked_pending_boundary_recheck",
+                  "blocked_by_policy"
+                ]
+              }
+            },
+            "required": ["worst_state_class"]
+          },
+          "then": {
+            "properties": {
+              "impaired_capability_classes": { "type": "array", "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "safest_next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_class",
+        "label",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_local_state",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_class": { "$ref": "#/$defs/safest_next_action_class" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "scope_class": {
+          "type": "string",
+          "enum": ["scope_local_only", "scope_local_with_managed_recovery"]
+        },
+        "authority_class": {
+          "type": "string",
+          "enum": ["user_local_authority", "user_managed_authority"]
+        },
+        "consent_class": {
+          "type": "string",
+          "enum": [
+            "no_consent_required_safe_default",
+            "explicit_consent_required_managed_recovery"
+          ]
+        },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "no_side_effect_inspect_only",
+              "managed_sync_attempt",
+              "mirror_switch_attempt",
+              "session_reconnect_attempt",
+              "boundary_recheck_attempt",
+              "produces_export_packet"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "preserves_local_state": { "type": "boolean", "const": true },
+        "modal_prohibited": { "type": "boolean", "const": true },
+        "target_route_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "continue_local is purely local and inspect-only.",
+          "if": {
+            "properties": { "action_class": { "const": "continue_local" } },
+            "required": ["action_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_class": { "const": "scope_local_only" },
+              "authority_class": { "const": "user_local_authority" },
+              "consent_class": { "const": "no_consent_required_safe_default" },
+              "side_effects": {
+                "type": "array",
+                "contains": { "const": "no_side_effect_inspect_only" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -59,6 +59,7 @@ pub mod debug_seed;
 pub mod debug_ui;
 pub mod debugger_host_beta;
 pub mod deeplink;
+pub mod deployment_profile;
 pub mod desktop_continuity_alpha;
 pub mod diagnostics;
 pub mod docs_browser;

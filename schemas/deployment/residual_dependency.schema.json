@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deployment/residual_dependency.schema.json",
+  "title": "Aureline residual dependency row record",
+  "description": "Beta-exit named contract for the residual_dependency_row_record, the single record an About panel, diagnostics view, support-packet export, admin-audit excerpt, release-evidence excerpt, status-bar deployment cell, companion surface, and CLI text formatter render when naming one residual hosted or public control-plane, content, telemetry, AI, symbolication, docs, or registry lane an Aureline deployment still depends on. Each row names the dependency_class, posture_class, vendor_or_public_dependence flag, dependent feature label and feature refs, unreachable_impact_class (the exact feature consequence if the dependency is unreachable), continuity_fallback_class (the typed safe continuation), and a back-pointer ledger_row_ref into /artifacts/governance/residual_dependencies.yaml. The schema mints no new dependency_class, posture_class, absence_impact_class, continuity_fallback_class, or redaction_class value; those re-export verbatim from /schemas/deployment/deployment_summary_card.schema.json and /artifacts/governance/residual_dependencies.yaml. Adding a new value is additive-minor and bumps schema_version; weakening any §6 invariant or relaxing the no-implied-no-residual-dependency guardrail is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "row_id",
+    "profile_summary_ref",
+    "dependency_class",
+    "posture_class",
+    "vendor_or_public_dependence",
+    "dependent_feature_label",
+    "dependent_feature_refs",
+    "unreachable_impact_class",
+    "unreachable_impact_label",
+    "continuity_fallback_class",
+    "ledger_row_ref",
+    "redaction_class",
+    "export_safe"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "type": "string", "const": "residual_dependency_row_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "row_id": { "$ref": "#/$defs/opaque_id" },
+    "profile_summary_ref": { "$ref": "#/$defs/opaque_id" },
+    "dependency_class": { "$ref": "#/$defs/dependency_class" },
+    "posture_class": { "$ref": "#/$defs/posture_class" },
+    "vendor_or_public_dependence": { "type": "boolean" },
+    "dependent_feature_label": { "$ref": "#/$defs/reviewable_label" },
+    "dependent_feature_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "unreachable_impact_class": { "$ref": "#/$defs/absence_impact_class" },
+    "unreachable_impact_label": { "$ref": "#/$defs/reviewable_label" },
+    "continuity_fallback_class": { "$ref": "#/$defs/continuity_fallback_class" },
+    "ledger_row_ref": { "$ref": "#/$defs/opaque_id" },
+    "freshness_label": { "$ref": "#/$defs/reviewable_label" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "export_safe": { "type": "boolean" },
+    "linked_outage_notice_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+    "evidence_links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "description": "Forbidden rows are not residual; vendor_or_public_dependence is false and impact is fail_closed_forbidden_in_profile.",
+      "if": {
+        "properties": { "posture_class": { "const": "forbidden" } },
+        "required": ["posture_class"]
+      },
+      "then": {
+        "properties": {
+          "vendor_or_public_dependence": { "const": false },
+          "unreachable_impact_class": { "const": "fail_closed_forbidden_in_profile" }
+        }
+      }
+    },
+    {
+      "description": "Not-applicable-structural rows are not residual; vendor_or_public_dependence is false and impact is no_impact_capability_not_claimed_for_profile.",
+      "if": {
+        "properties": { "posture_class": { "const": "not_applicable_structural" } },
+        "required": ["posture_class"]
+      },
+      "then": {
+        "properties": {
+          "vendor_or_public_dependence": { "const": false },
+          "unreachable_impact_class": { "const": "no_impact_capability_not_claimed_for_profile" }
+        }
+      }
+    },
+    {
+      "description": "Cached posture requires a freshness label and a typed cache impact.",
+      "if": {
+        "properties": { "posture_class": { "const": "cached" } },
+        "required": ["posture_class"]
+      },
+      "then": {
+        "required": ["freshness_label"],
+        "properties": {
+          "unreachable_impact_class": {
+            "enum": ["narrows_to_cached_last_known_good", "blocked_pending_reconnect"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Mirrored posture requires a freshness label, a typed mirror impact, and mirror_snapshot_import continuity.",
+      "if": {
+        "properties": { "posture_class": { "const": "mirrored" } },
+        "required": ["posture_class"]
+      },
+      "then": {
+        "required": ["freshness_label"],
+        "properties": {
+          "unreachable_impact_class": {
+            "enum": ["narrows_to_mirror_backed_read_only", "blocked_pending_mirror_refresh"]
+          },
+          "continuity_fallback_class": { "const": "mirror_snapshot_import" }
+        }
+      }
+    },
+    {
+      "description": "Required posture must be vendor_or_public when the dependency class is vendor-bound by ledger.",
+      "if": {
+        "allOf": [
+          {
+            "properties": { "posture_class": { "const": "required" } },
+            "required": ["posture_class"]
+          },
+          {
+            "properties": {
+              "dependency_class": {
+                "enum": [
+                  "ai_provider",
+                  "browser_handoff",
+                  "companion_notification_channel",
+                  "hosted_control_plane_reachability"
+                ]
+              }
+            },
+            "required": ["dependency_class"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "vendor_or_public_dependence": { "const": true }
+        }
+      }
+    },
+    {
+      "description": "Rows exported under export_safe MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+      "if": {
+        "properties": { "export_safe": { "const": true } },
+        "required": ["export_safe"]
+      },
+      "then": {
+        "properties": {
+          "redaction_class": {
+            "enum": ["metadata_safe_default", "operator_only_restricted"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "dependency_class": {
+      "type": "string",
+      "enum": [
+        "sign_in",
+        "package_registry",
+        "remote_mirror",
+        "remote_agent",
+        "symbol_service",
+        "ai_provider",
+        "policy_bundle",
+        "docs_pack",
+        "browser_handoff",
+        "companion_notification_channel",
+        "hosted_control_plane_reachability"
+      ]
+    },
+    "posture_class": {
+      "type": "string",
+      "enum": [
+        "required",
+        "optional",
+        "cached",
+        "mirrored",
+        "forbidden",
+        "not_applicable_structural"
+      ]
+    },
+    "absence_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_impact_capability_not_claimed_for_profile",
+        "narrows_to_local_core_capabilities",
+        "narrows_to_mirror_backed_read_only",
+        "narrows_to_cached_last_known_good",
+        "narrows_to_review_only_boundary_recheck",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_pending_mirror_refresh",
+        "blocked_by_policy",
+        "fail_closed_forbidden_in_profile"
+      ]
+    },
+    "continuity_fallback_class": {
+      "type": "string",
+      "enum": [
+        "continue_local_no_restore",
+        "replay_cached_snapshot",
+        "mirror_snapshot_import",
+        "resume_after_reconnect",
+        "manual_reconcile_after_boundary_change",
+        "fail_closed_no_fallback",
+        "not_applicable_structural"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}

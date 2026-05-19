@@ -1,0 +1,463 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/deployment/profile_summary.schema.json",
+  "title": "Aureline deployment profile summary record",
+  "description": "Beta-exit named contract for the single profile-summary record that About, diagnostics, support packets, admin-audit exports, release-evidence excerpts, status-bar cells, companion surfaces, and CLI text formatters resolve against when projecting deployment posture for an Aureline install. The record carries the deployment_profile, product-facing label, tenant/org scope, region scope, retention class, key mode, mirror/offline state, last control-plane sync or cache age (freshness), control-plane and data-plane worst-state summaries, residual_dependency_row_refs, mirror_offline_artifact_row_refs, plane_status_strip_ref, the prohibited-implied-claim guardrails the surface MUST honour, an inspect-only open-details action, the consumer surfaces it can be rendered on, and a redaction class. This schema mints no new vocabulary; deployment_profile, product_facing_label_class, tenant_org_scope_class, region_scope_class, retention_class, key_mode_class, mirror_offline_state_class, control_plane_service_state_class, data_plane_capability_state_class, prohibited_implied_claim_class, consumer_surface_class, and redaction_class re-export verbatim from /schemas/deployment/deployment_summary_card.schema.json and /artifacts/governance/deployment_profiles.yaml. Adding a vocabulary value is additive-minor and bumps schema_version; repurposing a value, weakening any invariant, or relaxing plane-separation or independence-claim guardrails is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "summary_id",
+    "emitted_at",
+    "deployment_profile",
+    "product_facing_label_class",
+    "tenant_org_scope_class",
+    "region_scope_class",
+    "retention_class",
+    "key_mode_class",
+    "mirror_offline_state_class",
+    "freshness",
+    "control_plane_worst_state_class",
+    "data_plane_worst_state_class",
+    "residual_dependency_row_refs",
+    "mirror_offline_artifact_row_refs",
+    "plane_status_strip_ref",
+    "prohibited_implied_claim_classes",
+    "open_details_action",
+    "consumer_surfaces",
+    "redaction_class",
+    "export_safe"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "type": "string", "const": "deployment_profile_summary_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "summary_id": { "$ref": "#/$defs/opaque_id" },
+    "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "deployment_profile": { "$ref": "#/$defs/deployment_profile" },
+    "product_facing_label_class": { "$ref": "#/$defs/product_facing_label_class" },
+    "tenant_org_scope_class": { "$ref": "#/$defs/tenant_org_scope_class" },
+    "region_scope_class": { "$ref": "#/$defs/region_scope_class" },
+    "retention_class": { "$ref": "#/$defs/retention_class" },
+    "key_mode_class": { "$ref": "#/$defs/key_mode_class" },
+    "mirror_offline_state_class": { "$ref": "#/$defs/mirror_offline_state_class" },
+    "freshness": { "$ref": "#/$defs/freshness_summary" },
+    "control_plane_worst_state_class": { "$ref": "#/$defs/control_plane_service_state_class" },
+    "data_plane_worst_state_class": { "$ref": "#/$defs/data_plane_capability_state_class" },
+    "residual_dependency_row_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "mirror_offline_artifact_row_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "plane_status_strip_ref": { "$ref": "#/$defs/opaque_id" },
+    "prohibited_implied_claim_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/prohibited_implied_claim_class" },
+      "uniqueItems": true
+    },
+    "open_details_action": { "$ref": "#/$defs/inspect_only_action" },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/consumer_surface_class" },
+      "uniqueItems": true
+    },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "export_safe": { "type": "boolean" },
+    "linked_summary_card_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_outage_notice_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "linked_transport_posture_ref": { "$ref": "#/$defs/opaque_id" },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "description": "Self-hosted, enterprise-online, and managed-cloud profiles MUST carry actionable tenant/region/key posture; not_applicable is non-conforming on these profiles.",
+      "if": {
+        "properties": {
+          "deployment_profile": {
+            "enum": ["self_hosted", "enterprise_online", "managed_cloud"]
+          }
+        },
+        "required": ["deployment_profile"]
+      },
+      "then": {
+        "properties": {
+          "tenant_org_scope_class": { "not": { "const": "not_applicable" } },
+          "region_scope_class": { "not": { "const": "not_applicable" } },
+          "key_mode_class": { "not": { "const": "not_applicable" } }
+        }
+      }
+    },
+    {
+      "description": "Self-hosted profiles MUST NOT silently carry vendor-managed keys.",
+      "if": {
+        "properties": { "deployment_profile": { "const": "self_hosted" } },
+        "required": ["deployment_profile"]
+      },
+      "then": {
+        "properties": {
+          "key_mode_class": { "not": { "const": "vendor_managed" } }
+        }
+      }
+    },
+    {
+      "description": "Air-gapped profiles MUST declare offline_air_gapped mirror/offline state, MUST emit at least one mirror/offline artifact row ref, and MUST NOT route through companion surfaces.",
+      "if": {
+        "properties": { "deployment_profile": { "const": "air_gapped" } },
+        "required": ["deployment_profile"]
+      },
+      "then": {
+        "properties": {
+          "mirror_offline_state_class": { "const": "offline_air_gapped" },
+          "mirror_offline_artifact_row_refs": { "type": "array", "minItems": 1 },
+          "consumer_surfaces": {
+            "type": "array",
+            "not": { "contains": { "const": "companion_surface" } }
+          }
+        }
+      }
+    },
+    {
+      "description": "Individual-local profiles carry single-user-local tenancy and not-applicable region scope.",
+      "if": {
+        "properties": { "deployment_profile": { "const": "individual_local" } },
+        "required": ["deployment_profile"]
+      },
+      "then": {
+        "properties": {
+          "tenant_org_scope_class": { "const": "single_user_local" },
+          "region_scope_class": { "const": "not_applicable" }
+        }
+      }
+    },
+    {
+      "description": "Mirror-only or air-gapped state MUST emit at least one mirror/offline artifact row ref.",
+      "if": {
+        "properties": {
+          "mirror_offline_state_class": {
+            "enum": ["online_mirror_only", "offline_air_gapped"]
+          }
+        },
+        "required": ["mirror_offline_state_class"]
+      },
+      "then": {
+        "properties": {
+          "mirror_offline_artifact_row_refs": { "type": "array", "minItems": 1 }
+        }
+      }
+    },
+    {
+      "description": "Mirror-only state MUST list the implied-offline-parity guardrail.",
+      "if": {
+        "properties": { "mirror_offline_state_class": { "const": "online_mirror_only" } },
+        "required": ["mirror_offline_state_class"]
+      },
+      "then": {
+        "properties": {
+          "prohibited_implied_claim_classes": {
+            "type": "array",
+            "contains": { "const": "implied_offline_parity_when_mirror_only" }
+          }
+        }
+      }
+    },
+    {
+      "description": "Managed-cloud profiles MUST list the self-hosted and managed-independence guardrails.",
+      "if": {
+        "properties": { "deployment_profile": { "const": "managed_cloud" } },
+        "required": ["deployment_profile"]
+      },
+      "then": {
+        "properties": {
+          "prohibited_implied_claim_classes": {
+            "type": "array",
+            "allOf": [
+              { "contains": { "const": "implied_self_hosted_when_managed_cloud" } },
+              { "contains": { "const": "implied_managed_independence_when_local_dependent" } }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "Records exported under export_safe MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+      "if": {
+        "properties": { "export_safe": { "const": true } },
+        "required": ["export_safe"]
+      },
+      "then": {
+        "properties": {
+          "redaction_class": {
+            "enum": ["metadata_safe_default", "operator_only_restricted"]
+          }
+        }
+      }
+    },
+    {
+      "description": "bounded_stale freshness MUST carry a freshness floor ref; unbounded_stale MUST carry a non-empty rationale.",
+      "if": {
+        "properties": {
+          "freshness": {
+            "properties": { "staleness_class": { "const": "bounded_stale" } },
+            "required": ["staleness_class"]
+          }
+        },
+        "required": ["freshness"]
+      },
+      "then": {
+        "properties": {
+          "freshness": { "required": ["freshness_floor_ref"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "freshness": {
+            "properties": { "staleness_class": { "const": "unbounded_stale" } },
+            "required": ["staleness_class"]
+          }
+        },
+        "required": ["freshness"]
+      },
+      "then": {
+        "properties": {
+          "freshness": { "required": ["staleness_rationale"] }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, claim manifests, and release-evidence packets. Raw URLs, raw hostnames, raw IP addresses, raw absolute paths, raw OAuth tokens, raw policy rule bodies, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "deployment_profile": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "product_facing_label_class": {
+      "type": "string",
+      "enum": [
+        "desktop_local_first",
+        "self_hosted_sovereign",
+        "hybrid_remote_attach",
+        "air_gapped_mirror_only",
+        "browser_companion_handoff_default_home"
+      ]
+    },
+    "tenant_org_scope_class": {
+      "type": "string",
+      "enum": [
+        "single_user_local",
+        "customer_tenant",
+        "shared_multi_tenant",
+        "tenant_boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "region_scope_class": {
+      "type": "string",
+      "enum": [
+        "customer_region_pinned",
+        "remote_target_region",
+        "boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_beyond_local_disk",
+        "workspace_repo_retained",
+        "customer_retention_window",
+        "vendor_retention_window_with_customer_policy",
+        "vendor_retention_window_default",
+        "retention_not_applicable"
+      ]
+    },
+    "key_mode_class": {
+      "type": "string",
+      "enum": [
+        "os_store",
+        "vendor_managed",
+        "customer_managed",
+        "offline_trust_root",
+        "not_applicable"
+      ]
+    },
+    "mirror_offline_state_class": {
+      "type": "string",
+      "enum": [
+        "online_live_allowed",
+        "online_mirror_only",
+        "offline_grace_preserved",
+        "offline_air_gapped",
+        "deny_all_enforced",
+        "network_disabled_by_user",
+        "network_degraded_heuristic",
+        "not_applicable"
+      ]
+    },
+    "control_plane_service_state_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "stale_cache",
+        "unavailable",
+        "mirror_only",
+        "boundary_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "data_plane_capability_state_class": {
+      "type": "string",
+      "enum": [
+        "available_local_safe",
+        "available_mirror_backed",
+        "reduced_read_only",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_by_policy",
+        "not_applicable"
+      ]
+    },
+    "prohibited_implied_claim_class": {
+      "type": "string",
+      "enum": [
+        "implied_air_gapped_when_egress_allowed",
+        "implied_sovereign_when_vendor_managed",
+        "implied_self_hosted_when_managed_cloud",
+        "implied_no_residual_dependency_when_required_present",
+        "implied_offline_parity_when_mirror_only",
+        "implied_managed_independence_when_local_dependent",
+        "implied_always_fresh_when_bounded_or_unbounded_stale"
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "about_panel",
+        "diagnostics_view",
+        "support_packet_export",
+        "admin_audit_export",
+        "release_evidence_excerpt",
+        "status_bar_cell",
+        "companion_surface",
+        "cli_text_formatter"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "staleness_class": {
+      "type": "string",
+      "enum": ["fresh", "bounded_stale", "unbounded_stale"]
+    },
+    "freshness_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["staleness_class", "summary_label"],
+      "properties": {
+        "staleness_class": { "$ref": "#/$defs/staleness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "last_control_plane_sync_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "cache_age_label": { "$ref": "#/$defs/reviewable_label" },
+        "freshness_floor_ref": { "$ref": "#/$defs/opaque_id" },
+        "staleness_rationale": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspect_only_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "target_route_ref",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "revalidation_on_open",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "target_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "revalidation_on_open": {
+          "type": "string",
+          "enum": ["none_already_fresh", "snapshot_open_read_only"]
+        },
+        "modal_prohibited": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}
