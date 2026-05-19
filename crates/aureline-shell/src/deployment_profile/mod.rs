@@ -1714,5 +1714,7 @@ pub fn consumer_surfaces_present(page: &DeploymentProfilePage) -> BTreeSet<Consu
     set
 }
 
+pub mod corpus;
+
 #[cfg(test)]
 mod tests;

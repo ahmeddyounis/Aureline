@@ -12,6 +12,12 @@ generic "service degraded" prose with separate help content.
 Reviewer-facing entrypoints:
 
 - Contract: `docs/ops/m3/deployment_profile_and_continuity_beta.md`
+- Claim qualification: `docs/ops/m3/deployment_profile_claim_qualification.md`
+- Continuity corpus: `fixtures/deployment/m3/profile_truth/` and
+  `fixtures/deployment/m3/control_plane_vs_data_plane/`
+- Conformance report and residual-dependency matrix:
+  `artifacts/release/m3/deployment_profile_conformance_report.md` and
+  `artifacts/release/m3/residual_dependency_matrix.json`
 - Profile summary schema: `schemas/deployment/profile_summary.schema.json`
 - Plane-status strip schema: `schemas/deployment/plane_status.schema.json`
 - Residual-dependency row schema:

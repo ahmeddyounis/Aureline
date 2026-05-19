@@ -46,6 +46,18 @@ module update in the same change.
   [`fixtures/deployment/mode_change_cases/`](../../../fixtures/deployment/mode_change_cases/)
 - Shell projection and audit module:
   [`crates/aureline-shell/src/deployment_profile/`](../../../crates/aureline-shell/src/deployment_profile/)
+- Continuity corpus packet, marketed-row cases, outage drills, and
+  residual-dependency matrix:
+  [`fixtures/deployment/m3/profile_truth/`](../../../fixtures/deployment/m3/profile_truth/)
+  and
+  [`fixtures/deployment/m3/control_plane_vs_data_plane/`](../../../fixtures/deployment/m3/control_plane_vs_data_plane/)
+- Release-evidence excerpt and per-profile residual-dependency matrix
+  JSON:
+  [`artifacts/release/m3/deployment_profile_conformance_report.md`](../../../artifacts/release/m3/deployment_profile_conformance_report.md)
+  and
+  [`artifacts/release/m3/residual_dependency_matrix.json`](../../../artifacts/release/m3/residual_dependency_matrix.json)
+- Claim-qualification rules:
+  [`docs/ops/m3/deployment_profile_claim_qualification.md`](deployment_profile_claim_qualification.md)
 
 ## Required user, admin, support, and reviewer truth
 
@@ -188,12 +200,18 @@ Run:
 
 ```bash
 cargo test -p aureline-shell --lib deployment_profile
+cargo test -p aureline-shell --test deployment_profile_corpus_fixtures
 ```
 
-This exercises the baseline `individual_local` page, the managed-cloud
-baseline with required vendor dependencies and guardrails, the
-self-hosted-with-vendor-managed-keys defect, the air-gapped
+The library tests exercise the baseline `individual_local` page, the
+managed-cloud baseline with required vendor dependencies and guardrails,
+the self-hosted-with-vendor-managed-keys defect, the air-gapped
 missing-state / missing-artifact-row / companion-surface defects, the
 mirror-only missing-guardrail defect, the relay-outage local-safe
 continuity case, the digest-mismatch verify-blocked defect, the
-support-export redaction filter, and the serde round-trip.
+support-export redaction filter, and the serde round-trip. The corpus
+fixture test loads every marketed-row case and every outage drill from
+`fixtures/deployment/m3/`, asserts each page passes `audit()` with an
+empty defect set, and asserts the rendered conformance report and
+residual-dependency matrix artifacts match the seeded packet
+byte-for-byte.
