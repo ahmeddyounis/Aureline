@@ -61,9 +61,40 @@ pub const ARBITRATION_DECISION_SCHEMA_REF: &str =
 /// Directory containing the checked-in arbitration inspector corpus.
 pub const PROVIDER_ARBITRATION_CORPUS_DIR: &str = "fixtures/language/m3/provider_arbitration";
 
+/// Directory containing the multi-provider arbitration proof corpus used to
+/// qualify claimed beta language rows.
+pub const PROVIDER_ARBITRATION_PROOF_CORPUS_DIR: &str =
+    "fixtures/language/m3/provider_arbitration_corpus";
+
+/// Repository-relative documentation ref for the beta claim qualification
+/// contract.
+pub const PROVIDER_ARBITRATION_CLAIM_QUALIFICATION_DOC_REF: &str =
+    "docs/language/m3/provider_arbitration_claim_qualification.md";
+
+/// Repository-relative artifact ref for the downgraded semantic-claims matrix.
+pub const DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_ARTIFACT_REF: &str =
+    "artifacts/language/m3/downgraded_semantic_claims_matrix.json";
+
+/// Repository-relative artifact ref for the human-readable arbitration proof
+/// report.
+pub const PROVIDER_ARBITRATION_PROOF_REPORT_ARTIFACT_REF: &str =
+    "artifacts/language/m3/provider_arbitration_report.md";
+
 /// Stable record-kind tag for inspector corpus reports.
 pub const PROVIDER_ARBITRATION_BETA_REPORT_RECORD_KIND: &str =
     "language_provider_arbitration_beta_report";
+
+/// Stable record-kind tag for proof-corpus reports.
+pub const PROVIDER_ARBITRATION_PROOF_REPORT_RECORD_KIND: &str =
+    "language_provider_arbitration_proof_report";
+
+/// Stable record-kind tag for downgraded-semantic-claims matrix rows.
+pub const DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_ROW_RECORD_KIND: &str =
+    "language_downgraded_semantic_claim_row";
+
+/// Stable record-kind tag for downgraded-semantic-claims matrix envelopes.
+pub const DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_RECORD_KIND: &str =
+    "language_downgraded_semantic_claims_matrix";
 
 const LSP_FRAMEWORK_DEFINITION_DISAGREEMENT_PATH: &str =
     "fixtures/language/m3/provider_arbitration/lsp_framework_definition_disagreement.yaml";
@@ -77,6 +108,49 @@ const ORGANIZE_IMPORTS_CRASH_LOOP_QUARANTINED_PATH: &str =
     "fixtures/language/m3/provider_arbitration/organize_imports_crash_loop_quarantined.yaml";
 const CODE_ACTION_WIDE_SCOPE_SIDE_BRANCH_PATH: &str =
     "fixtures/language/m3/provider_arbitration/code_action_wide_scope_side_branch.yaml";
+
+const PROOF_DEFINITION_AGREE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/definition_all_providers_agree_exact.yaml";
+const PROOF_DEFINITION_DISAGREEMENT_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/definition_target_set_disagreement_preview.yaml";
+const PROOF_DEFINITION_STALE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/definition_stale_cache_reuse_labeled.yaml";
+const PROOF_REFERENCES_AGREE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/references_all_providers_agree_exact.yaml";
+const PROOF_REFERENCES_SCOPE_DISAGREEMENT_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/references_scope_coverage_disagreement_partial.yaml";
+const PROOF_REFERENCES_IMPORTED_SNAPSHOT_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/references_imported_snapshot_partial.yaml";
+const PROOF_RENAME_AGREE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/rename_all_providers_agree_exact.yaml";
+const PROOF_RENAME_WIDE_SCOPE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/rename_wide_scope_side_branch_required.yaml";
+const PROOF_RENAME_TEXT_FALLBACK_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/rename_text_fallback_labeled_heuristic.yaml";
+const PROOF_FORMATTING_AGREE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/formatting_all_providers_agree_exact.yaml";
+const PROOF_FORMATTING_TEXT_FALLBACK_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/formatting_text_fallback_labeled_heuristic.yaml";
+const PROOF_FORMATTING_STALE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/formatting_stale_cache_reuse_labeled.yaml";
+const PROOF_ORGANIZE_IMPORTS_AGREE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/organize_imports_all_providers_agree_exact.yaml";
+const PROOF_ORGANIZE_IMPORTS_CRASH_LOOP_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/organize_imports_language_server_crash_loop_blocked.yaml";
+const PROOF_CODE_ACTION_AGREE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/code_action_all_providers_agree_exact.yaml";
+const PROOF_CODE_ACTION_SIDE_BRANCH_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/code_action_edit_safety_disagreement_side_branch.yaml";
+const PROOF_CODE_ACTION_PARTIAL_SCOPE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/code_action_partial_scope_preview_required.yaml";
+const PROOF_CRASH_LOOP_FRAMEWORK_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/crash_loop_framework_pack_blocked.yaml";
+const PROOF_CRASH_LOOP_NOTEBOOK_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/crash_loop_notebook_adapter_blocked.yaml";
+const PROOF_PREFERENCE_PRESERVES_CONFLICT_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/provider_preference_reorder_preserves_conflict.yaml";
+const PROOF_PREFERENCE_PRESERVES_STALE_PATH: &str =
+    "fixtures/language/m3/provider_arbitration_corpus/provider_preference_reorder_preserves_stale_warning.yaml";
 
 const CURRENT_PROVIDER_ARBITRATION_FIXTURES: &[(&str, &str)] = &[
     (
@@ -123,6 +197,156 @@ const CURRENT_PROVIDER_ARBITRATION_FIXTURES: &[(&str, &str)] = &[
     ),
 ];
 
+const CURRENT_PROVIDER_ARBITRATION_PROOF_FIXTURES: &[(&str, &str)] = &[
+    (
+        PROOF_DEFINITION_AGREE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/definition_all_providers_agree_exact.yaml"
+        )),
+    ),
+    (
+        PROOF_DEFINITION_DISAGREEMENT_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/definition_target_set_disagreement_preview.yaml"
+        )),
+    ),
+    (
+        PROOF_DEFINITION_STALE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/definition_stale_cache_reuse_labeled.yaml"
+        )),
+    ),
+    (
+        PROOF_REFERENCES_AGREE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/references_all_providers_agree_exact.yaml"
+        )),
+    ),
+    (
+        PROOF_REFERENCES_SCOPE_DISAGREEMENT_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/references_scope_coverage_disagreement_partial.yaml"
+        )),
+    ),
+    (
+        PROOF_REFERENCES_IMPORTED_SNAPSHOT_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/references_imported_snapshot_partial.yaml"
+        )),
+    ),
+    (
+        PROOF_RENAME_AGREE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/rename_all_providers_agree_exact.yaml"
+        )),
+    ),
+    (
+        PROOF_RENAME_WIDE_SCOPE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/rename_wide_scope_side_branch_required.yaml"
+        )),
+    ),
+    (
+        PROOF_RENAME_TEXT_FALLBACK_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/rename_text_fallback_labeled_heuristic.yaml"
+        )),
+    ),
+    (
+        PROOF_FORMATTING_AGREE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/formatting_all_providers_agree_exact.yaml"
+        )),
+    ),
+    (
+        PROOF_FORMATTING_TEXT_FALLBACK_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/formatting_text_fallback_labeled_heuristic.yaml"
+        )),
+    ),
+    (
+        PROOF_FORMATTING_STALE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/formatting_stale_cache_reuse_labeled.yaml"
+        )),
+    ),
+    (
+        PROOF_ORGANIZE_IMPORTS_AGREE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/organize_imports_all_providers_agree_exact.yaml"
+        )),
+    ),
+    (
+        PROOF_ORGANIZE_IMPORTS_CRASH_LOOP_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/organize_imports_language_server_crash_loop_blocked.yaml"
+        )),
+    ),
+    (
+        PROOF_CODE_ACTION_AGREE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/code_action_all_providers_agree_exact.yaml"
+        )),
+    ),
+    (
+        PROOF_CODE_ACTION_SIDE_BRANCH_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/code_action_edit_safety_disagreement_side_branch.yaml"
+        )),
+    ),
+    (
+        PROOF_CODE_ACTION_PARTIAL_SCOPE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/code_action_partial_scope_preview_required.yaml"
+        )),
+    ),
+    (
+        PROOF_CRASH_LOOP_FRAMEWORK_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/crash_loop_framework_pack_blocked.yaml"
+        )),
+    ),
+    (
+        PROOF_CRASH_LOOP_NOTEBOOK_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/crash_loop_notebook_adapter_blocked.yaml"
+        )),
+    ),
+    (
+        PROOF_PREFERENCE_PRESERVES_CONFLICT_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/provider_preference_reorder_preserves_conflict.yaml"
+        )),
+    ),
+    (
+        PROOF_PREFERENCE_PRESERVES_STALE_PATH,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/language/m3/provider_arbitration_corpus/provider_preference_reorder_preserves_stale_warning.yaml"
+        )),
+    ),
+];
+
 /// Loads one inspector corpus entry from YAML.
 pub fn load_provider_arbitration_case(
     yaml: &str,
@@ -150,6 +374,229 @@ pub fn current_provider_arbitration_fixture_refs() -> impl Iterator<Item = &'sta
     CURRENT_PROVIDER_ARBITRATION_FIXTURES
         .iter()
         .map(|(fixture_ref, _)| *fixture_ref)
+}
+
+/// Loads the multi-provider arbitration proof corpus.
+pub fn current_provider_arbitration_proof_corpus(
+) -> Result<ProviderArbitrationCorpus, serde_yaml::Error> {
+    CURRENT_PROVIDER_ARBITRATION_PROOF_FIXTURES
+        .iter()
+        .map(|(fixture_ref, yaml)| {
+            serde_yaml::from_str::<ProviderArbitrationCorpusEntry>(yaml).map(|mut entry| {
+                entry.fixture_ref = (*fixture_ref).to_owned();
+                entry
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(|entries| ProviderArbitrationCorpus { entries })
+}
+
+/// Returns fixture refs included in the arbitration proof corpus.
+pub fn current_provider_arbitration_proof_fixture_refs() -> impl Iterator<Item = &'static str> {
+    CURRENT_PROVIDER_ARBITRATION_PROOF_FIXTURES
+        .iter()
+        .map(|(fixture_ref, _)| *fixture_ref)
+}
+
+/// Closed scenario vocabulary for the downgraded semantic-claims matrix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProofScenarioClass {
+    /// Every admissible provider agreed on the answer.
+    ProviderAgreement,
+    /// Providers disagreed on the target set or scope.
+    ProviderDisagreement,
+    /// Negotiated scope is narrower than requested.
+    PartialScope,
+    /// An imported snapshot was the only admissible source.
+    ImportedSnapshot,
+    /// Result was served from a warm cache with explicit stale label.
+    StaleCacheReuse,
+    /// A provider was quarantined after a crash loop.
+    ProviderCrashLoop,
+    /// Wide-scope rename routed through preview or side-branch review.
+    WideScopeRename,
+    /// Result fell back to text/syntax fallback with explicit label.
+    TextFallback,
+    /// User preference re-ordered providers without hiding warnings.
+    ProviderPreferenceReorder,
+}
+
+/// Closed claim-status vocabulary for the downgraded semantic-claims matrix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClaimStatusClass {
+    /// Exact, complete, live lane that may stay marketed as a full claim.
+    QualifiedForBetaClaim,
+    /// Lane is downgraded but the downgrade is disclosed end-to-end.
+    DowngradedDiscloseAndProceed,
+    /// Lane is blocked; apply gate refuses to proceed.
+    BlockedForRecovery,
+}
+
+/// One row in the downgraded semantic-claims matrix.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DowngradedSemanticClaimRow {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Repository-relative fixture ref.
+    pub fixture_ref: String,
+    /// Arbitration decision id.
+    pub arbitration_decision_id: String,
+    /// Lane covered by the decision.
+    pub language_action_lane_class: LanguageActionLaneClass,
+    /// Scenario class.
+    pub proof_scenario_class: ProofScenarioClass,
+    /// Confidence outcome class.
+    pub confidence_outcome_class: ConfidenceOutcomeClass,
+    /// Apply gate class.
+    pub apply_gate_class: ApplyGateClass,
+    /// Fallback label class.
+    pub fallback_label_class: FallbackLabelClass,
+    /// Downgraded-promise reason class.
+    pub downgraded_promise_reason_class: DowngradedPromiseReasonClass,
+    /// Conflict class.
+    pub conflict_class: ConflictClass,
+    /// Claim status class.
+    pub claim_status_class: ClaimStatusClass,
+}
+
+/// Downgraded semantic-claims matrix envelope.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DowngradedSemanticClaimsMatrix {
+    /// Stable record-kind tag.
+    pub record_kind: String,
+    /// Matrix id.
+    pub matrix_id: String,
+    /// Capture timestamp.
+    pub captured_at: String,
+    /// Documentation ref for the claim-qualification contract.
+    pub claim_qualification_doc_ref: String,
+    /// Source corpus directory.
+    pub corpus_dir: String,
+    /// Provider-health-state schema ref.
+    pub provider_health_state_schema_ref: String,
+    /// Arbitration-decision schema ref.
+    pub arbitration_decision_schema_ref: String,
+    /// True when raw provider payloads are excluded.
+    pub raw_payload_excluded: bool,
+    /// True when private source material is excluded.
+    pub raw_private_material_excluded: bool,
+    /// Per-row claim rows.
+    pub rows: Vec<DowngradedSemanticClaimRow>,
+}
+
+/// Classifies a corpus entry into a scenario class.
+pub fn classify_proof_scenario(entry: &ProviderArbitrationCorpusEntry) -> ProofScenarioClass {
+    let decision = &entry.arbitration_decision;
+    let any_imported_snapshot = entry
+        .provider_health_states
+        .iter()
+        .any(|row| row.locality_class == ArbitrationLocalityClass::ImportedSnapshot);
+    let any_crash_loop = entry
+        .provider_health_states
+        .iter()
+        .any(|row| row.health_state == ArbitrationHealthState::CrashLoopQuarantined);
+    let is_user_preference =
+        decision.arbitration_decision_id.contains("preference_preserves");
+
+    if any_crash_loop {
+        return ProofScenarioClass::ProviderCrashLoop;
+    }
+    if is_user_preference {
+        return ProofScenarioClass::ProviderPreferenceReorder;
+    }
+    if decision.fallback_label_class == FallbackLabelClass::TextFallback {
+        return ProofScenarioClass::TextFallback;
+    }
+    if any_imported_snapshot {
+        return ProofScenarioClass::ImportedSnapshot;
+    }
+    if decision.language_action_lane_class == LanguageActionLaneClass::Rename
+        && matches!(
+            decision.requested_scope_claim_class,
+            ArbitrationScopeClaimClass::ActiveWorkset | ArbitrationScopeClaimClass::WholeWorkspace
+        )
+    {
+        return ProofScenarioClass::WideScopeRename;
+    }
+    if decision.disagreement_block.conflict_class != ConflictClass::None {
+        return ProofScenarioClass::ProviderDisagreement;
+    }
+    if matches!(
+        decision.confidence_outcome_class,
+        ConfidenceOutcomeClass::Stale
+    ) || decision
+        .downgraded_promise_block
+        .downgraded_promise_reason_class
+        == DowngradedPromiseReasonClass::StaleCacheReuse
+    {
+        return ProofScenarioClass::StaleCacheReuse;
+    }
+    if decision.negotiated_completeness_class == ArbitrationCompletenessClass::PartialForClaimedScope
+    {
+        return ProofScenarioClass::PartialScope;
+    }
+    ProofScenarioClass::ProviderAgreement
+}
+
+/// Classifies a corpus entry into a claim-status class.
+pub fn classify_claim_status(entry: &ProviderArbitrationCorpusEntry) -> ClaimStatusClass {
+    let decision = &entry.arbitration_decision;
+    match decision.confidence_outcome_class {
+        ConfidenceOutcomeClass::Exact => {
+            if decision.disagreement_block.conflict_class == ConflictClass::None
+                && decision.apply_gate_class == ApplyGateClass::ReadyToApply
+            {
+                ClaimStatusClass::QualifiedForBetaClaim
+            } else {
+                ClaimStatusClass::DowngradedDiscloseAndProceed
+            }
+        }
+        ConfidenceOutcomeClass::Unavailable => ClaimStatusClass::BlockedForRecovery,
+        _ => ClaimStatusClass::DowngradedDiscloseAndProceed,
+    }
+}
+
+/// Builds the downgraded semantic-claims matrix for the given corpus.
+pub fn build_downgraded_semantic_claims_matrix(
+    corpus: &ProviderArbitrationCorpus,
+    matrix_id: impl Into<String>,
+    captured_at: impl Into<String>,
+) -> DowngradedSemanticClaimsMatrix {
+    let rows = corpus
+        .entries
+        .iter()
+        .map(|entry| DowngradedSemanticClaimRow {
+            record_kind: DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_ROW_RECORD_KIND.to_owned(),
+            fixture_ref: entry.fixture_ref.clone(),
+            arbitration_decision_id: entry.arbitration_decision.arbitration_decision_id.clone(),
+            language_action_lane_class: entry.arbitration_decision.language_action_lane_class,
+            proof_scenario_class: classify_proof_scenario(entry),
+            confidence_outcome_class: entry.arbitration_decision.confidence_outcome_class,
+            apply_gate_class: entry.arbitration_decision.apply_gate_class,
+            fallback_label_class: entry.arbitration_decision.fallback_label_class,
+            downgraded_promise_reason_class: entry
+                .arbitration_decision
+                .downgraded_promise_block
+                .downgraded_promise_reason_class,
+            conflict_class: entry.arbitration_decision.disagreement_block.conflict_class,
+            claim_status_class: classify_claim_status(entry),
+        })
+        .collect::<Vec<_>>();
+
+    DowngradedSemanticClaimsMatrix {
+        record_kind: DOWNGRADED_SEMANTIC_CLAIMS_MATRIX_RECORD_KIND.to_owned(),
+        matrix_id: matrix_id.into(),
+        captured_at: captured_at.into(),
+        claim_qualification_doc_ref: PROVIDER_ARBITRATION_CLAIM_QUALIFICATION_DOC_REF.to_owned(),
+        corpus_dir: PROVIDER_ARBITRATION_PROOF_CORPUS_DIR.to_owned(),
+        provider_health_state_schema_ref: PROVIDER_HEALTH_STATE_SCHEMA_REF.to_owned(),
+        arbitration_decision_schema_ref: ARBITRATION_DECISION_SCHEMA_REF.to_owned(),
+        raw_payload_excluded: true,
+        raw_private_material_excluded: true,
+        rows,
+    }
 }
 
 /// Validation defect emitted by the inspector evaluator.
