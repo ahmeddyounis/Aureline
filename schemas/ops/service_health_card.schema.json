@@ -1,0 +1,338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/service_health_card.schema.json",
+  "title": "Aureline service-health aggregator and contract-state cards",
+  "description": "Boundary schema for the service-health aggregator and contract-state cards minted by `crates/aureline-shell/src/service_health/aggregator.rs`. One aggregator record is rendered identically across shell service-health, About, diagnostics, CLI/headless inspect, and support exports. Each contained card pins one service family (service_family), the boundary class the family sits behind (boundary_class), the contract state (contract_state) drawn verbatim from schemas/ops/service_contract_state.schema.json, the local-continuity posture (local_continuity), the affected launch-critical workflows (affected_workflows), the last-checked age bucket (last_checked_age), the reviewable state explanation (state_explanation), and the diagnostics command-ref (diagnostics_action). The aggregator pins an overall_contract_state (worst-state rollup) and overall_local_continuity (worst across cards whose boundary_class can downgrade local continuity); hosted-only or vendor-provider outages cannot drag overall continuity below local_safe. Raw endpoint URLs, hostnames, credentials, raw provider payloads, raw stack frames, raw stdout / stderr, raw absolute paths, raw command lines, raw response bodies, raw alert payloads, raw operator identity strings, and raw secret material never cross this boundary; surfaces carry opaque card ids, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "$ref": "#/$defs/service_health_aggregator_record",
+  "$defs": {
+    "service_health_aggregator_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the aggregator payload. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump."
+    },
+    "service_health_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for a card payload. Card-level additive-minor changes bump this integer."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short user-facing sentence safe to render in shell, About, diagnostics, CLI/headless inspect, and support exports. Never carries raw payloads."
+    },
+    "diagnostics_action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Stable command-ref string the chrome can wire into a Run diagnostics affordance. Never contains URLs, hostnames, or credentials; only references a command or inspector in the local control plane."
+    },
+    "detail_token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Stable, non-secret descriptive token (e.g. provider_class:vendor_chat, mirror_class:docs_mirror). Never carries URLs, hostnames, credentials, or operator identity."
+    },
+    "iso_date_time_minutes": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}([:.][0-9]+)?Z?$",
+      "description": "ISO 8601 UTC date-time accurate to the minute. The aggregator parses YYYY-MM-DDTHH:MM and ignores any seconds, fractional, or trailing Z suffix when computing age buckets."
+    },
+    "service_family_token": {
+      "type": "string",
+      "enum": [
+        "language_services",
+        "ai_assist",
+        "sync",
+        "license_entitlement",
+        "telemetry",
+        "marketplace",
+        "remote_runtime",
+        "release_channel",
+        "docs_knowledge",
+        "status_feed"
+      ],
+      "description": "Closed service-family vocabulary. Surfaces MAY NOT invent families outside this set. Adding a family is additive-minor and bumps service_health_aggregator_schema_version."
+    },
+    "boundary_class_token": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "local_with_remote_optional",
+        "local_with_remote_required",
+        "hosted",
+        "vendor_provider"
+      ],
+      "description": "Closed boundary-class vocabulary. Used to compute whether an outage in this family can drag overall local-continuity below local_safe."
+    },
+    "service_contract_state_token": {
+      "$ref": "https://aureline.dev/schemas/ops/service_contract_state.schema.json#/$defs/service_contract_state_token"
+    },
+    "local_continuity_token": {
+      "type": "string",
+      "enum": [
+        "local_safe",
+        "local_safe_read_only",
+        "local_review_only",
+        "local_unsafe"
+      ],
+      "description": "Closed local-continuity vocabulary. Says what the user can keep doing while this card is impaired. The aggregator's overall_local_continuity is the worst value across cards whose boundary_class can_downgrade_local_continuity."
+    },
+    "last_checked_age_token": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "recent",
+        "stale",
+        "very_stale",
+        "never_checked"
+      ],
+      "description": "Closed last-checked-age vocabulary. Derived from last_checked vs the aggregator's as_of."
+    },
+    "affected_workflow_token": {
+      "type": "string",
+      "enum": [
+        "edit",
+        "save",
+        "search",
+        "git_operations",
+        "build",
+        "test_run",
+        "debug",
+        "open_recent",
+        "export",
+        "diagnostics",
+        "undo_redo",
+        "local_docs_inspect",
+        "cached_provider_inspect",
+        "ai_completion",
+        "ai_chat",
+        "ai_inline_edit",
+        "language_definition",
+        "language_references",
+        "language_rename",
+        "language_formatting",
+        "workspace_sync",
+        "remote_shell",
+        "marketplace_browse",
+        "extension_install",
+        "license_refresh",
+        "support_export_upload",
+        "telemetry_upload",
+        "docs_browse_local",
+        "docs_browse_remote"
+      ],
+      "description": "Closed affected-workflow vocabulary. Surfaces MAY NOT add micro-affordances; the set names the workflows users actually feel."
+    },
+    "service_health_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "card_id",
+        "service_family",
+        "service_family_token",
+        "service_family_label",
+        "boundary_class",
+        "boundary_token",
+        "boundary_label",
+        "contract_state",
+        "contract_state_token",
+        "contract_state_label",
+        "local_continuity",
+        "local_continuity_token",
+        "local_continuity_label",
+        "affected_workflows",
+        "affected_workflow_tokens",
+        "last_checked_age",
+        "last_checked_age_token",
+        "last_checked_age_label",
+        "state_explanation",
+        "diagnostics_action",
+        "detail_tokens",
+        "honesty_marker_present",
+        "contributes_to_local_continuity"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "service_health_card_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/service_health_card_schema_version"
+        },
+        "card_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable object identity. Support exports and release-truth packets quote this ref so an incident shows up under one ref across surfaces."
+        },
+        "service_family": { "$ref": "#/$defs/service_family_token" },
+        "service_family_token": { "$ref": "#/$defs/service_family_token" },
+        "service_family_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "boundary_class": { "$ref": "#/$defs/boundary_class_token" },
+        "boundary_token": { "$ref": "#/$defs/boundary_class_token" },
+        "boundary_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "contract_state": { "$ref": "#/$defs/service_contract_state_token" },
+        "contract_state_token": { "$ref": "#/$defs/service_contract_state_token" },
+        "contract_state_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "local_continuity": { "$ref": "#/$defs/local_continuity_token" },
+        "local_continuity_token": { "$ref": "#/$defs/local_continuity_token" },
+        "local_continuity_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "affected_workflows": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/affected_workflow_token" }
+        },
+        "affected_workflow_tokens": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/affected_workflow_token" }
+        },
+        "last_checked": {
+          "anyOf": [
+            { "$ref": "#/$defs/iso_date_time_minutes" },
+            { "type": "null" }
+          ],
+          "description": "ISO date-time of the last probe. Null when no probe has ever landed (the card becomes never_checked)."
+        },
+        "last_checked_age": { "$ref": "#/$defs/last_checked_age_token" },
+        "last_checked_age_token": { "$ref": "#/$defs/last_checked_age_token" },
+        "last_checked_age_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "state_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "diagnostics_action": { "$ref": "#/$defs/diagnostics_action" },
+        "detail_tokens": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/detail_token" }
+        },
+        "honesty_marker_present": {
+          "type": "boolean",
+          "description": "True when the chrome MUST light a yellow chip on this card."
+        },
+        "contributes_to_local_continuity": {
+          "type": "boolean",
+          "description": "True when this card's boundary class can drag overall local-continuity below local_safe."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "contract_state": { "const": "ready" }
+            }
+          },
+          "then": {
+            "properties": {
+              "affected_workflows": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "service_health_aggregator_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_card_count",
+        "ready_card_count",
+        "degraded_card_count",
+        "local_only_card_count",
+        "stale_card_count",
+        "contract_mismatch_card_count",
+        "policy_blocked_card_count",
+        "unavailable_card_count",
+        "never_checked_card_count"
+      ],
+      "properties": {
+        "total_card_count": { "type": "integer", "minimum": 0 },
+        "ready_card_count": { "type": "integer", "minimum": 0 },
+        "degraded_card_count": { "type": "integer", "minimum": 0 },
+        "local_only_card_count": { "type": "integer", "minimum": 0 },
+        "stale_card_count": { "type": "integer", "minimum": 0 },
+        "contract_mismatch_card_count": { "type": "integer", "minimum": 0 },
+        "policy_blocked_card_count": { "type": "integer", "minimum": 0 },
+        "unavailable_card_count": { "type": "integer", "minimum": 0 },
+        "never_checked_card_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "service_health_aggregator_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "notice",
+        "aggregator_id",
+        "as_of",
+        "cards",
+        "summary",
+        "overall_contract_state",
+        "overall_contract_state_token",
+        "overall_contract_state_label",
+        "overall_local_continuity",
+        "overall_local_continuity_token",
+        "overall_local_continuity_label",
+        "honesty_marker_present"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "service_health_aggregator_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/service_health_aggregator_schema_version"
+        },
+        "notice": { "$ref": "#/$defs/non_empty_string" },
+        "aggregator_id": { "$ref": "#/$defs/non_empty_string" },
+        "as_of": { "$ref": "#/$defs/iso_date_time_minutes" },
+        "cards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/service_health_card_record" }
+        },
+        "summary": { "$ref": "#/$defs/service_health_aggregator_summary" },
+        "overall_contract_state": { "$ref": "#/$defs/service_contract_state_token" },
+        "overall_contract_state_token": { "$ref": "#/$defs/service_contract_state_token" },
+        "overall_contract_state_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "overall_local_continuity": { "$ref": "#/$defs/local_continuity_token" },
+        "overall_local_continuity_token": { "$ref": "#/$defs/local_continuity_token" },
+        "overall_local_continuity_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "honesty_marker_present": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/service_contract_state.schema.json",
+  "title": "Aureline service contract-state vocabulary",
+  "description": "Closed contract-state vocabulary read by shell, About, service-health, CLI/headless inspect, diagnostics, and support exports. Surfaces MUST quote one of these tokens on every service-health card. Rendering an open-ended token such as \"broken\", \"down\", or \"service degraded\" outside this set is a contract violation. Adding a token is additive-minor and bumps the contract-state schema_version; repurposing an existing token is breaking. The set deliberately separates stale, contract_mismatch, policy_blocked, local_only, and offline semantics so a single bad probe does not collapse into one generic state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "record_kind", "states"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the contract-state vocabulary. Additive-minor changes (new tokens) bump this integer; repurposing an existing token is breaking and requires a new vocabulary."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "service_contract_state_vocabulary_record"
+    },
+    "states": {
+      "type": "array",
+      "minItems": 7,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/state_entry" }
+    }
+  },
+  "$defs": {
+    "service_contract_state_token": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "degraded",
+        "local_only",
+        "stale",
+        "contract_mismatch",
+        "policy_blocked",
+        "unavailable"
+      ],
+      "description": "Stable token quoted by every surface that paints a service-health card. The set is closed and shared across shell, CLI/headless inspect, diagnostics, and support exports so one surface cannot drift its vocabulary while another lags."
+    },
+    "state_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "label", "summary", "severity", "honest_warning"],
+      "properties": {
+        "token": { "$ref": "#/$defs/service_contract_state_token" },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Stable user-visible label. Quoted verbatim across surfaces."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "description": "Short, reviewable explanation of the state. Carries no raw endpoint URLs, hostnames, credentials, or implementation-only jargon."
+        },
+        "severity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "Severity used by the aggregator's worst-state rollup. 0 = ready, 4 = the strongest signals (contract_mismatch, unavailable)."
+        },
+        "honest_warning": {
+          "type": "boolean",
+          "description": "True when the chrome MUST light a yellow chip on the card. Only `ready` is false."
+        }
+      }
+    }
+  }
+}
