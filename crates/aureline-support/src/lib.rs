@@ -150,6 +150,7 @@ pub mod distributed_compatibility;
 pub mod export_review;
 pub mod extension_bisect;
 pub mod fault_domain_views;
+pub mod field_readiness;
 pub mod fitness;
 pub mod generated_lineage;
 pub mod graph_drift;
