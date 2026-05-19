@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/storage_class.schema.json",
+  "title": "Aureline storage-class registry entry",
+  "description": "Boundary schema for one entry in the shared storage-class registry. Each entry declares the scope, authority class, rebuild cost, sensitivity class, garbage-collection policy, default protection from ordinary cleanup, low-disk eviction order, and reviewer-safe summary for one class of stored bytes. The chrome storage inspector, class-selective clear-data review, low-disk banners, and cleanup receipts share this registry so 'clear cache' can never become a vague destructive umbrella that silently erases local history, evidence, offline entitlement bundles, or pinned review artifacts.",
+  "$ref": "#/$defs/storage_class_registry_entry",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "storage_class_registry_entry"
+    },
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewer-safe prose. No raw payload bodies, raw paths, raw credentials, raw policy payloads, or private identifiers."
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "process_local",
+        "workspace_local",
+        "profile_local",
+        "machine_local",
+        "user_account_local"
+      ]
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "runtime_disposable",
+        "provider_derived",
+        "workspace_derived",
+        "policy_owned",
+        "user_authored_recovery",
+        "evidence_grade"
+      ]
+    },
+    "rebuild_cost_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "cheap_local",
+        "expensive_local",
+        "network_required",
+        "irrecoverable"
+      ]
+    },
+    "sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "non_sensitive",
+        "metadata_only",
+        "redacted_content",
+        "private_user_content",
+        "evidence_grade"
+      ]
+    },
+    "gc_policy_class": {
+      "type": "string",
+      "enum": [
+        "eviction_eligible",
+        "eviction_with_review",
+        "pin_default",
+        "never_evict_silently"
+      ]
+    },
+    "low_disk_eviction_priority": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6,
+      "description": "Stable ordering position. Lower numbers are evicted first under low-disk pressure; protected classes always sit at the bottom of the ordering."
+    },
+    "protected_default": {
+      "type": "boolean",
+      "description": "True when ordinary cleanup must exclude this class by default."
+    },
+    "protected_class_examples": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/stable_ref" },
+      "description": "Reviewer-safe examples of items in this class (refs only, no raw payload bodies)."
+    },
+    "storage_class_registry_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "class_id",
+        "label",
+        "summary",
+        "scope_class",
+        "authority_class",
+        "rebuild_cost_class",
+        "sensitivity_class",
+        "gc_policy_class",
+        "low_disk_eviction_priority",
+        "protected_default",
+        "schema_ref",
+        "doc_ref"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "class_id": { "$ref": "#/$defs/storage_class_id" },
+        "label": { "type": "string", "minLength": 1 },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "rebuild_cost_class": { "$ref": "#/$defs/rebuild_cost_class" },
+        "sensitivity_class": { "$ref": "#/$defs/sensitivity_class" },
+        "gc_policy_class": { "$ref": "#/$defs/gc_policy_class" },
+        "low_disk_eviction_priority": { "$ref": "#/$defs/low_disk_eviction_priority" },
+        "protected_default": { "$ref": "#/$defs/protected_default" },
+        "protected_class_examples": { "$ref": "#/$defs/protected_class_examples" },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/support/storage_class.schema.json"
+        },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/storage_cleanup_beta.md"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "gc_policy_class": {
+                "enum": ["pin_default", "never_evict_silently"]
+              }
+            },
+            "required": ["gc_policy_class"]
+          },
+          "then": {
+            "properties": {
+              "protected_default": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "authority_class": {
+                "enum": ["user_authored_recovery", "evidence_grade"]
+              }
+            },
+            "required": ["authority_class"]
+          },
+          "then": {
+            "properties": {
+              "protected_default": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

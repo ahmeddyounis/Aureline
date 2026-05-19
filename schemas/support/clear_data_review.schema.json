@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/clear_data_review.schema.json",
+  "title": "Aureline class-selective clear-data review sheet",
+  "description": "Boundary schema for the typed review sheet a user or admin must confirm before any class-selective cleanup runs. The sheet quotes the storage-class registry verbatim and names: selected classes, affected workspaces, what will be rebuilt versus lost, pin and protection reasons, and export-before-delete availability for durable classes. Any class with gc_policy_class pin_default or never_evict_silently, or authority_class user_authored_recovery or evidence_grade, is excluded by default and may only appear under override_protected_class_refs with an explicit override_justification.",
+  "$ref": "#/$defs/clear_data_review_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "clear_data_review_record"
+    },
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "actor_lineage_class": {
+      "type": "string",
+      "enum": [
+        "user_invoked_in_shell",
+        "admin_invoked_in_console",
+        "automation_invoked",
+        "low_disk_eviction_prompt"
+      ]
+    },
+    "trigger_class": {
+      "type": "string",
+      "enum": [
+        "user_requested_cleanup",
+        "low_disk_pressure",
+        "quota_pressure",
+        "corruption_repair_request"
+      ]
+    },
+    "consequence_class": {
+      "type": "string",
+      "enum": [
+        "rebuilt_cheaply_on_demand",
+        "rebuilt_with_expensive_local_work",
+        "rebuilt_requires_network",
+        "becomes_stale_until_rebuilt",
+        "lost_with_no_rebuild_path"
+      ]
+    },
+    "export_before_delete_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "available",
+        "required_before_delete",
+        "unavailable_offline_only"
+      ]
+    },
+    "pin_source_class": {
+      "type": "string",
+      "enum": [
+        "user_pin",
+        "workspace_pin",
+        "policy_pin",
+        "evidence_hold",
+        "rollback_checkpoint_pin",
+        "last_known_good_policy_pin",
+        "offline_entitlement_pin"
+      ]
+    },
+    "protected_reason_class": {
+      "type": "string",
+      "enum": [
+        "user_owned_recovery_state",
+        "evidence_class",
+        "policy_pin",
+        "active_hold",
+        "rollback_checkpoint",
+        "dirty_buffer_journal",
+        "offline_entitlement_bundle",
+        "last_known_good_policy_bundle"
+      ]
+    },
+    "consent_state": {
+      "type": "string",
+      "enum": [
+        "unconfirmed",
+        "confirmed",
+        "cancelled",
+        "blocked_by_protected_class"
+      ]
+    },
+    "workspace_scope_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_ref",
+        "class_id",
+        "bytes_in_scope",
+        "summary"
+      ],
+      "properties": {
+        "workspace_ref": { "$ref": "#/$defs/stable_ref" },
+        "class_id": { "$ref": "#/$defs/storage_class_id" },
+        "bytes_in_scope": { "type": "integer", "minimum": 0 },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "selected_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class_id",
+        "bytes_in_scope",
+        "consequence_class",
+        "consequence_summary",
+        "export_before_delete_class"
+      ],
+      "properties": {
+        "class_id": { "$ref": "#/$defs/storage_class_id" },
+        "bytes_in_scope": { "type": "integer", "minimum": 0 },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "consequence_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "export_before_delete_class": {
+          "$ref": "#/$defs/export_before_delete_class"
+        },
+        "export_target_ref": { "$ref": "#/$defs/stable_ref" }
+      }
+    },
+    "protected_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class_id",
+        "protected_reason_class",
+        "reason_summary"
+      ],
+      "properties": {
+        "class_id": { "$ref": "#/$defs/storage_class_id" },
+        "protected_reason_class": { "$ref": "#/$defs/protected_reason_class" },
+        "reason_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "pin_block_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pin_ref",
+        "class_id",
+        "pin_source_class",
+        "pin_summary"
+      ],
+      "properties": {
+        "pin_ref": { "$ref": "#/$defs/stable_ref" },
+        "class_id": { "$ref": "#/$defs/storage_class_id" },
+        "pin_source_class": { "$ref": "#/$defs/pin_source_class" },
+        "pin_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "override_protected_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class_id",
+        "override_justification",
+        "consequence_class",
+        "consequence_summary"
+      ],
+      "properties": {
+        "class_id": { "$ref": "#/$defs/storage_class_id" },
+        "override_justification": { "$ref": "#/$defs/reviewable_sentence" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "consequence_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "clear_data_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "review_id",
+        "presented_at",
+        "actor_lineage_class",
+        "trigger_class",
+        "selected_class_refs",
+        "workspace_scope_rows",
+        "protected_class_rows",
+        "pin_block_rows",
+        "consent_state",
+        "raw_content_exported",
+        "redaction_class",
+        "schema_ref",
+        "doc_ref",
+        "storage_class_registry_ref",
+        "reviewer_summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "review_id": { "$ref": "#/$defs/stable_ref" },
+        "presented_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "actor_lineage_class": { "$ref": "#/$defs/actor_lineage_class" },
+        "trigger_class": { "$ref": "#/$defs/trigger_class" },
+        "selected_class_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/selected_class_row" }
+        },
+        "workspace_scope_rows": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/workspace_scope_row" }
+        },
+        "protected_class_rows": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/protected_class_row" }
+        },
+        "pin_block_rows": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/pin_block_row" }
+        },
+        "override_protected_class_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/override_protected_class_row" }
+        },
+        "consent_state": { "$ref": "#/$defs/consent_state" },
+        "confirmed_by_ref": { "$ref": "#/$defs/stable_ref" },
+        "raw_content_exported": {
+          "type": "boolean",
+          "const": false
+        },
+        "redaction_class": {
+          "type": "string",
+          "const": "metadata_safe_default"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/support/clear_data_review.schema.json"
+        },
+        "doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/storage_cleanup_beta.md"
+        },
+        "storage_class_registry_ref": {
+          "type": "string",
+          "const": "schemas/support/storage_class.schema.json"
+        },
+        "reviewer_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "consent_state": { "const": "confirmed" }
+            },
+            "required": ["consent_state"]
+          },
+          "then": {
+            "required": ["confirmed_by_ref"]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,89 @@
+schema_version: 1
+record_kind: storage_cleanup_scenario_record
+scenario_id: support.m3.storage_cleanup.cancelled_recovery_state_override
+title: User-owned recovery state override is reviewed and cancelled
+trigger_class: user_requested_cleanup
+summary: >
+  A user attempts to override the protected user-owned recovery state.
+  The review sheet names every protected class, the consequence is
+  flagged as lost_with_no_rebuild_path, and the user cancels. No
+  bytes are deleted; the receipt records a cancelled result.
+
+review:
+  schema_version: 1
+  record_kind: clear_data_review_record
+  review_id: review.cancelled_recovery_state_override.v1
+  presented_at: 2026-05-19T14:45:00Z
+  actor_lineage_class: user_invoked_in_shell
+  trigger_class: user_requested_cleanup
+  selected_class_refs:
+    - class_id: interactive_hot_cache
+      bytes_in_scope: 134217728
+      consequence_class: rebuilt_cheaply_on_demand
+      consequence_summary: Hot cache rebuilds on next interaction.
+      export_before_delete_class: not_applicable
+  workspace_scope_rows: []
+  protected_class_rows:
+    - class_id: evidence_support_cache
+      protected_reason_class: evidence_class
+      reason_summary: Evidence and support cache excluded by default.
+    - class_id: user_owned_recovery_state
+      protected_reason_class: user_owned_recovery_state
+      reason_summary: >
+        Local history, rollback checkpoints, dirty-buffer journals,
+        offline entitlement bundles, pinned review artifacts, and
+        last-known-good policy bundles cannot be reclaimed without an
+        explicit per-item override.
+  pin_block_rows: []
+  override_protected_class_refs:
+    - class_id: user_owned_recovery_state
+      override_justification: >
+        User attempted to override user-owned recovery state to reclaim
+        disk; the review sheet names every consequence.
+      consequence_class: lost_with_no_rebuild_path
+      consequence_summary: >
+        Local history, rollback checkpoints, dirty-buffer journals,
+        offline entitlement bundles, pinned review artifacts, and
+        last-known-good policy bundles would all be lost.
+  consent_state: cancelled
+  raw_content_exported: false
+  redaction_class: metadata_safe_default
+  schema_ref: schemas/support/clear_data_review.schema.json
+  doc_ref: docs/support/m3/storage_cleanup_beta.md
+  storage_class_registry_ref: schemas/support/storage_class.schema.json
+  reviewer_summary: >
+    Override of user-owned recovery state previewed and cancelled by
+    the user; no bytes were deleted.
+
+receipt:
+  schema_version: 1
+  record_kind: storage_cleanup_receipt_record
+  receipt_id: receipt.cancelled_recovery_state_override.v1
+  review_ref: review.cancelled_recovery_state_override.v1
+  executed_at: 2026-05-19T14:45:18Z
+  actor_lineage_class: user_invoked_in_shell
+  trigger_class: user_requested_cleanup
+  result_class: cancelled
+  class_outcomes:
+    - class_id: interactive_hot_cache
+      bytes_reclaimed: 0
+      rebuild_state_class: fresh_no_rebuild_needed
+      rebuild_summary: Hot cache untouched after cancel.
+  blocked_pin_rows: []
+  skipped_protected_class_rows:
+    - class_id: evidence_support_cache
+      protected_reason_class: evidence_class
+      reason_summary: Evidence and support cache untouched after cancel.
+    - class_id: user_owned_recovery_state
+      protected_reason_class: user_owned_recovery_state
+      reason_summary: User-owned recovery state untouched after cancel.
+  reopen_inspector_action_ref: action.storage_inspector.reopen
+  raw_content_exported: false
+  redaction_class: metadata_safe_default
+  schema_ref: schemas/support/storage_cleanup_receipt.schema.json
+  doc_ref: docs/support/m3/storage_cleanup_beta.md
+  registry_ref: schemas/support/storage_class.schema.json
+  review_schema_ref: schemas/support/clear_data_review.schema.json
+  reviewer_summary: >
+    Cleanup cancelled before deletion; no bytes reclaimed and every
+    protected class remained intact.

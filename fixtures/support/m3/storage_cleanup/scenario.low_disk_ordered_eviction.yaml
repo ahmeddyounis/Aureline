@@ -1,0 +1,133 @@
+schema_version: 1
+record_kind: storage_cleanup_scenario_record
+scenario_id: support.m3.storage_cleanup.low_disk_ordered_eviction
+title: Low-disk ordered eviction with explained stale state
+trigger_class: low_disk_pressure
+summary: >
+  Disk pressure crosses the critical threshold. The low-disk banner
+  explains the ordered eviction (hot cache first, then knowledge, then
+  artifact and prebuild caches with review), names paused work, and
+  pins protected classes. The receipt records exactly what was trimmed
+  and what is now stale.
+
+review:
+  schema_version: 1
+  record_kind: clear_data_review_record
+  review_id: review.low_disk_ordered_eviction.v1
+  presented_at: 2026-05-19T10:00:00Z
+  actor_lineage_class: low_disk_eviction_prompt
+  trigger_class: low_disk_pressure
+  selected_class_refs:
+    - class_id: interactive_hot_cache
+      bytes_in_scope: 536870912
+      consequence_class: rebuilt_cheaply_on_demand
+      consequence_summary: Hot cache rebuilds on next interaction.
+      export_before_delete_class: not_applicable
+    - class_id: knowledge_cache
+      bytes_in_scope: 2147483648
+      consequence_class: rebuilt_with_expensive_local_work
+      consequence_summary: Knowledge cache reindex queued.
+      export_before_delete_class: not_applicable
+    - class_id: artifact_cache
+      bytes_in_scope: 4294967296
+      consequence_class: rebuilt_requires_network
+      consequence_summary: >
+        Artifact cache will refetch from providers; expect a network
+        round-trip before reproducible build artifacts are warm again.
+      export_before_delete_class: not_applicable
+  workspace_scope_rows:
+    - workspace_ref: workspace.local.aureline_core
+      class_id: knowledge_cache
+      bytes_in_scope: 2147483648
+      summary: Aureline core workspace knowledge cache evicted.
+  protected_class_rows:
+    - class_id: evidence_support_cache
+      protected_reason_class: evidence_class
+      reason_summary: >
+        Evidence and support cache stays pinned even under low-disk
+        pressure so an in-flight incident workspace is preserved.
+    - class_id: user_owned_recovery_state
+      protected_reason_class: user_owned_recovery_state
+      reason_summary: >
+        User-owned recovery state stays pinned; local history,
+        rollback checkpoints, dirty-buffer journals, offline
+        entitlement bundles, and pinned review artifacts are not
+        evicted to reclaim disk.
+  pin_block_rows: []
+  consent_state: confirmed
+  confirmed_by_ref: actor.local_user.ahmedyounis
+  raw_content_exported: false
+  redaction_class: metadata_safe_default
+  schema_ref: schemas/support/clear_data_review.schema.json
+  doc_ref: docs/support/m3/storage_cleanup_beta.md
+  storage_class_registry_ref: schemas/support/storage_class.schema.json
+  reviewer_summary: >
+    Low-disk eviction confirmed for hot, knowledge, and artifact
+    caches; protected classes named and excluded.
+
+receipt:
+  schema_version: 1
+  record_kind: storage_cleanup_receipt_record
+  receipt_id: receipt.low_disk_ordered_eviction.v1
+  review_ref: review.low_disk_ordered_eviction.v1
+  executed_at: 2026-05-19T10:00:53Z
+  actor_lineage_class: low_disk_eviction_prompt
+  trigger_class: low_disk_pressure
+  result_class: completed
+  class_outcomes:
+    - class_id: interactive_hot_cache
+      bytes_reclaimed: 536870912
+      rebuild_state_class: rebuild_on_demand_cheaply
+      rebuild_summary: Hot cache rebuilds on next interaction.
+    - class_id: knowledge_cache
+      bytes_reclaimed: 2147483648
+      rebuild_state_class: stale_until_rebuilt
+      rebuild_summary: Semantic search is stale until reindex completes.
+    - class_id: artifact_cache
+      bytes_reclaimed: 4294967296
+      rebuild_state_class: rebuild_requires_network
+      rebuild_summary: >
+        Artifact cache will refetch from providers; reproducible build
+        artifacts cold until the next request.
+  blocked_pin_rows: []
+  skipped_protected_class_rows:
+    - class_id: evidence_support_cache
+      protected_reason_class: evidence_class
+      reason_summary: Evidence and support cache pinned under low-disk pressure.
+    - class_id: user_owned_recovery_state
+      protected_reason_class: user_owned_recovery_state
+      reason_summary: User-owned recovery state pinned under low-disk pressure.
+  low_disk_context:
+    state_class: critical
+    ordered_eviction_steps:
+      - order: 1
+        class_id: interactive_hot_cache
+        bytes_evicted: 536870912
+        summary: Interactive hot cache trimmed first.
+      - order: 2
+        class_id: knowledge_cache
+        bytes_evicted: 2147483648
+        summary: Knowledge cache trimmed next.
+      - order: 3
+        class_id: artifact_cache
+        bytes_evicted: 4294967296
+        summary: Artifact cache trimmed after a confirmation step.
+    paused_work_rows:
+      - work_ref: work.background.knowledge_reindex
+        summary: Knowledge reindex paused until the eviction completes.
+      - work_ref: work.background.artifact_prewarm
+        summary: Artifact prewarm paused until the next interaction.
+    reviewer_summary: >
+      Low-disk eviction reclaimed disposable and recreatable caches in
+      eviction-priority order while every protected class stayed
+      pinned.
+  reopen_inspector_action_ref: action.storage_inspector.reopen
+  raw_content_exported: false
+  redaction_class: metadata_safe_default
+  schema_ref: schemas/support/storage_cleanup_receipt.schema.json
+  doc_ref: docs/support/m3/storage_cleanup_beta.md
+  registry_ref: schemas/support/storage_class.schema.json
+  review_schema_ref: schemas/support/clear_data_review.schema.json
+  reviewer_summary: >
+    Low-disk eviction reclaimed 6.5 GiB across hot, knowledge, and
+    artifact caches in priority order; protected classes preserved.

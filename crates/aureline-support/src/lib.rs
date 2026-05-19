@@ -164,6 +164,7 @@ pub mod runtime_evidence;
 pub mod runtime_health_alpha;
 pub mod safe_mode;
 pub mod scenario_scorecard;
+pub mod storage_inspector;
 
 pub use fault_domain_views::{
     seeded_fault_domain_view_packet, FaultDomainViewPacket, FaultDomainViewRow,

@@ -1,0 +1,96 @@
+schema_version: 1
+record_kind: storage_cleanup_scenario_record
+scenario_id: support.m3.storage_cleanup.corruption_repair_prebuild_cache
+title: Corruption repair clears prebuild cache without touching evidence
+trigger_class: corruption_repair_request
+summary: >
+  Project Doctor flagged a stale-or-corrupt prebuild cache. The user
+  confirms a class-selective clear that rebuilds the prebuild and
+  artifact caches over the network while every protected class stays
+  pinned, including the dirty-buffer journals and last-known-good
+  policy bundle.
+
+review:
+  schema_version: 1
+  record_kind: clear_data_review_record
+  review_id: review.corruption_repair_prebuild_cache.v1
+  presented_at: 2026-05-19T13:30:00Z
+  actor_lineage_class: user_invoked_in_shell
+  trigger_class: corruption_repair_request
+  selected_class_refs:
+    - class_id: prebuild_environment_cache
+      bytes_in_scope: 3221225472
+      consequence_class: rebuilt_requires_network
+      consequence_summary: >
+        Prebuild and environment cache will refetch toolchains and
+        language runtimes from providers.
+      export_before_delete_class: not_applicable
+    - class_id: artifact_cache
+      bytes_in_scope: 1610612736
+      consequence_class: rebuilt_requires_network
+      consequence_summary: Artifact cache will refetch on next request.
+      export_before_delete_class: not_applicable
+  workspace_scope_rows:
+    - workspace_ref: workspace.machine.toolchains
+      class_id: prebuild_environment_cache
+      bytes_in_scope: 3221225472
+      summary: Machine-local toolchain cache flagged stale or corrupt.
+  protected_class_rows:
+    - class_id: evidence_support_cache
+      protected_reason_class: evidence_class
+      reason_summary: Evidence and support cache stays pinned during repair.
+    - class_id: user_owned_recovery_state
+      protected_reason_class: dirty_buffer_journal
+      reason_summary: >
+        Dirty-buffer journals are excluded from repair so unsaved work
+        and rollback checkpoints survive.
+  pin_block_rows: []
+  consent_state: confirmed
+  confirmed_by_ref: actor.local_user.ahmedyounis
+  raw_content_exported: false
+  redaction_class: metadata_safe_default
+  schema_ref: schemas/support/clear_data_review.schema.json
+  doc_ref: docs/support/m3/storage_cleanup_beta.md
+  storage_class_registry_ref: schemas/support/storage_class.schema.json
+  reviewer_summary: >
+    Repair confirmed for prebuild and artifact caches; evidence and
+    user-owned recovery state remained protected.
+
+receipt:
+  schema_version: 1
+  record_kind: storage_cleanup_receipt_record
+  receipt_id: receipt.corruption_repair_prebuild_cache.v1
+  review_ref: review.corruption_repair_prebuild_cache.v1
+  executed_at: 2026-05-19T13:31:21Z
+  actor_lineage_class: user_invoked_in_shell
+  trigger_class: corruption_repair_request
+  result_class: completed
+  class_outcomes:
+    - class_id: prebuild_environment_cache
+      bytes_reclaimed: 3221225472
+      rebuild_state_class: rebuild_requires_network
+      rebuild_summary: Toolchain refetch queued.
+    - class_id: artifact_cache
+      bytes_reclaimed: 1610612736
+      rebuild_state_class: rebuild_requires_network
+      rebuild_summary: Artifact refetch queued on next request.
+  blocked_pin_rows: []
+  skipped_protected_class_rows:
+    - class_id: evidence_support_cache
+      protected_reason_class: evidence_class
+      reason_summary: Evidence and support cache untouched during repair.
+    - class_id: user_owned_recovery_state
+      protected_reason_class: dirty_buffer_journal
+      reason_summary: >
+        User-owned recovery state (including dirty-buffer journals
+        and last-known-good policy bundles) untouched during repair.
+  reopen_inspector_action_ref: action.storage_inspector.reopen
+  raw_content_exported: false
+  redaction_class: metadata_safe_default
+  schema_ref: schemas/support/storage_cleanup_receipt.schema.json
+  doc_ref: docs/support/m3/storage_cleanup_beta.md
+  registry_ref: schemas/support/storage_class.schema.json
+  review_schema_ref: schemas/support/clear_data_review.schema.json
+  reviewer_summary: >
+    Repair reclaimed 4.5 GiB across prebuild and artifact caches;
+    evidence and user-owned recovery state preserved.

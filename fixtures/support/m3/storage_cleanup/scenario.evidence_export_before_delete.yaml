@@ -1,0 +1,105 @@
+schema_version: 1
+record_kind: storage_cleanup_scenario_record
+scenario_id: support.m3.storage_cleanup.evidence_export_before_delete
+title: Evidence cache override requires export-before-delete
+trigger_class: user_requested_cleanup
+summary: >
+  An admin requests cleanup of the evidence and support cache to free
+  disk. The review sheet forces export-before-delete on the durable
+  class, names the user-owned recovery state still excluded, and the
+  receipt records the exported target ref and the irrecoverable
+  rebuild state.
+
+review:
+  schema_version: 1
+  record_kind: clear_data_review_record
+  review_id: review.evidence_export_before_delete.v1
+  presented_at: 2026-05-19T11:15:00Z
+  actor_lineage_class: admin_invoked_in_console
+  trigger_class: user_requested_cleanup
+  selected_class_refs:
+    - class_id: evidence_support_cache
+      bytes_in_scope: 1073741824
+      consequence_class: lost_with_no_rebuild_path
+      consequence_summary: >
+        Evidence and support cache cannot be rebuilt; an export to a
+        named local target is required before deletion runs.
+      export_before_delete_class: required_before_delete
+      export_target_ref: target.support_export.local_bundle
+  workspace_scope_rows:
+    - workspace_ref: workspace.profile.support_profile
+      class_id: evidence_support_cache
+      bytes_in_scope: 1073741824
+      summary: Profile-local evidence and support cache in scope.
+  protected_class_rows:
+    - class_id: user_owned_recovery_state
+      protected_reason_class: user_owned_recovery_state
+      reason_summary: >
+        User-owned recovery state remains excluded even when an admin
+        overrides the evidence class; local history and rollback
+        checkpoints are not affected.
+  pin_block_rows:
+    - pin_ref: pin.evidence.active_incident_workspace
+      class_id: evidence_support_cache
+      pin_source_class: evidence_hold
+      pin_summary: >
+        An active incident-workspace pin holds the in-flight incident
+        evidence; cleanup will not delete it until the incident is
+        closed.
+  override_protected_class_refs:
+    - class_id: evidence_support_cache
+      override_justification: >
+        Admin override approved to free disk for an emergency repair
+        workflow after exporting evidence to a named local bundle.
+      consequence_class: lost_with_no_rebuild_path
+      consequence_summary: >
+        Once deletion runs, the evidence bytes are gone; only the
+        exported local bundle remains as a metadata-safe archive.
+  consent_state: confirmed
+  confirmed_by_ref: actor.admin.support_lead
+  raw_content_exported: false
+  redaction_class: metadata_safe_default
+  schema_ref: schemas/support/clear_data_review.schema.json
+  doc_ref: docs/support/m3/storage_cleanup_beta.md
+  storage_class_registry_ref: schemas/support/storage_class.schema.json
+  reviewer_summary: >
+    Admin override confirmed cleanup of the evidence cache after an
+    export-before-delete; the active incident pin blocked one row and
+    user-owned recovery state stayed protected.
+
+receipt:
+  schema_version: 1
+  record_kind: storage_cleanup_receipt_record
+  receipt_id: receipt.evidence_export_before_delete.v1
+  review_ref: review.evidence_export_before_delete.v1
+  executed_at: 2026-05-19T11:18:09Z
+  actor_lineage_class: admin_invoked_in_console
+  trigger_class: user_requested_cleanup
+  result_class: partial
+  class_outcomes:
+    - class_id: evidence_support_cache
+      bytes_reclaimed: 805306368
+      rebuild_state_class: irrecoverable_without_external_source
+      rebuild_summary: >
+        Evidence and support cache bytes deleted after the local
+        export; only the named local bundle remains.
+  blocked_pin_rows:
+    - pin_ref: pin.evidence.active_incident_workspace
+      class_id: evidence_support_cache
+      pin_source_class: evidence_hold
+      pin_summary: Active incident-workspace pin blocked deletion of in-flight evidence.
+  skipped_protected_class_rows:
+    - class_id: user_owned_recovery_state
+      protected_reason_class: user_owned_recovery_state
+      reason_summary: User-owned recovery state untouched by the admin override.
+  reopen_inspector_action_ref: action.storage_inspector.reopen
+  raw_content_exported: false
+  redaction_class: metadata_safe_default
+  schema_ref: schemas/support/storage_cleanup_receipt.schema.json
+  doc_ref: docs/support/m3/storage_cleanup_beta.md
+  registry_ref: schemas/support/storage_class.schema.json
+  review_schema_ref: schemas/support/clear_data_review.schema.json
+  reviewer_summary: >
+    Cleanup reclaimed 768 MiB of evidence bytes after an exported
+    local bundle; one active incident pin blocked deletion and
+    user-owned recovery state was untouched.
