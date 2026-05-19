@@ -1,0 +1,412 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/public/capability_boundary_card.schema.json",
+  "title": "Aureline public capability-boundary-card contract",
+  "description": "Boundary schema for one capability_boundary_card_record rendered on About, Help, marketplace, issue/reporting, governance, contributing, community-discussion, release-notes, upgrade-or-hosted, sponsorship, troubleshooting, and source-repository surfaces. The card states the surface's posture (local/open, account-optional local/open, managed first-party, self-hosted, mirrored, premium hosted, third-party/vendor, or community-operated), the identity and network requirement, the data boundary, the continue-local-only or rollback/downgrade path, and the upgrade-honesty rule that prevents premium or hosted prompts from hiding a valid local/open path. Surfaces whose posture is premium_hosted or managed_first_party MUST cite an upgrade_honesty_rule_class of local_path_visible or no_local_path_applicable. Surfaces declaring posture local_open or local_open_account_optional MUST resolve identity_requirement_class, network_requirement_class, and data_boundary_class onto the values that keep the row reachable without account coercion. Adding a new surface, posture, identity, network, data-boundary, rollback-path, or upgrade-honesty class is additive-minor and bumps capability_boundary_card_schema_version; repurposing an existing value is breaking and requires a new decision row. Raw URLs, raw email addresses, raw chat-room URLs, and raw secret material MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only.",
+  "type": "object",
+  "$ref": "#/$defs/capability_boundary_card_record",
+  "$defs": {
+    "capability_boundary_card_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "about_pane",
+        "help_pane",
+        "source_repository_panel",
+        "issue_reporting_panel",
+        "discussion_forum_panel",
+        "governance_panel",
+        "contributing_guide_panel",
+        "marketplace_panel",
+        "release_notes_panel",
+        "upgrade_or_hosted_cta",
+        "sponsorship_cta",
+        "troubleshooting_panel"
+      ],
+      "description": "Closed surface vocabulary. About, Help, marketplace, issue/reporting, governance, contributing, community-discussion, release-notes, upgrade-or-hosted, sponsorship, troubleshooting, and source-repository surfaces all draw the same boundary card."
+    },
+    "posture_class": {
+      "type": "string",
+      "enum": [
+        "local_open",
+        "local_open_account_optional",
+        "managed_first_party",
+        "self_hosted_customer_operated",
+        "mirrored_offline",
+        "premium_hosted",
+        "third_party_vendor",
+        "community_operated"
+      ],
+      "description": "Closed surface-posture vocabulary."
+    },
+    "identity_requirement_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "optional_local_account",
+        "required_account_for_write",
+        "required_account_for_subscribe",
+        "required_security_identity",
+        "required_support_identity",
+        "required_vendor_identity"
+      ],
+      "description": "Closed identity-requirement vocabulary disclosed on the card."
+    },
+    "network_requirement_class": {
+      "type": "string",
+      "enum": [
+        "offline_local_only",
+        "account_free_metadata_only",
+        "account_free_browse",
+        "authenticated_managed_plane",
+        "authenticated_premium_plane",
+        "vendor_or_third_party_call",
+        "community_public_call"
+      ],
+      "description": "Closed network-requirement vocabulary disclosed on the card."
+    },
+    "data_boundary_class": {
+      "type": "string",
+      "enum": [
+        "stays_on_device",
+        "metadata_only_outbound",
+        "redacted_outbound",
+        "authenticated_managed_outbound",
+        "authenticated_premium_outbound",
+        "vendor_or_third_party_outbound",
+        "community_public"
+      ],
+      "description": "Closed data-boundary vocabulary disclosed on the card."
+    },
+    "rollback_path_class": {
+      "type": "string",
+      "enum": [
+        "continue_local_only",
+        "downgrade_to_local_open",
+        "switch_to_mirrored_offline",
+        "switch_to_self_hosted_customer_operated",
+        "no_local_alternative_disclosed",
+        "not_applicable"
+      ],
+      "description": "Closed rollback / downgrade path vocabulary. premium_hosted and managed_first_party surfaces MUST cite a continue_local_only or downgrade_to_local_open path when the same flow has an account-optional local alternative; no_local_alternative_disclosed MUST only appear when the parity row honestly declares hosted_only_no_local_fallback."
+    },
+    "upgrade_honesty_rule_class": {
+      "type": "string",
+      "enum": [
+        "local_path_visible",
+        "local_path_hidden_violation",
+        "no_local_path_applicable"
+      ],
+      "description": "Closed upgrade-honesty rule. local_path_hidden_violation MUST NOT appear on any premium_hosted or managed_first_party surface that has an account-optional local alternative — the schema rejects such rows so upgrade prompts cannot diminish a valid local/open path."
+    },
+    "support_prominence_class": {
+      "type": "string",
+      "enum": [
+        "troubleshooting_first",
+        "support_first",
+        "source_first",
+        "parity_with_upgrade",
+        "below_upgrade"
+      ],
+      "description": "Mirror of about_destination.support_prominence_class. Surfaces whose primary purpose is troubleshooting, issue reporting, security intake, support intake, source repository, contributing, or status MUST NOT carry below_upgrade."
+    },
+    "local_only_parity_class": {
+      "type": "string",
+      "enum": [
+        "account_optional_local_parity",
+        "local_only_only",
+        "hosted_only_no_local_fallback",
+        "mixed_local_optional_account"
+      ],
+      "description": "Mirror of about_destination.local_only_parity_class so the boundary card and the destination rows agree."
+    },
+
+    "capability_boundary_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_boundary_card_schema_version",
+        "record_kind",
+        "card_id",
+        "surface_class",
+        "surface_ref",
+        "posture_class",
+        "identity_requirement_class",
+        "network_requirement_class",
+        "data_boundary_class",
+        "rollback_path_class",
+        "continue_local_only_path_ref",
+        "rollback_or_downgrade_path_ref",
+        "upgrade_honesty_rule_class",
+        "support_prominence_class",
+        "local_only_parity_class",
+        "linked_destination_refs",
+        "linked_about_destination_refs",
+        "headline_label",
+        "card_summary",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "capability_boundary_card_schema_version": {
+          "$ref": "#/$defs/capability_boundary_card_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "capability_boundary_card_record"
+        },
+        "card_id": {
+          "type": "string",
+          "pattern": "^capability_boundary_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "surface_ref": { "$ref": "#/$defs/opaque_ref" },
+        "posture_class": { "$ref": "#/$defs/posture_class" },
+        "identity_requirement_class": { "$ref": "#/$defs/identity_requirement_class" },
+        "network_requirement_class": { "$ref": "#/$defs/network_requirement_class" },
+        "data_boundary_class": { "$ref": "#/$defs/data_boundary_class" },
+        "rollback_path_class": { "$ref": "#/$defs/rollback_path_class" },
+        "continue_local_only_path_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "rollback_or_downgrade_path_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "upgrade_honesty_rule_class": { "$ref": "#/$defs/upgrade_honesty_rule_class" },
+        "support_prominence_class": { "$ref": "#/$defs/support_prominence_class" },
+        "local_only_parity_class": { "$ref": "#/$defs/local_only_parity_class" },
+        "linked_destination_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "linked_about_destination_refs": { "$ref": "#/$defs/ref_array" },
+        "headline_label": { "$ref": "#/$defs/reviewable_label" },
+        "card_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/public/m3/about_source_and_boundary_beta.md"
+        },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "premium_hosted and managed_first_party surfaces MUST NOT hide a valid local/open path: upgrade_honesty_rule_class is local_path_visible or no_local_path_applicable.",
+          "if": {
+            "properties": {
+              "posture_class": {
+                "enum": ["premium_hosted", "managed_first_party"]
+              }
+            },
+            "required": ["posture_class"]
+          },
+          "then": {
+            "properties": {
+              "upgrade_honesty_rule_class": {
+                "enum": ["local_path_visible", "no_local_path_applicable"]
+              }
+            }
+          }
+        },
+        {
+          "description": "When upgrade_honesty_rule_class = local_path_visible, the card MUST cite a continue_local_only_path_ref.",
+          "if": {
+            "properties": {
+              "upgrade_honesty_rule_class": { "const": "local_path_visible" }
+            },
+            "required": ["upgrade_honesty_rule_class"]
+          },
+          "then": {
+            "properties": {
+              "continue_local_only_path_ref": { "not": { "type": "null" } },
+              "rollback_path_class": {
+                "enum": [
+                  "continue_local_only",
+                  "downgrade_to_local_open",
+                  "switch_to_mirrored_offline",
+                  "switch_to_self_hosted_customer_operated"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "local_open and local_open_account_optional surfaces MUST keep identity, network, and data boundary inside the account-optional local lane.",
+          "if": {
+            "properties": {
+              "posture_class": {
+                "enum": ["local_open", "local_open_account_optional"]
+              }
+            },
+            "required": ["posture_class"]
+          },
+          "then": {
+            "properties": {
+              "identity_requirement_class": {
+                "enum": ["none", "optional_local_account"]
+              },
+              "network_requirement_class": {
+                "enum": [
+                  "offline_local_only",
+                  "account_free_metadata_only",
+                  "account_free_browse",
+                  "community_public_call"
+                ]
+              },
+              "data_boundary_class": {
+                "enum": [
+                  "stays_on_device",
+                  "metadata_only_outbound",
+                  "community_public"
+                ]
+              },
+              "local_only_parity_class": {
+                "enum": [
+                  "account_optional_local_parity",
+                  "local_only_only",
+                  "mixed_local_optional_account"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Support-oriented surfaces MUST keep support prominence at or above upgrade.",
+          "if": {
+            "properties": {
+              "surface_class": {
+                "enum": [
+                  "issue_reporting_panel",
+                  "troubleshooting_panel",
+                  "source_repository_panel",
+                  "contributing_guide_panel"
+                ]
+              }
+            },
+            "required": ["surface_class"]
+          },
+          "then": {
+            "properties": {
+              "support_prominence_class": {
+                "enum": [
+                  "troubleshooting_first",
+                  "support_first",
+                  "source_first"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "upgrade_or_hosted and sponsorship CTAs MUST NOT outrank support, source, or troubleshooting on the same surface.",
+          "if": {
+            "properties": {
+              "surface_class": {
+                "enum": ["upgrade_or_hosted_cta", "sponsorship_cta"]
+              }
+            },
+            "required": ["surface_class"]
+          },
+          "then": {
+            "properties": {
+              "support_prominence_class": {
+                "enum": ["parity_with_upgrade", "below_upgrade"]
+              }
+            }
+          }
+        },
+        {
+          "description": "third_party_vendor surfaces MUST disclose vendor or third-party network call and outbound data.",
+          "if": {
+            "properties": {
+              "posture_class": { "const": "third_party_vendor" }
+            },
+            "required": ["posture_class"]
+          },
+          "then": {
+            "properties": {
+              "network_requirement_class": {
+                "enum": [
+                  "vendor_or_third_party_call",
+                  "community_public_call"
+                ]
+              },
+              "data_boundary_class": {
+                "enum": ["vendor_or_third_party_outbound", "community_public"]
+              }
+            }
+          }
+        },
+        {
+          "description": "no_local_path_applicable rule pairs with rollback_path_class = not_applicable or no_local_alternative_disclosed and local_only_parity_class = hosted_only_no_local_fallback.",
+          "if": {
+            "properties": {
+              "upgrade_honesty_rule_class": { "const": "no_local_path_applicable" }
+            },
+            "required": ["upgrade_honesty_rule_class"]
+          },
+          "then": {
+            "properties": {
+              "rollback_path_class": {
+                "enum": ["not_applicable", "no_local_alternative_disclosed"]
+              },
+              "local_only_parity_class": {
+                "enum": ["hosted_only_no_local_fallback", "local_only_only"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

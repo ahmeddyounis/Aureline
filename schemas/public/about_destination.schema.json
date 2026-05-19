@@ -1,0 +1,461 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/public/about_destination.schema.json",
+  "title": "Aureline public about-destination contract",
+  "description": "Boundary schema for one about_destination_record consumed by About, Help, marketplace, issue/reporting, governance, contributing, community-handoff, release-notes, upgrade/hosted, and source-repository surfaces. Every consuming surface MUST quote the same closed destination-class, destination-role, route-state, account-requirement, data-exit boundary, support-prominence, and local-only parity vocabulary so the open-vs-managed boundary is described identically across the product. Redirected, archived, or replaced destinations MUST carry an explicit replacement_destination_ref so dead links degrade to a labeled successor instead of silently failing. Surfaces whose primary purpose is support, troubleshooting, issue reporting, or source transparency MUST NOT carry support_prominence_class = deprioritized_below_upgrade; upgrade-or-hosted prompts can never push a valid local/open destination off the surface. Account-required write or subscribe destinations MUST cite a local_only_fallback_ref when the row is part of a flow whose local use is still account-optional. Raw URLs, raw email addresses, raw chat-room URLs, raw rotation entries, and raw secret material MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new destination-class, destination-role, route-state, account-requirement, data-exit boundary, support-prominence, or local-only parity class is additive-minor and bumps about_destination_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/about_destination_record",
+  "$defs": {
+    "about_destination_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Opaque, stable identifier safe for live surfaces, support exports, and public-proof packets. Raw URLs, raw absolute paths, raw email addresses, raw chat-room URLs, raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Bounded reviewable sentence. Raw URLs, raw page-body bytes, raw user identifiers, and raw secrets MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "official_public",
+        "official_private",
+        "community",
+        "third_party_vendor"
+      ],
+      "description": "Closed four-class destination-trust vocabulary. About, Help, marketplace, issue/reporting, governance, and contributing routes MUST reuse exactly these labels. A destination whose trust class is unresolved MUST be denied at build time rather than collapsing to official_public."
+    },
+    "destination_role_class": {
+      "type": "string",
+      "enum": [
+        "source_repository",
+        "issue_tracker",
+        "discussion_forum",
+        "rfc_forum",
+        "governance_charter",
+        "contributing_guide",
+        "security_intake",
+        "support_intake",
+        "status_page",
+        "docs_or_help",
+        "release_notes",
+        "release_packet",
+        "marketplace_index",
+        "upgrade_or_hosted",
+        "sponsorship_or_funding",
+        "community_handoff_router",
+        "local_only_fallback",
+        "mirror_or_archive"
+      ],
+      "description": "Closed destination-role vocabulary shared across About, Help, marketplace, issue/reporting, governance, contributing, release-notes, upgrade-or-hosted, and community-handoff surfaces."
+    },
+    "route_state_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "redirected",
+        "archived",
+        "replaced",
+        "decommissioned",
+        "unreachable_probed"
+      ],
+      "description": "Closed route-state vocabulary. Redirected, archived, or replaced rows MUST cite an explicit replacement_destination_ref. A decommissioned row MUST cite a local_only_fallback_ref when one exists, so the dead link degrades to a labeled path instead of silently failing."
+    },
+    "account_requirement_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "optional_for_account_features",
+        "required_for_view",
+        "required_for_write",
+        "required_for_subscribe",
+        "required_for_premium_hosted"
+      ],
+      "description": "Closed account-requirement vocabulary. About, Help, marketplace, and source-repository rows whose local use is still account-optional MUST cite a local_only_fallback_ref whenever this row's account requirement is required_for_write, required_for_subscribe, or required_for_premium_hosted."
+    },
+    "data_exit_boundary_class": {
+      "type": "string",
+      "enum": [
+        "no_payload_leaves_product",
+        "metadata_safe_object_refs",
+        "proposal_refs_only",
+        "redacted_support_packet",
+        "security_payloads_only",
+        "external_public_browse",
+        "vendor_or_third_party_outbound"
+      ],
+      "description": "Closed data-exit-boundary vocabulary disclosed before navigation. third_party_vendor destinations MUST carry external_public_browse or vendor_or_third_party_outbound; security_intake destinations MUST carry security_payloads_only; support_intake destinations MUST carry redacted_support_packet."
+    },
+    "support_prominence_class": {
+      "type": "string",
+      "enum": [
+        "troubleshooting_first",
+        "support_first",
+        "source_first",
+        "parity_with_upgrade",
+        "below_upgrade"
+      ],
+      "description": "Closed prominence vocabulary. Support-oriented surfaces (troubleshooting, issue_tracker, support_intake, security_intake, source_repository, contributing_guide, status_page) MUST NOT carry below_upgrade — sponsorship and upgrade-or-hosted CTAs cannot push a valid support, source, or troubleshooting route off the surface."
+    },
+    "local_only_parity_class": {
+      "type": "string",
+      "enum": [
+        "account_optional_local_parity",
+        "local_only_only",
+        "hosted_only_no_local_fallback",
+        "mixed_local_optional_account"
+      ],
+      "description": "Closed local-only parity vocabulary. account_optional_local_parity and mixed_local_optional_account rows MUST keep a local/open destination reachable without account coercion. hosted_only_no_local_fallback rows MUST be labeled honestly and may not appear on About, Help, source-repository, or contributing surfaces when the same flow has an open or local alternative."
+    },
+    "build_context_export_class": {
+      "type": "string",
+      "enum": [
+        "public_issue_template_block",
+        "private_support_intake_block",
+        "private_security_intake_block",
+        "community_discussion_block"
+      ],
+      "description": "Closed build-context export-block vocabulary. Each destination row that opens an issue, support intake, security intake, or community discussion MUST cite at least one build_context_export_class so the lane can attach a versioned export block instead of a screenshot."
+    },
+
+    "build_context_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_class",
+        "export_block_ref",
+        "export_block_schema_version",
+        "redacted_for_audience",
+        "raw_screenshots_excluded",
+        "raw_secrets_excluded",
+        "export_summary"
+      ],
+      "properties": {
+        "export_class": { "$ref": "#/$defs/build_context_export_class" },
+        "export_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "export_block_schema_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Schema version of the export-block payload itself. About, public-issue templates, support intake, and community discussion MUST cite the same version when they quote the same block."
+        },
+        "redacted_for_audience": { "$ref": "#/$defs/build_context_export_class" },
+        "raw_screenshots_excluded": { "type": "boolean", "const": true },
+        "raw_secrets_excluded": { "type": "boolean", "const": true },
+        "export_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "about_destination_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "about_destination_schema_version",
+        "record_kind",
+        "destination_id",
+        "destination_class",
+        "destination_role_class",
+        "route_state_class",
+        "account_requirement_class",
+        "data_exit_boundary_class",
+        "support_prominence_class",
+        "local_only_parity_class",
+        "headline_label",
+        "destination_summary",
+        "replacement_destination_ref",
+        "local_only_fallback_ref",
+        "source_surface_refs",
+        "build_context_exports",
+        "issue_template_refs",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "about_destination_schema_version": {
+          "$ref": "#/$defs/about_destination_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "about_destination_record"
+        },
+        "destination_id": {
+          "type": "string",
+          "pattern": "^about_destination:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "destination_role_class": { "$ref": "#/$defs/destination_role_class" },
+        "route_state_class": { "$ref": "#/$defs/route_state_class" },
+        "account_requirement_class": { "$ref": "#/$defs/account_requirement_class" },
+        "data_exit_boundary_class": { "$ref": "#/$defs/data_exit_boundary_class" },
+        "support_prominence_class": { "$ref": "#/$defs/support_prominence_class" },
+        "local_only_parity_class": { "$ref": "#/$defs/local_only_parity_class" },
+        "headline_label": { "$ref": "#/$defs/reviewable_label" },
+        "destination_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "replacement_destination_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "local_only_fallback_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "source_surface_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "build_context_exports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/build_context_export" },
+          "uniqueItems": false
+        },
+        "issue_template_refs": { "$ref": "#/$defs/ref_array" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/public/m3/about_source_and_boundary_beta.md"
+        },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "Redirected, archived, or replaced destinations MUST cite an explicit replacement_destination_ref so dead links degrade to a labeled successor.",
+          "if": {
+            "properties": {
+              "route_state_class": {
+                "enum": ["redirected", "archived", "replaced"]
+              }
+            },
+            "required": ["route_state_class"]
+          },
+          "then": {
+            "properties": {
+              "replacement_destination_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Decommissioned routes MUST cite a local-only fallback so the dead link points to a discoverable replacement path.",
+          "if": {
+            "properties": {
+              "route_state_class": { "const": "decommissioned" }
+            },
+            "required": ["route_state_class"]
+          },
+          "then": {
+            "properties": {
+              "local_only_fallback_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "third_party_vendor destinations MUST disclose their data-exit boundary as external public browse or vendor/third-party outbound.",
+          "if": {
+            "properties": {
+              "destination_class": { "const": "third_party_vendor" }
+            },
+            "required": ["destination_class"]
+          },
+          "then": {
+            "properties": {
+              "data_exit_boundary_class": {
+                "enum": ["external_public_browse", "vendor_or_third_party_outbound"]
+              }
+            }
+          }
+        },
+        {
+          "description": "security_intake destinations carry security_payloads_only data-exit boundary.",
+          "if": {
+            "properties": {
+              "destination_role_class": { "const": "security_intake" }
+            },
+            "required": ["destination_role_class"]
+          },
+          "then": {
+            "properties": {
+              "data_exit_boundary_class": { "const": "security_payloads_only" },
+              "destination_class": {
+                "enum": ["official_private", "official_public"]
+              }
+            }
+          }
+        },
+        {
+          "description": "support_intake destinations carry redacted_support_packet data-exit boundary and an official_private trust class.",
+          "if": {
+            "properties": {
+              "destination_role_class": { "const": "support_intake" }
+            },
+            "required": ["destination_role_class"]
+          },
+          "then": {
+            "properties": {
+              "data_exit_boundary_class": { "const": "redacted_support_packet" },
+              "destination_class": { "const": "official_private" }
+            }
+          }
+        },
+        {
+          "description": "Support-oriented destination roles MUST NOT be deprioritized below upgrade or sponsorship CTAs.",
+          "if": {
+            "properties": {
+              "destination_role_class": {
+                "enum": [
+                  "issue_tracker",
+                  "support_intake",
+                  "security_intake",
+                  "source_repository",
+                  "contributing_guide",
+                  "status_page"
+                ]
+              }
+            },
+            "required": ["destination_role_class"]
+          },
+          "then": {
+            "properties": {
+              "support_prominence_class": {
+                "enum": [
+                  "troubleshooting_first",
+                  "support_first",
+                  "source_first"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Local-only fallback rows are always reachable without account coercion: account_requirement = none, support_prominence in {source_first, support_first, troubleshooting_first}.",
+          "if": {
+            "properties": {
+              "destination_role_class": { "const": "local_only_fallback" }
+            },
+            "required": ["destination_role_class"]
+          },
+          "then": {
+            "properties": {
+              "account_requirement_class": { "const": "none" },
+              "local_only_parity_class": {
+                "enum": ["account_optional_local_parity", "local_only_only"]
+              },
+              "support_prominence_class": {
+                "enum": ["troubleshooting_first", "support_first", "source_first"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Destinations whose account requirement is required_for_write, required_for_subscribe, or required_for_premium_hosted MUST cite a local-only fallback when local-only parity is still account-optional.",
+          "if": {
+            "properties": {
+              "account_requirement_class": {
+                "enum": [
+                  "required_for_write",
+                  "required_for_subscribe",
+                  "required_for_premium_hosted"
+                ]
+              },
+              "local_only_parity_class": {
+                "enum": [
+                  "account_optional_local_parity",
+                  "mixed_local_optional_account"
+                ]
+              }
+            },
+            "required": [
+              "account_requirement_class",
+              "local_only_parity_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "local_only_fallback_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "Issue-tracker, support-intake, security-intake, and community-handoff destinations MUST attach at least one build-context export block so the lane can carry a versioned export instead of a screenshot.",
+          "if": {
+            "properties": {
+              "destination_role_class": {
+                "enum": [
+                  "issue_tracker",
+                  "support_intake",
+                  "security_intake",
+                  "community_handoff_router",
+                  "discussion_forum"
+                ]
+              }
+            },
+            "required": ["destination_role_class"]
+          },
+          "then": {
+            "properties": {
+              "build_context_exports": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "upgrade_or_hosted and sponsorship_or_funding destinations MUST NOT outrank source-repository or support routes on the same surface.",
+          "if": {
+            "properties": {
+              "destination_role_class": {
+                "enum": ["upgrade_or_hosted", "sponsorship_or_funding"]
+              }
+            },
+            "required": ["destination_role_class"]
+          },
+          "then": {
+            "properties": {
+              "support_prominence_class": {
+                "enum": ["parity_with_upgrade", "below_upgrade"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

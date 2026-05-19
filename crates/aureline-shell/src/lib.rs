@@ -118,6 +118,7 @@ pub mod preview_scope_labels;
 pub mod preview_truth;
 pub mod previews;
 pub mod profiling_alpha;
+pub mod public_truth;
 pub mod recovery;
 pub mod region_tenant_key_mode_beta;
 pub mod release_center;
