@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/merge_queue_entry.schema.json",
+  "title": "Aureline review merge-queue entry",
+  "description": "Boundary schema for the merge-queue entry record attached to a review_landing_candidate_record. The entry distinguishes provider-authoritative queue state, repo-policy-managed queue state, and Aureline local estimate only. Provider authority must report queue_position when queued; local estimates must not claim an authoritative queue position. Raw provider payloads do not cross this boundary; the record carries opaque refs, closed vocabulary tokens, timestamps, and reviewable summaries only.",
+  "type": "object",
+  "$ref": "#/$defs/merge_queue_entry_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "queue_authority_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_queue_state",
+        "repo_policy_managed_queue_state",
+        "aureline_local_estimate_only"
+      ]
+    },
+    "queue_state": {
+      "type": "string",
+      "enum": [
+        "not_queued",
+        "queued",
+        "dequeued_by_user",
+        "dequeued_by_provider",
+        "queued_invalidated_by_stale_base"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "stale_base",
+        "checks_stale",
+        "approval_invalidated",
+        "policy_blocked",
+        "review_pack_version_changed",
+        "worktree_scope_changed",
+        "environment_capsule_changed",
+        "provider_overlay_stale",
+        "queue_dequeued_by_provider"
+      ]
+    },
+    "merge_queue_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "merge_queue_entry_id",
+        "landing_candidate_id_ref",
+        "review_workspace_id_ref",
+        "queue_authority_class",
+        "queue_state",
+        "queue_position",
+        "queue_length",
+        "required_check_ids",
+        "captured_at",
+        "expires_at",
+        "invalidation_reasons",
+        "authoritative_position",
+        "local_estimate_only",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_merge_queue_entry_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "merge_queue_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "queue_authority_class": { "$ref": "#/$defs/queue_authority_class" },
+        "queue_state": { "$ref": "#/$defs/queue_state" },
+        "queue_position": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "queue_length": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "required_check_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "authoritative_position": { "type": "boolean" },
+        "local_estimate_only": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "queue_authority_class": { "const": "aureline_local_estimate_only" }
+            },
+            "required": ["queue_authority_class"]
+          },
+          "then": {
+            "properties": {
+              "queue_position": { "type": "null" },
+              "authoritative_position": { "const": false },
+              "local_estimate_only": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "queue_state": { "const": "queued" } },
+            "required": ["queue_state"],
+            "not": {
+              "properties": {
+                "queue_authority_class": { "const": "aureline_local_estimate_only" }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "queue_position": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["queue_position"]
+          }
+        }
+      ]
+    }
+  }
+}

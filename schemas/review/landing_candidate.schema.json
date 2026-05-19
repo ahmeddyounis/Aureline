@@ -1,0 +1,505 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/landing_candidate.schema.json",
+  "title": "Aureline review landing-candidate packet",
+  "description": "Boundary schema for the landing-candidate packet emitted by crates/aureline-review. One packet wraps a review_workspace_record summary with one review_landing_candidate_record, an optional review_merge_queue_entry_record, command-graph operation records, and a metadata-safe support/export packet so review surfaces can show mergeable, queue eligible, queued, stale base, checks stale, policy blocked, and approval invalidated as separable inspectable truths. Raw URLs and raw provider payloads do not cross this boundary; records carry opaque refs, closed vocabulary tokens, timestamps, and reviewable summaries only.",
+  "type": "object",
+  "$ref": "#/$defs/landing_candidate_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "review_landing_strip",
+        "merge_queue_inspector",
+        "cli_headless_entry",
+        "support_export",
+        "browser_companion"
+      ]
+    },
+    "landing_authority_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_queue_state",
+        "repo_policy_managed_queue_state",
+        "aureline_local_estimate_only"
+      ]
+    },
+    "merge_strategy_class": {
+      "type": "string",
+      "enum": [
+        "rebase_then_fast_forward",
+        "squash_then_fast_forward",
+        "merge_commit",
+        "fast_forward_only"
+      ]
+    },
+    "mergeable_state": {
+      "type": "string",
+      "enum": [
+        "mergeable",
+        "not_mergeable_blocking",
+        "mergeable_pending_eligibility"
+      ]
+    },
+    "eligibility_state": {
+      "type": "string",
+      "enum": ["queue_eligible", "queue_not_eligible"]
+    },
+    "stale_base_state": {
+      "type": "string",
+      "enum": [
+        "base_current",
+        "base_stale_within_grace",
+        "base_stale_blocks_landing"
+      ]
+    },
+    "checks_freshness_state": {
+      "type": "string",
+      "enum": [
+        "checks_current",
+        "checks_stale_within_grace",
+        "checks_stale_blocks_landing"
+      ]
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": [
+        "approval_not_required_by_policy",
+        "approval_required_outstanding",
+        "approved_current",
+        "approval_invalidated_by_changes"
+      ]
+    },
+    "policy_block_state": {
+      "type": "string",
+      "enum": ["policy_clear", "policy_blocked"]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "stale_base",
+        "checks_stale",
+        "approval_invalidated",
+        "policy_blocked",
+        "review_pack_version_changed",
+        "worktree_scope_changed",
+        "environment_capsule_changed",
+        "provider_overlay_stale",
+        "queue_dequeued_by_provider"
+      ]
+    },
+    "blocked_reason": {
+      "type": "string",
+      "enum": [
+        "target_branch_missing",
+        "required_check_failed",
+        "required_check_stale",
+        "base_revision_stale",
+        "approval_missing",
+        "approval_invalidated",
+        "policy_blocked",
+        "review_pack_version_drift",
+        "worktree_scope_changed",
+        "environment_capsule_changed"
+      ]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "enqueue",
+        "dequeue",
+        "approve",
+        "request_changes",
+        "rerun_pipeline",
+        "publish_to_provider",
+        "refresh_provider_overlay",
+        "mark_review_pack_landed"
+      ]
+    },
+    "provider_publish_posture": {
+      "type": "string",
+      "enum": [
+        "publish_minted_not_launched",
+        "publish_in_flight",
+        "publish_succeeded",
+        "publish_failed",
+        "publish_cancelled"
+      ]
+    },
+    "review_workspace_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "review_workspace_schema_version",
+        "review_workspace_id",
+        "review_workspace_source_class",
+        "provider_authority_class",
+        "review_workspace_lifecycle_state",
+        "freshness_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_workspace_record" },
+        "review_workspace_schema_version": { "type": "integer", "const": 1 },
+        "review_workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_source_class": { "$ref": "#/$defs/opaque_id" },
+        "provider_authority_class": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_lifecycle_state": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "landing_candidate_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "landing_candidate_id",
+        "review_workspace_id_ref",
+        "target_branch_ref",
+        "base_revision_ref",
+        "head_revision_ref",
+        "change_object_ref",
+        "worktree_identity_ref",
+        "review_pack_digest_ref",
+        "environment_capsule_digest_ref",
+        "merge_strategy_class",
+        "landing_authority_class",
+        "mergeable_state",
+        "eligibility_state",
+        "stale_base_state",
+        "checks_freshness_state",
+        "approval_state",
+        "policy_block_state",
+        "required_check_ids",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "landing_requires_explicit_candidate",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_landing_candidate_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "landing_candidate_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_branch_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_capsule_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "merge_strategy_class": { "$ref": "#/$defs/merge_strategy_class" },
+        "landing_authority_class": { "$ref": "#/$defs/landing_authority_class" },
+        "mergeable_state": { "$ref": "#/$defs/mergeable_state" },
+        "eligibility_state": { "$ref": "#/$defs/eligibility_state" },
+        "stale_base_state": { "$ref": "#/$defs/stale_base_state" },
+        "checks_freshness_state": { "$ref": "#/$defs/checks_freshness_state" },
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "policy_block_state": { "$ref": "#/$defs/policy_block_state" },
+        "required_check_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason" }
+        },
+        "landing_requires_explicit_candidate": { "const": true },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "merge_queue_entry_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "merge_queue_entry_id",
+        "landing_candidate_id_ref",
+        "queue_authority_class",
+        "queue_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_merge_queue_entry_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "merge_queue_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "queue_authority_class": { "$ref": "#/$defs/landing_authority_class" },
+        "queue_state": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "landing_command_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "landing_candidate_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "provider_publish_posture",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_landing_command_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_kind": { "$ref": "#/$defs/opaque_id" },
+        "preview_supported": { "type": "boolean" },
+        "emits_audit_event": { "const": true },
+        "provider_publish_posture": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/provider_publish_posture" }
+          ]
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason" }
+        },
+        "actionable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "command_class": { "const": "publish_to_provider" } },
+            "required": ["command_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_publish_posture": { "$ref": "#/$defs/provider_publish_posture" }
+            },
+            "required": ["provider_publish_posture"]
+          }
+        }
+      ]
+    },
+    "eligibility_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mergeable_state",
+        "eligibility_state",
+        "queue_state",
+        "stale_base_state",
+        "checks_freshness_state",
+        "approval_state",
+        "policy_block_state",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "landing_authority_class",
+        "queue_authority_class"
+      ],
+      "properties": {
+        "mergeable_state": { "$ref": "#/$defs/mergeable_state" },
+        "eligibility_state": { "$ref": "#/$defs/eligibility_state" },
+        "queue_state": { "$ref": "#/$defs/opaque_id" },
+        "stale_base_state": { "$ref": "#/$defs/stale_base_state" },
+        "checks_freshness_state": { "$ref": "#/$defs/checks_freshness_state" },
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "policy_block_state": { "$ref": "#/$defs/policy_block_state" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason" }
+        },
+        "landing_authority_class": { "$ref": "#/$defs/landing_authority_class" },
+        "queue_authority_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/landing_authority_class" }
+          ]
+        }
+      }
+    },
+    "support_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "landing_candidate_id_ref",
+        "review_workspace_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "merge_queue_entry_ref",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "redaction_class",
+        "eligibility_snapshot",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_landing_support_export_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "merge_queue_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "contains": { "const": "support_export" },
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 2,
+          "contains": { "const": "schemas/review/landing_candidate.schema.json" },
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_url_export_allowed": { "const": false },
+        "raw_provider_payload_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "eligibility_snapshot": { "$ref": "#/$defs/eligibility_snapshot" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "landing_candidate_id_ref",
+        "review_workspace_id_ref",
+        "mergeable",
+        "queue_eligible",
+        "queued",
+        "stale_base_blocks_landing",
+        "checks_stale_blocks_landing",
+        "policy_blocks_landing",
+        "approval_invalidated",
+        "provider_authoritative",
+        "queue_state_is_local_estimate_only",
+        "candidate_invalidated",
+        "landing_requires_explicit_candidate",
+        "command_count",
+        "required_check_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_landing_inspection_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "mergeable": { "type": "boolean" },
+        "queue_eligible": { "type": "boolean" },
+        "queued": { "type": "boolean" },
+        "stale_base_blocks_landing": { "type": "boolean" },
+        "checks_stale_blocks_landing": { "type": "boolean" },
+        "policy_blocks_landing": { "type": "boolean" },
+        "approval_invalidated": { "type": "boolean" },
+        "provider_authoritative": { "type": "boolean" },
+        "queue_state_is_local_estimate_only": { "type": "boolean" },
+        "candidate_invalidated": { "type": "boolean" },
+        "landing_requires_explicit_candidate": { "const": true },
+        "command_count": { "type": "integer", "minimum": 1 },
+        "required_check_count": { "type": "integer", "minimum": 0 },
+        "preview_capable": { "type": "boolean" },
+        "support_export_reopenable": { "const": true },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "landing_candidate_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "review_workspace",
+        "landing_candidate",
+        "commands",
+        "support_export",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_landing_candidate_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "review_workspace": { "$ref": "#/$defs/review_workspace_record_summary" },
+        "landing_candidate": { "$ref": "#/$defs/landing_candidate_record" },
+        "merge_queue_entry": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/merge_queue_entry_record_summary" }
+          ]
+        },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/landing_command_record" }
+        },
+        "support_export": { "$ref": "#/$defs/support_export_packet" },
+        "inspection": { "$ref": "#/$defs/inspection_record" }
+      }
+    }
+  }
+}

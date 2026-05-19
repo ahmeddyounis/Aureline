@@ -15,6 +15,7 @@ pub mod change_inspector;
 pub mod collections;
 pub mod diff;
 pub mod infrastructure_intelligence;
+pub mod landing;
 pub mod review_pack_dsl;
 pub mod review_pack_parity_harness;
 pub mod workspace;
@@ -48,6 +49,22 @@ pub use diff::{
 pub use infrastructure_intelligence::{
     project_infrastructure_relationships_for_review, InfrastructureIntelligenceAlphaPage,
     InfrastructureReviewAnchorRow, InfrastructureReviewProjection,
+};
+pub use landing::{
+    project_landing_candidate_packet, LandingCandidateError, LandingCandidateInput,
+    LandingCandidatePacket, LandingCandidateProjection, LandingCandidateRecord,
+    LandingCandidateValidationError, LandingCommandInput, LandingCommandRecord,
+    LandingEligibilitySnapshot, LandingInspectionRecord, LandingSupportExportInput,
+    LandingSupportExportPacket, MergeQueueEntryInput, MergeQueueEntryRecord,
+    LANDING_APPROVAL_STATES, LANDING_AUTHORITY_CLASSES, LANDING_BLOCKED_REASONS,
+    LANDING_CANDIDATE_PACKET_RECORD_KIND, LANDING_CANDIDATE_RECORD_KIND,
+    LANDING_CANDIDATE_SCHEMA_VERSION, LANDING_CHECKS_FRESHNESS_STATES,
+    LANDING_COMMAND_CLASSES, LANDING_COMMAND_RECORD_KIND, LANDING_CONSUMER_SURFACES,
+    LANDING_ELIGIBILITY_STATES, LANDING_INSPECTION_RECORD_KIND,
+    LANDING_INVALIDATION_REASONS, LANDING_MERGEABLE_STATES, LANDING_MERGE_STRATEGY_CLASSES,
+    LANDING_POLICY_BLOCK_STATES, LANDING_PROVIDER_PUBLISH_POSTURES,
+    LANDING_STALE_BASE_STATES, LANDING_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    MERGE_QUEUE_ENTRY_RECORD_KIND, MERGE_QUEUE_STATES,
 };
 pub use review_pack_dsl::{
     project_review_pack, ReviewPackCheck, ReviewPackCheckProjection, ReviewPackError,
