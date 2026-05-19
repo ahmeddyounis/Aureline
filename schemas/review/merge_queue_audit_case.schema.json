@@ -1,0 +1,582 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/merge_queue_audit_case.schema.json",
+  "title": "Aureline review merge-queue and browser-handoff audit case",
+  "description": "Boundary schema for one merge-queue / browser-handoff audit case. Each fixture composes the beta review-workspace packet and the landing-candidate packet vocabulary with provider-freshness, local-draft-preservation, parent-stack, queue-policy, browser-handoff, and landing-action axes so any drift between provider state, local drafts, and queue eligibility surfaces as a labeled state instead of passing as green. Raw URLs, raw provider payloads, raw comment bodies, and raw source bodies do not cross this boundary; records carry opaque refs, closed vocabulary tokens, timestamps, and short reviewable summaries only.",
+  "type": "object",
+  "$ref": "#/$defs/merge_queue_audit_case",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "scenario_class": {
+      "type": "string",
+      "enum": [
+        "provider_outage",
+        "expired_auth",
+        "stale_base_head",
+        "check_invalidation",
+        "parent_stack_blockage",
+        "queue_policy_change",
+        "local_ci_parity_disagreement",
+        "browser_handoff_open_provider",
+        "browser_handoff_reopen_return"
+      ]
+    },
+    "provider_freshness_class": {
+      "type": "string",
+      "enum": [
+        "provider_reachable_fresh",
+        "provider_reachable_stale_within_grace",
+        "provider_overlay_unavailable",
+        "provider_outage_user_must_retry",
+        "provider_auth_expired_user_must_reauth",
+        "provider_payload_unparseable",
+        "provider_overlay_stale_blocks_landing"
+      ]
+    },
+    "local_draft_state_class": {
+      "type": "string",
+      "enum": [
+        "no_local_draft",
+        "local_draft_preserved_unposted",
+        "local_draft_preserved_pending_publish",
+        "local_draft_preserved_after_provider_refresh_failure",
+        "local_draft_preserved_through_browser_handoff",
+        "local_draft_preserved_after_queue_revalidation"
+      ]
+    },
+    "parent_stack_state_class": {
+      "type": "string",
+      "enum": [
+        "parent_stack_clear",
+        "parent_stack_blocks_landing",
+        "parent_stack_unrelated"
+      ]
+    },
+    "queue_policy_state_class": {
+      "type": "string",
+      "enum": [
+        "queue_policy_stable",
+        "queue_policy_changed_invalidates_eligibility",
+        "queue_policy_changed_requires_re_review"
+      ]
+    },
+    "local_ci_parity_state_class": {
+      "type": "string",
+      "enum": [
+        "local_and_ci_parity",
+        "local_and_ci_disagree_user_review_required",
+        "local_only_documented",
+        "ci_only_documented"
+      ]
+    },
+    "browser_handoff_outcome_class": {
+      "type": "string",
+      "enum": [
+        "handoff_not_used",
+        "handoff_returned_exact_object",
+        "handoff_returned_truthful_placeholder",
+        "handoff_expired_user_must_re_open",
+        "handoff_provider_outage_user_must_retry"
+      ]
+    },
+    "landing_action_audit_class": {
+      "type": "string",
+      "enum": [
+        "enqueue_audited",
+        "dequeue_audited",
+        "approve_audited",
+        "request_changes_audited",
+        "rerun_pipeline_audited",
+        "refresh_provider_overlay_audited",
+        "mark_review_pack_landed_audited",
+        "publish_to_provider_minted_not_launched"
+      ]
+    },
+    "labeled_drift_state_class": {
+      "type": "string",
+      "enum": [
+        "no_drift_labeled",
+        "provider_freshness_drift_labeled",
+        "queue_eligibility_drift_labeled",
+        "local_draft_drift_labeled",
+        "parent_stack_drift_labeled",
+        "queue_policy_drift_labeled",
+        "local_ci_parity_drift_labeled",
+        "browser_handoff_drift_labeled"
+      ]
+    },
+    "landing_authority_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_queue_state",
+        "repo_policy_managed_queue_state",
+        "aureline_local_estimate_only"
+      ]
+    },
+    "eligibility_state": {
+      "type": "string",
+      "enum": ["queue_eligible", "queue_not_eligible"]
+    },
+    "mergeable_state": {
+      "type": "string",
+      "enum": [
+        "mergeable",
+        "not_mergeable_blocking",
+        "mergeable_pending_eligibility"
+      ]
+    },
+    "queue_state": {
+      "type": "string",
+      "enum": [
+        "not_queued",
+        "queued",
+        "dequeued_by_user",
+        "dequeued_by_provider",
+        "queued_invalidated_by_stale_base"
+      ]
+    },
+    "stale_base_state": {
+      "type": "string",
+      "enum": [
+        "base_current",
+        "base_stale_within_grace",
+        "base_stale_blocks_landing"
+      ]
+    },
+    "checks_freshness_state": {
+      "type": "string",
+      "enum": [
+        "checks_current",
+        "checks_stale_within_grace",
+        "checks_stale_blocks_landing"
+      ]
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": [
+        "approval_not_required_by_policy",
+        "approval_required_outstanding",
+        "approved_current",
+        "approval_invalidated_by_changes"
+      ]
+    },
+    "policy_block_state": {
+      "type": "string",
+      "enum": ["policy_clear", "policy_blocked"]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "stale_base",
+        "checks_stale",
+        "approval_invalidated",
+        "policy_blocked",
+        "review_pack_version_changed",
+        "worktree_scope_changed",
+        "environment_capsule_changed",
+        "provider_overlay_stale",
+        "queue_dequeued_by_provider",
+        "parent_stack_blocked",
+        "queue_policy_changed",
+        "local_ci_parity_disagreement"
+      ]
+    },
+    "blocked_reason": {
+      "type": "string",
+      "enum": [
+        "target_branch_missing",
+        "required_check_failed",
+        "required_check_stale",
+        "base_revision_stale",
+        "approval_missing",
+        "approval_invalidated",
+        "policy_blocked",
+        "review_pack_version_drift",
+        "worktree_scope_changed",
+        "environment_capsule_changed",
+        "parent_stack_blocked",
+        "queue_policy_changed",
+        "provider_overlay_unavailable",
+        "provider_auth_expired",
+        "local_ci_parity_disagreement"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "review_landing_strip",
+        "merge_queue_inspector",
+        "cli_headless_entry",
+        "support_export",
+        "browser_companion",
+        "docs_review"
+      ]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "enqueue",
+        "dequeue",
+        "approve",
+        "request_changes",
+        "rerun_pipeline",
+        "publish_to_provider",
+        "refresh_provider_overlay",
+        "mark_review_pack_landed"
+      ]
+    },
+    "local_draft_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_draft_id",
+        "draft_kind",
+        "comment_thread_id_ref",
+        "comment_payload_label_opaque_ref",
+        "preserved_through",
+        "preserved_state_class",
+        "misrepresented_as_provider_synced",
+        "summary_label"
+      ],
+      "properties": {
+        "local_draft_id": { "$ref": "#/$defs/opaque_id" },
+        "draft_kind": {
+          "type": "string",
+          "enum": [
+            "comment_draft",
+            "review_note_draft",
+            "request_changes_draft",
+            "approval_draft",
+            "landing_action_draft"
+          ]
+        },
+        "comment_thread_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "comment_payload_label_opaque_ref": { "$ref": "#/$defs/opaque_id" },
+        "preserved_through": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "provider_refresh_failure",
+              "provider_outage",
+              "queue_revalidation",
+              "browser_handoff",
+              "browser_handoff_return",
+              "queue_policy_change",
+              "approval_invalidation",
+              "stale_base_invalidation",
+              "expired_auth"
+            ]
+          }
+        },
+        "preserved_state_class": { "$ref": "#/$defs/local_draft_state_class" },
+        "misrepresented_as_provider_synced": { "const": false },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "landing_command_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "command_class",
+        "audit_class",
+        "preview_supported",
+        "emits_audit_event",
+        "actionable",
+        "blocked_reasons",
+        "summary_label"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "audit_class": { "$ref": "#/$defs/landing_action_audit_class" },
+        "preview_supported": { "const": true },
+        "emits_audit_event": { "const": true },
+        "actionable": { "type": "boolean" },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason" }
+        },
+        "provider_publish_posture": {
+          "type": "string",
+          "enum": [
+            "publish_minted_not_launched",
+            "publish_in_flight",
+            "publish_succeeded",
+            "publish_failed",
+            "publish_cancelled"
+          ]
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "command_class": { "const": "publish_to_provider" } },
+            "required": ["command_class"]
+          },
+          "then": {
+            "required": ["provider_publish_posture"]
+          }
+        }
+      ]
+    },
+    "browser_handoff_audit_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_id",
+        "destination_class",
+        "destination_ref",
+        "object_identity_ref",
+        "return_anchor_kind",
+        "return_anchor_ref",
+        "reversible_handoff",
+        "outcome_class",
+        "raw_url_export_allowed",
+        "summary_label"
+      ],
+      "properties": {
+        "handoff_id": { "$ref": "#/$defs/opaque_id" },
+        "destination_class": {
+          "type": "string",
+          "enum": [
+            "code_host_web",
+            "issue_tracker_web",
+            "ci_provider_web",
+            "docs_or_portal_web",
+            "managed_admin_web",
+            "external_generic_web"
+          ]
+        },
+        "destination_ref": {
+          "type": "string",
+          "pattern": "^(?!https?://)(?!ssh://)(?!git@).+",
+          "minLength": 1
+        },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "return_anchor_kind": { "$ref": "#/$defs/opaque_id" },
+        "return_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "reversible_handoff": { "const": true },
+        "outcome_class": { "$ref": "#/$defs/browser_handoff_outcome_class" },
+        "raw_url_export_allowed": { "const": false },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_export_id",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "raw_comment_body_export_allowed",
+        "redaction_class",
+        "reconstructs_review_identity",
+        "reconstructs_provider_freshness",
+        "reconstructs_queue_eligibility_reason",
+        "reconstructs_local_draft_state",
+        "summary_label"
+      ],
+      "properties": {
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "contains": { "const": "support_export" },
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "contains": { "const": "schemas/review/merge_queue_audit_case.schema.json" },
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "raw_url_export_allowed": { "const": false },
+        "raw_provider_payload_export_allowed": { "const": false },
+        "raw_comment_body_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "reconstructs_review_identity": { "const": true },
+        "reconstructs_provider_freshness": { "const": true },
+        "reconstructs_queue_eligibility_reason": { "const": true },
+        "reconstructs_local_draft_state": { "const": true },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "audit_expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "labeled_drift_state",
+        "passes_green_under_drift",
+        "command_preview_required",
+        "command_preview_present",
+        "local_draft_preserved",
+        "local_draft_misrepresented_as_provider_synced",
+        "stale_base_hidden",
+        "browser_handoff_returns_exact_object_or_truthful_placeholder",
+        "support_export_reconstructs_all_axes",
+        "provider_authoritative",
+        "queue_state_is_local_estimate_only",
+        "candidate_invalidated",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "audited_action_classes"
+      ],
+      "properties": {
+        "labeled_drift_state": { "$ref": "#/$defs/labeled_drift_state_class" },
+        "passes_green_under_drift": { "const": false },
+        "command_preview_required": { "type": "boolean" },
+        "command_preview_present": { "type": "boolean" },
+        "local_draft_preserved": { "type": "boolean" },
+        "local_draft_misrepresented_as_provider_synced": { "const": false },
+        "stale_base_hidden": { "const": false },
+        "browser_handoff_returns_exact_object_or_truthful_placeholder": { "type": "boolean" },
+        "support_export_reconstructs_all_axes": { "const": true },
+        "provider_authoritative": { "type": "boolean" },
+        "queue_state_is_local_estimate_only": { "type": "boolean" },
+        "candidate_invalidated": { "type": "boolean" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason" }
+        },
+        "audited_action_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/landing_action_audit_class" }
+        }
+      }
+    },
+    "merge_queue_audit_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "case_name",
+        "scenario_class",
+        "seed_fixture_ref",
+        "landing_candidate_fixture_ref",
+        "generated_at",
+        "audit_input",
+        "expected"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_merge_queue_audit_case" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "case_name": { "$ref": "#/$defs/opaque_id" },
+        "scenario_class": { "$ref": "#/$defs/scenario_class" },
+        "seed_fixture_ref": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_fixture_ref": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "audit_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "audit_packet_id",
+            "review_workspace_id_ref",
+            "landing_candidate_id_ref",
+            "landing_authority_class",
+            "mergeable_state",
+            "eligibility_state",
+            "queue_state",
+            "stale_base_state",
+            "checks_freshness_state",
+            "approval_state",
+            "policy_block_state",
+            "provider_freshness_class",
+            "parent_stack_state_class",
+            "queue_policy_state_class",
+            "local_ci_parity_state_class",
+            "invalidation_reasons",
+            "blocked_reasons",
+            "local_drafts",
+            "commands",
+            "support_export"
+          ],
+          "properties": {
+            "audit_packet_id": { "$ref": "#/$defs/opaque_id" },
+            "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+            "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+            "landing_authority_class": { "$ref": "#/$defs/landing_authority_class" },
+            "mergeable_state": { "$ref": "#/$defs/mergeable_state" },
+            "eligibility_state": { "$ref": "#/$defs/eligibility_state" },
+            "queue_state": { "$ref": "#/$defs/queue_state" },
+            "stale_base_state": { "$ref": "#/$defs/stale_base_state" },
+            "checks_freshness_state": { "$ref": "#/$defs/checks_freshness_state" },
+            "approval_state": { "$ref": "#/$defs/approval_state" },
+            "policy_block_state": { "$ref": "#/$defs/policy_block_state" },
+            "provider_freshness_class": { "$ref": "#/$defs/provider_freshness_class" },
+            "parent_stack_state_class": { "$ref": "#/$defs/parent_stack_state_class" },
+            "queue_policy_state_class": { "$ref": "#/$defs/queue_policy_state_class" },
+            "local_ci_parity_state_class": { "$ref": "#/$defs/local_ci_parity_state_class" },
+            "invalidation_reasons": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/invalidation_reason" }
+            },
+            "blocked_reasons": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/blocked_reason" }
+            },
+            "local_drafts": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/local_draft_record" }
+            },
+            "browser_handoff": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/browser_handoff_audit_record" }
+              ]
+            },
+            "commands": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/landing_command_record" }
+            },
+            "support_export": { "$ref": "#/$defs/support_export_record" }
+          }
+        },
+        "expected": { "$ref": "#/$defs/audit_expected" }
+      }
+    }
+  }
+}
