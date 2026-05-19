@@ -1,0 +1,761 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/export_redaction_profile.schema.json",
+  "title": "Aureline default-redacted support and incident export profile contract",
+  "description": "Boundary schema for the support_export_redaction_profile_record. The profile pins the default-redacted posture used by support-bundle and incident-export emitters when a stable-facing user (or claimed support row) initiates an export. It preserves exact-build identity, scenario family, doctor finding codes, repair history, crash manifest refs, and symbolication report refs by reference while excluding secret-bearing and code-adjacent payloads from the embedded body. Raw dumps, transcripts, and code-adjacent artifacts cross this boundary only by id or after a recorded broaden-evidence-classes review.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/support_export_redaction_profile_record"
+    },
+    {
+      "$ref": "#/$defs/support_export_redaction_profile_seed_case_record"
+    },
+    {
+      "$ref": "#/$defs/support_export_reopen_manifest_record"
+    },
+    {
+      "$ref": "#/$defs/support_export_reopen_manifest_seed_case_record"
+    }
+  ],
+  "$defs": {
+    "export_redaction_profile_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for the default-redacted export profile contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewer-facing sentence safe to render in support-intake review surfaces, escalation-packet preview, and CLI/headless output."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scenario_family_class": {
+      "type": "string",
+      "enum": [
+        "execution_context_mismatch",
+        "trust_policy_identity_approval_block",
+        "network_ca_proxy_mirror_failure",
+        "extension_or_host_regression",
+        "state_corruption_schema_drift_low_disk_recovery",
+        "remote_route_collaboration_mismatch"
+      ],
+      "description": "Re-exported from schemas/support/scenario_picker.schema.json."
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "preview",
+        "beta",
+        "lts",
+        "portable_stable",
+        "portable_preview",
+        "dev_local"
+      ]
+    },
+    "platform_class": {
+      "type": "string",
+      "enum": [
+        "macos_arm64",
+        "macos_x86_64",
+        "linux_x86_64",
+        "linux_arm64",
+        "windows_x86_64",
+        "windows_arm64",
+        "portable_unspecified"
+      ],
+      "description": "Closed platform vocabulary; raw uname output never crosses the boundary."
+    },
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "local_only_review",
+        "vendor_case_handoff",
+        "user_initiated_upload",
+        "managed_admin_handoff",
+        "private_security_channel"
+      ],
+      "description": "Mirrors schemas/support/escalation_packet.schema.json delivery_path_class. Local-only review is the default destination."
+    },
+    "data_class_boundary_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ],
+      "description": "Re-exported from schemas/support/support_bundle.schema.json diagnostic_data_class."
+    },
+    "evidence_class_token": {
+      "type": "string",
+      "enum": [
+        "build_identity",
+        "channel_and_platform_identity",
+        "scenario_family",
+        "doctor_finding_codes",
+        "repair_history_refs",
+        "crash_manifest_refs",
+        "symbolication_report_refs",
+        "support_bundle_refs",
+        "incident_workspace_packet_refs",
+        "policy_and_trust_state",
+        "raw_crash_dump_payload",
+        "raw_trace_capture",
+        "raw_log_excerpt",
+        "raw_transcript_excerpt",
+        "code_snippet_attachment",
+        "notebook_cell_attachment",
+        "mutation_journal_excerpt",
+        "full_shell_history_capture",
+        "secret_bearing_material",
+        "ambient_credential_material"
+      ],
+      "description": "Closed evidence-class vocabulary. The default-redacted profile MUST include the metadata-only and reference-only classes and MUST NOT embed any of the raw, secret-bearing, or code-adjacent classes by default."
+    },
+    "evidence_class_inclusion_class": {
+      "type": "string",
+      "enum": [
+        "embedded_metadata_only",
+        "embedded_by_reference",
+        "retained_local_only",
+        "excluded_by_default",
+        "excluded_always"
+      ],
+      "description": "How the profile handles one evidence class. 'embedded_by_reference' MUST carry only stable ids and never raw bodies; 'retained_local_only' keeps the artifact on the local machine and the export carries only its id."
+    },
+    "broaden_evidence_review_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "requires_explicit_review",
+        "prohibited"
+      ],
+      "description": "Review posture before this evidence class can be widened past its default-redacted handling."
+    },
+    "default_required_evidence_class": {
+      "type": "string",
+      "enum": [
+        "build_identity",
+        "channel_and_platform_identity",
+        "scenario_family",
+        "doctor_finding_codes"
+      ],
+      "description": "Evidence classes a default-redacted profile MUST always preserve so an export remains actionable after redaction."
+    },
+    "build_identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact_build_identity_ref",
+        "release_channel_class",
+        "platform_class",
+        "build_identity_summary"
+      ],
+      "properties": {
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable exact-build identity ref. Required and non-null; the profile refuses export when this would be unknown."
+        },
+        "release_channel_class": {
+          "$ref": "#/$defs/release_channel_class"
+        },
+        "platform_class": {
+          "$ref": "#/$defs/platform_class"
+        },
+        "producer_build_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "product_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "build_identity_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "evidence_class_rule_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_class",
+        "inclusion_class",
+        "default_data_class_boundary",
+        "broaden_review_class",
+        "rule_summary"
+      ],
+      "properties": {
+        "evidence_class": {
+          "$ref": "#/$defs/evidence_class_token"
+        },
+        "inclusion_class": {
+          "$ref": "#/$defs/evidence_class_inclusion_class"
+        },
+        "default_data_class_boundary": {
+          "$ref": "#/$defs/data_class_boundary_class"
+        },
+        "broaden_review_class": {
+          "$ref": "#/$defs/broaden_evidence_review_class"
+        },
+        "carries_raw_body_by_default": {
+          "type": "boolean",
+          "description": "MUST be false for code_adjacent and high_risk classes in the default-redacted profile."
+        },
+        "rule_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "evidence_class_rule_row_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence_class_rule_row"
+      }
+    },
+    "crash_linkage_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "crash_manifest_refs",
+        "symbolication_report_refs",
+        "raw_dump_attached"
+      ],
+      "properties": {
+        "crash_manifest_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "description": "Stable crash manifest ids carried by reference."
+        },
+        "symbolication_report_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "description": "Stable symbolication report ids carried by reference."
+        },
+        "raw_dump_attached": {
+          "type": "boolean",
+          "description": "MUST be false in the default-redacted profile. Raw dumps are referenced by id only."
+        },
+        "linkage_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "destination_posture_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_destination_class",
+        "local_only_path_available",
+        "local_only_equal_prominence",
+        "destination_summary"
+      ],
+      "properties": {
+        "selected_destination_class": {
+          "$ref": "#/$defs/destination_class"
+        },
+        "local_only_path_available": {
+          "type": "boolean",
+          "description": "True when the user can save/copy the manifest locally without contacting a network. MUST be true; the profile refuses export when local-only is hidden."
+        },
+        "local_only_equal_prominence": {
+          "type": "boolean",
+          "description": "True iff the local-only save/copy path is rendered with primary-equal prominence to any upload/handoff path. The profile refuses export when an upload path would be elevated above local-only."
+        },
+        "destination_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "reopen_path_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reopen_supported",
+        "manifest_ref",
+        "shows_included_classes",
+        "shows_excluded_classes",
+        "shows_build_identity",
+        "shows_destination_class",
+        "reopen_summary"
+      ],
+      "properties": {
+        "reopen_supported": {
+          "type": "boolean"
+        },
+        "manifest_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "shows_included_classes": {
+          "type": "boolean"
+        },
+        "shows_excluded_classes": {
+          "type": "boolean"
+        },
+        "shows_build_identity": {
+          "type": "boolean"
+        },
+        "shows_destination_class": {
+          "type": "boolean"
+        },
+        "reopen_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "governance_bindings_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_bundle_schema_ref",
+        "escalation_packet_schema_ref",
+        "scenario_picker_schema_ref",
+        "doctor_finding_schema_ref"
+      ],
+      "properties": {
+        "support_bundle_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/support_bundle.schema.json"
+        },
+        "escalation_packet_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/escalation_packet.schema.json"
+        },
+        "scenario_picker_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/scenario_picker.schema.json"
+        },
+        "doctor_finding_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/doctor_finding.schema.json"
+        },
+        "redaction_default_doc_ref": {
+          "type": "string",
+          "const": "docs/support/m3/redaction_default_exports.md"
+        }
+      }
+    },
+    "support_export_redaction_profile_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "profile_id",
+        "title",
+        "summary",
+        "scenario_family_class",
+        "build_identity",
+        "evidence_class_rules",
+        "default_required_evidence_classes",
+        "crash_linkage",
+        "destination_posture",
+        "reopen_path",
+        "raw_dumps_attached",
+        "raw_transcripts_attached",
+        "code_adjacent_attached",
+        "secret_bearing_attached",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/export_redaction_profile_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_export_redaction_profile_record"
+        },
+        "profile_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "scenario_family_class": {
+          "$ref": "#/$defs/scenario_family_class"
+        },
+        "build_identity": {
+          "$ref": "#/$defs/build_identity_block"
+        },
+        "doctor_finding_codes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "repair_history_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "evidence_class_rules": {
+          "$ref": "#/$defs/evidence_class_rule_row_array"
+        },
+        "default_required_evidence_classes": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/default_required_evidence_class"
+          },
+          "description": "MUST list every default-required evidence class. The profile refuses export when any of these is dropped."
+        },
+        "crash_linkage": {
+          "$ref": "#/$defs/crash_linkage_block"
+        },
+        "destination_posture": {
+          "$ref": "#/$defs/destination_posture_block"
+        },
+        "reopen_path": {
+          "$ref": "#/$defs/reopen_path_block"
+        },
+        "raw_dumps_attached": {
+          "type": "boolean",
+          "const": false,
+          "description": "Default-redacted profiles MUST NOT attach raw dump payloads. Always false in this schema."
+        },
+        "raw_transcripts_attached": {
+          "type": "boolean",
+          "const": false,
+          "description": "Default-redacted profiles MUST NOT attach raw transcripts. Always false in this schema."
+        },
+        "code_adjacent_attached": {
+          "type": "boolean",
+          "const": false,
+          "description": "Default-redacted profiles MUST NOT embed code-adjacent payloads. Code attachments require an explicit broaden-evidence review."
+        },
+        "secret_bearing_attached": {
+          "type": "boolean",
+          "const": false,
+          "description": "Secret-bearing material is prohibited and never crosses the boundary."
+        },
+        "broaden_evidence_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Stable id of the broaden-evidence-classes review the user explicitly accepted. Null when no widening occurred."
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings_block"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_export_redaction_profile_seed_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "case_id",
+        "title",
+        "summary",
+        "scenario_family_class",
+        "build_identity",
+        "evidence_class_rules",
+        "default_required_evidence_classes",
+        "crash_linkage",
+        "destination_posture",
+        "reopen_path",
+        "raw_dumps_attached",
+        "raw_transcripts_attached",
+        "code_adjacent_attached",
+        "secret_bearing_attached",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/export_redaction_profile_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_export_redaction_profile_seed_case_record"
+        },
+        "case_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "scenario_family_class": {
+          "$ref": "#/$defs/scenario_family_class"
+        },
+        "build_identity": {
+          "$ref": "#/$defs/build_identity_block"
+        },
+        "doctor_finding_codes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "repair_history_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "evidence_class_rules": {
+          "$ref": "#/$defs/evidence_class_rule_row_array"
+        },
+        "default_required_evidence_classes": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/default_required_evidence_class"
+          }
+        },
+        "crash_linkage": {
+          "$ref": "#/$defs/crash_linkage_block"
+        },
+        "destination_posture": {
+          "$ref": "#/$defs/destination_posture_block"
+        },
+        "reopen_path": {
+          "$ref": "#/$defs/reopen_path_block"
+        },
+        "raw_dumps_attached": {
+          "type": "boolean",
+          "const": false
+        },
+        "raw_transcripts_attached": {
+          "type": "boolean",
+          "const": false
+        },
+        "code_adjacent_attached": {
+          "type": "boolean",
+          "const": false
+        },
+        "secret_bearing_attached": {
+          "type": "boolean",
+          "const": false
+        },
+        "broaden_evidence_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings_block"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_export_reopen_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "manifest_id",
+        "profile_ref",
+        "scenario_family_class",
+        "build_identity",
+        "included_evidence_classes",
+        "excluded_evidence_classes",
+        "destination_class",
+        "exported_at_or_null",
+        "local_only",
+        "summary",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/export_redaction_profile_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_export_reopen_manifest_record"
+        },
+        "manifest_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "profile_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable id of the support_export_redaction_profile_record the export was minted from."
+        },
+        "scenario_family_class": {
+          "$ref": "#/$defs/scenario_family_class"
+        },
+        "build_identity": {
+          "$ref": "#/$defs/build_identity_block"
+        },
+        "included_evidence_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence_class_token"
+          }
+        },
+        "excluded_evidence_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_class_token"
+          }
+        },
+        "destination_class": {
+          "$ref": "#/$defs/destination_class"
+        },
+        "exported_at_or_null": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Null when the manifest was saved locally without ever leaving the machine."
+        },
+        "local_only": {
+          "type": "boolean",
+          "description": "True iff the manifest was retained on the local machine and never sent through an upload or handoff lane."
+        },
+        "broaden_evidence_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_export_reopen_manifest_seed_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "case_id",
+        "profile_ref",
+        "scenario_family_class",
+        "build_identity",
+        "included_evidence_classes",
+        "excluded_evidence_classes",
+        "destination_class",
+        "exported_at_or_null",
+        "local_only",
+        "summary",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/export_redaction_profile_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_export_reopen_manifest_seed_case_record"
+        },
+        "case_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "profile_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "scenario_family_class": {
+          "$ref": "#/$defs/scenario_family_class"
+        },
+        "build_identity": {
+          "$ref": "#/$defs/build_identity_block"
+        },
+        "included_evidence_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence_class_token"
+          }
+        },
+        "excluded_evidence_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_class_token"
+          }
+        },
+        "destination_class": {
+          "$ref": "#/$defs/destination_class"
+        },
+        "exported_at_or_null": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "local_only": {
+          "type": "boolean"
+        },
+        "broaden_evidence_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ]
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    }
+  }
+}

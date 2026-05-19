@@ -121,6 +121,16 @@
 //!   change bundle and shelf fixtures into one metadata-safe handoff envelope
 //!   with target identity, stale-validation labels, reopen modes, redaction
 //!   posture, and support-export lineage preserved.
+//! - The [`export_review`] default-redacted profile and reopen manifest —
+//!   consume the checked-in profile corpus and reopen-manifest corpus and
+//!   project the inspectable [`export_review::EscalationPacketReview`] surface
+//!   so support-bundle and incident-export emitters can prove exact-build
+//!   identity, scenario family, doctor finding codes, repair history,
+//!   crash manifest refs, and symbolication report refs stay carried by
+//!   reference; raw dumps, raw transcripts, code-adjacent attachments, and
+//!   secret-bearing material never embed by default; the local-only path
+//!   stays at equal prominence; and the reopen manifest preserves the
+//!   included/excluded class lists, build identity, and destination class.
 //!
 //! ## Failure-drill posture
 //!
@@ -137,6 +147,7 @@ pub mod advisory_baseline;
 pub mod bundle;
 pub mod capabilities;
 pub mod distributed_compatibility;
+pub mod export_review;
 pub mod extension_bisect;
 pub mod fault_domain_views;
 pub mod fitness;
@@ -166,6 +177,21 @@ pub mod safe_mode;
 pub mod scenario_scorecard;
 pub mod storage_inspector;
 
+pub use export_review::{
+    current_escalation_packet_reviews, load_profile_corpus, load_reopen_corpus,
+    BroadenEvidenceReviewClass, BuildIdentityBlock, CrashLinkageBlock, DataClassBoundaryClass,
+    DefaultRequiredEvidenceClass, DestinationClass, DestinationPostureBlock,
+    EscalationPacketReview, EvidenceClass, EvidenceClassRuleRow, EvidenceInclusionClass,
+    GovernanceBindingsBlock, PlatformClass, ReleaseChannelClass as ExportReleaseChannelClass,
+    ReopenPathBlock, ScenarioFamilyClass, SupportExportRedactionError,
+    SupportExportRedactionProfile, SupportExportReopenManifest, REQUIRED_EVIDENCE_CLASSES,
+    SUPPORT_EXPORT_REDACTION_PROFILE_CORPUS_DIR, SUPPORT_EXPORT_REDACTION_PROFILE_DOC_REF,
+    SUPPORT_EXPORT_REDACTION_PROFILE_RECORD_KIND, SUPPORT_EXPORT_REDACTION_PROFILE_SCHEMA_REF,
+    SUPPORT_EXPORT_REDACTION_PROFILE_SCHEMA_VERSION,
+    SUPPORT_EXPORT_REDACTION_PROFILE_SEED_CASE_RECORD_KIND,
+    SUPPORT_EXPORT_REOPEN_MANIFEST_RECORD_KIND,
+    SUPPORT_EXPORT_REOPEN_MANIFEST_SEED_CASE_RECORD_KIND,
+};
 pub use fault_domain_views::{
     seeded_fault_domain_view_packet, FaultDomainViewPacket, FaultDomainViewRow,
     FaultDomainViewViolation, FAULT_DOMAIN_VIEW_PACKET_RECORD_KIND,
