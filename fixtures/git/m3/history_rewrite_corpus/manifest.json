@@ -1,0 +1,257 @@
+{
+  "corpus_id": "git.history_rewrite_corpus.beta",
+  "schema_version": 1,
+  "description": "Conformance + failure / recovery drill corpus for the history-rewrite, stash, reflog, and conflict-session contract. Each positive drill must parse, validate, project, and pin the projection expectations listed below. Each negative drill must FAIL validation with the recorded `expected_failure_substring`.",
+  "positive_drills": [
+    {
+      "drill_id": "cherry_pick.conflict.skip",
+      "fixture": "positive/cherry_pick_conflict_skip.json",
+      "category": "cherry_pick_conflict",
+      "covers": ["cherry_pick", "skip_semantics", "captured_checkpoint_recovery"],
+      "expected_record_kind": "history_rewrite_conflict_session_record",
+      "expected_operation_kind": "cherry_pick",
+      "expected_lifecycle": "skipped_conflicted_step",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["session_admitted", "conflict_skip_requested"]
+    },
+    {
+      "drill_id": "cherry_pick.conflict.abort",
+      "fixture": "positive/cherry_pick_conflict_abort.json",
+      "category": "cherry_pick_conflict",
+      "covers": ["cherry_pick", "abort_semantics", "captured_checkpoint_recovery"],
+      "expected_record_kind": "history_rewrite_conflict_session_record",
+      "expected_operation_kind": "cherry_pick",
+      "expected_lifecycle": "aborted_rolled_back",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["conflict_abort_requested", "recovery_checkpoint_restored"]
+    },
+    {
+      "drill_id": "revert.conflict.continue",
+      "fixture": "positive/revert_conflict_continue.json",
+      "category": "revert_conflict",
+      "covers": ["revert", "continue_semantics", "captured_checkpoint_recovery"],
+      "expected_record_kind": "history_rewrite_conflict_session_record",
+      "expected_operation_kind": "revert",
+      "expected_lifecycle": "continuing_after_resolution",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["conflict_continue_requested"]
+    },
+    {
+      "drill_id": "rebase.conflict.external_handoff",
+      "fixture": "positive/rebase_conflict_external_handoff.json",
+      "category": "rebase_conflict",
+      "covers": ["rebase", "external_handoff_posture", "destructive_gate_denied"],
+      "expected_record_kind": "history_rewrite_conflict_session_record",
+      "expected_operation_kind": "rebase",
+      "expected_lifecycle": "paused_awaiting_external_tool",
+      "expected_destructive_gate_satisfied": false,
+      "expected_recovery_posture_class": "external_handoff_pending",
+      "expected_audit_event_ids": ["session_admitted"]
+    },
+    {
+      "drill_id": "rebase.conflict.resumed_after_restart",
+      "fixture": "positive/rebase_conflict_resumed_after_restart.json",
+      "category": "rebase_conflict",
+      "covers": ["rebase", "session_restart", "alternate_worktree"],
+      "expected_record_kind": "history_rewrite_conflict_session_record",
+      "expected_operation_kind": "rebase",
+      "expected_lifecycle": "active_awaiting_resolution",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["session_admitted", "session_resumed_after_restart"]
+    },
+    {
+      "drill_id": "interactive_rebase.autosquash.paused",
+      "fixture": "positive/interactive_rebase_autosquash_paused.json",
+      "category": "sequence_edit",
+      "covers": ["interactive_rebase", "autosquash", "paused_for_conflict"],
+      "expected_record_kind": "history_rewrite_sequence_edit_session_record",
+      "expected_operation_kind": "interactive_rebase",
+      "expected_lifecycle": "paused_for_conflict",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["sequence_edit_saved", "sequence_edit_step_started"]
+    },
+    {
+      "drill_id": "interactive_rebase.completed_admitted",
+      "fixture": "positive/interactive_rebase_completed_admitted.json",
+      "category": "sequence_edit",
+      "covers": ["interactive_rebase", "completed", "drop_verb"],
+      "expected_record_kind": "history_rewrite_sequence_edit_session_record",
+      "expected_operation_kind": "interactive_rebase",
+      "expected_lifecycle": "completed_admitted",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["sequence_edit_saved", "sequence_edit_step_completed"]
+    },
+    {
+      "drill_id": "stash.captured_unapplied",
+      "fixture": "positive/stash_captured_unapplied.json",
+      "category": "stash",
+      "covers": ["stash_capture", "untracked", "non_destructive"],
+      "expected_record_kind": "history_rewrite_stash_entry_record",
+      "expected_operation_kind": "stash_apply",
+      "expected_lifecycle": "captured_unapplied",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["stash_captured"]
+    },
+    {
+      "drill_id": "stash.applied_popped",
+      "fixture": "positive/stash_applied_popped.json",
+      "category": "stash",
+      "covers": ["stash_pop", "destructive_gate_required"],
+      "expected_record_kind": "history_rewrite_stash_entry_record",
+      "expected_operation_kind": "stash_apply",
+      "expected_lifecycle": "applied_popped",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["stash_captured", "stash_applied"]
+    },
+    {
+      "drill_id": "stash.dropped",
+      "fixture": "positive/stash_dropped.json",
+      "category": "stash",
+      "covers": ["stash_drop", "reflog_only_recovery"],
+      "expected_record_kind": "history_rewrite_stash_entry_record",
+      "expected_operation_kind": "stash_apply",
+      "expected_lifecycle": "dropped",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "reflog_only_disclosure_acknowledged",
+      "expected_audit_event_ids": ["stash_dropped"]
+    },
+    {
+      "drill_id": "recovery_checkpoint.restored",
+      "fixture": "positive/recovery_checkpoint_restored.json",
+      "category": "recovery_checkpoint",
+      "covers": ["checkpoint_restore"],
+      "expected_record_kind": "history_rewrite_recovery_checkpoint_record",
+      "expected_operation_kind": "revert",
+      "expected_lifecycle": "restored",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_audit_event_ids": ["recovery_checkpoint_captured", "recovery_checkpoint_restored"]
+    },
+    {
+      "drill_id": "ref_update.policy_admin_lock.blocked",
+      "fixture": "positive/ref_update_policy_admin_lock_blocked.json",
+      "category": "ref_update_proposal",
+      "covers": ["policy_admin_lock", "request_approval", "review_only_mode"],
+      "expected_record_kind": "history_rewrite_ref_update_proposal_record",
+      "expected_operation_kind": "rebase",
+      "expected_lifecycle": "blocked_policy",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_next_safe_path_classes": ["export_history_plan", "request_approval", "review_only_mode"],
+      "expected_blocks_summary_starts": ["policy_admin_lock:"],
+      "expected_audit_event_ids": ["ref_update_proposal_drafted", "ref_update_proposal_blocked", "next_safe_path_offered", "next_safe_path_offered"]
+    },
+    {
+      "drill_id": "ref_update.collaboration.blocked",
+      "fixture": "positive/ref_update_collaboration_blocked.json",
+      "category": "ref_update_proposal",
+      "covers": ["collaboration_active_session", "alternate_worktree", "abort_operation"],
+      "expected_record_kind": "history_rewrite_ref_update_proposal_record",
+      "expected_operation_kind": "rebase",
+      "expected_lifecycle": "blocked_collaboration",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_next_safe_path_classes": ["abort_operation", "open_alternate_worktree"],
+      "expected_blocks_summary_starts": ["collaboration_active_session:"],
+      "expected_audit_event_ids": ["ref_update_proposal_drafted", "ref_update_proposal_blocked", "next_safe_path_offered"]
+    },
+    {
+      "drill_id": "ref_update.alternate_worktree.accepted",
+      "fixture": "positive/ref_update_alternate_worktree_accepted.json",
+      "category": "ref_update_proposal",
+      "covers": ["alternate_worktree", "next_safe_path_accepted", "withdrawn"],
+      "expected_record_kind": "history_rewrite_ref_update_proposal_record",
+      "expected_operation_kind": "rebase",
+      "expected_lifecycle": "withdrawn",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_next_safe_path_classes": ["open_alternate_worktree"],
+      "expected_audit_event_ids": ["ref_update_proposal_drafted", "ref_update_proposal_blocked", "next_safe_path_offered", "next_safe_path_accepted"]
+    },
+    {
+      "drill_id": "ref_update.branch_delete.protected_blocked",
+      "fixture": "positive/ref_update_branch_delete_protected_blocked.json",
+      "category": "ref_update_proposal",
+      "covers": ["protected_branch_no_deletion", "review_only_mode", "export_history_plan"],
+      "expected_record_kind": "history_rewrite_ref_update_proposal_record",
+      "expected_operation_kind": "reset",
+      "expected_lifecycle": "blocked_protected_branch",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_next_safe_path_classes": ["export_history_plan", "review_only_mode"],
+      "expected_blocks_summary_starts": ["protected_branch_no_deletion:"],
+      "expected_audit_event_ids": ["ref_update_proposal_drafted", "ref_update_proposal_blocked", "next_safe_path_offered", "next_safe_path_offered"]
+    },
+    {
+      "drill_id": "ref_update.applied.reflog_only_non_force",
+      "fixture": "positive/ref_update_applied_reflog_only_non_force.json",
+      "category": "ref_update_proposal",
+      "covers": ["reflog_only_recovery", "non_force_apply", "reset"],
+      "expected_record_kind": "history_rewrite_ref_update_proposal_record",
+      "expected_operation_kind": "reset",
+      "expected_lifecycle": "applied",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "reflog_only_disclosure_acknowledged",
+      "expected_audit_event_ids": ["ref_update_proposal_drafted", "next_safe_path_accepted", "ref_update_proposal_applied"]
+    },
+    {
+      "drill_id": "ref_update.applied.force_move_with_checkpoint",
+      "fixture": "positive/ref_update_applied_force_move_with_checkpoint.json",
+      "category": "ref_update_proposal",
+      "covers": ["force_move", "captured_checkpoint_required", "restore_checkpoint_path"],
+      "expected_record_kind": "history_rewrite_ref_update_proposal_record",
+      "expected_operation_kind": "rebase",
+      "expected_lifecycle": "applied",
+      "expected_destructive_gate_satisfied": true,
+      "expected_recovery_posture_class": "recovery_checkpoint_captured",
+      "expected_next_safe_path_classes": ["restore_checkpoint"],
+      "expected_audit_event_ids": ["ref_update_proposal_drafted", "ref_update_proposal_applied"]
+    }
+  ],
+  "negative_drills": [
+    {
+      "drill_id": "negative.reflog_relabeled_as_checkpoint",
+      "fixture": "negative/reflog_relabeled_as_checkpoint.json",
+      "expected_failure_substring": "recovery_checkpoint_captured posture requires",
+      "covers": ["scope_widen", "recovery_posture_mislabel"]
+    },
+    {
+      "drill_id": "negative.lost_stash_provenance",
+      "fixture": "negative/lost_stash_provenance.json",
+      "expected_failure_substring": "promoted_to_branch requires a non-null promoted_branch_ref",
+      "covers": ["stash_provenance", "promotion_truth"]
+    },
+    {
+      "drill_id": "negative.force_move_applied_with_reflog_only",
+      "fixture": "negative/force_move_applied_with_reflog_only.json",
+      "expected_failure_substring": "force-move",
+      "covers": ["force_move_requires_checkpoint"]
+    },
+    {
+      "drill_id": "negative.blocked_proposal_without_next_safe_path",
+      "fixture": "negative/blocked_proposal_without_next_safe_path.json",
+      "expected_failure_substring": "next-safe",
+      "covers": ["blocked_must_publish_safe_path"]
+    },
+    {
+      "drill_id": "negative.raw_patch_body_exported",
+      "fixture": "negative/raw_patch_body_exported.json",
+      "expected_failure_substring": "raw_",
+      "covers": ["redaction_guarantee"]
+    },
+    {
+      "drill_id": "negative.silent_widen_scope_apply_still_blocked",
+      "fixture": "negative/silent_widen_scope_apply_still_blocked.json",
+      "expected_failure_substring": "clear every block",
+      "covers": ["apply_requires_no_active_block", "scope_widen"]
+    }
+  ]
+}
