@@ -9,6 +9,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-policy/0.0.0")]
 
 pub mod authority;
+pub mod runtime_authority_issuers;
 pub mod simulation;
 
 pub use authority::{
@@ -28,6 +29,22 @@ pub use authority::{
     AUTHORITY_TICKET_SPEND_ATTEMPT_RECORD_KIND, AUTHORITY_TICKET_SUMMARY_RECORD_KIND,
     AUTHORITY_TICKET_SUPPORT_EXPORT_RECORD_KIND, CREDENTIAL_PROJECTION_RECORD_KIND,
     ROOT_AUTHORITY_CHANGE_RECORD_KIND,
+};
+
+pub use runtime_authority_issuers::{
+    audit_runtime_authority_issuer_page, seeded_runtime_authority_issuer_page,
+    validate_runtime_authority_issuer_page, AuthoritySourceClass, IssuerBoundaryDecision,
+    IssuerBoundaryDecisionClass, IssuerBoundaryRejectionReason, IssuerBoundaryRequest,
+    RememberedDecisionRule, RequestingSurfaceClass, RequestingSurfaceRecord,
+    RuntimeAuthorityIssuerDefect, RuntimeAuthorityIssuerDefectKind, RuntimeAuthorityIssuerPage,
+    RuntimeAuthorityIssuerRecord, RuntimeAuthorityIssuerSummary, RuntimeAuthorityLineagePacket,
+    RuntimeAuthorityLineageRow, ISSUER_BOUNDARY_DECISION_RECORD_KIND,
+    ISSUER_BOUNDARY_REQUEST_RECORD_KIND, REMEMBERED_DECISION_RULE_RECORD_KIND,
+    REQUESTING_SURFACE_RECORD_KIND, RUNTIME_AUTHORITY_ISSUER_DEFECT_RECORD_KIND,
+    RUNTIME_AUTHORITY_ISSUER_PAGE_RECORD_KIND, RUNTIME_AUTHORITY_ISSUER_RECORD_KIND,
+    RUNTIME_AUTHORITY_ISSUER_SCHEMA_VERSION, RUNTIME_AUTHORITY_ISSUER_SHARED_CONTRACT_REF,
+    RUNTIME_AUTHORITY_ISSUER_SOURCE_MATRIX_REF, RUNTIME_AUTHORITY_ISSUER_SUMMARY_RECORD_KIND,
+    RUNTIME_AUTHORITY_LINEAGE_PACKET_RECORD_KIND,
 };
 
 pub use simulation::{
