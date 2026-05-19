@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/saved_collection_view.schema.json",
+  "title": "Aureline shell saved collection-view beta record",
+  "description": "Shell-facing saved collection-view record minted by dense collection surfaces. Preserves query, filters, sort/group, visible columns, and scope; refuses transient row selection, stale provider cursors, and secret-bearing values. Every drift state pairs to exactly one fallback behavior so a restore against drifted state never silently wipes user state or pretends the view is bound. Raw query bodies, raw filter literal bytes, raw paths, raw URLs, and raw row text MUST NOT appear on any field; the record carries opaque ids, redaction-aware reviewable labels, and frozen vocabulary only. Saved views with scope class policy_pinned or provider_owned are read-only on consumer surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "saved_view_id",
+    "surface_family",
+    "name",
+    "scope_class",
+    "drift_state",
+    "fallback_behavior",
+    "column_presets",
+    "sort_keys",
+    "pinned_count_axes",
+    "stale_or_degraded_labels",
+    "captures_transient_selection",
+    "captures_provider_cursor",
+    "captures_secret_bearing_value"
+  ],
+  "properties": {
+    "record_kind": { "const": "shell_saved_collection_view_beta_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "saved_view_id": { "$ref": "#/$defs/opaque_id" },
+    "surface_family": { "$ref": "#/$defs/surface_family" },
+    "name": { "$ref": "#/$defs/reviewable_label" },
+    "scope_class": { "$ref": "#/$defs/scope_class" },
+    "drift_state": { "$ref": "#/$defs/drift_state" },
+    "fallback_behavior": { "$ref": "#/$defs/fallback_behavior" },
+    "column_presets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/column_preset" }
+    },
+    "sort_keys": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sort_key" }
+    },
+    "pinned_count_axes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pinned_count_axis" },
+      "uniqueItems": true
+    },
+    "stale_or_degraded_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reviewable_label" }
+    },
+    "captures_transient_selection": {
+      "type": "boolean",
+      "const": false,
+      "description": "Saved views MUST NOT capture transient row selection. Always false on the boundary; recording true is non-conforming."
+    },
+    "captures_provider_cursor": {
+      "type": "boolean",
+      "const": false,
+      "description": "Saved views MUST NOT capture stale provider cursors. Always false on the boundary; recording true is non-conforming."
+    },
+    "captures_secret_bearing_value": {
+      "type": "boolean",
+      "const": false,
+      "description": "Saved views MUST NOT capture secret-bearing literals. Always false on the boundary; recording true is non-conforming."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "drift_state": { "const": "bound_current_state_matches_captured" }
+        }
+      },
+      "then": {
+        "properties": {
+          "stale_or_degraded_labels": { "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "scope_class": { "enum": ["policy_pinned", "provider_owned"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "fallback_behavior": {
+            "enum": ["refuse_until_rebound", "provider_rebind_required"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "search_or_result_grid",
+        "review_inbox",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_board",
+        "admin_or_settings_grid"
+      ]
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": ["user", "workspace", "shared", "policy_pinned", "provider_owned"]
+    },
+    "drift_state": {
+      "type": "string",
+      "enum": [
+        "bound_current_state_matches_captured",
+        "provider_state_drifted_disclosed",
+        "column_set_drifted_disclosed",
+        "policy_narrowing_changed_disclosed",
+        "view_archived_offered_restore",
+        "view_unresolvable_offered_recreate",
+        "view_unavailable_provider_offline_disclosed"
+      ]
+    },
+    "fallback_behavior": {
+      "type": "string",
+      "enum": [
+        "preserve_and_label_degraded",
+        "load_portable_subset_with_labels",
+        "refuse_until_rebound",
+        "provider_rebind_required",
+        "offer_recreate_from_current"
+      ]
+    },
+    "pinned_count_axis": {
+      "type": "string",
+      "enum": ["visible", "loaded", "matching", "total"]
+    },
+    "column_preset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column_id", "label", "pinned"],
+      "properties": {
+        "column_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "pinned": { "type": "boolean" }
+      }
+    },
+    "sort_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column_id", "descending"],
+      "properties": {
+        "column_id": { "$ref": "#/$defs/opaque_id" },
+        "descending": { "type": "boolean" }
+      }
+    }
+  }
+}

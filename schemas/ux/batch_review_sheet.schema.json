@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/batch_review_sheet.schema.json",
+  "title": "Aureline shell batch-review sheet beta record",
+  "description": "Shell-facing batch-review sheet record minted before destructive, export-bearing, remote, or provider-backed actions continue on a dense collection. Carries action consequence class, select-all escalation class, execution origin label, included / excluded / blocked / hidden counts, blocked-reason rows, recovery / rollback guidance, reviewable rollback note, and selected-versus-all-matching semantics. Blocked items remain distinguishable from excluded, hidden, and skipped items; collapsing them is non-conforming. The sheet MUST NOT enable continue when the batch scope is ambiguous (any ambiguity finding present). Raw row text, raw paths, and raw URLs MUST NOT appear on any field; the record carries opaque ids, redaction-aware reviewable labels, and frozen vocabulary only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "batch_review_id",
+    "surface_family",
+    "action_id",
+    "action_label",
+    "consequence_class",
+    "select_all_escalation_class",
+    "execution_origin_label",
+    "summary",
+    "blocked_reasons",
+    "recovery_guidance_class",
+    "rollback_note",
+    "review_required",
+    "continue_enabled",
+    "ambiguity_findings",
+    "continue_action_id",
+    "cancel_action_id"
+  ],
+  "properties": {
+    "record_kind": {
+      "const": "shell_collection_batch_review_sheet_beta_record"
+    },
+    "schema_version": { "type": "integer", "const": 1 },
+    "batch_review_id": { "$ref": "#/$defs/opaque_id" },
+    "surface_family": { "$ref": "#/$defs/surface_family" },
+    "action_id": { "$ref": "#/$defs/opaque_id" },
+    "action_label": { "$ref": "#/$defs/reviewable_label" },
+    "consequence_class": { "$ref": "#/$defs/consequence_class" },
+    "select_all_escalation_class": {
+      "$ref": "#/$defs/select_all_escalation_class"
+    },
+    "execution_origin_label": { "$ref": "#/$defs/reviewable_label" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "blocked_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blocked_reason" }
+    },
+    "recovery_guidance_class": {
+      "$ref": "#/$defs/recovery_guidance_class"
+    },
+    "rollback_note": { "$ref": "#/$defs/reviewable_label" },
+    "review_required": { "type": "boolean" },
+    "continue_enabled": { "type": "boolean" },
+    "ambiguity_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ambiguity_finding" }
+    },
+    "continue_action_id": { "$ref": "#/$defs/opaque_id" },
+    "cancel_action_id": { "$ref": "#/$defs/opaque_id" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "consequence_class": {
+            "enum": [
+              "destructive_local",
+              "destructive_remote",
+              "remote_mutation",
+              "export_or_share",
+              "provider_owned_mutation"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "review_required": { "const": true }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ambiguity_findings": { "minItems": 1 }
+        }
+      },
+      "then": {
+        "properties": {
+          "continue_enabled": { "const": false }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "search_or_result_grid",
+        "review_inbox",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_board",
+        "admin_or_settings_grid"
+      ]
+    },
+    "consequence_class": {
+      "type": "string",
+      "enum": [
+        "routine_non_mutating",
+        "local_reversible",
+        "destructive_local",
+        "remote_mutation",
+        "destructive_remote",
+        "export_or_share",
+        "provider_owned_mutation"
+      ]
+    },
+    "select_all_escalation_class": {
+      "type": "string",
+      "enum": ["visible_or_loaded", "all_matching_safe", "all_matching_refused"]
+    },
+    "recovery_guidance_class": {
+      "type": "string",
+      "enum": [
+        "reversible_via_undo_stack",
+        "compensating_revert_within_window",
+        "export_rollback_by_redelivery",
+        "regenerate_from_source",
+        "evidence_only_no_rerun",
+        "no_recovery_available"
+      ]
+    },
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "policy_narrowed",
+        "ownership_missing",
+        "protected_path",
+        "provider_unsupported",
+        "freshness_required",
+        "grant_missing",
+        "concurrent_edit"
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "included_count",
+        "excluded_count",
+        "blocked_count",
+        "hidden_count",
+        "selected_versus_all_matching_label"
+      ],
+      "properties": {
+        "included_count": { "type": "integer", "minimum": 0 },
+        "excluded_count": { "type": "integer", "minimum": 0 },
+        "blocked_count": { "type": "integer", "minimum": 0 },
+        "hidden_count": { "type": "integer", "minimum": 0 },
+        "selected_versus_all_matching_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "blocked_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class", "label"],
+      "properties": {
+        "reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "ambiguity_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_kind", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/reviewable_label" }
+      }
+    }
+  }
+}

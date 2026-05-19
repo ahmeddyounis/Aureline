@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/filter_bar_state.schema.json",
+  "title": "Aureline shell filter-bar state beta record",
+  "description": "Shell-facing filter-bar state record minted by dense collection surfaces (search results, problems, review queues, logs, admin boards, provider-backed tables). Carries one active query text, source-labeled chips, hidden narrowing from policy/workset/provider/client limits, an explicit reset action token, and one frozen count-summary class describing whether the active filter bar's totals are exact, approximate, partial, or provider-limited. Hidden narrowing chips (policy/workset/client_limit/provider_limit/partial_data) MUST remain rendered, locked, and explainable; collapsing them into the user-applied chip family is non-conforming. Raw query bodies, raw filter literal bytes, raw paths, and raw URLs MUST NOT appear on any field; the record carries opaque ids, redaction-aware reviewable labels, and frozen vocabulary only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "filter_bar_id",
+    "surface_family",
+    "scope_label",
+    "chips",
+    "count_summary_class",
+    "hidden_narrowing_summary",
+    "reset_action_label"
+  ],
+  "properties": {
+    "record_kind": { "const": "shell_collection_filter_bar_state_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "filter_bar_id": { "$ref": "#/$defs/opaque_id" },
+    "surface_family": { "$ref": "#/$defs/surface_family" },
+    "scope_label": { "$ref": "#/$defs/reviewable_label" },
+    "chips": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/filter_bar_chip" }
+    },
+    "count_summary_class": { "$ref": "#/$defs/count_summary_class" },
+    "hidden_narrowing_summary": {
+      "type": "string",
+      "maxLength": 4096,
+      "description": "Accessibility-narration summary that covers every hidden-narrowing chip. Empty string when no hidden narrowing applies."
+    },
+    "reset_action_label": { "$ref": "#/$defs/reviewable_label" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests and support bundles. Raw payloads never appear here."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries presentation copy only."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "search_or_result_grid",
+        "review_inbox",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_board",
+        "admin_or_settings_grid"
+      ]
+    },
+    "narrowing_source_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "saved_view",
+        "policy",
+        "workset",
+        "client_limit",
+        "provider_limit",
+        "partial_data"
+      ]
+    },
+    "count_summary_class": {
+      "type": "string",
+      "enum": [
+        "exact_local",
+        "exact_with_workset_narrowing",
+        "exact_with_policy_pinning",
+        "approximate_provider_limited",
+        "partial_indexing",
+        "provider_retention_windowed",
+        "unknown"
+      ]
+    },
+    "filter_bar_chip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chip_id",
+        "label",
+        "source_class",
+        "locked",
+        "is_hidden_narrowing"
+      ],
+      "properties": {
+        "chip_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "value_label": { "$ref": "#/$defs/reviewable_label" },
+        "source_class": { "$ref": "#/$defs/narrowing_source_class" },
+        "locked": { "type": "boolean" },
+        "is_hidden_narrowing": { "type": "boolean" },
+        "explanation": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_class": {
+                "enum": [
+                  "policy",
+                  "workset",
+                  "client_limit",
+                  "provider_limit",
+                  "partial_data"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locked": { "const": true },
+              "is_hidden_narrowing": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

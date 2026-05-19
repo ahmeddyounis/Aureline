@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/collection_scope_counter.schema.json",
+  "title": "Aureline shell collection scope-counter beta record",
+  "description": "Shell-facing scope counter record minted by dense collection surfaces. Distinguishes visible, loaded, matching, total, partial, and provider-owned counts across virtualized and paginated collections. Surfaces MUST emit one row per axis the surface can claim and MUST NOT collapse two axes into one number — that would hide scope reduction from the user. Counts that cannot be claimed exactly carry one of {approximate, provider_limited, partial, unknown}; a count without a status is non-conforming. Raw row text, raw paths, and raw URLs MUST NOT appear on any field; the record carries opaque ids, redaction-aware reviewable labels, and frozen vocabulary only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "scope_counter_id",
+    "surface_family",
+    "rows",
+    "accessibility_summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "shell_collection_scope_counter_beta_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "scope_counter_id": { "$ref": "#/$defs/opaque_id" },
+    "surface_family": { "$ref": "#/$defs/surface_family" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/counter_row" }
+    },
+    "accessibility_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "search_or_result_grid",
+        "review_inbox",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_board",
+        "admin_or_settings_grid"
+      ]
+    },
+    "counter_class": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "loaded",
+        "matching",
+        "total",
+        "partial",
+        "provider_owned"
+      ]
+    },
+    "counter_status": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "provider_limited",
+        "partial",
+        "unknown"
+      ]
+    },
+    "counter_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["counter_class", "status"],
+      "properties": {
+        "counter_class": { "$ref": "#/$defs/counter_class" },
+        "status": { "$ref": "#/$defs/counter_status" },
+        "value": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "explanation": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": { "const": "unknown" }
+            }
+          },
+          "then": {
+            "not": { "required": ["value"] }
+          },
+          "else": {
+            "required": ["value"]
+          }
+        }
+      ]
+    }
+  }
+}
