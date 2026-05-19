@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/conflict_session.schema.json",
+  "title": "Aureline conflict-session beta record (history-rewrite lane)",
+  "description": "Boundary schema for the durable conflict-session record family pinned in docs/source_control/m3/history_rewrite_beta.md. One conflict-session row describes one paused merge / rebase / cherry-pick / revert / patch-apply / stash-apply / merge conflict with operation provenance, affected refs, recovery posture, available actions, and the ref-update proposal that gates continue / skip / abort. Desktop, CLI/headless, and support/export surfaces read this row through `aureline_git::history_rewrite` so operation-specific meaning survives editor restart. Raw absolute paths, raw branch names, raw remote URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw reflog bodies, and raw stash bodies MUST NOT appear here.",
+  "type": "object",
+  "$ref": "#/$defs/history_rewrite_conflict_session_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "operation_kind": {
+      "type": "string",
+      "enum": [
+        "rebase",
+        "interactive_rebase",
+        "cherry_pick",
+        "revert",
+        "reset",
+        "patch_apply",
+        "stash_apply",
+        "stash_pop",
+        "stash_drop",
+        "branch_from_stash",
+        "merge",
+        "amend"
+      ]
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "draft_pending_admit",
+        "active_awaiting_resolution",
+        "paused_awaiting_user_input",
+        "paused_awaiting_external_tool",
+        "continuing_after_resolution",
+        "skipped_conflicted_step",
+        "aborted_rolled_back",
+        "completed_committed",
+        "completed_handed_off",
+        "failed_no_changes_made"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "continue_after_resolution",
+        "skip_conflicted_step",
+        "abort_and_restore",
+        "open_resolver",
+        "request_external_handoff",
+        "pause_for_break",
+        "restore_recovery_checkpoint"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_history_panel",
+        "desktop_conflict_resolver",
+        "desktop_sequence_editor",
+        "desktop_stash_browser",
+        "activity_center",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "review_panel"
+      ]
+    },
+    "recovery_posture_class": {
+      "type": "string",
+      "enum": [
+        "recovery_checkpoint_captured",
+        "reflog_only_disclosure_acknowledged",
+        "no_recovery_available_blocks_apply",
+        "external_handoff_pending"
+      ]
+    },
+    "next_safe_path_class": {
+      "type": "string",
+      "enum": [
+        "open_alternate_worktree",
+        "create_temporary_branch",
+        "export_history_plan",
+        "review_only_mode",
+        "request_approval",
+        "abort_operation",
+        "restore_checkpoint",
+        "switch_to_reflog_disclosure",
+        "no_safe_path_blocked_requires_human"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "session_admitted",
+        "session_resumed_after_restart",
+        "conflict_continue_requested",
+        "conflict_skip_requested",
+        "conflict_abort_requested",
+        "sequence_edit_saved",
+        "sequence_edit_step_started",
+        "sequence_edit_step_completed",
+        "stash_captured",
+        "stash_applied",
+        "stash_dropped",
+        "stash_promoted_to_branch",
+        "recovery_checkpoint_captured",
+        "recovery_checkpoint_restored",
+        "ref_update_proposal_drafted",
+        "ref_update_proposal_blocked",
+        "ref_update_proposal_applied",
+        "next_safe_path_offered",
+        "next_safe_path_accepted"
+      ]
+    },
+    "ref_id": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_id", "ref_class", "display_label"],
+      "properties": {
+        "ref_id": { "$ref": "#/$defs/opaque_id" },
+        "ref_class": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "worktree_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_ref", "worktree_ref", "worktree_label", "is_linked_worktree"],
+      "properties": {
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_label": { "$ref": "#/$defs/non_empty_string" },
+        "is_linked_worktree": { "type": "boolean" }
+      }
+    },
+    "recovery_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture_class",
+        "checkpoint_captured",
+        "reflog_only_disclosure_acknowledged",
+        "disclosure_label"
+      ],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/recovery_posture_class" },
+        "recovery_checkpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "checkpoint_captured": { "type": "boolean" },
+        "reflog_only_disclosure_acknowledged": { "type": "boolean" },
+        "disclosure_label": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "description": "recovery_checkpoint_captured requires checkpoint_captured=true and a non-null recovery_checkpoint_ref.",
+          "if": {
+            "properties": { "posture_class": { "const": "recovery_checkpoint_captured" } },
+            "required": ["posture_class"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_captured": { "const": true },
+              "recovery_checkpoint_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["recovery_checkpoint_ref"]
+          }
+        },
+        {
+          "description": "reflog_only_disclosure_acknowledged requires reflog_only_disclosure_acknowledged=true.",
+          "if": {
+            "properties": { "posture_class": { "const": "reflog_only_disclosure_acknowledged" } },
+            "required": ["posture_class"]
+          },
+          "then": {
+            "properties": { "reflog_only_disclosure_acknowledged": { "const": true } }
+          }
+        }
+      ]
+    },
+    "audit_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "session_ref", "summary_label", "occurred_at"],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/audit_event_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "next_safe_path_class": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/next_safe_path_class" }]
+        },
+        "recovery_checkpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        }
+      },
+      "allOf": [
+        {
+          "description": "next_safe_path_* events must cite a next_safe_path_class.",
+          "if": {
+            "properties": {
+              "event_id": {
+                "enum": ["next_safe_path_offered", "next_safe_path_accepted"]
+              }
+            },
+            "required": ["event_id"]
+          },
+          "then": {
+            "properties": {
+              "next_safe_path_class": { "$ref": "#/$defs/next_safe_path_class" }
+            },
+            "required": ["next_safe_path_class"]
+          }
+        }
+      ]
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_packet_refs",
+        "redaction_class",
+        "raw_path_export_allowed",
+        "raw_branch_name_export_allowed",
+        "raw_patch_body_export_allowed",
+        "raw_reflog_body_export_allowed",
+        "raw_stash_body_export_allowed"
+      ],
+      "properties": {
+        "export_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "raw_path_export_allowed": { "const": false },
+        "raw_branch_name_export_allowed": { "const": false },
+        "raw_patch_body_export_allowed": { "const": false },
+        "raw_reflog_body_export_allowed": { "const": false },
+        "raw_stash_body_export_allowed": { "const": false }
+      }
+    },
+    "history_rewrite_conflict_session_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "conflict_session_id",
+        "operation_kind",
+        "lifecycle_state",
+        "display_label",
+        "summary",
+        "worktree_context",
+        "onto_ref",
+        "source_ref",
+        "conflicted_path_tokens",
+        "available_actions",
+        "recovery_posture",
+        "ref_update_proposal_ref",
+        "consumer_surfaces",
+        "support_export",
+        "audit_events",
+        "raw_todo_text_ref",
+        "minted_at",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "history_rewrite_conflict_session_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "conflict_session_id": { "$ref": "#/$defs/opaque_id" },
+        "operation_kind": { "$ref": "#/$defs/operation_kind" },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_context": { "$ref": "#/$defs/worktree_context" },
+        "sequence_edit_session_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "onto_ref": { "$ref": "#/$defs/ref_id" },
+        "source_ref": { "$ref": "#/$defs/ref_id" },
+        "conflicted_path_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "available_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/action_class" }
+        },
+        "recovery_posture": { "$ref": "#/$defs/recovery_posture" },
+        "ref_update_proposal_ref": { "$ref": "#/$defs/opaque_id" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "allOf": [
+            { "contains": { "const": "support_export" } },
+            { "contains": { "const": "audit_lane" } }
+          ]
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "audit_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_event" }
+        },
+        "raw_todo_text_ref": { "$ref": "#/$defs/opaque_id" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Continuing, skipping, and completing destructive lifecycle states require recovery checkpoint or reflog-only disclosure.",
+          "if": {
+            "properties": {
+              "lifecycle_state": {
+                "enum": [
+                  "continuing_after_resolution",
+                  "skipped_conflicted_step",
+                  "completed_committed"
+                ]
+              }
+            },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "recovery_posture": {
+                "properties": {
+                  "posture_class": {
+                    "enum": [
+                      "recovery_checkpoint_captured",
+                      "reflog_only_disclosure_acknowledged"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

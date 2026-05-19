@@ -12,6 +12,7 @@ pub mod branches;
 pub mod change_objects;
 pub mod commit;
 pub mod conflicts;
+pub mod history_rewrite;
 pub mod mutations;
 pub mod publish;
 pub mod status;
@@ -50,6 +51,22 @@ pub use commit::{
     SystemGitCommitBackend, GIT_COMMIT_ACTIVITY_RECORD_KIND, GIT_COMMIT_JOURNAL_RECORD_KIND,
     GIT_COMMIT_PREVIEW_RECORD_KIND, GIT_COMMIT_PUBLISH_READINESS_RECORD_KIND,
     GIT_COMMIT_RESULT_RECORD_KIND, GIT_COMMIT_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use history_rewrite::{
+    parse_history_rewrite_record, project_history_rewrite_record, ConflictSessionRecord,
+    HistoryRewriteAuditEvent, HistoryRewriteBlock, HistoryRewriteError,
+    HistoryRewriteNextSafePath, HistoryRewriteProjection, HistoryRewriteRecord,
+    HistoryRewriteRecoveryPosture, HistoryRewriteRefId, HistoryRewriteSupportExport,
+    HistoryRewriteValidationError, HistoryRewriteWorktreeContext, RecoveryCheckpointRecord,
+    RefUpdateProposalRecord, SequenceEditSessionRecord, SequenceEditStep, StashEntryRecord,
+    CONFLICT_ACTION_CLASSES, CONFLICT_SESSION_LIFECYCLE_STATES, CONFLICT_SESSION_RECORD_KIND,
+    HISTORY_REWRITE_AUDIT_EVENTS, HISTORY_REWRITE_BETA_SCHEMA_VERSION,
+    HISTORY_REWRITE_CONSUMER_SURFACES, HISTORY_REWRITE_OPERATION_KINDS,
+    NEXT_SAFE_PATH_CLASSES, RECOVERY_CHECKPOINT_LIFECYCLE_STATES,
+    RECOVERY_CHECKPOINT_RECORD_KIND, RECOVERY_POSTURE_CLASSES, REF_UPDATE_BLOCK_CLASSES,
+    REF_UPDATE_PROPOSAL_LIFECYCLE_STATES, REF_UPDATE_PROPOSAL_RECORD_KIND,
+    SEQUENCE_EDIT_SESSION_LIFECYCLE_STATES, SEQUENCE_EDIT_SESSION_RECORD_KIND,
+    SEQUENCE_EDIT_VERBS, STASH_ENTRY_LIFECYCLE_STATES, STASH_ENTRY_RECORD_KIND,
 };
 pub use conflicts::{
     GitConflictDivergenceSource, GitConflictExternalCompareProjection,

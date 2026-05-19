@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/git/stash_entry.schema.json",
+  "title": "Aureline stash-entry beta record (history-rewrite lane)",
+  "description": "Boundary schema for the durable stash-entry record family pinned in docs/source_control/m3/history_rewrite_beta.md. One stash-entry row owns one stash or shelf object across capture, apply, pop, drop, and branch-from-stash transitions. Apply paused on conflict pins a conflict-session ref; promote-to-branch pins the promoted branch ref. Raw absolute paths, raw branch names, raw remote URLs, raw author identity strings, raw commit message bodies, raw patch bodies, raw reflog bodies, and raw stash bodies MUST NOT appear here.",
+  "type": "object",
+  "$ref": "#/$defs/history_rewrite_stash_entry_record",
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "captured_unapplied",
+        "applied_kept",
+        "applied_popped",
+        "dropped",
+        "promoted_to_branch",
+        "applied_with_conflict"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "desktop_history_panel",
+        "desktop_conflict_resolver",
+        "desktop_sequence_editor",
+        "desktop_stash_browser",
+        "activity_center",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "review_panel"
+      ]
+    },
+    "recovery_posture_class": {
+      "type": "string",
+      "enum": [
+        "recovery_checkpoint_captured",
+        "reflog_only_disclosure_acknowledged",
+        "no_recovery_available_blocks_apply",
+        "external_handoff_pending"
+      ]
+    },
+    "next_safe_path_class": {
+      "type": "string",
+      "enum": [
+        "open_alternate_worktree",
+        "create_temporary_branch",
+        "export_history_plan",
+        "review_only_mode",
+        "request_approval",
+        "abort_operation",
+        "restore_checkpoint",
+        "switch_to_reflog_disclosure",
+        "no_safe_path_blocked_requires_human"
+      ]
+    },
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "session_admitted",
+        "session_resumed_after_restart",
+        "conflict_continue_requested",
+        "conflict_skip_requested",
+        "conflict_abort_requested",
+        "sequence_edit_saved",
+        "sequence_edit_step_started",
+        "sequence_edit_step_completed",
+        "stash_captured",
+        "stash_applied",
+        "stash_dropped",
+        "stash_promoted_to_branch",
+        "recovery_checkpoint_captured",
+        "recovery_checkpoint_restored",
+        "ref_update_proposal_drafted",
+        "ref_update_proposal_blocked",
+        "ref_update_proposal_applied",
+        "next_safe_path_offered",
+        "next_safe_path_accepted"
+      ]
+    },
+    "ref_id": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_id", "ref_class", "display_label"],
+      "properties": {
+        "ref_id": { "$ref": "#/$defs/opaque_id" },
+        "ref_class": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "worktree_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_ref", "worktree_ref", "worktree_label", "is_linked_worktree"],
+      "properties": {
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_label": { "$ref": "#/$defs/non_empty_string" },
+        "is_linked_worktree": { "type": "boolean" }
+      }
+    },
+    "recovery_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture_class",
+        "checkpoint_captured",
+        "reflog_only_disclosure_acknowledged",
+        "disclosure_label"
+      ],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/recovery_posture_class" },
+        "recovery_checkpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "checkpoint_captured": { "type": "boolean" },
+        "reflog_only_disclosure_acknowledged": { "type": "boolean" },
+        "disclosure_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "audit_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_id", "session_ref", "summary_label", "occurred_at"],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/audit_event_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "next_safe_path_class": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/next_safe_path_class" }]
+        },
+        "recovery_checkpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_packet_refs",
+        "redaction_class",
+        "raw_path_export_allowed",
+        "raw_branch_name_export_allowed",
+        "raw_patch_body_export_allowed",
+        "raw_reflog_body_export_allowed",
+        "raw_stash_body_export_allowed"
+      ],
+      "properties": {
+        "export_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "raw_path_export_allowed": { "const": false },
+        "raw_branch_name_export_allowed": { "const": false },
+        "raw_patch_body_export_allowed": { "const": false },
+        "raw_reflog_body_export_allowed": { "const": false },
+        "raw_stash_body_export_allowed": { "const": false }
+      }
+    },
+    "history_rewrite_stash_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stash_entry_id",
+        "lifecycle_state",
+        "display_label",
+        "summary",
+        "worktree_context",
+        "stash_handle_ref",
+        "base_ref",
+        "captured_path_tokens",
+        "captured_index_entry_count",
+        "captured_worktree_entry_count",
+        "captured_untracked",
+        "recovery_posture",
+        "consumer_surfaces",
+        "support_export",
+        "audit_events",
+        "minted_at",
+        "updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "history_rewrite_stash_entry_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stash_entry_id": { "$ref": "#/$defs/opaque_id" },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_context": { "$ref": "#/$defs/worktree_context" },
+        "stash_handle_ref": { "$ref": "#/$defs/ref_id" },
+        "base_ref": { "$ref": "#/$defs/ref_id" },
+        "captured_path_tokens": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "captured_index_entry_count": { "type": "integer", "minimum": 0 },
+        "captured_worktree_entry_count": { "type": "integer", "minimum": 0 },
+        "captured_untracked": { "type": "boolean" },
+        "conflict_session_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "promoted_branch_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ref_id" }]
+        },
+        "recovery_posture": { "$ref": "#/$defs/recovery_posture" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "allOf": [
+            { "contains": { "const": "support_export" } },
+            { "contains": { "const": "audit_lane" } }
+          ]
+        },
+        "support_export": { "$ref": "#/$defs/support_export" },
+        "audit_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_event" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "applied_with_conflict requires a non-null conflict_session_ref.",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "applied_with_conflict" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": { "conflict_session_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["conflict_session_ref"]
+          }
+        },
+        {
+          "description": "promoted_to_branch requires a non-null promoted_branch_ref.",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "promoted_to_branch" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": { "promoted_branch_ref": { "$ref": "#/$defs/ref_id" } },
+            "required": ["promoted_branch_ref"]
+          }
+        },
+        {
+          "description": "applied_popped and dropped require recovery checkpoint or reflog-only disclosure.",
+          "if": {
+            "properties": {
+              "lifecycle_state": { "enum": ["applied_popped", "dropped"] }
+            },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "recovery_posture": {
+                "properties": {
+                  "posture_class": {
+                    "enum": [
+                      "recovery_checkpoint_captured",
+                      "reflog_only_disclosure_acknowledged"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
