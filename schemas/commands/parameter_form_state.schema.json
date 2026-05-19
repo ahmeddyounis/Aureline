@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/parameter_form_state.schema.json",
+  "title": "Aureline command parameter-form state contract",
+  "description": "Boundary schema for the parameter_form_state_record every command-driven parameter form projects so the desktop product, CLI inspect surfaces, AI tool envelopes, automation-recipe step editors, request/run/debug/template/repair workspaces, and voice grammars all render identical typed fields, source-layer labels, defaults, validation, redaction, and restart hints from one command descriptor. Raw secret material, raw paths, raw URLs, raw credentials, and raw prompt text never cross this boundary; every value rides an opaque resolved_value_ref pinned to the broker-owned value registry. The schema reuses every frozen vocabulary from command_descriptor.schema.json so a divergent projection is mechanically detectable. Adding a new field-state class, source-layer class, validation-finding class, restart-class, redaction class, or unsupported-narrowing reason class is additive-minor and bumps parameter_form_state_schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "$ref": "#/$defs/parameter_form_state_record",
+  "$defs": {
+    "parameter_form_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this parameter-form-state export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw command bodies, raw argument values, raw paths, raw URLs, raw prompt text, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "form_surface_class": {
+      "type": "string",
+      "enum": [
+        "desktop_parameter_form",
+        "cli_inspect_surface",
+        "ai_tool_envelope",
+        "automation_recipe_step_editor",
+        "request_workspace_form",
+        "run_debug_profile_form",
+        "template_or_generator_form",
+        "repair_or_doctor_form",
+        "voice_grammar_surface",
+        "remote_companion_form"
+      ],
+      "description": "Frozen surface class the form is rendered on. Every surface class projects the same form_state record; a surface that mints a parallel envelope is non-conforming."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from command_descriptor.schema.json without modification. A field whose unsupported_for_client_scopes lists this scope MUST render the typed unsupported_field_class disabled, not silently drop."
+    },
+
+    "argument_kind": {
+      "type": "string",
+      "enum": [
+        "string_free_form",
+        "string_enum",
+        "boolean_flag",
+        "integer_bounded",
+        "decimal_bounded",
+        "opaque_id_ref",
+        "path_ref_opaque",
+        "workspace_scope_ref",
+        "selection_ref",
+        "range_ref",
+        "provider_ref",
+        "capability_ref",
+        "credential_handle_ref",
+        "docs_anchor_ref",
+        "file_set_ref",
+        "glob_expression",
+        "duration_seconds",
+        "locale_tag",
+        "semver_range",
+        "multi_value_list"
+      ],
+      "description": "Re-exported from command_descriptor.schema.json without modification."
+    },
+
+    "source_layer_class": {
+      "type": "string",
+      "enum": [
+        "descriptor_default",
+        "user_override",
+        "workspace_value",
+        "org_policy_pinned",
+        "runtime_prompt",
+        "secret_handle_reference",
+        "ai_proposed_requires_review",
+        "automation_recipe_supplied",
+        "extension_supplied",
+        "keybinding_args_supplied",
+        "cli_argv_supplied",
+        "selection_inferred",
+        "focused_context_inferred"
+      ],
+      "description": "Frozen source-layer vocabulary. Surfaces MUST render the controlled label for the source layer (\"Default\", \"User override\", \"Workspace value\", \"Org policy\", \"Runtime prompt\", \"Secret reference\", etc.) verbatim. Accessibility output and support exports MUST preserve the same label. Silent label substitution is non-conforming."
+    },
+
+    "source_layer_label_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque pin to the controlled label string the surface renders for the field's source layer. Raw label strings never cross this boundary; localisation is resolved downstream."
+    },
+
+    "field_state_class": {
+      "type": "string",
+      "enum": [
+        "editable",
+        "editable_with_warning",
+        "policy_pinned_read_only",
+        "secret_masked_read_only",
+        "secret_handle_swap_only",
+        "runtime_prompt_required",
+        "unsupported_in_client_scope",
+        "unsupported_in_restricted_trust",
+        "hidden_until_dependency_resolved",
+        "deprecated_use_replacement"
+      ],
+      "description": "Frozen field-state vocabulary. policy_pinned_read_only pairs with source_layer_class = org_policy_pinned; secret_masked_read_only and secret_handle_swap_only pair with source_layer_class = secret_handle_reference; unsupported_in_client_scope pairs with unsupported_field_class on the form-level rollup."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from command_descriptor.schema.json without modification. A field whose redaction_class is not metadata_safe_default is masked in run history and support exports unless an explicit higher-trust reveal action is taken locally."
+    },
+
+    "value_visibility_class": {
+      "type": "string",
+      "enum": [
+        "value_visible",
+        "value_masked",
+        "value_handle_only",
+        "value_omitted_for_redaction"
+      ],
+      "description": "Frozen value-visibility vocabulary the form-state record carries per field. value_handle_only is the floor for credential_handle_ref kinds; literal reveal must be an explicit local action and MUST NOT downgrade the export classification."
+    },
+
+    "restart_or_reload_class": {
+      "type": "string",
+      "enum": [
+        "no_restart_required",
+        "preview_recompute_required",
+        "request_reissue_required",
+        "task_restart_required",
+        "debugger_restart_required",
+        "extension_reload_required",
+        "shell_window_reload_required",
+        "workspace_reload_required",
+        "host_process_restart_required"
+      ],
+      "description": "Frozen restart-or-reload class that surfaces SHOULD render next to fields whose value changes invalidate cached previews, running tasks, debug sessions, extension state, or the shell host. Silent re-run without disclosure is non-conforming."
+    },
+
+    "validation_severity": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "warning",
+        "blocking"
+      ],
+      "description": "Frozen validation-severity vocabulary. blocking findings deny preview / apply; warning findings surface in the review sheet without denying; informational findings render only on the form surface."
+    },
+
+    "validation_finding_class": {
+      "type": "string",
+      "enum": [
+        "required_value_missing",
+        "value_below_minimum",
+        "value_above_maximum",
+        "value_not_in_enum",
+        "value_failed_pattern",
+        "value_failed_semver_range",
+        "value_failed_duration_bound",
+        "value_failed_locale_tag",
+        "value_failed_glob_grammar",
+        "value_failed_provider_handshake",
+        "value_failed_workspace_scope_resolution",
+        "value_failed_credential_handle_resolution",
+        "value_failed_capability_grant",
+        "value_failed_policy_pin",
+        "value_failed_freshness_floor",
+        "value_failed_basis_snapshot",
+        "value_failed_redaction_admission",
+        "value_failed_client_scope_admission",
+        "value_failed_trust_state_admission"
+      ],
+      "description": "Frozen validation-finding class. Each finding pairs with a typed repair_hint_ref so the form and the review sheet agree on what to fix; bare error strings are non-conforming."
+    },
+
+    "unsupported_field_class": {
+      "type": "string",
+      "enum": [
+        "not_supported_on_client_scope",
+        "not_supported_in_restricted_trust",
+        "not_supported_in_browser_companion",
+        "not_supported_in_headless_inspect",
+        "not_supported_in_remote_agent",
+        "not_supported_for_freshness_floor",
+        "not_supported_by_provider_capability"
+      ],
+      "description": "Frozen unsupported-field class surfaces use when a field is narrowed away in the current client / trust / freshness / provider context. The form MUST render the typed disabled chip rather than silently dropping the field."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "description": "Policy context the form was projected under. Re-validated on every render."
+    },
+
+    "validation_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_class", "severity", "narration_ref"],
+      "properties": {
+        "finding_class": { "$ref": "#/$defs/validation_finding_class" },
+        "severity": { "$ref": "#/$defs/validation_severity" },
+        "narration_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the accessibility-facing narration string the surface reads."
+        },
+        "repair_hint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the typed repair hint the surface offers. Required when severity = blocking; optional otherwise."
+        },
+        "docs_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+
+    "field_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "argument_name",
+        "argument_kind",
+        "is_required",
+        "field_state_class",
+        "source_layer_class",
+        "source_layer_label_ref",
+        "value_visibility",
+        "redaction_class",
+        "restart_or_reload_class",
+        "narration_label_ref",
+        "validation_findings"
+      ],
+      "properties": {
+        "argument_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "argument_kind": { "$ref": "#/$defs/argument_kind" },
+        "is_required": { "type": "boolean" },
+        "field_state_class": { "$ref": "#/$defs/field_state_class" },
+        "source_layer_class": { "$ref": "#/$defs/source_layer_class" },
+        "source_layer_label_ref": { "$ref": "#/$defs/source_layer_label_ref" },
+        "originating_layer_chain": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_layer_class" },
+          "description": "Optional ordered cascade the resolver walked before settling on source_layer_class. Used by the form to disclose 'overrides default' and by the review sheet to summarise where each value came from."
+        },
+        "resolved_value_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque pin to the resolved value the broker registry held at form-render time. Null only when field_state_class = runtime_prompt_required, hidden_until_dependency_resolved, or unsupported_*."
+        },
+        "default_value_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "value_visibility": { "$ref": "#/$defs/value_visibility_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "restart_or_reload_class": { "$ref": "#/$defs/restart_or_reload_class" },
+        "enum_value_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Closed set of admissible value refs for argument_kind = string_enum. Empty for non-enum kinds."
+        },
+        "minimum_inclusive": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number" }
+          ]
+        },
+        "maximum_inclusive": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number" }
+          ]
+        },
+        "unsupported_field_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/unsupported_field_class" }
+          ],
+          "description": "Required (non-null) when field_state_class = unsupported_in_client_scope / unsupported_in_restricted_trust; null otherwise."
+        },
+        "unsupported_for_client_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope" },
+          "description": "Closed set of client scopes the field is narrowed away on. The form MUST render a typed unsupported chip on those surfaces rather than dropping the field."
+        },
+        "narration_label_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the accessibility narration label for the field. Identical across every surface that projects this record."
+        },
+        "validation_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_finding" }
+        },
+        "supports_runtime_reveal": {
+          "type": "boolean",
+          "description": "True when the value can be revealed in-place by a higher-trust local action. Reveal MUST NOT downgrade redaction_class or write the literal into run history / support export."
+        },
+        "policy_pinned_when_trust_state_is": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["trusted", "restricted"]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "description": "credential_handle_ref kinds MUST carry value_handle_only and a non-metadata redaction class.",
+          "if": {
+            "properties": {
+              "argument_kind": { "const": "credential_handle_ref" }
+            },
+            "required": ["argument_kind"]
+          },
+          "then": {
+            "properties": {
+              "value_visibility": {
+                "enum": ["value_handle_only", "value_masked", "value_omitted_for_redaction"]
+              },
+              "redaction_class": {
+                "enum": ["operator_only_restricted", "internal_support_restricted", "signing_evidence_only"]
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_pinned_read_only MUST carry source_layer_class = org_policy_pinned.",
+          "if": {
+            "properties": {
+              "field_state_class": { "const": "policy_pinned_read_only" }
+            },
+            "required": ["field_state_class"]
+          },
+          "then": {
+            "properties": {
+              "source_layer_class": { "const": "org_policy_pinned" }
+            }
+          }
+        },
+        {
+          "description": "unsupported_in_client_scope MUST carry an unsupported_field_class.",
+          "if": {
+            "properties": {
+              "field_state_class": {
+                "enum": ["unsupported_in_client_scope", "unsupported_in_restricted_trust"]
+              }
+            },
+            "required": ["field_state_class"]
+          },
+          "then": {
+            "required": ["unsupported_field_class"],
+            "properties": {
+              "unsupported_field_class": { "$ref": "#/$defs/unsupported_field_class" }
+            }
+          }
+        }
+      ]
+    },
+
+    "form_level_validation_rollup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_severity", "blocking_finding_count", "warning_finding_count"],
+      "properties": {
+        "overall_severity": { "$ref": "#/$defs/validation_severity" },
+        "blocking_finding_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning_finding_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "informational_finding_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Form-level rollup the review sheet quotes verbatim. overall_severity is the maximum severity across all field validation_findings."
+    },
+
+    "parameter_form_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "parameter_form_state_schema_version",
+        "form_state_id",
+        "command_id",
+        "command_revision_ref",
+        "form_surface_class",
+        "client_scope",
+        "fields",
+        "validation_rollup",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "parameter_form_state_record" },
+        "parameter_form_state_schema_version": {
+          "$ref": "#/$defs/parameter_form_state_schema_version"
+        },
+        "form_state_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable opaque id for this form-state projection. Used by replay / parity tooling to compare desktop / CLI / AI / recipe / voice projections of the same command."
+        },
+        "command_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Re-exported from command_descriptor_record.command_id."
+        },
+        "command_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Descriptor revision the form was projected from. A parity audit comparing two surfaces of the same command_id MUST find the same command_revision_ref."
+        },
+        "form_surface_class": { "$ref": "#/$defs/form_surface_class" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field_state_record" },
+          "description": "Ordered field-state records, one per typed_argument_slot on the descriptor (including narrowed / unsupported fields). Order matches the descriptor's typed_arguments order."
+        },
+        "validation_rollup": { "$ref": "#/$defs/form_level_validation_rollup" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "supports_secret_handle_swap": {
+          "type": "boolean",
+          "description": "True when the form supports rebinding any secret-bearing field to a different broker handle without revealing the literal."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Canonical projection of one command's typed parameter form. Read by the desktop form, the CLI inspect surface, the AI tool envelope, automation recipe step editors, request / run / debug / template / repair workspaces, and voice grammars. A surface that mints any field, label, validation finding, restart class, or source-layer label outside this envelope is non-conforming."
+    }
+  }
+}

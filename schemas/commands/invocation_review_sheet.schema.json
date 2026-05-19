@@ -1,0 +1,571 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/invocation_review_sheet.schema.json",
+  "title": "Aureline invocation-review-sheet contract",
+  "description": "Boundary schema for the invocation_review_sheet_record every high-impact command renders before it leaves the shell. The review sheet summarises target scope, side-effect class, process / network / remote actions, rollback or compensation posture, blocked prerequisites with typed repair hooks, and preview / dry-run availability so a user can inspect where a value came from, what will happen if they continue, and what scope or secret-handling rule applies before an apply ships. The sheet projects from one command_descriptor_record + one parameter_form_state_record + one invocation_session_packet_record; surfaces that mint a parallel review envelope are non-conforming. Raw command bodies, raw argument values, raw paths, raw URLs, raw prompt text, and raw credential material never cross this boundary. Adding a new side-effect-class, rollback-class, blocked-prerequisite class, preview/dry-run-class, or scope-axis class is additive-minor and bumps invocation_review_sheet_schema_version.",
+  "type": "object",
+  "$ref": "#/$defs/invocation_review_sheet_record",
+  "$defs": {
+    "invocation_review_sheet_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/opaque_id" },
+        "scenario": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "capability_scope_class": {
+      "type": "string",
+      "enum": [
+        "inert_metadata_only",
+        "reversible_local_read",
+        "reversible_local_mutation",
+        "recoverable_durable_mutation",
+        "externally_visible_mutation",
+        "irreversible_high_blast_mutation",
+        "credential_or_secret_bearing",
+        "managed_workspace_control",
+        "policy_authoring_or_waiver"
+      ],
+      "description": "Re-exported from command_descriptor.schema.json without modification."
+    },
+
+    "preview_class": {
+      "type": "string",
+      "enum": [
+        "no_preview_required",
+        "inline_summary_preview",
+        "structured_diff_preview",
+        "batch_scope_preview",
+        "destructive_bulk_mutation_preview",
+        "broad_workspace_scope_preview",
+        "irreversible_publish_preview",
+        "externally_mutating_preview",
+        "credential_or_secret_access_preview",
+        "policy_authoring_or_waiver_preview",
+        "managed_workspace_control_preview",
+        "remote_attach_preview",
+        "install_or_update_preview",
+        "collaboration_invite_preview",
+        "browser_handoff_preview",
+        "rich_active_content_preview",
+        "bidi_or_invisible_formatting_reveal_preview",
+        "confusable_identifier_reveal_preview"
+      ],
+      "description": "Re-exported from command_descriptor.schema.json."
+    },
+
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "explicit_confirmation_required",
+        "step_up_authentication_required",
+        "admin_policy_approval_required",
+        "second_party_review_required",
+        "managed_only_approval_required"
+      ]
+    },
+
+    "execution_intent_class": {
+      "type": "string",
+      "enum": [
+        "query_only_no_mutation",
+        "propose_preview_only",
+        "apply_after_preview",
+        "apply_with_approval",
+        "apply_direct_trusted_path",
+        "rollback_or_revert",
+        "simulate_or_dry_run",
+        "schedule_for_background_execution",
+        "cancel_pending_invocation"
+      ]
+    },
+
+    "disabled_reason_code": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "capability_lifecycle_retired",
+        "capability_disabled_by_policy",
+        "kill_switch_tripped",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet",
+        "required_provider_unlinked",
+        "required_credential_missing",
+        "required_argument_unresolved",
+        "execution_context_unavailable",
+        "managed_only_channel_required",
+        "dependency_state_below_command_ceiling",
+        "command_deprecated_within_window",
+        "command_retired",
+        "command_version_unknown",
+        "preview_denial_no_safe_preview",
+        "approval_denial_no_approval_path",
+        "publisher_not_permitted",
+        "policy_blocked_in_context",
+        "authority_class_unresolved",
+        "issuing_surface_unresolved",
+        "scope_class_drifted_from_descriptor",
+        "preview_required_not_shown",
+        "basis_snapshot_drifted"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+
+    "review_surface_class": {
+      "type": "string",
+      "enum": [
+        "desktop_review_sheet",
+        "cli_inspect_review",
+        "ai_apply_review",
+        "automation_recipe_review",
+        "request_workspace_review",
+        "run_debug_review",
+        "template_or_generator_review",
+        "repair_or_doctor_review",
+        "remote_companion_review"
+      ]
+    },
+
+    "scope_axis_class": {
+      "type": "string",
+      "enum": [
+        "workspace_root",
+        "selected_files_or_globs",
+        "selected_buffers",
+        "selected_runs_or_sessions",
+        "selected_requests_or_endpoints",
+        "selected_collections",
+        "selected_branches_or_worktrees",
+        "selected_remotes_or_origins",
+        "selected_recipe_steps",
+        "selected_template_targets",
+        "selected_repair_targets",
+        "selected_secret_handles",
+        "selected_policy_documents",
+        "selected_managed_resources"
+      ],
+      "description": "Frozen scope-axis class. The review sheet enumerates every axis the apply will touch; the same axis taxonomy is read by support exports so a reviewer can pivot from a sheet row to the underlying scope object."
+    },
+
+    "side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_side_effect",
+        "local_buffer_mutation",
+        "local_filesystem_mutation",
+        "workspace_state_mutation",
+        "git_local_mutation",
+        "git_remote_mutation",
+        "package_install_mutation",
+        "package_uninstall_mutation",
+        "build_artifact_emission",
+        "test_runner_execution",
+        "process_spawn_local",
+        "process_spawn_remote",
+        "network_request_outbound",
+        "network_listen_inbound",
+        "credential_or_secret_use",
+        "credential_or_secret_emission",
+        "remote_attach_mutation",
+        "collaboration_invite_mutation",
+        "policy_authoring_mutation",
+        "managed_workspace_mutation",
+        "browser_handoff_emission",
+        "telemetry_emission_high_volume",
+        "extension_lifecycle_mutation",
+        "workspace_settings_mutation",
+        "policy_pack_install_or_update",
+        "system_browser_launch"
+      ],
+      "description": "Frozen side-effect taxonomy enumerated by the review sheet. Used to drive the 'what will happen if you continue' summary."
+    },
+
+    "rollback_class": {
+      "type": "string",
+      "enum": [
+        "no_rollback_required",
+        "auto_revert_on_failure",
+        "checkpoint_backed_revert",
+        "named_undo_group_revert",
+        "compensating_action_required",
+        "manual_repair_required_no_automatic_revert",
+        "irreversible_no_revert_possible"
+      ],
+      "description": "Frozen rollback/compensation class advertised by the review sheet. Mirrors revert-class semantics from history/recovery; sheets MUST quote the honest class, not an aspirational one."
+    },
+
+    "preview_or_dry_run_class": {
+      "type": "string",
+      "enum": [
+        "preview_unavailable_by_design",
+        "preview_inline_summary",
+        "preview_structured_diff",
+        "preview_batch_scope",
+        "preview_destructive_bulk",
+        "preview_simulate_dry_run",
+        "preview_handoff_packet",
+        "preview_only_with_provider_offline"
+      ],
+      "description": "Frozen preview/dry-run class quoted by the review sheet. preview_unavailable_by_design pairs with preview_denial_no_safe_preview when the descriptor declares the apply has no safe preview path; the sheet still renders so the user can see why."
+    },
+
+    "blocked_prerequisite_class": {
+      "type": "string",
+      "enum": [
+        "missing_required_argument",
+        "missing_credential_or_secret",
+        "missing_provider_link",
+        "missing_workspace_scope",
+        "missing_basis_snapshot",
+        "missing_approval_path",
+        "missing_preview_path",
+        "missing_capability_grant",
+        "missing_freshness_floor",
+        "missing_managed_channel",
+        "missing_execution_context",
+        "missing_policy_admission",
+        "missing_runtime_prompt_value",
+        "missing_trust_state_admission"
+      ]
+    },
+
+    "blocked_prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "narration_ref", "repair_hook_ref"],
+      "properties": {
+        "class": { "$ref": "#/$defs/blocked_prerequisite_class" },
+        "narration_ref": { "$ref": "#/$defs/opaque_id" },
+        "repair_hook_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hook_kind", "hook_id"],
+          "properties": {
+            "hook_kind": {
+              "type": "string",
+              "enum": [
+                "enable_feature_flag",
+                "request_admin_policy_change",
+                "request_provider_link",
+                "reconnect_provider",
+                "upgrade_release_channel",
+                "refresh_freshness",
+                "migrate_to_replacement",
+                "request_managed_access",
+                "contact_support"
+              ]
+            },
+            "hook_id": { "type": "string", "minLength": 1 },
+            "display_label": { "type": "string" }
+          }
+        },
+        "disabled_reason_code": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/disabled_reason_code" }
+          ]
+        }
+      }
+    },
+
+    "scope_axis_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis_class", "included_count", "scope_narration_ref"],
+      "properties": {
+        "axis_class": { "$ref": "#/$defs/scope_axis_class" },
+        "included_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of items on this axis the apply will touch. Exact when count_truth_class = exact; approximate (>=) when capped or approximate."
+        },
+        "excluded_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hidden_or_blocked_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "count_truth_class": {
+          "type": "string",
+          "enum": [
+            "exact",
+            "approximate_capped",
+            "approximate_streaming",
+            "unknown_pending_resolution"
+          ]
+        },
+        "scope_narration_ref": { "$ref": "#/$defs/opaque_id" },
+        "selected_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque pins to scope objects. Capped; the sheet renders an ellipsis summary if the full set is large."
+        }
+      }
+    },
+
+    "process_action_class": {
+      "type": "string",
+      "enum": [
+        "no_process_action",
+        "spawn_local_process",
+        "spawn_remote_process",
+        "attach_to_running_process",
+        "kill_running_process",
+        "restart_running_process",
+        "launch_system_browser"
+      ]
+    },
+
+    "network_action_class": {
+      "type": "string",
+      "enum": [
+        "no_network_action",
+        "outbound_request_internal_provider",
+        "outbound_request_external_provider",
+        "outbound_request_remote_workspace",
+        "outbound_request_collaboration_remote",
+        "outbound_request_managed_admin_plane",
+        "inbound_listen_local_loopback",
+        "inbound_listen_remote_accessible"
+      ]
+    },
+
+    "remote_action_class": {
+      "type": "string",
+      "enum": [
+        "no_remote_action",
+        "remote_attach_persistent",
+        "remote_workspace_mutation",
+        "remote_publish_artifact",
+        "remote_collaboration_invite",
+        "remote_managed_control_action",
+        "remote_browser_handoff"
+      ]
+    },
+
+    "field_provenance_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argument_name", "source_layer_label_ref", "value_visibility"],
+      "properties": {
+        "argument_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "source_layer_label_ref": { "$ref": "#/$defs/opaque_id" },
+        "value_visibility": {
+          "type": "string",
+          "enum": [
+            "value_visible",
+            "value_masked",
+            "value_handle_only",
+            "value_omitted_for_redaction"
+          ]
+        },
+        "narration_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "invocation_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "invocation_review_sheet_schema_version",
+        "review_sheet_id",
+        "command_id",
+        "command_revision_ref",
+        "form_state_id",
+        "review_surface_class",
+        "capability_scope_class",
+        "preview_class_declared",
+        "approval_posture_class",
+        "execution_intent",
+        "scope_axes",
+        "side_effects",
+        "process_actions",
+        "network_actions",
+        "remote_actions",
+        "rollback_class",
+        "preview_or_dry_run_class",
+        "preview_or_dry_run_available",
+        "blocked_prerequisites",
+        "field_provenance_summary",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "invocation_review_sheet_record" },
+        "invocation_review_sheet_schema_version": {
+          "$ref": "#/$defs/invocation_review_sheet_schema_version"
+        },
+        "review_sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "form_state_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pin to the parameter_form_state_record this review sheet projects from. A sheet whose form_state_id does not resolve is non-conforming."
+        },
+        "invocation_session_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Pin to the in-flight invocation_session_packet_record when the sheet is rendered as part of preview / approval. Null when the sheet is rendered as a propose-only dry inspect."
+        },
+        "review_surface_class": { "$ref": "#/$defs/review_surface_class" },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "preview_class_declared": { "$ref": "#/$defs/preview_class" },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "execution_intent": { "$ref": "#/$defs/execution_intent_class" },
+        "scope_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_axis_record" }
+        },
+        "side_effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_class" },
+          "minItems": 1,
+          "description": "Closed set of side-effect classes the apply will produce. Surfaces MUST render at least no_side_effect when the descriptor's capability_scope_class is inert / read-only; an empty list is non-conforming."
+        },
+        "process_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/process_action_class" }
+        },
+        "network_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/network_action_class" }
+        },
+        "remote_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/remote_action_class" }
+        },
+        "rollback_class": { "$ref": "#/$defs/rollback_class" },
+        "preview_or_dry_run_class": { "$ref": "#/$defs/preview_or_dry_run_class" },
+        "preview_or_dry_run_available": {
+          "type": "boolean",
+          "description": "True when a preview or dry-run path can be invoked from this sheet. MUST be false when preview_or_dry_run_class = preview_unavailable_by_design."
+        },
+        "blocked_prerequisites": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_prerequisite" }
+        },
+        "field_provenance_summary": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field_provenance_summary_entry" },
+          "description": "Per-field provenance summary the sheet renders. Quotes source_layer_label_ref verbatim from the parameter_form_state_record so the form and the sheet agree on the controlled label."
+        },
+        "secret_handling_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["any_secret_bearing_field", "all_handle_only"],
+          "properties": {
+            "any_secret_bearing_field": { "type": "boolean" },
+            "all_handle_only": {
+              "type": "boolean",
+              "description": "True when every secret-bearing field is bound to a broker handle (no literal display)."
+            },
+            "any_runtime_reveal_armed": { "type": "boolean" },
+            "redaction_class": { "$ref": "#/$defs/redaction_class" }
+          }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "preview_or_dry_run_class = preview_unavailable_by_design MUST pair with preview_or_dry_run_available = false.",
+          "if": {
+            "properties": {
+              "preview_or_dry_run_class": { "const": "preview_unavailable_by_design" }
+            },
+            "required": ["preview_or_dry_run_class"]
+          },
+          "then": {
+            "properties": {
+              "preview_or_dry_run_available": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "blocked_prerequisites non-empty MUST pair with execution_intent in {propose_preview_only, simulate_or_dry_run, cancel_pending_invocation}.",
+          "if": {
+            "properties": {
+              "blocked_prerequisites": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["blocked_prerequisites"]
+          },
+          "then": {
+            "properties": {
+              "execution_intent": {
+                "enum": [
+                  "propose_preview_only",
+                  "simulate_or_dry_run",
+                  "cancel_pending_invocation"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Canonical structured review sheet rendered before any high-impact command leaves the shell. Read by desktop, CLI inspect, AI apply review, automation recipe step inspection, request / run / debug / template / repair workspaces, and remote companion. A surface that previews-and-applies without minting one of these records is non-conforming."
+    }
+  }
+}
