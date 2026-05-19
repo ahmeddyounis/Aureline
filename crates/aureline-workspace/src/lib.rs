@@ -24,6 +24,7 @@ pub mod mutation_journal;
 pub mod prebuilds;
 pub mod profiles;
 pub mod recent_work;
+pub mod repo_topology;
 pub mod roots;
 pub mod save;
 pub mod scope_propagation;
@@ -178,6 +179,32 @@ pub use save::{
 pub use roots::{
     MultiRootWorkspace, MultiRootWorkspaceError, MultiRootWorkspaceRecordKind,
     MultiRootWorkspaceSchemaVersion, RootPartialTruth, WorkspaceRootKind, WorkspaceRootRef,
+};
+
+pub use repo_topology::{
+    surface_must_downgrade_claim, AssetBucket, AssetClass, BodyExportPosture, ChildDirtyClass,
+    ChildDirtyState, CompletenessState, CompletenessStateClass, DeepenPolicyClass, DriftClass,
+    DriftState, EditTargetClass, ExportBodyClass, ExportSurfaceClass as RepoTopologyExportSurface,
+    FetchDenialReason, FetchDepthDescriptor, FetchDepthDescriptorRecordKind, FetchPolicyClass,
+    FetchPosture, FullCoverageBlocker, HistoryDepth, HistoryDepthState, HydratePosture,
+    HydrationSummaryClass, InitClass, InitPolicyClass, InitState, LfsHydratePolicyClass,
+    LfsHydrationDescriptor, LfsHydrationDescriptorRecordKind, LfsLockPostureClass,
+    LfsPreviewExportDenial, MutationTarget, NetworkCostBand, ParentLink, ParentLinkageClass,
+    ParentMutationPosture, ParentMutationPostureClass, PartialCloneFilter,
+    PartialCloneFilterClass, PinnedByClass, PolicyClass as RepoTopologyPolicyClass,
+    PolicyPosture, PreviewExportPosture, PreviewTargetClass, PromisorClass, PromisorState,
+    ReachabilityClass, ReconstructionField, RedactionPosture, RemoteRoleClass, RemoteSummary,
+    RemoteSummaryEntry, RepoIdentity, RepoRootDescriptor, RepoRootDescriptorRecordKind,
+    RepoRootKind, RepoTopologyBetaError, RepoTopologyBetaInputs, RepoTopologyBetaProjection,
+    RepoTopologyClass, RepoTopologyClientScope, RepoTopologyExportSupportRequirements,
+    RepoTopologyFixtureMetadata, RepoTopologyFreshnessClass, RepoTopologyRedactionClass,
+    RepoTopologySurface, SizeBand, SubmoduleDenialReason, SubmoduleLink,
+    SubmoduleLinkRecordKind, SubmodulePinnedCommit, TopologyAffordanceClass, TrustClass,
+    TrustPosture, VcsProviderClass, WorktreeIdentity, WorktreeKindClass,
+    FETCH_DEPTH_DESCRIPTOR_RECORD_KIND, FETCH_DEPTH_DESCRIPTOR_SCHEMA_VERSION,
+    LFS_HYDRATION_DESCRIPTOR_RECORD_KIND, LFS_HYDRATION_DESCRIPTOR_SCHEMA_VERSION,
+    REPO_ROOT_DESCRIPTOR_RECORD_KIND, REPO_ROOT_DESCRIPTOR_SCHEMA_VERSION,
+    SUBMODULE_LINK_RECORD_KIND, SUBMODULE_LINK_SCHEMA_VERSION,
 };
 
 pub use generated_artifacts::{

@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/fetch_depth_descriptor.schema.json",
+  "title": "Aureline fetch/depth/promisor descriptor (beta)",
+  "description": "Boundary schema for one fetch + depth + promisor descriptor that distinguishes shallow history, partial-clone filter, promisor-only object availability, and fully-fetched local truth for a single repository root. Search, blame, AI context, review, publish, and support surfaces consult the descriptor to choose between deepen, fetch, retry, or block actions instead of conflating 'missing locally' with 'absent in repository'. The descriptor never carries raw absolute paths, credentials, raw remote URLs, raw file bodies, or raw object bytes. Adding a depth, promisor, filter, or fetch posture value is additive-minor and bumps fetch_depth_descriptor_schema_version; repurposing a value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "fetch_depth_descriptor_schema_version",
+    "fetch_depth_descriptor_id",
+    "repo_root_descriptor_ref",
+    "repo_topology_state_ref",
+    "history_depth",
+    "partial_clone_filter",
+    "promisor_state",
+    "fetch_posture",
+    "allowed_affordances",
+    "freshness_class",
+    "client_scopes",
+    "redaction_class",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "const": "fetch_depth_descriptor_record" },
+    "fetch_depth_descriptor_schema_version": { "$ref": "#/$defs/fetch_depth_descriptor_schema_version" },
+    "fetch_depth_descriptor_id": { "$ref": "#/$defs/opaque_id" },
+    "repo_root_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+    "repo_topology_state_ref": { "$ref": "#/$defs/opaque_id" },
+    "history_depth": { "$ref": "#/$defs/history_depth" },
+    "partial_clone_filter": { "$ref": "#/$defs/partial_clone_filter" },
+    "promisor_state": { "$ref": "#/$defs/promisor_state" },
+    "fetch_posture": { "$ref": "#/$defs/fetch_posture" },
+    "allowed_affordances": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/topology_affordance_class" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "freshness_class": { "$ref": "#/$defs/freshness_class" },
+    "client_scopes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/client_scope" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "history_depth": {
+            "properties": { "depth_state": { "const": "shallow_boundary_present" } },
+            "required": ["depth_state"]
+          }
+        },
+        "required": ["history_depth"]
+      },
+      "then": {
+        "properties": {
+          "allowed_affordances": { "contains": { "const": "deepen_history" } }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "promisor_state": {
+            "properties": { "promisor_class": { "const": "partial_clone_filter_active" } },
+            "required": ["promisor_class"]
+          }
+        },
+        "required": ["promisor_state"]
+      },
+      "then": {
+        "properties": {
+          "allowed_affordances": { "contains": { "const": "fetch_missing_objects" } }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "fetch_depth_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "anyOf": [
+        { "$ref": "#/$defs/monotonic_timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "doc_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "topology_affordance_class": {
+      "type": "string",
+      "enum": [
+        "widen_workset_scope",
+        "fetch_missing_objects",
+        "deepen_history",
+        "init_submodule",
+        "update_submodule_to_pinned_commit",
+        "open_child_repo_root",
+        "hydrate_lfs_objects",
+        "switch_target_root",
+        "open_sparse_coverage_inspector",
+        "export_topology_packet",
+        "none_available"
+      ]
+    },
+    "history_depth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "depth_state",
+        "depth_commits",
+        "boundary_commit_ref",
+        "deepen_policy_class"
+      ],
+      "properties": {
+        "depth_state": {
+          "type": "string",
+          "enum": [
+            "full_history_available",
+            "shallow_boundary_present",
+            "history_unavailable",
+            "unknown"
+          ]
+        },
+        "depth_commits": {
+          "anyOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "boundary_commit_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "deepen_policy_class": {
+          "type": "string",
+          "enum": [
+            "deepen_on_demand_allowed",
+            "deepen_requires_approval",
+            "deepen_blocked_policy",
+            "offline_cache_only",
+            "not_applicable"
+          ]
+        }
+      }
+    },
+    "partial_clone_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filter_class", "missing_object_count_known", "missing_object_count"],
+      "properties": {
+        "filter_class": {
+          "type": "string",
+          "enum": [
+            "none",
+            "blob_none",
+            "blob_limit",
+            "tree_depth",
+            "sparse_oid",
+            "other"
+          ]
+        },
+        "missing_object_count_known": { "type": "boolean" },
+        "missing_object_count": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "promisor_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promisor_class",
+        "promisor_remote_ref",
+        "promisor_reachability",
+        "last_fetch_at"
+      ],
+      "properties": {
+        "promisor_class": {
+          "type": "string",
+          "enum": [
+            "not_promisor_full_clone",
+            "promisor_remote_configured",
+            "partial_clone_filter_active",
+            "promisor_unreachable",
+            "fetch_forbidden_by_policy",
+            "unknown"
+          ]
+        },
+        "promisor_remote_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "promisor_reachability": {
+          "type": "string",
+          "enum": [
+            "reachable",
+            "warm_cached_only",
+            "unreachable",
+            "policy_blocked",
+            "not_attempted"
+          ]
+        },
+        "last_fetch_at": { "$ref": "#/$defs/nullable_timestamp" }
+      }
+    },
+    "fetch_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fetch_policy_class", "blocks_full_coverage_claim", "denial_reason"],
+      "properties": {
+        "fetch_policy_class": {
+          "type": "string",
+          "enum": [
+            "fetch_on_demand_allowed",
+            "fetch_requires_approval",
+            "fetch_blocked_policy",
+            "offline_cache_only",
+            "manual_fetch_only",
+            "not_applicable"
+          ]
+        },
+        "blocks_full_coverage_claim": { "type": "boolean" },
+        "denial_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "shallow_boundary",
+                "not_fetched",
+                "policy_blocked",
+                "promisor_unreachable",
+                "offline_cache_only",
+                "manual_fetch_required"
+              ]
+            },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

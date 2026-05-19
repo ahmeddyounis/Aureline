@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/lfs_hydration_descriptor.schema.json",
+  "title": "Aureline LFS hydration descriptor (beta)",
+  "description": "Boundary schema for one Git LFS hydration descriptor scoped to a repository root. The descriptor freezes whether pointer-only assets exist, how many are hydrated, the hydrate posture (policy, lock, network cost), and whether edit/preview/export actions will operate on a pointer or a hydrated asset. Workspace, editor, preview, review, AI evidence, publish, and support surfaces consult the descriptor before claiming a body byte is present or exported. Pointer object refs are opaque; the descriptor never carries raw absolute paths, credentials, raw remote URLs, raw file bodies, or raw object bytes. Adding a hydration, policy, or asset-class value is additive-minor and bumps lfs_hydration_descriptor_schema_version; repurposing a value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "lfs_hydration_descriptor_schema_version",
+    "lfs_hydration_descriptor_id",
+    "repo_root_descriptor_ref",
+    "repo_topology_state_ref",
+    "hydration_summary",
+    "asset_buckets",
+    "hydrate_posture",
+    "preview_export_posture",
+    "allowed_affordances",
+    "freshness_class",
+    "client_scopes",
+    "redaction_class",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "const": "lfs_hydration_descriptor_record" },
+    "lfs_hydration_descriptor_schema_version": { "$ref": "#/$defs/lfs_hydration_descriptor_schema_version" },
+    "lfs_hydration_descriptor_id": { "$ref": "#/$defs/opaque_id" },
+    "repo_root_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+    "repo_topology_state_ref": { "$ref": "#/$defs/opaque_id" },
+    "hydration_summary": { "$ref": "#/$defs/hydration_summary_class" },
+    "asset_buckets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/asset_bucket" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "hydrate_posture": { "$ref": "#/$defs/hydrate_posture" },
+    "preview_export_posture": { "$ref": "#/$defs/preview_export_posture" },
+    "allowed_affordances": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/topology_affordance_class" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "freshness_class": { "$ref": "#/$defs/freshness_class" },
+    "client_scopes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/client_scope" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "hydration_summary": { "const": "lfs_pointer_only_present" }
+        },
+        "required": ["hydration_summary"]
+      },
+      "then": {
+        "properties": {
+          "allowed_affordances": { "contains": { "const": "hydrate_lfs_objects" } },
+          "preview_export_posture": {
+            "properties": {
+              "edit_target_class": { "const": "pointer_only" },
+              "preview_target_class": { "const": "pointer_metadata_only" },
+              "export_body_class": { "const": "pointer_metadata_only" }
+            },
+            "required": [
+              "edit_target_class",
+              "preview_target_class",
+              "export_body_class"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "hydration_summary": { "const": "lfs_fully_hydrated" } },
+        "required": ["hydration_summary"]
+      },
+      "then": {
+        "properties": {
+          "preview_export_posture": {
+            "properties": {
+              "edit_target_class": { "const": "hydrated_asset" },
+              "preview_target_class": { "const": "hydrated_asset" },
+              "export_body_class": { "const": "hydrated_asset" }
+            },
+            "required": [
+              "edit_target_class",
+              "preview_target_class",
+              "export_body_class"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "lfs_hydration_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_timestamp": {
+      "anyOf": [
+        { "$ref": "#/$defs/monotonic_timestamp" },
+        { "type": "null" }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "doc_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "topology_affordance_class": {
+      "type": "string",
+      "enum": [
+        "widen_workset_scope",
+        "fetch_missing_objects",
+        "deepen_history",
+        "init_submodule",
+        "update_submodule_to_pinned_commit",
+        "open_child_repo_root",
+        "hydrate_lfs_objects",
+        "switch_target_root",
+        "open_sparse_coverage_inspector",
+        "export_topology_packet",
+        "none_available"
+      ]
+    },
+    "hydration_summary_class": {
+      "type": "string",
+      "enum": [
+        "no_lfs_objects_seen",
+        "lfs_pointer_only_present",
+        "lfs_partially_hydrated",
+        "lfs_fully_hydrated",
+        "hydration_blocked_or_unknown",
+        "not_applicable"
+      ]
+    },
+    "asset_class": {
+      "type": "string",
+      "enum": [
+        "pointer_only_known_objects",
+        "hydrated_objects",
+        "hydration_pending_objects",
+        "hydration_failed_objects",
+        "hydration_blocked_objects"
+      ]
+    },
+    "size_band": {
+      "type": "string",
+      "enum": ["unknown", "small", "medium", "large", "very_large"]
+    },
+    "asset_bucket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_class", "object_count_known", "object_count", "size_band"],
+      "properties": {
+        "asset_class": { "$ref": "#/$defs/asset_class" },
+        "object_count_known": { "type": "boolean" },
+        "object_count": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ]
+        },
+        "size_band": { "$ref": "#/$defs/size_band" }
+      }
+    },
+    "hydrate_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hydrate_policy_class",
+        "lock_posture_class",
+        "network_cost_band",
+        "last_hydration_at"
+      ],
+      "properties": {
+        "hydrate_policy_class": {
+          "type": "string",
+          "enum": [
+            "hydrate_on_demand_allowed",
+            "hydrate_requires_approval",
+            "hydrate_blocked_policy",
+            "offline_cache_only",
+            "not_applicable"
+          ]
+        },
+        "lock_posture_class": {
+          "type": "string",
+          "enum": [
+            "not_locked",
+            "locked_by_current_actor",
+            "locked_by_other_actor",
+            "lock_state_unavailable",
+            "not_applicable"
+          ]
+        },
+        "network_cost_band": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "network"]
+        },
+        "last_hydration_at": { "$ref": "#/$defs/nullable_timestamp" }
+      }
+    },
+    "preview_export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edit_target_class",
+        "preview_target_class",
+        "export_body_class",
+        "denial_reason"
+      ],
+      "properties": {
+        "edit_target_class": {
+          "type": "string",
+          "enum": [
+            "pointer_only",
+            "hydrated_asset",
+            "edit_denied_until_hydrated",
+            "edit_denied_policy"
+          ]
+        },
+        "preview_target_class": {
+          "type": "string",
+          "enum": [
+            "pointer_metadata_only",
+            "hydrated_asset",
+            "preview_unavailable"
+          ]
+        },
+        "export_body_class": {
+          "type": "string",
+          "enum": [
+            "pointer_metadata_only",
+            "hydrated_asset",
+            "export_blocked_policy",
+            "export_unavailable"
+          ]
+        },
+        "denial_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "pointer_only",
+                "policy_blocked",
+                "lock_held_by_other_actor",
+                "hydration_failed",
+                "offline_cache_only"
+              ]
+            },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

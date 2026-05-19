@@ -1,0 +1,526 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/repo_root_descriptor.schema.json",
+  "title": "Aureline repository-root descriptor (beta)",
+  "description": "Boundary schema for one durable repository-root descriptor read by every workspace, search, graph, blame, review, AI, execution, publish, support, and export surface that needs to agree on root identity, parent/child linkage, remote summary, and trust/policy posture without flattening submodule, nested-independent, worktree, or sparse-projection roots into a single ambient parent. A descriptor never carries raw absolute paths, credentials, raw remote URLs, raw file bodies, or raw object bytes; only opaque refs and typed labels cross the boundary. Adding a root-kind, vcs-provider, trust, policy, or topology-class value is additive-minor and bumps repo_root_descriptor_schema_version; repurposing a value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "repo_root_descriptor_schema_version",
+    "repo_root_descriptor_id",
+    "repo_topology_state_ref",
+    "workspace_id_ref",
+    "root_kind",
+    "topology_classes",
+    "repo_identity",
+    "worktree_identity",
+    "parent_link",
+    "remote_summary",
+    "trust_posture",
+    "policy_posture",
+    "completeness_state",
+    "supported_affordances",
+    "export_support_requirements",
+    "freshness_class",
+    "client_scopes",
+    "redaction_class",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "const": "repo_root_descriptor_record" },
+    "repo_root_descriptor_schema_version": { "$ref": "#/$defs/repo_root_descriptor_schema_version" },
+    "repo_root_descriptor_id": { "$ref": "#/$defs/opaque_id" },
+    "repo_topology_state_ref": { "$ref": "#/$defs/opaque_id" },
+    "workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+    "root_kind": { "$ref": "#/$defs/repo_root_kind" },
+    "topology_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/repo_topology_class" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "repo_identity": { "$ref": "#/$defs/repo_identity" },
+    "worktree_identity": { "$ref": "#/$defs/worktree_identity" },
+    "parent_link": { "$ref": "#/$defs/parent_link" },
+    "remote_summary": { "$ref": "#/$defs/remote_summary" },
+    "trust_posture": { "$ref": "#/$defs/trust_posture" },
+    "policy_posture": { "$ref": "#/$defs/policy_posture" },
+    "completeness_state": { "$ref": "#/$defs/completeness_state" },
+    "supported_affordances": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/topology_affordance_class" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "export_support_requirements": { "$ref": "#/$defs/export_support_requirements" },
+    "freshness_class": { "$ref": "#/$defs/freshness_class" },
+    "client_scopes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/client_scope" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "root_kind": { "const": "submodule" } },
+        "required": ["root_kind"]
+      },
+      "then": {
+        "properties": {
+          "parent_link": {
+            "properties": {
+              "linkage_class": { "const": "submodule_child" },
+              "submodule_link_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["linkage_class", "parent_root_ref", "submodule_link_ref"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "root_kind": { "const": "nested" } },
+        "required": ["root_kind"]
+      },
+      "then": {
+        "properties": {
+          "parent_link": {
+            "properties": {
+              "linkage_class": { "const": "nested_independent_child" }
+            },
+            "required": ["linkage_class", "parent_root_ref"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "root_kind": { "const": "worktree" } },
+        "required": ["root_kind"]
+      },
+      "then": {
+        "properties": {
+          "parent_link": {
+            "properties": {
+              "linkage_class": { "const": "worktree_shared_object_store_child" }
+            },
+            "required": ["linkage_class", "parent_root_ref"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "root_kind": { "const": "primary" } },
+        "required": ["root_kind"]
+      },
+      "then": {
+        "properties": {
+          "parent_link": {
+            "properties": {
+              "linkage_class": { "enum": ["no_parent_root", "workset_member", "sparse_projection"] }
+            },
+            "required": ["linkage_class"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "repo_root_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, and include in support packets. Raw paths, credentials, URLs, file bodies, and object bytes never appear here."
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "doc_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "repo_root_kind": {
+      "type": "string",
+      "enum": ["primary", "nested", "submodule", "worktree"]
+    },
+    "repo_topology_class": {
+      "type": "string",
+      "enum": [
+        "current_repo_root",
+        "workset_root",
+        "sparse_checkout_root",
+        "worktree_root",
+        "partial_clone_promisor_root",
+        "shallow_history_root",
+        "submodule_root",
+        "nested_independent_repo_root",
+        "lfs_hydration_boundary"
+      ]
+    },
+    "topology_affordance_class": {
+      "type": "string",
+      "enum": [
+        "widen_workset_scope",
+        "fetch_missing_objects",
+        "deepen_history",
+        "init_submodule",
+        "update_submodule_to_pinned_commit",
+        "open_child_repo_root",
+        "hydrate_lfs_objects",
+        "switch_target_root",
+        "open_sparse_coverage_inspector",
+        "export_topology_packet",
+        "none_available"
+      ]
+    },
+    "vcs_provider_class": {
+      "type": "string",
+      "enum": [
+        "git_local",
+        "git_remote_managed",
+        "git_remote_unmanaged",
+        "non_git_vcs",
+        "no_vcs",
+        "unknown"
+      ]
+    },
+    "remote_role_class": {
+      "type": "string",
+      "enum": [
+        "primary_origin",
+        "promisor_remote",
+        "review_remote",
+        "publish_remote",
+        "mirror_remote",
+        "unknown"
+      ]
+    },
+    "reachability_class": {
+      "type": "string",
+      "enum": [
+        "reachable",
+        "warm_cached_only",
+        "unreachable",
+        "policy_blocked",
+        "not_attempted"
+      ]
+    },
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "trusted_local",
+        "trusted_managed",
+        "trusted_with_review",
+        "untrusted_pending_review",
+        "policy_restricted",
+        "unknown"
+      ]
+    },
+    "policy_class": {
+      "type": "string",
+      "enum": [
+        "no_policy_active",
+        "policy_observed",
+        "policy_restricted_mutation",
+        "policy_blocked_fetch",
+        "policy_blocked_deepen",
+        "policy_blocked_init",
+        "policy_blocked_hydrate",
+        "policy_blocked_export"
+      ]
+    },
+    "completeness_state_class": {
+      "type": "string",
+      "enum": [
+        "fully_present_local_truth",
+        "sparse_or_workset_narrowed",
+        "shallow_history_present",
+        "partial_clone_promisor_present",
+        "submodule_uninitialized",
+        "nested_independent_boundary",
+        "lfs_pointer_only_present",
+        "lfs_partially_hydrated",
+        "unavailable_unknown"
+      ]
+    },
+    "repo_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo_root_ref",
+        "repo_identity_ref",
+        "vcs_provider_class",
+        "vcs_provider_ref",
+        "object_store_ref",
+        "default_branch_ref"
+      ],
+      "properties": {
+        "repo_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "repo_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "vcs_provider_class": { "$ref": "#/$defs/vcs_provider_class" },
+        "vcs_provider_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "object_store_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "default_branch_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "worktree_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "worktree_id_ref",
+        "worktree_kind_class",
+        "head_revision_id_ref",
+        "branch_or_detached_ref"
+      ],
+      "properties": {
+        "worktree_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "worktree_kind_class": {
+          "type": "string",
+          "enum": [
+            "main_repository_checkout",
+            "linked_secondary_checkout",
+            "managed_remote_checkout",
+            "imported_snapshot_view_only",
+            "synthetic_recovery_view_only",
+            "not_a_worktree"
+          ]
+        },
+        "head_revision_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "branch_or_detached_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "parent_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "linkage_class",
+        "parent_root_ref",
+        "link_path_ref",
+        "pinned_commit_ref",
+        "submodule_link_ref"
+      ],
+      "properties": {
+        "linkage_class": {
+          "type": "string",
+          "enum": [
+            "no_parent_root",
+            "workset_member",
+            "sparse_projection",
+            "submodule_child",
+            "nested_independent_child",
+            "worktree_shared_object_store_child"
+          ]
+        },
+        "parent_root_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "link_path_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "pinned_commit_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "submodule_link_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "remote_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remote_ref",
+        "remote_role",
+        "reachability",
+        "last_observed_at"
+      ],
+      "properties": {
+        "remote_ref": { "$ref": "#/$defs/opaque_id" },
+        "remote_role": { "$ref": "#/$defs/remote_role_class" },
+        "reachability": { "$ref": "#/$defs/reachability_class" },
+        "last_observed_at": {
+          "anyOf": [
+            { "$ref": "#/$defs/monotonic_timestamp" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "remote_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["remotes", "promisor_remote_ref", "publish_remote_ref"],
+      "properties": {
+        "remotes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/remote_summary_entry" },
+          "uniqueItems": true
+        },
+        "promisor_remote_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "publish_remote_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "trust_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trust_class", "review_required", "review_ticket_ref"],
+      "properties": {
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "review_required": { "type": "boolean" },
+        "review_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "policy_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_class", "policy_ref", "policy_blocks"],
+      "properties": {
+        "policy_class": { "$ref": "#/$defs/policy_class" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_blocks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topology_affordance_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "completeness_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completeness_class",
+        "fetch_depth_descriptor_ref",
+        "submodule_link_refs",
+        "lfs_hydration_descriptor_ref",
+        "may_claim_full_coverage"
+      ],
+      "properties": {
+        "completeness_class": { "$ref": "#/$defs/completeness_state_class" },
+        "fetch_depth_descriptor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "submodule_link_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "lfs_hydration_descriptor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "may_claim_full_coverage": { "type": "boolean" }
+      }
+    },
+    "export_surface_class": {
+      "type": "string",
+      "enum": [
+        "search_export",
+        "navigation_deep_link",
+        "blame_view",
+        "review_pack",
+        "ai_evidence_packet",
+        "execution_context",
+        "publish_pack",
+        "support_bundle",
+        "migration_packet",
+        "project_doctor"
+      ]
+    },
+    "reconstruction_field": {
+      "type": "string",
+      "enum": [
+        "repo_identity",
+        "worktree_identity",
+        "parent_link",
+        "remote_summary",
+        "trust_posture",
+        "policy_posture",
+        "completeness_state"
+      ]
+    },
+    "export_support_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_surfaces",
+        "reconstruction_fields",
+        "redaction_posture"
+      ],
+      "properties": {
+        "packet_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_surface_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "reconstruction_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reconstruction_field" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "redaction_posture": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "labels_and_counts",
+            "by_reference",
+            "blocked_by_policy"
+          ]
+        }
+      }
+    }
+  }
+}

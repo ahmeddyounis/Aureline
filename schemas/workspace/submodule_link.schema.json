@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/submodule_link.schema.json",
+  "title": "Aureline submodule link (beta)",
+  "description": "Boundary schema for one parent-to-child submodule link. The link binds the parent repository root descriptor, the child root descriptor (when initialized), the pinned commit captured by the parent gitlink, the init/dirty state of the child, and the explicit init/update/open affordances. Workspace, review, blame, AI, execution, publish, and support surfaces consult the link before claiming that submodule content belongs to or has been mutated by the parent root. Raw absolute paths, credentials, raw remote URLs, raw file bodies, and raw object bytes never appear. Adding an init, dirty, drift, or affordance value is additive-minor and bumps submodule_link_schema_version; repurposing a value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "submodule_link_schema_version",
+    "submodule_link_id",
+    "parent_repo_root_descriptor_ref",
+    "child_repo_root_descriptor_ref",
+    "repo_topology_state_ref",
+    "link_path_ref",
+    "pinned_commit",
+    "init_state",
+    "child_dirty_state",
+    "drift_state",
+    "allowed_affordances",
+    "parent_mutation_posture",
+    "freshness_class",
+    "client_scopes",
+    "redaction_class",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "const": "submodule_link_record" },
+    "submodule_link_schema_version": { "$ref": "#/$defs/submodule_link_schema_version" },
+    "submodule_link_id": { "$ref": "#/$defs/opaque_id" },
+    "parent_repo_root_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+    "child_repo_root_descriptor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+    "repo_topology_state_ref": { "$ref": "#/$defs/opaque_id" },
+    "link_path_ref": { "$ref": "#/$defs/opaque_id" },
+    "pinned_commit": { "$ref": "#/$defs/pinned_commit" },
+    "init_state": { "$ref": "#/$defs/init_state" },
+    "child_dirty_state": { "$ref": "#/$defs/child_dirty_state" },
+    "drift_state": { "$ref": "#/$defs/drift_state" },
+    "allowed_affordances": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/topology_affordance_class" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "parent_mutation_posture": { "$ref": "#/$defs/parent_mutation_posture" },
+    "freshness_class": { "$ref": "#/$defs/freshness_class" },
+    "client_scopes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/client_scope" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "init_state": {
+            "properties": { "init_class": { "const": "not_initialized" } },
+            "required": ["init_class"]
+          }
+        },
+        "required": ["init_state"]
+      },
+      "then": {
+        "properties": {
+          "child_repo_root_descriptor_ref": { "type": "null" },
+          "allowed_affordances": { "contains": { "const": "init_submodule" } },
+          "parent_mutation_posture": {
+            "properties": {
+              "posture_class": { "const": "child_content_read_only_until_initialized" }
+            },
+            "required": ["posture_class"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "drift_state": {
+            "properties": { "drift_class": { "const": "child_head_ahead_of_pin" } },
+            "required": ["drift_class"]
+          }
+        },
+        "required": ["drift_state"]
+      },
+      "then": {
+        "properties": {
+          "allowed_affordances": { "contains": { "const": "update_submodule_to_pinned_commit" } }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "submodule_link_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "doc_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "topology_affordance_class": {
+      "type": "string",
+      "enum": [
+        "widen_workset_scope",
+        "fetch_missing_objects",
+        "deepen_history",
+        "init_submodule",
+        "update_submodule_to_pinned_commit",
+        "open_child_repo_root",
+        "hydrate_lfs_objects",
+        "switch_target_root",
+        "open_sparse_coverage_inspector",
+        "export_topology_packet",
+        "none_available"
+      ]
+    },
+    "pinned_commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit_ref", "pinned_by_class", "pin_freshness_class"],
+      "properties": {
+        "commit_ref": { "$ref": "#/$defs/opaque_id" },
+        "pinned_by_class": {
+          "type": "string",
+          "enum": [
+            "submodule_gitlink",
+            "review_bundle_base",
+            "managed_snapshot",
+            "support_replay",
+            "unknown"
+          ]
+        },
+        "pin_freshness_class": {
+          "type": "string",
+          "enum": [
+            "authoritative_live",
+            "warm_cached",
+            "degraded_cached",
+            "stale",
+            "unverified"
+          ]
+        }
+      }
+    },
+    "init_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["init_class", "init_policy_class", "last_init_at"],
+      "properties": {
+        "init_class": {
+          "type": "string",
+          "enum": [
+            "initialized",
+            "not_initialized",
+            "init_failed",
+            "init_blocked_policy",
+            "unknown"
+          ]
+        },
+        "init_policy_class": {
+          "type": "string",
+          "enum": [
+            "init_on_demand_allowed",
+            "init_requires_approval",
+            "init_blocked_policy",
+            "offline_cache_only",
+            "not_applicable"
+          ]
+        },
+        "last_init_at": {
+          "anyOf": [
+            { "$ref": "#/$defs/monotonic_timestamp" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "child_dirty_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dirty_class", "dirty_summary_ref"],
+      "properties": {
+        "dirty_class": {
+          "type": "string",
+          "enum": [
+            "clean",
+            "dirty",
+            "dirty_unknown_uninitialized",
+            "not_available"
+          ]
+        },
+        "dirty_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "drift_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drift_class", "observed_child_commit_ref"],
+      "properties": {
+        "drift_class": {
+          "type": "string",
+          "enum": [
+            "child_at_pinned_commit",
+            "child_head_ahead_of_pin",
+            "child_head_behind_pin",
+            "child_diverged_from_pin",
+            "drift_unknown_uninitialized",
+            "not_applicable"
+          ]
+        },
+        "observed_child_commit_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "parent_mutation_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture_class", "denial_reason"],
+      "properties": {
+        "posture_class": {
+          "type": "string",
+          "enum": [
+            "parent_owns_gitlink_only",
+            "child_content_read_only_until_initialized",
+            "child_root_mutation_only",
+            "parent_mutation_denied_wrong_target"
+          ]
+        },
+        "denial_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "wrong_target_root",
+                "submodule_not_initialized",
+                "policy_blocked",
+                "drift_unresolved"
+              ]
+            },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}
