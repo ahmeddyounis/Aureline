@@ -1,0 +1,371 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/config/settings_repair_corpus_case.schema.json",
+  "title": "Aureline settings repair and wrong-scope-write corpus case",
+  "description": "Boundary schema for one settings-repair conformance corpus case. Each fixture composes the settings_repair_plan beta envelope with the surface-parity expectations (CLI/headless, UI, sync repair, and support export all compute the same winning scope and the same blocked-write result) and the hidden-reset / wrong-artifact / silent-policy-override negative assertions the corpus must reject. Adding a top-level field or a new enum value is additive-minor and bumps schema_version; repurposing an existing field is breaking. See docs/qe/m3/settings_repair_drills.md and crates/aureline-settings/src/repair_review/.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "case_name",
+    "scenario_class",
+    "generated_at",
+    "selected_setting_ids",
+    "expected",
+    "surface_parity",
+    "negative_assertions",
+    "support_export"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "settings_repair_corpus_case"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "case_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for this corpus case. Reused by the safety report, the wrong-scope-write matrix, and the reviewer drills doc."
+    },
+    "scenario_class": { "$ref": "#/$defs/scenario_class" },
+    "summary_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "seed_plan_fixture_ref": {
+      "type": ["string", "null"],
+      "description": "Optional relative path to the anchor settings_repair_plan fixture this case quotes. When set, the validator cross-checks the case's expected fields against the plan."
+    },
+    "selected_setting_ids": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/setting_id" },
+      "minItems": 1,
+      "description": "Explicit list of setting_ids the user selected. The hidden-reset guard refuses any plan that touches a setting outside this set."
+    },
+    "expected": { "$ref": "#/$defs/expected" },
+    "surface_parity": { "$ref": "#/$defs/surface_parity" },
+    "negative_assertions": { "$ref": "#/$defs/negative_assertions" },
+    "support_export": { "$ref": "#/$defs/support_export" }
+  },
+  "$defs": {
+    "scenario_class": {
+      "type": "string",
+      "enum": [
+        "user_profile_workspace_scope_confusion",
+        "locked_policy_value_refused",
+        "stale_sync_device_data",
+        "imported_profile_conflict",
+        "partial_migration_fallout",
+        "labs_experiment_dependency",
+        "support_center_initiated_repair",
+        "hidden_broad_reset_refused",
+        "wrong_artifact_write_refused",
+        "silent_policy_override_refused"
+      ]
+    },
+    "setting_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+    },
+    "scope_id": {
+      "type": "string",
+      "enum": [
+        "built_in_default",
+        "channel_or_experiment_default",
+        "imported_profile_default",
+        "user_global",
+        "machine_specific",
+        "workspace",
+        "folder_or_module_override",
+        "language_override",
+        "session_override",
+        "admin_policy_narrowing"
+      ]
+    },
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "profile",
+        "workspace",
+        "policy_owned",
+        "machine_local"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "reset_current_value",
+        "reset_section",
+        "repair_drift",
+        "reapply_imported_profile_fragment",
+        "revert_migration_step"
+      ]
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "ready_to_apply",
+        "awaiting_preview",
+        "awaiting_checkpoint",
+        "awaiting_approval",
+        "denied"
+      ]
+    },
+    "user_decision": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "declined",
+        "withdrawn"
+      ]
+    },
+    "blocked_reason_code": {
+      "type": "string",
+      "enum": [
+        "policy_owned_class",
+        "non_writable_scope",
+        "retired_setting",
+        "capability_dependency_unmet",
+        "checkpoint_missing",
+        "approval_missing",
+        "managed_mode_only",
+        "scope_broadening_refused",
+        "adjacent_setting_refused",
+        "unknown_setting"
+      ]
+    },
+    "locked_class": {
+      "type": "string",
+      "enum": [
+        "policy_owned_class",
+        "capability_locked",
+        "retired_setting",
+        "managed_mode_only",
+        "non_writable_scope"
+      ]
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "target_scope",
+        "target_scope_class",
+        "target_artifact_ref",
+        "verdict",
+        "checkpoint_required",
+        "approval_required",
+        "rollback_action_ref_present",
+        "blocked_reason_codes",
+        "locked_classes",
+        "hidden_reset_guard"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "target_scope": { "$ref": "#/$defs/scope_id" },
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "target_artifact_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verdict": { "$ref": "#/$defs/verdict" },
+        "user_decision": { "$ref": "#/$defs/user_decision" },
+        "checkpoint_required": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "rollback_action_ref_present": { "type": "boolean" },
+        "blocked_reason_codes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_reason_code" },
+          "uniqueItems": true
+        },
+        "locked_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/locked_class" },
+          "uniqueItems": true
+        },
+        "hidden_reset_guard": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "would_broaden_scope",
+            "would_touch_adjacent_settings",
+            "refused_setting_ids"
+          ],
+          "properties": {
+            "would_broaden_scope": { "type": "boolean" },
+            "would_touch_adjacent_settings": { "type": "boolean" },
+            "refused_setting_ids": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/setting_id" },
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    "surface_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "winning_scope_token",
+        "winning_artifact_ref",
+        "blocked_write_result_token",
+        "surfaces"
+      ],
+      "properties": {
+        "winning_scope_token": { "$ref": "#/$defs/scope_id" },
+        "winning_artifact_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocked_write_result_token": {
+          "type": "string",
+          "enum": [
+            "ready_to_apply",
+            "awaiting_preview",
+            "awaiting_checkpoint",
+            "awaiting_approval",
+            "denied_policy_owned",
+            "denied_capability_locked",
+            "denied_retired_setting",
+            "denied_managed_mode_only",
+            "denied_non_writable_scope",
+            "denied_unknown_setting",
+            "denied_scope_broadening_refused",
+            "denied_adjacent_setting_refused"
+          ]
+        },
+        "surfaces": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/surface_parity_entry" }
+        }
+      }
+    },
+    "surface_parity_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "winning_scope_token",
+        "winning_artifact_ref",
+        "blocked_write_result_token",
+        "uses_canonical_write_intent_pipeline"
+      ],
+      "properties": {
+        "surface_class": {
+          "type": "string",
+          "enum": [
+            "cli_headless",
+            "ui_beta",
+            "sync_repair",
+            "support_export"
+          ]
+        },
+        "winning_scope_token": { "$ref": "#/$defs/scope_id" },
+        "winning_artifact_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocked_write_result_token": {
+          "type": "string",
+          "enum": [
+            "ready_to_apply",
+            "awaiting_preview",
+            "awaiting_checkpoint",
+            "awaiting_approval",
+            "denied_policy_owned",
+            "denied_capability_locked",
+            "denied_retired_setting",
+            "denied_managed_mode_only",
+            "denied_non_writable_scope",
+            "denied_unknown_setting",
+            "denied_scope_broadening_refused",
+            "denied_adjacent_setting_refused"
+          ]
+        },
+        "uses_canonical_write_intent_pipeline": { "type": "boolean" },
+        "notes": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    },
+    "negative_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "refuses_hidden_broad_reset",
+        "refuses_wrong_artifact_write",
+        "refuses_silent_policy_override",
+        "refuses_generic_reset_collapse"
+      ],
+      "properties": {
+        "refuses_hidden_broad_reset": {
+          "type": "boolean",
+          "description": "True when the case proves the plan refuses to broaden scope or touch unselected rows."
+        },
+        "refuses_wrong_artifact_write": {
+          "type": "boolean",
+          "description": "True when the case proves the plan refuses to write to a different artifact than the reviewed write intent."
+        },
+        "refuses_silent_policy_override": {
+          "type": "boolean",
+          "description": "True when the case proves the plan refuses to silently bypass a policy-owned setting."
+        },
+        "refuses_generic_reset_collapse": {
+          "type": "boolean",
+          "description": "True when the case proves policy-locked or unsupported repairs stay explainable and do not collapse into generic 'reset settings' guidance."
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_export_id",
+        "replays_local_write_intent",
+        "replays_local_repair_outcome",
+        "raw_secret_export_allowed",
+        "reason_note_redaction_posture",
+        "preserves_user_decision"
+      ],
+      "properties": {
+        "support_export_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replays_local_write_intent": { "type": "boolean" },
+        "replays_local_repair_outcome": { "type": "boolean" },
+        "raw_secret_export_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "reason_note_redaction_posture": {
+          "type": "string",
+          "enum": [
+            "redacted_by_default",
+            "preserved_metadata_only"
+          ]
+        },
+        "preserves_user_decision": { "type": "boolean" },
+        "summary_label": {
+          "type": ["string", "null"],
+          "maxLength": 1024
+        }
+      }
+    }
+  }
+}
