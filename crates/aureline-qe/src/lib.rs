@@ -9,8 +9,11 @@
 //! quote without re-parsing the corpus.
 //!
 //! See `git_history_rewrite::run_corpus_from_repo_root` for the
-//! risky-Git lane entry point.
+//! risky-Git lane entry point and
+//! `repo_topology::run_corpus_from_repo_root` for the M3 repo-topology
+//! evidence lane.
 
 #![doc(html_root_url = "https://docs.rs/aureline-qe/0.0.0")]
 
 pub mod git_history_rewrite;
+pub mod repo_topology;
