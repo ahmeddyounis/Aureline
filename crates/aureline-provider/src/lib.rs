@@ -24,6 +24,7 @@ pub mod publish_later;
 pub mod reconciliation;
 pub mod registry;
 pub mod route_resolution;
+pub mod work_item_sync;
 pub mod work_items;
 
 pub use account_scope::{
@@ -177,6 +178,24 @@ pub use route_resolution::{
     ROUTE_RESOLUTION_BETA_ROW_RECORD_KIND, ROUTE_RESOLUTION_BETA_SCHEMA_VERSION,
     ROUTE_RESOLUTION_BETA_SHARED_CONTRACT_REF, ROUTE_RESOLUTION_BETA_SOURCE_MATRIX_REF,
     ROUTE_RESOLUTION_BETA_SUMMARY_RECORD_KIND, ROUTE_RESOLUTION_BETA_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use work_item_sync::{
+    audit_work_item_sync_beta_page, seeded_work_item_sync_beta_page,
+    validate_work_item_sync_beta_page, CommentConflictClass, CommentLifecycleClass,
+    CommentOriginClass, CommentPublishPostureClass, CommentRetryRouteClass, CommentSyncStateClass,
+    CommentSyncStateRecord, CommentSyncSupportSummary, LinkConflictResolutionPostureClass,
+    LinkLocalDraftStateClass, LinkRelationStateClass, LinkSourceClass, LinkSyncPendingStateClass,
+    LinkWriteScopeClass, PublishReviewActionAffordances, PublishReviewActionClass,
+    PublishReviewActorScopeClass, PublishReviewDispositionClass, PublishReviewRecord,
+    PublishReviewSideEffectClass, PublishReviewSideEffectRow, PublishReviewSourceClass,
+    PublishReviewSupportSummary, WorkItemLinkKindClass, WorkItemLinkStateRecord,
+    WorkItemLinkSupportSummary, WorkItemSyncBetaCoverage, WorkItemSyncBetaDefect,
+    WorkItemSyncBetaDefectKind, WorkItemSyncBetaPage, WorkItemSyncBetaSupportExport,
+    WorkItemSyncBetaValidationReport, WorkItemSyncContractRefs, WorkItemSyncFixtureMetadata,
+    COMMENT_SYNC_STATE_RECORD_KIND, PUBLISH_REVIEW_RECORD_KIND, WORK_ITEM_LINK_STATE_RECORD_KIND,
+    WORK_ITEM_SYNC_BETA_PAGE_RECORD_KIND, WORK_ITEM_SYNC_BETA_SCHEMA_VERSION,
+    WORK_ITEM_SYNC_BETA_SHARED_CONTRACT_REF, WORK_ITEM_SYNC_BETA_SUPPORT_EXPORT_RECORD_KIND,
+    WORK_ITEM_SYNC_BETA_VALIDATION_REPORT_RECORD_KIND,
 };
 pub use work_items::{
     audit_work_item_transition_beta_page, seeded_work_item_transition_beta_page,

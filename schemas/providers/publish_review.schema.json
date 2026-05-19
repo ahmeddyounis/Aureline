@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/publish_review.schema.json",
+  "title": "Aureline provider work-item publish review beta entry point",
+  "description": "Provider-facing schema for publish-review sheets that cover comment create/edit/delete, branch/review link/unlink, status-transition-plus-comment, and retry-after-conflict flows on work-item rows. Every sheet names the action, source, actor scope, side-effect fanout, publish mode, and disposition so provider mutation, local draft, queued publish, browser handoff, and conflict-resolution lanes stay visible before confirm. Raw provider payloads and raw URLs are forbidden.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "publish_review_id",
+    "work_item_detail_record_id_ref",
+    "publish_review_action_class",
+    "publish_review_source_class",
+    "publish_review_actor_scope_class",
+    "publish_review_disposition_class",
+    "publish_mode_class",
+    "acting_as",
+    "side_effect_rows",
+    "action_affordances",
+    "local_draft_preserved_on_failure",
+    "redaction_class",
+    "raw_provider_payload_refs_present",
+    "authored_at",
+    "expires_at",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "work_item_publish_review_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "publish_review_id": { "$ref": "#/$defs/opaque_id" },
+    "work_item_detail_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+    "work_item_link_state_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+    "comment_sync_state_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+    "status_transition_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+    "publish_review_action_class": { "$ref": "#/$defs/publish_review_action_class" },
+    "publish_review_source_class": { "$ref": "#/$defs/publish_review_source_class" },
+    "publish_review_actor_scope_class": {
+      "$ref": "#/$defs/publish_review_actor_scope_class"
+    },
+    "publish_review_disposition_class": {
+      "$ref": "#/$defs/publish_review_disposition_class"
+    },
+    "publish_mode_class": { "$ref": "#/$defs/publish_mode_class" },
+    "acting_as": { "$ref": "#/$defs/provider_actor_class" },
+    "side_effect_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/publish_review_side_effect_row" }
+    },
+    "action_affordances": { "$ref": "#/$defs/action_affordances" },
+    "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_browser_handoff_packet_ref": { "$ref": "#/$defs/opaque_id" },
+    "linked_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+    "local_draft_preserved_on_failure": { "type": "boolean", "const": true },
+    "block_reason_summary": { "type": "string", "minLength": 1 },
+    "origin_disclosure": { "type": "object" },
+    "policy_context": { "type": "object" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "raw_provider_payload_refs_present": { "type": "boolean", "const": false },
+    "authored_at": { "type": "string", "minLength": 1 },
+    "expires_at": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref safe for logs, manifests, support packets, and fixtures. Raw provider URLs and tokens are forbidden."
+    },
+    "publish_review_action_class": {
+      "type": "string",
+      "enum": [
+        "create_provider_comment",
+        "edit_provider_comment",
+        "delete_provider_comment",
+        "link_branch_or_review",
+        "unlink_branch_or_review",
+        "status_transition_plus_comment",
+        "retry_after_conflict",
+        "retry_after_failure"
+      ]
+    },
+    "publish_review_source_class": {
+      "type": "string",
+      "enum": [
+        "local_draft_authored",
+        "ai_proposed_pending_confirmation",
+        "imported_handoff_evidence",
+        "review_bundle_snapshot",
+        "queue_drain_retry",
+        "conflict_resolution_follow_on"
+      ]
+    },
+    "publish_review_actor_scope_class": {
+      "type": "string",
+      "enum": [
+        "human_actor_writes_provider",
+        "human_actor_with_review_link_scope",
+        "install_or_app_grant_scope",
+        "delegated_user_token_scope",
+        "project_scoped_grant_scope",
+        "browser_handoff_only_actor_scope",
+        "managed_admin_only_actor_scope",
+        "local_only_no_provider_scope"
+      ]
+    },
+    "publish_review_disposition_class": {
+      "type": "string",
+      "enum": [
+        "admissible_now_publish_now",
+        "admissible_via_queue_for_publish_later",
+        "admissible_via_browser_handoff_only",
+        "admissible_local_draft_only",
+        "admissible_via_retry_after_conflict",
+        "blocked_pending_conflict_resolution",
+        "blocked_provider_read_only",
+        "blocked_by_policy",
+        "blocked_freshness_floor_unsatisfied",
+        "blocked_account_mapping_pending"
+      ]
+    },
+    "publish_mode_class": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish",
+        "inspect_only"
+      ]
+    },
+    "publish_review_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "provider_comment_mutation_fanout",
+        "provider_link_mutation_fanout",
+        "provider_state_transition_fanout",
+        "local_metadata_change_fanout",
+        "linked_review_update_fanout",
+        "notification_emission_fanout",
+        "queued_followon_automation_fanout"
+      ]
+    },
+    "publish_review_side_effect_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fanout_row_id",
+        "side_effect_class",
+        "publish_mode_class",
+        "summary"
+      ],
+      "properties": {
+        "fanout_row_id": { "$ref": "#/$defs/opaque_id" },
+        "side_effect_class": { "$ref": "#/$defs/publish_review_side_effect_class" },
+        "publish_mode_class": { "$ref": "#/$defs/publish_mode_class" },
+        "linked_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "action_affordances": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirm_action_available",
+        "export_action_available",
+        "cancel_action_available",
+        "discard_draft_action_available"
+      ],
+      "properties": {
+        "confirm_action_available": { "type": "boolean" },
+        "export_action_available": { "type": "boolean", "const": true },
+        "cancel_action_available": { "type": "boolean", "const": true },
+        "discard_draft_action_available": { "type": "boolean" }
+      }
+    },
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    }
+  }
+}
