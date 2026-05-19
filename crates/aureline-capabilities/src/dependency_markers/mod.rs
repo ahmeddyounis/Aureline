@@ -23,13 +23,25 @@
 //! [`validate_artifact_markers`] for the cross-record audit a
 //! producer runs before it ships an artifact.
 
+pub mod downgrade;
 pub mod lifecycle;
+pub mod transport_lanes;
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+pub use downgrade::{
+    assert_downgrade_review_sheets, evaluate_downgrade, scenario_target_state, support_rank,
+    CompareApplyReviewSheet, DowngradeAudit, DowngradeReviewDefect, DowngradeScenario,
+    TargetCapabilityState,
+};
 pub use lifecycle::CapabilityLifecycleState;
+pub use transport_lanes::{
+    assert_marker_survives_all_lanes, replay_marker_through_all_lanes,
+    replay_marker_through_lane, LaneReplayAudit, LaneReplayDefect, LaneReplayOutcome,
+    LaneReplaySheet, TransportLane,
+};
 
 /// Schema version pinned into every persisted [`CapabilityRecord`].
 pub const CAPABILITY_RECORD_SCHEMA_VERSION: u32 = 1;

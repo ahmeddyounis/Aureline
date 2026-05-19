@@ -40,13 +40,17 @@
 pub mod dependency_markers;
 
 pub use dependency_markers::{
-    catalog_default_capabilities, project_marker_for_host_surface, validate_artifact_markers,
+    assert_downgrade_review_sheets, assert_marker_survives_all_lanes, catalog_default_capabilities,
+    evaluate_downgrade, project_marker_for_host_surface, replay_marker_through_all_lanes,
+    replay_marker_through_lane, scenario_target_state, support_rank, validate_artifact_markers,
     validate_capability_record, validate_marker, ArtifactClass, ArtifactDependencyMarker,
-    BehaviorOnMissing, CapabilityRecord, DependencyClass, EffectOnImport, HostSurface,
-    MarkerHostProjection, MarkerValidationError, SupportPromise, ARTIFACT_DEPENDENCY_MARKER_KIND,
-    ARTIFACT_DEPENDENCY_MARKER_SCHEMA_VERSION, ARTIFACT_DEPENDENCY_MARKER_SHARED_CONTRACT_REF,
-    CAPABILITY_RECORD_KIND, CAPABILITY_RECORD_SCHEMA_VERSION,
-    CAPABILITY_RECORD_SHARED_CONTRACT_REF,
+    BehaviorOnMissing, CapabilityRecord, CompareApplyReviewSheet, DependencyClass, DowngradeAudit,
+    DowngradeReviewDefect, DowngradeScenario, EffectOnImport, HostSurface, LaneReplayAudit,
+    LaneReplayDefect, LaneReplayOutcome, LaneReplaySheet, MarkerHostProjection,
+    MarkerValidationError, SupportPromise, TargetCapabilityState, TransportLane,
+    ARTIFACT_DEPENDENCY_MARKER_KIND, ARTIFACT_DEPENDENCY_MARKER_SCHEMA_VERSION,
+    ARTIFACT_DEPENDENCY_MARKER_SHARED_CONTRACT_REF, CAPABILITY_RECORD_KIND,
+    CAPABILITY_RECORD_SCHEMA_VERSION, CAPABILITY_RECORD_SHARED_CONTRACT_REF,
 };
 
 pub use dependency_markers::lifecycle::CapabilityLifecycleState;
