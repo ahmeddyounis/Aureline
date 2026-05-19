@@ -49,6 +49,7 @@ pub mod change_object_inspector;
 pub mod chrome;
 pub mod clone;
 pub mod collection_truth;
+pub mod collection_truth_corpus;
 pub mod command_parity;
 pub mod command_reference;
 pub mod commands;

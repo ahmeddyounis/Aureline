@@ -38,9 +38,9 @@ pub mod scope_counter;
 use serde::{Deserialize, Serialize};
 
 pub use batch_review::{
-    BatchActionConsequenceClass, BatchReviewBlockedReason, BatchReviewSheetRecord,
-    BatchReviewSummary, BatchScopeAmbiguityFinding, RecoveryGuidanceClass,
-    SelectAllEscalationClass, BATCH_REVIEW_SHEET_RECORD_KIND,
+    BatchActionConsequenceClass, BatchReviewBlockedReason, BatchReviewBlockedReasonClass,
+    BatchReviewSheetRecord, BatchReviewSummary, BatchScopeAmbiguityFinding,
+    RecoveryGuidanceClass, SelectAllEscalationClass, BATCH_REVIEW_SHEET_RECORD_KIND,
 };
 pub use filter_bar::{
     CountSummaryClass, FilterBarChipRecord, FilterBarStateRecord, NarrowingSourceClass,
@@ -53,7 +53,7 @@ pub use saved_view::{
 };
 pub use scope_counter::{
     CollectionScopeCounterRecord, CollectionScopeCounterRow, ScopeCounterClass,
-    COLLECTION_SCOPE_COUNTER_RECORD_KIND,
+    ScopeCounterStatus, COLLECTION_SCOPE_COUNTER_RECORD_KIND,
 };
 
 /// Schema version exported by every collection-truth beta record.
