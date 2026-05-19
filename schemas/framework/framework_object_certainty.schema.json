@@ -1,0 +1,883 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/framework/framework_object_certainty.schema.json",
+  "title": "Aureline framework-object certainty record (rows, convention diagnostics, generator previews)",
+  "description": "Boundary schema for the framework_object_certainty_record. One record explains 'is this single framework-aware object trustworthy enough to act on, and on what evidence?'. The record carries one of three object kinds (framework_object_row for route / component / service / entity rows; convention_diagnostic_row for diagnostic rows; generator_preview_row for generator / codemod / scaffold previews) plus the closed support / certainty / pack-source / authored-or-generated / evidence-anchor / action vocabulary every framework-aware surface reads. The record composes with the framework_certainty_row and source_sync_chip contracts: certainty rows handle subject-level provenance and source-sync chips handle runtime alignment; this record handles the user-visible 'exact-vs-heuristic' row label, the proving files / symbols list, the authored-vs-generated truth, and (for diagnostics / generator previews) the typed diagnostic kind, the suggested fix actions, and the file-effect / rollback truth a generator preview must carry before write. Raw URLs, raw absolute paths, raw hostnames, raw IP addresses, raw secret bytes, raw generated bodies, and raw file bodies never cross this boundary; only opaque ids, typed vocabulary, and export-safe summaries do. Adding a new framework_object_kind, framework_object_row_kind, certainty_label_class, support_class, pack_source_class, authored_origin_class, evidence_anchor_kind_class, convention_diagnostic_class, convention_certainty_class, convention_fix_action_class, generator_kind_class, file_effect_class, file_ownership_class, dependency_impact_class, rollback_class, or row_action_class value is additive-minor and bumps framework_object_certainty_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [{ "$ref": "#/$defs/framework_object_certainty_record" }],
+  "$defs": {
+    "framework_object_certainty_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "framework_object_certainty_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw hostnames, raw IPs, raw bearer tokens, and raw secret values never appear here."
+    },
+    "redacted_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "route_explorer_surface",
+        "component_tree_surface",
+        "service_graph_surface",
+        "convention_diagnostics_surface",
+        "generator_preview_surface",
+        "notebook_framework_context_surface",
+        "ai_assist_context_surface",
+        "support_export_surface"
+      ]
+    },
+
+    "framework_object_kind": {
+      "type": "string",
+      "enum": [
+        "framework_object_row",
+        "convention_diagnostic_row",
+        "generator_preview_row"
+      ],
+      "description": "Discriminator. framework_object_row covers route / component / service / entity rows. convention_diagnostic_row covers framework-specific diagnostic rows. generator_preview_row covers generator / codemod / scaffold previews."
+    },
+
+    "framework_object_row_kind": {
+      "type": "string",
+      "enum": [
+        "route_row",
+        "component_row",
+        "service_row",
+        "entity_row",
+        "config_row",
+        "middleware_row",
+        "data_source_row"
+      ],
+      "description": "Closed framework-object row vocabulary for framework_object_row records."
+    },
+
+    "certainty_label_class": {
+      "type": "string",
+      "enum": [
+        "exact_pack_backed",
+        "exact_runtime_confirmed",
+        "derived_by_convention",
+        "imported",
+        "partial_evidence",
+        "heuristic_suspicion",
+        "stale_against_source",
+        "no_admissible_evidence"
+      ],
+      "description": "Closed certainty-label vocabulary at row / diagnostic / generator-preview level. exact_pack_backed and exact_runtime_confirmed are the only labels that may pair with support_class in {core_native, framework_pack}. heuristic_suspicion and no_admissible_evidence forbid support_class in {core_native, framework_pack}."
+    },
+
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "core_native",
+        "framework_pack",
+        "bridge_compatibility_layer",
+        "heuristic_convention_mode",
+        "unsupported_or_unclaimed"
+      ]
+    },
+
+    "pack_source_class": {
+      "type": "string",
+      "enum": [
+        "first_party_native",
+        "governed_framework_pack",
+        "community_framework_pack",
+        "bridge_compatibility_layer",
+        "heuristic_convention_only",
+        "imported_snapshot_only",
+        "no_pack_or_bridge"
+      ]
+    },
+
+    "pack_or_bridge_source_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pack_source_class"],
+      "properties": {
+        "pack_source_class": { "$ref": "#/$defs/pack_source_class" },
+        "pack_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "pack_version_label": {
+          "anyOf": [{ "$ref": "#/$defs/redacted_label" }, { "type": "null" }]
+        },
+        "bridge_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        }
+      }
+    },
+
+    "authored_origin_class": {
+      "type": "string",
+      "enum": [
+        "authored_by_user",
+        "generated_by_framework",
+        "generated_by_pack_template",
+        "generated_by_codemod",
+        "managed_by_pack",
+        "imported_from_snapshot",
+        "origin_unknown"
+      ],
+      "description": "Closed authored-vs-generated vocabulary every row carries. generated_by_framework / generated_by_pack_template / generated_by_codemod / managed_by_pack identify files / symbols Aureline treats as derivable; authored_by_user identifies user truth; origin_unknown forces a partial / heuristic label."
+    },
+
+    "evidence_anchor_kind_class": {
+      "type": "string",
+      "enum": [
+        "source_file_anchor",
+        "source_symbol_anchor",
+        "pack_proving_artifact_anchor",
+        "build_adapter_anchor",
+        "runtime_capture_anchor",
+        "imported_snapshot_anchor",
+        "convention_pattern_anchor"
+      ],
+      "description": "Closed evidence-anchor vocabulary. source_file_anchor and source_symbol_anchor are the source round-trip anchors a route / component / service / entity row MUST preserve when a canonical source exists. pack_proving_artifact_anchor anchors framework-pack proving artifacts. convention_pattern_anchor is reserved for heuristic / convention-mode rows."
+    },
+
+    "evidence_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_anchor_kind_class", "anchor_ref", "anchor_label"],
+      "properties": {
+        "evidence_anchor_kind_class": {
+          "$ref": "#/$defs/evidence_anchor_kind_class"
+        },
+        "anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_label": { "$ref": "#/$defs/redacted_label" }
+      }
+    },
+
+    "framework_object_row_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "framework_object_row_kind",
+        "object_label",
+        "authored_origin_class",
+        "evidence_anchors"
+      ],
+      "properties": {
+        "framework_object_row_kind": {
+          "$ref": "#/$defs/framework_object_row_kind"
+        },
+        "object_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "object_label": { "$ref": "#/$defs/redacted_label" },
+        "authored_origin_class": { "$ref": "#/$defs/authored_origin_class" },
+        "parent_object_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "evidence_anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_anchor" },
+          "minItems": 1,
+          "description": "Source / proving anchors that justify the row's certainty label. minItems 1: a row that cannot cite a single anchor must use certainty_label_class = no_admissible_evidence and a non-row object kind."
+        },
+        "partial_or_derived_note": {
+          "anyOf": [{ "$ref": "#/$defs/short_summary" }, { "type": "null" }],
+          "description": "Reviewer-facing note that stays visible in the row when the row is partial / derived. Required (non-null) when certainty_label_class in {derived_by_convention, partial_evidence, heuristic_suspicion, stale_against_source}."
+        }
+      }
+    },
+
+    "convention_diagnostic_class": {
+      "type": "string",
+      "enum": [
+        "hard_contract_violation",
+        "framework_version_mismatch",
+        "pack_capability_limitation",
+        "heuristic_suspicion",
+        "ambiguous_convention",
+        "missing_registration",
+        "unreachable_route",
+        "generated_artifact_drift",
+        "not_available_in_this_mode"
+      ],
+      "description": "Closed convention-diagnostic vocabulary. hard_contract_violation requires support_class in {core_native, framework_pack, bridge_compatibility_layer}. heuristic_suspicion requires support_class in {heuristic_convention_mode, bridge_compatibility_layer}."
+    },
+
+    "convention_certainty_class": {
+      "type": "string",
+      "enum": [
+        "certainty_proven_violation",
+        "certainty_high_confidence",
+        "certainty_medium_confidence",
+        "certainty_heuristic_only",
+        "certainty_unverified"
+      ],
+      "description": "Closed convention-diagnostic certainty vocabulary. certainty_proven_violation requires convention_diagnostic_class in {hard_contract_violation, framework_version_mismatch, missing_registration, generated_artifact_drift}."
+    },
+
+    "convention_fix_action_class": {
+      "type": "string",
+      "enum": [
+        "open_docs",
+        "open_pack_status",
+        "open_migration_path",
+        "open_canonical_source",
+        "open_generator_preview",
+        "open_runtime_inspector",
+        "request_policy_review",
+        "suppress_with_justification",
+        "no_fix_available"
+      ],
+      "description": "Closed convention-diagnostic suggested-action vocabulary. Every diagnostic row MUST offer at least one action so the user is never given a dead-end label. open_generator_preview MUST be paired with a generator_preview_ref."
+    },
+
+    "convention_diagnostic_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "convention_diagnostic_class",
+        "convention_certainty_class",
+        "affected_object_ref",
+        "affected_object_label",
+        "fix_actions"
+      ],
+      "properties": {
+        "convention_diagnostic_class": {
+          "$ref": "#/$defs/convention_diagnostic_class"
+        },
+        "convention_certainty_class": {
+          "$ref": "#/$defs/convention_certainty_class"
+        },
+        "affected_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "affected_object_label": { "$ref": "#/$defs/redacted_label" },
+        "evidence_anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_anchor" },
+          "default": []
+        },
+        "fix_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/convention_fix_action_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "generator_preview_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "suppressibility_note": {
+          "anyOf": [{ "$ref": "#/$defs/short_summary" }, { "type": "null" }]
+        }
+      },
+      "allOf": [
+        {
+          "description": "open_generator_preview requires a non-null generator_preview_ref.",
+          "if": {
+            "properties": {
+              "fix_actions": {
+                "contains": { "const": "open_generator_preview" }
+              }
+            },
+            "required": ["fix_actions"]
+          },
+          "then": {
+            "properties": { "generator_preview_ref": { "type": "string" } },
+            "required": ["generator_preview_ref"]
+          }
+        }
+      ]
+    },
+
+    "generator_kind_class": {
+      "type": "string",
+      "enum": [
+        "framework_pack_scaffold",
+        "framework_pack_codemod",
+        "framework_native_generator",
+        "bridge_compatibility_scaffold",
+        "heuristic_pattern_scaffold"
+      ],
+      "description": "Closed generator-kind vocabulary. framework_pack_scaffold / framework_pack_codemod / framework_native_generator require support_class in {core_native, framework_pack}. bridge_compatibility_scaffold requires support_class = bridge_compatibility_layer. heuristic_pattern_scaffold requires support_class = heuristic_convention_mode."
+    },
+
+    "file_effect_class": {
+      "type": "string",
+      "enum": ["create_file", "modify_file", "delete_file", "rename_file"],
+      "description": "Closed per-file effect vocabulary used in generator-preview file-effect rows."
+    },
+
+    "file_ownership_class": {
+      "type": "string",
+      "enum": [
+        "user_owned_authored",
+        "managed_by_pack_overwritable",
+        "managed_by_pack_user_extension_zone",
+        "framework_generated_overwritable",
+        "shared_user_and_generated_blocks",
+        "ownership_unknown_requires_review"
+      ],
+      "description": "Closed managed-vs-user-owned file-class vocabulary. modify_file effects on user_owned_authored files MUST surface as a review-required step; create_file effects MAY land in managed_by_pack_overwritable, managed_by_pack_user_extension_zone, framework_generated_overwritable, or user_owned_authored regions. delete_file effects on user_owned_authored files require explicit user confirmation surface (the preview MUST set requires_user_confirmation = true for the affected row)."
+    },
+
+    "generator_file_effect_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_effect_class",
+        "file_ownership_class",
+        "file_path_handle_ref",
+        "file_label"
+      ],
+      "properties": {
+        "file_effect_class": { "$ref": "#/$defs/file_effect_class" },
+        "file_ownership_class": { "$ref": "#/$defs/file_ownership_class" },
+        "file_path_handle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque path handle for the affected file. Raw absolute paths never appear here."
+        },
+        "file_label": { "$ref": "#/$defs/redacted_label" },
+        "requires_user_confirmation": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "allOf": [
+        {
+          "description": "delete_file on user_owned_authored requires requires_user_confirmation = true.",
+          "if": {
+            "properties": {
+              "file_effect_class": { "const": "delete_file" },
+              "file_ownership_class": { "const": "user_owned_authored" }
+            },
+            "required": ["file_effect_class", "file_ownership_class"]
+          },
+          "then": {
+            "properties": {
+              "requires_user_confirmation": { "const": true }
+            },
+            "required": ["requires_user_confirmation"]
+          }
+        }
+      ]
+    },
+
+    "dependency_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_dependency_change",
+        "adds_workspace_dependency",
+        "updates_workspace_dependency",
+        "removes_workspace_dependency",
+        "adds_framework_pack_dependency",
+        "config_only_change",
+        "dependency_impact_unknown_requires_review"
+      ]
+    },
+
+    "rollback_class": {
+      "type": "string",
+      "enum": [
+        "rollback_via_checkpoint",
+        "rollback_via_vcs_revert",
+        "rollback_via_explicit_undo",
+        "rollback_not_available",
+        "rollback_unknown_requires_review"
+      ]
+    },
+
+    "generator_preview_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generator_kind_class",
+        "generator_id_ref",
+        "generator_label",
+        "generator_version_label",
+        "input_summary",
+        "file_effect_rows",
+        "dependency_impact_class",
+        "rollback_class"
+      ],
+      "properties": {
+        "generator_kind_class": { "$ref": "#/$defs/generator_kind_class" },
+        "generator_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "generator_label": { "$ref": "#/$defs/redacted_label" },
+        "generator_version_label": { "$ref": "#/$defs/redacted_label" },
+        "input_summary": { "$ref": "#/$defs/short_summary" },
+        "file_effect_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/generator_file_effect_row" },
+          "minItems": 1
+        },
+        "dependency_impact_class": {
+          "$ref": "#/$defs/dependency_impact_class"
+        },
+        "rollback_class": { "$ref": "#/$defs/rollback_class" },
+        "checkpoint_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Opaque checkpoint handle. Required (non-null) when rollback_class = rollback_via_checkpoint."
+        },
+        "regenerate_path_available": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "allOf": [
+        {
+          "description": "rollback_class = rollback_via_checkpoint requires a non-null checkpoint_ref.",
+          "if": {
+            "properties": {
+              "rollback_class": { "const": "rollback_via_checkpoint" }
+            },
+            "required": ["rollback_class"]
+          },
+          "then": {
+            "properties": { "checkpoint_ref": { "type": "string" } },
+            "required": ["checkpoint_ref"]
+          }
+        }
+      ]
+    },
+
+    "row_action_class": {
+      "type": "string",
+      "enum": [
+        "open_canonical_source",
+        "open_pack_docs",
+        "open_compatibility_details",
+        "open_runtime_inspector",
+        "reveal_in_route_explorer",
+        "reveal_in_component_tree",
+        "open_generator_preview",
+        "open_convention_diagnostic",
+        "request_policy_review",
+        "no_action_available"
+      ]
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+
+    "framework_object_certainty_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "framework_object_certainty_schema_version",
+        "framework_object_certainty_id",
+        "captured_at",
+        "surface_class",
+        "framework_object_kind",
+        "certainty_label_class",
+        "support_class",
+        "pack_or_bridge_source_block",
+        "actions",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "framework_object_certainty_schema_version": {
+          "$ref": "#/$defs/framework_object_certainty_schema_version"
+        },
+        "framework_object_certainty_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+
+        "framework_object_kind": { "$ref": "#/$defs/framework_object_kind" },
+        "certainty_label_class": { "$ref": "#/$defs/certainty_label_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "pack_or_bridge_source_block": {
+          "$ref": "#/$defs/pack_or_bridge_source_block"
+        },
+
+        "framework_object_row_block": {
+          "anyOf": [
+            { "$ref": "#/$defs/framework_object_row_block" },
+            { "type": "null" }
+          ]
+        },
+        "convention_diagnostic_block": {
+          "anyOf": [
+            { "$ref": "#/$defs/convention_diagnostic_block" },
+            { "type": "null" }
+          ]
+        },
+        "generator_preview_block": {
+          "anyOf": [
+            { "$ref": "#/$defs/generator_preview_block" },
+            { "type": "null" }
+          ]
+        },
+
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row_action_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+
+        "support_strip_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "framework_certainty_row_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "source_sync_chip_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": {
+          "anyOf": [{ "$ref": "#/$defs/short_summary" }, { "type": "null" }]
+        }
+      },
+
+      "allOf": [
+        {
+          "description": "framework_object_kind = framework_object_row requires a non-null framework_object_row_block; the other two blocks MUST be null.",
+          "if": {
+            "properties": {
+              "framework_object_kind": { "const": "framework_object_row" }
+            },
+            "required": ["framework_object_kind"]
+          },
+          "then": {
+            "properties": {
+              "framework_object_row_block": {
+                "$ref": "#/$defs/framework_object_row_block"
+              },
+              "convention_diagnostic_block": { "type": "null" },
+              "generator_preview_block": { "type": "null" }
+            },
+            "required": ["framework_object_row_block"]
+          }
+        },
+        {
+          "description": "framework_object_kind = convention_diagnostic_row requires a non-null convention_diagnostic_block; the other two blocks MUST be null.",
+          "if": {
+            "properties": {
+              "framework_object_kind": {
+                "const": "convention_diagnostic_row"
+              }
+            },
+            "required": ["framework_object_kind"]
+          },
+          "then": {
+            "properties": {
+              "convention_diagnostic_block": {
+                "$ref": "#/$defs/convention_diagnostic_block"
+              },
+              "framework_object_row_block": { "type": "null" },
+              "generator_preview_block": { "type": "null" }
+            },
+            "required": ["convention_diagnostic_block"]
+          }
+        },
+        {
+          "description": "framework_object_kind = generator_preview_row requires a non-null generator_preview_block; the other two blocks MUST be null.",
+          "if": {
+            "properties": {
+              "framework_object_kind": { "const": "generator_preview_row" }
+            },
+            "required": ["framework_object_kind"]
+          },
+          "then": {
+            "properties": {
+              "generator_preview_block": {
+                "$ref": "#/$defs/generator_preview_block"
+              },
+              "framework_object_row_block": { "type": "null" },
+              "convention_diagnostic_block": { "type": "null" }
+            },
+            "required": ["generator_preview_block"]
+          }
+        },
+        {
+          "description": "certainty_label_class in {exact_pack_backed, exact_runtime_confirmed} requires support_class in {core_native, framework_pack}.",
+          "if": {
+            "properties": {
+              "certainty_label_class": {
+                "enum": ["exact_pack_backed", "exact_runtime_confirmed"]
+              }
+            },
+            "required": ["certainty_label_class"]
+          },
+          "then": {
+            "properties": {
+              "support_class": {
+                "enum": ["core_native", "framework_pack"]
+              }
+            }
+          }
+        },
+        {
+          "description": "certainty_label_class in {heuristic_suspicion, no_admissible_evidence} forbids support_class in {core_native, framework_pack}.",
+          "if": {
+            "properties": {
+              "certainty_label_class": {
+                "enum": ["heuristic_suspicion", "no_admissible_evidence"]
+              }
+            },
+            "required": ["certainty_label_class"]
+          },
+          "then": {
+            "properties": {
+              "support_class": {
+                "not": { "enum": ["core_native", "framework_pack"] }
+              }
+            }
+          }
+        },
+        {
+          "description": "certainty_label_class = exact_pack_backed requires pack_source_class in {first_party_native, governed_framework_pack, community_framework_pack}.",
+          "if": {
+            "properties": {
+              "certainty_label_class": { "const": "exact_pack_backed" }
+            },
+            "required": ["certainty_label_class"]
+          },
+          "then": {
+            "properties": {
+              "pack_or_bridge_source_block": {
+                "properties": {
+                  "pack_source_class": {
+                    "enum": [
+                      "first_party_native",
+                      "governed_framework_pack",
+                      "community_framework_pack"
+                    ]
+                  }
+                },
+                "required": ["pack_source_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "support_class = unsupported_or_unclaimed forces certainty_label_class = no_admissible_evidence.",
+          "if": {
+            "properties": {
+              "support_class": { "const": "unsupported_or_unclaimed" }
+            },
+            "required": ["support_class"]
+          },
+          "then": {
+            "properties": {
+              "certainty_label_class": { "const": "no_admissible_evidence" }
+            }
+          }
+        },
+        {
+          "description": "convention_diagnostic_block.convention_certainty_class = certainty_proven_violation requires convention_diagnostic_class in {hard_contract_violation, framework_version_mismatch, missing_registration, generated_artifact_drift}.",
+          "if": {
+            "properties": {
+              "convention_diagnostic_block": {
+                "type": "object",
+                "properties": {
+                  "convention_certainty_class": {
+                    "const": "certainty_proven_violation"
+                  }
+                },
+                "required": ["convention_certainty_class"]
+              }
+            },
+            "required": ["convention_diagnostic_block"]
+          },
+          "then": {
+            "properties": {
+              "convention_diagnostic_block": {
+                "properties": {
+                  "convention_diagnostic_class": {
+                    "enum": [
+                      "hard_contract_violation",
+                      "framework_version_mismatch",
+                      "missing_registration",
+                      "generated_artifact_drift"
+                    ]
+                  }
+                },
+                "required": ["convention_diagnostic_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "convention_diagnostic_block.convention_diagnostic_class = hard_contract_violation requires support_class in {core_native, framework_pack, bridge_compatibility_layer}.",
+          "if": {
+            "properties": {
+              "convention_diagnostic_block": {
+                "type": "object",
+                "properties": {
+                  "convention_diagnostic_class": {
+                    "const": "hard_contract_violation"
+                  }
+                },
+                "required": ["convention_diagnostic_class"]
+              }
+            },
+            "required": ["convention_diagnostic_block"]
+          },
+          "then": {
+            "properties": {
+              "support_class": {
+                "enum": [
+                  "core_native",
+                  "framework_pack",
+                  "bridge_compatibility_layer"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "convention_diagnostic_block.convention_diagnostic_class = heuristic_suspicion requires support_class in {heuristic_convention_mode, bridge_compatibility_layer}.",
+          "if": {
+            "properties": {
+              "convention_diagnostic_block": {
+                "type": "object",
+                "properties": {
+                  "convention_diagnostic_class": {
+                    "const": "heuristic_suspicion"
+                  }
+                },
+                "required": ["convention_diagnostic_class"]
+              }
+            },
+            "required": ["convention_diagnostic_block"]
+          },
+          "then": {
+            "properties": {
+              "support_class": {
+                "enum": [
+                  "heuristic_convention_mode",
+                  "bridge_compatibility_layer"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "generator_preview_block.generator_kind_class in {framework_pack_scaffold, framework_pack_codemod, framework_native_generator} requires support_class in {core_native, framework_pack}.",
+          "if": {
+            "properties": {
+              "generator_preview_block": {
+                "type": "object",
+                "properties": {
+                  "generator_kind_class": {
+                    "enum": [
+                      "framework_pack_scaffold",
+                      "framework_pack_codemod",
+                      "framework_native_generator"
+                    ]
+                  }
+                },
+                "required": ["generator_kind_class"]
+              }
+            },
+            "required": ["generator_preview_block"]
+          },
+          "then": {
+            "properties": {
+              "support_class": {
+                "enum": ["core_native", "framework_pack"]
+              }
+            }
+          }
+        },
+        {
+          "description": "generator_preview_block.generator_kind_class = bridge_compatibility_scaffold requires support_class = bridge_compatibility_layer.",
+          "if": {
+            "properties": {
+              "generator_preview_block": {
+                "type": "object",
+                "properties": {
+                  "generator_kind_class": {
+                    "const": "bridge_compatibility_scaffold"
+                  }
+                },
+                "required": ["generator_kind_class"]
+              }
+            },
+            "required": ["generator_preview_block"]
+          },
+          "then": {
+            "properties": {
+              "support_class": { "const": "bridge_compatibility_layer" }
+            }
+          }
+        },
+        {
+          "description": "generator_preview_block.generator_kind_class = heuristic_pattern_scaffold requires support_class = heuristic_convention_mode.",
+          "if": {
+            "properties": {
+              "generator_preview_block": {
+                "type": "object",
+                "properties": {
+                  "generator_kind_class": {
+                    "const": "heuristic_pattern_scaffold"
+                  }
+                },
+                "required": ["generator_kind_class"]
+              }
+            },
+            "required": ["generator_preview_block"]
+          },
+          "then": {
+            "properties": {
+              "support_class": { "const": "heuristic_convention_mode" }
+            }
+          }
+        },
+        {
+          "description": "framework_object_row_block.certainty_label_class in {derived_by_convention, partial_evidence, heuristic_suspicion, stale_against_source} requires a non-null partial_or_derived_note.",
+          "if": {
+            "properties": {
+              "framework_object_kind": { "const": "framework_object_row" },
+              "certainty_label_class": {
+                "enum": [
+                  "derived_by_convention",
+                  "partial_evidence",
+                  "heuristic_suspicion",
+                  "stale_against_source"
+                ]
+              }
+            },
+            "required": ["framework_object_kind", "certainty_label_class"]
+          },
+          "then": {
+            "properties": {
+              "framework_object_row_block": {
+                "type": "object",
+                "properties": {
+                  "partial_or_derived_note": { "type": "string" }
+                },
+                "required": ["partial_or_derived_note"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One framework-object certainty record emitted by a route / component / service / entity row, a convention-diagnostic row, or a generator / codemod / scaffold preview."
+    }
+  }
+}
