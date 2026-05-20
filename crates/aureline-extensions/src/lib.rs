@@ -110,6 +110,18 @@
 //!   [`conformance_reports::ReviewSeverityClass`] and
 //!   [`conformance_reports::ReviewLifecycleClass`] across authoring surfaces,
 //!   install review, marketplace facts, and support packets.
+//! - the [`appearance_conformance`] module that makes extension-UI appearance
+//!   inheritance a first-class compatibility dimension: an
+//!   [`appearance_conformance::AppearanceConformanceRow`] joins each declared
+//!   theme, density, focus-ring, high-contrast, reduced-motion, and host-token
+//!   inheritance posture with a host-side conformance probe so a row is only
+//!   badged [`appearance_conformance::AppearanceSupportClass::FullInheritance`]
+//!   when parity is proven, downgrades unproven claims to reduced support, and
+//!   refuses claims a probe contradicts. It carries inheritance-gap caveats for
+//!   marketplace rows, detail pages, install and side-load review, mirrored /
+//!   offline bundle review, and post-install diagnostics, keeps host-stable
+//!   trust / severity / permission / policy labels host-rendered, and projects a
+//!   metadata-safe [`appearance_conformance::AppearanceConformanceSupportExport`].
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -123,6 +135,7 @@
 //! the cross-tool boundary schema is
 //! [`/schemas/extensions/m1_extension_manifest.schema.json`](../../../schemas/extensions/m1_extension_manifest.schema.json).
 
+pub mod appearance_conformance;
 pub mod collections;
 pub mod compatibility_matrix;
 pub mod conformance_reports;
@@ -144,6 +157,27 @@ pub mod sdk_v1;
 pub mod supervision;
 pub mod webview_boundary;
 
+pub use appearance_conformance::{
+    audit_appearance_conformance_rows, evaluate_appearance_conformance_row,
+    project_appearance_conformance_support_export, project_appearance_conformance_support_row,
+    seeded_appearance_conformance_inputs, seeded_appearance_conformance_packet,
+    validate_appearance_conformance_packet, validate_appearance_conformance_row,
+    validate_appearance_conformance_support_export, AppearanceAxisClass, AppearanceAxisConformance,
+    AppearanceAxisDeclaration, AppearanceAxisProbe, AppearanceConformanceDecisionClass,
+    AppearanceConformanceDefect, AppearanceConformanceDefectKind, AppearanceConformanceInput,
+    AppearanceConformancePacket, AppearanceConformanceReasonClass, AppearanceConformanceRow,
+    AppearanceConformanceSummary, AppearanceConformanceSupportExport,
+    AppearanceConformanceSupportRow, AppearanceProofClass, AppearanceSupportClass,
+    AppearanceSupportDeclaration, AppearanceSurfaceCaveat, AppearanceSurfaceClass,
+    AppearanceUnsupportedState, APPEARANCE_AXES, APPEARANCE_SURFACES,
+    EXTENSION_APPEARANCE_CONFORMANCE_DEFECT_RECORD_KIND,
+    EXTENSION_APPEARANCE_CONFORMANCE_PACKET_RECORD_KIND,
+    EXTENSION_APPEARANCE_CONFORMANCE_ROW_RECORD_KIND,
+    EXTENSION_APPEARANCE_CONFORMANCE_SCHEMA_VERSION,
+    EXTENSION_APPEARANCE_CONFORMANCE_SHARED_CONTRACT_REF,
+    EXTENSION_APPEARANCE_CONFORMANCE_SUPPORT_EXPORT_RECORD_KIND,
+    EXTENSION_APPEARANCE_CONFORMANCE_SUPPORT_ROW_RECORD_KIND,
+};
 pub use collections::{
     ExtensionInstallCollectionAlphaInput, ExtensionInstallCollectionAlphaPacket,
     EXTENSION_INSTALL_COLLECTION_ALPHA_PACKET_RECORD_KIND,

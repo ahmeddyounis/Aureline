@@ -1,0 +1,559 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/appearance_support.schema.json",
+  "title": "Aureline extension appearance support and conformance",
+  "description": "Cross-tool schema for extension-UI appearance inheritance. Extensions declare a per-axis inheritance posture (theme, density, focus ring, high contrast, reduced motion, host tokens) plus known unsupported states; the host joins each declaration with a conformance probe so a row is only badged full-inheritance when parity is proven. Marketplace rows, detail pages, install / side-load / mirrored review, and post-install diagnostics read the same record. Rust types in crates/aureline-extensions/src/appearance_conformance/ are the source of truth.",
+  "anyOf": [
+    { "$ref": "#/$defs/input_corpus" },
+    { "$ref": "#/$defs/row_corpus" },
+    { "$ref": "#/$defs/support_row_corpus" },
+    { "$ref": "#/$defs/defect_corpus" },
+    { "$ref": "#/$defs/packet" },
+    { "$ref": "#/$defs/support_export" },
+    { "$ref": "#/$defs/input" },
+    { "$ref": "#/$defs/row" },
+    { "$ref": "#/$defs/support_row" },
+    { "$ref": "#/$defs/defect" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "extensions:appearance_conformance_beta:v1"
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "string_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ref" }
+    },
+    "axis_class": {
+      "type": "string",
+      "enum": [
+        "theme",
+        "density",
+        "focus_ring",
+        "high_contrast",
+        "reduced_motion",
+        "host_token"
+      ]
+    },
+    "inheritance_class": {
+      "type": "string",
+      "enum": ["inherits", "partial", "does_not_inherit", "not_disclosed"]
+    },
+    "proof_class": {
+      "type": "string",
+      "enum": ["proven_inherits", "proven_reduced", "proven_unsupported", "unproven"]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "full_inheritance",
+        "reduced_support",
+        "unsupported_private_styling",
+        "undisclosed_gap"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "marketplace_result_row",
+        "marketplace_detail_page",
+        "install_review",
+        "sideload_review",
+        "mirrored_bundle_review",
+        "post_install_diagnostics"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": ["conformant", "needs_review", "refused"]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "full_inheritance_proven",
+        "reduced_support_disclosed",
+        "unsupported_private_styling_disclosed",
+        "needs_verification_before_badge",
+        "disclosure_incomplete",
+        "overclaimed_inheritance_refused",
+        "host_stable_label_hidden_refused"
+      ]
+    },
+    "lifecycle_class": {
+      "type": "string",
+      "enum": [
+        "preview",
+        "beta",
+        "stable",
+        "deprecated",
+        "removed",
+        "limited",
+        "revoked"
+      ]
+    },
+    "defect_kind": {
+      "type": "string",
+      "enum": [
+        "axis_coverage_incomplete",
+        "axis_disclosure_missing",
+        "overclaimed_inheritance",
+        "inheritance_implied_without_proof",
+        "unsupported_state_inconsistent",
+        "host_stable_label_hidden",
+        "support_export_parity_drift",
+        "raw_private_material_exported"
+      ]
+    },
+    "axis_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis", "declared_class"],
+      "properties": {
+        "axis": { "$ref": "#/$defs/axis_class" },
+        "declared_class": { "$ref": "#/$defs/inheritance_class" },
+        "note": { "type": "string" }
+      }
+    },
+    "unsupported_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis", "state_label", "summary"],
+      "properties": {
+        "axis": { "$ref": "#/$defs/axis_class" },
+        "state_label": { "$ref": "#/$defs/ref" },
+        "summary": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_axes", "declared_summary"],
+      "properties": {
+        "declared_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/axis_declaration" },
+          "minItems": 1
+        },
+        "known_unsupported_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_state" }
+        },
+        "declared_summary": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "axis_probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axis", "proof_class"],
+      "properties": {
+        "axis": { "$ref": "#/$defs/axis_class" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "evidence_ref": { "$ref": "#/$defs/ref" },
+        "note": { "type": "string" }
+      }
+    },
+    "axis_conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "declared_class",
+        "proof_class",
+        "support_class",
+        "overclaimed",
+        "requires_verification",
+        "caveat"
+      ],
+      "properties": {
+        "axis": { "$ref": "#/$defs/axis_class" },
+        "declared_class": { "$ref": "#/$defs/inheritance_class" },
+        "proof_class": { "$ref": "#/$defs/proof_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "overclaimed": { "type": "boolean" },
+        "requires_verification": { "type": "boolean" },
+        "evidence_ref": { "$ref": "#/$defs/ref" },
+        "caveat": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "surface_caveat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "badge_label",
+        "implies_full_inheritance",
+        "persists_after_install",
+        "caveat_line",
+        "host_labels_line"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "badge_label": { "$ref": "#/$defs/ref" },
+        "implies_full_inheritance": { "type": "boolean" },
+        "persists_after_install": { "type": "boolean" },
+        "caveat_line": { "$ref": "#/$defs/ref" },
+        "host_labels_line": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "axis_support_by_token": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/support_class" }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "extension_id",
+        "extension_name",
+        "publisher_label",
+        "surface_id",
+        "surface_label",
+        "lifecycle_class",
+        "declaration",
+        "host_trust_label",
+        "host_severity_label",
+        "host_permission_label",
+        "host_policy_label",
+        "host_rendered_trust_and_severity",
+        "caveat_summary",
+        "generated_at"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/ref" },
+        "extension_id": { "$ref": "#/$defs/ref" },
+        "extension_name": { "$ref": "#/$defs/ref" },
+        "publisher_label": { "$ref": "#/$defs/ref" },
+        "surface_id": { "$ref": "#/$defs/ref" },
+        "surface_label": { "$ref": "#/$defs/ref" },
+        "lifecycle_class": { "$ref": "#/$defs/lifecycle_class" },
+        "declaration": { "$ref": "#/$defs/declaration" },
+        "probes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/axis_probe" }
+        },
+        "host_trust_label": { "$ref": "#/$defs/ref" },
+        "host_severity_label": { "$ref": "#/$defs/ref" },
+        "host_permission_label": { "$ref": "#/$defs/ref" },
+        "host_policy_label": { "$ref": "#/$defs/ref" },
+        "host_rendered_trust_and_severity": { "type": "boolean" },
+        "evidence_refs": { "$ref": "#/$defs/string_list" },
+        "caveat_summary": { "$ref": "#/$defs/ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "extension_id",
+        "extension_name",
+        "publisher_label",
+        "surface_id",
+        "surface_label",
+        "lifecycle_class",
+        "axes",
+        "known_unsupported_states",
+        "surface_caveats",
+        "overall_support_class",
+        "decision_class",
+        "reason_class",
+        "host_trust_label",
+        "host_severity_label",
+        "host_permission_label",
+        "host_policy_label",
+        "host_rendered_trust_and_severity",
+        "evidence_refs",
+        "caveat_summary",
+        "row_defect_kind_tokens",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "extension_appearance_conformance_row" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/ref" },
+        "extension_id": { "$ref": "#/$defs/ref" },
+        "extension_name": { "$ref": "#/$defs/ref" },
+        "publisher_label": { "$ref": "#/$defs/ref" },
+        "surface_id": { "$ref": "#/$defs/ref" },
+        "surface_label": { "$ref": "#/$defs/ref" },
+        "lifecycle_class": { "$ref": "#/$defs/lifecycle_class" },
+        "axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/axis_conformance" },
+          "minItems": 6
+        },
+        "known_unsupported_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_state" }
+        },
+        "surface_caveats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_caveat" },
+          "minItems": 6
+        },
+        "overall_support_class": { "$ref": "#/$defs/support_class" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "host_trust_label": { "$ref": "#/$defs/ref" },
+        "host_severity_label": { "$ref": "#/$defs/ref" },
+        "host_permission_label": { "$ref": "#/$defs/ref" },
+        "host_policy_label": { "$ref": "#/$defs/ref" },
+        "host_rendered_trust_and_severity": { "type": "boolean" },
+        "evidence_refs": { "$ref": "#/$defs/string_list" },
+        "caveat_summary": { "$ref": "#/$defs/ref" },
+        "row_defect_kind_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect_kind" },
+          "uniqueItems": true
+        },
+        "generated_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "support_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_row_id",
+        "row_ref",
+        "extension_id",
+        "extension_name",
+        "publisher_label",
+        "surface_label",
+        "lifecycle_class",
+        "axis_support_by_token",
+        "overall_support_class",
+        "decision_class",
+        "reason_class",
+        "host_trust_label",
+        "host_severity_label",
+        "host_rendered_trust_and_severity",
+        "row_defect_kind_tokens",
+        "caveat_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "extension_appearance_conformance_support_row"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_row_id": { "$ref": "#/$defs/ref" },
+        "row_ref": { "$ref": "#/$defs/ref" },
+        "extension_id": { "$ref": "#/$defs/ref" },
+        "extension_name": { "$ref": "#/$defs/ref" },
+        "publisher_label": { "$ref": "#/$defs/ref" },
+        "surface_label": { "$ref": "#/$defs/ref" },
+        "lifecycle_class": { "$ref": "#/$defs/lifecycle_class" },
+        "axis_support_by_token": { "$ref": "#/$defs/axis_support_by_token" },
+        "overall_support_class": { "$ref": "#/$defs/support_class" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "host_trust_label": { "$ref": "#/$defs/ref" },
+        "host_severity_label": { "$ref": "#/$defs/ref" },
+        "host_rendered_trust_and_severity": { "type": "boolean" },
+        "row_defect_kind_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect_kind" },
+          "uniqueItems": true
+        },
+        "caveat_summary": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_id",
+        "defect_kind",
+        "row_ref",
+        "field",
+        "message",
+        "visible_in_product",
+        "support_export_safe"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "extension_appearance_conformance_defect"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "defect_id": { "$ref": "#/$defs/ref" },
+        "defect_kind": { "$ref": "#/$defs/defect_kind" },
+        "row_ref": { "$ref": "#/$defs/ref" },
+        "field": { "$ref": "#/$defs/ref" },
+        "message": { "$ref": "#/$defs/ref" },
+        "visible_in_product": { "type": "boolean" },
+        "support_export_safe": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "support_row_count",
+        "conformant_row_count",
+        "needs_review_row_count",
+        "refused_row_count",
+        "fully_inherited_row_count",
+        "reduced_support_row_count",
+        "unsupported_row_count",
+        "undisclosed_row_count",
+        "overclaimed_row_count",
+        "defect_count",
+        "axes_present",
+        "surfaces_present"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "support_row_count": { "type": "integer", "minimum": 0 },
+        "conformant_row_count": { "type": "integer", "minimum": 0 },
+        "needs_review_row_count": { "type": "integer", "minimum": 0 },
+        "refused_row_count": { "type": "integer", "minimum": 0 },
+        "fully_inherited_row_count": { "type": "integer", "minimum": 0 },
+        "reduced_support_row_count": { "type": "integer", "minimum": 0 },
+        "unsupported_row_count": { "type": "integer", "minimum": 0 },
+        "undisclosed_row_count": { "type": "integer", "minimum": 0 },
+        "overclaimed_row_count": { "type": "integer", "minimum": 0 },
+        "defect_count": { "type": "integer", "minimum": 0 },
+        "axes_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/axis_class" },
+          "uniqueItems": true
+        },
+        "surfaces_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "packet_id",
+        "generated_at",
+        "docs_ref",
+        "schema_ref",
+        "report_ref",
+        "summary",
+        "rows",
+        "support_rows",
+        "defects"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "extension_appearance_conformance_packet"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "packet_id": { "$ref": "#/$defs/ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "docs_ref": { "$ref": "#/$defs/ref" },
+        "schema_ref": { "$ref": "#/$defs/ref" },
+        "report_ref": { "$ref": "#/$defs/ref" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row" },
+          "minItems": 1
+        },
+        "support_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_row" }
+        },
+        "defects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/defect" }
+        }
+      }
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "export_id",
+        "generated_at",
+        "packet_ref",
+        "docs_ref",
+        "report_ref",
+        "summary",
+        "support_rows",
+        "defect_counts_by_kind",
+        "raw_private_material_excluded"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "extension_appearance_conformance_support_export"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "export_id": { "$ref": "#/$defs/ref" },
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "packet_ref": { "$ref": "#/$defs/ref" },
+        "docs_ref": { "$ref": "#/$defs/ref" },
+        "report_ref": { "$ref": "#/$defs/ref" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "support_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_row" }
+        },
+        "defect_counts_by_kind": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "raw_private_material_excluded": { "type": "boolean", "const": true }
+      }
+    },
+    "input_corpus": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/input" }
+    },
+    "row_corpus": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "support_row_corpus": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/support_row" }
+    },
+    "defect_corpus": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/defect" }
+    }
+  }
+}
