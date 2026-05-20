@@ -29,6 +29,7 @@ pub mod first_useful_work;
 pub mod prebuild_fingerprints;
 pub mod template_bundles;
 pub mod templates;
+pub mod warm_start_choice;
 
 /// Presentation label rendered for the Start Center surface.
 pub const START_CENTER_PRESENTATION_LABEL: &str = "Start Center";
