@@ -1,0 +1,685 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/voice_session_state.schema.json",
+  "title": "Aureline bounded voice-preview session-state (beta) page",
+  "description": "Boundary schema for the bounded voice-command and dictation preview surface emitted by the aureline-shell voice module: the shell_voice_preview_beta_page_record and the shell_voice_preview_beta_support_export_record, plus the mic-state pill, transcript strip, command-disambiguation sheet, provider/privacy row, and unavailable-banner sub-records, and the embedded shell_voice_command_resolution_record (canonical standalone contract: schemas/ux/voice_command_resolution.schema.json). The surface rides the frozen voice/dictation/speech-privacy contract in docs/ux/voice_and_dictation_contract.md and the canonical command graph in schemas/commands/. Acceptance: on a claimed Preview/Beta row, command mode and dictation mode are explicit, keyboard reachable, and screen-reader narratable; capture is never implicitly always-on (explicit default activation, background listening off by default); a persistent mic indicator is visible during active capture; provider/privacy state is disclosed before or during capture; high-impact voice actions cannot bypass the preview/approval/trust/audit path; unavailable states always provide a keyboard fallback; and unclaimed rows stay Labs/unadvertised. Raw audio bytes and raw transcript bytes never cross this boundary; only representation label refs do. This is the only boundary contract for the JSON fixtures checked in under fixtures/ux/m3/voice_preview_and_privacy/.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/voice_preview_beta_page_record" },
+    { "$ref": "#/$defs/voice_preview_beta_support_export_record" }
+  ],
+  "$defs": {
+    "voice_preview_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the bounded voice-preview contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:voice_preview_beta:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "string_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "confidence_cue": { "type": "string", "enum": ["high", "medium", "low"] },
+    "voice_mode_class": {
+      "type": "string",
+      "enum": [
+        "idle_microphone_off",
+        "dictation_mode_active",
+        "command_mode_active",
+        "continuous_listening_active_user_opted_in",
+        "voice_mode_blocked_by_policy",
+        "voice_mode_blocked_by_envelope"
+      ]
+    },
+    "activation_class": {
+      "type": "string",
+      "enum": [
+        "push_to_talk_held",
+        "push_to_talk_toggle",
+        "wake_phrase_continuous_user_opted_in",
+        "manual_command_activation",
+        "activation_blocked_by_policy",
+        "activation_unavailable_in_envelope"
+      ]
+    },
+    "mic_indicator_class": {
+      "type": "string",
+      "enum": [
+        "persistent_indicator_visible_capture_active",
+        "persistent_indicator_visible_capture_idle",
+        "persistent_indicator_hidden_capture_disabled",
+        "persistent_indicator_unavailable_degraded"
+      ]
+    },
+    "processing_locality_cue": {
+      "type": "string",
+      "enum": ["local_on_device", "hosted_remote_disclosed", "processing_unavailable"]
+    },
+    "transcript_correction_posture": {
+      "type": "string",
+      "enum": [
+        "correction_required_before_commit",
+        "correction_optional_before_commit",
+        "correction_unavailable_capture_only",
+        "correction_blocked_by_envelope"
+      ]
+    },
+    "background_listening_state": {
+      "type": "string",
+      "enum": ["off_default", "on_user_opted_in", "blocked_by_policy"]
+    },
+    "retention_mode": {
+      "type": "string",
+      "enum": [
+        "no_audio_no_transcript_retained",
+        "ephemeral_audio_local_only_no_transcript_retained",
+        "transcript_retained_local_only",
+        "transcript_retained_redacted_in_support_bundle",
+        "transcript_retained_provider_per_contract",
+        "retention_blocked_by_policy",
+        "retention_unavailable_in_envelope"
+      ]
+    },
+    "voice_unavailable_reason": {
+      "type": "string",
+      "enum": [
+        "offline_no_local_engine",
+        "provider_unavailable",
+        "no_microphone",
+        "noisy_environment",
+        "policy_locked_or_blocked",
+        "local_pack_unverified",
+        "trust_restricted"
+      ]
+    },
+    "voice_claim_posture": {
+      "type": "string",
+      "enum": ["claimed_beta", "claimed_preview", "labs_unadvertised"]
+    },
+    "capability_scope_class": {
+      "type": "string",
+      "enum": [
+        "inert_metadata_only",
+        "reversible_local_read",
+        "reversible_local_mutation",
+        "recoverable_durable_mutation",
+        "destructive_bulk_mutation",
+        "irreversible_publish"
+      ]
+    },
+    "mic_state_pill_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "pill_id",
+        "capture_active",
+        "voice_mode_class",
+        "mic_indicator_class",
+        "processing_locality_cue",
+        "mute_action_command_id",
+        "stop_action_command_id",
+        "accessibility_label_ref",
+        "keyboard_reachable",
+        "layout_target_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_mic_state_pill_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "pill_id": { "$ref": "#/$defs/non_empty_string" },
+        "capture_active": { "type": "boolean" },
+        "voice_mode_class": { "$ref": "#/$defs/voice_mode_class" },
+        "mic_indicator_class": { "$ref": "#/$defs/mic_indicator_class" },
+        "processing_locality_cue": { "$ref": "#/$defs/processing_locality_cue" },
+        "mute_action_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "stop_action_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "keyboard_reachable": { "type": "boolean" },
+        "layout_target_class": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "$comment": "While capture is active, the persistent indicator is visible-active.",
+          "if": { "properties": { "capture_active": { "const": true } } },
+          "then": {
+            "properties": {
+              "mic_indicator_class": {
+                "const": "persistent_indicator_visible_capture_active"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "transcript_strip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "strip_id",
+        "transcript_text_label_ref",
+        "confidence_cue",
+        "transcript_correction_posture",
+        "edit_command_id",
+        "correct_command_id",
+        "confirm_command_id",
+        "cancel_command_id",
+        "accessibility_label_ref",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_transcript_strip_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "strip_id": { "$ref": "#/$defs/non_empty_string" },
+        "transcript_text_label_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Representation label ref. Never the raw transcript bytes."
+        },
+        "confidence_cue": { "$ref": "#/$defs/confidence_cue" },
+        "transcript_correction_posture": {
+          "$ref": "#/$defs/transcript_correction_posture"
+        },
+        "edit_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "correct_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "confirm_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "cancel_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "command_disambiguation_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_command_id",
+        "candidate_label_ref",
+        "confidence_cue",
+        "capability_scope_class",
+        "preview_required"
+      ],
+      "properties": {
+        "candidate_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "candidate_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "confidence_cue": { "$ref": "#/$defs/confidence_cue" },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "preview_required": { "type": "boolean" }
+      }
+    },
+    "command_disambiguation_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "sheet_id",
+        "candidates",
+        "confirm_command_id",
+        "cancel_command_id",
+        "preview_state_for_risky",
+        "accessibility_label_ref",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_command_disambiguation_sheet_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "sheet_id": { "$ref": "#/$defs/non_empty_string" },
+        "candidates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_disambiguation_candidate" }
+        },
+        "confirm_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "cancel_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "preview_state_for_risky": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "provider_privacy_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "provider_or_local_engine_label_ref",
+        "processing_locality_cue",
+        "retention_mode",
+        "background_listening_state",
+        "keyboard_fallback_available",
+        "keyboard_fallback_command_id",
+        "accessibility_label_ref",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_provider_privacy_row_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_or_local_engine_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "processing_locality_cue": { "$ref": "#/$defs/processing_locality_cue" },
+        "retention_mode": { "$ref": "#/$defs/retention_mode" },
+        "background_listening_state": { "$ref": "#/$defs/background_listening_state" },
+        "policy_lock_or_block_note_ref": { "$ref": "#/$defs/non_empty_string" },
+        "unavailable_reason": { "$ref": "#/$defs/voice_unavailable_reason" },
+        "keyboard_fallback_available": { "type": "boolean" },
+        "keyboard_fallback_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "$comment": "An unavailable provider/privacy state always offers a keyboard fallback.",
+          "if": { "required": ["unavailable_reason"] },
+          "then": {
+            "properties": { "keyboard_fallback_available": { "const": true } }
+          }
+        }
+      ]
+    },
+    "voice_unavailable_banner_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "banner_id",
+        "unavailable_reason",
+        "message_ref",
+        "keyboard_fallback_command_id",
+        "accessibility_label_ref",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_unavailable_banner_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "banner_id": { "$ref": "#/$defs/non_empty_string" },
+        "unavailable_reason": { "$ref": "#/$defs/voice_unavailable_reason" },
+        "message_ref": { "$ref": "#/$defs/non_empty_string" },
+        "keyboard_fallback_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "accessibility_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "voice_command_resolution_record": {
+      "$comment": "Canonical standalone contract: schemas/ux/voice_command_resolution.schema.json.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "resolution_id",
+        "spoken_phrase_label_ref",
+        "confidence_cue",
+        "resolution_class",
+        "capability_scope_class",
+        "preview_class_declared",
+        "approval_posture_class_declared",
+        "enablement_decision_class",
+        "preview_required",
+        "approval_required",
+        "result_packet_schema_ref",
+        "parity_expectation_ref",
+        "no_bypass_guards",
+        "docs_help_anchor_ref",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_command_resolution_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "resolution_id": { "$ref": "#/$defs/non_empty_string" },
+        "spoken_phrase_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "confidence_cue": { "$ref": "#/$defs/confidence_cue" },
+        "resolution_class": {
+          "type": "string",
+          "enum": [
+            "resolves_to_canonical_command_id",
+            "resolves_to_dictation_text_only",
+            "resolves_to_disambiguation_required",
+            "resolution_denied_uncanonical_verb",
+            "resolution_denied_low_confidence",
+            "resolution_blocked_by_envelope"
+          ]
+        },
+        "canonical_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_verb": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_label": {
+          "type": "string",
+          "enum": ["stable", "beta", "preview", "deprecated"]
+        },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "preview_class_declared": { "$ref": "#/$defs/non_empty_string" },
+        "approval_posture_class_declared": { "$ref": "#/$defs/non_empty_string" },
+        "enablement_decision_class": {
+          "type": "string",
+          "enum": ["enabled", "disabled_with_reason", "hidden_with_reason"]
+        },
+        "disabled_reason_code": { "$ref": "#/$defs/non_empty_string" },
+        "preview_required": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "result_packet_schema_ref": {
+          "const": "schemas/commands/command_result_packet.schema.json"
+        },
+        "parity_expectation_ref": { "$ref": "#/$defs/non_empty_string" },
+        "no_bypass_guards": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "trust_revalidation_required",
+            "policy_revalidation_required",
+            "permission_prompt_revalidation_required",
+            "preview_path_preserved",
+            "approval_path_preserved",
+            "credential_broker_revalidation_required",
+            "execution_context_revalidation_required",
+            "freshness_floor_revalidation_required",
+            "capability_class_may_not_widen",
+            "result_schema_may_not_be_replaced"
+          ],
+          "properties": {
+            "trust_revalidation_required": { "type": "boolean" },
+            "policy_revalidation_required": { "type": "boolean" },
+            "permission_prompt_revalidation_required": { "type": "boolean" },
+            "preview_path_preserved": { "type": "boolean" },
+            "approval_path_preserved": { "type": "boolean" },
+            "credential_broker_revalidation_required": { "type": "boolean" },
+            "execution_context_revalidation_required": { "type": "boolean" },
+            "freshness_floor_revalidation_required": { "type": "boolean" },
+            "capability_class_may_not_widen": { "type": "boolean" },
+            "result_schema_may_not_be_replaced": { "type": "boolean" }
+          }
+        },
+        "docs_help_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "keyboard_equivalent_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "capability_scope_class": {
+                "enum": [
+                  "recoverable_durable_mutation",
+                  "destructive_bulk_mutation",
+                  "irreversible_publish"
+                ]
+              }
+            }
+          },
+          "then": { "properties": { "preview_required": { "const": true } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "enablement_decision_class": {
+                "enum": ["disabled_with_reason", "hidden_with_reason"]
+              }
+            }
+          },
+          "then": { "required": ["disabled_reason_code"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "resolution_class": { "const": "resolves_to_canonical_command_id" }
+            }
+          },
+          "then": { "required": ["canonical_command_id"] }
+        }
+      ]
+    },
+    "voice_blocking_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "command_mode_not_explicit",
+            "dictation_mode_not_explicit",
+            "not_keyboard_reachable",
+            "not_screen_reader_narratable",
+            "mic_pill_missing_while_claimed",
+            "mic_indicator_hidden_during_capture",
+            "implicit_always_on_capture",
+            "background_listening_without_opt_in",
+            "provider_privacy_state_hidden",
+            "unavailable_without_keyboard_fallback",
+            "high_impact_preview_bypassed",
+            "no_bypass_guard_weakened",
+            "resolution_missing_command_id",
+            "resolution_uncanonical_verb",
+            "disabled_resolution_missing_reason",
+            "labs_row_advertises_broad_support"
+          ]
+        },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "resolution_id": { "$ref": "#/$defs/non_empty_string" },
+        "guard": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "voice_preview_invariant_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_and_dictation_modes_are_explicit",
+        "claimed_rows_keyboard_reachable_and_screen_reader_narratable",
+        "capture_is_never_implicitly_always_on",
+        "persistent_mic_indicator_visible_during_active_capture",
+        "provider_privacy_state_disclosed_before_or_during_capture",
+        "high_impact_actions_cannot_bypass_preview_approval_trust_audit",
+        "spoken_commands_resolve_through_canonical_command_ids",
+        "unavailable_states_always_provide_keyboard_fallback",
+        "unclaimed_rows_stay_labs_unadvertised"
+      ],
+      "properties": {
+        "command_and_dictation_modes_are_explicit": { "const": true },
+        "claimed_rows_keyboard_reachable_and_screen_reader_narratable": { "const": true },
+        "capture_is_never_implicitly_always_on": { "const": true },
+        "persistent_mic_indicator_visible_during_active_capture": { "const": true },
+        "provider_privacy_state_disclosed_before_or_during_capture": { "const": true },
+        "high_impact_actions_cannot_bypass_preview_approval_trust_audit": { "const": true },
+        "spoken_commands_resolve_through_canonical_command_ids": { "const": true },
+        "unavailable_states_always_provide_keyboard_fallback": { "const": true },
+        "unclaimed_rows_stay_labs_unadvertised": { "const": true }
+      }
+    },
+    "voice_preview_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_count",
+        "claimed_row_count",
+        "labs_row_count",
+        "capturing_row_count",
+        "unavailable_with_fallback_count",
+        "resolution_count",
+        "high_impact_resolution_count",
+        "total_blocking_findings",
+        "claim_postures_present",
+        "voice_modes_present"
+      ],
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "claimed_row_count": { "type": "integer", "minimum": 0 },
+        "labs_row_count": { "type": "integer", "minimum": 0 },
+        "capturing_row_count": { "type": "integer", "minimum": 0 },
+        "unavailable_with_fallback_count": { "type": "integer", "minimum": 0 },
+        "resolution_count": { "type": "integer", "minimum": 0 },
+        "high_impact_resolution_count": { "type": "integer", "minimum": 0 },
+        "total_blocking_findings": { "type": "integer", "minimum": 0 },
+        "claim_postures_present": { "$ref": "#/$defs/ref_array" },
+        "voice_modes_present": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "voice_preview_beta_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "surface_label_ref",
+        "claim_posture",
+        "command_mode_explicit",
+        "dictation_mode_explicit",
+        "keyboard_reachable",
+        "screen_reader_narratable",
+        "default_activation_class",
+        "background_listening_state",
+        "provider_privacy_row",
+        "command_resolutions",
+        "docs_help_anchor_ref",
+        "blocking_findings"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_preview_beta_row_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface_label_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_posture": { "$ref": "#/$defs/voice_claim_posture" },
+        "command_mode_explicit": { "type": "boolean" },
+        "dictation_mode_explicit": { "type": "boolean" },
+        "keyboard_reachable": { "type": "boolean" },
+        "screen_reader_narratable": { "type": "boolean" },
+        "default_activation_class": { "$ref": "#/$defs/activation_class" },
+        "background_listening_state": { "$ref": "#/$defs/background_listening_state" },
+        "mic_pill": { "$ref": "#/$defs/mic_state_pill_record" },
+        "transcript_strip": { "$ref": "#/$defs/transcript_strip_record" },
+        "disambiguation_sheet": { "$ref": "#/$defs/command_disambiguation_sheet_record" },
+        "provider_privacy_row": { "$ref": "#/$defs/provider_privacy_row_record" },
+        "unavailable_banner": { "$ref": "#/$defs/voice_unavailable_banner_record" },
+        "command_resolutions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/voice_command_resolution_record" }
+        },
+        "docs_help_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "blocking_findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/voice_blocking_finding" }
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "Claimed beta/preview rows make both modes explicit and are keyboard reachable and screen-reader narratable.",
+          "if": {
+            "properties": {
+              "claim_posture": { "enum": ["claimed_beta", "claimed_preview"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "command_mode_explicit": { "const": true },
+              "dictation_mode_explicit": { "const": true },
+              "keyboard_reachable": { "const": true },
+              "screen_reader_narratable": { "const": true }
+            },
+            "required": ["mic_pill"]
+          }
+        }
+      ]
+    },
+    "voice_preview_beta_page_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "page_id",
+        "voice_and_dictation_contract_ref",
+        "session_state_schema_ref",
+        "command_resolution_schema_ref",
+        "rows",
+        "invariants",
+        "summary",
+        "page_clean",
+        "published_report_ref",
+        "published_doc_ref",
+        "docs_help_refs",
+        "support_export_refs",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_preview_beta_page_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "page_id": { "$ref": "#/$defs/non_empty_string" },
+        "voice_and_dictation_contract_ref": {
+          "const": "docs/ux/voice_and_dictation_contract.md"
+        },
+        "session_state_schema_ref": {
+          "const": "schemas/ux/voice_session_state.schema.json"
+        },
+        "command_resolution_schema_ref": {
+          "const": "schemas/ux/voice_command_resolution.schema.json"
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/voice_preview_beta_row_record" }
+        },
+        "invariants": { "$ref": "#/$defs/voice_preview_invariant_manifest" },
+        "summary": { "$ref": "#/$defs/voice_preview_summary" },
+        "page_clean": { "type": "boolean" },
+        "published_report_ref": { "$ref": "#/$defs/non_empty_string" },
+        "published_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "voice_preview_beta_support_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "support_export_id",
+        "raw_audio_or_transcript_bytes_excluded",
+        "page",
+        "case_ids"
+      ],
+      "properties": {
+        "record_kind": { "const": "shell_voice_preview_beta_support_export_record" },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "support_export_id": { "$ref": "#/$defs/non_empty_string" },
+        "raw_audio_or_transcript_bytes_excluded": { "const": true },
+        "page": { "$ref": "#/$defs/voice_preview_beta_page_record" },
+        "case_ids": { "$ref": "#/$defs/string_array" }
+      }
+    }
+  }
+}

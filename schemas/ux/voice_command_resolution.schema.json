@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/voice_command_resolution.schema.json",
+  "title": "Aureline bounded voice command-resolution (beta) parity record",
+  "description": "Boundary schema for the shell_voice_command_resolution_record emitted by the aureline-shell voice module. Every spoken command on a claimed Preview/Beta voice row resolves through this record, which carries the same canonical command id, capability scope, lifecycle label, disabled-reason vocabulary, preview/approval posture, result-packet schema ref, and no-bypass guards a keyboard or command-palette invocation carries. Voice cannot mint a verb outside the registry, cannot widen capability scope, cannot replace the result schema, and cannot bypass the preview, approval, trust, or audit path. Acceptance: a high-impact resolution (recoverable_durable_mutation, destructive_bulk_mutation, irreversible_publish) MUST keep preview_required true and MUST keep every strict no-bypass guard true; a mutating resolution MUST bind a canonical command id; a disabled resolution MUST carry a typed disabled_reason_code. Raw audio bytes and raw transcript bytes never cross this boundary; only representation label refs do. This is the only boundary contract for the resolution records embedded in fixtures/ux/m3/voice_preview_and_privacy/.",
+  "type": "object",
+  "oneOf": [{ "$ref": "#/$defs/voice_command_resolution_record" }],
+  "$defs": {
+    "voice_preview_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the bounded voice-preview contract. Bumped only on breaking payload changes."
+    },
+    "shared_contract_ref": {
+      "type": "string",
+      "const": "shell:voice_preview_beta:v1",
+      "description": "Stable shared contract ref every record carries."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "confidence_cue": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "capability_scope_class": {
+      "type": "string",
+      "enum": [
+        "inert_metadata_only",
+        "reversible_local_read",
+        "reversible_local_mutation",
+        "recoverable_durable_mutation",
+        "destructive_bulk_mutation",
+        "irreversible_publish"
+      ]
+    },
+    "voice_command_resolution_class": {
+      "type": "string",
+      "enum": [
+        "resolves_to_canonical_command_id",
+        "resolves_to_dictation_text_only",
+        "resolves_to_disambiguation_required",
+        "resolution_denied_uncanonical_verb",
+        "resolution_denied_low_confidence",
+        "resolution_blocked_by_envelope"
+      ]
+    },
+    "voice_lifecycle_label": {
+      "type": "string",
+      "enum": ["stable", "beta", "preview", "deprecated"]
+    },
+    "enablement_decision_class": {
+      "type": "string",
+      "enum": ["enabled", "disabled_with_reason", "hidden_with_reason"]
+    },
+    "disabled_reason_code": {
+      "type": "string",
+      "description": "Shared disabled-reason vocabulary re-exported verbatim from schemas/commands/command_descriptor.schema.json; voice surfaces the same reason a keyboard invocation would.",
+      "enum": [
+        "workspace_trust_restricted",
+        "capability_lifecycle_retired",
+        "capability_disabled_by_policy",
+        "kill_switch_tripped",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet",
+        "required_provider_unlinked",
+        "required_credential_missing",
+        "required_argument_unresolved",
+        "execution_context_unavailable",
+        "managed_only_channel_required",
+        "dependency_state_below_command_ceiling",
+        "command_deprecated_within_window",
+        "command_retired",
+        "command_version_unknown",
+        "preview_denial_no_safe_preview",
+        "approval_denial_no_approval_path",
+        "publisher_not_permitted",
+        "policy_blocked_in_context",
+        "authority_class_unresolved",
+        "issuing_surface_unresolved",
+        "scope_class_drifted_from_descriptor",
+        "preview_required_not_shown",
+        "basis_snapshot_drifted"
+      ]
+    },
+    "no_bypass_guards": {
+      "type": "object",
+      "description": "Strict no-bypass guards re-exported verbatim from schemas/commands/command_result_packet.schema.json. A high-impact voice resolution keeps every guard true so it cannot bypass trust, policy, preview, approval, permission, capability, or result-schema rules.",
+      "additionalProperties": false,
+      "required": [
+        "trust_revalidation_required",
+        "policy_revalidation_required",
+        "permission_prompt_revalidation_required",
+        "preview_path_preserved",
+        "approval_path_preserved",
+        "credential_broker_revalidation_required",
+        "execution_context_revalidation_required",
+        "freshness_floor_revalidation_required",
+        "capability_class_may_not_widen",
+        "result_schema_may_not_be_replaced"
+      ],
+      "properties": {
+        "trust_revalidation_required": { "type": "boolean" },
+        "policy_revalidation_required": { "type": "boolean" },
+        "permission_prompt_revalidation_required": { "type": "boolean" },
+        "preview_path_preserved": { "type": "boolean" },
+        "approval_path_preserved": { "type": "boolean" },
+        "credential_broker_revalidation_required": { "type": "boolean" },
+        "execution_context_revalidation_required": { "type": "boolean" },
+        "freshness_floor_revalidation_required": { "type": "boolean" },
+        "capability_class_may_not_widen": { "type": "boolean" },
+        "result_schema_may_not_be_replaced": { "type": "boolean" }
+      }
+    },
+    "voice_command_resolution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "resolution_id",
+        "spoken_phrase_label_ref",
+        "confidence_cue",
+        "resolution_class",
+        "capability_scope_class",
+        "preview_class_declared",
+        "approval_posture_class_declared",
+        "enablement_decision_class",
+        "preview_required",
+        "approval_required",
+        "result_packet_schema_ref",
+        "parity_expectation_ref",
+        "no_bypass_guards",
+        "docs_help_anchor_ref",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "shell_voice_command_resolution_record"
+        },
+        "schema_version": { "$ref": "#/$defs/voice_preview_schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "resolution_id": { "$ref": "#/$defs/non_empty_string" },
+        "spoken_phrase_label_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Representation label ref for the spoken phrase. Never the raw transcript bytes."
+        },
+        "confidence_cue": { "$ref": "#/$defs/confidence_cue" },
+        "resolution_class": { "$ref": "#/$defs/voice_command_resolution_class" },
+        "canonical_command_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Canonical command id (e.g. cmd:edit.rename_symbol_across_project). Present whenever the resolution class binds a command."
+        },
+        "command_revision_ref": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_verb": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_label": { "$ref": "#/$defs/voice_lifecycle_label" },
+        "capability_scope_class": { "$ref": "#/$defs/capability_scope_class" },
+        "preview_class_declared": { "$ref": "#/$defs/non_empty_string" },
+        "approval_posture_class_declared": { "$ref": "#/$defs/non_empty_string" },
+        "enablement_decision_class": { "$ref": "#/$defs/enablement_decision_class" },
+        "disabled_reason_code": { "$ref": "#/$defs/disabled_reason_code" },
+        "preview_required": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "result_packet_schema_ref": {
+          "type": "string",
+          "const": "schemas/commands/command_result_packet.schema.json"
+        },
+        "parity_expectation_ref": { "$ref": "#/$defs/non_empty_string" },
+        "no_bypass_guards": { "$ref": "#/$defs/no_bypass_guards" },
+        "docs_help_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "keyboard_equivalent_command_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "The same command id reachable from the keyboard lane; proves command-graph parity."
+        },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "allOf": [
+        {
+          "$comment": "High-impact resolutions keep preview_required true.",
+          "if": {
+            "properties": {
+              "capability_scope_class": {
+                "enum": [
+                  "recoverable_durable_mutation",
+                  "destructive_bulk_mutation",
+                  "irreversible_publish"
+                ]
+              }
+            }
+          },
+          "then": { "properties": { "preview_required": { "const": true } } }
+        },
+        {
+          "$comment": "A disabled resolution carries a typed disabled reason.",
+          "if": {
+            "properties": {
+              "enablement_decision_class": {
+                "enum": ["disabled_with_reason", "hidden_with_reason"]
+              }
+            }
+          },
+          "then": { "required": ["disabled_reason_code"] }
+        },
+        {
+          "$comment": "A canonical resolution binds a command id.",
+          "if": {
+            "properties": {
+              "resolution_class": { "const": "resolves_to_canonical_command_id" }
+            }
+          },
+          "then": { "required": ["canonical_command_id"] }
+        }
+      ]
+    }
+  }
+}
