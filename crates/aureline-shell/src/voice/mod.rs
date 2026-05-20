@@ -1618,6 +1618,8 @@ pub fn validate_voice_preview_beta_page(
 mod seed;
 pub use seed::seeded_voice_preview_beta_page;
 
+pub mod conformance;
+
 #[cfg(test)]
 mod tests {
     use super::*;
