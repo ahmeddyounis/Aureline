@@ -1,0 +1,553 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/notification_route_outcome.schema.json",
+  "title": "Aureline notification route outcome contract",
+  "description": "Boundary schema for notification_route_outcome_record frozen in docs/ux/m3/notification_envelope_beta_contract.md. A route outcome is the single governed object the shell's attention router emits per notification_envelope_record under one live channel context. It resolves the same alert consistently across in-app toasts, banners, status overflow, the activity center, native OS notifications, and companion fanout — instead of letting each surface mint its own alert behavior. The router never widens authority: it folds the live channel context into an effective quiet posture, routes through the dedupe + suppression core, then only narrows each surface (a focused window drops the redundant OS toast, an unlocked device drops the lock-screen summary, an unreachable or policy-blocked companion drops the push). A held, suppressed, or deduped surface is never upgraded back to delivered, and every resolved surface keeps the envelope's single reopen target so a toast, a status row, an OS notification, and a companion push all reopen the same canonical object — never a generic home view. Raw bodies, raw paths, raw URLs, raw provider payloads, raw prompt or completion text, raw command bodies, secret material, and customer-owned identifiers never cross this boundary; only stable ids, stable enums, privacy/export posture, and the privacy-safe summary label do. Adding a new channel_resolution_class, companion_handoff_class, active_window_state, screen_reader_posture, companion_availability, presentation_follow_state, lifecycle_action_kind, or lifecycle effect value is additive-minor and requires a notification_route_outcome_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [{ "$ref": "#/$defs/notification_route_outcome_record" }],
+  "$defs": {
+    "notification_route_outcome_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this route-outcome vocabulary export. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe on RPC, in manifests, journals, support bundles, and OS payloads. Raw bodies, raw paths, raw URLs, and secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short privacy-safe label text. Must not contain raw paths, raw URLs, raw secret material, raw customer-owned identifiers, or raw AI prompt / completion text."
+    },
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["info", "success", "warning", "degraded", "error", "blocking", "critical"]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": ["summary_safe", "workspace_sensitive", "security_critical", "managed_sensitive"]
+    },
+    "privacy_payload_class": {
+      "type": "string",
+      "enum": [
+        "lock_screen_safe_generic",
+        "lock_screen_safe_scoped",
+        "in_product_only",
+        "redacted_metadata_only",
+        "policy_forbidden_on_lock_screen"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "dedupe_key_scheme": {
+      "type": "string",
+      "enum": [
+        "canonical_event_id",
+        "canonical_object_target_plus_event_class",
+        "grouped_burst_id",
+        "subsystem_plus_object_plus_phase",
+        "cross_client_canonical_event_id"
+      ]
+    },
+    "fanout_surface_class": {
+      "type": "string",
+      "enum": [
+        "durable_job_row",
+        "status_strip",
+        "status_item",
+        "activity_center_digest_card",
+        "toast",
+        "contextual_banner",
+        "os_notification",
+        "lock_screen_summary",
+        "companion_push",
+        "digest_group_row",
+        "not_delivered_held"
+      ]
+    },
+    "fanout_receipt_state": {
+      "type": "string",
+      "enum": [
+        "delivered",
+        "held_quiet_hours",
+        "suppressed_policy",
+        "deduped_canonical_event",
+        "deduped_grouped_burst",
+        "released_from_hold",
+        "not_attempted_no_route"
+      ]
+    },
+    "stale_or_undelivered_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "held_by_quiet_hours",
+        "suppressed_by_policy",
+        "deduped_on_canonical_event",
+        "deduped_on_grouped_burst",
+        "no_route_for_surface_or_tier",
+        "stale_before_delivery",
+        "expired_before_delivery",
+        "transport_failed",
+        "unknown"
+      ]
+    },
+    "suppression_reason": {
+      "type": "string",
+      "enum": [
+        "quiet_hours_user_policy",
+        "do_not_disturb_user_policy",
+        "focus_mode_user_policy",
+        "presentation_mode_active",
+        "screen_share_active",
+        "privacy_mode_active",
+        "admin_policy_suppression",
+        "reduced_attention_posture",
+        "power_saver_background_pause",
+        "dedupe_same_canonical_event",
+        "dedupe_same_grouped_burst",
+        "class_muted_by_user",
+        "class_snoozed_by_user",
+        "release_pending_next_unsuppressed_surface"
+      ]
+    },
+    "quiet_hours_mode": {
+      "type": "string",
+      "enum": [
+        "mode_none",
+        "mode_quiet_hours_user",
+        "mode_do_not_disturb_user",
+        "mode_focus_mode_user",
+        "mode_presentation",
+        "mode_screen_share",
+        "mode_privacy_mode",
+        "mode_reduced_attention_policy",
+        "mode_power_saver_runtime",
+        "mode_admin_suppression"
+      ]
+    },
+    "reopen_target_kind": {
+      "type": "string",
+      "enum": [
+        "canonical_object",
+        "canonical_route",
+        "review_context",
+        "durable_activity_row",
+        "digest_group",
+        "placeholder_announced",
+        "denied_requires_revalidation"
+      ],
+      "description": "High-level exact reopen target kind. Generic home-screen reopen is intentionally not a value."
+    },
+    "active_window_state": {
+      "type": "string",
+      "enum": ["foreground_focused", "foreground_unfocused", "background_hidden", "locked_or_away"],
+      "description": "Where the target window sits relative to user attention at routing time."
+    },
+    "screen_reader_posture": {
+      "type": "string",
+      "enum": ["inactive", "active"]
+    },
+    "companion_availability": {
+      "type": "string",
+      "enum": ["unpaired", "paired_available", "paired_unavailable", "policy_blocked"]
+    },
+    "presentation_follow_state": {
+      "type": "string",
+      "enum": ["none", "presenting", "following_presenter"]
+    },
+    "channel_resolution_class": {
+      "type": "string",
+      "enum": [
+        "delivered_in_app",
+        "delivered_external_summary",
+        "suppressed_foreground_redundant",
+        "lock_screen_not_applicable",
+        "companion_unavailable",
+        "companion_policy_blocked",
+        "held_by_quiet_hours_or_focus",
+        "suppressed_by_policy",
+        "deduped_repeat",
+        "no_route_from_core"
+      ],
+      "description": "How the live channel context resolved one surface after the dedupe core's decision."
+    },
+    "companion_handoff_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "summary_fanout_delivered",
+        "summary_fanout_held",
+        "summary_fanout_unavailable",
+        "summary_fanout_policy_blocked"
+      ]
+    },
+    "forbidden_shortcut_action_class": {
+      "type": "string",
+      "enum": [
+        "destructive_publish_or_apply",
+        "secret_or_credential_reveal",
+        "irreversible_high_blast",
+        "bypass_review_sheet",
+        "bypass_approval_workflow",
+        "cross_workspace_mutation",
+        "direct_mutation_from_lock_screen",
+        "direct_mutation_from_companion_push",
+        "direct_mutation_from_dock_or_taskbar",
+        "direct_mutation_from_system_tray",
+        "policy_override_from_os_shortcut",
+        "trust_state_change_from_os_shortcut",
+        "provider_grant_change_from_os_shortcut"
+      ]
+    },
+    "lifecycle_action_kind": {
+      "type": "string",
+      "enum": ["dismiss", "acknowledge", "snooze", "mute", "clear", "resolve", "suppress"],
+      "description": "The notification lifecycle verbs. dismiss/snooze/acknowledge/mute/clear/resolve are user verbs published on every outcome; suppress is a system-side hold."
+    },
+    "lifecycle_badge_effect": {
+      "type": "string",
+      "enum": ["leaves_active_badge", "clears_active_badge", "moves_to_held_count"]
+    },
+    "lifecycle_retention_effect": {
+      "type": "string",
+      "enum": ["retains_active_row", "retains_history_only", "retains_resolved_record"]
+    },
+    "lifecycle_export_effect": {
+      "type": "string",
+      "enum": [
+        "exported_as_active",
+        "exported_as_dismissed",
+        "exported_as_acknowledged",
+        "exported_as_snoozed",
+        "exported_as_muted",
+        "exported_as_cleared",
+        "exported_as_resolved"
+      ]
+    },
+    "command_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable opaque command id resolved by the command registry. Labels are localized; behavior binds to this id."
+    },
+    "reopen_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reopen_target_ref", "reopen_target_kind", "exact_target_identity_ref"],
+      "properties": {
+        "reopen_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_target_kind": { "$ref": "#/$defs/reopen_target_kind" },
+        "exact_target_identity_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque reference to the narrowest truthful reopen destination. Null only when reopen_target_kind announces a placeholder or requires revalidation."
+        },
+        "placeholder_announcement_label": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/short_label_text" }]
+        },
+        "revalidation_required_reason_label": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/short_label_text" }]
+        }
+      }
+    },
+    "stable_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "label", "command_id", "target_identity_ref", "reopen_target_kind"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/short_label_text" },
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_target_kind": { "$ref": "#/$defs/reopen_target_kind" },
+        "is_destructive": { "type": "boolean", "default": false }
+      }
+    },
+    "channel_context_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_window_state",
+        "screen_reader_posture",
+        "companion_availability",
+        "presentation_follow_state",
+        "active_quiet_hours_modes"
+      ],
+      "properties": {
+        "active_window_state": { "$ref": "#/$defs/active_window_state" },
+        "screen_reader_posture": { "$ref": "#/$defs/screen_reader_posture" },
+        "companion_availability": { "$ref": "#/$defs/companion_availability" },
+        "presentation_follow_state": { "$ref": "#/$defs/presentation_follow_state" },
+        "active_quiet_hours_modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/quiet_hours_mode" },
+          "description": "Effective quiet-hours modes after folding in presentation/follow state. Empty means no quiet mode is active."
+        }
+      }
+    },
+    "stale_or_undelivered_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class"],
+      "properties": {
+        "reason_class": { "$ref": "#/$defs/stale_or_undelivered_reason_class" },
+        "reason_label": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/short_label_text" }],
+          "description": "Optional privacy-safe label clarifying the reason. Omitted when absent."
+        }
+      }
+    },
+    "resolved_surface_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fanout_surface_class",
+        "core_receipt_state",
+        "resolved_receipt_state",
+        "channel_resolution_class",
+        "stale_or_undelivered_reason",
+        "reopen_target_ref",
+        "redaction_class",
+        "is_external_summary_surface",
+        "visible"
+      ],
+      "properties": {
+        "fanout_surface_class": { "$ref": "#/$defs/fanout_surface_class" },
+        "core_receipt_state": {
+          "$ref": "#/$defs/fanout_receipt_state",
+          "description": "The dedupe + suppression core's decision before live-channel narrowing."
+        },
+        "resolved_receipt_state": {
+          "$ref": "#/$defs/fanout_receipt_state",
+          "description": "The decision after live-channel narrowing. Never an upgrade of a held/suppressed/deduped core state."
+        },
+        "channel_resolution_class": { "$ref": "#/$defs/channel_resolution_class" },
+        "stale_or_undelivered_reason": { "$ref": "#/$defs/stale_or_undelivered_reason" },
+        "suppression_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" }
+        },
+        "reopen_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "is_external_summary_surface": { "type": "boolean" },
+        "visible": { "type": "boolean" }
+      }
+    },
+    "available_lifecycle_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_kind",
+        "badge_effect",
+        "retention_effect",
+        "export_effect",
+        "mutates_source_object",
+        "requires_resume_condition",
+        "requires_muted_class",
+        "durable_history_preserved"
+      ],
+      "properties": {
+        "action_kind": { "$ref": "#/$defs/lifecycle_action_kind" },
+        "badge_effect": { "$ref": "#/$defs/lifecycle_badge_effect" },
+        "retention_effect": { "$ref": "#/$defs/lifecycle_retention_effect" },
+        "export_effect": { "$ref": "#/$defs/lifecycle_export_effect" },
+        "mutates_source_object": { "type": "boolean" },
+        "requires_resume_condition": { "type": "boolean" },
+        "requires_muted_class": { "type": "boolean" },
+        "durable_history_preserved": { "type": "boolean" }
+      }
+    },
+    "companion_handoff_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_class",
+        "companion_availability",
+        "summary_only",
+        "reopen_into_durable_object_required",
+        "privileged_detail_requires_in_product",
+        "forbidden_shortcut_action_classes"
+      ],
+      "properties": {
+        "handoff_class": { "$ref": "#/$defs/companion_handoff_class" },
+        "companion_availability": { "$ref": "#/$defs/companion_availability" },
+        "summary_only": { "const": true },
+        "reopen_into_durable_object_required": { "const": true },
+        "privileged_detail_requires_in_product": { "const": true },
+        "forbidden_shortcut_action_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/forbidden_shortcut_action_class" }
+        }
+      }
+    },
+    "notification_route_outcome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notification_route_outcome_schema_version",
+        "route_outcome_id",
+        "source_notification_envelope_id_ref",
+        "canonical_event_id",
+        "event_lineage_id_ref",
+        "source_subsystem",
+        "severity_class",
+        "privacy_class",
+        "privacy_payload_class",
+        "redaction_class",
+        "dedupe_key_scheme",
+        "dedupe_key_ref",
+        "summary_label",
+        "channel_context",
+        "reopen_target",
+        "resolved_surface_routes",
+        "available_lifecycle_actions",
+        "companion_handoff",
+        "occurrence_count",
+        "is_dedupe_repeat",
+        "durable_truth_preserved",
+        "all_routes_preserve_reopen_target",
+        "screen_reader_announce_required",
+        "screen_reader_navigable_surface_present",
+        "no_generic_home_reopen",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "notification_route_outcome_record" },
+        "notification_route_outcome_schema_version": {
+          "$ref": "#/$defs/notification_route_outcome_schema_version"
+        },
+        "route_outcome_id": { "$ref": "#/$defs/opaque_id" },
+        "source_notification_envelope_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_lineage_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "privacy_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "dedupe_key_ref": { "$ref": "#/$defs/opaque_id" },
+        "grouped_burst_id_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "summary_label": { "$ref": "#/$defs/short_label_text" },
+        "channel_context": { "$ref": "#/$defs/channel_context_snapshot" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "resolved_surface_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resolved_surface_route" }
+        },
+        "available_lifecycle_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/available_lifecycle_action" }
+        },
+        "safe_action_target": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stable_action" }],
+          "description": "At most one safe, open-only, non-destructive action that points at the exact reopen identity. Omitted when no action qualifies; external summary surfaces never expose mutating actions."
+        },
+        "companion_handoff": { "$ref": "#/$defs/companion_handoff_posture" },
+        "occurrence_count": { "type": "integer", "minimum": 1 },
+        "is_dedupe_repeat": { "type": "boolean" },
+        "durable_truth_preserved": {
+          "type": "boolean",
+          "description": "True when a durable in-product surface delivered now or coalesced into durable truth a prior emission delivered. Quiet-hours and admin suppression never set this false."
+        },
+        "all_routes_preserve_reopen_target": {
+          "type": "boolean",
+          "description": "True when every resolved surface carries the outcome's single reopen target ref."
+        },
+        "screen_reader_announce_required": { "type": "boolean" },
+        "screen_reader_navigable_surface_present": { "type": "boolean" },
+        "no_generic_home_reopen": {
+          "type": "boolean",
+          "description": "Proof that the reopen target resolves to an exact identity or honestly announces a placeholder / revalidation — never a generic home view."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "When a screen reader is active a navigable durable surface MUST be present.",
+          "if": {
+            "properties": { "screen_reader_announce_required": { "const": true } },
+            "required": ["screen_reader_announce_required"]
+          },
+          "then": {
+            "properties": { "screen_reader_navigable_surface_present": { "const": true } }
+          }
+        }
+      ]
+    }
+  }
+}

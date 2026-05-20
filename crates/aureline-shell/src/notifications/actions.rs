@@ -10,6 +10,12 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+/// Skip-serialize predicate for boolean fields that default to false, so
+/// optional flags do not appear in fixtures unless they are actually set.
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 /// Schema version for notification action-state records.
 pub const NOTIFICATION_ACTION_STATE_SCHEMA_VERSION: u32 = 1;
 /// Stable record kind for one notification attention state.
@@ -71,6 +77,10 @@ pub enum NotificationLifecycleActionKind {
     Snooze,
     /// Silences future deliveries of the named class or source.
     Mute,
+    /// Removes the item from the active attention list and badge while
+    /// keeping it reachable in durable history. Unlike acknowledge it leaves
+    /// the active inbox view; unlike resolve it never mutates the source.
+    Clear,
     /// Marks the underlying object resolved through its owning model.
     Resolve,
     /// Records a system-side hold such as quiet hours or admin policy.
@@ -85,6 +95,7 @@ impl NotificationLifecycleActionKind {
             Self::Acknowledge => "acknowledge",
             Self::Snooze => "snooze",
             Self::Mute => "mute",
+            Self::Clear => "clear",
             Self::Resolve => "resolve",
             Self::Suppress => "suppress",
         }
@@ -170,6 +181,11 @@ pub struct NotificationAttentionState {
     pub held_or_suppressed_counted: bool,
     /// True after acknowledge clears active attention.
     pub acknowledged: bool,
+    /// True after clear removes the item from the active attention list while
+    /// keeping it in durable history. Skipped when false so existing
+    /// attention-state fixtures stay byte-identical.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub cleared_from_active_view: bool,
     /// True while the item is snoozed.
     pub snoozed: bool,
     /// True while future deliveries for the class/source are muted.
@@ -205,6 +221,7 @@ impl NotificationAttentionState {
             active_badge_counted: true,
             held_or_suppressed_counted: false,
             acknowledged: false,
+            cleared_from_active_view: false,
             snoozed: false,
             muted: false,
             resolved: false,
@@ -248,6 +265,15 @@ impl NotificationAttentionState {
                     .muted_class_ref
                     .clone()
                     .or_else(|| Some(request.badge_class.as_str().to_owned()));
+            }
+            NotificationLifecycleActionKind::Clear => {
+                // Clear empties the active list view and badge but keeps the
+                // item in durable history. It never moves the item into the
+                // held/suppressed count and never mutates the source object.
+                self.transient_delivery_visible = false;
+                self.active_badge_counted = false;
+                self.held_or_suppressed_counted = false;
+                self.cleared_from_active_view = true;
             }
             NotificationLifecycleActionKind::Resolve => {
                 self.transient_delivery_visible = false;
