@@ -94,6 +94,22 @@
 //!   the validator CLI and conformance kit emit, separated from editor-only
 //!   UX/performance advisories, and it validates fully offline without
 //!   executing extension code or a network round-trip.
+//! - the [`conformance_reports`] module that turns extension validation output
+//!   into first-class author/reviewer report surfaces: an
+//!   [`conformance_reports::ExtensionConformanceReport`] with passed/failed
+//!   checks, shared severity, repro/screenshot guidance, required fixes, docs
+//!   links, and an inline compatibility section (target version range,
+//!   deprecated APIs, required shims, removal horizons, migration impact); a
+//!   [`conformance_reports::MirrorBundleReview`] that renders the side-loaded,
+//!   mirrored, or offline path as first-class with artifact hashes, signing /
+//!   provenance state, source registry / mirror, dependency graph, and
+//!   reproducibility notes (and never hides a signing/provenance gap behind a
+//!   green compatibility check); and a
+//!   [`conformance_reports::ReviewExportBundle`] that emits the same reports as
+//!   attachable Markdown and JSON. All three reuse one
+//!   [`conformance_reports::ReviewSeverityClass`] and
+//!   [`conformance_reports::ReviewLifecycleClass`] across authoring surfaces,
+//!   install review, marketplace facts, and support packets.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -109,6 +125,7 @@
 
 pub mod collections;
 pub mod compatibility_matrix;
+pub mod conformance_reports;
 pub mod fact_grid;
 pub mod install_review;
 pub mod lifecycle_metadata;
@@ -138,6 +155,21 @@ pub use compatibility_matrix::{
     ExtensionBridgeWindow, ExtensionCompatibilityLabel, ExtensionCompatibilityWindow,
     ExtensionDowngradeBehavior, ExtensionParityClaimClass, CURRENT_EXTENSION_BRIDGE_MATRIX_PATH,
     EXTENSION_BRIDGE_MATRIX_RECORD_KIND, EXTENSION_BRIDGE_MATRIX_SCHEMA_VERSION,
+};
+pub use conformance_reports::{
+    build_conformance_report, build_mirror_bundle_review, build_review_export_bundle,
+    render_conformance_report_markdown, render_mirror_bundle_review_markdown,
+    render_review_export_bundle_markdown, validate_conformance_report,
+    validate_mirror_bundle_review, validate_review_export_bundle, BundleArtifactIdentity,
+    BundleDependencyNode, BundleDependencyResolutionClass, BundleReproducibility,
+    BundleReproducibilityClass, BundleReviewDecisionClass, BundleReviewReasonClass,
+    BundleReviewSummary, BundleSigningProvenance, BundleSource, CompatibilitySection,
+    ConformanceDecisionClass, ConformanceReasonClass, ConformanceReportFinding,
+    ConformanceReportInput, ConformanceReportSummary, DeprecatedApi, ExtensionConformanceReport,
+    MirrorBundleReview, MirrorBundleReviewInput, RequiredShim, ReviewCheck, ReviewCheckStatusClass,
+    ReviewExportBundle, ReviewLifecycleClass, ReviewSeverityClass,
+    CONFORMANCE_REPORTS_SCHEMA_VERSION, EXTENSION_CONFORMANCE_REPORT_RECORD_KIND,
+    MIRROR_BUNDLE_REVIEW_RECORD_KIND, REVIEW_EXPORT_BUNDLE_RECORD_KIND,
 };
 pub use fact_grid::{
     project_marketplace_fact_grid, project_marketplace_fact_grid_support_export,

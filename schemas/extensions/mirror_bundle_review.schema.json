@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/mirror_bundle_review.schema.json",
+  "title": "Aureline mirror / offline bundle review",
+  "description": "Author- and reviewer-facing review for a side-loaded, mirrored, or offline extension bundle. Renders artifact hashes, signing/provenance state, source registry or mirror, dependency graph, and reproducibility notes. Signing/provenance gaps are evaluated independently of compatibility. Produced by aureline_extensions::conformance_reports::build_mirror_bundle_review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "mirror_bundle_review_schema_version",
+    "review_id",
+    "extension_identity",
+    "extension_version",
+    "package_id",
+    "lifecycle_class",
+    "artifact",
+    "signing_provenance",
+    "source",
+    "dependency_graph",
+    "reproducibility",
+    "downgraded_trust_claim_count",
+    "checks",
+    "summary",
+    "artifact_identity_preserved",
+    "signature_present",
+    "provenance_present",
+    "install_lane_continues",
+    "decision_class",
+    "reason_class",
+    "decision_summary",
+    "generated_at",
+    "redaction_class"
+  ],
+  "properties": {
+    "record_kind": {
+      "type": "string",
+      "const": "mirror_bundle_review_record"
+    },
+    "mirror_bundle_review_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "review_id": {
+      "type": "string",
+      "pattern": "^mirror_bundle_review:"
+    },
+    "extension_identity": { "$ref": "#/$defs/non_empty" },
+    "extension_version": { "$ref": "#/$defs/non_empty" },
+    "package_id": { "$ref": "#/$defs/non_empty" },
+    "lifecycle_class": { "$ref": "#/$defs/lifecycle_class" },
+    "artifact": { "$ref": "#/$defs/artifact_identity" },
+    "signing_provenance": { "$ref": "#/$defs/signing_provenance" },
+    "source": { "$ref": "#/$defs/bundle_source" },
+    "dependency_graph": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dependency_node" }
+    },
+    "reproducibility": { "$ref": "#/$defs/reproducibility" },
+    "downgraded_trust_claim_count": { "type": "integer", "minimum": 0 },
+    "checks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/review_check" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_count",
+        "unresolved_dependency_count",
+        "downgraded_dependency_count",
+        "blockers",
+        "recommendations"
+      ],
+      "properties": {
+        "dependency_count": { "type": "integer", "minimum": 0 },
+        "unresolved_dependency_count": { "type": "integer", "minimum": 0 },
+        "downgraded_dependency_count": { "type": "integer", "minimum": 0 },
+        "blockers": { "type": "integer", "minimum": 0 },
+        "recommendations": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "artifact_identity_preserved": { "type": "boolean" },
+    "signature_present": { "type": "boolean" },
+    "provenance_present": { "type": "boolean" },
+    "install_lane_continues": { "type": "boolean" },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "ready_for_sideload",
+        "ready_with_downgrades",
+        "awaiting_admin_review",
+        "refused"
+      ]
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "ready_all_trust_preserved",
+        "ready_with_downgraded_trust_claims",
+        "awaiting_manual_verification",
+        "refused_artifact_identity_mismatch",
+        "refused_signing_gap",
+        "refused_provenance_gap",
+        "refused_dependency_unresolved",
+        "refused_blocker_check_failed"
+      ]
+    },
+    "decision_summary": { "$ref": "#/$defs/non_empty" },
+    "generated_at": { "$ref": "#/$defs/non_empty" },
+    "redaction_class": {
+      "type": "string",
+      "const": "metadata_safe_default"
+    }
+  },
+  "$defs": {
+    "non_empty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["blocker", "warning", "info"]
+    },
+    "status_class": {
+      "type": "string",
+      "enum": ["pass", "fail", "warn", "not_applicable"]
+    },
+    "lifecycle_class": {
+      "type": "string",
+      "enum": [
+        "preview",
+        "beta",
+        "stable",
+        "deprecated",
+        "removed",
+        "limited",
+        "revoked"
+      ]
+    },
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex", "digest_size_bytes"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/non_empty" },
+        "digest_hex": { "$ref": "#/$defs/non_empty" },
+        "digest_size_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "artifact_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_ref", "content_address", "origin_content_address"],
+      "properties": {
+        "artifact_ref": { "$ref": "#/$defs/non_empty" },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "origin_content_address": { "$ref": "#/$defs/content_address" }
+      }
+    },
+    "signing_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signature_class", "provenance_class"],
+      "properties": {
+        "signature_class": {
+          "type": "string",
+          "enum": [
+            "publisher_signature",
+            "attestation_bundle",
+            "dual_signed_publisher_and_attestation",
+            "unsigned_denied_on_policy"
+          ]
+        },
+        "provenance_class": {
+          "type": "string",
+          "enum": [
+            "verified_build_provenance",
+            "publisher_asserted_provenance",
+            "missing_provenance"
+          ]
+        },
+        "signer_ref": { "$ref": "#/$defs/non_empty" },
+        "signer_key_fingerprint": { "$ref": "#/$defs/non_empty" },
+        "signature_ref": { "$ref": "#/$defs/non_empty" },
+        "provenance_ref": { "$ref": "#/$defs/non_empty" },
+        "transparency_log_ref": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "bundle_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_class",
+        "registry_source_class",
+        "source_label",
+        "manual_verification_attached"
+      ],
+      "properties": {
+        "route_class": {
+          "type": "string",
+          "enum": [
+            "primary_catalog",
+            "approved_mirror",
+            "offline_bundle",
+            "manual_artifact"
+          ]
+        },
+        "registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "source_label": { "$ref": "#/$defs/non_empty" },
+        "mirror_or_offline_origin_ref": { "$ref": "#/$defs/non_empty" },
+        "manual_verification_attached": { "type": "boolean" }
+      }
+    },
+    "dependency_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_id",
+        "name",
+        "version",
+        "resolution_class",
+        "source_class"
+      ],
+      "properties": {
+        "dependency_id": { "$ref": "#/$defs/non_empty" },
+        "name": { "$ref": "#/$defs/non_empty" },
+        "version": { "$ref": "#/$defs/non_empty" },
+        "resolution_class": {
+          "type": "string",
+          "enum": ["resolved", "resolved_downgraded", "unresolved", "mismatched"]
+        },
+        "source_class": { "$ref": "#/$defs/registry_source_class" },
+        "content_address": { "$ref": "#/$defs/content_address" },
+        "notes": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "reproducibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reproducible_class", "notes"],
+      "properties": {
+        "reproducible_class": {
+          "type": "string",
+          "enum": [
+            "reproducible",
+            "partially_reproducible",
+            "not_reproducible",
+            "unverified"
+          ]
+        },
+        "build_provenance_ref": { "$ref": "#/$defs/non_empty" },
+        "rebuild_instructions_ref": { "$ref": "#/$defs/non_empty" },
+        "notes": { "$ref": "#/$defs/non_empty" }
+      }
+    },
+    "review_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "suite", "title", "status", "severity", "message"],
+      "properties": {
+        "check_id": { "$ref": "#/$defs/non_empty" },
+        "suite": { "$ref": "#/$defs/non_empty" },
+        "title": { "$ref": "#/$defs/non_empty" },
+        "status": { "$ref": "#/$defs/status_class" },
+        "severity": { "$ref": "#/$defs/severity_class" },
+        "message": { "$ref": "#/$defs/non_empty" },
+        "field": { "$ref": "#/$defs/non_empty" },
+        "required_fix": { "$ref": "#/$defs/non_empty" },
+        "repro_guidance": { "$ref": "#/$defs/non_empty" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty" }
+        },
+        "docs_url": { "$ref": "#/$defs/non_empty" }
+      }
+    }
+  }
+}
