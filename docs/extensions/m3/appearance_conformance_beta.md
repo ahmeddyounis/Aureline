@@ -121,9 +121,28 @@ inheritance without proof, a known unsupported state contradicts a fully
 inherited axis, host-stable labels stop being host-rendered, or support
 export parity breaks.
 
+## Consolidated release evidence
+
+The contributed-UI inheritance gaps in this contract are rolled into the
+release-visible appearance-parity evidence packet alongside first-party
+dark/light/high-contrast proof and the live-update audit, so shiproom,
+support, marketplace review, and design QA can read one current packet:
+
+- Consolidated packet:
+  `fixtures/ux/m3/appearance_evidence/appearance_evidence_packet.json`
+- Extension inheritance-gap report:
+  `artifacts/extensions/m3/extension_inheritance_gap_packet.md`
+- Consumption guide:
+  `docs/ux/m3/appearance_evidence_consumption_guide.md`
+
+Marketplace, install/side-load review, and help surfaces downgrade their
+claimed appearance rows when that packet is stale or red. A `needs_review`
+row never implies full inheritance on any consuming surface.
+
 ## How to verify
 
 ```text
 cargo test -p aureline-extensions appearance_conformance
 cargo run -q -p aureline-extensions --example dump_appearance_conformance_records -- validate
+python3 ci/check_m3_appearance_evidence.py --repo-root . --check
 ```

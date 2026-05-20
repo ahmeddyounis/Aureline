@@ -1,0 +1,69 @@
+# M3 appearance-parity evidence gate.
+#
+# Regenerates the consolidated appearance-parity evidence packet, its
+# support export, and the three human reports from upstream truth
+# (extension appearance conformance, component-state/token conformance,
+# and the appearance-session contract). Fails when any generated output
+# would change, a referenced artifact is missing, an evidence source is
+# stale without a downgrade, a claimed row carries unresolved or red
+# evidence, or the high-contrast signoff or live-update audit is not
+# attributable to a build identity.
+
+name: check_m3_appearance_evidence
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m3_appearance_evidence.yml"
+      - "ci/check_m3_appearance_evidence.py"
+      - "tools/ci/m3/appearance_evidence/**"
+      - "fixtures/ux/m3/appearance_evidence/**"
+      - "artifacts/ux/m3/appearance_parity_evidence_packet.md"
+      - "artifacts/ux/m3/high_contrast_and_live_change_audit.md"
+      - "artifacts/ux/m3/captures/appearance_evidence_validation_capture.json"
+      - "artifacts/extensions/m3/extension_inheritance_gap_packet.md"
+      - "docs/ux/m3/appearance_evidence_consumption_guide.md"
+      - "fixtures/extensions/m3/appearance_inheritance/conformance_packet.json"
+      - "artifacts/ux/m3/component_state_screenshot_diff/packet.json"
+      - "fixtures/ux/m3/state_semantics/token_conformance_report.json"
+      - "fixtures/ux/m3/theme_import_and_live_change/appearance_session_beta_contract.json"
+      - "artifacts/release/m3/artifact_graph.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m3-appearance-evidence-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  appearance_evidence:
+    name: M3 appearance evidence
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run appearance-evidence gate
+        run: |
+          python3 ci/check_m3_appearance_evidence.py --repo-root . --check
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-appearance-evidence-${{ github.run_id }}
+          path: artifacts/ux/m3/captures/appearance_evidence_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
