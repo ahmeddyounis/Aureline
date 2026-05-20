@@ -13,6 +13,7 @@ pub mod citations;
 pub mod evidence_model;
 pub mod index;
 pub mod locale_overlay;
+pub mod maintenance;
 pub mod pack;
 
 pub use citations::{
@@ -59,6 +60,24 @@ pub use locale_overlay::{
     LOCALE_OVERLAY_SUPPORT_EXPORT_RECORD_KIND, LOCALE_OVERLAY_SURFACE_FIXTURE_REF,
     LOCALE_OVERLAY_SURFACE_PROJECTION_RECORD_KIND, OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL,
     TRANSLATED_PACK_LOCALE_OVERLAY_CONTRACT_ID, TRANSLATED_PACK_LOCALE_OVERLAY_VERSION_REF,
+};
+pub use maintenance::{
+    seeded_docs_preview_and_maintenance_contract,
+    seeded_docs_preview_and_maintenance_review_packet,
+    seeded_docs_preview_and_maintenance_surface_projection,
+    validate_seeded_docs_preview_and_maintenance, DocsArtifactKind, DocsAudienceScope,
+    DocsExampleFindingRow, DocsExampleValidationMode, DocsFindingClass, DocsFindingDetectionState,
+    DocsFindingSuppressionState, DocsHandoffBanner, DocsMaintenanceAction, DocsMaintenanceContract,
+    DocsMaintenanceCoverage, DocsMaintenanceFinding, DocsMaintenanceReviewPacket, DocsMaintenanceRow,
+    DocsMaintenanceSurfaceProjection, DocsPreviewHeader, DocsPreviewMode,
+    DocsPreviewSanitizationState, DocsPublishBoundaryState, DocsPublishScope,
+    DocsSourceVersionBadge, DocsSuggestionApplyPosture, DocsSuggestionCard, DocsSuggestionTrigger,
+    DOCS_EXAMPLE_FINDING_ROW_RECORD_KIND, DOCS_MAINTENANCE_CONTRACT_RECORD_KIND,
+    DOCS_MAINTENANCE_REVIEW_PACKET_RECORD_KIND, DOCS_MAINTENANCE_ROW_RECORD_KIND,
+    DOCS_MAINTENANCE_ROW_SCHEMA_REF, DOCS_MAINTENANCE_SCHEMA_VERSION,
+    DOCS_MAINTENANCE_SURFACE_PROJECTION_RECORD_KIND, DOCS_PREVIEW_AND_MAINTENANCE_CONTRACT_ID,
+    DOCS_PREVIEW_AND_MAINTENANCE_VERSION_REF, DOCS_PREVIEW_HEADER_RECORD_KIND,
+    DOCS_SUGGESTION_CARD_RECORD_KIND, DOCS_SUGGESTION_CARD_SCHEMA_REF,
 };
 pub use pack::{
     DocsPack, DocsPackLoadError, DocsPackNode, DocsPackSourceTruth, DOCS_PACK_ALPHA_RECORD_KIND,

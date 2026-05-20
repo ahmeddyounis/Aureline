@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/docs_suggestion_card.schema.json",
+  "title": "Aureline docs suggestion card contract",
+  "description": "Boundary schema for docs_suggestion_card_record, the review-first projection rendered by docs-maintenance surfaces over an underlying docs suggestion. Cards expose the target artifact/section, trigger source, confidence/freshness/version posture, a review diff, and open-evidence actions. Cards are diff-based and evidence-backed: Aureline never silently rewrites docs in response to code changes, AI runs, or importers, so silent rewriting is always blocked and there is no auto-apply posture. Cards carry stable opaque refs only; raw document bodies, rendered HTML, and raw URLs must not appear.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/docs_suggestion_card_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "docs_suggestion_card_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque reference. Raw URLs and raw document bodies must not appear here."
+    },
+    "artifact_kind": {
+      "type": "string",
+      "enum": [
+        "readme",
+        "changelog",
+        "help_article",
+        "onboarding_note",
+        "module_doc",
+        "migration_notes",
+        "release_notes",
+        "docs_pack",
+        "support_runbook",
+        "benchmark_copy",
+        "screenshot",
+        "symbol_reference",
+        "markdown_doc"
+      ]
+    },
+    "suggestion_trigger": {
+      "type": "string",
+      "enum": [
+        "code_diff",
+        "stale_example",
+        "release_note_drift",
+        "failing_snippet",
+        "contract_change",
+        "human_note"
+      ]
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["evidence_backed", "inferred", "low_confidence", "unknown_unverified"]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"]
+    },
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "apply_posture": {
+      "type": "string",
+      "enum": ["draft_only", "review_diff_only", "apply_after_review", "blocked_pending_evidence"],
+      "description": "Closed apply posture. There is no auto-apply value: a suggestion is never silently applied."
+    },
+    "publish_boundary_state": {
+      "type": "string",
+      "enum": ["local_only", "review_handoff_scoped", "publish_handoff_scoped", "blocked_unscoped"]
+    },
+    "maintenance_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_ref", "action_label", "keyboard_reachable"],
+      "properties": {
+        "action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "action_label": { "$ref": "#/$defs/non_empty_string" },
+        "keyboard_reachable": { "type": "boolean" }
+      }
+    },
+    "docs_suggestion_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "card_id",
+        "suggestion_ref",
+        "artifact_kind",
+        "target_artifact_ref",
+        "trigger",
+        "trigger_source_ref",
+        "confidence_class",
+        "freshness_class",
+        "version_match_state",
+        "apply_posture",
+        "evidence_refs",
+        "open_evidence_action",
+        "generated_text_disclosed",
+        "silent_rewrite_blocked",
+        "publish_boundary_state",
+        "surface_refs"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_ref" },
+        "suggestion_ref": { "$ref": "#/$defs/opaque_ref" },
+        "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+        "target_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_section_ref": { "$ref": "#/$defs/non_empty_string" },
+        "trigger": { "$ref": "#/$defs/suggestion_trigger" },
+        "trigger_source_ref": { "$ref": "#/$defs/opaque_ref" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state": { "$ref": "#/$defs/version_match_state" },
+        "apply_posture": { "$ref": "#/$defs/apply_posture" },
+        "review_diff_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Suggestion cards must be evidence-backed with at least one evidence ref."
+        },
+        "open_evidence_action": { "$ref": "#/$defs/maintenance_action" },
+        "open_review_diff_action": { "$ref": "#/$defs/maintenance_action" },
+        "generated_text_disclosed": { "type": "boolean" },
+        "silent_rewrite_blocked": {
+          "const": true,
+          "description": "Suggestions never silently rewrite docs; this gate is always true."
+        },
+        "publish_boundary_state": { "$ref": "#/$defs/publish_boundary_state" },
+        "surface_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        }
+      },
+      "allOf": [
+        {
+          "description": "Review-diff and apply-after-review cards must carry a review diff ref.",
+          "if": {
+            "properties": {
+              "apply_posture": { "enum": ["review_diff_only", "apply_after_review"] }
+            },
+            "required": ["apply_posture"]
+          },
+          "then": { "required": ["review_diff_ref"] }
+        },
+        {
+          "description": "An unscoped publish boundary must block the apply posture.",
+          "if": {
+            "properties": {
+              "publish_boundary_state": { "const": "blocked_unscoped" }
+            },
+            "required": ["publish_boundary_state"]
+          },
+          "then": {
+            "properties": {
+              "apply_posture": { "const": "blocked_pending_evidence" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

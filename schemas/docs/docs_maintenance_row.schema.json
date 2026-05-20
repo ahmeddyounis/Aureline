@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/docs_maintenance_row.schema.json",
+  "title": "Aureline docs maintenance row contract",
+  "description": "Boundary schema for docs_maintenance_row_record, the README/changelog/onboarding maintenance row rendered before apply or export. Rows carry artifact kind, audience scope, branch/release/channel scope, pending suggestion/finding counts, validation freshness, and publish-boundary notes so beta notes never masquerade as current stable docs. Rows preserve local-only versus publish-boundary state; review and publish handoffs must be scoped, and an unscoped publish is blocked rather than performed. Rows carry stable opaque refs only; raw document bodies must not appear.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/docs_maintenance_row_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "docs_maintenance_row_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque reference. Raw URLs and raw document bodies must not appear here."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "artifact_kind": {
+      "type": "string",
+      "enum": [
+        "readme",
+        "changelog",
+        "help_article",
+        "onboarding_note",
+        "module_doc",
+        "migration_notes",
+        "release_notes",
+        "docs_pack",
+        "support_runbook",
+        "benchmark_copy",
+        "screenshot",
+        "symbol_reference",
+        "markdown_doc"
+      ]
+    },
+    "audience_scope": {
+      "type": "string",
+      "enum": [
+        "developer",
+        "maintainer",
+        "end_user",
+        "release_manager",
+        "support_operator",
+        "enterprise_admin",
+        "public_reader"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"]
+    },
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ]
+    },
+    "publish_boundary_state": {
+      "type": "string",
+      "enum": ["local_only", "review_handoff_scoped", "publish_handoff_scoped", "blocked_unscoped"]
+    },
+    "publish_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "branch_scope": { "$ref": "#/$defs/non_empty_string" },
+        "release_scope": { "$ref": "#/$defs/non_empty_string" },
+        "channel_scope": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Branch/release/channel scope. Dimensions are omitted when not set; a scoped handoff requires at least one dimension."
+    },
+    "scoped_publish_scope": {
+      "type": "object",
+      "anyOf": [
+        { "required": ["branch_scope"] },
+        { "required": ["release_scope"] },
+        { "required": ["channel_scope"] }
+      ]
+    },
+    "maintenance_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_ref", "action_label", "keyboard_reachable"],
+      "properties": {
+        "action_ref": { "$ref": "#/$defs/opaque_ref" },
+        "action_label": { "$ref": "#/$defs/non_empty_string" },
+        "keyboard_reachable": { "type": "boolean" }
+      }
+    },
+    "docs_maintenance_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "row_id",
+        "artifact_kind",
+        "artifact_ref",
+        "audience_scope",
+        "publish_scope",
+        "publish_boundary_state",
+        "pending_suggestion_count",
+        "pending_finding_count",
+        "validation_freshness",
+        "version_match_state",
+        "publish_boundary_notes",
+        "suggestion_card_refs",
+        "finding_row_refs",
+        "surface_refs"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_ref" },
+        "artifact_kind": { "$ref": "#/$defs/artifact_kind" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "audience_scope": { "$ref": "#/$defs/audience_scope" },
+        "publish_scope": { "$ref": "#/$defs/publish_scope" },
+        "publish_boundary_state": { "$ref": "#/$defs/publish_boundary_state" },
+        "pending_suggestion_count": { "$ref": "#/$defs/non_negative_integer" },
+        "pending_finding_count": { "$ref": "#/$defs/non_negative_integer" },
+        "validation_freshness": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state": { "$ref": "#/$defs/version_match_state" },
+        "last_validated_at": { "$ref": "#/$defs/timestamp" },
+        "publish_boundary_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "suggestion_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "finding_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "apply_export_action": { "$ref": "#/$defs/maintenance_action" },
+        "surface_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        }
+      },
+      "allOf": [
+        {
+          "description": "Review and publish handoff rows must carry branch/release/channel scope and publish-boundary notes.",
+          "if": {
+            "properties": {
+              "publish_boundary_state": {
+                "enum": ["review_handoff_scoped", "publish_handoff_scoped"]
+              }
+            },
+            "required": ["publish_boundary_state"]
+          },
+          "then": {
+            "properties": {
+              "publish_scope": { "$ref": "#/$defs/scoped_publish_scope" },
+              "publish_boundary_notes": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Blocked unscoped rows must carry notes and must not expose an apply or export action.",
+          "if": {
+            "properties": {
+              "publish_boundary_state": { "const": "blocked_unscoped" }
+            },
+            "required": ["publish_boundary_state"]
+          },
+          "then": {
+            "properties": {
+              "publish_boundary_notes": { "minItems": 1 }
+            },
+            "not": { "required": ["apply_export_action"] }
+          }
+        }
+      ]
+    }
+  }
+}
