@@ -1,0 +1,852 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/crash_loop_recovery.schema.json",
+  "title": "Aureline crash-loop recovery center signal, center, and support packet contract",
+  "description": "Boundary schema for the crash_loop_signal_record (the detected restart-budget breach), the crash_loop_recovery_center_record (the synthesized recovery surface), and the crash_loop_recovery_support_packet_record (its metadata-safe support projection) consumed by aureline-support's crash_loop_center module. The signal carries visible crash and build identity, restore class, suspected fault domain, last reopen mode, and recent extension/profile/layout changes. The center routes the blocked user into bounded, command-backed recovery choices (Safe mode, Open without restore, Disable recently changed extension, Disable recently changed profile/layout, Open logs, Export crash manifest, Report issue) plus distinct evidence-only and checkpoint/diff entry points. All shapes use closed vocabularies so the chrome, headless export, and reviewer surfaces share one truth, and no recovery action deletes user-owned state or suggests destructive cleanup.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/crash_loop_signal_record"
+    },
+    {
+      "$ref": "#/$defs/crash_loop_recovery_center_record"
+    },
+    {
+      "$ref": "#/$defs/crash_loop_recovery_support_packet_record"
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "doctor_finding_ref": {
+      "type": "string",
+      "pattern": "^doctor\\.finding\\."
+    },
+    "trigger_class": {
+      "type": "string",
+      "enum": [
+        "startup_restart_budget_exceeded",
+        "reopen_restart_budget_exceeded",
+        "runtime_host_restart_budget_exceeded",
+        "extension_host_restart_budget_exceeded",
+        "restore_replay_failed_repeatedly",
+        "explicit_user_request"
+      ]
+    },
+    "restore_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "evidence_only",
+        "no_restore_attempted"
+      ]
+    },
+    "fault_domain_class": {
+      "type": "string",
+      "enum": [
+        "shell_interaction_core",
+        "restore_continuity",
+        "extension_host",
+        "language_runtime_host",
+        "ai_runtime_host",
+        "remote_helper_host",
+        "workspace_profile_or_layout",
+        "cache_or_index",
+        "unknown"
+      ]
+    },
+    "reopen_mode_class": {
+      "type": "string",
+      "enum": [
+        "full_restore",
+        "restore_without_extensions",
+        "open_without_restore",
+        "safe_mode",
+        "minimal_shell"
+      ]
+    },
+    "recent_change_class": {
+      "type": "string",
+      "enum": [
+        "extension_installed",
+        "extension_updated",
+        "extension_enabled",
+        "profile_switched",
+        "profile_edited",
+        "layout_changed",
+        "setting_changed"
+      ]
+    },
+    "recovery_choice_class": {
+      "type": "string",
+      "enum": [
+        "enter_safe_mode",
+        "open_without_restore",
+        "disable_recently_changed_extension",
+        "disable_recently_changed_profile_or_layout",
+        "open_logs",
+        "export_crash_manifest",
+        "report_issue"
+      ]
+    },
+    "evidence_entry_class": {
+      "type": "string",
+      "enum": [
+        "recovered_draft",
+        "checkpoint_diff",
+        "rollbackable_state",
+        "local_history_timeline"
+      ]
+    },
+    "recovery_state_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_files",
+        "open_buffer_selection",
+        "recovered_drafts",
+        "durable_workspace_indexes",
+        "workspace_trust_store",
+        "credential_store",
+        "session_restore_store",
+        "support_export_store",
+        "checkpoint_history"
+      ]
+    },
+    "session_sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "local_read_only",
+        "local_mutating",
+        "privileged_or_remote"
+      ]
+    },
+    "evidence_data_class": {
+      "type": "string",
+      "enum": [
+        "metadata",
+        "environment_adjacent",
+        "code_adjacent",
+        "secret_bearing"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "opt_in_only",
+        "prohibited"
+      ]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_ref",
+        "evidence_kind",
+        "data_class",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "evidence_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "evidence_kind": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "data_class": {
+          "$ref": "#/$defs/evidence_data_class"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "recent_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_id",
+        "change_class",
+        "subject_ref",
+        "display_label",
+        "observed_at",
+        "reversible"
+      ],
+      "properties": {
+        "change_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "change_class": {
+          "$ref": "#/$defs/recent_change_class"
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "reversible": {
+          "type": "boolean"
+        }
+      }
+    },
+    "recovered_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "entry_class",
+        "summary",
+        "preserves"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "entry_class": {
+          "$ref": "#/$defs/evidence_entry_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "preserves": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/recovery_state_class"
+          }
+        }
+      }
+    },
+    "command_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "requires_review",
+        "requires_explicit_confirmation",
+        "no_silent_rerun"
+      ],
+      "properties": {
+        "command_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "requires_review": {
+          "type": "boolean"
+        },
+        "requires_explicit_confirmation": {
+          "type": "boolean"
+        },
+        "no_silent_rerun": {
+          "type": "boolean"
+        }
+      }
+    },
+    "accessibility_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keyboard_complete",
+        "screen_reader_label",
+        "focus_order"
+      ],
+      "properties": {
+        "keyboard_complete": {
+          "type": "boolean",
+          "const": true
+        },
+        "screen_reader_label": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "focus_order": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "recovery_choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "choice_id",
+        "choice_class",
+        "command",
+        "title",
+        "description",
+        "disposition_summary",
+        "preserves",
+        "deletes_user_owned_state",
+        "narrower_than_full_reset",
+        "accessibility"
+      ],
+      "properties": {
+        "choice_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "choice_class": {
+          "$ref": "#/$defs/recovery_choice_class"
+        },
+        "command": {
+          "$ref": "#/$defs/command_ref"
+        },
+        "title": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "description": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "disposition_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "preserves": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/recovery_state_class"
+          }
+        },
+        "deletes_user_owned_state": {
+          "type": "boolean",
+          "const": false
+        },
+        "narrower_than_full_reset": {
+          "type": "boolean",
+          "const": true
+        },
+        "targets_recent_change_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "accessibility": {
+          "$ref": "#/$defs/accessibility_posture"
+        }
+      }
+    },
+    "evidence_entry_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "entry_class",
+        "command",
+        "summary",
+        "preserves",
+        "accessibility"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "entry_class": {
+          "$ref": "#/$defs/evidence_entry_class"
+        },
+        "command": {
+          "$ref": "#/$defs/command_ref"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "preserves": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/recovery_state_class"
+          }
+        },
+        "accessibility": {
+          "$ref": "#/$defs/accessibility_posture"
+        }
+      }
+    },
+    "crash_loop_signal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "signal_id",
+        "captured_at",
+        "trigger_class",
+        "strike_count",
+        "strike_budget",
+        "hidden_restart_attempts",
+        "crash_id",
+        "build_id",
+        "crash_envelope_ref",
+        "crash_manifest_ref",
+        "restore_class",
+        "suspected_fault_domain",
+        "fault_domain_ref",
+        "last_reopen_mode",
+        "doctor_finding_ref",
+        "session_sensitivity_class",
+        "evidence"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "crash_loop_signal_record"
+        },
+        "signal_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "trigger_class": {
+          "$ref": "#/$defs/trigger_class"
+        },
+        "strike_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "strike_budget": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hidden_restart_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "crash_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "build_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "crash_envelope_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "crash_manifest_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "restore_class": {
+          "$ref": "#/$defs/restore_class"
+        },
+        "suspected_fault_domain": {
+          "$ref": "#/$defs/fault_domain_class"
+        },
+        "fault_domain_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "last_reopen_mode": {
+          "$ref": "#/$defs/reopen_mode_class"
+        },
+        "doctor_finding_ref": {
+          "$ref": "#/$defs/doctor_finding_ref"
+        },
+        "session_sensitivity_class": {
+          "$ref": "#/$defs/session_sensitivity_class"
+        },
+        "recent_changes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/recent_change"
+          }
+        },
+        "recovered_artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/recovered_artifact"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence_ref"
+          }
+        }
+      }
+    },
+    "crash_loop_recovery_center_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "center_id",
+        "signal_ref",
+        "captured_at",
+        "trigger_class",
+        "crash_id",
+        "build_id",
+        "restore_class",
+        "suspected_fault_domain",
+        "fault_domain_ref",
+        "last_reopen_mode",
+        "strike_count",
+        "strike_budget",
+        "silent_restart_suppressed",
+        "doctor_finding_ref",
+        "recovery_choices",
+        "evidence_entry_points",
+        "recent_changes",
+        "evidence",
+        "destructive_cleanup_suggested",
+        "support_packet_ref",
+        "accessibility"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "crash_loop_recovery_center_record"
+        },
+        "center_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "signal_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "trigger_class": {
+          "$ref": "#/$defs/trigger_class"
+        },
+        "crash_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "build_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "restore_class": {
+          "$ref": "#/$defs/restore_class"
+        },
+        "suspected_fault_domain": {
+          "$ref": "#/$defs/fault_domain_class"
+        },
+        "fault_domain_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "last_reopen_mode": {
+          "$ref": "#/$defs/reopen_mode_class"
+        },
+        "strike_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "strike_budget": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "silent_restart_suppressed": {
+          "type": "boolean",
+          "const": true
+        },
+        "doctor_finding_ref": {
+          "$ref": "#/$defs/doctor_finding_ref"
+        },
+        "recovery_choices": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/recovery_choice"
+          }
+        },
+        "evidence_entry_points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_entry_point"
+          }
+        },
+        "recent_changes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/recent_change"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence_ref"
+          }
+        },
+        "destructive_cleanup_suggested": {
+          "type": "boolean",
+          "const": false
+        },
+        "support_packet_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "accessibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "keyboard_complete",
+            "screen_reader_summary",
+            "focus_trap_safe"
+          ],
+          "properties": {
+            "keyboard_complete": {
+              "type": "boolean",
+              "const": true
+            },
+            "screen_reader_summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            },
+            "focus_trap_safe": {
+              "type": "boolean",
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "crash_loop_recovery_support_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "captured_at",
+        "doc_ref",
+        "schema_ref",
+        "center_id",
+        "crash_id",
+        "build_id",
+        "restore_class",
+        "suspected_fault_domain",
+        "fault_domain_ref",
+        "last_reopen_mode",
+        "trigger_class",
+        "doctor_finding_ref",
+        "silent_restart_suppressed",
+        "choice_rows",
+        "entry_rows",
+        "change_rows",
+        "evidence_refs",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded",
+        "destructive_cleanup_suggested"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "crash_loop_recovery_support_packet_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "doc_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "center_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "crash_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "build_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "restore_class": {
+          "$ref": "#/$defs/restore_class"
+        },
+        "suspected_fault_domain": {
+          "$ref": "#/$defs/fault_domain_class"
+        },
+        "fault_domain_ref": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "last_reopen_mode": {
+          "$ref": "#/$defs/reopen_mode_class"
+        },
+        "trigger_class": {
+          "$ref": "#/$defs/trigger_class"
+        },
+        "doctor_finding_ref": {
+          "$ref": "#/$defs/doctor_finding_ref"
+        },
+        "silent_restart_suppressed": {
+          "type": "boolean",
+          "const": true
+        },
+        "choice_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "choice_id",
+              "choice_class",
+              "command_id",
+              "requires_review",
+              "requires_explicit_confirmation",
+              "no_silent_rerun",
+              "disposition_summary",
+              "preserves",
+              "deletes_user_owned_state",
+              "screen_reader_label"
+            ],
+            "properties": {
+              "choice_id": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "choice_class": {
+                "$ref": "#/$defs/recovery_choice_class"
+              },
+              "command_id": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "requires_review": {
+                "type": "boolean"
+              },
+              "requires_explicit_confirmation": {
+                "type": "boolean"
+              },
+              "no_silent_rerun": {
+                "type": "boolean"
+              },
+              "disposition_summary": {
+                "$ref": "#/$defs/reviewable_sentence"
+              },
+              "preserves": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/recovery_state_class"
+                }
+              },
+              "deletes_user_owned_state": {
+                "type": "boolean",
+                "const": false
+              },
+              "targets_recent_change_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "screen_reader_label": {
+                "$ref": "#/$defs/reviewable_sentence"
+              }
+            }
+          }
+        },
+        "entry_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entry_id",
+              "entry_class",
+              "command_id",
+              "summary",
+              "preserves"
+            ],
+            "properties": {
+              "entry_id": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "entry_class": {
+                "$ref": "#/$defs/evidence_entry_class"
+              },
+              "command_id": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "summary": {
+                "$ref": "#/$defs/reviewable_sentence"
+              },
+              "preserves": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/recovery_state_class"
+                }
+              }
+            }
+          }
+        },
+        "change_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "change_id",
+              "change_class",
+              "subject_ref",
+              "display_label",
+              "reversible"
+            ],
+            "properties": {
+              "change_id": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "change_class": {
+                "$ref": "#/$defs/recent_change_class"
+              },
+              "subject_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "display_label": {
+                "$ref": "#/$defs/reviewable_sentence"
+              },
+              "reversible": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "ambient_authority_excluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "destructive_cleanup_suggested": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    }
+  }
+}

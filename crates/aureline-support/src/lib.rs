@@ -53,6 +53,19 @@
 //!   metadata-safe support packet. Bound to the boundary schema at
 //!   `/schemas/support/extension_bisect.schema.json` and the protected
 //!   fixture corpus at `/fixtures/recovery/m3/extension_bisect/`.
+//! - The [`crash_loop_center`] beta evaluator — consumes a typed
+//!   `crash_loop_signal_record` describing a restart-budget breach and
+//!   synthesizes a `crash_loop_recovery_center_record` that routes the
+//!   blocked user into bounded, command-backed recovery choices (Safe mode,
+//!   Open without restore, Disable recently changed extension, Disable
+//!   recently changed profile/layout, Open logs, Export crash manifest,
+//!   Report issue) plus distinct evidence-only and checkpoint/diff entry
+//!   points. Crash id, build id, restore class, and suspected fault domain
+//!   stay visible; Safe mode and Open without restore honor no-silent-rerun
+//!   semantics for privileged or mutating sessions; and no choice deletes
+//!   user-owned state. Bound to the boundary schema at
+//!   `/schemas/support/crash_loop_recovery.schema.json` and the protected
+//!   fixture corpus at `/fixtures/recovery/m3/crash_loop_center/`.
 //! - The [`repair`] alpha preview compiler — consumes checked-in repair seed
 //!   cases and emits typed transaction, preview, outcome, and journal records
 //!   before any guided repair can apply.
@@ -146,6 +159,7 @@
 pub mod advisory_baseline;
 pub mod bundle;
 pub mod capabilities;
+pub mod crash_loop_center;
 pub mod distributed_compatibility;
 pub mod export_review;
 pub mod extension_bisect;
