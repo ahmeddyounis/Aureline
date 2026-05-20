@@ -1,0 +1,73 @@
+# Handoff & reproduction-packet corpus gate.
+#
+# Replays the public/private handoff and reproduction-packet corpus: it proves the
+# marketed beta handoff rows cannot quietly leak context, lose reproduction data,
+# or mislabel support/community/security boundaries — every handoff names an exact
+# target identity and visibility, the system browser only opens after the
+# reproduction-packet preview is confirmed, the redaction posture is safe for the
+# target, the exact anchor / object identity and versioned build-context export
+# survive prepare/preview/block/retry/export/reopen, a field omitted from the
+# review sheet is never exported, browser-blocked / offline / policy-denied
+# handoffs preserve the prepared draft, the support-boundary copy matches the
+# actual target boundary, and every claimed beta row maps to exactly one packet.
+
+name: check_handoff_repro_corpus
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_handoff_repro_corpus.yml"
+      - "scripts/ci/run_handoff_repro_corpus.sh"
+      - "ci/check_handoff_repro_corpus.py"
+      - "schemas/public/handoff_target_review.schema.json"
+      - "schemas/public/repro_packet_preview.schema.json"
+      - "fixtures/public/m3/handoff_repro_corpus/**"
+      - "artifacts/public/m3/handoff_repro_report.md"
+      - "docs/public/m3/handoff_and_repro_boundary.md"
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-handoff-repro-corpus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  handoff_repro_corpus:
+    name: Handoff & reproduction-packet corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Run handoff & reproduction-packet corpus
+        run: |
+          scripts/ci/run_handoff_repro_corpus.sh \
+            --report-json artifacts/public/m3/handoff_repro_corpus_report.json
+
+      - name: Upload corpus report and packet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: handoff-repro-corpus-${{ github.run_id }}
+          path: |
+            artifacts/public/m3/handoff_repro_report.md
+            artifacts/public/m3/handoff_repro_corpus_report.json
+            fixtures/public/m3/handoff_repro_corpus/corpus_matrix.json
+            fixtures/public/m3/handoff_repro_corpus/export_parity_packet.json
+          if-no-files-found: warn
+          retention-days: 30
