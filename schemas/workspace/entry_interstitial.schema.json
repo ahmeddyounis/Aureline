@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/entry_interstitial.schema.json",
+  "title": "Aureline high-authority entry interstitial record",
+  "description": "Boundary schema for the typed interstitial shown before any deep-link, protocol-handler, auth callback return, collaboration join, remote target open, managed resume, or OS notification reopen that is broader than a plain local open. The record discloses origin/source, requested action class, target identity and scope (workspace / tenant / channel-or-build owner), trust/policy effect, target-truth state with a truthful placeholder and bounded fallbacks, and the safe confirm/reject/defer actions. The confirm action is bound to the same canonical command id the in-product path uses, so an OS-origin or browser-callback path can never widen authority. A plain local open that crosses no boundary is admitted with the lighter plain-local-open record instead. Raw URLs, raw paths, raw callback bodies, raw credentials, and raw provider payloads never cross this boundary. Adding a new enum value is additive-minor and bumps entry_interstitial_schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/entry_interstitial_record" },
+    { "$ref": "#/$defs/entry_plain_local_open_record" },
+    { "$ref": "#/$defs/entry_interstitial_support_packet_record" }
+  ],
+  "$defs": {
+    "entry_interstitial_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1. Bumped only on payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, log-safe id. Never a raw path, raw URL, or credential."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Producer-scrubbed reviewer-facing text. No raw paths, URLs, command lines, secrets, or callback payloads."
+    },
+    "entry_interstitial_kind": {
+      "type": "string",
+      "enum": [
+        "protocol_deep_link",
+        "auth_callback_return",
+        "collaboration_join",
+        "remote_target_open",
+        "managed_resume",
+        "notification_reopen"
+      ]
+    },
+    "entry_source_class": {
+      "type": "string",
+      "enum": [
+        "in_shell_surface",
+        "os_shell",
+        "system_default_browser",
+        "os_notification",
+        "system_surface",
+        "first_party_web",
+        "trusted_companion",
+        "collaboration_service",
+        "external_provider",
+        "auth_provider_callback",
+        "managed_admin_surface",
+        "local_cli",
+        "unknown_untrusted"
+      ]
+    },
+    "requested_action_class": {
+      "type": "string",
+      "enum": [
+        "open_existing_context",
+        "acknowledge_and_reopen",
+        "join_presence",
+        "resume_session",
+        "auth_return",
+        "remote_target_open",
+        "managed_resume",
+        "mutating_command_request",
+        "privileged_authority_widening"
+      ]
+    },
+    "boundary_class": {
+      "type": "string",
+      "enum": [
+        "authority_widening",
+        "target_boundary",
+        "tenant_boundary",
+        "trust_boundary",
+        "remote_boundary",
+        "policy_boundary"
+      ]
+    },
+    "entry_target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "local_folder",
+        "workspace_root",
+        "recent_work_entry",
+        "review_or_work_item",
+        "collaboration_session",
+        "remote_workspace",
+        "managed_workspace",
+        "auth_session",
+        "command_target"
+      ]
+    },
+    "target_truth_state": {
+      "type": "string",
+      "enum": [
+        "exact_available",
+        "compatible_downgraded",
+        "moved_or_alias_changed",
+        "missing_or_unmounted",
+        "policy_blocked",
+        "auth_required",
+        "remote_unreachable",
+        "expired",
+        "ambiguous"
+      ]
+    },
+    "authority_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "trust_review_required",
+        "trust_narrowing",
+        "policy_boundary_review",
+        "auth_scope_required",
+        "remote_authority_rebind",
+        "tenant_scope_change"
+      ]
+    },
+    "fallback_action": {
+      "type": "string",
+      "enum": [
+        "cancel_no_change",
+        "locate_missing_target",
+        "reconnect_required",
+        "reauth_required",
+        "inspect_only",
+        "open_without_restore",
+        "retry_later",
+        "return_to_start_center",
+        "export_evidence"
+      ]
+    },
+    "interstitial_action_key": {
+      "type": "string",
+      "enum": ["confirm", "reject", "defer"]
+    },
+    "interstitial_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_key",
+        "command_id",
+        "enabled",
+        "requires_confirmation",
+        "outcome_label"
+      ],
+      "properties": {
+        "action_key": { "$ref": "#/$defs/interstitial_action_key" },
+        "command_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Canonical command-graph id. Behavior binds here, never to a label."
+        },
+        "enabled": { "type": "boolean" },
+        "requires_confirmation": { "type": "boolean" },
+        "outcome_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "target_placeholder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "announced",
+        "placeholder_label",
+        "preserved_intent_label",
+        "fallback_actions"
+      ],
+      "properties": {
+        "announced": {
+          "type": "boolean",
+          "const": true,
+          "description": "Always true: a placeholder is announced, never silently substituted for a generic surface."
+        },
+        "placeholder_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "preserved_intent_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/fallback_action" }
+        }
+      }
+    },
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "object_identity_ref",
+        "target_label",
+        "workspace_scope_label",
+        "truth_state",
+        "identity_review_required"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/entry_target_kind" },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "workspace_scope_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "tenant_scope_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "channel_or_build_owner_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "truth_state": { "$ref": "#/$defs/target_truth_state" },
+        "identity_review_required": { "type": "boolean" }
+      }
+    },
+    "entry_interstitial_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_interstitial_schema_version",
+        "interstitial_id",
+        "kind",
+        "source_class",
+        "source_label",
+        "requested_action",
+        "boundary_classes",
+        "authority_effect",
+        "target_scope",
+        "trust_policy_effect_label",
+        "confirm_explanation",
+        "reject_outcome_label",
+        "defer_outcome_label",
+        "actions",
+        "silent_execution_forbidden",
+        "authority_not_widened",
+        "reopens_generic_home",
+        "canonical_command_ref",
+        "summary_line"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "entry_interstitial_record" },
+        "entry_interstitial_schema_version": { "$ref": "#/$defs/entry_interstitial_schema_version" },
+        "interstitial_id": { "$ref": "#/$defs/opaque_id" },
+        "kind": { "$ref": "#/$defs/entry_interstitial_kind" },
+        "source_class": { "$ref": "#/$defs/entry_source_class" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "requested_action": { "$ref": "#/$defs/requested_action_class" },
+        "boundary_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/boundary_class" },
+          "uniqueItems": true,
+          "description": "The boundaries crossed, in stable order. Never empty: a record only exists when at least one boundary is crossed."
+        },
+        "authority_effect": { "$ref": "#/$defs/authority_effect_class" },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "target_placeholder": {
+          "$ref": "#/$defs/target_placeholder",
+          "description": "Present when truth_state is not exact_available."
+        },
+        "trust_policy_effect_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "confirm_explanation": { "$ref": "#/$defs/redaction_aware_text" },
+        "reject_outcome_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "defer_outcome_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "actions": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/interstitial_action" },
+          "description": "Confirm, reject, and defer rows. Confirm.command_id MUST equal canonical_command_ref."
+        },
+        "silent_execution_forbidden": {
+          "type": "boolean",
+          "const": true,
+          "description": "Always true: a high-authority entry cannot execute silently from an OS surface or browser callback."
+        },
+        "authority_not_widened": {
+          "type": "boolean",
+          "const": true,
+          "description": "Always true: confirm runs the same canonical command the in-product path uses."
+        },
+        "reopens_generic_home": {
+          "type": "boolean",
+          "const": false,
+          "description": "Always false: reopen resolves the exact object or an announced placeholder, never a generic home surface."
+        },
+        "canonical_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_line": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "entry_plain_local_open_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_interstitial_schema_version",
+        "interstitial_id",
+        "kind",
+        "reason",
+        "canonical_command_ref"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "entry_plain_local_open_record" },
+        "entry_interstitial_schema_version": { "$ref": "#/$defs/entry_interstitial_schema_version" },
+        "interstitial_id": { "$ref": "#/$defs/opaque_id" },
+        "kind": { "$ref": "#/$defs/entry_interstitial_kind" },
+        "reason": { "$ref": "#/$defs/redaction_aware_text" },
+        "canonical_command_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Fast-path admission for a plain local open that crosses no boundary. No interstitial is shown."
+    },
+    "entry_interstitial_support_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "entry_interstitial_schema_version",
+        "interstitial_id",
+        "kind",
+        "source_class",
+        "source_label",
+        "requested_action",
+        "boundary_classes",
+        "authority_effect",
+        "target_kind",
+        "object_identity_ref",
+        "target_truth_state",
+        "placeholder_shown",
+        "canonical_command_ref",
+        "silent_execution_forbidden",
+        "authority_not_widened",
+        "reopens_generic_home",
+        "summary_line"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "entry_interstitial_support_packet_record" },
+        "entry_interstitial_schema_version": { "$ref": "#/$defs/entry_interstitial_schema_version" },
+        "interstitial_id": { "$ref": "#/$defs/opaque_id" },
+        "kind": { "$ref": "#/$defs/entry_interstitial_kind" },
+        "source_class": { "$ref": "#/$defs/entry_source_class" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "requested_action": { "$ref": "#/$defs/requested_action_class" },
+        "boundary_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_class" },
+          "uniqueItems": true
+        },
+        "authority_effect": { "$ref": "#/$defs/authority_effect_class" },
+        "target_kind": { "$ref": "#/$defs/entry_target_kind" },
+        "object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_truth_state": { "$ref": "#/$defs/target_truth_state" },
+        "placeholder_shown": { "type": "boolean" },
+        "canonical_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "silent_execution_forbidden": { "type": "boolean", "const": true },
+        "authority_not_widened": { "type": "boolean", "const": true },
+        "reopens_generic_home": { "type": "boolean", "const": false },
+        "summary_line": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Metadata-safe support-export projection of an interstitial record for route/origin incident reconstruction."
+    }
+  }
+}
