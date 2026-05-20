@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/template_generator_descriptor.schema.json",
+  "title": "Aureline template / generator descriptor record",
+  "description": "Seed schema for the signed template / generator descriptor every starter / scaffold surface, command-palette generator row, generator-preview sheet, AI-assisted generation path, extension-provided generator, and CLI / headless creation path reads when it names **what signed template or generator is being used**, **which ecosystems / archetypes it supports**, **which parameters it requires**, **which files / hooks / validation tasks it declares**, and **which trust / egress / policy expectations and provenance it carries**, before any scaffold plan resolves or any file is written. One record per descriptor; surfaces read the record by id and never mint a parallel stable id for the same template / generator. Raw absolute paths, raw credentials, raw remote URLs, raw template bytes, and raw generated file content never appear. AI-assisted and extension-provided generation are first-class providers, not a privileged bypass: they carry the same descriptor and reuse the same governed scaffold-plan / diff-review surface. Adding a new provider_class, signature_state, generation_kind, parameter_kind, hook_trigger_class, hook_execution_class, validation_task_class, trust_expectation_class, egress_posture_class, policy_constraint_class, or source_distribution_class is additive-minor and bumps template_generator_descriptor_schema_version; repurposing an existing value is breaking. Companion contracts: /schemas/workspace/scaffold_plan.schema.json (the plan that scaffolds from this descriptor) and /schemas/workspace/scaffold_run.schema.json (the run record the plan produces).",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/template_generator_descriptor_record" }
+  ],
+  "$defs": {
+    "template_generator_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the descriptor payload shape. Bumped only on breaking payload changes; additive-optional fields do not bump it."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles and claim manifests. Raw absolute paths, raw credentials, raw URLs, and raw bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter applies the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Ignored by the boundary contract."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "first_party",
+        "partner_signed",
+        "community_signed",
+        "repo_local",
+        "ad_hoc",
+        "ai_assisted",
+        "extension_provided"
+      ],
+      "description": "Closed provider-class set. Names who authored and ships the template or generator. 'ai_assisted' and 'extension_provided' are first-class providers, not a bypass: their generation reuses the same governed scaffold-plan / diff-review surface."
+    },
+
+    "signature_state": {
+      "type": "string",
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned",
+        "signature_missing",
+        "signature_mismatch"
+      ],
+      "description": "Closed signature-state set. A surface that renders a non-'signed_verified' descriptor as fully trusted is non-conforming."
+    },
+
+    "generation_kind": {
+      "type": "string",
+      "enum": [
+        "project_template",
+        "file_or_component_generator",
+        "multi_file_scaffold",
+        "update_migration_generator"
+      ],
+      "description": "Closed generation-kind set. Names what the descriptor produces."
+    },
+
+    "parameter_kind": {
+      "type": "string",
+      "enum": [
+        "text",
+        "identifier",
+        "path",
+        "boolean",
+        "enumerated",
+        "number",
+        "secret_handle"
+      ],
+      "description": "Closed parameter-kind set. 'secret_handle' carries an opaque handle, never a raw secret."
+    },
+
+    "hook_trigger_class": {
+      "type": "string",
+      "enum": [
+        "pre_generate",
+        "post_generate",
+        "post_create",
+        "pre_commit",
+        "post_checkout",
+        "on_open"
+      ],
+      "description": "Closed hook-trigger set. Names when a declared hook would run."
+    },
+
+    "hook_execution_class": {
+      "type": "string",
+      "enum": ["browse_safe", "local_side_effect", "network_required", "privileged"],
+      "description": "Closed hook-execution set. Names what running a declared hook costs."
+    },
+
+    "validation_task_class": {
+      "type": "string",
+      "enum": [
+        "build",
+        "test",
+        "lint",
+        "typecheck",
+        "format",
+        "dependency_audit",
+        "health_check",
+        "smoke_run"
+      ],
+      "description": "Closed validation-task class set the descriptor declares."
+    },
+
+    "trust_expectation_class": {
+      "type": "string",
+      "enum": [
+        "no_elevation",
+        "workspace_trust_required",
+        "network_trust_required",
+        "credential_access_required",
+        "privileged_execution_required"
+      ],
+      "description": "Closed trust-expectation set. Names the trust level the descriptor asks the workspace to grant before generation."
+    },
+
+    "egress_posture_class": {
+      "type": "string",
+      "enum": ["no_egress", "registry_fetch", "remote_image_pull", "git_fetch", "arbitrary_network"],
+      "description": "Closed egress-posture set. Names what network egress the descriptor expects during generation and setup."
+    },
+
+    "policy_constraint_class": {
+      "type": "string",
+      "enum": [
+        "admin_approval_required",
+        "signature_required",
+        "network_blocked_by_policy",
+        "registry_allowlist_only",
+        "offline_only",
+        "fleet_pinned_version"
+      ],
+      "description": "Closed policy-constraint set the descriptor advertises."
+    },
+
+    "source_distribution_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "mirror",
+        "offline_bundle",
+        "repo_local",
+        "ad_hoc",
+        "ai_generated",
+        "extension_bundled"
+      ],
+      "description": "Closed source-distribution set. Names how the descriptor reached the workspace."
+    },
+
+    "descriptor_parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parameter_key", "parameter_kind", "required"],
+      "properties": {
+        "parameter_key": { "$ref": "#/$defs/redaction_aware_text" },
+        "parameter_kind": { "$ref": "#/$defs/parameter_kind" },
+        "required": { "type": "boolean" },
+        "prompt_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One required-parameter declaration. The scaffold plan resolves each parameter and discloses its source."
+    },
+
+    "declared_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_id", "trigger_class", "execution_class", "network_egress"],
+      "properties": {
+        "hook_id": { "$ref": "#/$defs/opaque_id" },
+        "trigger_class": { "$ref": "#/$defs/hook_trigger_class" },
+        "execution_class": { "$ref": "#/$defs/hook_execution_class" },
+        "network_egress": { "type": "boolean" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One declared hook. A scaffold run may invoke only hooks that appear here; an undeclared hook is rejected at projection time."
+    },
+
+    "declared_validation_task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "task_class"],
+      "properties": {
+        "task_id": { "$ref": "#/$defs/opaque_id" },
+        "task_class": { "$ref": "#/$defs/validation_task_class" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One declared validation task. The plan may schedule only declared tasks; an undeclared task is rejected at projection time."
+    },
+
+    "descriptor_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_distribution_class"],
+      "properties": {
+        "source_distribution_class": { "$ref": "#/$defs/source_distribution_class" },
+        "signer_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "provenance_attestation_ref": { "$ref": "#/$defs/opaque_id" },
+        "producer_build": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Typed provenance block. Names the producer, source distribution, and a provenance attestation ref. Raw bytes never appear."
+    },
+
+    "template_generator_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "template_generator_descriptor_schema_version",
+        "descriptor_id",
+        "template_or_generator_id",
+        "version",
+        "display_name",
+        "provider_class",
+        "signature_state",
+        "generation_kind",
+        "supported_ecosystems",
+        "trust_expectation",
+        "egress_posture",
+        "provenance",
+        "observed_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+        "record_kind": { "const": "template_generator_descriptor_record" },
+        "template_generator_descriptor_schema_version": {
+          "$ref": "#/$defs/template_generator_descriptor_schema_version"
+        },
+        "descriptor_id": { "$ref": "#/$defs/opaque_id" },
+
+        "template_or_generator_id": { "$ref": "#/$defs/opaque_id" },
+        "version": { "$ref": "#/$defs/redaction_aware_text" },
+        "display_name": { "$ref": "#/$defs/redaction_aware_text" },
+
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "signature_state": { "$ref": "#/$defs/signature_state" },
+        "generation_kind": { "$ref": "#/$defs/generation_kind" },
+
+        "supported_ecosystems": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" },
+          "minItems": 1,
+          "description": "Closed-by-convention list of supported ecosystem labels."
+        },
+        "supported_archetypes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" }
+        },
+
+        "required_parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/descriptor_parameter" }
+        },
+        "declared_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_hook" }
+        },
+        "declared_validation_tasks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/declared_validation_task" }
+        },
+
+        "trust_expectation": { "$ref": "#/$defs/trust_expectation_class" },
+        "egress_posture": { "$ref": "#/$defs/egress_posture_class" },
+        "policy_constraints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/policy_constraint_class" },
+          "uniqueItems": true
+        },
+
+        "provenance": { "$ref": "#/$defs/descriptor_provenance" },
+
+        "presentation_subtitle": { "$ref": "#/$defs/redaction_aware_text" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One template / generator descriptor record. Emitted by every surface that identifies a template or generator before a scaffold plan resolves: Start Center starter rows, command-palette generator rows, the generator-preview sheet, AI-assisted generation, extension-provided generators, and CLI / headless creation. Surfaces read the record by id; they do not re-derive provenance."
+    }
+  }
+}

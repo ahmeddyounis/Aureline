@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/scaffold_plan.schema.json",
+  "title": "Aureline scaffold-plan record",
+  "description": "Seed schema for the scaffold preflight / generator review sheet every starter / scaffold surface, command-palette generator row, generator-preview sheet, AI-assisted generation path, extension-provided generator, and CLI / headless creation path reads when it discloses, **before any file is written**, **what target the scaffold writes to**, **which resolved parameter sources it used**, **what file / directory impact it has**, **what dependency / package / task plan it carries**, **which remote / bootstrap implications and hook / network / registry / remote-image / dependency side effects it declares**, and **which create-empty / set-up-later / rollback handoff paths it exposes**. One plan per scaffold attempt; the plan references its descriptor by id and never re-derives provenance. Raw absolute paths, raw credentials, raw remote URLs, raw template bytes, and raw generated file content never appear; only opaque refs and typed labels cross the boundary. No claimed scaffold flow writes files before the user can review this plan or its exported preflight summary. AI-assisted and extension-provided generation reuse this same plan and the same diff-review surface; they cannot invent undeclared hooks, hidden bootstrap steps, or IDE-only authority. Adding a new generation_verb, scaffold_scope_class, parameter_source_class, dependency_action_class, scaffold_task_execution_class, remote_implication_class, scaffold_side_effect_class, setup_choice_class, or rollback_boundary_class is additive-minor and bumps scaffold_plan_schema_version; repurposing an existing value is breaking. Companion contracts: /schemas/workspace/template_generator_descriptor.schema.json (the descriptor the plan scaffolds from) and /schemas/workspace/scaffold_run.schema.json (the run record the plan produces).",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/scaffold_plan_record" }
+  ],
+  "$defs": {
+    "scaffold_plan_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the scaffold-plan payload shape. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles and claim manifests. Raw absolute paths, raw credentials, raw URLs, and raw bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter applies the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Ignored by the boundary contract."
+    },
+
+    "generation_verb": {
+      "type": "string",
+      "enum": ["create_project", "generate_into_existing", "update_regenerate"],
+      "description": "Closed generation-verb set. Create-project, generate-into-existing, and update-regenerate stay distinct verbs with distinct review semantics; the plan never collapses one into another."
+    },
+
+    "scaffold_scope_class": {
+      "type": "string",
+      "enum": ["new_project_root", "subdirectory", "existing_project_root", "single_file_set"],
+      "description": "Closed scaffold-scope set."
+    },
+
+    "parameter_source_class": {
+      "type": "string",
+      "enum": ["user_input", "default", "inferred", "policy_pinned", "ai_suggested", "extension_supplied"],
+      "description": "Closed parameter-source set. Names where a resolved parameter value came from so the review sheet shows resolved parameter sources, not just values."
+    },
+
+    "dependency_action_class": {
+      "type": "string",
+      "enum": ["add_manifest_entry_only", "restore_now", "restore_deferred", "pin_lockfile", "upgrade_existing"],
+      "description": "Closed dependency-action set. 'restore_now' / 'restore_deferred' reach a registry / network and must be declared as a dependency side effect."
+    },
+
+    "scaffold_task_execution_class": {
+      "type": "string",
+      "enum": ["browse_safe", "local_side_effect", "network_required", "privileged", "deferred"],
+      "description": "Closed scaffold-task execution set."
+    },
+
+    "remote_implication_class": {
+      "type": "string",
+      "enum": [
+        "network_fetch",
+        "registry_access",
+        "remote_image_pull",
+        "devcontainer_bootstrap",
+        "prebuild_attach",
+        "credential_provisioning",
+        "remote_workspace_create"
+      ],
+      "description": "Closed remote / bootstrap implication set. Each implication is declared before execution."
+    },
+
+    "scaffold_side_effect_class": {
+      "type": "string",
+      "enum": ["hook", "network", "registry", "remote_image", "dependency"],
+      "description": "Closed side-effect set: the five families the spec requires to be declared before execution and to remain attributable after failure or rollback."
+    },
+
+    "setup_choice_class": {
+      "type": "string",
+      "enum": ["create_empty", "set_up_later", "full_scaffold", "scaffold_without_dependency_restore"],
+      "description": "Closed setup-choice set. The explicit create-empty / set-up-later / full-scaffold handoff choices the plan exposes where the source artifact supports them."
+    },
+
+    "rollback_boundary_class": {
+      "type": "string",
+      "enum": ["checkpoint", "delete_generated_files", "git_initial_commit", "manual_only"],
+      "description": "Closed rollback-boundary set. 'manual_only' MUST carry a checkpoint_ref or a presentation label naming the manual path; the others are automatic."
+    },
+
+    "scaffold_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "target_path_ref", "into_existing"],
+      "properties": {
+        "scope": { "$ref": "#/$defs/scaffold_scope_class" },
+        "target_path_ref": { "$ref": "#/$defs/opaque_id" },
+        "into_existing": { "type": "boolean" }
+      },
+      "description": "Typed scaffold target. Carries an opaque path ref, never a raw path. 'into_existing' is true when the target already contains workspace content the plan will write alongside or modify."
+    },
+
+    "resolved_parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parameter_key", "source_class"],
+      "properties": {
+        "parameter_key": { "$ref": "#/$defs/redaction_aware_text" },
+        "source_class": { "$ref": "#/$defs/parameter_source_class" },
+        "value_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One resolved parameter. Names the parameter and the source it was resolved from; the value_label is redaction-aware."
+    },
+
+    "file_impact_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create_count", "modify_count", "delete_count", "directory_count"],
+      "properties": {
+        "create_count": { "type": "integer", "minimum": 0 },
+        "modify_count": { "type": "integer", "minimum": 0 },
+        "delete_count": { "type": "integer", "minimum": 0 },
+        "directory_count": { "type": "integer", "minimum": 0 }
+      },
+      "description": "File / directory impact summary the preflight discloses before any write."
+    },
+
+    "dependency_plan_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "action_class"],
+      "properties": {
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "action_class": { "$ref": "#/$defs/dependency_action_class" },
+        "registry_class": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One dependency-plan entry. Names the package action and its registry class without raw commands or URLs."
+    },
+
+    "task_plan_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "execution_class", "declared_in_descriptor"],
+      "properties": {
+        "task_id": { "$ref": "#/$defs/opaque_id" },
+        "execution_class": { "$ref": "#/$defs/scaffold_task_execution_class" },
+        "declared_in_descriptor": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One planned setup / validation task. A task with declared_in_descriptor true MUST correspond to a declared hook / validation task on the descriptor; a planned-as-declared task with no descriptor entry is rejected at projection time."
+    },
+
+    "remote_implication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "declared_before_execution"],
+      "properties": {
+        "class": { "$ref": "#/$defs/remote_implication_class" },
+        "declared_before_execution": { "type": "boolean" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One remote / bootstrap implication. A plan with an undeclared implication is non-conforming."
+    },
+
+    "side_effect_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "declared_before_execution", "attributable_after_rollback"],
+      "properties": {
+        "class": { "$ref": "#/$defs/scaffold_side_effect_class" },
+        "declared_before_execution": { "type": "boolean" },
+        "attributable_after_rollback": { "type": "boolean" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One side-effect declaration. Every hook / network / registry / remote-image / dependency side effect MUST be declared before execution and remain attributable after failure or rollback."
+    },
+
+    "rollback_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": { "$ref": "#/$defs/rollback_boundary_class" },
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Typed rollback boundary the plan plants before any write. Names the rollback / delete-generated-files / git-initial-commit / manual path."
+    },
+
+    "scaffold_review_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["no_writes_before_review", "preflight_export_available"],
+      "properties": {
+        "no_writes_before_review": { "type": "boolean" },
+        "preflight_export_available": { "type": "boolean" },
+        "preflight_export_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Review-state block. 'no_writes_before_review' MUST be true on a conforming claimed beta plan; 'preflight_export_available' enables the exported preflight summary."
+    },
+
+    "scaffold_plan_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scaffold_plan_schema_version",
+        "scaffold_plan_id",
+        "descriptor_ref",
+        "generation_verb",
+        "target",
+        "file_impact",
+        "side_effect_declarations",
+        "rollback_boundary",
+        "review_state",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+        "record_kind": { "const": "scaffold_plan_record" },
+        "scaffold_plan_schema_version": { "$ref": "#/$defs/scaffold_plan_schema_version" },
+        "scaffold_plan_id": { "$ref": "#/$defs/opaque_id" },
+
+        "descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+
+        "generation_verb": { "$ref": "#/$defs/generation_verb" },
+        "target": { "$ref": "#/$defs/scaffold_target" },
+
+        "resolved_parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resolved_parameter" }
+        },
+        "file_impact": { "$ref": "#/$defs/file_impact_summary" },
+        "dependency_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dependency_plan_entry" }
+        },
+        "task_plan": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/task_plan_entry" }
+        },
+        "remote_bootstrap_implications": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/remote_implication" }
+        },
+        "side_effect_declarations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_declaration" }
+        },
+        "setup_choices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/setup_choice_class" },
+          "uniqueItems": true
+        },
+
+        "rollback_boundary": { "$ref": "#/$defs/rollback_boundary" },
+        "review_state": { "$ref": "#/$defs/scaffold_review_state" },
+
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One scaffold-plan record. Emitted by every surface that previews a scaffold / generation before commit. Surfaces read the record by id; they do not re-derive impact or side effects."
+    }
+  }
+}

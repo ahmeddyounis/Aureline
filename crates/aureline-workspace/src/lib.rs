@@ -29,6 +29,7 @@ pub mod repo_topology;
 pub mod restore_hydrator;
 pub mod roots;
 pub mod save;
+pub mod scaffold;
 pub mod scope_propagation;
 pub mod serialization;
 pub mod state_packages;
@@ -221,6 +222,27 @@ pub use bundles::{
 pub use save::{
     SaveParticipant, SaveParticipantError, SaveResult, StagedSaveCoordinator, StagedSaveRequest,
     WriteStrategy,
+};
+
+pub use scaffold::{
+    DeclaredHook, DeclaredSideEffectSummary, DeclaredValidationTask, DependencyActionClass,
+    DependencyPlanEntry, DescriptorParameter, DescriptorProvenance, DescriptorSignatureState,
+    EgressPostureClass, FileImpactSummary, GenerationKindClass, GenerationVerb, HookExecutionClass,
+    HookTriggerClass, ParameterKind, ParameterSourceClass, PolicyConstraintClass, RemoteImplication,
+    RemoteImplicationClass, ResolvedParameter, RollbackBoundary, RollbackBoundaryClass,
+    RollbackStateClass, ScaffoldActor, ScaffoldActorClass, ScaffoldFixtureMetadata,
+    ScaffoldHonestyLabel, ScaffoldOutcomeClass, ScaffoldPlanRecord, ScaffoldPlanRecordKind,
+    ScaffoldReviewState, ScaffoldRollbackState, ScaffoldRunRecord, ScaffoldRunRecordKind,
+    ScaffoldRunSummary, ScaffoldSafetyBetaError, ScaffoldSafetyBetaInputs,
+    ScaffoldSafetyBetaProjection, ScaffoldSafetyGuardrails, ScaffoldSafetyRecordKind,
+    ScaffoldScopeClass, ScaffoldSideEffectClass, ScaffoldSurface, ScaffoldTarget,
+    ScaffoldTaskExecutionClass, SetupChoiceClass, SetupHandoffSummary, SideEffectDeclaration,
+    SourceDistributionClass, TaskPlanEntry, TemplateGeneratorDescriptor,
+    TemplateGeneratorDescriptorRecordKind, TemplateProviderClass, TrustExpectationClass,
+    ValidationTaskClass, SCAFFOLD_PLAN_RECORD_KIND, SCAFFOLD_PLAN_SCHEMA_VERSION,
+    SCAFFOLD_RUN_RECORD_KIND, SCAFFOLD_RUN_SCHEMA_VERSION, SCAFFOLD_SAFETY_RECORD_KIND,
+    SCAFFOLD_SAFETY_SCHEMA_VERSION, TEMPLATE_GENERATOR_DESCRIPTOR_RECORD_KIND,
+    TEMPLATE_GENERATOR_DESCRIPTOR_SCHEMA_VERSION,
 };
 
 pub use roots::{

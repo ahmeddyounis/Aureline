@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/scaffold_run.schema.json",
+  "title": "Aureline scaffold-run record",
+  "description": "Seed schema for the scaffold-run record produced when a scaffold plan executes, read by Start Center, support exporters, migration flows, and the generated-project lineage surface when it names **which run executed which plan against which descriptor**, **what artifacts it created or modified**, **which declared hooks / validation tasks it invoked**, **which checkpoint and generated-project lineage refs it bound**, **what its outcome and rollback state were**, and **which actor dispatched it**. The run keeps generated-project updates replay-safe for support and migration flows. One record per run. Raw absolute paths, raw credentials, raw remote URLs, and raw generated file content never appear; only opaque refs and typed labels cross the boundary. A conforming run invokes only hooks and validation tasks declared on its descriptor; an undeclared hook or task is rejected at projection time. Generated output remains plain, attributable workspace content: plain_file_authority and no_hidden_project_database MUST be true on a conforming claimed beta run, so no hidden project database and no silent post-create package restore is the authoritative result of generation. Adding a new scaffold_actor_class, scaffold_outcome_class, or rollback_state_class is additive-minor and bumps scaffold_run_schema_version; repurposing an existing value is breaking. Companion contracts: /schemas/workspace/template_generator_descriptor.schema.json and /schemas/workspace/scaffold_plan.schema.json.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/scaffold_run_record" }
+  ],
+  "$defs": {
+    "scaffold_run_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the scaffold-run payload shape. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles and claim manifests. Raw absolute paths, raw credentials, raw URLs, and raw bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter applies the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Ignored by the boundary contract."
+    },
+
+    "scaffold_actor_class": {
+      "type": "string",
+      "enum": ["user", "ai_assistant", "extension", "automation", "support_replay"],
+      "description": "Closed actor-class set for the actor that dispatched the run. 'ai_assistant' and 'extension' are first-class actors whose runs stay inside the governed scaffold-plan / diff-review surface."
+    },
+
+    "scaffold_outcome_class": {
+      "type": "string",
+      "enum": ["succeeded", "partially_applied", "failed_rolled_back", "failed_left_in_place", "cancelled"],
+      "description": "Closed run-outcome set. 'failed_left_in_place' and 'failed_rolled_back' leave artifacts the user must be able to attribute and clean up."
+    },
+
+    "rollback_state_class": {
+      "type": "string",
+      "enum": ["not_needed", "available", "performed", "unavailable_manual"],
+      "description": "Closed rollback-state set. A run that failed and left artifacts MUST NOT report 'not_needed'."
+    },
+
+    "scaffold_actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": { "$ref": "#/$defs/scaffold_actor_class" },
+        "actor_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "approval_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Typed actor lineage for the run."
+    },
+
+    "scaffold_rollback_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": { "$ref": "#/$defs/rollback_state_class" },
+        "rollback_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "Typed rollback state carried by the run."
+    },
+
+    "scaffold_run_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scaffold_run_schema_version",
+        "scaffold_run_id",
+        "scaffold_plan_ref",
+        "descriptor_ref",
+        "actor",
+        "outcome_class",
+        "rollback_state",
+        "no_writes_before_review",
+        "undeclared_actions_blocked",
+        "generated_lineage_ref",
+        "plain_file_authority",
+        "no_hidden_project_database",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+        "record_kind": { "const": "scaffold_run_record" },
+        "scaffold_run_schema_version": { "$ref": "#/$defs/scaffold_run_schema_version" },
+        "scaffold_run_id": { "$ref": "#/$defs/opaque_id" },
+
+        "scaffold_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+
+        "actor": { "$ref": "#/$defs/scaffold_actor" },
+        "outcome_class": { "$ref": "#/$defs/scaffold_outcome_class" },
+
+        "created_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "modified_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+
+        "invoked_declared_hook_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Hooks invoked by the run. Every entry MUST be a declared hook on the descriptor."
+        },
+        "invoked_declared_task_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Validation tasks invoked by the run. Every entry MUST be a declared task on the descriptor."
+        },
+
+        "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "rollback_state": { "$ref": "#/$defs/scaffold_rollback_state" },
+
+        "no_writes_before_review": { "type": "boolean" },
+        "undeclared_actions_blocked": { "type": "boolean" },
+
+        "generated_lineage_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the plain-file generated-project lineage metadata. The plain file remains authoritative."
+        },
+        "plain_file_authority": { "type": "boolean" },
+        "no_hidden_project_database": { "type": "boolean" },
+
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One scaffold-run record. Emitted when a scaffold plan executes. Keeps generated-project updates replay-safe for support and migration flows."
+    }
+  }
+}
