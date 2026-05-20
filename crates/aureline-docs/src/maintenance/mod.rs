@@ -447,6 +447,37 @@ impl DocsFindingSuppressionState {
     }
 }
 
+/// Attribution for a suppress-until-reviewed finding.
+///
+/// A suppressed finding stays attributable: who suppressed it, why, when the
+/// suppression lapses, and the evidence the decision rested on. Without this,
+/// a stale-example or broken-link finding could be hidden indefinitely with no
+/// audit trail.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DocsFindingSuppression {
+    /// Actor who recorded the suppression.
+    pub actor_ref: String,
+    /// Reviewable reason the finding is suppressed.
+    pub reason: String,
+    /// Time after which the suppression lapses and the finding reactivates.
+    pub expiry_at: String,
+    /// Evidence refs backing the suppression decision.
+    pub evidence_refs: Vec<String>,
+}
+
+impl DocsFindingSuppression {
+    fn is_well_formed(&self) -> bool {
+        !self.actor_ref.trim().is_empty()
+            && !self.reason.trim().is_empty()
+            && !self.expiry_at.trim().is_empty()
+            && !self.evidence_refs.is_empty()
+            && self
+                .evidence_refs
+                .iter()
+                .all(|value| !value.trim().is_empty())
+    }
+}
+
 /// Local-only versus publish-boundary posture for docs work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -593,6 +624,12 @@ pub struct DocsPreviewHeader {
     pub commonmark_baseline: bool,
     /// Enabled extension tokens beyond the CommonMark baseline.
     pub enabled_extensions: Vec<String>,
+    /// Extensions the renderer actually activated for this preview. Must be a
+    /// subset of `enabled_extensions`; an active extension that was not declared
+    /// is a hidden renderer extension and fails validation. Empty means the
+    /// renderer stayed on the declared (CommonMark + declared-extension) baseline.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub active_extensions: Vec<String>,
     /// HTML sanitization posture for rendered content.
     pub sanitization_state: DocsPreviewSanitizationState,
     /// Disclosure note for the sanitization posture when required.
@@ -708,6 +745,29 @@ impl DocsPreviewHeader {
                 ));
             }
         }
+        for active in &self.active_extensions {
+            if !self
+                .enabled_extensions
+                .iter()
+                .any(|declared| declared == active)
+            {
+                findings.push(DocsMaintenanceFinding::new(
+                    &self.header_id,
+                    "preview_header.hidden_extension",
+                    format!(
+                        "renderer activated an undeclared (hidden) extension `{active}`; \
+                         only declared extensions may render"
+                    ),
+                ));
+            }
+        }
+    }
+
+    /// Validates this preview header on its own, returning any findings.
+    pub fn validate_record(&self) -> Vec<DocsMaintenanceFinding> {
+        let mut findings = Vec::new();
+        self.validate(&mut findings);
+        findings
     }
 }
 
@@ -841,6 +901,13 @@ impl DocsSuggestionCard {
             ));
         }
     }
+
+    /// Validates this suggestion card on its own, returning any findings.
+    pub fn validate_record(&self) -> Vec<DocsMaintenanceFinding> {
+        let mut findings = Vec::new();
+        self.validate(&mut findings);
+        findings
+    }
 }
 
 /// Stale-example or broken-link finding row.
@@ -883,6 +950,10 @@ pub struct DocsExampleFindingRow {
     /// Suppression ref when suppressed until reviewed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub suppression_ref: Option<String>,
+    /// Suppression attribution (actor/reason/expiry/evidence) when suppressed
+    /// until reviewed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suppression_detail: Option<DocsFindingSuppression>,
     /// Evidence refs backing the finding.
     pub evidence_refs: Vec<String>,
     /// Surface refs that render this finding.
@@ -948,6 +1019,18 @@ impl DocsExampleFindingRow {
                 "suppress-until-reviewed findings must carry a suppression ref",
             ));
         }
+        if self.suppression_state == DocsFindingSuppressionState::SuppressedUntilReviewed
+            && !self
+                .suppression_detail
+                .as_ref()
+                .is_some_and(DocsFindingSuppression::is_well_formed)
+        {
+            findings.push(DocsMaintenanceFinding::new(
+                &self.finding_id,
+                "finding_row.suppression_attribution",
+                "suppress-until-reviewed findings must record suppression actor, reason, expiry, and evidence",
+            ));
+        }
         if self.evidence_refs.is_empty() {
             findings.push(DocsMaintenanceFinding::new(
                 &self.finding_id,
@@ -962,6 +1045,13 @@ impl DocsExampleFindingRow {
                 "open-failing-source action must be keyboard reachable and well formed",
             ));
         }
+    }
+
+    /// Validates this finding row on its own, returning any findings.
+    pub fn validate_record(&self) -> Vec<DocsMaintenanceFinding> {
+        let mut findings = Vec::new();
+        self.validate(&mut findings);
+        findings
     }
 }
 
@@ -1082,6 +1172,17 @@ impl DocsMaintenanceRow {
                 ));
             }
         }
+    }
+
+    /// Validates this maintenance row on its own, returning any findings.
+    ///
+    /// Cross-references to suggestion cards and finding rows are validated at
+    /// the contract level; this checks the row's own integrity (counts, publish
+    /// scope, boundary notes, and the blocked-unscoped apply guard).
+    pub fn validate_record(&self) -> Vec<DocsMaintenanceFinding> {
+        let mut findings = Vec::new();
+        self.validate(&mut findings);
+        findings
     }
 }
 
@@ -1658,6 +1759,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             preview_mode: DocsPreviewMode::Source,
             commonmark_baseline: true,
             enabled_extensions: Vec::new(),
+            active_extensions: Vec::new(),
             sanitization_state: DocsPreviewSanitizationState::NotApplicable,
             sanitization_note: None,
             source_version_badge: current_badge("project_docs", "docs-pack:project-readme"),
@@ -1680,6 +1782,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             preview_mode: DocsPreviewMode::Split,
             commonmark_baseline: true,
             enabled_extensions: refs(&["tables", "autolink"]),
+            active_extensions: Vec::new(),
             sanitization_state: DocsPreviewSanitizationState::SanitizedSafe,
             sanitization_note: None,
             source_version_badge: current_badge("project_docs", "docs-pack:changelog"),
@@ -1707,6 +1810,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             preview_mode: DocsPreviewMode::Rendered,
             commonmark_baseline: true,
             enabled_extensions: refs(&["tables", "footnotes", "strikethrough"]),
+            active_extensions: Vec::new(),
             sanitization_state: DocsPreviewSanitizationState::RawHtmlAllowedDisclosed,
             sanitization_note: Some(
                 "Embedded HTML rendered; scripts, iframes, and event handlers were stripped."
@@ -1928,6 +2032,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             freshness_class: DocsFreshnessClass::AuthoritativeLive,
             suppression_state: DocsFindingSuppressionState::Active,
             suppression_ref: None,
+            suppression_detail: None,
             evidence_refs: &["evidence:link-check:readme.contributing"],
         }),
         finding_row(FindingSeed {
@@ -1944,6 +2049,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             freshness_class: DocsFreshnessClass::WarmCached,
             suppression_state: DocsFindingSuppressionState::Active,
             suppression_ref: None,
+            suppression_detail: None,
             evidence_refs: &["evidence:stale-example-scan:help.snippet-01"],
         }),
         finding_row(FindingSeed {
@@ -1960,6 +2066,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             freshness_class: DocsFreshnessClass::AuthoritativeLive,
             suppression_state: DocsFindingSuppressionState::Active,
             suppression_ref: None,
+            suppression_detail: None,
             evidence_refs: &["evidence:snippet-validation:module-doc.example-03"],
         }),
         finding_row(FindingSeed {
@@ -1976,6 +2083,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             freshness_class: DocsFreshnessClass::AuthoritativeLive,
             suppression_state: DocsFindingSuppressionState::Active,
             suppression_ref: None,
+            suppression_detail: None,
             evidence_refs: &["evidence:contract-change:api.docs-node"],
         }),
         finding_row(FindingSeed {
@@ -1992,6 +2100,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             freshness_class: DocsFreshnessClass::Unverified,
             suppression_state: DocsFindingSuppressionState::Active,
             suppression_ref: None,
+            suppression_detail: None,
             evidence_refs: &["evidence:benchmark-publication-pack:missing"],
         }),
         finding_row(FindingSeed {
@@ -2008,6 +2117,13 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             freshness_class: DocsFreshnessClass::WarmCached,
             suppression_state: DocsFindingSuppressionState::SuppressedUntilReviewed,
             suppression_ref: Some("suppression:docs-finding:settings.renamed-setting:owner-review"),
+            suppression_detail: Some(DocsFindingSuppression {
+                actor_ref: "actor:maintainer:docs-owner-01".to_owned(),
+                reason: "Renamed setting confirmed; doc fix scheduled with the settings owner."
+                    .to_owned(),
+                expiry_at: "2026-06-15T00:00:00Z".to_owned(),
+                evidence_refs: refs(&["evidence:settings-registry:renamed-setting"]),
+            }),
             evidence_refs: &["evidence:settings-registry:renamed-setting"],
         }),
         finding_row(FindingSeed {
@@ -2024,6 +2140,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             freshness_class: DocsFreshnessClass::Stale,
             suppression_state: DocsFindingSuppressionState::Acknowledged,
             suppression_ref: None,
+            suppression_detail: None,
             evidence_refs: &["evidence:symbol-linked-reference:renamed"],
         }),
         finding_row(FindingSeed {
@@ -2040,6 +2157,7 @@ pub fn seeded_docs_preview_and_maintenance_contract() -> DocsMaintenanceContract
             freshness_class: DocsFreshnessClass::Unverified,
             suppression_state: DocsFindingSuppressionState::Active,
             suppression_ref: None,
+            suppression_detail: None,
             evidence_refs: &["evidence:contract-change:api.docs-node"],
         }),
     ];
@@ -2254,6 +2372,7 @@ struct FindingSeed {
     freshness_class: DocsFreshnessClass,
     suppression_state: DocsFindingSuppressionState,
     suppression_ref: Option<&'static str>,
+    suppression_detail: Option<DocsFindingSuppression>,
     evidence_refs: &'static [&'static str],
 }
 
@@ -2281,6 +2400,7 @@ fn finding_row(seed: FindingSeed) -> DocsExampleFindingRow {
         ),
         suppression_state: seed.suppression_state,
         suppression_ref: seed.suppression_ref.map(str::to_owned),
+        suppression_detail: seed.suppression_detail,
         evidence_refs: refs(seed.evidence_refs),
         surface_refs: refs(&["surface:docs_maintenance:finding_rows"]),
     }
