@@ -15,9 +15,11 @@
 //! repository-acquisition and post-open bootstrap truth lane,
 //! `scaffold_safety::run_corpus_from_repo_root` for the M3 scaffold and
 //! generated-project safety lane, `docs_maintenance::run_corpus_from_repo_root`
-//! for the M3 docs preview / maintenance integrity lane, and
+//! for the M3 docs preview / maintenance integrity lane,
 //! `portable_state_restore::run_corpus_from_repo_root` for the M3 portable-state
-//! and restore-provenance continuity lane.
+//! and restore-provenance continuity lane, and
+//! `workflow_bundle_lifecycle::run_corpus_from_repo_root` for the M3
+//! workflow-bundle lifecycle and certification-freshness lane.
 
 #![doc(html_root_url = "https://docs.rs/aureline-qe/0.0.0")]
 
@@ -27,3 +29,4 @@ pub mod git_history_rewrite;
 pub mod portable_state_restore;
 pub mod repo_topology;
 pub mod scaffold_safety;
+pub mod workflow_bundle_lifecycle;

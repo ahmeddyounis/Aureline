@@ -1,0 +1,79 @@
+# Workflow-bundle lifecycle conformance gate.
+#
+# Replays the workflow-bundle lifecycle conformance corpus and publishes the
+# lifecycle compatibility report and certification freshness matrix for every
+# claimed beta workflow-bundle row.
+
+name: check_workflow_bundle_lifecycle_conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_workflow_bundle_lifecycle_conformance.yml"
+      - "crates/aureline-qe/src/workflow_bundle_lifecycle/**"
+      - "crates/aureline-qe/tests/workflow_bundle_lifecycle_conformance.rs"
+      - "crates/aureline-workspace/src/bundles/**"
+      - "fixtures/workspace/m3/workflow_bundle_lifecycle/**"
+      - "schemas/workspace/workflow_bundle_review.schema.json"
+      - "schemas/workspace/workflow_bundle_conformance.schema.json"
+      - "artifacts/cert/m3/workflow_bundle_certification_matrix.json"
+      - "artifacts/compat/m3/workflow_bundle_lifecycle_report.md"
+      - "docs/workspace/m3/workflow_bundle_lifecycle_conformance.md"
+      - "tools/regenerate_workflow_bundle_lifecycle_corpus.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-workflow-bundle-lifecycle-conformance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  workflow_bundle_lifecycle_corpus:
+    name: Workflow-bundle lifecycle corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-workflow-bundle-lifecycle-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-workflow-bundle-lifecycle-
+
+      - name: Verify the published corpus matches its generator
+        run: |
+          python3 tools/regenerate_workflow_bundle_lifecycle_corpus.py --check
+
+      - name: Replay workflow-bundle lifecycle corpus
+        run: |
+          cargo test -p aureline-qe --test workflow_bundle_lifecycle_conformance --locked
+
+      - name: Upload lifecycle report and certification matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-bundle-lifecycle-conformance-${{ github.run_id }}
+          path: |
+            fixtures/workspace/m3/workflow_bundle_lifecycle/manifest.json
+            artifacts/compat/m3/workflow_bundle_lifecycle_report.md
+            artifacts/cert/m3/workflow_bundle_certification_matrix.json
+          if-no-files-found: error
+          retention-days: 30
