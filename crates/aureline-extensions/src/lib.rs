@@ -86,6 +86,14 @@
 //!   checkpoints, and browser-runtime bridges aligned on owner/origin chrome,
 //!   system-browser handoff posture, trust-class parity, and support-export
 //!   vocabulary.
+//! - one [`manifest_editor::ManifestEditorSession`] authoring record that turns
+//!   an in-progress extension manifest into inline validation with field-level
+//!   anchors, permission explanation chips, lifecycle-driven migration /
+//!   deprecation hints, version-range targeting, and open-schema/open-docs
+//!   links. Its blocker findings reuse the same stable check ids and severities
+//!   the validator CLI and conformance kit emit, separated from editor-only
+//!   UX/performance advisories, and it validates fully offline without
+//!   executing extension code or a network round-trip.
 //!
 //! Surfaces (install / review docs, support exports, runtime truth badges,
 //! CI / schema validation) read these records by reference. They never
@@ -106,6 +114,7 @@ pub mod install_review;
 pub mod lifecycle_metadata;
 pub mod locale_support;
 pub mod manifest_baseline;
+pub mod manifest_editor;
 pub mod marketplace_truth;
 pub mod mirror_import;
 pub mod permission_manifest;
@@ -175,6 +184,18 @@ pub use manifest_baseline::{
     PublisherTrustTierClass, RedactionClass, SummaryFreshnessClass,
     EFFECTIVE_PERMISSION_BASELINE_RECORD_KIND, EXTENSION_MANIFEST_BASELINE_RECORD_KIND,
     EXTENSION_MANIFEST_BASELINE_SCHEMA_VERSION, MANIFEST_INSTALL_DECISION_RECORD_KIND,
+};
+pub use manifest_editor::{
+    evaluate_manifest_editor_session, validate_manifest_editor_session,
+    ManifestEditorCompatibilityBadgeClass, ManifestEditorConformanceExport,
+    ManifestEditorConnectivityClass, ManifestEditorFinding, ManifestEditorFindingSeverity,
+    ManifestEditorFindingStatus, ManifestEditorFindingSuite, ManifestEditorLinks,
+    ManifestEditorPublishReadinessClass, ManifestEditorPublishReadinessReasonClass,
+    ManifestEditorResultClass, ManifestEditorSession, ManifestEditorSessionFinding,
+    ManifestEditorSessionInput, ManifestMigrationHint, PermissionExplanationChip,
+    VersionTargetingSummary, MANIFEST_EDITOR_SESSION_ID_PREFIX,
+    MANIFEST_EDITOR_SESSION_RECORD_KIND, MANIFEST_EDITOR_SESSION_SCHEMA_VERSION,
+    MANIFEST_EDITOR_VALIDATOR_ID, MANIFEST_EDITOR_VALIDATOR_VERSION,
 };
 pub use marketplace_truth::{
     project_marketplace_truth_row, project_marketplace_truth_support_export,
