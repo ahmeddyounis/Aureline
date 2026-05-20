@@ -69,6 +69,7 @@ pub mod efficiency;
 pub mod embedded;
 pub mod embedded_boundary;
 pub mod embedded_boundary_audit;
+pub mod embedded_boundary_corpus;
 pub mod enterprise_drill_baseline;
 pub mod entry_interstitials;
 pub mod env_inspect;
