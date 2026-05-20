@@ -14,14 +14,16 @@
 //! `bootstrap_truth::run_corpus_from_repo_root` for the M3
 //! repository-acquisition and post-open bootstrap truth lane,
 //! `scaffold_safety::run_corpus_from_repo_root` for the M3 scaffold and
-//! generated-project safety lane, and
-//! `docs_maintenance::run_corpus_from_repo_root` for the M3 docs preview /
-//! maintenance integrity lane.
+//! generated-project safety lane, `docs_maintenance::run_corpus_from_repo_root`
+//! for the M3 docs preview / maintenance integrity lane, and
+//! `portable_state_restore::run_corpus_from_repo_root` for the M3 portable-state
+//! and restore-provenance continuity lane.
 
 #![doc(html_root_url = "https://docs.rs/aureline-qe/0.0.0")]
 
 pub mod bootstrap_truth;
 pub mod docs_maintenance;
 pub mod git_history_rewrite;
+pub mod portable_state_restore;
 pub mod repo_topology;
 pub mod scaffold_safety;

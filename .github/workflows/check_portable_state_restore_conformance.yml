@@ -1,0 +1,77 @@
+# Portable-state and restore-provenance conformance gate.
+#
+# Replays the portable-state and restore-provenance conformance corpus and
+# publishes the compatibility report and restore-provenance support packet for
+# the claimed beta continuity matrix.
+
+name: check_portable_state_restore_conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_portable_state_restore_conformance.yml"
+      - "crates/aureline-qe/src/portable_state_restore/**"
+      - "crates/aureline-qe/tests/portable_state_restore_conformance.rs"
+      - "crates/aureline-workspace/src/serialization/**"
+      - "fixtures/workspace/m3/portable_state_and_restore_conformance/**"
+      - "schemas/workspace/restore_provenance.schema.json"
+      - "schemas/workspace/portable_state_package.schema.json"
+      - "schemas/workspace/portable_state_compat_report.schema.json"
+      - "artifacts/compat/m3/portable_state_restore_matrix.md"
+      - "artifacts/compat/m3/portable_state_restore_report.json"
+      - "artifacts/support/m3/restore_provenance_examples/**"
+      - "docs/workspace/m3/portable_state_and_restore_conformance.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-portable-state-restore-conformance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  portable_state_restore_corpus:
+    name: Portable-state and restore-provenance corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-portable-state-restore-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-portable-state-restore-
+
+      - name: Replay portable-state and restore-provenance corpus
+        run: |
+          cargo test -p aureline-qe --test portable_state_restore_conformance --locked
+
+      - name: Upload compatibility report and restore-provenance packet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-state-restore-conformance-${{ github.run_id }}
+          path: |
+            fixtures/workspace/m3/portable_state_and_restore_conformance/manifest.json
+            artifacts/compat/m3/portable_state_restore_matrix.md
+            artifacts/compat/m3/portable_state_restore_report.json
+            artifacts/support/m3/restore_provenance_examples
+          if-no-files-found: error
+          retention-days: 30

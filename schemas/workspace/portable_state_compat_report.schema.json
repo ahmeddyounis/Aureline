@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/portable_state_compat_report.schema.json",
+  "title": "Aureline portable-state and restore-provenance compatibility report",
+  "description": "Machine-readable compatibility and restore-provenance report published for the claimed M3 beta continuity matrix. The report binds the conformance corpus to the claimed restore classes, source events, schema-migration and missing-dependency rows, and the redaction review. It records, per drill, the restore class, source event, schema outcome, resulting fidelity, controlled downgrade label, missing-surface dependencies, whether the prior artifact stays available for compare/export, and whether high-risk classes stay named exclusions. It never carries raw secrets, delegated approvals, provider-issued capability tickets, or off-screen geometry as authoritative truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_id",
+    "schema_version",
+    "corpus_ref",
+    "corpus_manifest_ref",
+    "generated_by",
+    "claimed_beta_matrix",
+    "rows",
+    "negative_rows",
+    "summary",
+    "restore_provenance_packet_ref",
+    "redaction_review",
+    "notes"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "report_id": { "$ref": "#/$defs/opaque_id" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "corpus_ref": { "$ref": "#/$defs/opaque_id" },
+    "corpus_manifest_ref": { "type": "string", "minLength": 1 },
+    "generated_by": { "$ref": "#/$defs/opaque_id" },
+    "claimed_beta_matrix": { "$ref": "#/$defs/claimed_beta_matrix" },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/compat_row" }
+    },
+    "negative_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/negative_row" }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "restore_provenance_packet_ref": { "type": "string", "minLength": 1 },
+    "redaction_review": { "$ref": "#/$defs/redaction_review" },
+    "notes": { "$ref": "#/$defs/redaction_aware_text" }
+  },
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier. Raw paths, hosts, credentials, command lines, source content, capability tickets, and live authority handles never appear here."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "drill_kind": {
+      "type": "string",
+      "enum": ["restore_provenance_card", "alpha_migration"]
+    },
+    "restore_fidelity": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only"
+      ]
+    },
+    "schema_outcome": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "manual_review"]
+    },
+    "source_event": {
+      "type": "string",
+      "enum": ["auto_checkpoint", "manual_export", "backup", "sync", "import"]
+    },
+    "downgrade_label": {
+      "type": "string",
+      "enum": [
+        "Exact restore",
+        "Compatible restore",
+        "Layout only",
+        "Recovered drafts",
+        "Evidence only"
+      ]
+    },
+    "missing_surface_dependency": {
+      "type": "string",
+      "enum": [
+        "missing_extension",
+        "missing_remote",
+        "missing_provider",
+        "revoked_permission",
+        "missing_workspace_authority",
+        "non_reentrant_live_surface",
+        "display_topology_mismatch",
+        "schema_equivalence_missing"
+      ]
+    },
+    "drill_status": {
+      "type": "string",
+      "enum": ["pass", "fail"]
+    },
+    "claimed_beta_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["restore_classes", "source_events"],
+      "properties": {
+        "restore_classes": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/restore_fidelity" }
+        },
+        "source_events": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/source_event" }
+        }
+      }
+    },
+    "compat_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "kind",
+        "restore_class",
+        "source_event",
+        "schema_outcome",
+        "resulting_fidelity",
+        "downgrade_label",
+        "missing_surface_dependencies",
+        "requires_compare_export",
+        "named_exclusions",
+        "status"
+      ],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/opaque_id" },
+        "kind": { "$ref": "#/$defs/drill_kind" },
+        "restore_class": { "$ref": "#/$defs/restore_fidelity" },
+        "source_event": { "$ref": "#/$defs/source_event" },
+        "schema_outcome": { "$ref": "#/$defs/schema_outcome" },
+        "resulting_fidelity": { "$ref": "#/$defs/restore_fidelity" },
+        "downgrade_label": { "$ref": "#/$defs/downgrade_label" },
+        "missing_surface_dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/missing_surface_dependency" }
+        },
+        "requires_compare_export": { "type": "boolean" },
+        "named_exclusions": { "type": "boolean" },
+        "status": { "$ref": "#/$defs/drill_status" }
+      }
+    },
+    "negative_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drill_id", "kind", "expected_failure_substring", "status"],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/opaque_id" },
+        "kind": { "$ref": "#/$defs/drill_kind" },
+        "expected_failure_substring": { "$ref": "#/$defs/redaction_aware_text" },
+        "status": { "$ref": "#/$defs/drill_status" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "positive_total",
+        "negative_total",
+        "passed_total",
+        "restore_classes_covered",
+        "source_events_covered",
+        "all_passed"
+      ],
+      "properties": {
+        "positive_total": { "type": "integer", "minimum": 0 },
+        "negative_total": { "type": "integer", "minimum": 0 },
+        "passed_total": { "type": "integer", "minimum": 0 },
+        "restore_classes_covered": { "type": "integer", "minimum": 0 },
+        "source_events_covered": { "type": "integer", "minimum": 0 },
+        "all_passed": { "type": "boolean" }
+      }
+    },
+    "redaction_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_raw_secrets",
+        "no_delegated_approvals",
+        "no_provider_capability_tickets",
+        "no_off_screen_geometry_authoritative",
+        "machine_local_excluded",
+        "passed"
+      ],
+      "properties": {
+        "no_raw_secrets": { "type": "boolean", "const": true },
+        "no_delegated_approvals": { "type": "boolean", "const": true },
+        "no_provider_capability_tickets": { "type": "boolean", "const": true },
+        "no_off_screen_geometry_authoritative": { "type": "boolean", "const": true },
+        "machine_local_excluded": { "type": "boolean", "const": true },
+        "passed": { "type": "boolean", "const": true }
+      }
+    }
+  }
+}
