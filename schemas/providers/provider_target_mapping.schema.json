@@ -1,0 +1,363 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/provider_target_mapping.schema.json",
+  "title": "Aureline provider target-mapping beta page (board/project/space/repository mapping review)",
+  "description": "Page-level beta schema for the providers_target_mapping_beta_page_record. Each mapping-review row makes provider targeting honest before a hosted mutation: it embeds one governed account/session binding (who Aureline acts as), names the typed mapping resolution state and the board/project/space/repository/incident-queue the comment, issue update, review action, or incident handoff would touch, and carries a publish posture distinguishing local draft, queued publish-later, live provider mutation, and read-only inspection. Policy-locked and unsupported-remap cases are first-class states with concrete next-safe actions. Mapping-invalidation events record when a resolved mapping is dropped while local drafts, queued transitions, and evidence stay durable and a live mutation is never silently kept. The schema-of-record lives at /crates/aureline-provider/src/project_mapping/mod.rs. The embedded account/session object is described by /schemas/providers/provider_account_scope.schema.json. Raw access tokens, raw provider payloads, and raw provider URLs are forbidden.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "shared_contract_ref",
+    "source_matrix_ref",
+    "review_rows",
+    "invalidation_events",
+    "defects",
+    "summary"
+  ],
+  "properties": {
+    "record_kind": { "const": "providers_target_mapping_beta_page_record" },
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+    "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+    "source_matrix_ref": { "$ref": "#/$defs/non_empty_string" },
+    "review_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/review_row" }
+    },
+    "invalidation_events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/invalidation_event" }
+    },
+    "defects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/defect" }
+    },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "shared_contract_ref": { "const": "providers:target_mapping_beta:v1" },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref safe for logs, manifests, support packets, and fixtures. Raw provider URLs and tokens are forbidden."
+    },
+    "profile_class": {
+      "type": "string",
+      "enum": ["connected", "mirror_only", "offline", "enterprise_managed"]
+    },
+    "lane_class": {
+      "type": "string",
+      "enum": [
+        "issue_or_work_item",
+        "review_decision",
+        "incident_handoff",
+        "publish_later"
+      ]
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "comment",
+        "issue_create",
+        "issue_update",
+        "status_transition",
+        "review_decision",
+        "incident_handoff",
+        "evidence_attachment"
+      ]
+    },
+    "target_kind_class": {
+      "type": "string",
+      "enum": ["board", "project", "space", "repository", "incident_queue"]
+    },
+    "resolution_state_class": {
+      "type": "string",
+      "enum": [
+        "resolved_single_target",
+        "policy_locked_target",
+        "ambiguous_needs_selection",
+        "unsupported_remap",
+        "stale_needs_refresh",
+        "invalidated",
+        "no_mapping_configured"
+      ]
+    },
+    "publish_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "queued_publish_later",
+        "live_provider_mutation",
+        "read_only_inspection"
+      ]
+    },
+    "next_action_class": {
+      "type": "string",
+      "enum": [
+        "none_proceed",
+        "select_target",
+        "refresh_mapping",
+        "reconnect_session",
+        "reapprove_scope",
+        "route_browser_handoff",
+        "queue_publish_later",
+        "contact_admin",
+        "retry_export"
+      ]
+    },
+    "invalidation_trigger_class": {
+      "type": "string",
+      "enum": [
+        "target_archived",
+        "target_deleted",
+        "target_moved_or_renamed",
+        "policy_remap_locked",
+        "scope_narrowed_below_target",
+        "session_went_offline",
+        "credential_went_stale",
+        "remap_unsupported_by_provider",
+        "board_schema_changed"
+      ]
+    },
+    "account_session_binding": {
+      "$ref": "provider_account_scope.schema.json"
+    },
+    "target_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "target_kind_token",
+        "canonical_target_ref",
+        "target_label",
+        "container_path_label",
+        "provider_host_label"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind_class" },
+        "target_kind_token": { "$ref": "#/$defs/target_kind_class" },
+        "canonical_target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "target_label": { "type": "string", "minLength": 1 },
+        "container_path_label": { "type": "string", "minLength": 1 },
+        "provider_host_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "review_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "row_id",
+        "display_label",
+        "profile",
+        "profile_token",
+        "lane",
+        "lane_token",
+        "action",
+        "action_token",
+        "account_session",
+        "provider_linked_row_ref",
+        "resolution_state",
+        "resolution_state_token",
+        "policy_locked_target",
+        "publish_posture",
+        "publish_posture_token",
+        "publish_posture_note",
+        "next_action",
+        "next_action_token",
+        "next_action_label",
+        "computed_at",
+        "raw_token_material_present",
+        "silent_target_remap_taken",
+        "silent_live_mutation_widened",
+        "local_draft_preserved",
+        "queued_transitions_preserved",
+        "evidence_preserved",
+        "retry_export_available"
+      ],
+      "properties": {
+        "record_kind": { "const": "providers_target_mapping_beta_review_row_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "row_id": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "type": "string", "minLength": 1 },
+        "profile": { "$ref": "#/$defs/profile_class" },
+        "profile_token": { "$ref": "#/$defs/profile_class" },
+        "lane": { "$ref": "#/$defs/lane_class" },
+        "lane_token": { "$ref": "#/$defs/lane_class" },
+        "action": { "$ref": "#/$defs/action_class" },
+        "action_token": { "$ref": "#/$defs/action_class" },
+        "account_session": { "$ref": "#/$defs/account_session_binding" },
+        "provider_linked_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "resolution_state": { "$ref": "#/$defs/resolution_state_class" },
+        "resolution_state_token": { "$ref": "#/$defs/resolution_state_class" },
+        "selected_target": { "$ref": "#/$defs/target_descriptor" },
+        "candidate_target_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "policy_locked_target": { "type": "boolean" },
+        "publish_posture": { "$ref": "#/$defs/publish_posture_class" },
+        "publish_posture_token": { "$ref": "#/$defs/publish_posture_class" },
+        "publish_posture_note": { "type": "string", "minLength": 1 },
+        "next_action": { "$ref": "#/$defs/next_action_class" },
+        "next_action_token": { "$ref": "#/$defs/next_action_class" },
+        "next_action_label": { "type": "string", "minLength": 1 },
+        "remediation_path_ref": { "$ref": "#/$defs/opaque_ref" },
+        "queue_item_ref": { "$ref": "#/$defs/opaque_ref" },
+        "evidence_attachment_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "computed_at": { "type": "string", "minLength": 1 },
+        "raw_token_material_present": { "type": "boolean", "const": false },
+        "silent_target_remap_taken": { "type": "boolean", "const": false },
+        "silent_live_mutation_widened": { "type": "boolean", "const": false },
+        "local_draft_preserved": { "type": "boolean", "const": true },
+        "queued_transitions_preserved": { "type": "boolean", "const": true },
+        "evidence_preserved": { "type": "boolean", "const": true },
+        "retry_export_available": { "type": "boolean", "const": true }
+      }
+    },
+    "invalidation_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "event_id",
+        "profile",
+        "profile_token",
+        "affected_row_ref",
+        "previous_target_ref",
+        "trigger",
+        "trigger_token",
+        "forced_posture",
+        "forced_posture_token",
+        "next_action",
+        "next_action_token",
+        "rationale_summary",
+        "observed_at",
+        "silent_live_mutation_after_invalidation",
+        "local_draft_preserved",
+        "queued_transitions_preserved",
+        "evidence_preserved"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "providers_target_mapping_beta_invalidation_event_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "event_id": { "$ref": "#/$defs/opaque_ref" },
+        "profile": { "$ref": "#/$defs/profile_class" },
+        "profile_token": { "$ref": "#/$defs/profile_class" },
+        "affected_row_ref": { "$ref": "#/$defs/opaque_ref" },
+        "previous_target_ref": { "$ref": "#/$defs/opaque_ref" },
+        "trigger": { "$ref": "#/$defs/invalidation_trigger_class" },
+        "trigger_token": { "$ref": "#/$defs/invalidation_trigger_class" },
+        "forced_posture": { "$ref": "#/$defs/publish_posture_class" },
+        "forced_posture_token": { "$ref": "#/$defs/publish_posture_class" },
+        "next_action": { "$ref": "#/$defs/next_action_class" },
+        "next_action_token": { "$ref": "#/$defs/next_action_class" },
+        "rationale_summary": { "type": "string", "minLength": 1 },
+        "observed_at": { "type": "string", "minLength": 1 },
+        "silent_live_mutation_after_invalidation": {
+          "type": "boolean",
+          "const": false
+        },
+        "local_draft_preserved": { "type": "boolean", "const": true },
+        "queued_transitions_preserved": { "type": "boolean", "const": true },
+        "evidence_preserved": { "type": "boolean", "const": true }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "shared_contract_ref",
+        "defect_kind",
+        "defect_kind_token",
+        "subject_id",
+        "field",
+        "note"
+      ],
+      "properties": {
+        "record_kind": { "const": "providers_target_mapping_beta_defect_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "shared_contract_ref": { "$ref": "#/$defs/shared_contract_ref" },
+        "defect_kind": { "type": "string", "minLength": 1 },
+        "defect_kind_token": { "type": "string", "minLength": 1 },
+        "subject_id": { "type": "string", "minLength": 1 },
+        "field": { "type": "string", "minLength": 1 },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page_record_kind",
+        "record_kind",
+        "review_row_count",
+        "invalidation_event_count",
+        "profiles_present",
+        "lanes_present",
+        "resolution_states_present",
+        "publish_postures_present",
+        "session_states_present",
+        "rows_by_publish_posture",
+        "rows_by_resolution_state",
+        "invalidations_by_trigger",
+        "defect_count",
+        "defect_counts_by_kind"
+      ],
+      "properties": {
+        "page_record_kind": {
+          "const": "providers_target_mapping_beta_page_record"
+        },
+        "record_kind": { "const": "providers_target_mapping_beta_summary_record" },
+        "review_row_count": { "type": "integer", "minimum": 0 },
+        "invalidation_event_count": { "type": "integer", "minimum": 0 },
+        "profiles_present": { "type": "array", "items": { "type": "string" } },
+        "lanes_present": { "type": "array", "items": { "type": "string" } },
+        "resolution_states_present": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "publish_postures_present": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "session_states_present": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "rows_by_publish_posture": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "rows_by_resolution_state": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "invalidations_by_trigger": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "defect_count": { "type": "integer", "minimum": 0 },
+        "defect_counts_by_kind": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

@@ -20,6 +20,7 @@ pub mod approval_tickets;
 pub mod browser_handoff;
 pub mod infrastructure_intelligence;
 pub mod object_model;
+pub mod project_mapping;
 pub mod publish_later;
 pub mod reconciliation;
 pub mod registry;
@@ -121,6 +122,21 @@ pub use object_model::{
     PROVIDER_OBJECT_MODEL_ALPHA_SCHEMA_VERSION, PROVIDER_OBJECT_MODEL_ALPHA_SHARED_CONTRACT_REF,
     PROVIDER_OBJECT_MODEL_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
     PROVIDER_OBJECT_MODEL_ALPHA_VALIDATION_REPORT_RECORD_KIND,
+};
+pub use project_mapping::{
+    audit_target_mapping_beta_page, seeded_target_mapping_beta_page,
+    validate_target_mapping_beta_page, AccountSessionBinding, MappingActionClass,
+    MappingInvalidationEvent, MappingInvalidationTriggerClass, MappingLaneClass,
+    MappingNextActionClass, MappingResolutionStateClass, MappingReviewRow, MappingTargetDescriptor,
+    ProviderSessionStateClass, PublishPostureClass, TargetKindClass, TargetMappingBetaDefect,
+    TargetMappingBetaDefectKind, TargetMappingBetaPage, TargetMappingBetaSummary,
+    TargetMappingBetaSupportExport, PROVIDER_ACCOUNT_SESSION_BINDING_RECORD_KIND,
+    TARGET_MAPPING_BETA_ACCOUNT_SCOPE_SCHEMA_REF, TARGET_MAPPING_BETA_DOC_REF,
+    TARGET_MAPPING_BETA_FIXTURE_DIR, TARGET_MAPPING_BETA_INVALIDATION_EVENT_RECORD_KIND,
+    TARGET_MAPPING_BETA_PAGE_RECORD_KIND, TARGET_MAPPING_BETA_ROW_RECORD_KIND,
+    TARGET_MAPPING_BETA_SCHEMA_REF, TARGET_MAPPING_BETA_SCHEMA_VERSION,
+    TARGET_MAPPING_BETA_SHARED_CONTRACT_REF, TARGET_MAPPING_BETA_SOURCE_MATRIX_REF,
+    TARGET_MAPPING_BETA_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use publish_later::{
     DependencyClass, DependencyState, ExportSafetyClass, PublishLaterQueueAlphaItem,
