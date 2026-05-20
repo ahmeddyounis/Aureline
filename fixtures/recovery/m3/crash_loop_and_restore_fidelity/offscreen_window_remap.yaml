@@ -1,0 +1,53 @@
+# Crash-loop / restore-fidelity drill: off-screen window remap.
+#
+# Replays a two-window restore on a changed monitor topology. The primary window
+# was saved fullscreen on a vanished external monitor with off-screen bounds and
+# a different scale bucket; the hydrator must move it to a connected display,
+# normalize scale, snap it into safe visible bounds, and clear fullscreen
+# (compatible restore) while the auxiliary window restores exactly.
+
+schema_version: 1
+record_kind: crash_loop_restore_fidelity_drill_record
+drill_id: clrf.offscreen_window_remap
+title: Off-screen windows remap onto safe bounds without trapping the layout
+condition_class: offscreen_window_remap
+drill_kind: restore_fidelity
+drill_owner_lane: support_export
+source_refs:
+  doc_ref: docs/workspace/m3/restore_hydrator_beta.md
+  schema_ref: schemas/workspace/window_topology_snapshot.schema.json
+  crate_consumer: crates/aureline-workspace/src/restore_hydrator/mod.rs
+  integration_test: crates/aureline-support/tests/crash_loop_and_restore_fidelity_drill.rs
+  input_fixture_ref: fixtures/recovery/m3/crash_loop_and_restore_fidelity/offscreen_remap_request.json
+expected_recovery_outcome: compatible_restore
+secondary_recovery_outcomes:
+  - exact_restore
+recovery_paths:
+  - moved_to_primary_display
+  - scale_normalized
+  - snapped_to_safe_bounds
+  - fullscreen_cleared
+protected_lanes: []
+no_silent_rerun_required: true
+truthful_placeholders_required: false
+accessibility:
+  keyboard_complete: true
+  screen_reader_labeled: true
+  reduced_motion_safe: true
+claim_linkage:
+  beta_continuity_row: beta.continuity.offscreen_window_remap
+  claim_text: A window saved on a now-absent monitor with off-screen bounds reopens on a connected display inside safe visible bounds rather than vanishing off-screen.
+evidence_packet_ref: support:crash-loop-restore:offscreen_window_remap
+claim_downgrade_triggers:
+  - drill_fixture_missing
+  - input_fixture_missing
+  - recovery_class_regressed
+  - silent_replay_detected
+  - accessibility_regressed
+  - evidence_packet_missing
+safety:
+  read_only_diagnosis: true
+  raw_private_material_excluded: true
+  destructive_resets_present: false
+  preserves_user_authored_files: true
+emitted_at: 2026-05-20T00:00:00Z

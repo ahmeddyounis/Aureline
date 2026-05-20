@@ -159,6 +159,7 @@
 pub mod advisory_baseline;
 pub mod bundle;
 pub mod capabilities;
+pub mod crash_loop_and_restore_fidelity;
 pub mod crash_loop_center;
 pub mod distributed_compatibility;
 pub mod export_review;
