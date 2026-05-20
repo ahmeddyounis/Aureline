@@ -1,0 +1,465 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/window_topology_snapshot.schema.json",
+  "title": "Aureline restore-hydration request bundle",
+  "description": "Cross-tool boundary for the restore hydrator. A request bundles one or more remembered window-topology snapshots plus the runtime restore environment (which extensions, remotes, providers, permissions, workspace authority, and displays exist now). The hydrator consumes this bundle to recreate window shells, pane topology, and focus anchors first, then hydrate heavy dependencies lazily, replacing missing surfaces with truthful placeholders and remapping off-screen bounds. The Rust types in crates/aureline-workspace/src/restore_hydrator are the schema of record; emitted layout-restore provenance reuses schemas/workspace/pane_tree.schema.json. Snapshots may carry extra pane-tree fields (for example split weights or chrome detail); the hydrator ignores fields it does not consume.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "request_id",
+    "workspace_ref",
+    "restore_source_class",
+    "producer_ref",
+    "snapshots",
+    "environment",
+    "notes"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": { "type": "string", "const": "restore_hydration_request" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "request_id": { "$ref": "#/$defs/opaque_id" },
+    "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+    "restore_source_class": { "$ref": "#/$defs/restore_source_class" },
+    "producer_ref": { "$ref": "#/$defs/opaque_id" },
+    "snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/window_topology_snapshot" }
+    },
+    "environment": { "$ref": "#/$defs/restore_environment" },
+    "notes": { "$ref": "#/$defs/redaction_aware_text" }
+  },
+  "$defs": {
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier. Raw paths, hosts, credentials, command lines, source content, and live authority handles never appear here."
+    },
+    "redaction_aware_text": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "monotonic_timestamp": { "type": "string", "minLength": 1 },
+    "restore_source_class": {
+      "type": "string",
+      "enum": [
+        "auto_checkpoint",
+        "graceful_shutdown_checkpoint",
+        "manual_window_export",
+        "portable_state_package",
+        "profile_sync_snapshot",
+        "imported_handoff",
+        "support_bundle_replay"
+      ]
+    },
+    "snapshot_reason": {
+      "type": "string",
+      "enum": [
+        "graceful_shutdown",
+        "crash_recovery_checkpoint",
+        "manual_export",
+        "diagnostic_capture",
+        "support_capture"
+      ]
+    },
+    "window_role": {
+      "type": "string",
+      "enum": ["primary", "auxiliary", "presentation", "review", "incident", "companion"]
+    },
+    "window_state": {
+      "type": "string",
+      "enum": ["normal", "maximized", "fullscreen", "zen", "minimized"]
+    },
+    "surface_role": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "terminal",
+        "debugger",
+        "notebook",
+        "search",
+        "problems",
+        "scm",
+        "docs",
+        "preview",
+        "ai_panel",
+        "explorer",
+        "test",
+        "custom_extension",
+        "placeholder"
+      ]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "text_editor",
+        "diff_editor",
+        "terminal_view",
+        "debug_view",
+        "notebook_view",
+        "search_results",
+        "problems_panel",
+        "scm_panel",
+        "docs_browser",
+        "preview_canvas",
+        "ai_panel",
+        "explorer_tree",
+        "test_results",
+        "extension_view",
+        "placeholder_card"
+      ]
+    },
+    "live_surface_class": {
+      "type": "string",
+      "enum": [
+        "terminal",
+        "debug_session",
+        "notebook",
+        "remote_shell",
+        "task_runner",
+        "pipeline_view",
+        "extension_view",
+        "preview_runtime"
+      ]
+    },
+    "hydration_behavior": {
+      "type": "string",
+      "enum": ["eager_lightweight", "lazy_heavy", "placeholder_only", "evidence_only"]
+    },
+    "availability_state": {
+      "type": "string",
+      "enum": ["ready", "needs_hydration", "placeholder", "evidence_only"]
+    },
+    "placeholder_reason_class": {
+      "type": "string",
+      "enum": [
+        "missing_extension",
+        "missing_remote",
+        "missing_remote_authority",
+        "revoked_permission",
+        "unsupported_display_topology",
+        "non_reentrant_live_surface",
+        "schema_migration_review_required",
+        "manual_recovery_required"
+      ]
+    },
+    "placeholder_action_class": {
+      "type": "string",
+      "enum": [
+        "retry_hydrate",
+        "locate_extension",
+        "install_extension",
+        "reauthenticate",
+        "reconnect_remote",
+        "recover_draft",
+        "open_without",
+        "export_evidence",
+        "remove_pane",
+        "rerun_explicitly",
+        "rebind_existing_session"
+      ]
+    },
+    "display_class": {
+      "type": "string",
+      "enum": [
+        "internal_panel",
+        "external_monitor",
+        "virtual_display",
+        "projector_or_presentation",
+        "unknown"
+      ]
+    },
+    "monitor_affinity_strength": {
+      "type": "string",
+      "enum": ["none", "prefer_same_display", "prefer_same_class", "prefer_same_region"]
+    },
+    "scale_bucket": {
+      "type": "string",
+      "enum": ["1x", "1_25x", "1_5x", "2x", "other"]
+    },
+    "focus_target_kind": {
+      "type": "string",
+      "enum": ["pane", "tab", "inspector", "follow_banner", "window_chrome"]
+    },
+    "split_orientation": {
+      "type": "string",
+      "enum": ["horizontal", "vertical"]
+    },
+    "dependency_class": {
+      "type": "string",
+      "enum": [
+        "extension",
+        "remote",
+        "remote_authority",
+        "provider",
+        "service",
+        "permission",
+        "workspace_authority"
+      ]
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "scope_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_authority_ref"],
+      "properties": {
+        "workspace_authority_ref": { "$ref": "#/$defs/opaque_id" },
+        "profile_defaults_ref": { "$ref": "#/$defs/opaque_id" },
+        "machine_display_hint_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "monitor_affinity_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["affinity_strength"],
+      "properties": {
+        "affinity_strength": { "$ref": "#/$defs/monitor_affinity_strength" },
+        "display_class": { "$ref": "#/$defs/display_class" },
+        "last_known_display_ref": { "$ref": "#/$defs/opaque_id" },
+        "preferred_scale_bucket": { "$ref": "#/$defs/scale_bucket" },
+        "preferred_bounds_hint": { "$ref": "#/$defs/bounds" }
+      }
+    },
+    "focus_chain_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind", "target_ref"],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/focus_target_kind" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "window_chrome_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_state"],
+      "properties": {
+        "window_state": { "$ref": "#/$defs/window_state" }
+      }
+    },
+    "snapshot_placeholder_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["placeholder_reason", "safe_actions", "evidence_retained"],
+      "properties": {
+        "placeholder_reason": { "$ref": "#/$defs/placeholder_reason_class" },
+        "safe_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/placeholder_action_class" }
+        },
+        "evidence_retained": { "type": "boolean" },
+        "last_known_provenance_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "pane_surface_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_role", "surface_class", "hydration_behavior", "availability_state"],
+      "properties": {
+        "surface_role": { "$ref": "#/$defs/surface_role" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "live_surface_class": { "$ref": "#/$defs/live_surface_class" },
+        "hydration_behavior": { "$ref": "#/$defs/hydration_behavior" },
+        "availability_state": { "$ref": "#/$defs/availability_state" },
+        "title_hint": { "$ref": "#/$defs/redaction_aware_text" },
+        "surface_binding_ref": { "$ref": "#/$defs/opaque_id" },
+        "placeholder_card": { "$ref": "#/$defs/snapshot_placeholder_card" }
+      }
+    },
+    "pane_leaf_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "pane_id", "surface"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "leaf" },
+        "pane_id": { "$ref": "#/$defs/opaque_id" },
+        "surface": { "$ref": "#/$defs/pane_surface_descriptor" }
+      }
+    },
+    "tab_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tab_id", "pane"],
+      "properties": {
+        "tab_id": { "$ref": "#/$defs/opaque_id" },
+        "tab_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "pinned": { "type": "boolean" },
+        "pane": { "$ref": "#/$defs/pane_leaf_node" }
+      }
+    },
+    "split_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "split_id", "orientation", "children"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "split" },
+        "split_id": { "$ref": "#/$defs/opaque_id" },
+        "orientation": { "$ref": "#/$defs/split_orientation" },
+        "children": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/pane_node" }
+        }
+      }
+    },
+    "tab_group_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_kind", "group_id", "tabs", "active_tab_id"],
+      "properties": {
+        "node_kind": { "type": "string", "const": "tab_group" },
+        "group_id": { "$ref": "#/$defs/opaque_id" },
+        "tabs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/tab_record" }
+        },
+        "active_tab_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "pane_node": {
+      "oneOf": [
+        { "$ref": "#/$defs/split_node" },
+        { "$ref": "#/$defs/tab_group_node" },
+        { "$ref": "#/$defs/pane_leaf_node" }
+      ]
+    },
+    "pane_tree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tree_revision", "root_node"],
+      "properties": {
+        "tree_revision": { "type": "integer", "minimum": 1 },
+        "root_node": { "$ref": "#/$defs/pane_node" }
+      }
+    },
+    "window_topology_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_id",
+        "snapshot_reason",
+        "window_id",
+        "window_role",
+        "scope_refs",
+        "pane_tree",
+        "focus_chain",
+        "window_chrome_state",
+        "monitor_affinity_hint",
+        "emitted_at"
+      ],
+      "properties": {
+        "snapshot_id": { "$ref": "#/$defs/opaque_id" },
+        "snapshot_reason": { "$ref": "#/$defs/snapshot_reason" },
+        "window_id": { "$ref": "#/$defs/opaque_id" },
+        "window_role": { "$ref": "#/$defs/window_role" },
+        "scope_refs": { "$ref": "#/$defs/scope_refs" },
+        "pane_tree": { "$ref": "#/$defs/pane_tree" },
+        "focus_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/focus_chain_entry" }
+        },
+        "window_chrome_state": { "$ref": "#/$defs/window_chrome_state" },
+        "monitor_affinity_hint": { "$ref": "#/$defs/monitor_affinity_hint" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "connected_display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_ref", "display_class", "scale_bucket", "visible_bounds"],
+      "properties": {
+        "display_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_class": { "$ref": "#/$defs/display_class" },
+        "scale_bucket": { "$ref": "#/$defs/scale_bucket" },
+        "visible_bounds": { "$ref": "#/$defs/bounds" }
+      }
+    },
+    "pane_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pane_id", "dependency_class", "dependency_ref"],
+      "properties": {
+        "pane_id": { "$ref": "#/$defs/opaque_id" },
+        "dependency_class": { "$ref": "#/$defs/dependency_class" },
+        "dependency_ref": { "$ref": "#/$defs/opaque_id" },
+        "reattachable": { "type": "boolean" }
+      }
+    },
+    "restore_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_authority_present", "connected_displays", "primary_display_ref"],
+      "properties": {
+        "workspace_authority_present": { "type": "boolean" },
+        "present_authority_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "available_extensions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "reachable_remotes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "available_providers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "granted_permissions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "connected_displays": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/connected_display" }
+        },
+        "primary_display_ref": { "$ref": "#/$defs/opaque_id" },
+        "clear_fullscreen_on_restore": { "type": "boolean" },
+        "pane_dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pane_dependency" }
+        }
+      }
+    }
+  }
+}

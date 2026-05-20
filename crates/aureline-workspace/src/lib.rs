@@ -25,6 +25,7 @@ pub mod prebuilds;
 pub mod profiles;
 pub mod recent_work;
 pub mod repo_topology;
+pub mod restore_hydrator;
 pub mod roots;
 pub mod save;
 pub mod scope_propagation;
@@ -87,6 +88,24 @@ pub use serialization::{
     WorkspaceStateLayerRecord, WORKSPACE_PANE_TREE_SCHEMA_REF,
     WORKSPACE_PORTABLE_STATE_PACKAGE_SCHEMA_REF, WORKSPACE_RESTORE_PROVENANCE_SCHEMA_REF,
     WORKSPACE_SERIALIZATION_BETA_SCHEMA_VERSION,
+};
+
+pub use restore_hydrator::{
+    AuthorityRebindResult, AvailabilityState, Bounds, ConnectedDisplay, DependencyClass,
+    DisplayAdjustmentClass as RestoreDisplayAdjustmentClass, DisplayAdjustmentRecord, DisplayClass,
+    FocusChainEntry, FocusTargetKind, HydrationBehavior, LayoutRestoreProvenanceRecord,
+    LayoutRestoreProvenanceRecordKind, LiveSurfaceClass, LiveSurfaceOutcomeRecord,
+    MonitorAffinityHint, MonitorAffinityStrength, NoRerunGuardrail as RestoreNoRerunGuardrail,
+    PaneDependency, PaneNode, PaneSurfaceDescriptor, PaneTree, PhaseOutcome, PlaceholderActionClass,
+    PlaceholderReasonClass, PlaceholderResultRecord, RestoreEnvironment, RestoreHydrationError,
+    RestoreHydrationOutcome, RestoreHydrationRecordKind, RestoreHydrationRequest,
+    RestoreHydrationSummary, RestoreLevel, RestorePhase, RestorePhaseRecord, RestoreSourceClass,
+    ScaleBucket, ScopeRefs, SnapshotPlaceholderCard, SnapshotReason,
+    SplitOrientation as RestoreSplitOrientation, SurfaceAuthorityPosture, SurfaceClass,
+    SurfaceRestorePosture as RestoreSurfaceRestorePosture, SurfaceRole, TabRecord,
+    WindowChromeState, WindowRestoreResult, WindowRole, WindowState,
+    WindowTopologySnapshot, RESTORE_HYDRATION_SCHEMA_VERSION, RESTORE_PANE_TREE_SCHEMA_REF,
+    RESTORE_PANE_TREE_SCHEMA_VERSION, WINDOW_TOPOLOGY_SNAPSHOT_SCHEMA_REF,
 };
 
 pub use entry_flows::{
