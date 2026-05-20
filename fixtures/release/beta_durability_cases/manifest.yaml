@@ -1,0 +1,101 @@
+schema_version: 1
+record_kind: beta_durability_fixture_manifest
+canonical_packet_ref: artifacts/release/m3/maintainer_coverage_matrix.json
+canonical_schema_ref: schemas/release/beta_durability_packet.schema.json
+validator_ref: tools/ci/m3/durability_gate
+
+# Each mutation deep-copies the canonical packet, applies one change at the
+# named payload_path, runs the durability validator, and asserts the named
+# expected_finding is raised. A mutation that silently passes means the gate
+# has gone deaf to a real durability fragility class.
+failure_drill_mutations:
+  - mutation_id: backup_missing_no_waiver
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#protected_paths.0.backup_waiver_ref
+    payload_path: protected_paths.0.backup_waiver_ref
+    replacement: null
+    expected_finding: durability.coverage.backup_missing_without_waiver
+    summary: A protected beta row with no named backup and no active waiver must fail.
+
+  - mutation_id: coverage_state_mismatch
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#protected_paths.1.coverage_state
+    payload_path: protected_paths.1.coverage_state
+    replacement: covered
+    expected_finding: durability.coverage.state_inconsistent
+    summary: Declared coverage_state must match the derived backup/waiver posture.
+
+  - mutation_id: coverage_review_overdue
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#protected_paths.2.next_review_due
+    payload_path: protected_paths.2.next_review_due
+    replacement: "2025-01-01"
+    expected_finding: durability.coverage.review_overdue
+    summary: An overdue coverage review on a protected beta row must fail.
+
+  - mutation_id: single_human_release_authority
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#signing_authority.split_authority_actions.0.min_distinct_humans
+    payload_path: signing_authority.split_authority_actions.0.min_distinct_humans
+    replacement: 1
+    expected_finding: durability.signing.single_human_authority
+    summary: Release-bearing authority encoded as a single-human path must fail.
+
+  - mutation_id: release_signing_break_glass_allowed
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#signing_authority.split_authority_actions.0.break_glass_profile
+    payload_path: signing_authority.split_authority_actions.0.break_glass_profile
+    replacement: audited_single_responder_containment
+    expected_finding: durability.signing.break_glass_forbidden_for_authority
+    summary: Release signing may never normalize a single-responder break-glass path.
+
+  - mutation_id: unknown_signing_action
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#signing_authority.split_authority_actions.1.signing_quorum_action_id
+    payload_path: signing_authority.split_authority_actions.1.signing_quorum_action_id
+    replacement: invented_action_not_in_matrix
+    expected_finding: durability.signing.unknown_action_id
+    summary: Split-authority rows must cite real signing-quorum action ids.
+
+  - mutation_id: missing_required_authority
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#signing_authority.split_authority_actions.2.authority
+    payload_path: signing_authority.split_authority_actions.2.authority
+    replacement: registry_emergency
+    expected_finding: durability.signing.required_authority_missing
+    summary: Dropping the revocation authority must fail the required-authority check.
+
+  - mutation_id: roster_authority_not_split
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#signing_authority.signer_roster.1.role
+    payload_path: signing_authority.signer_roster.1.role
+    replacement: release_operator
+    expected_finding: durability.signing.roster_authority_not_split
+    summary: The roster must split release and security operator authority.
+
+  - mutation_id: break_glass_contract_drift
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#signing_authority.break_glass.retrospective_quorum_profile
+    payload_path: signing_authority.break_glass.retrospective_quorum_profile
+    replacement: two_person_release_control
+    expected_finding: durability.signing.break_glass_retro_mismatch
+    summary: The break-glass contract must stay aligned with the signing-quorum policy.
+
+  - mutation_id: upstream_owner_missing
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#critical_upstreams.0.sustainment_owner
+    payload_path: critical_upstreams.0.sustainment_owner
+    replacement: ""
+    expected_finding: durability.upstream.red_risk_missing_owner
+    summary: A red-risk upstream with no named sustainment owner must fail.
+
+  - mutation_id: upstream_fork_replace_missing
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#critical_upstreams.1.fork_replace_strategy
+    payload_path: critical_upstreams.1.fork_replace_strategy
+    replacement: tbd
+    expected_finding: durability.upstream.red_risk_missing_fork_replace
+    summary: A red-risk upstream with no fork/replace strategy must fail.
+
+  - mutation_id: upstream_review_stale
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#critical_upstreams.2.next_review_due
+    payload_path: critical_upstreams.2.next_review_due
+    replacement: "2025-01-01"
+    expected_finding: durability.upstream.red_risk_review_stale
+    summary: A red-risk upstream with a stale review must fail.
+
+  - mutation_id: upstream_rating_drift
+    target_ref: artifacts/release/m3/maintainer_coverage_matrix.json#critical_upstreams.3.health_rating
+    payload_path: critical_upstreams.3.health_rating
+    replacement: green
+    expected_finding: durability.upstream.health_rating_mismatch
+    summary: Upstream health rating must not drift from the critical-upstream register.

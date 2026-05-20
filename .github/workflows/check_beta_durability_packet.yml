@@ -1,0 +1,69 @@
+# Beta durability packet gate.
+#
+# Validates maintainer coverage, signing/quorum split-authority, and
+# critical-upstream sustainment for protected beta paths, and fails when
+# backup coverage, signer separation, or critical-upstream ownership is
+# missing or stale.
+
+name: check_beta_durability_packet
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_durability_packet.yml"
+      - "ci/check_m3_durability_packet.py"
+      - "tools/ci/m3/durability_gate/**"
+      - "tools/ci/m3/_common.py"
+      - "schemas/release/beta_durability_packet.schema.json"
+      - "artifacts/release/m3/maintainer_coverage_matrix.json"
+      - "artifacts/release/m3/critical_upstream_register.csv"
+      - "artifacts/release/m3/signing_quorum_and_breakglass.md"
+      - "artifacts/release/m3/captures/durability_packet_validation_capture.json"
+      - "artifacts/governance/signing_quorum.yaml"
+      - "artifacts/governance/ownership_matrix.yaml"
+      - "artifacts/governance/critical_upstream_health_register.yaml"
+      - "artifacts/release/m3/claim_manifest.json"
+      - "fixtures/release/beta_durability_cases/**"
+      - "docs/release/m3/durability_and_quorum_beta.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-durability-packet-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  durability_packet:
+    name: Beta durability packet
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run durability packet validator
+        run: |
+          python3 ci/check_m3_durability_packet.py --repo-root . --check
+
+      - name: Upload durability validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-durability-packet-${{ github.run_id }}
+          path: artifacts/release/m3/captures/durability_packet_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
