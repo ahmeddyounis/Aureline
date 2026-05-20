@@ -1,0 +1,644 @@
+# Product truth-vocabulary registry.
+#
+# One governed source for the trust-bearing and release-bearing state words
+# every user-visible channel must use. Product UI, Help/About, docs, release
+# notes, admin / CLI / headless inspect output, and support bundles read these
+# rows by id instead of forking a private synonym per surface.
+#
+# Scope is deliberately narrow. This registry governs seven controlled
+# vocabulary classes only:
+#
+#   lifecycle           — release-stage / capability lifecycle state
+#   readiness           — qualification / support readiness class
+#   authority           — source / destination trust class
+#   retention           — data-retention posture class
+#   install_update      — install-mode and update-channel class
+#   deployment_profile  — deployment / topology profile
+#   outage_boundary     — service-health contract state and boundary class
+#
+# It is NOT a generic copy-style or prose checker. Narrative docs, marketing
+# copy, and microcopy are out of scope except where they quote one of the
+# controlled state words above.
+#
+# Conformance.
+#   - Every axis pins a single upstream `canonical_source`. The validator
+#     extracts that source verbatim and fails closed (registry_parity blocker)
+#     if this registry's canonical_terms drift from it. This registry mirrors
+#     upstream; it never forks it.
+#   - Allowed aliases (product display labels, accepted machine synonyms)
+#     resolve silently to a canonical term.
+#   - Deprecated aliases resolve but raise an alias_migration finding so a
+#     parallel vocabulary cannot persist silently; past their migrate_by date
+#     they escalate to a blocker (expired_alias_migration).
+#   - Forbidden aliases are banned parallel synonyms; quoting one on a
+#     protected surface is a blocker.
+#   - Two surfaces describing the same protected subject with conflicting
+#     resolved vocabulary is a blocker (cross_surface_conflict).
+#
+# Tooling reads this file. Reviewers refresh this registry or its upstream
+# sources rather than editing the generated parity report or the public
+# reference doc.
+
+schema_version: 1
+registry_id: product_truth_vocabulary_registry
+status: seeded
+as_of: "2026-05-20"
+owner: "@ahmeddyounis"
+backup_owner: null
+backup_waiver: single-maintainer-backup
+
+human_entrypoint_ref: docs/public/m3/truth_vocabulary_reference.md
+parity_report_ref: artifacts/release/m3/truth_vocabulary_parity_report.md
+
+validator:
+  script_ref: ci/check_truth_vocabulary_parity.py
+  command: python3 ci/check_truth_vocabulary_parity.py --repo-root .
+  report_command: python3 ci/check_truth_vocabulary_parity.py --repo-root . --write
+  runner_ref: scripts/ci/run_truth_vocabulary_parity.sh
+
+surface_corpus_ref: fixtures/governance/truth_vocabulary_parity/surface_corpus.json
+conformance_corpus_ref: fixtures/governance/truth_vocabulary_parity/conformance_corpus.json
+
+# Related governance that this registry composes rather than duplicates. The
+# truth-class matrix governs which surface owns a truth and its freshness; this
+# registry governs the state words those surfaces quote.
+related_contracts:
+  - contract_id: capability_lifecycle_registry
+    ref: artifacts/governance/capability_lifecycle_registry.yaml
+  - contract_id: claim_manifest_matrix
+    ref: artifacts/release/m3/claim_manifest_matrix.yaml
+  - contract_id: deployment_profiles_register
+    ref: artifacts/governance/deployment_profiles.yaml
+  - contract_id: truth_class_matrix
+    ref: artifacts/governance/truth_class_matrix.yaml
+  - contract_id: about_and_boundary_contract
+    ref: docs/public/m3/about_source_and_boundary_beta.md
+
+# -----------------------------------------------------------------------------
+# Surface classes.
+#
+# The user-visible channels that MUST quote one vocabulary. `protected_classes`
+# names the vocabulary classes whose state words are claim-bearing on that
+# surface; a mismatch in a protected pairing is a blocker, a mismatch in an
+# advisory (non-listed) pairing is a warning. `representative_refs` are existing
+# surfaces that already consume these state words.
+# -----------------------------------------------------------------------------
+
+surface_classes:
+  - surface_id: product_ui
+    title: In-product UI labels and chips
+    protected_classes:
+      - lifecycle
+      - readiness
+      - authority
+      - retention
+      - install_update
+      - deployment_profile
+      - outage_boundary
+    representative_refs:
+      - docs/ux/deployment_summary_contract.md
+      - docs/ux/command_review_sheets_contract.md
+
+  - surface_id: help_about
+    title: Help / About and source-and-boundary surfaces
+    protected_classes:
+      - lifecycle
+      - readiness
+      - authority
+      - retention
+      - install_update
+      - deployment_profile
+      - outage_boundary
+    representative_refs:
+      - docs/public/m3/about_source_and_boundary_beta.md
+      - docs/help/help_about_truth_source.md
+
+  - surface_id: docs
+    title: Product documentation and governance references
+    protected_classes:
+      - lifecycle
+      - readiness
+      - authority
+      - retention
+      - deployment_profile
+    representative_refs:
+      - artifacts/release/m3/claim_manifest.md
+      - docs/governance/deployment_profile_truth.md
+
+  - surface_id: release_notes
+    title: Release-note templates and drafts
+    protected_classes:
+      - lifecycle
+      - readiness
+      - install_update
+      - deployment_profile
+    representative_refs:
+      - artifacts/release/m3/release_notes_draft.md
+
+  - surface_id: cli_headless_inspect
+    title: CLI / headless inspect and diagnostics output
+    protected_classes:
+      - lifecycle
+      - readiness
+      - install_update
+      - deployment_profile
+      - outage_boundary
+    representative_refs:
+      - docs/ux/command_review_sheets_contract.md
+
+  - surface_id: support_bundle
+    title: Support bundle manifests and exports
+    protected_classes:
+      - lifecycle
+      - readiness
+      - authority
+      - retention
+      - install_update
+      - deployment_profile
+      - outage_boundary
+    representative_refs:
+      - docs/support/support_bundle_contract.md
+
+  - surface_id: admin_export
+    title: Admin / governance exports
+    protected_classes:
+      - lifecycle
+      - readiness
+      - authority
+      - retention
+      - install_update
+      - deployment_profile
+      - outage_boundary
+    representative_refs:
+      - artifacts/admin/admin_export_minimum_fields.yaml
+
+# -----------------------------------------------------------------------------
+# Severity policy.
+#
+# How a mismatch class maps to a finding severity. blocker fails the gate;
+# alias_migration and warning are reported but non-fatal (alias_migration
+# escalates to blocker once its migrate_by date passes).
+# -----------------------------------------------------------------------------
+
+severity_policy:
+  forbidden_alias_on_protected_surface: blocker
+  forbidden_alias_on_advisory_surface: warning
+  unknown_term_on_protected_surface: blocker
+  unknown_term_on_advisory_surface: warning
+  cross_surface_conflict_protected: blocker
+  cross_surface_conflict_advisory: warning
+  deprecated_alias_within_window: alias_migration
+  deprecated_alias_past_migrate_by: blocker
+  registry_parity_drift: blocker
+
+# -----------------------------------------------------------------------------
+# Vocabulary classes.
+#
+# Each class carries one or more axes. Each axis pins:
+#   - canonical_source : the single upstream source of truth, plus the pointer
+#     the validator extracts it from (json = JSON pointer key path; yaml = key
+#     path). registry canonical_terms MUST equal that extraction verbatim.
+#   - canonical_terms  : the closed term set every surface must resolve to.
+#   - aliases          : product display labels and synonyms with a status
+#     (allowed | deprecated | forbidden), the canonical term they resolve to,
+#     and (for deprecated) a migrate_by date and reason.
+# -----------------------------------------------------------------------------
+
+vocabulary_classes:
+  - class_id: lifecycle
+    title: Capability lifecycle / release-stage state
+    owner: "@ahmeddyounis"
+    summary: >
+      The release stage a capability or surface is in. One set of words across
+      Help/About, docs, release notes, CLI inspect, and support exports so a
+      row cannot read Stable on one surface and Beta on another.
+    axes:
+      - axis_id: lifecycle_state
+        title: Lifecycle state
+        canonical_source:
+          ref: schemas/governance/capability_lifecycle.schema.json
+          format: json
+          pointer: ["$defs", "lifecycle_state", "enum"]
+        canonical_terms:
+          - labs
+          - preview
+          - beta
+          - stable
+          - lts_facing
+          - deprecated
+          - disabled_by_policy
+          - retired
+        aliases:
+          - alias: "Labs"
+            canonical: labs
+            status: allowed
+          - alias: "Preview"
+            canonical: preview
+            status: allowed
+          - alias: "Beta"
+            canonical: beta
+            status: allowed
+          - alias: "Stable"
+            canonical: stable
+            status: allowed
+          - alias: "LTS"
+            canonical: lts_facing
+            status: allowed
+          - alias: "Deprecated"
+            canonical: deprecated
+            status: allowed
+          - alias: "Disabled by policy"
+            canonical: disabled_by_policy
+            status: allowed
+          - alias: "Retired"
+            canonical: retired
+            status: allowed
+          - alias: sunset
+            canonical: deprecated
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "Sunset" is a soft synonym for the Deprecated lifecycle state;
+              migrate surfaces to Deprecated.
+          - alias: ga
+            canonical: stable
+            status: forbidden
+            reason: >
+              "GA" forks the Stable lifecycle label; surfaces must say Stable.
+          - alias: generally_available
+            canonical: stable
+            status: forbidden
+            reason: >
+              Parallel synonym for Stable; quote the controlled label.
+          - alias: alpha
+            canonical: preview
+            status: forbidden
+            reason: >
+              The product does not ship an Alpha lifecycle word; pre-Beta work
+              is Labs or Preview.
+          - alias: early_access
+            canonical: preview
+            status: forbidden
+            reason: >
+              "Early access" forks Preview; quote the controlled label.
+          - alias: end_of_life
+            canonical: retired
+            status: forbidden
+            reason: >
+              "End of life" forks Retired; quote the controlled label.
+
+  - class_id: readiness
+    title: Qualification / support readiness class
+    owner: "@ahmeddyounis"
+    summary: >
+      How ready a claimed surface is and the support promise behind it. Mirrors
+      the claim-manifest support-class vocabulary so docs, release notes, and
+      support exports cannot describe the same row as Certified and Limited.
+    axes:
+      - axis_id: support_class
+        title: Support / readiness class
+        canonical_source:
+          ref: artifacts/release/m3/claim_manifest_matrix.yaml
+          format: yaml
+          pointer: ["vocabularies", "support_class"]
+        canonical_terms:
+          - certified
+          - supported
+          - limited
+          - experimental
+          - community
+          - retest_pending
+          - evidence_stale
+          - unsupported
+        aliases:
+          - alias: production_ready
+            canonical: certified
+            status: forbidden
+            reason: >
+              "Production-ready" overstates readiness; only Certified carries a
+              certification claim.
+          - alias: not_supported
+            canonical: unsupported
+            status: forbidden
+            reason: >
+              Parallel synonym for Unsupported; quote the controlled class.
+          - alias: fully_supported
+            canonical: supported
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "Fully supported" forks Supported; migrate to Supported.
+          - alias: best_effort
+            canonical: limited
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "Best effort" is the old phrasing for Limited support; migrate to
+              Limited.
+
+  - class_id: authority
+    title: Source / destination trust class
+    owner: "@ahmeddyounis"
+    summary: >
+      Whether a source, destination, or route is first-party public, first-party
+      private, community, or third-party. Mirrors the About / boundary
+      destination-class vocabulary so one surface cannot call a destination
+      Official while another calls it Community.
+    axes:
+      - axis_id: destination_class
+        title: Destination trust class
+        canonical_source:
+          ref: schemas/public/about_destination.schema.json
+          format: json
+          pointer: ["$defs", "destination_class", "enum"]
+        canonical_terms:
+          - official_public
+          - official_private
+          - community
+          - third_party_vendor
+        aliases:
+          - alias: official
+            canonical: official_public
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              Bare "Official" is ambiguous between public and private; name
+              official_public or official_private.
+          - alias: first_party
+            canonical: official_public
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "First party" forks official_public; migrate to the controlled
+              term.
+          - alias: vendor
+            canonical: third_party_vendor
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              Bare "vendor" forks third_party_vendor; quote the controlled
+              term.
+          - alias: third_party
+            canonical: third_party_vendor
+            status: forbidden
+            reason: >
+              "Third party" without the vendor suffix forks the controlled
+              term.
+
+  - class_id: retention
+    title: Data-retention posture class
+    owner: "@ahmeddyounis"
+    summary: >
+      How long data persists and who owns the retention window. Mirrors the
+      deployment-profile retention vocabulary so a profile cannot imply
+      no-retention on one surface and a vendor window on another.
+    axes:
+      - axis_id: retention_class
+        title: Retention class
+        canonical_source:
+          ref: artifacts/governance/deployment_profiles.yaml
+          format: yaml
+          pointer: ["retention_class_vocabulary"]
+        canonical_terms:
+          - no_retention_beyond_local_disk
+          - workspace_repo_retained
+          - customer_retention_window
+          - vendor_retention_window_with_customer_policy
+          - vendor_retention_window_default
+          - retention_not_applicable
+        aliases:
+          - alias: not_retained
+            canonical: no_retention_beyond_local_disk
+            status: forbidden
+            reason: >
+              "Not retained" forks no_retention_beyond_local_disk and hides
+              that local disk still holds the data.
+          - alias: ephemeral
+            canonical: no_retention_beyond_local_disk
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "Ephemeral" is imprecise; name no_retention_beyond_local_disk.
+          - alias: vendor_default
+            canonical: vendor_retention_window_default
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "Vendor default" forks vendor_retention_window_default; migrate
+              to the controlled term.
+
+  - class_id: install_update
+    title: Install-mode and update-channel class
+    owner: "@ahmeddyounis"
+    summary: >
+      How the product is installed and which update channel it follows. Mirrors
+      the install-topology vocabulary so the same build cannot read Per-user on
+      one surface and Managed on another.
+    axes:
+      - axis_id: install_mode
+        title: Install mode
+        canonical_source:
+          ref: schemas/install/install_topology_truth_row.schema.json
+          format: json
+          pointer: ["$defs", "install_mode_class", "enum"]
+        canonical_terms:
+          - per_user_installed
+          - per_machine_installed
+          - portable
+          - offline_bundle
+          - managed_deployed
+          - side_by_side_preview
+        aliases:
+          - alias: user_install
+            canonical: per_user_installed
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "User install" forks per_user_installed; migrate to the
+              controlled term.
+          - alias: enterprise_deployed
+            canonical: managed_deployed
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "Enterprise deployed" forks managed_deployed; migrate to the
+              controlled term.
+          - alias: mdm_deployed
+            canonical: managed_deployed
+            status: forbidden
+            reason: >
+              "MDM deployed" forks managed_deployed; quote the controlled term.
+      - axis_id: update_channel
+        title: Update channel
+        canonical_source:
+          ref: schemas/install/install_topology_truth_row.schema.json
+          format: json
+          pointer: ["$defs", "channel_class", "enum"]
+        canonical_terms:
+          - stable
+          - preview
+          - beta
+          - lts
+          - portable_stable
+          - portable_preview
+        aliases:
+          - alias: ga
+            canonical: stable
+            status: forbidden
+            reason: >
+              "GA" forks the Stable channel; quote the controlled channel name.
+          - alias: nightly
+            canonical: preview
+            status: forbidden
+            reason: >
+              "Nightly" forks the Preview channel; the product ships no Nightly
+              channel.
+          - alias: release
+            canonical: stable
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              Bare "Release" channel forks Stable; migrate to Stable.
+
+  - class_id: deployment_profile
+    title: Deployment / topology profile
+    owner: "@ahmeddyounis"
+    summary: >
+      Which deployment profile a claim sits in. Mirrors the frozen deployment
+      profile vocabulary; product-facing labels are allowed aliases that resolve
+      to one profile id so no surface mints a parallel profile word.
+    axes:
+      - axis_id: deployment_profile
+        title: Deployment profile
+        canonical_source:
+          ref: artifacts/governance/deployment_profiles.yaml
+          format: yaml
+          pointer: ["deployment_profile_vocabulary"]
+        canonical_terms:
+          - individual_local
+          - self_hosted
+          - enterprise_online
+          - air_gapped
+          - managed_cloud
+        aliases:
+          - alias: desktop_local_first
+            canonical: individual_local
+            status: allowed
+          - alias: self_hosted_sovereign
+            canonical: self_hosted
+            status: allowed
+          - alias: hybrid_remote_attach
+            canonical: enterprise_online
+            status: allowed
+          - alias: air_gapped_mirror_only
+            canonical: air_gapped
+            status: allowed
+          - alias: browser_companion_handoff_default_home
+            canonical: managed_cloud
+            status: allowed
+          - alias: on_premise
+            canonical: self_hosted
+            status: forbidden
+            reason: >
+              "On-premise" forks self_hosted; quote the controlled profile id
+              or its product-facing label.
+          - alias: on_prem
+            canonical: self_hosted
+            status: deprecated
+            migrate_by: "2026-04-01"
+            reason: >
+              "On-prem" was a tolerated synonym for self_hosted; its migration
+              window has closed, so any remaining use is now a blocker.
+          - alias: saas
+            canonical: managed_cloud
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "SaaS" forks managed_cloud; migrate to the controlled profile id.
+          - alias: hybrid
+            canonical: enterprise_online
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              Bare "hybrid" forks enterprise_online; migrate to the controlled
+              profile id.
+          - alias: offline
+            canonical: air_gapped
+            status: forbidden
+            reason: >
+              "Offline" is an outage / mirror state, not a deployment profile;
+              use the air_gapped profile for the topology claim.
+
+  - class_id: outage_boundary
+    title: Service-health contract state and boundary class
+    owner: "@ahmeddyounis"
+    summary: >
+      What state a service-health card is in and which boundary it sits behind.
+      Mirrors the closed service-contract-state vocabulary so no surface paints a
+      generic "service down" where the typed state and boundary are known.
+    axes:
+      - axis_id: service_contract_state
+        title: Service contract state
+        canonical_source:
+          ref: schemas/ops/service_contract_state.schema.json
+          format: json
+          pointer: ["$defs", "service_contract_state_token", "enum"]
+        canonical_terms:
+          - ready
+          - degraded
+          - local_only
+          - stale
+          - contract_mismatch
+          - policy_blocked
+          - unavailable
+        aliases:
+          - alias: service_down
+            canonical: unavailable
+            status: forbidden
+            reason: >
+              Generic "service down" is the catch-all the outage vocabulary
+              exists to replace; quote unavailable plus the boundary.
+          - alias: service_degraded
+            canonical: degraded
+            status: forbidden
+            reason: >
+              Generic "service degraded" hides whether local work stays safe;
+              quote degraded plus the boundary.
+          - alias: broken
+            canonical: unavailable
+            status: forbidden
+            reason: >
+              "Broken" is generic outage copy; quote the typed contract state.
+          - alias: outage
+            canonical: unavailable
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              Bare "outage" forks unavailable; migrate to the controlled state.
+      - axis_id: boundary_class
+        title: Service boundary class
+        canonical_source:
+          ref: artifacts/release/m3/service_health_contract_matrix.json
+          format: json
+          pointer: ["service_family_rows"]
+          collect_field: boundary_class
+        canonical_terms:
+          - local_only
+          - vendor_provider
+          - local_with_remote_required
+          - local_with_remote_optional
+          - hosted
+        aliases:
+          - alias: remote_required
+            canonical: local_with_remote_required
+            status: deprecated
+            migrate_by: "2026-07-01"
+            reason: >
+              "Remote required" forks local_with_remote_required; migrate to the
+              controlled boundary class.
+          - alias: cloud_only
+            canonical: hosted
+            status: forbidden
+            reason: >
+              "Cloud only" forks the hosted boundary class; quote the controlled
+              term.

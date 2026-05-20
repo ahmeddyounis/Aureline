@@ -1,0 +1,74 @@
+# Cross-surface truth-vocabulary parity gate.
+#
+# Proves product UI, Help/About, docs, release notes, admin / CLI / headless
+# inspect output, and support bundles all quote one controlled vocabulary for
+# lifecycle, readiness, authority, retention, install/update, deployment-profile,
+# and outage-boundary states instead of drifting into local synonyms. Fails
+# closed on registry drift, forbidden synonyms or unknown terms on protected
+# surfaces, cross-surface conflicts, expired alias migrations, a stale report,
+# or a conformance drill that no longer fires.
+
+name: check_truth_vocabulary_parity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_truth_vocabulary_parity.yml"
+      - "scripts/ci/run_truth_vocabulary_parity.sh"
+      - "ci/check_truth_vocabulary_parity.py"
+      - "artifacts/governance/product_truth_vocabulary.yaml"
+      - "fixtures/governance/truth_vocabulary_parity/**"
+      - "artifacts/release/m3/truth_vocabulary_parity_report.md"
+      - "docs/public/m3/truth_vocabulary_reference.md"
+      - "schemas/governance/capability_lifecycle.schema.json"
+      - "schemas/public/about_destination.schema.json"
+      - "schemas/install/install_topology_truth_row.schema.json"
+      - "schemas/ops/service_contract_state.schema.json"
+      - "artifacts/release/m3/claim_manifest_matrix.yaml"
+      - "artifacts/release/m3/service_health_contract_matrix.json"
+      - "artifacts/governance/deployment_profiles.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-truth-vocabulary-parity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  truth_vocabulary_parity:
+    name: Truth-vocabulary parity
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run truth-vocabulary parity gate
+        run: |
+          scripts/ci/run_truth_vocabulary_parity.sh \
+            --report-json artifacts/release/m3/captures/truth_vocabulary_parity_report.json
+
+      - name: Upload parity report and findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: truth-vocabulary-parity-${{ github.run_id }}
+          path: |
+            artifacts/release/m3/truth_vocabulary_parity_report.md
+            artifacts/release/m3/captures/truth_vocabulary_parity_report.json
+          if-no-files-found: warn
+          retention-days: 30
