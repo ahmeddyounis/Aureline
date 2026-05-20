@@ -1580,6 +1580,12 @@ fn first_useful_entry_source_for(
         EntryVerb::Open if target_kind == TargetKind::LocalFile => {
             FirstUsefulEntrySource::SingleFileOpen
         }
+        // A review, incident, or work-item deep link lands on the linked object
+        // rather than collapsing into a generic folder open, so first-useful
+        // routing stays honest about why the surface was chosen.
+        EntryVerb::Open if target_kind == TargetKind::ReviewOrWorkItemDeepLink => {
+            FirstUsefulEntrySource::ReviewOrIncidentDeepLink
+        }
         EntryVerb::Open => FirstUsefulEntrySource::FolderOrRepoOpen,
         EntryVerb::AddRoot => FirstUsefulEntrySource::FolderOrRepoOpen,
     }

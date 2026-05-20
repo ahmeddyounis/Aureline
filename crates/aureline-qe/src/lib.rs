@@ -19,9 +19,11 @@
 //! `portable_state_restore::run_corpus_from_repo_root` for the M3 portable-state
 //! and restore-provenance continuity lane,
 //! `workflow_bundle_lifecycle::run_corpus_from_repo_root` for the M3
-//! workflow-bundle lifecycle and certification-freshness lane, and
+//! workflow-bundle lifecycle and certification-freshness lane,
 //! `command_truth_authority::run_corpus_from_repo_root` for the M3 command-truth
-//! and palette-authority parity lane.
+//! and palette-authority parity lane, and
+//! `project_entry_admission::run_corpus_from_repo_root` for the M3 project-entry
+//! and workspace-admission switching-parity lane.
 
 #![doc(html_root_url = "https://docs.rs/aureline-qe/0.0.0")]
 
@@ -30,6 +32,7 @@ pub mod command_truth_authority;
 pub mod docs_maintenance;
 pub mod git_history_rewrite;
 pub mod portable_state_restore;
+pub mod project_entry_admission;
 pub mod repo_topology;
 pub mod scaffold_safety;
 pub mod workflow_bundle_lifecycle;

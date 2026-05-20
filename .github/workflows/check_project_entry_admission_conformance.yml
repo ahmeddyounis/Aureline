@@ -1,0 +1,76 @@
+# Project-entry and workspace-admission conformance gate.
+#
+# Replays the project-entry and workspace-admission conformance corpus and
+# publishes the first-landing truth matrix and project-entry / admission report
+# for the claimed beta switching rows.
+
+name: check_project_entry_admission_conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_project_entry_admission_conformance.yml"
+      - "crates/aureline-qe/src/project_entry_admission/**"
+      - "crates/aureline-qe/src/lib.rs"
+      - "crates/aureline-qe/tests/project_entry_admission_conformance.rs"
+      - "crates/aureline-workspace/src/entry/**"
+      - "crates/aureline-workspace/src/admission/**"
+      - "fixtures/workspace/m3/project_entry_and_admission/**"
+      - "schemas/workspace/entry_admission_conformance.schema.json"
+      - "schemas/workspace/entry_review.schema.json"
+      - "artifacts/ux/m3/first_landing_truth_matrix.json"
+      - "artifacts/migration/m3/project_entry_admission_report.md"
+      - "docs/workspace/m3/project_entry_and_admission_conformance.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-project-entry-admission-conformance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  project_entry_admission_corpus:
+    name: Project-entry and workspace-admission corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-project-entry-admission-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-project-entry-admission-
+
+      - name: Replay project-entry and workspace-admission corpus
+        run: |
+          cargo test -p aureline-qe --test project_entry_admission_conformance --locked
+
+      - name: Upload first-landing truth matrix and admission report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-entry-admission-conformance-${{ github.run_id }}
+          path: |
+            fixtures/workspace/m3/project_entry_and_admission/manifest.json
+            artifacts/ux/m3/first_landing_truth_matrix.json
+            artifacts/migration/m3/project_entry_admission_report.md
+          if-no-files-found: error
+          retention-days: 30
