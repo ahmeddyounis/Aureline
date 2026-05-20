@@ -1,0 +1,85 @@
+# Maintenance & failover continuity-notice audit gate.
+#
+# Replays the continuity-notice audit corpus: it proves the marketed beta
+# maintenance, drain, failover, and tenant-migration surfaces declare their
+# exact window, scope, and write classes; never read as current once superseded,
+# completed, imported, or refresh-aged-out; preserve queued publish-later /
+# local-draft work separately from successful hosted mutations; keep a changed
+# tenant / region / endpoint boundary visible after recovery; and never collapse
+# into a generic degraded banner.
+
+name: check_continuity_notices
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_continuity_notices.yml"
+      - "scripts/ci/run_continuity_notices.sh"
+      - "ci/check_continuity_notices.py"
+      - "schemas/ops/continuity_notice_view.schema.json"
+      - "fixtures/ops/m3/maintenance_and_failover_notices/**"
+      - "docs/ops/m3/maintenance_failover_truth.md"
+      - "crates/aureline-shell/src/continuity_notices/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_continuity_notices_corpus.rs"
+      - "crates/aureline-shell/tests/continuity_notices_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-continuity-notices-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  continuity_notices:
+    name: Maintenance & failover continuity-notice audit corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-continuity-notices-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-continuity-notices-
+
+      - name: Run maintenance & failover continuity-notice audit corpus
+        run: |
+          scripts/ci/run_continuity_notices.sh \
+            --report-json artifacts/ops/m3/maintenance_failover_truth_corpus_report.json
+
+      - name: Upload corpus report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: continuity-notices-${{ github.run_id }}
+          path: |
+            artifacts/ops/m3/maintenance_failover_truth_report.md
+            artifacts/ops/m3/maintenance_failover_truth_corpus_report.json
+          if-no-files-found: warn
+          retention-days: 30

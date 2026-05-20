@@ -1,0 +1,708 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/continuity_notice_view.schema.json",
+  "title": "Aureline maintenance & failover continuity-notice view",
+  "description": "Boundary schema for continuity_notice_view_record, the single governed view the desktop shell, the activity center / durable history, CLI / headless inspect, diagnostics, and support exports all read for a maintenance, drain / read-only, failover, or tenant-migration window. The view composes — it does not fork — the upstream maintenance_notice_record, tenant_migration_event_record, failover_banner_record, and local_safe_baseline_record boundary records frozen in docs/ops/maintenance_migration_failover_contract.md and docs/ops/failover_continuity_banner_contract.md, and is minted by crates/aureline-shell/src/continuity_notices. The view enforces two structural invariants: (1) no-silent-current — effective_freshness is `current` only when the declared lifecycle freshness is `active_current` and the latest refresh is still fresh / recent relative to as_of, otherwise it downgrades, names the downgrade reason, lights the honesty marker, and carries a stale label; (2) boundary-preserved-after-recovery — a changed tenant / region / residency / key-ownership / endpoint boundary stays visible even on a completed / recovered notice. Queued publish-later and local-draft work is kept visibly separate from successful hosted mutations. Raw URLs, raw hostnames, raw tenant / account names, raw credentials, raw payloads, raw policy bodies, and raw secret material never cross this boundary; the record carries opaque refs and redaction-aware sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "notice",
+    "view_id",
+    "notice_id",
+    "as_of",
+    "notice_kind",
+    "notice_kind_label",
+    "category",
+    "category_label",
+    "plan_class",
+    "plan_class_label",
+    "title",
+    "summary",
+    "created_at",
+    "updated_at",
+    "schedule",
+    "affected_scope",
+    "boundary_change",
+    "blocked_writes",
+    "succeeded_hosted_mutations",
+    "local_continuity",
+    "lifecycle",
+    "effective_freshness",
+    "effective_freshness_label",
+    "freshness_downgraded",
+    "downgrade_reasons",
+    "boundary_change_unresolved",
+    "honesty_marker_present",
+    "summary_counts",
+    "display_copy",
+    "history_ref",
+    "support_export_ref",
+    "evidence_refs",
+    "narrative_refs"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "continuity_notice_view_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "notice": { "$ref": "#/$defs/reviewable_sentence" },
+    "view_id": { "$ref": "#/$defs/stable_token" },
+    "notice_id": { "$ref": "#/$defs/stable_token" },
+    "as_of": { "$ref": "#/$defs/utc_date_time" },
+    "notice_kind": { "$ref": "#/$defs/notice_kind_class" },
+    "notice_kind_label": { "$ref": "#/$defs/non_empty_string" },
+    "category": { "$ref": "#/$defs/category_class" },
+    "category_label": { "$ref": "#/$defs/non_empty_string" },
+    "plan_class": { "$ref": "#/$defs/plan_class" },
+    "plan_class_label": { "$ref": "#/$defs/non_empty_string" },
+    "title": { "$ref": "#/$defs/reviewable_sentence" },
+    "summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "created_at": { "$ref": "#/$defs/utc_date_time" },
+    "updated_at": { "$ref": "#/$defs/utc_date_time" },
+    "schedule": { "$ref": "#/$defs/schedule" },
+    "affected_scope": { "$ref": "#/$defs/affected_scope" },
+    "boundary_change": { "$ref": "#/$defs/boundary_change" },
+    "blocked_writes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/blocked_write_row" }
+    },
+    "succeeded_hosted_mutations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/hosted_mutation_row" }
+    },
+    "local_continuity": { "$ref": "#/$defs/local_continuity" },
+    "lifecycle": { "$ref": "#/$defs/lifecycle" },
+    "effective_freshness": { "$ref": "#/$defs/effective_freshness_class" },
+    "effective_freshness_label": { "$ref": "#/$defs/non_empty_string" },
+    "freshness_downgraded": { "type": "boolean" },
+    "downgrade_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/downgrade_reason_class" }
+    },
+    "boundary_change_unresolved": { "type": "boolean" },
+    "honesty_marker_present": { "type": "boolean" },
+    "summary_counts": { "$ref": "#/$defs/summary_counts" },
+    "display_copy": { "$ref": "#/$defs/display_copy" },
+    "history_ref": { "$ref": "#/$defs/canonical_object_ref" },
+    "support_export_ref": { "$ref": "#/$defs/canonical_object_ref" },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stable_token" }
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    }
+  },
+  "allOf": [
+    {
+      "description": "effective_freshness `current` requires the declared lifecycle freshness to be active_current and no downgrade.",
+      "if": {
+        "properties": { "effective_freshness": { "const": "current" } },
+        "required": ["effective_freshness"]
+      },
+      "then": {
+        "properties": {
+          "freshness_downgraded": { "const": false },
+          "downgrade_reasons": { "maxItems": 0 },
+          "lifecycle": {
+            "properties": { "freshness_class": { "const": "active_current" } }
+          },
+          "display_copy": {
+            "properties": { "stale_label": { "type": "null" } }
+          }
+        }
+      }
+    },
+    {
+      "description": "A downgraded notice must name at least one reason, light the honesty marker, and carry a stale label.",
+      "if": {
+        "properties": { "freshness_downgraded": { "const": true } },
+        "required": ["freshness_downgraded"]
+      },
+      "then": {
+        "properties": {
+          "effective_freshness": { "not": { "const": "current" } },
+          "downgrade_reasons": { "minItems": 1 },
+          "honesty_marker_present": { "const": true },
+          "display_copy": {
+            "properties": { "stale_label": { "$ref": "#/$defs/reviewable_sentence" } },
+            "required": ["stale_label"]
+          }
+        }
+      }
+    },
+    {
+      "description": "An unresolved boundary change must light the honesty marker and keep the boundary change required.",
+      "if": {
+        "properties": { "boundary_change_unresolved": { "const": true } },
+        "required": ["boundary_change_unresolved"]
+      },
+      "then": {
+        "properties": {
+          "honesty_marker_present": { "const": true },
+          "boundary_change": {
+            "properties": { "boundary_change_required": { "const": true } }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stable_token": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "description": "Opaque stable token. Raw URLs, raw hostnames, raw tenant / account names, raw credentials, raw policy bodies, and raw secret material never appear here."
+    },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Short redaction-aware sentence safe for UI, durable history, support export, and admin review surfaces."
+    },
+    "utc_date_time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$",
+      "description": "RFC 3339 / ISO 8601 UTC timestamp."
+    },
+    "nullable_utc_date_time": {
+      "anyOf": [{ "$ref": "#/$defs/utc_date_time" }, { "type": "null" }]
+    },
+    "canonical_object_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^aureline://(?!home/|dashboard/|landing/|index/|overview/|start/|root/)[^/]+/.+$",
+      "description": "Canonical durable-object ref of the form aureline://<class>/<id> where <class> is not a generic landing page."
+    },
+    "nullable_canonical_object_ref": {
+      "anyOf": [{ "$ref": "#/$defs/canonical_object_ref" }, { "type": "null" }]
+    },
+    "nullable_token": {
+      "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+    },
+    "notice_kind_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_maintenance_window",
+        "read_only_window",
+        "drain_window",
+        "scheduled_export_freeze",
+        "tenant_migration",
+        "region_migration",
+        "regional_failover",
+        "control_plane_failover",
+        "post_event_reconciliation"
+      ]
+    },
+    "category_class": {
+      "type": "string",
+      "enum": ["maintenance", "drain", "failover", "tenant_migration"]
+    },
+    "plan_class": {
+      "type": "string",
+      "enum": ["planned", "emergency"]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "active_current",
+        "superseded_stale",
+        "completed_historical",
+        "imported_historical"
+      ]
+    },
+    "effective_freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "refresh_stale",
+        "superseded_stale",
+        "completed_historical",
+        "imported_historical"
+      ]
+    },
+    "refresh_age_class": {
+      "type": "string",
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"]
+    },
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "refresh_expired",
+        "notice_superseded",
+        "window_completed",
+        "imported_offline"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "residency_scope_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "customer_region_pinned",
+        "vendor_region_default",
+        "sovereign_region_pinned",
+        "tenant_residency_recheck_required",
+        "residency_changed_review_required"
+      ]
+    },
+    "service_class": {
+      "type": "string",
+      "enum": [
+        "sync_service",
+        "registry_service",
+        "relay_service",
+        "ai_broker_service",
+        "auth_identity_service",
+        "policy_service",
+        "docs_pack_service",
+        "catalog_service",
+        "telemetry_sink_service",
+        "workspace_control_plane_service",
+        "provider_review_service",
+        "merge_queue_service",
+        "support_ingest_service"
+      ]
+    },
+    "time_basis_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_exact",
+        "detected_exact",
+        "in_progress_exact",
+        "completed_exact",
+        "historical_exact"
+      ]
+    },
+    "managed_action_class": {
+      "type": "string",
+      "enum": [
+        "managed_review_comment_publish",
+        "managed_review_approval",
+        "merge_queue_enqueue",
+        "collaboration_presence_write",
+        "remote_control_session_join",
+        "profile_settings_sync_write",
+        "policy_admin_write",
+        "extension_registry_publish_or_install",
+        "managed_workspace_lifecycle_write",
+        "ai_gateway_prompt_submit",
+        "support_bundle_upload",
+        "telemetry_upload",
+        "provider_publish_local_draft",
+        "provider_publish_immediate"
+      ]
+    },
+    "write_continuity_posture_class": {
+      "type": "string",
+      "enum": [
+        "queued_publish_later",
+        "local_draft_preserved",
+        "retryable_when_connected",
+        "draining_existing_only",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_no_safe_retry",
+        "requires_manual_rerun"
+      ]
+    },
+    "safer_than_retry_guidance_class": {
+      "type": "string",
+      "enum": [
+        "retry_safe_when_resumed",
+        "export_now_safer",
+        "postpone_safer",
+        "manual_rerun_required",
+        "no_safe_retry_escalate"
+      ]
+    },
+    "block_state_class": {
+      "type": "string",
+      "enum": [
+        "scheduled_to_block",
+        "blocked_read_only",
+        "blocked_drain_new_actions",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_by_policy",
+        "draining_existing_only"
+      ]
+    },
+    "resume_trigger_class": {
+      "type": "string",
+      "enum": [
+        "window_starts",
+        "window_ends",
+        "drain_completes",
+        "cutover_completes",
+        "reconciliation_completes",
+        "boundary_review_completed",
+        "fresh_approval_issued",
+        "manual_reconnect_required",
+        "manual_export_required",
+        "not_applicable"
+      ]
+    },
+    "boundary_axis_class": {
+      "type": "string",
+      "enum": ["tenant", "region", "residency", "key_ownership", "endpoint_identity"]
+    },
+    "boundary_axis_state_class": {
+      "type": "string",
+      "enum": ["unchanged", "changed", "unknown_recheck_required", "not_applicable"]
+    },
+    "local_core_status_class": {
+      "type": "string",
+      "enum": [
+        "local_core_unaffected",
+        "meaningful_safe_subset_available",
+        "local_only_available",
+        "no_safe_local_subset",
+        "unknown_requires_review"
+      ]
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_basis",
+        "time_basis_label",
+        "starts_at",
+        "expected_or_actual_ends_at",
+        "completed_at",
+        "timezone_id",
+        "utc_offset_at_start",
+        "latest_refresh_at",
+        "refresh_age",
+        "refresh_age_label"
+      ],
+      "properties": {
+        "time_basis": { "$ref": "#/$defs/time_basis_class" },
+        "time_basis_label": { "$ref": "#/$defs/non_empty_string" },
+        "starts_at": { "$ref": "#/$defs/utc_date_time" },
+        "expected_or_actual_ends_at": { "$ref": "#/$defs/nullable_utc_date_time" },
+        "completed_at": { "$ref": "#/$defs/nullable_utc_date_time" },
+        "timezone_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(UTC|[A-Za-z_]+/[A-Za-z0-9_+.-]+(?:/[A-Za-z0-9_+.-]+)*)$",
+          "description": "IANA timezone id or UTC."
+        },
+        "utc_offset_at_start": {
+          "type": "string",
+          "pattern": "^(Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$",
+          "description": "UTC offset in force at window start."
+        },
+        "latest_refresh_at": { "$ref": "#/$defs/nullable_utc_date_time" },
+        "refresh_age": { "$ref": "#/$defs/refresh_age_class" },
+        "refresh_age_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "affected_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_profiles",
+        "tenant_refs",
+        "region_refs",
+        "residency_scope_classes",
+        "service_classes",
+        "scope_summary"
+      ],
+      "properties": {
+        "deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+        "tenant_refs": { "type": "array", "items": { "$ref": "#/$defs/stable_token" } },
+        "region_refs": { "type": "array", "items": { "$ref": "#/$defs/stable_token" } },
+        "residency_scope_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/residency_scope_class" }
+        },
+        "service_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/service_class" }
+        },
+        "scope_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "boundary_axis_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis_class",
+        "axis_label",
+        "axis_state_class",
+        "axis_state_label",
+        "previous_ref",
+        "current_ref",
+        "summary"
+      ],
+      "properties": {
+        "axis_class": { "$ref": "#/$defs/boundary_axis_class" },
+        "axis_label": { "$ref": "#/$defs/non_empty_string" },
+        "axis_state_class": { "$ref": "#/$defs/boundary_axis_state_class" },
+        "axis_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "previous_ref": { "$ref": "#/$defs/nullable_token" },
+        "current_ref": { "$ref": "#/$defs/nullable_canonical_object_ref" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "A changed / unknown-recheck axis must carry a canonical current_ref.",
+          "if": {
+            "properties": {
+              "axis_state_class": { "enum": ["changed", "unknown_recheck_required"] }
+            },
+            "required": ["axis_state_class"]
+          },
+          "then": {
+            "properties": { "current_ref": { "$ref": "#/$defs/canonical_object_ref" } },
+            "required": ["current_ref"]
+          }
+        }
+      ]
+    },
+    "boundary_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_change_required",
+        "review_completed",
+        "boundary_change_unresolved",
+        "changed_axis_count",
+        "unknown_axis_count",
+        "axes",
+        "summary"
+      ],
+      "properties": {
+        "boundary_change_required": { "type": "boolean" },
+        "review_completed": { "type": "boolean" },
+        "boundary_change_unresolved": { "type": "boolean" },
+        "changed_axis_count": { "type": "integer", "minimum": 0 },
+        "unknown_axis_count": { "type": "integer", "minimum": 0 },
+        "axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/boundary_axis_row" }
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "blocked_write_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "block_state_class",
+        "continuity_posture",
+        "continuity_posture_label",
+        "safer_guidance",
+        "safer_guidance_label",
+        "queue_or_intent_ref",
+        "idempotency_key_present",
+        "intent_preserved",
+        "resume_trigger",
+        "note"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/managed_action_class" },
+        "block_state_class": { "$ref": "#/$defs/block_state_class" },
+        "continuity_posture": { "$ref": "#/$defs/write_continuity_posture_class" },
+        "continuity_posture_label": { "$ref": "#/$defs/non_empty_string" },
+        "safer_guidance": { "$ref": "#/$defs/safer_than_retry_guidance_class" },
+        "safer_guidance_label": { "$ref": "#/$defs/non_empty_string" },
+        "queue_or_intent_ref": { "$ref": "#/$defs/nullable_canonical_object_ref" },
+        "idempotency_key_present": { "type": "boolean" },
+        "intent_preserved": { "type": "boolean" },
+        "resume_trigger": { "$ref": "#/$defs/resume_trigger_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "A preserved (queued publish-later or local-draft) write must carry a canonical queue / intent ref and be marked intent_preserved.",
+          "if": {
+            "properties": {
+              "continuity_posture": {
+                "enum": ["queued_publish_later", "local_draft_preserved"]
+              }
+            },
+            "required": ["continuity_posture"]
+          },
+          "then": {
+            "properties": {
+              "queue_or_intent_ref": { "$ref": "#/$defs/canonical_object_ref" },
+              "intent_preserved": { "const": true }
+            },
+            "required": ["queue_or_intent_ref"]
+          }
+        }
+      ]
+    },
+    "hosted_mutation_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "result_ref", "completed_at", "note"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/managed_action_class" },
+        "result_ref": { "$ref": "#/$defs/canonical_object_ref" },
+        "completed_at": { "$ref": "#/$defs/utc_date_time" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "local_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_core_status",
+        "local_core_status_label",
+        "retained_local_safe_capabilities",
+        "continue_local_guidance_required",
+        "continuity_summary"
+      ],
+      "properties": {
+        "local_core_status": { "$ref": "#/$defs/local_core_status_class" },
+        "local_core_status_label": { "$ref": "#/$defs/non_empty_string" },
+        "retained_local_safe_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "continue_local_guidance_required": { "type": "boolean" },
+        "continuity_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "freshness_label",
+        "supersedes_id",
+        "superseded_by_id",
+        "retained_until_at",
+        "history_refs"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "freshness_label": { "$ref": "#/$defs/non_empty_string" },
+        "supersedes_id": { "$ref": "#/$defs/nullable_token" },
+        "superseded_by_id": { "$ref": "#/$defs/nullable_token" },
+        "retained_until_at": { "$ref": "#/$defs/nullable_utc_date_time" },
+        "history_refs": { "type": "array", "items": { "$ref": "#/$defs/canonical_object_ref" } }
+      }
+    },
+    "summary_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocked_write_count",
+        "queued_publish_later_count",
+        "local_draft_preserved_count",
+        "preserved_intent_count",
+        "blocked_no_safe_retry_count",
+        "requires_manual_rerun_count",
+        "succeeded_hosted_mutation_count",
+        "changed_boundary_axis_count",
+        "unknown_boundary_axis_count"
+      ],
+      "properties": {
+        "blocked_write_count": { "type": "integer", "minimum": 0 },
+        "queued_publish_later_count": { "type": "integer", "minimum": 0 },
+        "local_draft_preserved_count": { "type": "integer", "minimum": 0 },
+        "preserved_intent_count": { "type": "integer", "minimum": 0 },
+        "blocked_no_safe_retry_count": { "type": "integer", "minimum": 0 },
+        "requires_manual_rerun_count": { "type": "integer", "minimum": 0 },
+        "succeeded_hosted_mutation_count": { "type": "integer", "minimum": 0 },
+        "changed_boundary_axis_count": { "type": "integer", "minimum": 0 },
+        "unknown_boundary_axis_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "display_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_status_line",
+        "schedule_line",
+        "scope_line",
+        "blocked_writes_line",
+        "queued_preserved_line",
+        "succeeded_line",
+        "local_continuity_line",
+        "boundary_change_line",
+        "freshness_line",
+        "follow_up_line",
+        "stale_label",
+        "all_work_broken_implied",
+        "incident_language_for_planned_used",
+        "generic_degraded_banner_used",
+        "queued_and_succeeded_collapsed",
+        "stale_presented_as_current",
+        "boundary_change_hidden"
+      ],
+      "properties": {
+        "primary_status_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "schedule_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "scope_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "blocked_writes_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "queued_preserved_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "succeeded_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "local_continuity_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "boundary_change_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "freshness_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "follow_up_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "stale_label": {
+          "anyOf": [{ "$ref": "#/$defs/reviewable_sentence" }, { "type": "null" }]
+        },
+        "all_work_broken_implied": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. A notice cannot imply all work is broken when a safe local subset exists."
+        },
+        "incident_language_for_planned_used": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Planned notices cannot reuse incident / unplanned-degradation language."
+        },
+        "generic_degraded_banner_used": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. A notice cannot collapse into a generic degraded banner."
+        },
+        "queued_and_succeeded_collapsed": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. Queued / preserved work and successful hosted mutations cannot share one line."
+        },
+        "stale_presented_as_current": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. A stale / superseded / completed notice cannot present as current."
+        },
+        "boundary_change_hidden": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. A changed boundary cannot be hidden on a recovered state."
+        }
+      }
+    }
+  }
+}
