@@ -1,0 +1,71 @@
+# Maintenance-window & failover communication corpus gate.
+#
+# Replays the maintenance-window and failover communication corpus: it proves the
+# claimed managed and hybrid beta rows keep maintenance, drain / read-only,
+# failover, and tenant-migration communication honest under real service change —
+# no stale notice reads as current, every changed tenant / region / endpoint
+# boundary stays visible, queued intent never silently replays across a changed
+# authority boundary, every scheduled window is timezone unambiguous, queued
+# publish-later / local-draft work is preserved and kept separate from successful
+# hosted mutations, support-bundle and CLI / headless exports stay in parity with
+# the product UI, and every claimed beta row maps to exactly one packet.
+
+name: check_maintenance_failover_corpus
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_maintenance_failover_corpus.yml"
+      - "scripts/ci/run_maintenance_failover_corpus.sh"
+      - "ci/check_maintenance_failover_corpus.py"
+      - "schemas/ops/continuity_notice_view.schema.json"
+      - "fixtures/ops/m3/maintenance_failover_corpus/**"
+      - "artifacts/ops/m3/maintenance_failover_report.md"
+      - "docs/ops/m3/maintenance_failover_truth.md"
+  schedule:
+    - cron: "37 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-maintenance-failover-corpus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  maintenance_failover_corpus:
+    name: Maintenance-window & failover communication corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Run maintenance-window & failover communication corpus
+        run: |
+          scripts/ci/run_maintenance_failover_corpus.sh \
+            --report-json artifacts/ops/m3/maintenance_failover_corpus_report.json
+
+      - name: Upload corpus report and packet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maintenance-failover-corpus-${{ github.run_id }}
+          path: |
+            artifacts/ops/m3/maintenance_failover_report.md
+            artifacts/ops/m3/maintenance_failover_corpus_report.json
+            fixtures/ops/m3/maintenance_failover_corpus/corpus_matrix.json
+            fixtures/ops/m3/maintenance_failover_corpus/export_parity_packet.json
+          if-no-files-found: warn
+          retention-days: 30
