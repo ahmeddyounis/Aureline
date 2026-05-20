@@ -1,0 +1,75 @@
+# Warm-start, prebuild, and live-resume conformance gate.
+#
+# Replays the warm-start, prebuild, and live-resume conformance corpus and
+# publishes the freshness/bypass report and the template/prebuild/resume matrix
+# for the claimed beta starter and resume rows.
+
+name: check_warm_start_live_resume_conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_warm_start_live_resume_conformance.yml"
+      - "crates/aureline-qe/src/warm_start_live_resume/**"
+      - "crates/aureline-qe/src/lib.rs"
+      - "crates/aureline-qe/tests/warm_start_live_resume_conformance.rs"
+      - "crates/aureline-shell/src/start_center/warm_start_choice/**"
+      - "fixtures/workspace/m3/warm_start_and_live_resume/**"
+      - "schemas/workspace/warm_start_conformance.schema.json"
+      - "schemas/workspace/warm_start_choice.schema.json"
+      - "artifacts/ops/m3/warm_start_freshness_and_bypass_report.md"
+      - "artifacts/compat/m3/template_prebuild_resume_matrix.json"
+      - "docs/workspace/m3/warm_start_and_live_resume_conformance.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-warm-start-live-resume-conformance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  warm_start_live_resume_corpus:
+    name: Warm-start and live-resume corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-warm-start-live-resume-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-warm-start-live-resume-
+
+      - name: Replay warm-start and live-resume corpus
+        run: |
+          cargo test -p aureline-qe --test warm_start_live_resume_conformance --locked
+
+      - name: Upload freshness/bypass report and resume matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: warm-start-live-resume-conformance-${{ github.run_id }}
+          path: |
+            fixtures/workspace/m3/warm_start_and_live_resume/manifest.json
+            artifacts/ops/m3/warm_start_freshness_and_bypass_report.md
+            artifacts/compat/m3/template_prebuild_resume_matrix.json
+          if-no-files-found: error
+          retention-days: 30

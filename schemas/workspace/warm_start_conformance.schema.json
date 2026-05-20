@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/warm_start_conformance.schema.json",
+  "title": "Aureline warm-start, prebuild, and live-resume conformance corpus",
+  "description": "Boundary schema for the M3 warm-start, prebuild, and live-resume conformance corpus. It validates both the corpus manifest (the single source of truth that pins, per drill, the warm-start truth the WarmStartChoiceCard must reproduce) and the per-drill card fixtures replayed by the aureline-qe harness against aureline-shell's warm_start_choice boundary (validate_warm_start_choice_card). Template, prebuild, snapshot-resume, live-workspace-resume, clone-fresh, open-minimal, and set-up-later rows stay distinct, inspectable choices that are honest about source class, support class, runtime/host class, exact setup actions, snapshot freshness and age, invalidation reason, the next action they offer, and the bypass/defer routes that keep a same-weight local path; no warm-start path silently widens trust, installs packages, or runs setup tasks without review; and a stale snapshot is never presented as a live resume.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/corpus_manifest" },
+    { "$ref": "warm_start_choice.schema.json#/$defs/warm_start_choice_card_record" }
+  ],
+  "$defs": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "reviewable_text": { "type": "string", "minLength": 1, "maxLength": 2048 },
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_template",
+        "prebuild_snapshot",
+        "live_workspace",
+        "remote_repository",
+        "local_folder"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "limited",
+        "experimental",
+        "community",
+        "unsupported"
+      ]
+    },
+    "runtime_or_host_model": {
+      "type": "string",
+      "enum": [
+        "local_host",
+        "devcontainer",
+        "managed_cloud_workspace",
+        "ssh_workspace"
+      ]
+    },
+    "path_class": {
+      "type": "string",
+      "enum": [
+        "resume_live_workspace",
+        "start_from_snapshot",
+        "clone_fresh",
+        "open_minimal",
+        "set_up_later",
+        "use_template"
+      ]
+    },
+    "availability": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_after_review",
+        "requires_reauth",
+        "unavailable_stale_snapshot",
+        "blocked_by_policy"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["fresh", "cached", "stale", "invalidated", "unverified"]
+    },
+    "age_class": {
+      "type": "string",
+      "enum": [
+        "within_hours",
+        "within_days",
+        "within_weeks",
+        "beyond_review_window"
+      ]
+    },
+    "setup_location_class": {
+      "type": "string",
+      "enum": [
+        "no_setup",
+        "local_host",
+        "devcontainer",
+        "managed_cloud",
+        "ssh_host"
+      ]
+    },
+    "tamper": {
+      "type": "string",
+      "enum": [
+        "stale_snapshot_resume_takeable",
+        "stale_snapshot_missing_reason",
+        "remote_lane_masquerades_as_local",
+        "escape_hatch_has_side_effect",
+        "safest_action_not_local_safe",
+        "default_widens_trust",
+        "local_first_escape_hatch_not_same_weight",
+        "environment_starter_missing_bypass",
+        "environment_starter_missing_defer",
+        "managed_attach_undisclosed",
+        "source_class_token_drift",
+        "honesty_marker_inconsistent"
+      ]
+    },
+    "lane_availability_expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "availability"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path_class" },
+        "availability": { "$ref": "#/$defs/availability" }
+      }
+    },
+    "positive_expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_class",
+        "support_class",
+        "runtime_or_host_model",
+        "local_first",
+        "safest_next_action",
+        "setup_location_class",
+        "honesty_marker_present",
+        "present_lanes",
+        "snapshot_present"
+      ],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "runtime_or_host_model": { "$ref": "#/$defs/runtime_or_host_model" },
+        "local_first": { "type": "boolean" },
+        "safest_next_action": { "$ref": "#/$defs/path_class" },
+        "setup_location_class": { "$ref": "#/$defs/setup_location_class" },
+        "honesty_marker_present": { "type": "boolean" },
+        "present_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_class" }
+        },
+        "snapshot_present": { "type": "boolean" },
+        "snapshot_freshness": { "$ref": "#/$defs/freshness" },
+        "snapshot_age_class": { "$ref": "#/$defs/age_class" },
+        "snapshot_invalidation_reason_present": { "type": "boolean" },
+        "lane_availability": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lane_availability_expect" }
+        },
+        "redacted_marker_absent": { "type": "string", "minLength": 1 }
+      }
+    },
+    "positive_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drill_id", "fixture", "row_label", "scenario", "expect"],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/opaque_id" },
+        "fixture": { "type": "string", "minLength": 1 },
+        "row_label": { "$ref": "#/$defs/reviewable_text" },
+        "scenario": { "$ref": "#/$defs/reviewable_text" },
+        "expect": { "$ref": "#/$defs/positive_expect" }
+      }
+    },
+    "negative_drill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "fixture",
+        "row_label",
+        "tamper",
+        "expected_failure_substring"
+      ],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/opaque_id" },
+        "fixture": { "type": "string", "minLength": 1 },
+        "row_label": { "$ref": "#/$defs/reviewable_text" },
+        "tamper": { "$ref": "#/$defs/tamper" },
+        "expected_failure_substring": { "$ref": "#/$defs/reviewable_text" },
+        "covers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "corpus_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_id",
+        "schema_version",
+        "description",
+        "positive_drills",
+        "negative_drills"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "corpus_id": { "$ref": "#/$defs/opaque_id" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "description": { "type": "string", "minLength": 1 },
+        "boundary": { "type": "object", "additionalProperties": true },
+        "positive_drills": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/positive_drill" }
+        },
+        "negative_drills": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/negative_drill" }
+        }
+      }
+    }
+  }
+}

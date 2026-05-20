@@ -19,6 +19,45 @@ fn seeded_page_validates() {
 }
 
 #[test]
+fn validate_card_accepts_every_seeded_card_and_rejects_a_stale_resume() {
+    let page = seeded_warm_start_choice_page();
+    for card in &page.cards {
+        validate_warm_start_choice_card(card)
+            .unwrap_or_else(|errors| panic!("seeded card {} must validate: {errors:?}", card.card_id));
+    }
+
+    // A stale snapshot whose live-resume lane is suddenly takeable must be
+    // rejected by the per-card validator, not just the page validator.
+    let mut tampered = page
+        .cards
+        .iter()
+        .find(|card| {
+            card.snapshot
+                .as_ref()
+                .map(|snapshot| snapshot.freshness.is_stale_or_invalidated())
+                .unwrap_or(false)
+        })
+        .expect("seed carries a stale snapshot card")
+        .clone();
+    if let Some(lane) = tampered
+        .choice_lanes
+        .iter_mut()
+        .find(|lane| lane.path_class == WarmStartPathClass::ResumeLiveWorkspace)
+    {
+        lane.availability = WarmStartLaneAvailability::Available;
+        lane.availability_token = WarmStartLaneAvailability::Available.as_str().to_string();
+    }
+    let errors = validate_warm_start_choice_card(&tampered)
+        .expect_err("a stale snapshot with a takeable live resume must be rejected");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("stale_resume_still_takeable")),
+        "expected a stale-resume finding, got {errors:?}"
+    );
+}
+
+#[test]
 fn seeded_page_is_deterministic() {
     let one = seeded_warm_start_choice_page();
     let two = seeded_warm_start_choice_page();

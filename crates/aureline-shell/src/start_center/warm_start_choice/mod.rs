@@ -1498,6 +1498,29 @@ pub fn validate_warm_start_choice_page(page: &WarmStartChoicePage) -> Result<(),
     }
 }
 
+/// Validates a single warm-start choice card in isolation.
+///
+/// This is the per-card half of [`validate_warm_start_choice_page`]. Headless
+/// inspectors, conformance harnesses, and support tooling that hold one card
+/// (rather than a full page) use it to confirm the card keeps every warm-start
+/// invariant the contract pins: a local-safe default, same-weight escape hatches
+/// on local-first rows, a stale snapshot that can never back a live resume, no
+/// remote/widening lane masquerading as a local open, and an environment starter
+/// that always offers a bypass and a defer route. The full list of findings is
+/// returned so a reviewer sees every problem at once. Page-level invariants
+/// (cross-card same-weight aggregation, summary counters, the shared notice and
+/// consuming-surface list) remain the responsibility of
+/// [`validate_warm_start_choice_page`].
+pub fn validate_warm_start_choice_card(card: &WarmStartChoiceCard) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    validate_card(card, &mut errors);
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 fn validate_card(card: &WarmStartChoiceCard, errors: &mut Vec<String>) {
     let id = &card.card_id;
 

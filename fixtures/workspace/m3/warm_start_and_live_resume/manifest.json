@@ -1,0 +1,395 @@
+{
+  "$schema": "../../../../schemas/workspace/warm_start_conformance.schema.json",
+  "corpus_id": "workspace.warm_start_and_live_resume.beta",
+  "schema_version": 1,
+  "description": "Conformance, interoperability, operations/deployment, failure / recovery, and design-QA drill corpus for the M3 warm-start, prebuild, and live-resume beta boundary owned by aureline-shell (validate_warm_start_choice_card / WarmStartChoiceCard in start_center::warm_start_choice). This manifest is the single source of truth: every positive drill loads one warm-start choice card, requires it to be contract-valid, holds the cross-cutting warm-start safety invariants (a local-safe default, no lane that runs setup or widens trust without review, a same-weight Open-minimal path on every card, both same-weight escape hatches on local-first cards, a stale snapshot that can never back a live resume, redaction safety), and matches every pinned expectation below; every negative drill applies a typed tamper to a contract-valid base card and MUST raise a finding containing expected_failure_substring. The corpus proves the M3 warm-start exit-gate: template, prebuild, snapshot-resume, live-workspace-resume, clone-fresh, open-minimal, and set-up-later rows stay distinct, inspectable choices that disclose source class, support class, runtime/host class, exact setup actions, snapshot age and freshness, invalidation reason, and whether the next action is Resume live, Start from snapshot, Clone fresh, Open minimal, or Set up later; stale, mirror-unverified, offline, and policy-narrowed starters degrade to precise states instead of a generic setup failure; and no warm-start path silently widens trust, installs packages, runs setup tasks, or masquerades a remote/managed lane as a local open.",
+  "boundary": {
+    "runtime_model": "aureline_shell::start_center::warm_start_choice::WarmStartChoiceCard",
+    "validator": "aureline_shell::start_center::warm_start_choice::validate_warm_start_choice_card",
+    "record_schema_ref": "schemas/workspace/warm_start_choice.schema.json",
+    "freshness_and_bypass_report_ref": "artifacts/ops/m3/warm_start_freshness_and_bypass_report.md",
+    "template_prebuild_resume_matrix_ref": "artifacts/compat/m3/template_prebuild_resume_matrix.json",
+    "contract_ref": "docs/workspace/m3/warm_start_and_live_resume_conformance.md"
+  },
+  "positive_drills": [
+    {
+      "drill_id": "template.first_party_certified.local",
+      "fixture": "positive/template_first_party_certified_local.json",
+      "row_label": "First-party certified template on the local host",
+      "scenario": "A certified first-party workspace template that scaffolds files and installs dependencies on the local host.",
+      "expect": {
+        "source_class": "workspace_template",
+        "support_class": "certified",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": false,
+        "present_lanes": ["use_template", "open_minimal", "set_up_later"],
+        "snapshot_present": false,
+        "lane_availability": [{ "path": "use_template", "availability": "available_after_review" }]
+      }
+    },
+    {
+      "drill_id": "template.local_only.offline",
+      "fixture": "positive/template_local_only_offline.json",
+      "row_label": "Local-only template that runs local setup without download",
+      "scenario": "A user's own local-only template whose use lane runs a local post-generate task with no network egress.",
+      "expect": {
+        "source_class": "workspace_template",
+        "support_class": "supported",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": false,
+        "present_lanes": ["use_template", "open_minimal", "set_up_later"],
+        "snapshot_present": false,
+        "lane_availability": [{ "path": "use_template", "availability": "available_after_review" }]
+      }
+    },
+    {
+      "drill_id": "template.team_managed.devcontainer",
+      "fixture": "positive/template_team_managed_devcontainer.json",
+      "row_label": "Team-managed template whose setup runs in a dev container",
+      "scenario": "A team-managed template that scaffolds files and runs setup inside a dev container on the local host.",
+      "expect": {
+        "source_class": "workspace_template",
+        "support_class": "supported",
+        "runtime_or_host_model": "devcontainer",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "devcontainer",
+        "honesty_marker_present": false,
+        "present_lanes": ["use_template", "open_minimal", "set_up_later"],
+        "snapshot_present": false
+      }
+    },
+    {
+      "drill_id": "template.community.experimental",
+      "fixture": "positive/template_community_experimental_local.json",
+      "row_label": "Community template carrying an experimental support claim",
+      "scenario": "A community-sourced template marked experimental that installs dependencies on the local host after review.",
+      "expect": {
+        "source_class": "workspace_template",
+        "support_class": "experimental",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": false,
+        "present_lanes": ["use_template", "open_minimal", "set_up_later"],
+        "snapshot_present": false
+      }
+    },
+    {
+      "drill_id": "template.policy_narrowed.blocked",
+      "fixture": "positive/template_policy_narrowed_blocked.json",
+      "row_label": "Policy-narrowed template list blocks the generate lane",
+      "scenario": "Organization policy narrows the template list; the use-template lane is blocked_by_policy while the local escape hatches stay available.",
+      "expect": {
+        "source_class": "workspace_template",
+        "support_class": "community",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": true,
+        "present_lanes": ["use_template", "open_minimal", "set_up_later"],
+        "snapshot_present": false,
+        "lane_availability": [{ "path": "use_template", "availability": "blocked_by_policy" }]
+      }
+    },
+    {
+      "drill_id": "local_only.folder_open",
+      "fixture": "positive/local_only_folder_open.json",
+      "row_label": "Plain local folder with no starter attached",
+      "scenario": "Opening a recent local folder with no starter or prebuild; only the same-weight local lanes are offered.",
+      "expect": {
+        "source_class": "local_folder",
+        "support_class": "unsupported",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "no_setup",
+        "honesty_marker_present": false,
+        "present_lanes": ["open_minimal", "set_up_later"],
+        "snapshot_present": false
+      }
+    },
+    {
+      "drill_id": "live_resume.managed_requires_reauth",
+      "fixture": "positive/live_resume_managed_requires_reauth.json",
+      "row_label": "Managed cloud live resume that requires re-authorization",
+      "scenario": "Resuming a managed cloud workspace re-attaches a remote runtime and requires re-authorization; the cached snapshot and local lanes stay off the network.",
+      "expect": {
+        "source_class": "live_workspace",
+        "support_class": "limited",
+        "runtime_or_host_model": "managed_cloud_workspace",
+        "local_first": false,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "managed_cloud",
+        "honesty_marker_present": true,
+        "present_lanes": ["resume_live_workspace", "start_from_snapshot", "open_minimal", "set_up_later"],
+        "snapshot_present": true,
+        "snapshot_freshness": "cached",
+        "snapshot_age_class": "within_days",
+        "snapshot_invalidation_reason_present": false,
+        "lane_availability": [
+          { "path": "resume_live_workspace", "availability": "requires_reauth" },
+          { "path": "start_from_snapshot", "availability": "available_after_review" }
+        ]
+      }
+    },
+    {
+      "drill_id": "live_resume.ssh_suspended",
+      "fixture": "positive/live_resume_ssh_suspended.json",
+      "row_label": "Suspended SSH workspace resumed by reconnecting",
+      "scenario": "Resuming a suspended SSH workspace reconnects over the network and re-attaches the remote session; open-minimal keeps local continuity.",
+      "expect": {
+        "source_class": "live_workspace",
+        "support_class": "supported",
+        "runtime_or_host_model": "ssh_workspace",
+        "local_first": false,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "ssh_host",
+        "honesty_marker_present": false,
+        "present_lanes": ["resume_live_workspace", "open_minimal", "set_up_later"],
+        "snapshot_present": false,
+        "lane_availability": [{ "path": "resume_live_workspace", "availability": "available_after_review" }]
+      }
+    },
+    {
+      "drill_id": "snapshot.fresh_local_resume",
+      "fixture": "positive/snapshot_fresh_local_resume.json",
+      "row_label": "Fresh local prebuild snapshot with a takeable live resume",
+      "scenario": "A fresh local prebuild snapshot offers an immediate local resume and snapshot reuse; only clone-fresh reaches the network.",
+      "expect": {
+        "source_class": "prebuild_snapshot",
+        "support_class": "supported",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": false,
+        "present_lanes": ["resume_live_workspace", "start_from_snapshot", "clone_fresh", "open_minimal", "set_up_later"],
+        "snapshot_present": true,
+        "snapshot_freshness": "fresh",
+        "snapshot_age_class": "within_hours",
+        "snapshot_invalidation_reason_present": false,
+        "lane_availability": [
+          { "path": "resume_live_workspace", "availability": "available" },
+          { "path": "start_from_snapshot", "availability": "available" }
+        ]
+      }
+    },
+    {
+      "drill_id": "snapshot.stale_capsule_drift",
+      "fixture": "positive/snapshot_stale_capsule_drift.json",
+      "row_label": "Stale snapshot downgraded after environment-capsule drift",
+      "scenario": "A snapshot stale beyond the review window names capsule_drift, disables live resume, and only offers read-only inspection or a rebuild.",
+      "expect": {
+        "source_class": "prebuild_snapshot",
+        "support_class": "community",
+        "runtime_or_host_model": "devcontainer",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "devcontainer",
+        "honesty_marker_present": true,
+        "present_lanes": ["resume_live_workspace", "start_from_snapshot", "clone_fresh", "open_minimal", "set_up_later"],
+        "snapshot_present": true,
+        "snapshot_freshness": "stale",
+        "snapshot_age_class": "beyond_review_window",
+        "snapshot_invalidation_reason_present": true,
+        "lane_availability": [
+          { "path": "resume_live_workspace", "availability": "unavailable_stale_snapshot" },
+          { "path": "start_from_snapshot", "availability": "available_after_review" }
+        ]
+      }
+    },
+    {
+      "drill_id": "snapshot.invalidated_lockfile",
+      "fixture": "positive/snapshot_invalidated_lockfile.json",
+      "row_label": "Prebuild invalidated by a dependency lockfile change",
+      "scenario": "A prebuild invalidated by a lockfile change names the reason, disables live resume, and offers read-only inspection or a rebuild.",
+      "expect": {
+        "source_class": "prebuild_snapshot",
+        "support_class": "limited",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": true,
+        "present_lanes": ["resume_live_workspace", "start_from_snapshot", "clone_fresh", "open_minimal", "set_up_later"],
+        "snapshot_present": true,
+        "snapshot_freshness": "invalidated",
+        "snapshot_age_class": "within_weeks",
+        "snapshot_invalidation_reason_present": true,
+        "lane_availability": [
+          { "path": "resume_live_workspace", "availability": "unavailable_stale_snapshot" }
+        ]
+      }
+    },
+    {
+      "drill_id": "snapshot.mirror_only.unverified",
+      "fixture": "positive/snapshot_mirror_unverified.json",
+      "row_label": "Mirror-only prebuild whose freshness is unverified",
+      "scenario": "A prebuild served from a mirror-only catalog is unverified; live resume is withheld, and only verified read-only inspection or a rebuild is offered.",
+      "expect": {
+        "source_class": "prebuild_snapshot",
+        "support_class": "supported",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": false,
+        "present_lanes": ["start_from_snapshot", "clone_fresh", "open_minimal", "set_up_later"],
+        "snapshot_present": true,
+        "snapshot_freshness": "unverified",
+        "snapshot_age_class": "within_days",
+        "snapshot_invalidation_reason_present": false,
+        "lane_availability": [{ "path": "start_from_snapshot", "availability": "available_after_review" }]
+      }
+    },
+    {
+      "drill_id": "clone_fresh.remote_repository",
+      "fixture": "positive/clone_fresh_remote_repository.json",
+      "row_label": "Remote repository cloned fresh into a local workspace",
+      "scenario": "A remote repository whose only side-effecting lane is a clone-fresh that fetches over the network after review.",
+      "expect": {
+        "source_class": "remote_repository",
+        "support_class": "supported",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": false,
+        "present_lanes": ["clone_fresh", "open_minimal", "set_up_later"],
+        "snapshot_present": false,
+        "lane_availability": [{ "path": "clone_fresh", "availability": "available_after_review" }]
+      }
+    },
+    {
+      "drill_id": "clone_fresh.offline_cached_fallback",
+      "fixture": "positive/clone_fresh_offline_cached_fallback.json",
+      "row_label": "Offline fallback to a cached copy while clone-fresh needs the network",
+      "scenario": "While offline, a cached copy of a remote repository is reusable read-only; clone-fresh remains clearly marked as needing the network.",
+      "expect": {
+        "source_class": "remote_repository",
+        "support_class": "supported",
+        "runtime_or_host_model": "local_host",
+        "local_first": true,
+        "safest_next_action": "open_minimal",
+        "setup_location_class": "local_host",
+        "honesty_marker_present": false,
+        "present_lanes": ["start_from_snapshot", "clone_fresh", "open_minimal", "set_up_later"],
+        "snapshot_present": true,
+        "snapshot_freshness": "cached",
+        "snapshot_age_class": "within_days",
+        "snapshot_invalidation_reason_present": false,
+        "lane_availability": [
+          { "path": "start_from_snapshot", "availability": "available" },
+          { "path": "clone_fresh", "availability": "available_after_review" }
+        ]
+      }
+    }
+  ],
+  "negative_drills": [
+    {
+      "drill_id": "negative.stale_snapshot_resume_takeable",
+      "fixture": "negative/stale_snapshot_base.json",
+      "row_label": "A stale snapshot must never present a takeable live resume",
+      "tamper": "stale_snapshot_resume_takeable",
+      "expected_failure_substring": "stale_resume_still_takeable",
+      "covers": ["stale_never_live_resume", "freshness_truth"]
+    },
+    {
+      "drill_id": "negative.stale_snapshot_missing_reason",
+      "fixture": "negative/stale_snapshot_base.json",
+      "row_label": "A stale snapshot must name its invalidation reason",
+      "tamper": "stale_snapshot_missing_reason",
+      "expected_failure_substring": "snapshot.invalidation_reason.missing",
+      "covers": ["freshness_truth", "invalidation_disclosure"]
+    },
+    {
+      "drill_id": "negative.remote_lane_masquerades_as_local",
+      "fixture": "negative/clone_base.json",
+      "row_label": "A networked lane must not advertise a local-safe side effect",
+      "tamper": "remote_lane_masquerades_as_local",
+      "expected_failure_substring": "remote_masquerades_as_local",
+      "covers": ["side_effect_truth", "no_local_masquerade"]
+    },
+    {
+      "drill_id": "negative.escape_hatch_has_side_effect",
+      "fixture": "negative/template_base.json",
+      "row_label": "Open-minimal must not acquire a network side effect",
+      "tamper": "escape_hatch_has_side_effect",
+      "expected_failure_substring": "escape_hatch_has_side_effect",
+      "covers": ["bypass_safety", "same_weight_escape_hatch"]
+    },
+    {
+      "drill_id": "negative.safest_action_not_local_safe",
+      "fixture": "negative/template_base.json",
+      "row_label": "The default action must resolve to a local-safe lane",
+      "tamper": "safest_action_not_local_safe",
+      "expected_failure_substring": "safest_next_action.not_local_safe",
+      "covers": ["local_safe_default", "no_silent_side_effect"]
+    },
+    {
+      "drill_id": "negative.default_widens_trust",
+      "fixture": "negative/template_base.json",
+      "row_label": "The default action must never widen trust",
+      "tamper": "default_widens_trust",
+      "expected_failure_substring": "default_widens_trust",
+      "covers": ["no_silent_trust_widening"]
+    },
+    {
+      "drill_id": "negative.local_first_escape_hatch_not_same_weight",
+      "fixture": "negative/template_base.json",
+      "row_label": "Set-up-later must stay same-weight on a local-first card",
+      "tamper": "local_first_escape_hatch_not_same_weight",
+      "expected_failure_substring": "local_first.set_up_later.not_same_weight",
+      "covers": ["same_weight_escape_hatch", "setup_later_parity"]
+    },
+    {
+      "drill_id": "negative.environment_starter_missing_bypass",
+      "fixture": "negative/template_base.json",
+      "row_label": "A starter that runs setup must offer a bypass route",
+      "tamper": "environment_starter_missing_bypass",
+      "expected_failure_substring": "environment_starter.bypass_missing",
+      "covers": ["bypass_safety"]
+    },
+    {
+      "drill_id": "negative.environment_starter_missing_defer",
+      "fixture": "negative/template_base.json",
+      "row_label": "A starter that runs setup must offer a defer route",
+      "tamper": "environment_starter_missing_defer",
+      "expected_failure_substring": "environment_starter.defer_missing",
+      "covers": ["setup_later_parity"]
+    },
+    {
+      "drill_id": "negative.managed_attach_undisclosed",
+      "fixture": "negative/managed_resume_base.json",
+      "row_label": "A managed/remote attach must be disclosed in the side-effect summary",
+      "tamper": "managed_attach_undisclosed",
+      "expected_failure_substring": "side_effects.attach_undisclosed",
+      "covers": ["side_effect_truth", "managed_attach_disclosure"]
+    },
+    {
+      "drill_id": "negative.source_class_token_drift",
+      "fixture": "negative/template_base.json",
+      "row_label": "The source-class token must match the source class",
+      "tamper": "source_class_token_drift",
+      "expected_failure_substring": "source_class_token.drift",
+      "covers": ["source_class_truth"]
+    },
+    {
+      "drill_id": "negative.honesty_marker_inconsistent",
+      "fixture": "negative/stale_snapshot_base.json",
+      "row_label": "The honesty marker must reflect a stale snapshot",
+      "tamper": "honesty_marker_inconsistent",
+      "expected_failure_substring": "honesty_marker.inconsistent",
+      "covers": ["freshness_truth", "honesty_marker"]
+    }
+  ]
+}
