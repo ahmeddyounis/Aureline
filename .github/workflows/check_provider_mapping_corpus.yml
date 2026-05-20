@@ -1,0 +1,85 @@
+# Provider-account / target-mapping continuity drill gate.
+#
+# Replays the provider-account/target-mapping continuity drill corpus: it
+# proves provider-backed rows fail closed under stale or narrowed sessions,
+# preserve local-draft and queued-draft packets with retry/export paths, keep
+# the provider/account/mapping identity triple stable across support export,
+# activity-center reopen, and restart/restore, and never leak raw credentials.
+
+name: check_provider_mapping_corpus
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_provider_mapping_corpus.yml"
+      - "scripts/ci/run_provider_mapping_corpus.sh"
+      - "ci/check_provider_mapping_corpus.py"
+      - "schemas/providers/provider_account_mapping_drill_case.schema.json"
+      - "fixtures/providers/m3/account_scope_and_mapping_corpus/**"
+      - "artifacts/providers/m3/account_scope_and_mapping_report.md"
+      - "artifacts/providers/m3/account_scope_and_mapping_continuity_matrix.json"
+      - "docs/providers/m3/provider_account_and_mapping_drills.md"
+      - "crates/aureline-provider/src/project_mapping/**"
+      - "crates/aureline-provider/src/bin/aureline_provider_target_mapping_beta.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-provider-mapping-corpus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  provider_mapping_corpus:
+    name: Provider account/mapping continuity corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-provider-mapping-corpus-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-provider-mapping-corpus-
+
+      - name: Run provider account/mapping continuity corpus
+        run: |
+          scripts/ci/run_provider_mapping_corpus.sh \
+            --report-json artifacts/providers/m3/account_scope_and_mapping_corpus_report.json
+
+      - name: Upload corpus report and continuity matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-mapping-corpus-${{ github.run_id }}
+          path: |
+            artifacts/providers/m3/account_scope_and_mapping_report.md
+            artifacts/providers/m3/account_scope_and_mapping_continuity_matrix.json
+            artifacts/providers/m3/account_scope_and_mapping_corpus_report.json
+          if-no-files-found: warn
+          retention-days: 30
