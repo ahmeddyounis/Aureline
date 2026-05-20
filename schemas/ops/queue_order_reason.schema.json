@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/queue_order_reason.schema.json",
+  "title": "Aureline queue order-reason and hidden-scope record",
+  "description": "Boundary schema for the queue-order-reason record minted by `crates/aureline-shell/src/dashboard_truth/model.rs`. One record is rendered identically across the review inbox, incident queue, support queue, and admin queue on desktop shell, CLI / headless inspect, diagnostics, and support exports. It answers two operator questions for a queue: why is each visible row sorted where it is (per-row order_reason), and what is hidden from this view by which narrowing reason (hidden_scope counters). Every visible row carries a canonical open_details_ref and every hidden bucket carries a canonical reveal_ref of the form aureline://<class>/<id> so the chrome routes to the durable object behind the row, never to a generic landing page. Raw endpoint URLs, hostnames, credentials, raw payloads, raw operator identity strings, and absolute paths never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/queue_order_reason_record",
+  "$defs": {
+    "queue_order_reason_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the queue-order-reason payload. Bumped only on breaking payload changes; additive-optional fields do not bump."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short user-facing sentence safe to render across shell, CLI/headless inspect, diagnostics, and support exports. Never carries raw payloads."
+    },
+    "canonical_object_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^aureline://[a-z0-9_]+/.+$",
+      "description": "Canonical durable-object ref of the form aureline://<class>/<id>. The <class> segment MUST be a specific object class, never a generic landing page (home, dashboard, landing, index, overview, start, root); the builder rejects those. The chrome routes open-details / reveal affordances here."
+    },
+    "surface_token": {
+      "type": "string",
+      "enum": [
+        "service_health",
+        "review_inbox",
+        "incident_queue",
+        "support_queue",
+        "admin_queue"
+      ],
+      "description": "Closed dashboard/queue surface vocabulary. A queue-order-reason record is only minted for queue surfaces (review_inbox, incident_queue, support_queue, admin_queue)."
+    },
+    "order_reason_token": {
+      "type": "string",
+      "enum": [
+        "severity_descending",
+        "sla_deadline",
+        "oldest_unresolved_first",
+        "recently_updated",
+        "assigned_to_you",
+        "blocking_dependency",
+        "manual_pin",
+        "default_recency"
+      ],
+      "description": "Closed order-reason vocabulary. Surfaces MUST quote a token from this set when explaining why a row is sorted where it is."
+    },
+    "narrowing_reason_token": {
+      "type": "string",
+      "enum": [
+        "scope_filter",
+        "policy_scope",
+        "assignee_filter",
+        "resolved_hidden",
+        "archived_hidden",
+        "severity_filter",
+        "offline_partial_list"
+      ],
+      "description": "Closed narrowing-reason vocabulary. policy_scope and offline_partial_list represent rows whose existence is unknown to the operator (incomplete knowledge), not deliberately filtered."
+    },
+    "queue_row_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "order_rank",
+        "order_reason",
+        "order_reason_token",
+        "order_reason_label",
+        "order_explanation",
+        "open_details_ref"
+      ],
+      "properties": {
+        "row_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Row id; matches a dashboard_freshness_card card_id on the same view."
+        },
+        "order_rank": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based render position. The first visible row is rank 1."
+        },
+        "order_reason": { "$ref": "#/$defs/order_reason_token" },
+        "order_reason_token": { "$ref": "#/$defs/order_reason_token" },
+        "order_reason_label": { "$ref": "#/$defs/non_empty_string" },
+        "order_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "open_details_ref": { "$ref": "#/$defs/canonical_object_ref" }
+      }
+    },
+    "hidden_scope_counter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "narrowing_reason",
+        "narrowing_reason_token",
+        "narrowing_reason_label",
+        "hidden_count",
+        "narrowing_explanation",
+        "reveal_ref",
+        "incomplete_knowledge"
+      ],
+      "properties": {
+        "narrowing_reason": { "$ref": "#/$defs/narrowing_reason_token" },
+        "narrowing_reason_token": { "$ref": "#/$defs/narrowing_reason_token" },
+        "narrowing_reason_label": { "$ref": "#/$defs/non_empty_string" },
+        "hidden_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many rows are hidden for this reason. A bucket with zero hidden rows is not emitted."
+        },
+        "narrowing_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "reveal_ref": { "$ref": "#/$defs/canonical_object_ref" },
+        "incomplete_knowledge": {
+          "type": "boolean",
+          "description": "True when the hidden rows are unknown to the operator (policy_scope or offline_partial_list) rather than deliberately filtered."
+        }
+      }
+    },
+    "queue_order_reason_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "queue_id",
+        "surface",
+        "surface_token",
+        "surface_label",
+        "visible_row_count",
+        "hidden_total",
+        "total_in_scope_count",
+        "rows",
+        "order_reasons_present",
+        "hidden_scope",
+        "narrowing_present",
+        "incomplete_knowledge_present"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "queue_order_reason_record"
+        },
+        "schema_version": { "$ref": "#/$defs/queue_order_reason_schema_version" },
+        "queue_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_token": { "$ref": "#/$defs/surface_token" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "visible_row_count": { "type": "integer", "minimum": 0 },
+        "hidden_total": { "type": "integer", "minimum": 0 },
+        "total_in_scope_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "visible_row_count + hidden_total."
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/queue_row_order" }
+        },
+        "order_reasons_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/order_reason_token" },
+          "description": "Sorted, de-duplicated set of order reasons present across the visible rows."
+        },
+        "hidden_scope": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hidden_scope_counter" }
+        },
+        "narrowing_present": {
+          "type": "boolean",
+          "description": "True when hidden_total > 0 — the operator must know the list is narrowed."
+        },
+        "incomplete_knowledge_present": {
+          "type": "boolean",
+          "description": "True when any hidden bucket has incomplete_knowledge set."
+        }
+      }
+    }
+  }
+}

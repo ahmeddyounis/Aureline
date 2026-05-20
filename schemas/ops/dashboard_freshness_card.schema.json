@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/dashboard_freshness_card.schema.json",
+  "title": "Aureline dashboard-truth view and freshness cards",
+  "description": "Boundary schema for the dashboard-truth view and freshness cards minted by `crates/aureline-shell/src/dashboard_truth/model.rs`. One view record is rendered identically across the service-health dashboard, review inbox, incident queue, support queue, and admin queue on desktop shell, CLI / headless inspect, diagnostics, and support exports. Each contained card pins one row: its declared headline state (displayed_state), the freshness of the data behind it (freshness), the age of the last-successful evidence (evidence_age), the kind and canonical ref of the durable object its open-details affordance routes to (evidence_kind, evidence_ref), the derived honest state (effective_state), and the precise downgrade reasons. The no-silent-green invariant is structural: effective_state is `clear` only when displayed_state is `clear`, freshness is `fresh`, and evidence_age is current (`fresh` or `recent`); any other combination on a would-be-green row becomes `unconfirmed`, sets green_downgraded, and lights honesty_marker_present. Queue surfaces additionally carry a queue_order record (queue_order_reason.schema.json). Raw endpoint URLs, hostnames, credentials, raw payloads, raw operator identity strings, and absolute paths never cross this boundary; surfaces carry opaque object refs, stable tokens, and short reviewable sentences only.",
+  "type": "object",
+  "$ref": "#/$defs/dashboard_truth_view_record",
+  "$defs": {
+    "dashboard_truth_view_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the view payload. Bumped only on breaking payload changes; additive-optional fields do not bump."
+    },
+    "dashboard_freshness_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for a card payload. Card-level additive-minor changes bump this integer."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "short_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Short row title. No raw paths, identity strings, or payloads."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short user-facing sentence safe to render across shell, CLI/headless inspect, diagnostics, and support exports."
+    },
+    "iso_date_time_minutes": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}([:.][0-9]+)?Z?$",
+      "description": "ISO 8601 UTC date-time accurate to the minute. The model parses YYYY-MM-DDTHH:MM and ignores any seconds, fractional, or trailing Z suffix when computing evidence-age buckets."
+    },
+    "canonical_object_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^aureline://[a-z0-9_]+/.+$",
+      "description": "Canonical durable-object ref of the form aureline://<class>/<id>. The <class> segment MUST be a specific object class, never a generic landing page (home, dashboard, landing, index, overview, start, root); the builder rejects those."
+    },
+    "surface_token": {
+      "type": "string",
+      "enum": [
+        "service_health",
+        "review_inbox",
+        "incident_queue",
+        "support_queue",
+        "admin_queue"
+      ],
+      "description": "Closed dashboard/queue surface vocabulary."
+    },
+    "displayed_state_token": {
+      "type": "string",
+      "enum": ["clear", "attention", "blocked"],
+      "description": "Declared headline state reported by the source before the freshness/evidence rules apply."
+    },
+    "effective_state_token": {
+      "type": "string",
+      "enum": ["clear", "unconfirmed", "attention", "blocked"],
+      "description": "Derived honest headline. `clear` is only reachable from a declared-clear, fresh, evidence-current row; `unconfirmed` is the no-silent-green downgrade."
+    },
+    "freshness_token": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "cached",
+        "stale",
+        "partial",
+        "policy_blocked",
+        "unavailable"
+      ],
+      "description": "How current the data behind the row is, as declared by its source. Anything other than `fresh` is a downgrade the chrome must surface."
+    },
+    "evidence_age_token": {
+      "type": "string",
+      "enum": ["fresh", "recent", "stale", "very_stale", "never"],
+      "description": "Age bucket of the last-successful evidence relative to as_of. `fresh` and `recent` are current; `stale`, `very_stale`, and `never` cannot back a green claim."
+    },
+    "evidence_kind_token": {
+      "type": "string",
+      "enum": [
+        "service_health_card",
+        "change_review",
+        "incident_record",
+        "support_case",
+        "audit_entry",
+        "runbook_packet",
+        "policy_decision"
+      ],
+      "description": "Closed vocabulary of canonical durable-object classes the evidence ref points at."
+    },
+    "downgrade_reason_token": {
+      "type": "string",
+      "enum": [
+        "cached_fallback",
+        "freshness_expired",
+        "evidence_aged_out",
+        "source_partial",
+        "policy_blocked",
+        "source_offline"
+      ],
+      "description": "Closed vocabulary explaining a freshness/evidence downgrade. Empty for a fresh, evidence-current row."
+    },
+    "dashboard_freshness_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "card_id",
+        "surface",
+        "surface_token",
+        "surface_label",
+        "title",
+        "displayed_state",
+        "displayed_state_token",
+        "displayed_state_label",
+        "effective_state",
+        "effective_state_token",
+        "effective_state_label",
+        "freshness",
+        "freshness_token",
+        "freshness_label",
+        "last_successful_evidence_at",
+        "evidence_age",
+        "evidence_age_token",
+        "evidence_age_label",
+        "evidence_kind",
+        "evidence_kind_token",
+        "evidence_kind_label",
+        "evidence_ref",
+        "downgrade_reasons",
+        "downgrade_reason_tokens",
+        "state_explanation",
+        "green_downgraded",
+        "honesty_marker_present"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "dashboard_freshness_card_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/dashboard_freshness_card_schema_version"
+        },
+        "card_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_token": { "$ref": "#/$defs/surface_token" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/short_title" },
+        "displayed_state": { "$ref": "#/$defs/displayed_state_token" },
+        "displayed_state_token": { "$ref": "#/$defs/displayed_state_token" },
+        "displayed_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "effective_state": { "$ref": "#/$defs/effective_state_token" },
+        "effective_state_token": { "$ref": "#/$defs/effective_state_token" },
+        "effective_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "freshness": { "$ref": "#/$defs/freshness_token" },
+        "freshness_token": { "$ref": "#/$defs/freshness_token" },
+        "freshness_label": { "$ref": "#/$defs/non_empty_string" },
+        "last_successful_evidence_at": {
+          "oneOf": [
+            { "$ref": "#/$defs/iso_date_time_minutes" },
+            { "type": "null" }
+          ],
+          "description": "Timestamp of the last-successful evidence, or null when none has been captured (evidence_age is then `never`)."
+        },
+        "evidence_age": { "$ref": "#/$defs/evidence_age_token" },
+        "evidence_age_token": { "$ref": "#/$defs/evidence_age_token" },
+        "evidence_age_label": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_kind": { "$ref": "#/$defs/evidence_kind_token" },
+        "evidence_kind_token": { "$ref": "#/$defs/evidence_kind_token" },
+        "evidence_kind_label": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_ref": { "$ref": "#/$defs/canonical_object_ref" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_token" }
+        },
+        "downgrade_reason_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_token" }
+        },
+        "state_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "green_downgraded": {
+          "type": "boolean",
+          "description": "True when displayed_state was `clear` but effective_state was withdrawn to `unconfirmed`."
+        },
+        "honesty_marker_present": {
+          "type": "boolean",
+          "description": "True when the chrome must light a yellow honesty chip on this row."
+        }
+      }
+    },
+    "dashboard_truth_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_card_count",
+        "clear_card_count",
+        "unconfirmed_card_count",
+        "attention_card_count",
+        "blocked_card_count",
+        "green_downgrade_count",
+        "stale_evidence_count",
+        "freshness_downgrade_count"
+      ],
+      "properties": {
+        "total_card_count": { "type": "integer", "minimum": 0 },
+        "clear_card_count": { "type": "integer", "minimum": 0 },
+        "unconfirmed_card_count": { "type": "integer", "minimum": 0 },
+        "attention_card_count": { "type": "integer", "minimum": 0 },
+        "blocked_card_count": { "type": "integer", "minimum": 0 },
+        "green_downgrade_count": { "type": "integer", "minimum": 0 },
+        "stale_evidence_count": { "type": "integer", "minimum": 0 },
+        "freshness_downgrade_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "dashboard_truth_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "notice",
+        "view_id",
+        "surface",
+        "surface_token",
+        "surface_label",
+        "as_of",
+        "cards",
+        "queue_order",
+        "summary",
+        "overall_effective_state",
+        "overall_effective_state_token",
+        "overall_effective_state_label",
+        "overall_freshness",
+        "overall_freshness_token",
+        "overall_freshness_label",
+        "honesty_marker_present"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "dashboard_truth_view_record"
+        },
+        "schema_version": { "$ref": "#/$defs/dashboard_truth_view_schema_version" },
+        "notice": { "$ref": "#/$defs/non_empty_string" },
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "surface": { "$ref": "#/$defs/surface_token" },
+        "surface_token": { "$ref": "#/$defs/surface_token" },
+        "surface_label": { "$ref": "#/$defs/non_empty_string" },
+        "as_of": { "$ref": "#/$defs/iso_date_time_minutes" },
+        "cards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dashboard_freshness_card_record" }
+        },
+        "queue_order": {
+          "oneOf": [
+            {
+              "$ref": "https://aureline.dev/schemas/ops/queue_order_reason.schema.json#/$defs/queue_order_reason_record"
+            },
+            { "type": "null" }
+          ],
+          "description": "Present for queue surfaces (review_inbox, incident_queue, support_queue, admin_queue); null for the service_health dashboard."
+        },
+        "summary": { "$ref": "#/$defs/dashboard_truth_summary" },
+        "overall_effective_state": { "$ref": "#/$defs/effective_state_token" },
+        "overall_effective_state_token": { "$ref": "#/$defs/effective_state_token" },
+        "overall_effective_state_label": { "$ref": "#/$defs/non_empty_string" },
+        "overall_freshness": { "$ref": "#/$defs/freshness_token" },
+        "overall_freshness_token": { "$ref": "#/$defs/freshness_token" },
+        "overall_freshness_label": { "$ref": "#/$defs/non_empty_string" },
+        "honesty_marker_present": { "type": "boolean" }
+      }
+    }
+  }
+}

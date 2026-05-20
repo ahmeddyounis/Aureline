@@ -56,6 +56,7 @@ pub mod command_parity;
 pub mod command_reference;
 pub mod commands;
 pub mod companion_handoff;
+pub mod dashboard_truth;
 pub mod debug_seed;
 pub mod debug_ui;
 pub mod debugger_host_beta;
