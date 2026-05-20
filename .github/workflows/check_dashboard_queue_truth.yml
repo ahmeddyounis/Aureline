@@ -1,0 +1,89 @@
+# Operator dashboard & queue truth audit gate.
+#
+# Replays the dashboard & queue truth audit corpus: it proves marketed beta
+# operator dashboards and queues never keep a green headline once freshness or
+# evidence has expired, always explain why each queue row is sorted where it is
+# and what is hidden by scope, always route open-details / reveal to the durable
+# object behind the row, and keep support-export and CLI / headless projections
+# in parity with the product UI.
+
+name: check_dashboard_queue_truth
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_dashboard_queue_truth.yml"
+      - "scripts/ci/run_dashboard_queue_truth.sh"
+      - "ci/check_dashboard_queue_truth.py"
+      - "schemas/ops/dashboard_freshness_card.schema.json"
+      - "schemas/ops/queue_order_reason.schema.json"
+      - "fixtures/ops/m3/dashboard_and_queue_truth/**"
+      - "fixtures/ops/m3/dashboard_queue_truth_corpus/**"
+      - "artifacts/ops/m3/dashboard_queue_truth_report.md"
+      - "docs/ops/m3/dashboard_queue_truth_beta.md"
+      - "crates/aureline-shell/src/dashboard_truth/**"
+      - "crates/aureline-shell/src/bin/aureline_shell_dashboard_truth_corpus.rs"
+      - "crates/aureline-shell/tests/dashboard_truth_fixtures.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-dashboard-queue-truth-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dashboard_queue_truth:
+    name: Dashboard & queue truth audit corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-dashboard-queue-truth-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-dashboard-queue-truth-
+
+      - name: Run dashboard & queue truth audit corpus
+        run: |
+          scripts/ci/run_dashboard_queue_truth.sh \
+            --report-json artifacts/ops/m3/dashboard_queue_truth_corpus_report.json
+
+      - name: Upload corpus report and packet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-queue-truth-${{ github.run_id }}
+          path: |
+            artifacts/ops/m3/dashboard_queue_truth_report.md
+            artifacts/ops/m3/dashboard_queue_truth_corpus_report.json
+            fixtures/ops/m3/dashboard_queue_truth_corpus/corpus_matrix.json
+            fixtures/ops/m3/dashboard_queue_truth_corpus/export_parity_packet.json
+          if-no-files-found: warn
+          retention-days: 30
