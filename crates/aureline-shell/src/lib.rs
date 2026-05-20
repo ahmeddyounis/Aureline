@@ -119,6 +119,7 @@ pub mod platform_integration;
 pub mod policy_pack_beta;
 pub mod policy_simulation_beta;
 pub mod portable_bundle_inspector;
+pub mod presentation_mode;
 pub mod preview_scope_labels;
 pub mod preview_truth;
 pub mod previews;
