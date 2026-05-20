@@ -152,6 +152,7 @@ pub mod support_seed;
 pub mod system_browser_return_paths;
 pub mod target_discovery_beta;
 pub mod tasks_seed;
+pub mod teaching_session;
 pub mod terminal_pane;
 pub mod test_runner_beta;
 pub mod token_state_audit;
