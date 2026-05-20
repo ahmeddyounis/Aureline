@@ -10,6 +10,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-workspace/0.0.0")]
 
+pub mod acquisition;
 pub mod admission;
 pub mod archetype_detection;
 pub mod archetypes;
@@ -34,6 +35,33 @@ pub mod state_packages;
 pub mod templates;
 pub mod workset_switcher;
 pub mod worksets;
+
+pub use acquisition::{
+    AbsenceClass, AcquisitionFailureReasonClass, AcquisitionFixtureMetadata, AcquisitionGuardrails,
+    AcquisitionHonestyLabel, AcquisitionPosture, AcquisitionResumeState, AcquisitionSurface,
+    AcquisitionVerb, ArtifactDescriptor, ArtifactSignatureState, AttachAuthorityClass,
+    AttributableEvidence, AttributableEvidenceClass, AuthModeClass, BlockedExecutionPathClass,
+    BlockerClass, BootstrapCredentialPosture, BootstrapEvidencePacket, BootstrapExecutionClass,
+    BootstrapItemClass, BootstrapItemState, BootstrapQueueItemRecord, BootstrapQueueItemRecordKind,
+    BrowseSafeActionClass, CheckoutModeClass, CheckoutPlanRecord, CheckoutPlanRecordKind,
+    CheckoutShape, CheckoutTrustStage, CheckoutTrustState, CredentialPostureClass,
+    DeclaredFreshnessClass, DeepLinkClass, DeepLinkDescriptor, DiscardPosture, ExpectedCostBand,
+    HostEndpointDescriptor, InterruptedRecovery, InterruptedRecoveryBranch, LfsPolicyClass,
+    LiveSessionClass, LiveSessionDescriptor, LocatorArtifactClass, LocatorClass,
+    LocatorEntryVerbHint, LocatorTargetKindHint, ManualFollowup, MirrorFreshnessClass,
+    MirrorFreshnessEvidence, NextStepDecisionHook, PolicyNarrowingRef, PolicySourceClass,
+    ReadOnlyPartialRoot, ReadOnlyPartialRootClass, RepairHookClass,
+    RepositoryAcquisitionBetaError, RepositoryAcquisitionBetaInputs,
+    RepositoryAcquisitionBetaProjection, RepositoryAcquisitionRecordKind, ResumableAcquisitionState,
+    SetupActionsClass, SideEffectBypassPath, SideEffectCleanupClass, SideEffectConnectivityClass,
+    SideEffectEnvelope, SideEffectTimeClass, SignerContinuityClass, SignerContinuityEvidence,
+    SkipReasonClass, SourceLocatorRecord, SourceLocatorRecordKind, SubmodulePolicyClass,
+    TopologyMarker, TopologyMarkerClass, TransportClass, UpstreamDeltaClass,
+    BOOTSTRAP_QUEUE_ITEM_RECORD_KIND, BOOTSTRAP_QUEUE_ITEM_SCHEMA_VERSION,
+    CHECKOUT_PLAN_RECORD_KIND, CHECKOUT_PLAN_SCHEMA_VERSION, REPOSITORY_ACQUISITION_RECORD_KIND,
+    REPOSITORY_ACQUISITION_SCHEMA_VERSION, SOURCE_LOCATOR_RECORD_KIND,
+    SOURCE_LOCATOR_SCHEMA_VERSION,
+};
 
 pub use recent_work::{
     classify_recent_work_failure, is_remote_backed_target,

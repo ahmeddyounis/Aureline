@@ -1,0 +1,656 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/repository_acquisition.schema.json",
+  "title": "Aureline repository-acquisition beta projection",
+  "description": "Beta projection record that binds one source_locator_record, one checkout_plan_record, and zero or more bootstrap_queue_item_records into the single cross-surface truth Start Center, the command palette, deep-link resolvers, and CLI / headless acquisition paths read before any hydrate / init / fetch path runs. The projection names **what source is being acquired** (acquisition_verb + the quoted locator vocabulary), **what checkout shape and cost band will be used** (checkout_shape + expected_cost_band), **what credential posture applies** (credential_posture), **which follow-up bootstrap actions remain manual** (manual_followups), **how to recover from interrupted acquisition** (interrupted_recovery), and the typed guardrails that keep acquisition from drifting into hidden setup or hidden trust elevation. The projection never mints new locator / trust-stage / topology / bootstrap vocabulary; it quotes the three companion records and adds typed predicates. Raw absolute paths, raw credentials, raw remote URLs with credentials, and raw artifact bytes never appear. Companion contracts: /schemas/workspace/source_locator.schema.json, /schemas/workspace/checkout_plan.schema.json, and /schemas/workspace/bootstrap_queue_item.schema.json. Beta contract: /docs/workspace/m3/repository_acquisition_beta.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/repository_acquisition_record" }
+  ],
+  "$defs": {
+    "repository_acquisition_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the repository-acquisition projection payload shape. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["repository_acquisition_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes)."
+    },
+
+    "acquisition_surface": {
+      "type": "string",
+      "enum": [
+        "start_center",
+        "command_palette",
+        "deep_link",
+        "cli_headless",
+        "policy_guided_deployment",
+        "support"
+      ],
+      "description": "Client surface that consumes the projection. All surfaces read the same projection; none mints a private acquisition vocabulary."
+    },
+
+    "acquisition_verb": {
+      "type": "string",
+      "enum": [
+        "open_local",
+        "clone",
+        "import",
+        "open_archive",
+        "open_template_or_prebuild",
+        "resume",
+        "open_deep_link"
+      ],
+      "description": "Distinct acquisition verb resolved from the locator class. Open folder, Clone repository, Import bundle, Open archive, and Resume snapshot stay distinct verbs with distinct review, trust, and recovery semantics; the projection never collapses one into another."
+    },
+
+    "locator_class": {
+      "type": "string",
+      "enum": [
+        "local_folder",
+        "local_file",
+        "workspace_file_manifest",
+        "workset_manifest",
+        "repo_url",
+        "mirror_or_proxy_repo",
+        "snapshot_archive",
+        "template",
+        "prebuild_snapshot",
+        "live_resume_target",
+        "handoff_packet",
+        "portable_state_package",
+        "recovery_checkpoint",
+        "review_or_work_item_deep_link"
+      ],
+      "description": "Quoted from /schemas/workspace/source_locator.schema.json#/$defs/locator_class."
+    },
+
+    "transport_class": {
+      "type": "string",
+      "enum": [
+        "local_filesystem",
+        "https",
+        "ssh",
+        "git_protocol",
+        "sftp",
+        "mirror",
+        "proxy",
+        "air_gapped_media",
+        "aureline_remote",
+        "managed_cloud",
+        "devcontainer_runtime",
+        "container_runtime",
+        "file_upload",
+        "deep_link_handoff",
+        "other"
+      ],
+      "description": "Quoted from /schemas/workspace/source_locator.schema.json#/$defs/transport_class."
+    },
+
+    "acquisition_posture": {
+      "type": "string",
+      "enum": [
+        "already_on_disk",
+        "not_yet_acquired",
+        "partially_acquired",
+        "filtered_or_sparse",
+        "hydrated_stale",
+        "live_session_attached",
+        "unreachable",
+        "policy_blocked",
+        "unknown"
+      ],
+      "description": "Quoted from /schemas/workspace/source_locator.schema.json#/$defs/acquisition_posture."
+    },
+
+    "declared_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_origin",
+        "mirror_fresh",
+        "mirror_lagged",
+        "mirror_stale",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "unknown_freshness"
+      ],
+      "description": "Quoted from /schemas/workspace/source_locator.schema.json#/$defs/declared_freshness_class."
+    },
+
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "continuous_with_previous_acquisition",
+        "new_signer_first_seen",
+        "signer_changed_trust_on_first_use",
+        "signer_changed_review_required",
+        "signer_rotation_preauthorized",
+        "unsigned",
+        "signature_missing",
+        "signature_mismatch",
+        "not_applicable"
+      ],
+      "description": "Quoted from /schemas/workspace/source_locator.schema.json#/$defs/signer_continuity_class."
+    },
+
+    "trust_stage": {
+      "type": "string",
+      "enum": [
+        "not_evaluated",
+        "pre_fetch_inspection",
+        "post_fetch_content_review",
+        "admitted_restricted",
+        "admitted_trusted",
+        "quarantined",
+        "policy_blocked",
+        "signer_review_required",
+        "reauth_required",
+        "reconnect_required"
+      ],
+      "description": "Quoted from /schemas/workspace/checkout_plan.schema.json#/$defs/trust_stage."
+    },
+
+    "checkout_mode_class": {
+      "type": "string",
+      "enum": [
+        "full_checkout",
+        "partial_clone",
+        "sparse_checkout",
+        "shallow_history",
+        "archive_extract",
+        "live_attach",
+        "not_applicable"
+      ],
+      "description": "Derived checkout mode. partial_clone / sparse_checkout / shallow_history all imply the checkout cannot claim full local truth."
+    },
+
+    "submodule_policy_class": {
+      "type": "string",
+      "enum": [
+        "not_present",
+        "init_pending",
+        "init_partial",
+        "init_complete",
+        "init_failed"
+      ],
+      "description": "Derived submodule init policy from the plan's topology markers."
+    },
+
+    "lfs_policy_class": {
+      "type": "string",
+      "enum": [
+        "not_present",
+        "pointer_only",
+        "hydrate_pending",
+        "hydrate_partial",
+        "hydrate_complete",
+        "hydrate_failed"
+      ],
+      "description": "Derived Git LFS hydrate policy from the plan's topology markers."
+    },
+
+    "read_only_partial_root_class": {
+      "type": "string",
+      "enum": [
+        "sparse_checkout_root",
+        "partial_clone_filter_root",
+        "promisor_pack_root",
+        "shallow_history_root",
+        "lfs_pointer_only_root",
+        "submodule_placeholder_root",
+        "archive_extracted_read_only",
+        "template_materialized_read_only",
+        "prebuild_attached_read_only",
+        "remote_virtual_root",
+        "portable_bundle_extracted_read_only"
+      ],
+      "description": "Quoted from /schemas/workspace/checkout_plan.schema.json#/$defs/read_only_partial_root_class."
+    },
+
+    "read_only_partial_root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_class", "root_label"],
+      "properties": {
+        "root_class": { "$ref": "#/$defs/read_only_partial_root_class" },
+        "root_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "local_identity_ref": { "type": "string", "minLength": 1 },
+        "include_glob_count": { "type": "integer", "minimum": 0 },
+        "exclude_glob_count": { "type": "integer", "minimum": 0 },
+        "browse_safe_only": { "type": "boolean" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Quoted read-only partial root the plan has already made safe to inspect."
+    },
+
+    "checkout_shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "partial_or_sparse",
+        "read_only_partial_present",
+        "submodule_policy",
+        "lfs_policy",
+        "read_only_partial_roots"
+      ],
+      "properties": {
+        "mode": { "$ref": "#/$defs/checkout_mode_class" },
+        "partial_or_sparse": { "type": "boolean" },
+        "read_only_partial_present": { "type": "boolean" },
+        "submodule_policy": { "$ref": "#/$defs/submodule_policy_class" },
+        "lfs_policy": { "$ref": "#/$defs/lfs_policy_class" },
+        "read_only_partial_roots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/read_only_partial_root" }
+        }
+      },
+      "description": "Checkout shape the plan discloses before any hydrate / init / fetch path runs."
+    },
+
+    "expected_cost_band": {
+      "type": "string",
+      "enum": [
+        "local_no_fetch",
+        "metered_fetch",
+        "large_fetch_or_hydrate",
+        "live_attach",
+        "unknown"
+      ],
+      "description": "Coarse, deterministic expected cost band derived from transport, posture, topology, and the bootstrap queue. The seed records carry no byte estimates."
+    },
+
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "ssh_agent",
+        "pat_handle",
+        "oauth_handle",
+        "device_code_handle",
+        "managed_session_ticket",
+        "connected_provider_ticket",
+        "anonymous",
+        "inherit_local_identity",
+        "none",
+        "other"
+      ],
+      "description": "Quoted from /schemas/workspace/source_locator.schema.json#/$defs/auth_mode_class."
+    },
+
+    "credential_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_credentials_needed",
+        "local_identity_inherited",
+        "handle_present_not_yet_used",
+        "browser_or_device_handoff_pending",
+        "provider_ticket_required",
+        "reauth_required",
+        "unknown"
+      ],
+      "description": "Derived credential posture class. Raw credentials never appear; only typed handle classes and refs."
+    },
+
+    "credential_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture_class", "reauth_required"],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/credential_posture_class" },
+        "auth_mode": { "$ref": "#/$defs/auth_mode_class" },
+        "credential_handle_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+        "reauth_required": { "type": "boolean" }
+      },
+      "description": "Typed bootstrap credential posture. Names the credential class without carrying a raw secret."
+    },
+
+    "acquisition_resume_state": {
+      "type": "string",
+      "enum": [
+        "never_started",
+        "in_progress",
+        "interrupted_resumable",
+        "interrupted_discard_required",
+        "interrupted_open_read_only_available",
+        "completed",
+        "aborted"
+      ],
+      "description": "Quoted from /schemas/workspace/checkout_plan.schema.json#/$defs/acquisition_resume_state."
+    },
+
+    "discard_posture": {
+      "type": "string",
+      "enum": [
+        "no_discard_required",
+        "discard_staging_only",
+        "discard_with_compensation",
+        "discard_blocked_require_admin",
+        "discard_unavailable_manual_only"
+      ],
+      "description": "Quoted from /schemas/workspace/checkout_plan.schema.json#/$defs/discard_posture."
+    },
+
+    "interrupted_recovery_branch": {
+      "type": "string",
+      "enum": [
+        "resume_acquisition",
+        "discard_and_restart",
+        "open_read_only_partial",
+        "refresh_mirror",
+        "switch_to_live_origin"
+      ],
+      "description": "One explicit branch an interrupted-acquisition card may offer. The card never collapses these into a binary retry / cancel."
+    },
+
+    "interrupted_recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resume_state",
+        "discard_posture",
+        "open_read_only_available",
+        "branches",
+        "export_safe"
+      ],
+      "properties": {
+        "resume_state": { "$ref": "#/$defs/acquisition_resume_state" },
+        "discard_posture": { "$ref": "#/$defs/discard_posture" },
+        "open_read_only_available": { "type": "boolean" },
+        "branches": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/interrupted_recovery_branch" },
+          "description": "Every interrupted plan exposes at least one explicit branch."
+        },
+        "resume_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "export_safe": { "type": "boolean" }
+      },
+      "description": "Typed interrupted-acquisition recovery card. Present only when the plan's resume state is one of the explicit interrupted branches."
+    },
+
+    "bootstrap_item_class": {
+      "type": "string",
+      "enum": [
+        "submodule_init",
+        "lfs_hydrate",
+        "partial_clone_hydrate",
+        "shallow_history_deepen",
+        "package_restore",
+        "package_audit",
+        "generator_install",
+        "generator_run",
+        "toolchain_install",
+        "toolchain_detect",
+        "devcontainer_attach",
+        "prebuild_attach",
+        "extension_restore",
+        "extension_activation",
+        "index_warm_up",
+        "docs_import",
+        "ai_context_warm_up",
+        "secret_handle_request",
+        "cache_warm",
+        "settings_materialize",
+        "profile_materialize",
+        "credential_provisioning",
+        "mirror_refresh",
+        "other"
+      ],
+      "description": "Quoted from /schemas/workspace/bootstrap_queue_item.schema.json#/$defs/bootstrap_item_class."
+    },
+
+    "bootstrap_item_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "succeeded",
+        "failed_recoverable",
+        "failed_blocking",
+        "skipped",
+        "cancelled",
+        "awaiting_admission",
+        "awaiting_network",
+        "awaiting_user_action",
+        "awaiting_policy_decision"
+      ],
+      "description": "Quoted from /schemas/workspace/bootstrap_queue_item.schema.json#/$defs/bootstrap_item_state."
+    },
+
+    "bootstrap_execution_class": {
+      "type": "string",
+      "enum": [
+        "browse_safe",
+        "side_effect_declared",
+        "network_required",
+        "privileged",
+        "blocked",
+        "deferred_until_trust_admitted",
+        "manual_user_action_required"
+      ],
+      "description": "Quoted from /schemas/workspace/bootstrap_queue_item.schema.json#/$defs/bootstrap_execution_class."
+    },
+
+    "absence_class": {
+      "type": "string",
+      "enum": [
+        "present",
+        "not_yet_fetched",
+        "not_yet_hydrated",
+        "partially_hydrated",
+        "genuinely_absent",
+        "user_misconfigured",
+        "policy_blocked",
+        "trust_blocked",
+        "mirror_unreachable",
+        "authority_expired",
+        "schema_version_unsupported",
+        "unknown"
+      ],
+      "description": "Quoted from /schemas/workspace/bootstrap_queue_item.schema.json#/$defs/absence_class."
+    },
+
+    "manual_followup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap_item_ref",
+        "item_class",
+        "state",
+        "execution_class",
+        "absence_class"
+      ],
+      "properties": {
+        "bootstrap_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "item_class": { "$ref": "#/$defs/bootstrap_item_class" },
+        "state": { "$ref": "#/$defs/bootstrap_item_state" },
+        "execution_class": { "$ref": "#/$defs/bootstrap_execution_class" },
+        "absence_class": { "$ref": "#/$defs/absence_class" },
+        "presentation_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One follow-up bootstrap action that remains manual after open. Surfaces render the typed list rather than one opaque 'setting up workspace' spinner."
+    },
+
+    "attributable_evidence_class": {
+      "type": "string",
+      "enum": [
+        "source_producer_identity",
+        "checkout_plan_reference",
+        "source_locator_reference",
+        "package_manifest_ref",
+        "lockfile_digest_ref",
+        "generator_manifest_ref",
+        "toolchain_manifest_ref",
+        "extension_manifest_ref",
+        "docs_pack_manifest_ref",
+        "policy_bundle_ref",
+        "trust_review_ticket_ref",
+        "signer_continuity_ref",
+        "mirror_freshness_ref",
+        "previous_bootstrap_run_ref",
+        "recovery_checkpoint_ref",
+        "user_action_ref"
+      ],
+      "description": "Quoted from /schemas/workspace/bootstrap_queue_item.schema.json#/$defs/attributable_evidence_class."
+    },
+
+    "bootstrap_evidence_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_locator_ref",
+        "checkout_plan_ref",
+        "bootstrap_item_refs",
+        "evidence_classes",
+        "every_item_attributed",
+        "manual_followup_count",
+        "export_safe"
+      ],
+      "properties": {
+        "source_locator_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkout_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "bootstrap_item_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "evidence_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/attributable_evidence_class" }
+        },
+        "every_item_attributed": { "type": "boolean" },
+        "manual_followup_count": { "type": "integer", "minimum": 0 },
+        "export_safe": { "type": "boolean" }
+      },
+      "description": "Export-safe evidence packet that joins source identity, checkout plan, and bootstrap-queue refs with the union of typed evidence classes."
+    },
+
+    "acquisition_honesty_label": {
+      "type": "string",
+      "enum": [
+        "mirror_lagged",
+        "mirror_stale",
+        "upstream_delta_outside_skew",
+        "offline_snapshot",
+        "signed_offline_bundle",
+        "signer_changed_review_required",
+        "signer_first_seen",
+        "read_only_partial",
+        "shallow_history",
+        "partial_clone",
+        "sparse_workset",
+        "submodule_init_pending",
+        "lfs_pointer_only",
+        "reauth_required",
+        "reconnect_required",
+        "policy_narrowed"
+      ],
+      "description": "Closed honesty-label set the surface renders verbatim alongside the acquisition row."
+    },
+
+    "acquisition_guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clone_not_confused_with_open",
+        "no_implicit_repo_code_execution",
+        "bootstrap_items_attributed",
+        "browse_safe_inspection_available",
+        "mirror_not_masquerading_as_live",
+        "no_hidden_trust_elevation"
+      ],
+      "properties": {
+        "clone_not_confused_with_open": { "type": "boolean" },
+        "no_implicit_repo_code_execution": { "type": "boolean" },
+        "bootstrap_items_attributed": { "type": "boolean" },
+        "browse_safe_inspection_available": { "type": "boolean" },
+        "mirror_not_masquerading_as_live": { "type": "boolean" },
+        "no_hidden_trust_elevation": { "type": "boolean" }
+      },
+      "description": "Typed guardrail predicates the projection guarantees. Each maps to a guardrail or acceptance criterion in the acquisition spec."
+    },
+
+    "repository_acquisition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "repository_acquisition_schema_version",
+        "surface",
+        "source_locator_ref",
+        "checkout_plan_ref",
+        "bootstrap_queue_refs",
+        "acquisition_verb",
+        "locator_class",
+        "acquisition_posture",
+        "declared_freshness_class",
+        "signer_continuity_class",
+        "trust_stage",
+        "checkout_shape",
+        "expected_cost_band",
+        "credential_posture",
+        "manual_followups",
+        "evidence_packet",
+        "honesty_labels",
+        "guardrails"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "repository_acquisition_record" },
+        "repository_acquisition_schema_version": {
+          "$ref": "#/$defs/repository_acquisition_schema_version"
+        },
+        "surface": { "$ref": "#/$defs/acquisition_surface" },
+
+        "source_locator_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkout_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "bootstrap_queue_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+
+        "acquisition_verb": { "$ref": "#/$defs/acquisition_verb" },
+        "locator_class": { "$ref": "#/$defs/locator_class" },
+        "transport_class": { "$ref": "#/$defs/transport_class" },
+        "acquisition_posture": { "$ref": "#/$defs/acquisition_posture" },
+        "declared_freshness_class": { "$ref": "#/$defs/declared_freshness_class" },
+        "signer_continuity_class": { "$ref": "#/$defs/signer_continuity_class" },
+        "trust_stage": { "$ref": "#/$defs/trust_stage" },
+
+        "checkout_shape": { "$ref": "#/$defs/checkout_shape" },
+        "expected_cost_band": { "$ref": "#/$defs/expected_cost_band" },
+        "credential_posture": { "$ref": "#/$defs/credential_posture" },
+
+        "interrupted_recovery": { "$ref": "#/$defs/interrupted_recovery" },
+
+        "manual_followups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/manual_followup" }
+        },
+        "evidence_packet": { "$ref": "#/$defs/bootstrap_evidence_packet" },
+
+        "honesty_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/acquisition_honesty_label" }
+        },
+        "guardrails": { "$ref": "#/$defs/acquisition_guardrails" }
+      },
+      "description": "One repository-acquisition beta projection. Read by Start Center, the command palette, deep-link resolvers, CLI / headless acquisition paths, the policy-guided deployment lane, and support exporters. Every surface reads the projection by its locator / plan refs; downstream surfaces never re-derive the acquisition verb, checkout shape, credential posture, manual followups, recovery branches, or guardrails."
+    }
+  }
+}
