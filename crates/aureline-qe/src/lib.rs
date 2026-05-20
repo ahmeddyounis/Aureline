@@ -10,12 +10,15 @@
 //!
 //! See `git_history_rewrite::run_corpus_from_repo_root` for the
 //! risky-Git lane entry point, `repo_topology::run_corpus_from_repo_root`
-//! for the M3 repo-topology evidence lane, and
+//! for the M3 repo-topology evidence lane,
 //! `bootstrap_truth::run_corpus_from_repo_root` for the M3
-//! repository-acquisition and post-open bootstrap truth lane.
+//! repository-acquisition and post-open bootstrap truth lane, and
+//! `scaffold_safety::run_corpus_from_repo_root` for the M3 scaffold and
+//! generated-project safety lane.
 
 #![doc(html_root_url = "https://docs.rs/aureline-qe/0.0.0")]
 
 pub mod bootstrap_truth;
 pub mod git_history_rewrite;
 pub mod repo_topology;
+pub mod scaffold_safety;
