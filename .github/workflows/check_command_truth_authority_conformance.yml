@@ -1,0 +1,80 @@
+# Command-truth and palette-authority conformance gate.
+#
+# Replays the command-truth and palette-authority conformance corpus and
+# publishes the parity report and release evidence packet for every claimed beta
+# command, so no invocation surface widens authority, suppresses preview/approval,
+# lies about its automation labels, or breaks invocation lineage.
+
+name: check_command_truth_authority_conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_command_truth_authority_conformance.yml"
+      - "crates/aureline-qe/src/command_truth_authority/**"
+      - "crates/aureline-qe/tests/command_truth_authority_conformance.rs"
+      - "crates/aureline-commands/src/authority.rs"
+      - "crates/aureline-commands/src/lib.rs"
+      - "fixtures/commands/m3/command_truth_and_authority/**"
+      - "schemas/commands/command_conformance_result.schema.json"
+      - "artifacts/ux/m3/command_truth_and_authority_parity_report.md"
+      - "artifacts/release/m3/command_invocation_evidence_packet.json"
+      - "docs/ux/m3/command_truth_and_palette_authority_conformance.md"
+      - "tools/regenerate_command_truth_authority_corpus.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-command-truth-authority-conformance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  command_truth_authority_corpus:
+    name: Command-truth and palette-authority corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-command-truth-authority-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-command-truth-authority-
+
+      - name: Verify the published corpus matches its generator
+        run: |
+          python3 tools/regenerate_command_truth_authority_corpus.py --check
+
+      - name: Replay command-truth and palette-authority corpus
+        run: |
+          cargo test -p aureline-qe --test command_truth_authority_conformance --locked
+
+      - name: Upload parity report and evidence packet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-truth-authority-conformance-${{ github.run_id }}
+          path: |
+            fixtures/commands/m3/command_truth_and_authority/manifest.json
+            artifacts/ux/m3/command_truth_and_authority_parity_report.md
+            artifacts/release/m3/command_invocation_evidence_packet.json
+          if-no-files-found: error
+          retention-days: 30

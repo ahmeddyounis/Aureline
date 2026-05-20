@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/commands/command_conformance_result.schema.json",
+  "title": "Aureline command-truth and palette-authority conformance result",
+  "description": "Boundary schema for the M3 command-truth and palette-authority conformance corpus owned by aureline_commands::CommandAuthorityScenarioRecord and replayed by crates/aureline-qe/src/command_truth_authority. The schema covers the three artifacts of the lane: the per-scenario command-authority record under fixtures/commands/m3/command_truth_and_authority/{positive,negative}/, the corpus manifest at fixtures/commands/m3/command_truth_and_authority/manifest.json, and the published release evidence packet at artifacts/release/m3/command_invocation_evidence_packet.json. Acceptance: a scenario MUST keep one enablement decision, one preview/approval posture, and one result contract across every claimed invocation surface; MUST NOT widen authority or suppress a preview or approval requirement; MUST keep automation labels honest; MUST keep migration aliases resolving to the canonical command id; and MUST reconstruct invocation lineage from command id through result packet, evidence ref, notification/activity row, and rollback handle. This schema is descriptive: the authoritative validator is the Rust runtime, but every committed artifact in the lane validates against it.",
+  "oneOf": [
+    { "$ref": "#/$defs/command_authority_scenario_record" },
+    { "$ref": "#/$defs/command_authority_conformance_corpus_record" },
+    { "$ref": "#/$defs/command_invocation_evidence_packet_record" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_or_null": {
+      "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "menu_or_button",
+        "keybinding",
+        "command_palette",
+        "cli_headless",
+        "ai_tool",
+        "recipe",
+        "voice",
+        "browser_companion"
+      ]
+    },
+    "enablement_decision_class": {
+      "type": "string",
+      "enum": ["enabled", "disabled_with_reason", "hidden_with_reason"]
+    },
+    "automation_label": {
+      "type": "string",
+      "enum": [
+        "macro_safe",
+        "recipe_safe",
+        "headless_safe",
+        "ui_only",
+        "approval_required"
+      ]
+    },
+    "surface_invocation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "enablement_decision_class",
+        "preview_class_declared",
+        "approval_posture_class_declared",
+        "authority_class",
+        "dispatched",
+        "invocation_session_id"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "enablement_decision_class": { "$ref": "#/$defs/enablement_decision_class" },
+        "disabled_reason_code": { "$ref": "#/$defs/ref_or_null" },
+        "preview_class_declared": { "$ref": "#/$defs/non_empty_string" },
+        "approval_posture_class_declared": { "$ref": "#/$defs/non_empty_string" },
+        "authority_class": { "$ref": "#/$defs/non_empty_string" },
+        "dispatched": { "type": "boolean" },
+        "outcome_code": { "$ref": "#/$defs/ref_or_null" },
+        "invocation_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "resolves_to_canonical_command_id": { "$ref": "#/$defs/ref_or_null" }
+      }
+    },
+    "invocation_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "invocation_session_id",
+        "result_packet_id",
+        "result_outcome_code",
+        "evidence_refs",
+        "notification_refs",
+        "activity_refs",
+        "rollback_handle_posture"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "invocation_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "result_packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "result_outcome_code": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "notification_refs": { "$ref": "#/$defs/ref_array" },
+        "activity_refs": { "$ref": "#/$defs/ref_array" },
+        "rollback_handle_posture": { "$ref": "#/$defs/non_empty_string" },
+        "rollback_handle_id": { "$ref": "#/$defs/ref_or_null" },
+        "support_bundle_ref": { "$ref": "#/$defs/ref_or_null" }
+      }
+    },
+    "command_authority_scenario_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "scenario_id",
+        "canonical_descriptor",
+        "surfaces",
+        "lineage"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": {
+          "type": "string",
+          "const": "command_authority_scenario_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "scenario_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_descriptor": {
+          "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json"
+        },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_invocation_record" }
+        },
+        "lineage": { "$ref": "#/$defs/invocation_lineage_record" }
+      }
+    },
+    "positive_drill_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "fixture",
+        "kind",
+        "expected_command_id",
+        "expected_lifecycle_state",
+        "expected_preview_class",
+        "expected_approval_posture_class",
+        "expected_enablement_decision_class",
+        "expected_lineage_complete",
+        "expected_rollback_required"
+      ],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/non_empty_string" },
+        "fixture": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "type": "string", "const": "command_authority_scenario" },
+        "expected_command_id": { "$ref": "#/$defs/non_empty_string" },
+        "expected_lifecycle_state": { "$ref": "#/$defs/non_empty_string" },
+        "expected_preview_class": { "$ref": "#/$defs/non_empty_string" },
+        "expected_approval_posture_class": { "$ref": "#/$defs/non_empty_string" },
+        "expected_enablement_decision_class": {
+          "$ref": "#/$defs/enablement_decision_class"
+        },
+        "expected_surface_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" }
+        },
+        "expected_automation_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/automation_label" }
+        },
+        "expected_lineage_complete": { "type": "boolean" },
+        "expected_rollback_required": { "type": "boolean" }
+      }
+    },
+    "negative_drill_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drill_id", "fixture", "kind", "expected_failure_substring"],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/non_empty_string" },
+        "fixture": { "$ref": "#/$defs/non_empty_string" },
+        "kind": { "type": "string", "const": "command_authority_scenario" },
+        "expected_failure_substring": { "$ref": "#/$defs/non_empty_string" },
+        "covers": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "command_authority_conformance_corpus_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "corpus_id",
+        "schema_version",
+        "description",
+        "positive_drills",
+        "negative_drills"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": {
+          "type": "string",
+          "const": "command_authority_conformance_corpus_record"
+        },
+        "corpus_id": { "$ref": "#/$defs/non_empty_string" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "description": { "$ref": "#/$defs/non_empty_string" },
+        "boundary": { "type": "object" },
+        "positive_drills": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/positive_drill_spec" }
+        },
+        "negative_drills": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/negative_drill_spec" }
+        }
+      }
+    },
+    "command_authority_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill_id",
+        "scenario_id",
+        "command_id",
+        "canonical_verb",
+        "lifecycle_state",
+        "preview_class",
+        "approval_posture_class",
+        "agreed_enablement_decision_class",
+        "automation_labels",
+        "surface_classes_covered",
+        "parity_clean",
+        "lineage_complete",
+        "rollback_required",
+        "lineage_chain"
+      ],
+      "properties": {
+        "drill_id": { "$ref": "#/$defs/non_empty_string" },
+        "scenario_id": { "$ref": "#/$defs/non_empty_string" },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_verb": { "$ref": "#/$defs/non_empty_string" },
+        "lifecycle_state": { "$ref": "#/$defs/non_empty_string" },
+        "preview_class": { "$ref": "#/$defs/non_empty_string" },
+        "approval_posture_class": { "$ref": "#/$defs/non_empty_string" },
+        "agreed_enablement_decision_class": {
+          "$ref": "#/$defs/enablement_decision_class"
+        },
+        "automation_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/automation_label" }
+        },
+        "surface_classes_covered": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_class" }
+        },
+        "parity_clean": { "type": "boolean" },
+        "lineage_complete": { "type": "boolean" },
+        "rollback_required": { "type": "boolean" },
+        "lineage_chain": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "command_invocation_evidence_packet_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "corpus_id",
+        "summary",
+        "results"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": {
+          "type": "string",
+          "const": "command_invocation_evidence_packet_record"
+        },
+        "schema_version": { "type": "integer", "const": 1 },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "corpus_id": { "$ref": "#/$defs/non_empty_string" },
+        "generated_by": { "$ref": "#/$defs/non_empty_string" },
+        "summary": {
+          "type": "object",
+          "required": ["command_count", "surfaces_proven", "negative_drill_count"],
+          "properties": {
+            "command_count": { "type": "integer", "minimum": 1 },
+            "surfaces_proven": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/surface_class" }
+            },
+            "negative_drill_count": { "type": "integer", "minimum": 0 },
+            "all_parity_clean": { "type": "boolean" }
+          }
+        },
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/command_authority_projection" }
+        },
+        "negative_drills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["drill_id", "guards"],
+            "properties": {
+              "drill_id": { "$ref": "#/$defs/non_empty_string" },
+              "guards": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

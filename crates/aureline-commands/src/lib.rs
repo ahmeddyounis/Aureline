@@ -14,6 +14,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-commands/0.0.0")]
 
 pub mod alpha;
+pub mod authority;
 pub mod descriptor;
 pub mod enablement;
 pub mod invocation;
@@ -22,6 +23,10 @@ pub mod registry;
 pub use alpha::{
     alpha_command_registry, AlphaCommandClaimRecord, AlphaCommandRegistryRecord,
     AlphaDiscoverabilityConsumerRef, AlphaRegistryError, AlphaSurfaceParityRecord,
+};
+pub use authority::{
+    CommandAuthorityProjection, CommandAuthorityScenarioRecord, InvocationLineageRecord,
+    SurfaceInvocationRecord,
 };
 pub use descriptor::{
     CommandDescriptorRecord, CommandId, CommandOriginMetadata, CommandRevisionRef, OpaqueId,
