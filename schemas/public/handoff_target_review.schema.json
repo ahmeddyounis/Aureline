@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/public/handoff_target_review.schema.json",
+  "title": "Aureline public handoff-target review contract",
+  "description": "Boundary schema for one handoff_target_review_record consumed by the issue, security-disclosure, docs-feedback, RFC/discussion, and community-support handoff lanes. Every lane MUST state the target visibility using the closed five-class vocabulary (official_public, official_private, security_disclosure, community, third_party_vendor), the destination identity as an opaque ref, the network/browser requirement, the data-exit boundary (reused from the About/help/community vocabulary), and at least one safe fallback route so a blocked handoff degrades to a labeled path instead of failing silently. A route may only target a visibility from its allowed set so the lanes never blur together or coerce the user into a public target by accident: security_disclosure routes resolve only to security_disclosure or official_private visibility, never public. Security-disclosure visibility MUST carry the security_payloads_only data exit and the encrypted_security_channel (or offline_capture_preview) network requirement; third_party_vendor visibility MUST carry external_public_browse or vendor_or_third_party_outbound data exit and the vendor_or_third_party_call (or offline_capture_preview) network requirement. Every handoff lane MUST attach at least one versioned, redaction-safe build-context export block so the report carries the same export the About/help/community surfaces publish instead of a screenshot or a raw URL. Raw URLs, raw email addresses, and raw secret material MUST NOT appear; the record carries opaque refs and bounded reviewable summaries only. Adding a new visibility, route, network/browser, or data-exit class is additive-minor and bumps handoff_target_review_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/handoff_target_review_record",
+  "$defs": {
+    "handoff_target_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces, support exports, and public-proof packets. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_ref" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Bounded reviewable sentence. Raw URLs, raw page-body bytes, raw user identifiers, and raw secrets MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "target_visibility_class": {
+      "type": "string",
+      "enum": [
+        "official_public",
+        "official_private",
+        "security_disclosure",
+        "community",
+        "third_party_vendor"
+      ],
+      "description": "Closed five-class target-visibility vocabulary. A handoff whose visibility cannot be typed MUST be denied at build time rather than collapsing to official_public."
+    },
+    "handoff_route_class": {
+      "type": "string",
+      "enum": [
+        "public_issue",
+        "security_disclosure",
+        "docs_feedback",
+        "rfc_discussion",
+        "community_support"
+      ],
+      "description": "Closed handoff-route vocabulary for the five lanes in scope."
+    },
+    "network_browser_requirement_class": {
+      "type": "string",
+      "enum": [
+        "offline_capture_preview",
+        "system_browser_public_browse",
+        "system_browser_authenticated_plane",
+        "encrypted_security_channel",
+        "vendor_or_third_party_call"
+      ],
+      "description": "Closed network/browser-requirement vocabulary disclosed before navigation. offline_capture_preview means the packet can be built and previewed without leaving the product."
+    },
+    "data_exit_boundary_class": {
+      "type": "string",
+      "enum": [
+        "no_payload_leaves_product",
+        "metadata_safe_object_refs",
+        "proposal_refs_only",
+        "redacted_support_packet",
+        "security_payloads_only",
+        "external_public_browse",
+        "vendor_or_third_party_outbound"
+      ],
+      "description": "Closed data-exit-boundary vocabulary, reused verbatim from the About/help/community destination contract."
+    },
+    "build_context_export_class": {
+      "type": "string",
+      "enum": [
+        "public_issue_template_block",
+        "private_support_intake_block",
+        "private_security_intake_block",
+        "community_discussion_block"
+      ],
+      "description": "Closed build-context export-block vocabulary, reused from the About/help/community destination contract so the same redaction-safe payload is quoted across surfaces."
+    },
+    "build_context_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_class",
+        "export_block_ref",
+        "export_block_schema_version",
+        "redacted_for_audience",
+        "raw_screenshots_excluded",
+        "raw_secrets_excluded",
+        "export_summary"
+      ],
+      "properties": {
+        "export_class": { "$ref": "#/$defs/build_context_export_class" },
+        "export_block_ref": { "$ref": "#/$defs/opaque_ref" },
+        "export_block_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "redacted_for_audience": { "$ref": "#/$defs/build_context_export_class" },
+        "raw_screenshots_excluded": { "type": "boolean", "const": true },
+        "raw_secrets_excluded": { "type": "boolean", "const": true },
+        "export_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "handoff_target_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_target_review_schema_version",
+        "record_kind",
+        "target_id",
+        "route_class",
+        "visibility_class",
+        "destination_identity_ref",
+        "destination_label",
+        "network_browser_requirement_class",
+        "data_exit_boundary_class",
+        "safe_fallback_refs",
+        "build_context_exports",
+        "headline_label",
+        "target_summary",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "handoff_target_review_schema_version": {
+          "$ref": "#/$defs/handoff_target_review_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "handoff_target_review_record"
+        },
+        "target_id": {
+          "type": "string",
+          "pattern": "^handoff_target:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "route_class": { "$ref": "#/$defs/handoff_route_class" },
+        "visibility_class": { "$ref": "#/$defs/target_visibility_class" },
+        "destination_identity_ref": { "$ref": "#/$defs/opaque_ref" },
+        "destination_label": { "$ref": "#/$defs/reviewable_label" },
+        "network_browser_requirement_class": {
+          "$ref": "#/$defs/network_browser_requirement_class"
+        },
+        "data_exit_boundary_class": { "$ref": "#/$defs/data_exit_boundary_class" },
+        "safe_fallback_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "build_context_exports": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/build_context_export" }
+        },
+        "headline_label": { "$ref": "#/$defs/reviewable_label" },
+        "target_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/public/m3/handoff_and_repro_boundary.md"
+        },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "A security_disclosure route may only target security_disclosure or official_private visibility — never a public target.",
+          "if": {
+            "properties": { "route_class": { "const": "security_disclosure" } },
+            "required": ["route_class"]
+          },
+          "then": {
+            "properties": {
+              "visibility_class": {
+                "enum": ["security_disclosure", "official_private"]
+              }
+            }
+          }
+        },
+        {
+          "description": "public_issue, docs_feedback, and rfc_discussion routes resolve to official_public or community visibility.",
+          "if": {
+            "properties": {
+              "route_class": {
+                "enum": ["public_issue", "docs_feedback", "rfc_discussion"]
+              }
+            },
+            "required": ["route_class"]
+          },
+          "then": {
+            "properties": {
+              "visibility_class": { "enum": ["official_public", "community"] }
+            }
+          }
+        },
+        {
+          "description": "community_support routes resolve to community or official_private visibility.",
+          "if": {
+            "properties": { "route_class": { "const": "community_support" } },
+            "required": ["route_class"]
+          },
+          "then": {
+            "properties": {
+              "visibility_class": { "enum": ["community", "official_private"] }
+            }
+          }
+        },
+        {
+          "description": "security_disclosure visibility carries the security_payloads_only data exit and an encrypted (or offline) channel.",
+          "if": {
+            "properties": { "visibility_class": { "const": "security_disclosure" } },
+            "required": ["visibility_class"]
+          },
+          "then": {
+            "properties": {
+              "data_exit_boundary_class": { "const": "security_payloads_only" },
+              "network_browser_requirement_class": {
+                "enum": ["encrypted_security_channel", "offline_capture_preview"]
+              }
+            }
+          }
+        },
+        {
+          "description": "third_party_vendor visibility carries a vendor/external data exit and a vendor (or offline) network call.",
+          "if": {
+            "properties": { "visibility_class": { "const": "third_party_vendor" } },
+            "required": ["visibility_class"]
+          },
+          "then": {
+            "properties": {
+              "data_exit_boundary_class": {
+                "enum": ["external_public_browse", "vendor_or_third_party_outbound"]
+              },
+              "network_browser_requirement_class": {
+                "enum": ["vendor_or_third_party_call", "offline_capture_preview"]
+              }
+            }
+          }
+        },
+        {
+          "description": "official_public and community visibility never carry a security or support-scoped data exit.",
+          "if": {
+            "properties": {
+              "visibility_class": { "enum": ["official_public", "community"] }
+            },
+            "required": ["visibility_class"]
+          },
+          "then": {
+            "properties": {
+              "data_exit_boundary_class": {
+                "enum": [
+                  "no_payload_leaves_product",
+                  "metadata_safe_object_refs",
+                  "proposal_refs_only",
+                  "external_public_browse"
+                ]
+              },
+              "network_browser_requirement_class": {
+                "enum": ["offline_capture_preview", "system_browser_public_browse"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -81,6 +81,7 @@ pub mod explorer;
 pub mod extensions;
 pub mod git_changes;
 pub mod graph_state_card;
+pub mod handoff_review;
 pub mod help;
 pub mod help_about;
 pub mod help_packs;
