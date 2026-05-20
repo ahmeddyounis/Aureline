@@ -106,6 +106,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 pub mod aggregator;
+pub mod continuity_corpus;
 pub mod seed;
 
 pub use aggregator::{
