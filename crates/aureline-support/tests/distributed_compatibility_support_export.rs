@@ -24,7 +24,7 @@ fn generated_support_export_validates_and_covers_required_families() {
     );
     assert!(export.raw_private_material_excluded);
     assert_eq!(export.redaction_class, "metadata_safe_default");
-    assert_eq!(export.support_rows.len(), 7);
+    assert_eq!(export.support_rows.len(), 8);
     assert_eq!(export.harness_summary.total_cases, 8);
     assert_eq!(export.harness_summary.supported_case_count, 4);
     assert_eq!(export.harness_summary.unsupported_case_count, 4);

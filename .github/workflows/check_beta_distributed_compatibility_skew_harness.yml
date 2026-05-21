@@ -1,0 +1,60 @@
+# Beta distributed-compatibility skew-test harness gate.
+#
+# Drives the generated distributed-compatibility manifests across the four named
+# families through a single skew-test harness that resolves every enumerated
+# combination to one closed verdict (compatible / probe_required / incompatible)
+# with a repair or safe-continuation guidance path, cross-checks the harness
+# against the support-export projection, and fails when the checked-in verdict
+# corpus is stale or an unhandled skew combination would slip through. Negative
+# drills prove those rejections fire.
+
+name: check_beta_distributed_compatibility_skew_harness
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_distributed_compatibility_skew_harness.yml"
+      - "ci/check_beta_distributed_compatibility_skew_harness.py"
+      - "artifacts/compat/m3/distributed_manifests/**"
+      - "artifacts/release/m3/distributed_compatibility/**"
+      - "crates/aureline-support/src/distributed_compatibility/**"
+      - "crates/aureline-support/tests/distributed_compatibility_skew_harness.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-distributed-compatibility-skew-harness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  distributed_compatibility_skew_harness:
+    name: Beta distributed compatibility skew harness
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate beta distributed-compatibility skew harness
+        run: |
+          python3 ci/check_beta_distributed_compatibility_skew_harness.py \
+            --repo-root . \
+            --check
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-distributed-compatibility-skew-harness-${{ github.run_id }}
+          path: artifacts/release/captures/distributed_compatibility_skew_harness_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

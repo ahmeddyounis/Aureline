@@ -11,6 +11,16 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+pub mod skew_harness;
+
+pub use skew_harness::{
+    current_distributed_compatibility_skew_harness_corpus, DistributedSkewHarnessCase,
+    DistributedSkewHarnessCorpus, DistributedSkewHarnessCorpusSummary, DistributedSkewStatusClass,
+    DistributedSkewVerdict, CURRENT_DISTRIBUTED_COMPATIBILITY_SKEW_HARNESS_CORPUS_PATH,
+    DISTRIBUTED_COMPATIBILITY_SKEW_HARNESS_CORPUS_RECORD_KIND,
+    DISTRIBUTED_COMPATIBILITY_SKEW_HARNESS_CORPUS_SCHEMA_VERSION, NO_REPAIR_REQUIRED_GUIDANCE,
+};
+
 /// Schema version for generated distributed compatibility support exports.
 pub const DISTRIBUTED_COMPATIBILITY_SUPPORT_EXPORT_SCHEMA_VERSION: u32 = 1;
 
