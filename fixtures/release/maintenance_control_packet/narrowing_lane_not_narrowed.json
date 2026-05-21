@@ -1,0 +1,686 @@
+{
+  "schema_version": 1,
+  "record_kind": "maintenance_control_packet",
+  "packet_id": "maintenance_control_packet:release.v1_0",
+  "status": "published",
+  "overview_page": "docs/release/maintenance_control_packet.md",
+  "as_of": "2026-05-21",
+  "claim_manifest_ref": "artifacts/release/stable_claim_manifest.json",
+  "correction_train_template_ref": "artifacts/release/m3/correction_train_template.md",
+  "support_window_contract_ref": "docs/release/channel_support_window_contract.md",
+  "lifecycle_labels": [
+    "lts",
+    "stable",
+    "beta",
+    "preview",
+    "withdrawn"
+  ],
+  "lane_kinds": [
+    "hotfix",
+    "backport",
+    "correction_train",
+    "support_window"
+  ],
+  "support_postures": [
+    "full_support",
+    "security_and_critical_only",
+    "security_only",
+    "end_of_life_scheduled"
+  ],
+  "control_states": [
+    "governed",
+    "governed_on_waiver",
+    "ungoverned_unbacked",
+    "ungoverned_claim_narrowed",
+    "ungoverned_stale",
+    "ungoverned_waiver_expired",
+    "ungoverned_support_expired"
+  ],
+  "gap_reasons": [
+    "claim_label_narrowed",
+    "lane_capability_absent",
+    "control_evidence_incomplete",
+    "support_window_incomplete",
+    "support_window_expired",
+    "control_packet_freshness_breached",
+    "control_packet_missing",
+    "waiver_expired",
+    "owner_signoff_missing"
+  ],
+  "control_actions": [
+    "hold_publication",
+    "narrow_control_label",
+    "refresh_control_packet",
+    "complete_support_window",
+    "recapture_control_evidence",
+    "request_owner_signoff"
+  ],
+  "launch_cutline": {
+    "cutline_level": "stable",
+    "above_cutline_levels": [
+      "lts",
+      "stable"
+    ],
+    "below_cutline_levels": [
+      "beta",
+      "preview",
+      "withdrawn"
+    ],
+    "description": "A maintenance lane (a hotfix lane, a supported-line backport lane, a correction-train lane, or a support-window commitment) governs a Stable (or LTS) maintenance promise only when its control packet is within its freshness SLO, any waiver it relies on is unexpired, its support window is complete and not past its end-of-support date, an owner has signed off, and the public claim it backs is itself at or above the cutline. A lane that loses any of those governs a label below the cutline (beta, preview, withdrawn) and never inherits an adjacent lane's governed label."
+  },
+  "release_blocking_lane_refs": [
+    "lane:provider_hotfix",
+    "lane:rollback_correction_train",
+    "lane:rollback_support_window",
+    "lane:provider_support_window",
+    "lane:export_backport",
+    "lane:localization_backport",
+    "lane:regulated_support_window",
+    "lane:repair_hotfix"
+  ],
+  "control_rules": [
+    {
+      "rule_id": "control_rule:claim_label_narrowed",
+      "title": "Backing public claim narrowed below cutline",
+      "trigger_reason": "claim_label_narrowed",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "narrow_control_label",
+      "blocks_publication": false,
+      "rationale": "A lane whose backing public claim is already below the stable cutline inherits that ceiling; the stable claim manifest already holds the claim upstream, so this is expected inheritance rather than a control defect and does not hold publication on its own."
+    },
+    {
+      "rule_id": "control_rule:lane_capability_absent",
+      "title": "Lane names an unimplemented maintenance capability",
+      "trigger_reason": "lane_capability_absent",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "recapture_control_evidence",
+      "blocks_publication": true,
+      "rationale": "A lane that names a maintenance capability the build does not yet implement cannot govern a Stable maintenance promise; the lane narrows and publication holds until the capability lands and is re-evidenced."
+    },
+    {
+      "rule_id": "control_rule:control_evidence_incomplete",
+      "title": "Lane control evidence incomplete",
+      "trigger_reason": "control_evidence_incomplete",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "recapture_control_evidence",
+      "blocks_publication": true,
+      "rationale": "A lane whose control packet does not cover the lane's drill, staffing, or rollback-target evidence narrows until the evidence is recaptured; the lane cannot govern Stable on partial evidence."
+    },
+    {
+      "rule_id": "control_rule:support_window_incomplete",
+      "title": "Support window incomplete",
+      "trigger_reason": "support_window_incomplete",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "complete_support_window",
+      "blocks_publication": true,
+      "rationale": "A lane whose support window is missing an opened, review-through, or end-of-support date cannot govern a Stable maintenance promise; the lane narrows until the window is completed."
+    },
+    {
+      "rule_id": "control_rule:support_window_expired",
+      "title": "Support window expired",
+      "trigger_reason": "support_window_expired",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "complete_support_window",
+      "blocks_publication": true,
+      "rationale": "A lane whose support window has passed its end-of-support date without being renewed or formally moved to end-of-life cannot govern a Stable maintenance promise; the window stays narrowed and publication holds until the window is renewed or its end-of-support is formally scheduled."
+    },
+    {
+      "rule_id": "control_rule:control_packet_freshness_breached",
+      "title": "Control packet breached its freshness SLO",
+      "trigger_reason": "control_packet_freshness_breached",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_control_packet",
+      "blocks_publication": true,
+      "rationale": "A lane cannot govern a Stable maintenance promise on a control packet that has aged past its freshness SLO; the lane narrows and the packet must be refreshed before it backs the lane again."
+    },
+    {
+      "rule_id": "control_rule:control_packet_missing",
+      "title": "No control packet captured",
+      "trigger_reason": "control_packet_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_control_packet",
+      "blocks_publication": true,
+      "rationale": "A lane with no captured control packet has nothing to govern against and narrows until a packet lands."
+    },
+    {
+      "rule_id": "control_rule:waiver_expired",
+      "title": "Provisional waiver expired",
+      "trigger_reason": "waiver_expired",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "hold_publication",
+      "blocks_publication": true,
+      "rationale": "A lane that only governed a Stable maintenance promise because of a waiver narrows the moment the waiver expires; publication holds rather than silently keeping the promise."
+    },
+    {
+      "rule_id": "control_rule:owner_signoff_missing",
+      "title": "Governed lane lacks owner sign-off",
+      "trigger_reason": "owner_signoff_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "request_owner_signoff",
+      "blocks_publication": true,
+      "rationale": "No lane governs a Stable or LTS maintenance promise without a named owner sign-off; an unsigned lane holds publication until the owner signs."
+    }
+  ],
+  "rows": [
+    {
+      "control_id": "control:provider_hotfix_lane",
+      "title": "Provider language hotfix lane is governed",
+      "lane_kind": "hotfix",
+      "lane_ref": "lane:provider_hotfix",
+      "lane_summary": "The emergency hotfix lane for provider-aware language intelligence: smallest-viable-change emergency fixes for routing, fallback, and completion defects.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "control_state": "governed",
+      "support_window": {
+        "opened_at": "2025-11-01",
+        "review_through_date": "2026-05-01",
+        "end_of_support_date": "2027-11-01",
+        "support_posture": "full_support"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:provider_hotfix_lane",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:provider_routing_and_fallback",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+          "artifacts/release/m3/correction_train_template.md"
+        ]
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "provider_platform",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "active_gap_reasons": [],
+      "controlled_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The provider hotfix lane control packet is current within its freshness SLO, its support window is open and well within its end-of-support date, the owner has signed off, and the public claim it backs publishes Stable, so this lane governs a Stable maintenance promise."
+    },
+    {
+      "control_id": "control:rollback_correction_train",
+      "title": "Repair/rollback correction-train lane is governed on waiver",
+      "lane_kind": "correction_train",
+      "lane_ref": "lane:rollback_correction_train",
+      "lane_summary": "The planned correction-train lane for repair and rollback safety: scheduled correction trains carrying recovery and rollback fixes.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "control_state": "governed_on_waiver",
+      "support_window": {
+        "opened_at": "2025-12-01",
+        "review_through_date": "2026-05-01",
+        "end_of_support_date": "2027-06-01",
+        "support_posture": "full_support"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:rollback_correction_train",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2026-04-13",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "due_for_refresh",
+        "evidence_refs": [
+          "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+          "artifacts/release/release_support_crosswalk.yaml"
+        ]
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": {
+        "waiver_ref": "waiver:rollback_correction_train_cadence",
+        "expires_at": "2026-09-30",
+        "reason": "The correction-train lane is staffed and its rollback targets are recorded; an active waiver covers the still-pending cadence-rehearsal capture while it is regenerated."
+      },
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-11"
+      },
+      "active_gap_reasons": [],
+      "controlled_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The repair/rollback correction-train lane governs the Stable maintenance promise under an active, unexpired waiver covering the pending cadence-rehearsal capture; its control packet is within the SLO but inside the warn window (due for refresh), and the waiver and its expiry are recorded so the lane narrows automatically if it lapses."
+    },
+    {
+      "control_id": "control:rollback_support_window",
+      "title": "Repair/rollback support window is ungoverned (stale packet)",
+      "lane_kind": "support_window",
+      "lane_ref": "lane:rollback_support_window",
+      "lane_summary": "The support-window commitment for repair and rollback safety: the window during which recovery and rollback fixes are promised.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "control_state": "ungoverned_stale",
+      "support_window": {
+        "opened_at": "2025-11-15",
+        "review_through_date": "2026-05-01",
+        "end_of_support_date": "2027-05-15",
+        "support_posture": "full_support"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:rollback_support_window",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_state_integrity",
+        "captured_at": "2026-02-01",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "breached",
+        "evidence_refs": [
+          "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+          "artifacts/release/support_class_ledger.json"
+        ]
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "state_platform",
+        "signed_off": true,
+        "signed_at": "2026-02-02"
+      },
+      "active_gap_reasons": [
+        "control_packet_freshness_breached"
+      ],
+      "controlled_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The repair/rollback support-window control packet aged past its freshness SLO, so the packet-freshness automation narrows this lane to beta even though the public claim it backs is still published Stable; the packet must be refreshed before the support window can rest on it again."
+    },
+    {
+      "control_id": "control:provider_support_window",
+      "title": "Provider language support window is ungoverned (support expired)",
+      "lane_kind": "support_window",
+      "lane_ref": "lane:provider_support_window",
+      "lane_summary": "The support-window commitment for provider-aware language intelligence: the window during which provider routing and completion fixes are promised.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "control_state": "ungoverned_support_expired",
+      "support_window": {
+        "opened_at": "2025-10-01",
+        "review_through_date": "2026-03-01",
+        "end_of_support_date": "2026-04-30",
+        "support_posture": "full_support"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:provider_support_window",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:provider_routing_and_fallback",
+        "captured_at": "2026-05-15",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+          "artifacts/release/release_support_crosswalk.yaml"
+        ]
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "provider_platform",
+        "signed_off": true,
+        "signed_at": "2026-05-15"
+      },
+      "active_gap_reasons": [
+        "support_window_expired"
+      ],
+      "controlled_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The provider support window has passed its end-of-support date without being renewed or formally moved to end-of-life, so the support-window automation narrows this lane to beta even though the public claim it backs is still published Stable; publication holds until the window is renewed or its end-of-support is formally scheduled."
+    },
+    {
+      "control_id": "control:export_backport_lane",
+      "title": "Export backport lane inherits a narrowed claim",
+      "lane_kind": "backport",
+      "lane_ref": "lane:export_backport",
+      "lane_summary": "The supported-line backport lane for export and offboarding: backports of export-fidelity fixes to supported lines.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:export_and_offboarding_support",
+      "claim_label": "beta",
+      "control_state": "ungoverned_claim_narrowed",
+      "support_window": {
+        "opened_at": "2026-01-01",
+        "review_through_date": "2026-05-01",
+        "end_of_support_date": "2027-01-01",
+        "support_posture": "security_and_critical_only"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:export_backport_lane",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:export_offboarding_fidelity",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+          "artifacts/release/support_class_ledger.json"
+        ]
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "support_export",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "controlled_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The export backport lane control packet is current, but the public claim it backs is itself narrowed to beta upstream, so the lane inherits that ceiling and governs beta. This is expected inheritance from the stable claim manifest, not a control defect, so it does not hold publication on its own."
+    },
+    {
+      "control_id": "control:localization_backport_lane",
+      "title": "Localization backport lane is unbacked under a narrowed claim",
+      "lane_kind": "backport",
+      "lane_ref": "lane:localization_backport",
+      "lane_summary": "The supported-line backport lane for localization readiness: backports of locale-coverage fixes to supported lines.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:localization_readiness",
+      "claim_label": "preview",
+      "control_state": "ungoverned_unbacked",
+      "support_window": {
+        "opened_at": "2026-02-01",
+        "review_through_date": "2026-05-01",
+        "end_of_support_date": "2026-12-31",
+        "support_posture": "security_only"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:localization_backport_lane",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:localization_locale_coverage",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+          "artifacts/release/release_support_crosswalk.yaml"
+        ]
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "localization",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "active_gap_reasons": [
+        "lane_capability_absent",
+        "claim_label_narrowed"
+      ],
+      "controlled_label": "preview",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The localization backport lane names per-locale backport routing the pre-implementation build does not yet provide, and the public claim it backs is already narrowed to preview, so the lane governs preview. The capability gap is recorded, but because the claim is below the cutline it does not hold publication beyond the upstream narrowing."
+    },
+    {
+      "control_id": "control:regulated_support_window",
+      "title": "Regulated support window has no captured control packet",
+      "lane_kind": "support_window",
+      "lane_ref": "lane:regulated_support_window",
+      "lane_summary": "The support-window commitment for regulated / air-gapped deployments: the window during which sovereign-install fixes are promised.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:regulated_environment_assurance",
+      "claim_label": "beta",
+      "control_state": "ungoverned_stale",
+      "support_window": {
+        "opened_at": "2025-09-01",
+        "review_through_date": "2026-04-01",
+        "end_of_support_date": "2027-06-30",
+        "support_posture": "security_only"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:regulated_support_window",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:regulated_sovereign_evidence",
+        "captured_at": null,
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "missing",
+        "evidence_refs": []
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "regulated_governance",
+        "signed_off": true,
+        "signed_at": "2026-05-11"
+      },
+      "active_gap_reasons": [
+        "control_packet_missing",
+        "claim_label_narrowed"
+      ],
+      "controlled_label": "withdrawn",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "No control packet has been captured for the regulated support window, so the lane has nothing to govern against; the public claim it backs is already narrowed to beta, so the lane withdraws its stable maintenance promise entirely. The missing packet is recorded but does not hold publication beyond the upstream narrowing."
+    },
+    {
+      "control_id": "control:regulated_correction_train",
+      "title": "Regulated correction-train lane has an incomplete support window (advisory)",
+      "lane_kind": "correction_train",
+      "lane_ref": "lane:regulated_correction_train",
+      "lane_summary": "The planned correction-train lane for regulated deployments: scheduled correction trains carrying attestation and policy-push fixes.",
+      "release_blocking": false,
+      "claim_ref": "manifest_entry:regulated_environment_assurance",
+      "claim_label": "beta",
+      "control_state": "ungoverned_unbacked",
+      "support_window": {
+        "opened_at": "2026-01-15",
+        "review_through_date": "",
+        "end_of_support_date": "2027-03-15",
+        "support_posture": "security_and_critical_only"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:regulated_correction_train",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:regulated_sovereign_evidence",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+          "artifacts/release/support_class_ledger.json"
+        ]
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "regulated_governance",
+        "signed_off": false,
+        "signed_at": null
+      },
+      "active_gap_reasons": [
+        "support_window_incomplete",
+        "owner_signoff_missing",
+        "claim_label_narrowed"
+      ],
+      "controlled_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The regulated correction-train lane support window is missing its review-through date and the regulated-governance owner has not signed it; this is an advisory (non-release-blocking) lane and the public claim it backs is already narrowed to beta, so the lane governs beta and does not hold publication."
+    },
+    {
+      "control_id": "control:repair_hotfix_lane",
+      "title": "Repair/rollback hotfix lane is ungoverned (waiver expired)",
+      "lane_kind": "hotfix",
+      "lane_ref": "lane:repair_hotfix",
+      "lane_summary": "The emergency hotfix lane for repair and rollback safety: smallest-viable-change emergency fixes for recovery and rollback defects.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "control_state": "ungoverned_waiver_expired",
+      "support_window": {
+        "opened_at": "2025-11-01",
+        "review_through_date": "2026-05-01",
+        "end_of_support_date": "2027-05-01",
+        "support_posture": "full_support"
+      },
+      "control_packet": {
+        "packet_id": "control_packet:repair_hotfix_lane",
+        "packet_ref": "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_state_integrity",
+        "captured_at": "2026-05-14",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/maintenance_control_packet.md#control-packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/maintenance_control_packet_proof_packet.md",
+          "artifacts/release/release_support_crosswalk.yaml"
+        ]
+      },
+      "correction_packet_ref": "artifacts/release/m3/correction_train/packet.json",
+      "waiver": {
+        "waiver_ref": "waiver:repair_hotfix_lane_drill",
+        "expires_at": "2026-05-05",
+        "reason": "The waiver that let the repair/rollback hotfix lane govern a Stable maintenance promise while its emergency-drill rehearsal landed has expired without the rehearsal landing."
+      },
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-11"
+      },
+      "active_gap_reasons": [
+        "waiver_expired"
+      ],
+      "controlled_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The provisional waiver expired before the repair/rollback hotfix lane emergency-drill rehearsal landed, so this lane narrows to beta even though its control packet is current and the public claim it backs is still published Stable; publication holds until the rehearsal lands or the public claim is formally narrowed."
+    }
+  ],
+  "publication": {
+    "publication_gate": "maintenance_control_packet_publication",
+    "decision": "hold",
+    "blocking_rule_ids": [
+      "control_rule:control_packet_freshness_breached",
+      "control_rule:support_window_expired",
+      "control_rule:waiver_expired"
+    ],
+    "blocking_lane_ids": [
+      "control:provider_support_window",
+      "control:repair_hotfix_lane",
+      "control:rollback_support_window"
+    ],
+    "rationale": "Three release-line maintenance lanes that back public claims still published Stable are themselves ungoverned: the repair/rollback support-window control packet breached its freshness SLO, the provider support window passed its end-of-support date without renewal, and the repair/rollback hotfix lane lost its provisional waiver. Their reasons fire three blocking control rules, so maintenance-control publication holds until the support-window packet is refreshed, the provider window is renewed, and the hotfix-lane rehearsal lands or those public claims are formally narrowed."
+  },
+  "summary": {
+    "total_lanes": 9,
+    "total_claims": 5,
+    "lanes_governed_stable": 3,
+    "lanes_narrowed_below_cutline": 6,
+    "lanes_on_active_waiver": 1,
+    "release_blocking_total": 8,
+    "release_blocking_governed_stable": 3,
+    "release_blocking_ungoverned": 5,
+    "hotfix_lanes": 2,
+    "backport_lanes": 2,
+    "correction_train_lanes": 2,
+    "support_window_lanes": 3,
+    "packets_current": 6,
+    "packets_due_for_refresh": 1,
+    "packets_breached": 1,
+    "packets_missing": 1,
+    "lanes_support_expired": 1,
+    "total_active_gap_reasons": 11,
+    "control_rules_firing": 3
+  }
+}

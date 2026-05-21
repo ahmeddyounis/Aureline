@@ -51,10 +51,23 @@
 //! evidence is incomplete, or whose backing public claim is itself below the cutline
 //! — while the CLI/schema/API/manifest surface kinds and the release-line surface
 //! set both stay fully covered.
+//! The maintenance-control-packet module is the post-release maintenance layer that
+//! sits alongside those freezes: for every maintenance lane — an emergency hotfix lane,
+//! a supported-line backport lane, a planned correction-train lane, or a support-window
+//! commitment — it records one row binding the lane to the control packet that proves
+//! it is staffed, the support window it commits to, and the shared correction-train
+//! packet form it rides, backs each lane against a public claim whose canonical label
+//! is a hard ceiling, and narrows below the cutline any lane whose control packet aged
+//! out or is missing, whose support window is incomplete or has passed its
+//! end-of-support date, whose waiver expired, whose lane evidence is incomplete, or
+//! whose backing public claim is itself below the cutline — while the
+//! hotfix/backport/correction-train/support-window lane kinds and the release-line lane
+//! set both stay fully covered.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
+pub mod maintenance_control_packet;
 pub mod release_center_model;
 pub mod stable_boundary_manifest;
 pub mod stable_claim_manifest;
@@ -70,6 +83,15 @@ pub use correction_train::{
     PacketTemplates, ReleaseNotesRefs, SupportProjection, TargetChannelUpdate, TriageLane,
     CORRECTION_TRAIN_PACKET_RECORD_KIND, CORRECTION_TRAIN_PACKET_SCHEMA_VERSION,
     SECURITY_OR_TRUST_ISSUE_CLASSES, SHARED_PACKET_FORM_TERMS, SUPPORTED_LINE_CLASSES,
+};
+
+pub use maintenance_control_packet::{
+    current_maintenance_control_packet, ControlAction, ControlPublicationRecord, ControlRule,
+    ControlState, GapReason as MaintenanceGapReason, LaneKind, MaintenanceControlPacket,
+    MaintenanceControlPacketSummary, MaintenanceControlPacketViolation,
+    MaintenanceExportProjection, MaintenanceExportRow, MaintenanceRow, SupportPosture,
+    SupportWindow, MAINTENANCE_CONTROL_PACKET_JSON, MAINTENANCE_CONTROL_PACKET_PATH,
+    MAINTENANCE_CONTROL_PACKET_RECORD_KIND, MAINTENANCE_CONTROL_PACKET_SCHEMA_VERSION,
 };
 
 pub use release_center_model::{

@@ -1,0 +1,82 @@
+# Maintenance-control packet gate.
+#
+# Validates the checked-in maintenance-control packet: every post-release maintenance
+# lane (hotfix, backport, correction train, support window) binds a support window
+# (opened, review-through, end-of-support dates, support posture) and a control packet,
+# and backs the lane against a public claim (a stable-claim-manifest entry) whose
+# canonical lifecycle label is a hard ceiling; a lane whose control packet breached its
+# freshness SLO or is missing, whose support window is incomplete or has passed its
+# end-of-support date, whose waiver expired, whose lane evidence is incomplete, or whose
+# backing public claim is itself below the cutline narrows below the launch cutline; the
+# control-packet-freshness SLO state is recomputed against the packet as_of date; waiver
+# expiry and support-window expiry are enforced; hotfix/backport/correction-train/
+# support-window coverage and the release-line lane set are fully covered; and the
+# publication verdict and summary agree with the firing control rules. The gate runs
+# negative drills and the checked-in fixture cases proving those rejections fire. The
+# typed Rust consumer reads the same packet, so `cargo test -p aureline-release` enforces
+# the same structural invariants.
+
+name: check_maintenance_control_packet
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_maintenance_control_packet.yml"
+      - "ci/check_maintenance_control_packet.py"
+      - "artifacts/release/maintenance_control_packet.json"
+      - "artifacts/release/captures/maintenance_control_packet_validation_capture.json"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "schemas/release/maintenance_control_packet.schema.json"
+      - "docs/release/maintenance_control_packet.md"
+      - "artifacts/release/m4/maintenance_control_packet_proof_packet.md"
+      - "fixtures/release/maintenance_control_packet/**"
+      - "crates/aureline-release/src/maintenance_control_packet/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/maintenance_control_packet.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-maintenance-control-packet-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  maintenance_control_packet:
+    name: Maintenance-control packet
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate maintenance-control packet
+        run: |
+          python3 ci/check_maintenance_control_packet.py --repo-root . --check
+
+      - name: Run maintenance-control-packet contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maintenance-control-packet-${{ github.run_id }}
+          path: artifacts/release/captures/maintenance_control_packet_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

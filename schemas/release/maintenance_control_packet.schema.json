@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/maintenance_control_packet.schema.json",
+  "title": "Aureline maintenance-control packet",
+  "description": "Canonical, machine-readable packet governing the stable release line's post-release maintenance lanes: emergency hotfix lanes, supported-line backport lanes, planned correction-train lanes, and support-window commitments. Each row binds one lane to the support window it commits to (opened, review-through, end-of-support dates, support posture), the control packet that proves the lane is staffed, and the shared correction-train packet form it rides, and backs the lane against a public claim (a stable-claim-manifest entry) whose canonical lifecycle label is a hard ceiling; a lane may govern that label or narrow below it but never wider. A lane whose control packet breached its freshness SLO or is missing, whose support window is incomplete or has passed its end-of-support date, whose waiver expired, whose lane evidence is incomplete, or whose backing public claim is itself below the cutline narrows below the launch cutline. The packet is metadata-only: it carries typed states and opaque refs, never raw artifacts, logs, signatures, or credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "packet_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "claim_manifest_ref",
+    "correction_train_template_ref",
+    "support_window_contract_ref",
+    "lifecycle_labels",
+    "lane_kinds",
+    "support_postures",
+    "control_states",
+    "gap_reasons",
+    "control_actions",
+    "launch_cutline",
+    "release_blocking_lane_refs",
+    "control_rules",
+    "rows",
+    "publication",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "maintenance_control_packet" },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "claim_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+    "correction_train_template_ref": { "$ref": "#/$defs/non_empty_string" },
+    "support_window_contract_ref": { "$ref": "#/$defs/non_empty_string" },
+    "lifecycle_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lifecycle_label" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "lane_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lane_kind" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "support_postures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/support_posture" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "control_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/control_state" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "gap_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gap_reason" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "control_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/control_action" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "launch_cutline": { "$ref": "#/$defs/launch_cutline" },
+    "release_blocking_lane_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "control_rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/control_rule" },
+      "minItems": 1
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/row" },
+      "minItems": 1
+    },
+    "publication": { "$ref": "#/$defs/publication" },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "nullable_date": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ]
+    },
+    "lifecycle_label": {
+      "type": "string",
+      "enum": ["lts", "stable", "beta", "preview", "withdrawn"]
+    },
+    "lane_kind": {
+      "type": "string",
+      "enum": ["hotfix", "backport", "correction_train", "support_window"]
+    },
+    "support_posture": {
+      "type": "string",
+      "enum": ["full_support", "security_and_critical_only", "security_only", "end_of_life_scheduled"]
+    },
+    "freshness_slo_state": {
+      "type": "string",
+      "enum": ["current", "due_for_refresh", "breached", "missing"]
+    },
+    "control_state": {
+      "type": "string",
+      "enum": [
+        "governed",
+        "governed_on_waiver",
+        "ungoverned_unbacked",
+        "ungoverned_claim_narrowed",
+        "ungoverned_stale",
+        "ungoverned_waiver_expired",
+        "ungoverned_support_expired"
+      ]
+    },
+    "gap_reason": {
+      "type": "string",
+      "enum": [
+        "claim_label_narrowed",
+        "lane_capability_absent",
+        "control_evidence_incomplete",
+        "support_window_incomplete",
+        "support_window_expired",
+        "control_packet_freshness_breached",
+        "control_packet_missing",
+        "waiver_expired",
+        "owner_signoff_missing"
+      ]
+    },
+    "control_action": {
+      "type": "string",
+      "enum": [
+        "hold_publication",
+        "narrow_control_label",
+        "refresh_control_packet",
+        "complete_support_window",
+        "recapture_control_evidence",
+        "request_owner_signoff"
+      ]
+    },
+    "launch_cutline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cutline_level",
+        "above_cutline_levels",
+        "below_cutline_levels",
+        "description"
+      ],
+      "properties": {
+        "cutline_level": { "type": "string", "const": "stable" },
+        "above_cutline_levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" }
+        },
+        "below_cutline_levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" }
+        },
+        "description": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "control_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "trigger_reason",
+        "applies_to_labels",
+        "default_action",
+        "blocks_publication",
+        "rationale"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "trigger_reason": { "$ref": "#/$defs/gap_reason" },
+        "applies_to_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" },
+          "minItems": 1
+        },
+        "default_action": { "$ref": "#/$defs/control_action" },
+        "blocks_publication": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opened_at", "review_through_date", "end_of_support_date", "support_posture"],
+      "properties": {
+        "opened_at": { "$ref": "#/$defs/non_empty_string" },
+        "review_through_date": { "type": "string" },
+        "end_of_support_date": { "$ref": "#/$defs/non_empty_string" },
+        "support_posture": { "$ref": "#/$defs/support_posture" }
+      }
+    },
+    "freshness_slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_max_age_days", "warn_within_days", "slo_register_ref"],
+      "properties": {
+        "target_max_age_days": { "type": "integer", "minimum": 1 },
+        "warn_within_days": { "type": "integer", "minimum": 0 },
+        "slo_register_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "control_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "packet_ref",
+        "proof_index_ref",
+        "captured_at",
+        "freshness_slo",
+        "slo_state",
+        "evidence_refs"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_index_ref": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/nullable_date" },
+        "freshness_slo": { "$ref": "#/$defs/freshness_slo" },
+        "slo_state": { "$ref": "#/$defs/freshness_slo_state" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "waiver": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["waiver_ref", "expires_at", "reason"],
+          "properties": {
+            "waiver_ref": { "$ref": "#/$defs/non_empty_string" },
+            "expires_at": { "type": "string", "format": "date" },
+            "reason": { "$ref": "#/$defs/non_empty_string" }
+          }
+        }
+      ]
+    },
+    "owner_signoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_ref", "signed_off", "signed_at"],
+      "properties": {
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "signed_off": { "type": "boolean" },
+        "signed_at": { "$ref": "#/$defs/nullable_date" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "title",
+        "lane_kind",
+        "lane_ref",
+        "lane_summary",
+        "release_blocking",
+        "claim_ref",
+        "claim_label",
+        "control_state",
+        "support_window",
+        "control_packet",
+        "correction_packet_ref",
+        "waiver",
+        "owner_signoff",
+        "active_gap_reasons",
+        "controlled_label",
+        "publication_destinations",
+        "rationale"
+      ],
+      "properties": {
+        "control_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "lane_kind": { "$ref": "#/$defs/lane_kind" },
+        "lane_ref": { "$ref": "#/$defs/non_empty_string" },
+        "lane_summary": { "$ref": "#/$defs/non_empty_string" },
+        "release_blocking": { "type": "boolean" },
+        "claim_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_label": { "$ref": "#/$defs/lifecycle_label" },
+        "control_state": { "$ref": "#/$defs/control_state" },
+        "support_window": { "$ref": "#/$defs/support_window" },
+        "control_packet": { "$ref": "#/$defs/control_packet" },
+        "correction_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "waiver": { "$ref": "#/$defs/waiver" },
+        "owner_signoff": { "$ref": "#/$defs/owner_signoff" },
+        "active_gap_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/gap_reason" },
+          "uniqueItems": true
+        },
+        "controlled_label": { "$ref": "#/$defs/lifecycle_label" },
+        "publication_destinations": { "$ref": "#/$defs/ref_array" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication_gate",
+        "decision",
+        "blocking_rule_ids",
+        "blocking_lane_ids",
+        "rationale"
+      ],
+      "properties": {
+        "publication_gate": { "$ref": "#/$defs/non_empty_string" },
+        "decision": { "type": "string", "enum": ["proceed", "hold"] },
+        "blocking_rule_ids": { "$ref": "#/$defs/ref_array" },
+        "blocking_lane_ids": { "$ref": "#/$defs/ref_array" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_lanes",
+        "total_claims",
+        "lanes_governed_stable",
+        "lanes_narrowed_below_cutline",
+        "lanes_on_active_waiver",
+        "release_blocking_total",
+        "release_blocking_governed_stable",
+        "release_blocking_ungoverned",
+        "hotfix_lanes",
+        "backport_lanes",
+        "correction_train_lanes",
+        "support_window_lanes",
+        "packets_current",
+        "packets_due_for_refresh",
+        "packets_breached",
+        "packets_missing",
+        "lanes_support_expired",
+        "total_active_gap_reasons",
+        "control_rules_firing"
+      ],
+      "properties": {
+        "total_lanes": { "type": "integer", "minimum": 0 },
+        "total_claims": { "type": "integer", "minimum": 0 },
+        "lanes_governed_stable": { "type": "integer", "minimum": 0 },
+        "lanes_narrowed_below_cutline": { "type": "integer", "minimum": 0 },
+        "lanes_on_active_waiver": { "type": "integer", "minimum": 0 },
+        "release_blocking_total": { "type": "integer", "minimum": 0 },
+        "release_blocking_governed_stable": { "type": "integer", "minimum": 0 },
+        "release_blocking_ungoverned": { "type": "integer", "minimum": 0 },
+        "hotfix_lanes": { "type": "integer", "minimum": 0 },
+        "backport_lanes": { "type": "integer", "minimum": 0 },
+        "correction_train_lanes": { "type": "integer", "minimum": 0 },
+        "support_window_lanes": { "type": "integer", "minimum": 0 },
+        "packets_current": { "type": "integer", "minimum": 0 },
+        "packets_due_for_refresh": { "type": "integer", "minimum": 0 },
+        "packets_breached": { "type": "integer", "minimum": 0 },
+        "packets_missing": { "type": "integer", "minimum": 0 },
+        "lanes_support_expired": { "type": "integer", "minimum": 0 },
+        "total_active_gap_reasons": { "type": "integer", "minimum": 0 },
+        "control_rules_firing": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
