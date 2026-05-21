@@ -1,0 +1,71 @@
+# Cross-subsystem integration-checkpoint gate.
+#
+# Enforces the integration requirement that the per-subsystem Beta gates
+# cannot: that the frozen integration-checkpoint corpus composes the six
+# required subsystems (extensions, trust/restricted mode,
+# packaging/update/rollback, enterprise proxy/policy, support bundle, remote
+# attach) and proves they degrade honestly together rather than only in
+# isolation. Runs the gate plus the corpus smoke runner. Pure data: no app
+# build, no display.
+
+name: check_beta_integration_checkpoint
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_integration_checkpoint.yml"
+      - "ci/check_beta_integration_checkpoint.py"
+      - "tests/desktop/integration_checkpoint_smoke/**"
+      - "artifacts/integration/integration_checkpoint_smoke_validation_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-integration-checkpoint-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  beta_integration_checkpoint:
+    name: Beta integration checkpoint
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run integration checkpoint gate
+        run: |
+          python3 ci/check_beta_integration_checkpoint.py --repo-root . --report target/beta-integration-checkpoint/report.json
+
+      - name: Run integration checkpoint smoke
+        run: >
+          python3
+          tests/desktop/integration_checkpoint_smoke/run_integration_checkpoint_smoke.py
+          --repo-root .
+
+      - name: Upload integration checkpoint gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-integration-checkpoint-${{ github.run_id }}
+          path: target/beta-integration-checkpoint
+          if-no-files-found: error
+          retention-days: 30
