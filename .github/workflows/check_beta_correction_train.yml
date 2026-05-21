@@ -1,0 +1,62 @@
+# Beta correction-train / hotfix / backport packet gate.
+#
+# Validates the frozen correction packet's affected-build scope, rollback
+# linkage, lane policy, supported-line backport decisions, and shared support
+# vocabulary, and fails when a correction row that ships on a release lane is
+# missing a rollback target or its affected-build scope. The gate also runs
+# negative drills proving those rejections fire.
+
+name: check_beta_correction_train
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_correction_train.yml"
+      - "ci/check_beta_correction_train.py"
+      - "artifacts/release/m3/correction_train/**"
+      - "artifacts/release/m3/captures/correction_train_validation_capture.json"
+      - "schemas/release/correction_train_packet.schema.json"
+      - "artifacts/release/m3/correction_train_template.md"
+      - "artifacts/release/m3/hotfix_packet_template.md"
+      - "artifacts/release/m3/backport_packet_template.md"
+      - "crates/aureline-release/src/correction_train/**"
+      - "crates/aureline-release/tests/correction_train_packet.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-correction-train-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  correction_train_packet:
+    name: Beta correction-train packet
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate beta correction-train packet
+        run: |
+          python3 ci/check_beta_correction_train.py \
+            --repo-root . \
+            --report artifacts/release/captures/correction_train_packet_validation_capture.json
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-correction-train-packet-${{ github.run_id }}
+          path: artifacts/release/captures/correction_train_packet_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
