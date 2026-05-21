@@ -63,12 +63,25 @@
 //! whose backing public claim is itself below the cutline — while the
 //! hotfix/backport/correction-train/support-window lane kinds and the release-line lane
 //! set both stay fully covered.
+//! The shiproom-dashboard module is the consuming dashboard layer over all of the above:
+//! for every shiproom panel — a claim-truth, qualification, public-proof, or maintenance
+//! panel — it records one row binding the panel to the upstream source it ingests, the
+//! qualification rows it watches, the freshness packet that proves it is current, and the
+//! measurable fitness functions it must clear, backs each panel against a public claim
+//! whose canonical label is a hard ceiling, and narrows below the cutline any panel whose
+//! freshness packet aged out or is missing, whose fitness function failed or is
+//! unmeasured, whose watched qualification row regressed, whose waiver expired, whose
+//! panel evidence is incomplete, or whose backing public claim is itself below the cutline
+//! — while the claim-truth/qualification/public-proof/maintenance panel kinds and the
+//! release-line panel set both stay fully covered, so shiproom and release tooling can
+//! fail promotion directly from the dashboard.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod maintenance_control_packet;
 pub mod release_center_model;
+pub mod shiproom_dashboard;
 pub mod stable_boundary_manifest;
 pub mod stable_claim_manifest;
 pub mod stable_claim_matrix;
@@ -107,6 +120,15 @@ pub use release_center_model::{
     SemanticChangeClass, SignatureStateClass, TargetMutabilityClass, TargetVisibilityClass,
     VersionBumpProposal, RELEASE_CENTER_OBJECT_MODEL_RECORD_KIND,
     RELEASE_CENTER_OBJECT_MODEL_SCHEMA_VERSION,
+};
+
+pub use shiproom_dashboard::{
+    current_shiproom_dashboard, Comparator, DashboardExportProjection, DashboardExportRow,
+    DashboardPanel, DashboardPublicationRecord, FitnessFunction, FitnessStatus, PanelKind,
+    PanelState, QualificationStopRule, ShiproomDashboard, ShiproomDashboardSummary,
+    ShiproomDashboardViolation, StopAction as DashboardStopAction, StopReason,
+    SHIPROOM_DASHBOARD_JSON, SHIPROOM_DASHBOARD_PATH, SHIPROOM_DASHBOARD_RECORD_KIND,
+    SHIPROOM_DASHBOARD_SCHEMA_VERSION,
 };
 
 pub use stable_boundary_manifest::{

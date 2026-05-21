@@ -1,0 +1,962 @@
+{
+  "schema_version": 1,
+  "record_kind": "shiproom_dashboard",
+  "dashboard_id": "shiproom_dashboard:release.v1_0",
+  "status": "published",
+  "overview_page": "docs/release/shiproom_dashboard.md",
+  "as_of": "2026-05-21",
+  "claim_manifest_ref": "artifacts/release/stable_claim_manifest.json",
+  "qualification_matrix_ref": "artifacts/release/stable_qualification_matrix.json",
+  "freshness_slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo",
+  "lifecycle_labels": [
+    "lts",
+    "stable",
+    "beta",
+    "preview",
+    "withdrawn"
+  ],
+  "panel_kinds": [
+    "claim_truth",
+    "qualification",
+    "public_proof",
+    "maintenance"
+  ],
+  "comparators": [
+    "at_least",
+    "at_most",
+    "equals"
+  ],
+  "fitness_statuses": [
+    "pass",
+    "warn",
+    "fail",
+    "unmeasured"
+  ],
+  "panel_states": [
+    "green",
+    "green_on_waiver",
+    "narrowed_unbacked",
+    "narrowed_regressed",
+    "narrowed_claim_narrowed",
+    "narrowed_stale",
+    "narrowed_waiver_expired"
+  ],
+  "stop_reasons": [
+    "claim_label_narrowed",
+    "panel_capability_absent",
+    "qualification_row_regressed",
+    "fitness_function_failing",
+    "panel_evidence_incomplete",
+    "freshness_packet_breached",
+    "freshness_packet_missing",
+    "waiver_expired",
+    "owner_signoff_missing"
+  ],
+  "stop_actions": [
+    "hold_promotion",
+    "narrow_panel_label",
+    "refresh_freshness_packet",
+    "remediate_fitness_function",
+    "recapture_panel_evidence",
+    "request_owner_signoff"
+  ],
+  "launch_cutline": {
+    "cutline_level": "stable",
+    "above_cutline_levels": [
+      "lts",
+      "stable"
+    ],
+    "below_cutline_levels": [
+      "beta",
+      "preview",
+      "withdrawn"
+    ],
+    "description": "The stable cutline. A shiproom panel renders green for a Stable (or LTS) public claim only when its freshness packet is within SLO, every fitness function clears its threshold, every watched qualification row holds the cutline, any waiver it relies on is unexpired, an owner has signed off, and the public claim it backs is itself at or above the cutline; otherwise the panel narrows to beta, preview, or withdrawn."
+  },
+  "release_blocking_panel_refs": [
+    "shiproom_panel:provider_routing_truth",
+    "shiproom_panel:desktop_qualification",
+    "shiproom_panel:provider_proof_coverage",
+    "shiproom_panel:rollback_maintenance_freshness",
+    "shiproom_panel:state_schema_qualification",
+    "shiproom_panel:provider_quality_fitness",
+    "shiproom_panel:export_backport_maintenance",
+    "shiproom_panel:localization_proof_coverage",
+    "shiproom_panel:regulated_qualification",
+    "shiproom_panel:remote_helper_qualification"
+  ],
+  "stop_rules": [
+    {
+      "rule_id": "stop_rule:claim_label_narrowed",
+      "title": "Backing public claim narrowed below cutline",
+      "trigger_reason": "claim_label_narrowed",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "narrow_panel_label",
+      "blocks_promotion": false,
+      "rationale": "A panel whose backing public claim is already below the stable cutline inherits that ceiling; the stable claim manifest already holds the claim upstream, so this is expected inheritance rather than a dashboard defect and does not hold promotion on its own."
+    },
+    {
+      "rule_id": "stop_rule:panel_capability_absent",
+      "title": "Panel names an unimplemented dashboard capability",
+      "trigger_reason": "panel_capability_absent",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "recapture_panel_evidence",
+      "blocks_promotion": true,
+      "rationale": "A panel that names a dashboard capability the build does not yet implement cannot render green for a Stable claim; the panel narrows and promotion holds until the capability lands and is re-evidenced."
+    },
+    {
+      "rule_id": "stop_rule:qualification_row_regressed",
+      "title": "Watched qualification row regressed below cutline",
+      "trigger_reason": "qualification_row_regressed",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "hold_promotion",
+      "blocks_promotion": true,
+      "rationale": "A panel whose watched qualification row has fallen below the cutline in the stable qualification matrix cannot keep rendering Stable; the panel narrows and promotion holds until the qualification row is re-qualified or the public claim is formally narrowed."
+    },
+    {
+      "rule_id": "stop_rule:fitness_function_failing",
+      "title": "Fitness function failed or is unmeasured",
+      "trigger_reason": "fitness_function_failing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "remediate_fitness_function",
+      "blocks_promotion": true,
+      "rationale": "A panel carrying a fitness function whose measurement does not clear its threshold cannot render green for a Stable claim; the panel narrows and promotion holds until the metric is remediated back above its threshold."
+    },
+    {
+      "rule_id": "stop_rule:panel_evidence_incomplete",
+      "title": "Panel source/fitness evidence incomplete",
+      "trigger_reason": "panel_evidence_incomplete",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "recapture_panel_evidence",
+      "blocks_promotion": true,
+      "rationale": "A panel whose source or fitness evidence is incomplete \u2014 including an unmeasured fitness function \u2014 narrows until the evidence is recaptured; a panel cannot render Stable on partial evidence."
+    },
+    {
+      "rule_id": "stop_rule:freshness_packet_breached",
+      "title": "Freshness packet breached its SLO",
+      "trigger_reason": "freshness_packet_breached",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_freshness_packet",
+      "blocks_promotion": true,
+      "rationale": "A panel cannot render green for a Stable claim on a freshness packet that has aged past its SLO; the panel narrows and the packet must be refreshed before it backs the panel again."
+    },
+    {
+      "rule_id": "stop_rule:freshness_packet_missing",
+      "title": "No freshness packet captured",
+      "trigger_reason": "freshness_packet_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_freshness_packet",
+      "blocks_promotion": true,
+      "rationale": "A panel with no captured freshness packet has nothing to render against and narrows until a packet lands."
+    },
+    {
+      "rule_id": "stop_rule:waiver_expired",
+      "title": "Provisional waiver expired",
+      "trigger_reason": "waiver_expired",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "hold_promotion",
+      "blocks_promotion": true,
+      "rationale": "A panel that only rendered green for a Stable claim because of a waiver narrows the moment the waiver expires; promotion holds rather than silently keeping the panel green."
+    },
+    {
+      "rule_id": "stop_rule:owner_signoff_missing",
+      "title": "Green panel lacks owner sign-off",
+      "trigger_reason": "owner_signoff_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "request_owner_signoff",
+      "blocks_promotion": true,
+      "rationale": "No panel renders green for a Stable or LTS claim without a named owner sign-off; an unsigned panel holds promotion until the owner signs."
+    }
+  ],
+  "panels": [
+    {
+      "panel_id": "panel:provider_routing_truth",
+      "title": "Provider routing claim truth",
+      "panel_kind": "claim_truth",
+      "panel_ref": "shiproom_panel:provider_routing_truth",
+      "panel_summary": "Claim-truth panel for provider-aware language intelligence, ingesting the stable claim manifest entry and its qualification row.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "panel_state": "green",
+      "source_ref": "artifacts/release/stable_claim_manifest.json",
+      "qualification_row_refs": [
+        "qual_row:provider_adapters"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:provider_routing_truth",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:provider_routing_and_fallback",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:provider_stable_surface_coverage",
+          "title": "Stable provider surface coverage",
+          "metric": "Share of provider routing/fallback surfaces published Stable that are backed by a current claim row",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": 1000,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/stable_claim_manifest.json#provider_aware_language_intelligence"
+        },
+        {
+          "function_id": "fitness:provider_open_blocking_defects",
+          "title": "Open blocking defects against provider routing",
+          "metric": "Count of open launch-blocking defects against the provider routing surface",
+          "unit": "count",
+          "comparator": "at_most",
+          "threshold": 0,
+          "warn_threshold": 0,
+          "measured": 0,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/stable_proof_index.json#proof:provider_routing_and_fallback"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [],
+      "displayed_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The provider routing claim-truth panel renders green: its claim manifest entry is published Stable, its watched provider-adapters qualification row holds the cutline, both fitness functions clear their thresholds, its freshness packet is current, and the release council has signed off."
+    },
+    {
+      "panel_id": "panel:desktop_qualification",
+      "title": "Desktop and accessibility qualification",
+      "panel_kind": "qualification",
+      "panel_ref": "shiproom_panel:desktop_qualification",
+      "panel_summary": "Qualification panel for the desktop launcher, desktop remote agent, and accessibility surfaces qualification rows.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "panel_state": "green",
+      "source_ref": "artifacts/release/stable_qualification_matrix.json",
+      "qualification_row_refs": [
+        "qual_row:desktop_launcher_local_sidecars",
+        "qual_row:remote_helper_desktop_remote_agent",
+        "qual_row:accessibility_surfaces"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:desktop_qualification",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_qualification_matrix.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:desktop_rows_at_cutline",
+          "title": "Watched qualification rows at the cutline",
+          "metric": "Share of the watched desktop/accessibility qualification rows whose effective level is at or above the cutline",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": 1000,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/stable_qualification_matrix.json#desktop_launcher_local_sidecars"
+        },
+        {
+          "function_id": "fitness:desktop_schema_pin",
+          "title": "Dashboard schema version pinned",
+          "metric": "Schema version the panel ingests its qualification rows under",
+          "unit": "count",
+          "comparator": "equals",
+          "threshold": 1,
+          "warn_threshold": null,
+          "measured": 1,
+          "status": "pass",
+          "measurement_ref": "schemas/release/stable_qualification_matrix.schema.json"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [],
+      "displayed_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The desktop and accessibility qualification panel renders green: every watched qualification row (desktop launcher, desktop remote agent, accessibility surfaces) holds the cutline, both fitness functions clear, the freshness packet is current, and the release council has signed off."
+    },
+    {
+      "panel_id": "panel:provider_proof_coverage",
+      "title": "Provider public-proof coverage",
+      "panel_kind": "public_proof",
+      "panel_ref": "shiproom_panel:provider_proof_coverage",
+      "panel_summary": "Public-proof panel for provider routing launch-blocking requirements, ingesting the stable proof index.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "panel_state": "green_on_waiver",
+      "source_ref": "artifacts/release/stable_proof_index.json",
+      "qualification_row_refs": [
+        "qual_row:provider_adapters"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:provider_proof_coverage",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:provider_completion_quality",
+        "captured_at": "2026-04-13",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "due_for_refresh",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_proof_index.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:provider_requirements_proven",
+          "title": "Launch-blocking provider requirements proven",
+          "metric": "Share of provider launch-blocking requirements whose proof index row is proven",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": 1000,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/stable_proof_index.json#proof:provider_routing_and_fallback"
+        },
+        {
+          "function_id": "fitness:provider_promotion_latency",
+          "title": "Median promotion latency",
+          "metric": "Median hours from candidate cut to shiproom verdict for the provider lane",
+          "unit": "hours",
+          "comparator": "at_most",
+          "threshold": 48,
+          "warn_threshold": 24,
+          "measured": 30,
+          "status": "warn",
+          "measurement_ref": "artifacts/release/captures/maintenance_control_packet_validation_capture.json"
+        }
+      ],
+      "waiver": {
+        "waiver_ref": "waiver:provider_proof_refresh_scheduled",
+        "expires_at": "2026-09-30",
+        "reason": "The provider proof packet is within SLO but due for refresh; an active, unexpired waiver covers the scheduled refresh while the proof remains current."
+      },
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [],
+      "displayed_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The provider public-proof panel renders green on an active, unexpired waiver: its proof packet is within SLO but inside the warn window (due for refresh) and its promotion-latency fitness function sits in the warn band, so the waiver holds the panel green while the refresh is scheduled; it narrows automatically if the waiver lapses."
+    },
+    {
+      "panel_id": "panel:rollback_maintenance_freshness",
+      "title": "Repair and rollback maintenance freshness",
+      "panel_kind": "maintenance",
+      "panel_ref": "shiproom_panel:rollback_maintenance_freshness",
+      "panel_summary": "Maintenance panel for the repair/rollback support window and control packet, ingesting the maintenance-control packet.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "panel_state": "narrowed_stale",
+      "source_ref": "artifacts/release/maintenance_control_packet.json",
+      "qualification_row_refs": [
+        "qual_row:provider_adapters"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:rollback_maintenance_freshness",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2026-01-15",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "breached",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/maintenance_control_packet.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:rollback_lane_drills_current",
+          "title": "Maintenance lane drills current",
+          "metric": "Share of the repair/rollback maintenance lanes whose control packet is within SLO",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": 1000,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/maintenance_control_packet.json"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [
+        "freshness_packet_breached"
+      ],
+      "displayed_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The repair/rollback maintenance panel narrows to beta: although it backs a public claim still published Stable, its freshness packet aged past its SLO (breached against as_of), so the packet-freshness automation drops the panel below the cutline and holds promotion until the packet is refreshed."
+    },
+    {
+      "panel_id": "panel:state_schema_qualification",
+      "title": "State/schema readers and writers qualification",
+      "panel_kind": "qualification",
+      "panel_ref": "shiproom_panel:state_schema_qualification",
+      "panel_summary": "Qualification panel watching the state/schema readers-and-writers qualification row.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "panel_state": "narrowed_regressed",
+      "source_ref": "artifacts/release/stable_qualification_matrix.json",
+      "qualification_row_refs": [
+        "qual_row:state_schema_readers_writers"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:state_schema_qualification",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_state_integrity",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_qualification_matrix.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:state_schema_render_latency",
+          "title": "Panel render latency",
+          "metric": "Milliseconds to render the state/schema qualification panel from the ingested matrix",
+          "unit": "milliseconds",
+          "comparator": "at_most",
+          "threshold": 200,
+          "warn_threshold": 150,
+          "measured": 120,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/stable_qualification_matrix.json#state_schema_readers_writers"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [
+        "qualification_row_regressed"
+      ],
+      "displayed_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The state/schema qualification panel narrows to beta: although it backs a public claim still published Stable, its watched state/schema readers-and-writers qualification row has regressed to beta in the qualification matrix, so the qualification-row stop rule drops the panel below the cutline and holds promotion until the row is re-qualified."
+    },
+    {
+      "panel_id": "panel:provider_quality_fitness",
+      "title": "Provider completion-quality fitness",
+      "panel_kind": "claim_truth",
+      "panel_ref": "shiproom_panel:provider_quality_fitness",
+      "panel_summary": "Claim-truth panel asserting provider completion quality through a measured fitness function.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "panel_state": "narrowed_regressed",
+      "source_ref": "artifacts/release/stable_claim_manifest.json",
+      "qualification_row_refs": [
+        "qual_row:provider_adapters"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:provider_quality_fitness",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:provider_completion_quality",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:provider_completion_quality_score",
+          "title": "Provider completion-quality score",
+          "metric": "Provider completion-quality evaluation score against the frozen prompt suite",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 950,
+          "warn_threshold": 970,
+          "measured": 900,
+          "status": "fail",
+          "measurement_ref": "artifacts/release/stable_proof_index.json#proof:provider_completion_quality"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [
+        "fitness_function_failing"
+      ],
+      "displayed_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The provider completion-quality panel narrows to beta: although it backs a public claim still published Stable, its completion-quality fitness function measured 900 permille against a 950 threshold (fail), so the fitness-function stop rule drops the panel below the cutline and holds promotion until the metric is remediated."
+    },
+    {
+      "panel_id": "panel:export_backport_maintenance",
+      "title": "Export and offboarding maintenance",
+      "panel_kind": "maintenance",
+      "panel_ref": "shiproom_panel:export_backport_maintenance",
+      "panel_summary": "Maintenance panel for the export/offboarding backport lane, inheriting an already-narrowed public claim.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:export_and_offboarding_support",
+      "claim_label": "beta",
+      "panel_state": "narrowed_claim_narrowed",
+      "source_ref": "artifacts/release/maintenance_control_packet.json",
+      "qualification_row_refs": [
+        "qual_row:provider_adapters"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:export_backport_maintenance",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:export_offboarding_fidelity",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/maintenance_control_packet.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:export_backport_coverage",
+          "title": "Export backport lane coverage",
+          "metric": "Share of export/offboarding backport lanes with a captured control packet",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": 1000,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/maintenance_control_packet.json"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [
+        "claim_label_narrowed"
+      ],
+      "displayed_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The export/offboarding maintenance panel inherits a ceiling from a public claim already narrowed to beta upstream in the stable claim manifest; the narrowing is owned upstream, so the panel renders beta and does not hold promotion on its own."
+    },
+    {
+      "panel_id": "panel:localization_proof_coverage",
+      "title": "Localization public-proof coverage",
+      "panel_kind": "public_proof",
+      "panel_ref": "shiproom_panel:localization_proof_coverage",
+      "panel_summary": "Public-proof panel for localization readiness, inheriting an already-narrowed public claim.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:localization_readiness",
+      "claim_label": "preview",
+      "panel_state": "narrowed_claim_narrowed",
+      "source_ref": "artifacts/release/stable_proof_index.json",
+      "qualification_row_refs": [
+        "qual_row:provider_adapters"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:localization_proof_coverage",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:localization_locale_coverage",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_proof_index.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:localization_locale_coverage",
+          "title": "Localization locale coverage",
+          "metric": "Share of launch locales with complete localization at the preview level",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": 1000,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/stable_proof_index.json#proof:localization_locale_coverage"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [
+        "claim_label_narrowed"
+      ],
+      "displayed_label": "preview",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The localization public-proof panel inherits a ceiling from a public claim already narrowed to preview upstream; the narrowing is owned upstream, so the panel renders preview and does not hold promotion on its own."
+    },
+    {
+      "panel_id": "panel:regulated_qualification",
+      "title": "Regulated environment qualification",
+      "panel_kind": "qualification",
+      "panel_ref": "shiproom_panel:regulated_qualification",
+      "panel_summary": "Qualification panel for regulated-environment assurance, inheriting an already-narrowed public claim.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:regulated_environment_assurance",
+      "claim_label": "beta",
+      "panel_state": "narrowed_claim_narrowed",
+      "source_ref": "artifacts/release/stable_qualification_matrix.json",
+      "qualification_row_refs": [
+        "qual_row:provider_adapters"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:regulated_qualification",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:regulated_sovereign_evidence",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_qualification_matrix.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:regulated_attestation_coverage",
+          "title": "Regulated attestation coverage",
+          "metric": "Share of regulated control-plane attestations captured at the beta level",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": 1000,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/stable_qualification_matrix.json#provider_adapters"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [
+        "claim_label_narrowed"
+      ],
+      "displayed_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The regulated-environment qualification panel inherits a ceiling from a public claim already narrowed to beta upstream; the narrowing is owned upstream, so the panel renders beta and does not hold promotion on its own."
+    },
+    {
+      "panel_id": "panel:remote_helper_qualification",
+      "title": "Remote helper skew-window qualification",
+      "panel_kind": "qualification",
+      "panel_ref": "shiproom_panel:remote_helper_qualification",
+      "panel_summary": "Qualification panel for the desktop remote-agent skew window, holding green only on a now-expired waiver.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "panel_state": "narrowed_waiver_expired",
+      "source_ref": "artifacts/release/stable_qualification_matrix.json",
+      "qualification_row_refs": [
+        "qual_row:remote_helper_desktop_remote_agent"
+      ],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:remote_helper_qualification",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_state_integrity",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_qualification_matrix.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:remote_helper_skew_window",
+          "title": "Remote helper skew window held",
+          "metric": "Share of remote-agent skew-window cases passing the distributed skew harness",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": 1000,
+          "status": "pass",
+          "measurement_ref": "artifacts/release/stable_qualification_matrix.json#remote_helper_desktop_remote_agent"
+        }
+      ],
+      "waiver": {
+        "waiver_ref": "waiver:remote_helper_skew_window_provisional",
+        "expires_at": "2026-04-30",
+        "reason": "A provisional waiver had held the remote-helper skew-window panel green while a follow-up skew drill was scheduled; the waiver has since lapsed."
+      },
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "active_stop_reasons": [
+        "waiver_expired"
+      ],
+      "displayed_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The remote-helper skew-window panel narrows to beta: although it backs a public claim still published Stable and its fitness function and watched qualification row both hold, it had only rendered green on a waiver that has now expired, so the waiver-expiry stop rule drops it below the cutline and holds promotion until a fresh drill lands or the claim is formally narrowed."
+    },
+    {
+      "panel_id": "panel:regulated_advisory_truth",
+      "title": "Regulated advisory drill freshness (advisory)",
+      "panel_kind": "claim_truth",
+      "panel_ref": "shiproom_panel:regulated_advisory_truth",
+      "panel_summary": "Advisory (non-release-blocking) claim-truth panel for the regulated drill freshness fitness function.",
+      "release_blocking": false,
+      "claim_ref": "manifest_entry:regulated_environment_assurance",
+      "claim_label": "beta",
+      "panel_state": "narrowed_unbacked",
+      "source_ref": "artifacts/release/stable_claim_manifest.json",
+      "qualification_row_refs": [],
+      "freshness_packet": {
+        "packet_id": "freshness_packet:regulated_advisory_truth",
+        "packet_ref": "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:regulated_control_plane_attestation",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 45,
+          "warn_within_days": 10,
+          "slo_register_ref": "docs/release/shiproom_dashboard.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/shiproom_dashboard_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "fitness_functions": [
+        {
+          "function_id": "fitness:regulated_drill_freshness",
+          "title": "Regulated drill freshness",
+          "metric": "Share of regulated sovereignty drills captured within their freshness window",
+          "unit": "permille",
+          "comparator": "at_least",
+          "threshold": 1000,
+          "warn_threshold": 1000,
+          "measured": null,
+          "status": "unmeasured",
+          "measurement_ref": "artifacts/release/stable_proof_index.json#proof:regulated_control_plane_attestation"
+        }
+      ],
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "regulated_assurance_team",
+        "signed_off": false,
+        "signed_at": null
+      },
+      "active_stop_reasons": [
+        "claim_label_narrowed",
+        "panel_evidence_incomplete",
+        "owner_signoff_missing"
+      ],
+      "displayed_label": "preview",
+      "publication_destinations": [
+        "docs_site",
+        "support_export"
+      ],
+      "rationale": "The advisory regulated drill-freshness panel is unbacked under an already-beta claim: its drill-freshness fitness function is unmeasured and no owner has signed off, so it narrows to preview. Because the public claim is already below the cutline, it inherits that ceiling and does not hold promotion on its own; it is advisory rather than release-blocking."
+    }
+  ],
+  "publication": {
+    "publication_gate": "shiproom_dashboard_publication",
+    "decision": "hold",
+    "blocking_rule_ids": [
+      "stop_rule:fitness_function_failing",
+      "stop_rule:freshness_packet_breached",
+      "stop_rule:qualification_row_regressed",
+      "stop_rule:waiver_expired"
+    ],
+    "blocking_panel_ids": [
+      "panel:provider_quality_fitness",
+      "panel:remote_helper_qualification",
+      "panel:rollback_maintenance_freshness",
+      "panel:state_schema_qualification"
+    ],
+    "rationale": "Four release-blocking panels that back public claims still published Stable are themselves narrowed: the repair/rollback maintenance freshness packet breached its SLO, the state/schema qualification row regressed below the cutline, the provider completion-quality fitness function fell below its threshold, and the remote-helper skew-window panel lost its provisional waiver. Their reasons fire four blocking stop rules, so shiproom promotion holds until the packet is refreshed, the qualification row is re-qualified, the fitness metric is remediated, and the waiver is renewed or those public claims are formally narrowed."
+  },
+  "summary": {
+    "total_panels": 11,
+    "total_claims": 5,
+    "panels_green_stable": 3,
+    "panels_narrowed_below_cutline": 8,
+    "panels_on_active_waiver": 1,
+    "release_blocking_total": 10,
+    "release_blocking_green_stable": 3,
+    "release_blocking_narrowed": 7,
+    "claim_truth_panels": 3,
+    "qualification_panels": 4,
+    "public_proof_panels": 2,
+    "maintenance_panels": 2,
+    "packets_current": 9,
+    "packets_due_for_refresh": 1,
+    "packets_breached": 1,
+    "packets_missing": 0,
+    "total_fitness_functions": 14,
+    "fitness_pass": 11,
+    "fitness_warn": 1,
+    "fitness_fail": 1,
+    "fitness_unmeasured": 1,
+    "total_active_stop_reasons": 10,
+    "stop_rules_firing": 4
+  }
+}

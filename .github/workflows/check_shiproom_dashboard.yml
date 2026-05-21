@@ -1,0 +1,85 @@
+# Shiproom-dashboard gate.
+#
+# Validates the checked-in stable shiproom dashboard: every shiproom panel (claim truth,
+# qualification, public proof, maintenance) binds an upstream source, a freshness packet
+# (captured-at date, freshness SLO, SLO state), measurable fitness functions (comparator,
+# threshold, warn band, measurement), and the qualification rows it watches, and backs the
+# panel against a public claim (a stable-claim-manifest entry) whose canonical lifecycle
+# label is a hard ceiling; a panel whose freshness packet breached its SLO or is missing,
+# whose fitness function failed or is unmeasured, whose watched qualification row regressed
+# below the cutline, whose waiver expired, whose panel evidence is incomplete, or whose
+# backing public claim is itself below the cutline narrows below the launch cutline; each
+# fitness status is recomputed from its measurement; the freshness SLO state is recomputed
+# against the dashboard as_of date; waiver expiry is enforced; the qualification-row stop
+# rules are cross-checked against the stable qualification matrix;
+# claim_truth/qualification/public_proof/maintenance coverage and the release-line panel set
+# are fully covered; and the publication verdict and summary agree with the firing stop
+# rules. The gate runs negative drills and the checked-in fixture cases proving those
+# rejections fire. The typed Rust consumer reads the same dashboard, so
+# `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_shiproom_dashboard
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_shiproom_dashboard.yml"
+      - "ci/check_shiproom_dashboard.py"
+      - "artifacts/release/shiproom_dashboard.json"
+      - "artifacts/release/captures/shiproom_dashboard_validation_capture.json"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "artifacts/release/stable_qualification_matrix.json"
+      - "schemas/release/shiproom_dashboard.schema.json"
+      - "docs/release/shiproom_dashboard.md"
+      - "artifacts/release/m4/shiproom_dashboard_proof_packet.md"
+      - "fixtures/release/shiproom_dashboard/**"
+      - "crates/aureline-release/src/shiproom_dashboard/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/shiproom_dashboard.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-shiproom-dashboard-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  shiproom_dashboard:
+    name: Shiproom dashboard
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate shiproom dashboard
+        run: |
+          python3 ci/check_shiproom_dashboard.py --repo-root . --check
+
+      - name: Run shiproom-dashboard contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiproom-dashboard-${{ github.run_id }}
+          path: artifacts/release/captures/shiproom_dashboard_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
