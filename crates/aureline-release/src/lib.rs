@@ -12,13 +12,20 @@
 //! support-class-ledger module is the publication layer on top of that matrix:
 //! it publishes the v1.0 support-class assignments, the certified-archetype
 //! manifest, and the downgrade automation that narrows a published support
-//! class when its backing thins out.
+//! class when its backing thins out. The stable-qualification-matrix module
+//! finalizes the per-lane qualification rows (desktop, remote/helper,
+//! ecosystem, state/schema, provider, accessibility) that ground those claims
+//! and, for every cross-binary or cross-service boundary, publishes the
+//! mixed-version section — negotiated fields, supported skew window, upgrade and
+//! rollback order, and unsupported-state behavior — that decides whether the
+//! boundary may inherit a Stable mixed-version claim or is coordinated-upgrade-only.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod release_center_model;
 pub mod stable_claim_matrix;
+pub mod stable_qualification_matrix;
 pub mod support_class_ledger;
 
 pub use correction_train::{
@@ -51,6 +58,18 @@ pub use stable_claim_matrix::{
     StableClaimMatrix, StableClaimMatrixSummary, StableClaimMatrixViolation, StableClaimRow,
     StopAction, STABLE_CLAIM_MATRIX_JSON, STABLE_CLAIM_MATRIX_PATH,
     STABLE_CLAIM_MATRIX_RECORD_KIND, STABLE_CLAIM_MATRIX_SCHEMA_VERSION,
+};
+
+pub use stable_qualification_matrix::{
+    current_stable_qualification_matrix, BoundaryFamily,
+    DowngradeReason as QualificationDowngradeReason, DowngradeRule as QualificationDowngradeRule,
+    MixedVersionPosture, MixedVersionSection, OrderRecord, OutOfWindowPosture,
+    PromotionDecisionRecord as QualificationPromotionDecisionRecord, QualificationAction,
+    QualificationExportProjection, QualificationExportRow, QualificationRow, QualificationRowScope,
+    SkewWindow, StableQualificationMatrix, StableQualificationMatrixSummary,
+    StableQualificationMatrixViolation, UnsupportedStateBehavior, STABLE_QUALIFICATION_MATRIX_JSON,
+    STABLE_QUALIFICATION_MATRIX_PATH, STABLE_QUALIFICATION_MATRIX_RECORD_KIND,
+    STABLE_QUALIFICATION_MATRIX_SCHEMA_VERSION,
 };
 
 pub use support_class_ledger::{
