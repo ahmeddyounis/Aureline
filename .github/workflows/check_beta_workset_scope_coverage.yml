@@ -1,0 +1,76 @@
+# Graph workset / scope beta coverage gate.
+#
+# Promotes named-workset, sparse-slice, and policy-limited-view scope truth to
+# beta on the graph surface. Runs the Rust drill that replays the frozen corpus
+# through the impact-explainer packet builder (in-scope results stay visible,
+# out-of-scope results are labeled, policy-hidden members are disclosed), then
+# runs the data gate that re-derives the graph and workspace scope vocabularies
+# from crate source and fails closed if the shared 1:1 scope vocabulary, the
+# corpus labeling, or the required scope-class coverage drift.
+
+name: check_beta_workset_scope_coverage
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_workset_scope_coverage.yml"
+      - "ci/check_beta_workset_scope_coverage.py"
+      - "fixtures/graph/workset_scope_beta/**"
+      - "crates/aureline-graph/tests/workset_scope_beta.rs"
+      - "crates/aureline-graph/**"
+      - "crates/aureline-graph-proto/src/vocab.rs"
+      - "crates/aureline-workspace/src/worksets/mod.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-workset-scope-coverage-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  beta_workset_scope_coverage:
+    name: Beta workset scope coverage
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run graph workset scope beta drill
+        run: cargo test -p aureline-graph --test workset_scope_beta --locked
+
+      - name: Run workset scope coverage gate
+        run: |
+          python3 ci/check_beta_workset_scope_coverage.py --repo-root . --report target/beta-workset-scope-coverage/report.json
+
+      - name: Upload workset scope coverage gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-workset-scope-coverage-${{ github.run_id }}
+          path: target/beta-workset-scope-coverage
+          if-no-files-found: error
+          retention-days: 30
