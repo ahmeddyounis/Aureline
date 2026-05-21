@@ -1,0 +1,78 @@
+# Stable boundary manifest gate.
+#
+# Validates the checked-in stable boundary manifest: each subject publishes one
+# lifecycle label per value line (local OSS, self-hosted, managed, air-gapped),
+# never wider than the canonical label the stable claim manifest publishes for that
+# subject; a value line that lacks a capability, whose line evidence is incomplete,
+# whose proof packet breached its freshness SLO, or whose waiver expired narrows
+# below the launch cutline; the packet-freshness SLO state is recomputed against
+# the manifest as_of date; waiver expiry is enforced; and the publication verdict,
+# per-line rollups, and summary agree with the firing boundary rules. The gate runs
+# negative drills and the checked-in fixture cases proving those rejections fire.
+# The typed Rust consumer reads the same manifest, so `cargo test -p aureline-release`
+# enforces the same structural invariants.
+
+name: check_stable_boundary_manifest
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_stable_boundary_manifest.yml"
+      - "ci/check_stable_boundary_manifest.py"
+      - "artifacts/release/stable_boundary_manifest.json"
+      - "artifacts/release/captures/stable_boundary_manifest_validation_capture.json"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "schemas/release/stable_boundary_manifest.schema.json"
+      - "docs/release/stable_boundary_manifest.md"
+      - "artifacts/release/m4/stable_boundary_manifest_proof_packet.md"
+      - "fixtures/release/stable_boundary_manifest/**"
+      - "crates/aureline-release/src/stable_boundary_manifest/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/stable_boundary_manifest.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-stable-boundary-manifest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stable_boundary_manifest:
+    name: Stable boundary manifest
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate stable boundary manifest
+        run: |
+          python3 ci/check_stable_boundary_manifest.py --repo-root . --check
+
+      - name: Run stable-boundary-manifest contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-boundary-manifest-${{ github.run_id }}
+          path: artifacts/release/captures/stable_boundary_manifest_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

@@ -24,12 +24,19 @@
 //! canonical lifecycle label, names the backing claim row, qualification rows, and
 //! support-class entry that label depends on, and attaches a packet-freshness SLO
 //! so a subject whose proof packet has breached its SLO narrows below the launch
-//! cutline automatically before publication.
+//! cutline automatically before publication. The stable-boundary-manifest module
+//! is the deployment-boundary layer on top of that manifest: for every published
+//! subject it records, across the local-OSS, self-hosted, managed, and air-gapped
+//! value lines, the lifecycle label each line can carry — never wider than the
+//! subject's canonical manifest label — so a value line that lacks a capability,
+//! whose line evidence is incomplete, or whose proof packet aged out narrows below
+//! the cutline before publication while still ingesting the one canonical label.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod release_center_model;
+pub mod stable_boundary_manifest;
 pub mod stable_claim_manifest;
 pub mod stable_claim_matrix;
 pub mod stable_qualification_matrix;
@@ -56,6 +63,15 @@ pub use release_center_model::{
     SemanticChangeClass, SignatureStateClass, TargetMutabilityClass, TargetVisibilityClass,
     VersionBumpProposal, RELEASE_CENTER_OBJECT_MODEL_RECORD_KIND,
     RELEASE_CENTER_OBJECT_MODEL_SCHEMA_VERSION,
+};
+
+pub use stable_boundary_manifest::{
+    current_stable_boundary_manifest, BoundaryAction, BoundaryExportProjection, BoundaryExportRow,
+    BoundaryPublicationRecord, BoundaryRow, BoundaryRule, BoundaryState,
+    NarrowingReason as BoundaryNarrowingReason, StableBoundaryManifest,
+    StableBoundaryManifestSummary, StableBoundaryManifestViolation, ValueLine, ValueLineProfile,
+    ValueLineRollup, STABLE_BOUNDARY_MANIFEST_JSON, STABLE_BOUNDARY_MANIFEST_PATH,
+    STABLE_BOUNDARY_MANIFEST_RECORD_KIND, STABLE_BOUNDARY_MANIFEST_SCHEMA_VERSION,
 };
 
 pub use stable_claim_manifest::{

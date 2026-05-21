@@ -1,0 +1,729 @@
+{
+  "schema_version": 1,
+  "record_kind": "stable_boundary_manifest",
+  "manifest_id": "stable_boundary_manifest:release.v1_0",
+  "status": "frozen",
+  "overview_page": "docs/release/stable_boundary_manifest.md",
+  "as_of": "2026-05-21",
+  "claim_manifest_ref": "artifacts/release/stable_claim_manifest.json",
+  "lifecycle_labels": [
+    "lts",
+    "stable",
+    "beta",
+    "preview",
+    "withdrawn"
+  ],
+  "value_lines": [
+    {
+      "value_line": "local_oss",
+      "title": "Local OSS",
+      "connectivity_posture": "no required outbound network; account-free local mode",
+      "description": "The account-free open-source desktop product with no hosted dependency. A subject is carried here when it works against local sidecars, bring-your-own provider keys, or on-disk state without any vendor service."
+    },
+    {
+      "value_line": "self_hosted",
+      "title": "Self-hosted",
+      "connectivity_posture": "customer-operated control plane and mirrors; egress to customer infra only",
+      "description": "Customer-run control plane, identity, registry mirror, and relay infrastructure. A subject is carried here when its managed dependencies have a documented self-hosted form the customer can stand up."
+    },
+    {
+      "value_line": "managed",
+      "title": "Managed",
+      "connectivity_posture": "vendor-hosted convenience services reachable over the network",
+      "description": "Vendor-hosted convenience services (managed gateway, sync, marketplace hosting, collaboration brokering). A subject is carried here when its hosted dependencies are reachable and qualified."
+    },
+    {
+      "value_line": "air_gapped",
+      "title": "Air-gapped",
+      "connectivity_posture": "no outbound connectivity; mirror-only, sovereign deployment",
+      "description": "Offline / sovereign deployment with no outbound connectivity, fed only by mirrored updates, models, and policy bundles. A subject is carried here only when it has a fully offline, mirror-fed form that is qualified for the air-gapped line."
+    }
+  ],
+  "boundary_states": [
+    "available",
+    "available_on_waiver",
+    "narrowed_unsupported",
+    "narrowed_by_manifest",
+    "narrowed_stale",
+    "narrowed_waiver_expired"
+  ],
+  "narrowing_reasons": [
+    "manifest_label_narrowed",
+    "line_capability_absent",
+    "line_evidence_incomplete",
+    "boundary_packet_freshness_breached",
+    "boundary_packet_missing",
+    "waiver_expired",
+    "owner_signoff_missing"
+  ],
+  "boundary_actions": [
+    "hold_publication",
+    "narrow_line_label",
+    "refresh_boundary_packet",
+    "revalidate_line_support",
+    "request_owner_signoff"
+  ],
+  "launch_cutline": {
+    "cutline_level": "stable",
+    "above_cutline_levels": [
+      "lts",
+      "stable"
+    ],
+    "below_cutline_levels": [
+      "beta",
+      "preview",
+      "withdrawn"
+    ],
+    "description": "A value line publishes a Stable (or LTS) lifecycle label for a subject only when the subject's canonical manifest label is at or above the cutline, the line carries every capability the subject needs, the line's qualification evidence holds, its proof packet is within its freshness SLO, and an owner has signed off. A value line that loses any of those drops to a label below the cutline (beta, preview, withdrawn) and never publishes wider than the subject's canonical manifest label."
+  },
+  "boundary_rules": [
+    {
+      "rule_id": "boundary_rule:manifest_label_narrowed",
+      "title": "Subject canonical label below cutline",
+      "trigger_reason": "manifest_label_narrowed",
+      "applies_to_labels": [
+        "beta",
+        "preview",
+        "withdrawn"
+      ],
+      "default_action": "narrow_line_label",
+      "blocks_publication": false,
+      "rationale": "When the subject's canonical manifest label is already below the cutline, every value line inherits that ceiling and narrows. This is expected inheritance, not a boundary defect, so it narrows the line label without holding boundary publication; the stable claim manifest already holds that subject upstream."
+    },
+    {
+      "rule_id": "boundary_rule:line_capability_absent",
+      "title": "Value line lacks a required capability",
+      "trigger_reason": "line_capability_absent",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "revalidate_line_support",
+      "blocks_publication": true,
+      "rationale": "A value line whose subject is canonically Stable but which lacks a capability the subject needs cannot publish Stable in that line; it narrows until the capability lands or the line is formally excluded."
+    },
+    {
+      "rule_id": "boundary_rule:line_evidence_incomplete",
+      "title": "Line-specific qualification incomplete",
+      "trigger_reason": "line_evidence_incomplete",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "revalidate_line_support",
+      "blocks_publication": true,
+      "rationale": "A Stable subject whose line-specific qualification evidence is missing or narrowed cannot publish Stable in that line; it narrows until the line re-qualifies."
+    },
+    {
+      "rule_id": "boundary_rule:boundary_packet_freshness_breached",
+      "title": "Line proof packet breached its freshness SLO",
+      "trigger_reason": "boundary_packet_freshness_breached",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_boundary_packet",
+      "blocks_publication": true,
+      "rationale": "A Stable line label cannot ride a proof packet that has aged past its freshness SLO; the line narrows and the packet must be refreshed before it publishes again."
+    },
+    {
+      "rule_id": "boundary_rule:boundary_packet_missing",
+      "title": "No line proof packet captured",
+      "trigger_reason": "boundary_packet_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_boundary_packet",
+      "blocks_publication": true,
+      "rationale": "A Stable line label with no captured proof packet has nothing to publish against and narrows until a packet lands."
+    },
+    {
+      "rule_id": "boundary_rule:waiver_expired",
+      "title": "Line waiver expired",
+      "trigger_reason": "waiver_expired",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "hold_publication",
+      "blocks_publication": true,
+      "rationale": "A line label that only held because of a waiver narrows the moment the waiver expires; boundary publication holds rather than silently keeping the label."
+    },
+    {
+      "rule_id": "boundary_rule:owner_signoff_missing",
+      "title": "Published line label lacks owner sign-off",
+      "trigger_reason": "owner_signoff_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "request_owner_signoff",
+      "blocks_publication": true,
+      "rationale": "No Stable or LTS line label publishes without a named owner sign-off; an unsigned row holds publication until the owner signs."
+    }
+  ],
+  "rows": [
+    {
+      "boundary_id": "boundary:provider_aware_language_intelligence.local_oss",
+      "title": "Provider-aware language intelligence \u2014 local OSS",
+      "subject_family": "provider_aware_language_intelligence",
+      "value_line": "local_oss",
+      "manifest_entry_ref": "manifest_entry:provider_aware_language_intelligence",
+      "manifest_label": "stable",
+      "boundary_state": "available",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#local-oss-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:provider_aware_language_intelligence.local_oss",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:launch_wedge",
+        "captured_at": "2026-05-19",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "language_intelligence",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_narrowing_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "Provider-aware language intelligence runs against local sidecars and bring-your-own provider keys with no hosted dependency, so the local-OSS line carries the subject at its full canonical Stable label."
+    },
+    {
+      "boundary_id": "boundary:provider_aware_language_intelligence.self_hosted",
+      "title": "Provider-aware language intelligence \u2014 self-hosted",
+      "subject_family": "provider_aware_language_intelligence",
+      "value_line": "self_hosted",
+      "manifest_entry_ref": "manifest_entry:provider_aware_language_intelligence",
+      "manifest_label": "stable",
+      "boundary_state": "available",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#self-hosted-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:provider_aware_language_intelligence.self_hosted",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:launch_wedge",
+        "captured_at": "2026-05-19",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "language_intelligence",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_narrowing_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The self-hosted line points provider routing at a customer-run gateway; the subject is carried at its full canonical Stable label."
+    },
+    {
+      "boundary_id": "boundary:provider_aware_language_intelligence.managed",
+      "title": "Provider-aware language intelligence \u2014 managed",
+      "subject_family": "provider_aware_language_intelligence",
+      "value_line": "managed",
+      "manifest_entry_ref": "manifest_entry:provider_aware_language_intelligence",
+      "manifest_label": "stable",
+      "boundary_state": "available",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#managed-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:provider_aware_language_intelligence.managed",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:launch_wedge",
+        "captured_at": "2026-05-19",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "language_intelligence",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_narrowing_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The managed line routes through the vendor-hosted AI gateway, which is reachable and qualified, so the subject is carried at its full canonical Stable label."
+    },
+    {
+      "boundary_id": "boundary:provider_aware_language_intelligence.air_gapped",
+      "title": "Provider-aware language intelligence \u2014 air-gapped",
+      "subject_family": "provider_aware_language_intelligence",
+      "value_line": "air_gapped",
+      "manifest_entry_ref": "manifest_entry:provider_aware_language_intelligence",
+      "manifest_label": "stable",
+      "boundary_state": "narrowed_unsupported",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#air-gapped-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:provider_aware_language_intelligence.air_gapped",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:launch_wedge",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/qualification_schedule.yaml"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "language_intelligence",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "active_narrowing_reasons": [
+        "line_capability_absent",
+        "line_evidence_incomplete"
+      ],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The air-gapped line has no outbound provider routing, and the fully offline local-model qualification lane is still incomplete, so provider-aware language intelligence narrows to beta in the air-gapped line even though the subject is canonically Stable and its packet is current."
+    },
+    {
+      "boundary_id": "boundary:repair_and_rollback_safety.local_oss",
+      "title": "Repair and rollback safety \u2014 local OSS",
+      "subject_family": "repair_and_rollback_safety",
+      "value_line": "local_oss",
+      "manifest_entry_ref": "manifest_entry:repair_and_rollback_safety",
+      "manifest_label": "stable",
+      "boundary_state": "available",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#local-oss-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:repair_and_rollback_safety.local_oss",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-19",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "recovery_release",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_narrowing_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "Repair and rollback operate entirely on local install state and on-disk lockfiles, so the local-OSS line carries the subject at its full canonical Stable label."
+    },
+    {
+      "boundary_id": "boundary:repair_and_rollback_safety.self_hosted",
+      "title": "Repair and rollback safety \u2014 self-hosted",
+      "subject_family": "repair_and_rollback_safety",
+      "value_line": "self_hosted",
+      "manifest_entry_ref": "manifest_entry:repair_and_rollback_safety",
+      "manifest_label": "stable",
+      "boundary_state": "available",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#self-hosted-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:repair_and_rollback_safety.self_hosted",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-04-25",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "due_for_refresh",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/release_support_crosswalk.yaml"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "recovery_release",
+        "signed_off": true,
+        "signed_at": "2026-05-11"
+      },
+      "active_narrowing_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The self-hosted line drives rollback from a customer-run mirror; the subject is carried at its full canonical Stable label, though its proof packet is inside the warn window and due for refresh."
+    },
+    {
+      "boundary_id": "boundary:repair_and_rollback_safety.managed",
+      "title": "Repair and rollback safety \u2014 managed",
+      "subject_family": "repair_and_rollback_safety",
+      "value_line": "managed",
+      "manifest_entry_ref": "manifest_entry:repair_and_rollback_safety",
+      "manifest_label": "stable",
+      "boundary_state": "available_on_waiver",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#managed-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:repair_and_rollback_safety.managed",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-19",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/release_support_crosswalk.yaml"
+        ]
+      },
+      "waiver": {
+        "waiver_ref": "waiver:managed_rollback_live_hardware_drill_pending",
+        "expires_at": "2026-09-30",
+        "reason": "The managed rollback path is qualified and its packet is current; an active waiver covers the still-pending live-hardware rollback drill against the managed control plane while it is scheduled."
+      },
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-11"
+      },
+      "active_narrowing_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The managed line holds the Stable label under an active, unexpired waiver covering the scheduled live-hardware rollback drill against the managed control plane; the waiver and its expiry are recorded so the line narrows automatically if it lapses."
+    },
+    {
+      "boundary_id": "boundary:repair_and_rollback_safety.air_gapped",
+      "title": "Repair and rollback safety \u2014 air-gapped",
+      "subject_family": "repair_and_rollback_safety",
+      "value_line": "air_gapped",
+      "manifest_entry_ref": "manifest_entry:repair_and_rollback_safety",
+      "manifest_label": "stable",
+      "boundary_state": "narrowed_waiver_expired",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#air-gapped-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:repair_and_rollback_safety.air_gapped",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/protected_fitness_packet_beta.yaml"
+        ]
+      },
+      "waiver": {
+        "waiver_ref": "waiver:air_gapped_offline_rollback_evidence_pending",
+        "expires_at": "2026-05-05",
+        "reason": "The waiver that let the air-gapped line hold the Stable label while offline mirror-fed rollback evidence was gathered has expired without that evidence landing."
+      },
+      "owner_signoff": {
+        "owner_ref": "recovery_release",
+        "signed_off": true,
+        "signed_at": "2026-05-11"
+      },
+      "active_narrowing_reasons": [
+        "waiver_expired"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The air-gapped line's provisional waiver expired before offline mirror-fed rollback evidence landed, so the line narrows to beta and boundary publication holds until the offline rollback drill is captured."
+    },
+    {
+      "boundary_id": "boundary:export_and_offboarding_support.local_oss",
+      "title": "Export and offboarding support \u2014 local OSS",
+      "subject_family": "export_and_offboarding_support",
+      "value_line": "local_oss",
+      "manifest_entry_ref": "manifest_entry:export_and_offboarding_support",
+      "manifest_label": "beta",
+      "boundary_state": "narrowed_by_manifest",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#local-oss-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:export_and_offboarding_support.local_oss",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:boundary_truth",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "support_export",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "active_narrowing_reasons": [
+        "manifest_label_narrowed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The subject's canonical manifest label is beta \u2014 below the cutline \u2014 so the local-OSS line inherits that ceiling and publishes beta even though local export works against on-disk state; the boundary cannot widen past the subject's own label."
+    },
+    {
+      "boundary_id": "boundary:export_and_offboarding_support.self_hosted",
+      "title": "Export and offboarding support \u2014 self-hosted",
+      "subject_family": "export_and_offboarding_support",
+      "value_line": "self_hosted",
+      "manifest_entry_ref": "manifest_entry:export_and_offboarding_support",
+      "manifest_label": "beta",
+      "boundary_state": "narrowed_by_manifest",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#self-hosted-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:export_and_offboarding_support.self_hosted",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:boundary_truth",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "support_export",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "active_narrowing_reasons": [
+        "manifest_label_narrowed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The subject's canonical manifest label is beta, so the self-hosted line inherits that ceiling and publishes beta."
+    },
+    {
+      "boundary_id": "boundary:export_and_offboarding_support.managed",
+      "title": "Export and offboarding support \u2014 managed",
+      "subject_family": "export_and_offboarding_support",
+      "value_line": "managed",
+      "manifest_entry_ref": "manifest_entry:export_and_offboarding_support",
+      "manifest_label": "beta",
+      "boundary_state": "narrowed_by_manifest",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#managed-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:export_and_offboarding_support.managed",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:boundary_truth",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/stable_claim_manifest.json"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "support_export",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "active_narrowing_reasons": [
+        "manifest_label_narrowed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The subject's canonical manifest label is beta, so the managed line inherits that ceiling and publishes beta."
+    },
+    {
+      "boundary_id": "boundary:export_and_offboarding_support.air_gapped",
+      "title": "Export and offboarding support \u2014 air-gapped",
+      "subject_family": "export_and_offboarding_support",
+      "value_line": "air_gapped",
+      "manifest_entry_ref": "manifest_entry:export_and_offboarding_support",
+      "manifest_label": "beta",
+      "boundary_state": "narrowed_stale",
+      "line_capability_ref": "docs/release/stable_boundary_manifest.md#air-gapped-line",
+      "boundary_packet": {
+        "packet_id": "boundary_packet:export_and_offboarding_support.air_gapped",
+        "packet_ref": "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:docs_freshness",
+        "captured_at": "2026-03-15",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_boundary_manifest.md#packet-freshness-slo"
+        },
+        "slo_state": "breached",
+        "evidence_refs": [
+          "artifacts/release/m4/stable_boundary_manifest_proof_packet.md",
+          "artifacts/release/qualification_schedule.yaml"
+        ]
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "support_export",
+        "signed_off": true,
+        "signed_at": "2026-03-16"
+      },
+      "active_narrowing_reasons": [
+        "boundary_packet_freshness_breached",
+        "manifest_label_narrowed"
+      ],
+      "published_label": "preview",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The subject is already canonically beta, and the air-gapped line's offline export proof packet has also aged past its freshness SLO, so the line narrows further to preview until the offline export drill is recaptured."
+    }
+  ],
+  "publication": {
+    "publication_gate": "stable_boundary_publication",
+    "decision": "hold",
+    "blocking_rule_ids": [
+      "boundary_rule:line_capability_absent",
+      "boundary_rule:line_evidence_incomplete",
+      "boundary_rule:waiver_expired"
+    ],
+    "blocking_boundary_ids": [
+      "boundary:provider_aware_language_intelligence.air_gapped",
+      "boundary:repair_and_rollback_safety.air_gapped"
+    ],
+    "rationale": "Two value lines whose subjects are canonically Stable are narrowed for fixable boundary reasons: the air-gapped provider-aware language intelligence line lacks outbound provider routing and an offline qualification, and the air-gapped repair/rollback line's waiver expired. Their reasons fire three blocking boundary rules, so stable boundary publication holds until those lines re-qualify or are formally excluded. Rows narrowed only because their subject's canonical label is already below the cutline inherit that ceiling without holding boundary publication."
+  },
+  "summary": {
+    "total_boundaries": 12,
+    "total_subjects": 3,
+    "boundaries_published_stable": 7,
+    "boundaries_narrowed_below_cutline": 5,
+    "boundaries_on_active_waiver": 1,
+    "packets_current": 10,
+    "packets_due_for_refresh": 1,
+    "packets_breached": 1,
+    "packets_missing": 0,
+    "total_active_narrowing_reasons": 8,
+    "boundary_rules_firing": 4,
+    "line_rollups": [
+      {
+        "value_line": "local_oss",
+        "total": 3,
+        "published_stable": 2,
+        "narrowed_below_cutline": 1
+      },
+      {
+        "value_line": "self_hosted",
+        "total": 3,
+        "published_stable": 2,
+        "narrowed_below_cutline": 1
+      },
+      {
+        "value_line": "managed",
+        "total": 3,
+        "published_stable": 2,
+        "narrowed_below_cutline": 1
+      },
+      {
+        "value_line": "air_gapped",
+        "total": 3,
+        "published_stable": 1,
+        "narrowed_below_cutline": 2
+      }
+    ]
+  }
+}
