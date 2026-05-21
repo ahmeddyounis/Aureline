@@ -1,0 +1,384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/support_class_ledger.schema.json",
+  "title": "Aureline support-class ledger",
+  "description": "Boundary schema for artifacts/release/support_class_ledger.json. The ledger publishes the v1.0 support-class assignments, the certified-archetype manifest, and the downgrade automation that narrows a published support class before publication. Each entry binds one subject to the support class it is put forward as (claimed_class), a backing stable-claim id from the stable claim matrix, an optional certified-archetype manifest entry, qualification evidence (refs, freshness window, optional waiver, owner sign-off), the ledger state earned, the active downgrade reasons, and the class it effectively publishes after narrowing (effective_class). The certified_cutline fixes that Certified requires a fresh, signed certified-archetype manifest entry. The downgrade_rules name the closed conditions that gate publication; the publication block records the resulting proceed/hold verdict. The typed consumer (aureline_release::support_class_ledger) and ci/check_support_class_ledger.py both read this artifact, so the structural invariants are enforced without a cargo build in CI. Cross-artifact checks (the backing stable claim posture) and date arithmetic (waiver expiry and evidence staleness against as_of) are enforced by the CI gate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "ledger_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "release_train",
+    "claim_matrix_ref",
+    "taxonomy_ref",
+    "support_classes",
+    "ledger_states",
+    "downgrade_reasons",
+    "downgrade_actions",
+    "evidence_path_classes",
+    "certified_cutline",
+    "certified_archetypes",
+    "downgrade_rules",
+    "entries",
+    "publication",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "support_class_ledger" },
+    "ledger_id": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "minLength": 1 },
+    "overview_page": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "format": "date" },
+    "release_train": { "type": "string", "minLength": 1 },
+    "claim_matrix_ref": { "type": "string", "minLength": 1 },
+    "taxonomy_ref": { "type": "string", "minLength": 1 },
+    "support_classes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/support_class" }
+    },
+    "ledger_states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/ledger_state" }
+    },
+    "downgrade_reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/downgrade_reason" }
+    },
+    "downgrade_actions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/downgrade_action" }
+    },
+    "evidence_path_classes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/evidence_path_class" }
+    },
+    "certified_cutline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cutline_class",
+        "positive_classes",
+        "refusal_classes",
+        "description"
+      ],
+      "properties": {
+        "cutline_class": { "const": "certified" },
+        "positive_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_class" }
+        },
+        "refusal_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/support_class" }
+        },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    },
+    "certified_archetypes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/certified_archetype" }
+    },
+    "downgrade_rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/downgrade_rule" }
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/entry" }
+    },
+    "publication": { "$ref": "#/$defs/publication" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_entries",
+        "entries_published_as_claimed",
+        "entries_narrowed",
+        "entries_on_active_waiver",
+        "certified_entries",
+        "total_active_downgrade_reasons",
+        "downgrade_rules_firing",
+        "certified_archetypes_total",
+        "certified_archetypes_decertified"
+      ],
+      "properties": {
+        "total_entries": { "type": "integer", "minimum": 0 },
+        "entries_published_as_claimed": { "type": "integer", "minimum": 0 },
+        "entries_narrowed": { "type": "integer", "minimum": 0 },
+        "entries_on_active_waiver": { "type": "integer", "minimum": 0 },
+        "certified_entries": { "type": "integer", "minimum": 0 },
+        "total_active_downgrade_reasons": { "type": "integer", "minimum": 0 },
+        "downgrade_rules_firing": { "type": "integer", "minimum": 0 },
+        "certified_archetypes_total": { "type": "integer", "minimum": 0 },
+        "certified_archetypes_decertified": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental",
+        "not_certified_in_this_mode",
+        "not_configured",
+        "disabled_by_policy",
+        "not_supported"
+      ]
+    },
+    "ledger_state": {
+      "type": "string",
+      "enum": [
+        "published",
+        "provisional_on_waiver",
+        "narrowed_unqualified",
+        "narrowed_stale",
+        "narrowed_waiver_expired"
+      ]
+    },
+    "downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "certified_archetype_unmanifested",
+        "certified_archetype_evidence_stale",
+        "certified_archetype_decertified",
+        "support_evidence_missing",
+        "support_evidence_stale",
+        "backing_stable_claim_narrowed",
+        "waiver_expired",
+        "owner_signoff_missing"
+      ]
+    },
+    "downgrade_action": {
+      "type": "string",
+      "enum": [
+        "narrow_published_class",
+        "refresh_certified_archetype",
+        "hold_publication",
+        "request_owner_signoff",
+        "route_to_supported_mode"
+      ]
+    },
+    "evidence_path_class": {
+      "type": "string",
+      "enum": [
+        "certified_archetype_report",
+        "compatibility_report_supported",
+        "community_evidence_or_partner_attestation",
+        "experimental_runtime_observation_only",
+        "no_evidence_required_refusal_state"
+      ]
+    },
+    "certification_status": {
+      "type": "string",
+      "enum": ["certified", "decertified"]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "nullable_date": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ]
+    },
+    "nullable_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+    "certification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "report_ref",
+        "captured_at",
+        "freshness_window_days",
+        "owner_ref",
+        "signed_off",
+        "signed_at"
+      ],
+      "properties": {
+        "report_ref": { "type": "string", "minLength": 1 },
+        "captured_at": { "$ref": "#/$defs/nullable_date" },
+        "freshness_window_days": { "type": "integer", "minimum": 1 },
+        "owner_ref": { "type": "string", "minLength": 1 },
+        "signed_off": { "type": "boolean" },
+        "signed_at": { "$ref": "#/$defs/nullable_date" }
+      }
+    },
+    "certified_archetype": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archetype_id",
+        "title",
+        "client_class",
+        "os_family",
+        "deployment_mode",
+        "locality_mode",
+        "certification_status",
+        "certification",
+        "scope_summary",
+        "rationale"
+      ],
+      "properties": {
+        "archetype_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "client_class": { "type": "string", "minLength": 1 },
+        "os_family": { "type": "string", "minLength": 1 },
+        "deployment_mode": { "type": "string", "minLength": 1 },
+        "locality_mode": { "type": "string", "minLength": 1 },
+        "certification_status": { "$ref": "#/$defs/certification_status" },
+        "certification": { "$ref": "#/$defs/certification" },
+        "scope_summary": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "downgrade_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "trigger_reason",
+        "applies_to_classes",
+        "default_action",
+        "blocks_publication",
+        "rationale"
+      ],
+      "properties": {
+        "rule_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "trigger_reason": { "$ref": "#/$defs/downgrade_reason" },
+        "applies_to_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_class" }
+        },
+        "default_action": { "$ref": "#/$defs/downgrade_action" },
+        "blocks_publication": { "type": "boolean" },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_refs",
+        "proof_index_ref",
+        "required_evidence_path",
+        "captured_at",
+        "freshness_window_days"
+      ],
+      "properties": {
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "proof_index_ref": { "type": "string", "minLength": 1 },
+        "required_evidence_path": { "$ref": "#/$defs/evidence_path_class" },
+        "captured_at": { "$ref": "#/$defs/nullable_date" },
+        "freshness_window_days": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "waiver": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["waiver_ref", "expires_at", "reason"],
+          "properties": {
+            "waiver_ref": { "type": "string", "minLength": 1 },
+            "expires_at": { "type": "string", "format": "date" },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "owner_signoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_ref", "signed_off", "signed_at"],
+      "properties": {
+        "owner_ref": { "type": "string", "minLength": 1 },
+        "signed_off": { "type": "boolean" },
+        "signed_at": { "$ref": "#/$defs/nullable_date" }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "title",
+        "subject_family",
+        "claimed_class",
+        "ledger_state",
+        "evidence",
+        "certified_archetype_ref",
+        "backing_stable_claim_ref",
+        "waiver",
+        "owner_signoff",
+        "active_downgrade_reasons",
+        "effective_class",
+        "publication_destinations",
+        "rationale"
+      ],
+      "properties": {
+        "entry_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "subject_family": { "type": "string", "minLength": 1 },
+        "claimed_class": { "$ref": "#/$defs/support_class" },
+        "ledger_state": { "$ref": "#/$defs/ledger_state" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "certified_archetype_ref": { "$ref": "#/$defs/nullable_ref" },
+        "backing_stable_claim_ref": { "$ref": "#/$defs/nullable_ref" },
+        "waiver": { "$ref": "#/$defs/waiver" },
+        "owner_signoff": { "$ref": "#/$defs/owner_signoff" },
+        "active_downgrade_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/downgrade_reason" }
+        },
+        "effective_class": { "$ref": "#/$defs/support_class" },
+        "publication_destinations": { "$ref": "#/$defs/ref_array" },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication_gate",
+        "decision",
+        "blocking_rule_ids",
+        "blocking_entry_ids",
+        "rationale"
+      ],
+      "properties": {
+        "publication_gate": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string", "enum": ["proceed", "hold"] },
+        "blocking_rule_ids": { "$ref": "#/$defs/ref_array" },
+        "blocking_entry_ids": { "$ref": "#/$defs/ref_array" },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

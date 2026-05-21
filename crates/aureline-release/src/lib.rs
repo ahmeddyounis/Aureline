@@ -8,13 +8,18 @@
 //! shared correction-train, hotfix, and backport packet form on top of the
 //! same rollback and release-candidate refs. The stable-claim-matrix module
 //! freezes the stable claim matrix, launch cutline, qualification rows, and
-//! shiproom stop rules that decide which surfaces may publish as Stable.
+//! shiproom stop rules that decide which surfaces may publish as Stable. The
+//! support-class-ledger module is the publication layer on top of that matrix:
+//! it publishes the v1.0 support-class assignments, the certified-archetype
+//! manifest, and the downgrade automation that narrows a published support
+//! class when its backing thins out.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod release_center_model;
 pub mod stable_claim_matrix;
+pub mod support_class_ledger;
 
 pub use correction_train::{
     BackportDecision, BackportMatrixRow, CorrectionEvidence, CorrectionItem, CorrectionRisk,
@@ -46,4 +51,15 @@ pub use stable_claim_matrix::{
     StableClaimMatrix, StableClaimMatrixSummary, StableClaimMatrixViolation, StableClaimRow,
     StopAction, STABLE_CLAIM_MATRIX_JSON, STABLE_CLAIM_MATRIX_PATH,
     STABLE_CLAIM_MATRIX_RECORD_KIND, STABLE_CLAIM_MATRIX_SCHEMA_VERSION,
+};
+
+pub use support_class_ledger::{
+    current_support_class_ledger, ArchetypeCertification, CertificationStatus, CertifiedArchetype,
+    CertifiedCutline, DowngradeAction, DowngradeReason as LedgerDowngradeReason, DowngradeRule,
+    EvidencePathClass, LedgerOwnerSignoff, LedgerState, LedgerWaiver, PublicationDecision,
+    PublicationDecisionRecord as SupportPublicationDecisionRecord, SupportClass, SupportClassEntry,
+    SupportClassExportProjection, SupportClassExportRow, SupportClassLedger,
+    SupportClassLedgerSummary, SupportClassLedgerViolation, SupportEvidence,
+    SUPPORT_CLASS_LEDGER_JSON, SUPPORT_CLASS_LEDGER_PATH, SUPPORT_CLASS_LEDGER_RECORD_KIND,
+    SUPPORT_CLASS_LEDGER_SCHEMA_VERSION,
 };

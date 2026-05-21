@@ -1,0 +1,77 @@
+# Support-class ledger gate.
+#
+# Validates the checked-in v1.0 support-class ledger, certified-archetype
+# manifest, and downgrade automation: every subject that is not qualified
+# narrows below its claimed support class, Certified is gated on a fresh, signed
+# certified-archetype manifest entry, the published class is held to current
+# proof-backed owner-signed evidence, waiver-expiry and freshness are enforced
+# against the ledger as_of date, the backing stable claim is ingested from the
+# stable claim matrix, and the publication verdict agrees with the firing
+# downgrade rules. The gate runs negative drills and fixture cases proving those
+# rejections fire. The typed Rust consumer reads the same ledger, so
+# `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_support_class_ledger
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_support_class_ledger.yml"
+      - "ci/check_support_class_ledger.py"
+      - "artifacts/release/support_class_ledger.json"
+      - "artifacts/release/captures/support_class_ledger_validation_capture.json"
+      - "artifacts/release/stable_claim_matrix.json"
+      - "artifacts/release/m4/support_class_ledger_proof_packet.md"
+      - "schemas/release/support_class_ledger.schema.json"
+      - "docs/release/support_class_ledger.md"
+      - "fixtures/release/support_class_ledger/**"
+      - "crates/aureline-release/src/support_class_ledger/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/support_class_ledger.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-support-class-ledger-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  support_class_ledger:
+    name: Support-class ledger
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate support-class ledger
+        run: |
+          python3 ci/check_support_class_ledger.py --repo-root . --check
+
+      - name: Run support-class-ledger contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: support-class-ledger-${{ github.run_id }}
+          path: artifacts/release/captures/support_class_ledger_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
