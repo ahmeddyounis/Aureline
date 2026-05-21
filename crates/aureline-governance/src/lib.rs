@@ -5,11 +5,24 @@
 //! that governed payload families name owners, schema versions, consent classes,
 //! endpoint classes, record-class bindings, retention posture, lifecycle state,
 //! and downgrade rules before downstream code renders or emits those contracts.
+//!
+//! It also embeds the typed standards/interchange matrix
+//! ([`interchange_matrix`]): a machine-consumable projection of the canonical
+//! standards register that downstream surfaces consult before claiming
+//! open-format or standard compatibility.
 
 #![doc(html_root_url = "https://docs.rs/aureline-governance/0.0.0")]
 
+pub mod interchange_matrix;
 pub mod schema_registry;
 
+pub use interchange_matrix::{
+    current_standards_interchange_matrix, ExportExpectation, ImportExpectation,
+    InterchangeMatrixRow, InterchangeMatrixSummary, InterchangeMatrixViolation,
+    StandardsInterchangeMatrix, SupportPosture, STANDARDS_INTERCHANGE_MATRIX_JSON,
+    STANDARDS_INTERCHANGE_MATRIX_PATH, STANDARDS_INTERCHANGE_MATRIX_RECORD_KIND,
+    STANDARDS_INTERCHANGE_MATRIX_SCHEMA_VERSION,
+};
 pub use schema_registry::{
     load_default_record_class_registry, load_default_schema_registry, validate_default_registries,
     DowngradeRule, GovernanceSurfaceClass, GovernedRecordClassRegistry, GovernedRecordClassRow,

@@ -12,6 +12,17 @@ open-project beta packet disagrees with either source, the packet
 validator fails closed:
 [`artifacts/milestones/m3/open_project_beta_packet.md`](../../../artifacts/milestones/m3/open_project_beta_packet.md).
 
+The gated, machine-consumable projection of this matrix is
+[`artifacts/governance/standards_interchange_matrix_beta.json`](../../../artifacts/governance/standards_interchange_matrix_beta.json),
+validated against
+[`schemas/governance/standards_interchange_matrix_beta.schema.json`](../../../schemas/governance/standards_interchange_matrix_beta.schema.json)
+and consumed by the typed model in
+`crates/aureline-governance/src/interchange_matrix`. That JSON matrix is
+the gated source of truth; this page and the architecture summary remain
+the human view. `ci/check_beta_interchange_matrix.py` regenerates the
+matrix from the register and fails closed if this page drifts from it or
+if any row lacks a support posture.
+
 ## Rules for beta claims
 
 - Cite exact row ids from `standards_matrix.yaml`; do not invent a
@@ -65,6 +76,12 @@ even when their fixture exists. The fixture proves the current ceiling,
 not the wider standard conformance claim.
 
 ## How to verify
+
+Validate the machine matrix and check this page for drift:
+
+```sh
+python3 ci/check_beta_interchange_matrix.py --repo-root . --check
+```
 
 Run the open-project beta packet validator:
 

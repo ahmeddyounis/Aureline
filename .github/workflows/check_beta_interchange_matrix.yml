@@ -1,0 +1,76 @@
+# Beta standards/interchange matrix gate.
+#
+# Regenerates the typed machine matrix from the canonical standards register,
+# fails when the checked-in matrix is stale, asserts every row carries a support
+# posture/import/export from the closed vocabularies, and cross-checks the
+# human-view markdown matrices (beta publication view and architecture summary)
+# against the machine matrix so the docs and the machine matrix cannot drift.
+# The typed Rust consumer reads the same frozen matrix.
+
+name: check_beta_interchange_matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_interchange_matrix.yml"
+      - "ci/check_beta_interchange_matrix.py"
+      - "artifacts/governance/standards_matrix.yaml"
+      - "artifacts/governance/standards_interchange_matrix_beta.json"
+      - "artifacts/governance/captures/standards_interchange_matrix_beta_validation_capture.json"
+      - "schemas/governance/standards_interchange_matrix_beta.schema.json"
+      - "docs/governance/m3/standards_interchange_matrix.md"
+      - "docs/architecture/standards_interchange_matrix.md"
+      - "crates/aureline-governance/src/interchange_matrix/**"
+      - "crates/aureline-governance/src/lib.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-interchange-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  interchange_matrix:
+    name: Beta standards interchange matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate beta standards/interchange matrix
+        run: |
+          python3 ci/check_beta_interchange_matrix.py --repo-root . --check
+
+      - name: Run interchange matrix contract tests
+        run: |
+          cargo test -p aureline-governance
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-interchange-matrix-${{ github.run_id }}
+          path: artifacts/governance/captures/standards_interchange_matrix_beta_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

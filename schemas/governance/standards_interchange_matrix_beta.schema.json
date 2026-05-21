@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/standards_interchange_matrix_beta.schema.json",
+  "title": "Aureline beta standards/interchange matrix",
+  "description": "Boundary schema for the machine-readable beta standards/interchange matrix at artifacts/governance/standards_interchange_matrix_beta.json. The matrix is a typed projection of the canonical register at artifacts/governance/standards_matrix.yaml: one row per standard or interchange format, with the support posture, import/export expectation, version range, deviation policy, owner, and evidence paths that downstream surfaces consume. The markdown pages docs/governance/m3/standards_interchange_matrix.md and docs/architecture/standards_interchange_matrix.md are the human view; this machine matrix is the gated source of truth and ci/check_beta_interchange_matrix.py fails if the docs and the machine matrix drift or a row lacks a posture. The matrix is generated from the register; edit the register and regenerate rather than hand-editing this artifact.",
+  "$ref": "#/$defs/standards_interchange_matrix",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the machine matrix. Bumped only on breaking payload changes."
+    },
+    "support_posture": {
+      "type": "string",
+      "enum": [
+        "standard_shaped_import_and_export",
+        "standard_shaped_export_only",
+        "standard_shaped_import_only",
+        "custom_but_mirrorable",
+        "custom_with_bridge_planned",
+        "standard_deferred_placeholder",
+        "standard_declined_with_rationale"
+      ],
+      "description": "How Aureline relates to the named standard at this milestone. Mirrors support_class_classes in the register."
+    },
+    "import_expectation": {
+      "type": "string",
+      "enum": [
+        "required",
+        "supported",
+        "best_effort",
+        "none_planned",
+        "deferred_to_later_milestone"
+      ],
+      "description": "What Aureline consumes in the standard's shape. Mirrors import_expectation_classes in the register."
+    },
+    "export_expectation": {
+      "type": "string",
+      "enum": [
+        "required",
+        "supported",
+        "best_effort",
+        "placeholder_stub_only",
+        "none_planned",
+        "deferred_to_later_milestone"
+      ],
+      "description": "What Aureline emits in the standard's shape. Mirrors export_expectation_classes in the register."
+    },
+    "deviation_policy": {
+      "type": "string",
+      "enum": [
+        "no_deviation_permitted",
+        "narrow_with_adr",
+        "extend_with_adr",
+        "bridge_with_adr",
+        "temporarily_diverge_with_adr",
+        "no_standard_currently_adopted",
+        "not_yet_committed_pending_standard_maturity"
+      ],
+      "description": "The posture the matrix commits to when the standard is not adopted verbatim. Mirrors deviation_policy_classes in the register."
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference consumers treat as opaque text."
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "standard_surface",
+        "domain",
+        "support_posture",
+        "import_expectation",
+        "export_expectation",
+        "version_range",
+        "deviation_policy",
+        "owner_lane",
+        "owner_dri",
+        "compatibility_window_class",
+        "evidence_paths"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^standard\\.[a-z0-9_]+$",
+          "description": "Stable register row id, e.g. standard.sarif. Matches the id in standards_matrix.yaml."
+        },
+        "standard_surface": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable standard or interchange surface name."
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Domain class the row governs, drawn from domain_classes in the register."
+        },
+        "support_posture": { "$ref": "#/$defs/support_posture" },
+        "import_expectation": { "$ref": "#/$defs/import_expectation" },
+        "export_expectation": { "$ref": "#/$defs/export_expectation" },
+        "version_range": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Preferred-standard version range Aureline treats as canonical for this row."
+        },
+        "deviation_policy": { "$ref": "#/$defs/deviation_policy" },
+        "owner_lane": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Owning lane for the posture."
+        },
+        "owner_dri": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Directly responsible individual for the posture."
+        },
+        "compatibility_window_class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Compatibility-window class drawn from compatibility_window_classes in the register."
+        },
+        "evidence_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Minimum-evidence path classes that prove the posture. Non-placeholder rows must list at least one."
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "standard_shaped_rows",
+        "bridge_rows",
+        "deferred_or_declined_rows",
+        "domains_covered"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 1 },
+        "standard_shaped_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rows whose posture is a live standard-shaped interoperability claim."
+        },
+        "bridge_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rows with a custom-but-mirrorable or custom-with-bridge-planned posture; not a conformance claim."
+        },
+        "deferred_or_declined_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rows with a deferred-placeholder or declined-with-rationale posture; not a live claim."
+        },
+        "domains_covered": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "standards_interchange_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "matrix_id",
+        "generated_at",
+        "source_register_ref",
+        "human_view_refs",
+        "support_posture_classes",
+        "import_expectation_classes",
+        "export_expectation_classes",
+        "deviation_policy_classes",
+        "rows",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "standards_interchange_matrix",
+          "description": "Discriminator for this payload shape."
+        },
+        "matrix_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier for the matrix artifact."
+        },
+        "generated_at": {
+          "type": "string",
+          "description": "UTC timestamp the matrix was generated. Normalized away when comparing for drift."
+        },
+        "source_register_ref": { "$ref": "#/$defs/path_ref" },
+        "human_view_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Markdown human-view pages that must agree with this machine matrix."
+        },
+        "support_posture_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_posture" },
+          "description": "Closed support-posture vocabulary the rows draw from."
+        },
+        "import_expectation_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/import_expectation" }
+        },
+        "export_expectation_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_expectation" }
+        },
+        "deviation_policy_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deviation_policy" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/row" },
+          "description": "One row per standard or interchange format."
+        },
+        "summary": { "$ref": "#/$defs/summary" }
+      }
+    }
+  }
+}

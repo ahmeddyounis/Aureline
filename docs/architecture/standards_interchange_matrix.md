@@ -19,6 +19,13 @@ Companion artifacts:
 
 - [`/artifacts/governance/standards_matrix.yaml`](../../artifacts/governance/standards_matrix.yaml)
   — canonical machine-readable register.
+- [`/artifacts/governance/standards_interchange_matrix_beta.json`](../../artifacts/governance/standards_interchange_matrix_beta.json)
+  — gated, typed machine matrix projected from the register and
+  validated against
+  [`/schemas/governance/standards_interchange_matrix_beta.schema.json`](../../schemas/governance/standards_interchange_matrix_beta.schema.json).
+  This document is the human view; the JSON matrix is the gated source
+  of truth, enforced by `ci/check_beta_interchange_matrix.py` and the
+  typed model in `crates/aureline-governance/src/interchange_matrix`.
 - [`/docs/governance/standards_adoption_evidence_gate.md`](../governance/standards_adoption_evidence_gate.md)
   — standards-adoption evidence gate and conformance minimums for standards-based
   claims.
