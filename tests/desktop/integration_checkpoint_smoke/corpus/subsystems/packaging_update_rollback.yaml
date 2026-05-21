@@ -1,0 +1,70 @@
+# Packaging / update / rollback — integration-checkpoint input.
+#
+# One posture per corpus case. Degrades only in its own case; in every other
+# degraded case it stays healthy but MUST acknowledge the peer degradation.
+
+schema_version: 1
+subsystem_id: packaging_update_rollback
+title: Packaging / update / rollback
+maturity: beta
+source_module_ref: crates/aureline-install/src/{rollback,topology,repair_verify} + crates/aureline-release/src/release_center_model
+
+degradation_reason_vocabulary:
+  - update_rolled_back
+  - update_verification_failed
+  - repair_required
+
+case_postures:
+  all_healthy_go:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: false
+
+  extension_update_revoked:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Extension update revoked; the installed build is unaffected but the
+      revocation is recorded in the joint checkpoint.
+
+  workspace_restricted_active:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Workspace restricted mode active; update prompts honor the reduced
+      authority in the joint checkpoint.
+
+  update_rolled_back:
+    self_health: degraded
+    degradation_reason: update_rolled_back
+    verdict_contribution: conditional_go
+    peer_degradation_observed: false
+    self_degradation_detail: >-
+      Update verification failed post-install; the installer rolled back to the
+      prior admitted build and surfaced the rollback.
+
+  proxy_policy_unreachable:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Enterprise proxy unreachable; update channel fetch is suspended and the
+      joint checkpoint blocks.
+
+  support_bundle_redaction_incomplete:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Support bundle redaction incomplete; install diagnostics are withheld
+      from export until redaction completes.
+
+  remote_attach_skew_blocked:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Remote attach blocked on helper skew; remote build identity cannot be
+      reconciled and the joint checkpoint blocks.

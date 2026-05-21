@@ -1,0 +1,72 @@
+# Extension install / disable / update — integration-checkpoint input.
+#
+# One posture per corpus case. In its own degraded case this subsystem reports
+# `degraded`; in every other degraded case it stays `healthy` but MUST observe
+# and acknowledge the peer degradation (peer_degradation_observed: true). A
+# healthy peer that drops the acknowledgement is silent success and fails.
+
+schema_version: 1
+subsystem_id: extension_lifecycle
+title: Extension install / disable / update
+maturity: beta
+source_module_ref: crates/aureline-extensions/src/{runtime,manifest_baseline,revocation}
+
+degradation_reason_vocabulary:
+  - extension_update_revoked
+  - extension_disabled_by_policy
+  - extension_install_blocked
+
+case_postures:
+  all_healthy_go:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: false
+
+  extension_update_revoked:
+    self_health: degraded
+    degradation_reason: extension_update_revoked
+    verdict_contribution: conditional_go
+    peer_degradation_observed: false
+    self_degradation_detail: >-
+      Pinned extension update was revoked; runtime fell back to the last
+      admitted manifest baseline and surfaced the revocation.
+
+  workspace_restricted_active:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Workspace restricted mode active; extension surfaces honor the reduced
+      authority in the joint checkpoint.
+
+  update_rolled_back:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Update rolled back to the prior admitted build; extension runtime is
+      reconciled against the rolled-back baseline.
+
+  proxy_policy_unreachable:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Enterprise proxy unreachable; extension marketplace fetch is suspended
+      and the joint checkpoint blocks.
+
+  support_bundle_redaction_incomplete:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Support bundle redaction incomplete; extension inventory is withheld from
+      export until redaction completes.
+
+  remote_attach_skew_blocked:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Remote attach blocked on helper skew; remote extension host is not
+      admitted and the joint checkpoint blocks.

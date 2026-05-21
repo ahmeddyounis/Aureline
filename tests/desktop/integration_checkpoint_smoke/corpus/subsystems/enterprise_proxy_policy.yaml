@@ -1,0 +1,72 @@
+# Enterprise proxy / policy path — integration-checkpoint input.
+#
+# One posture per corpus case. Degrades only in its own case; in every other
+# degraded case it stays healthy but MUST acknowledge the peer degradation.
+# Its own degradation is a hard block (no_go): no managed path proceeds when
+# the policy authority cannot be reached.
+
+schema_version: 1
+subsystem_id: enterprise_proxy_policy
+title: Enterprise proxy / policy path
+maturity: beta
+source_module_ref: crates/aureline-auth/src/policy_packs + crates/aureline-policy/src/{authority,simulation}
+
+degradation_reason_vocabulary:
+  - proxy_unreachable
+  - policy_pack_blocked
+  - authority_denied
+
+case_postures:
+  all_healthy_go:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: false
+
+  extension_update_revoked:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Extension update revoked; policy authority records the revocation in the
+      joint checkpoint.
+
+  workspace_restricted_active:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Workspace restricted mode active; policy evaluation honors the reduced
+      authority in the joint checkpoint.
+
+  update_rolled_back:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Update rolled back to the prior admitted build; policy packs are
+      re-evaluated against the rolled-back baseline.
+
+  proxy_policy_unreachable:
+    self_health: degraded
+    degradation_reason: proxy_unreachable
+    verdict_contribution: no_go
+    peer_degradation_observed: false
+    self_degradation_detail: >-
+      Enterprise proxy unreachable; the policy authority could not be reached,
+      so managed paths are blocked rather than silently allowed.
+
+  support_bundle_redaction_incomplete:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Support bundle redaction incomplete; policy decision logs are withheld
+      from export until redaction completes.
+
+  remote_attach_skew_blocked:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Remote attach blocked on helper skew; remote policy attestation cannot be
+      verified and the joint checkpoint blocks.

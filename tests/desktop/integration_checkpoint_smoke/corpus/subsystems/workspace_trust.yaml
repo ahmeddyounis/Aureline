@@ -1,0 +1,70 @@
+# Trust / restricted mode — integration-checkpoint input.
+#
+# One posture per corpus case. Degrades only in its own case; in every other
+# degraded case it stays healthy but MUST acknowledge the peer degradation.
+
+schema_version: 1
+subsystem_id: workspace_trust
+title: Trust / restricted mode
+maturity: beta
+source_module_ref: crates/aureline-shell/tests/workspace_trust_beta_fixtures.rs + aureline-auth trust modules
+
+degradation_reason_vocabulary:
+  - workspace_restricted_mode
+  - trust_revoked
+  - trust_prompt_pending
+
+case_postures:
+  all_healthy_go:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: false
+
+  extension_update_revoked:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Extension update revoked; trust surface flags the reduced extension
+      authority in the joint checkpoint.
+
+  workspace_restricted_active:
+    self_health: degraded
+    degradation_reason: workspace_restricted_mode
+    verdict_contribution: conditional_go
+    peer_degradation_observed: false
+    self_degradation_detail: >-
+      Workspace entered restricted mode; high-authority surfaces are withheld
+      and the restriction is surfaced explicitly.
+
+  update_rolled_back:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Update rolled back to the prior admitted build; trust state is
+      re-evaluated against the rolled-back baseline.
+
+  proxy_policy_unreachable:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Enterprise proxy unreachable; managed trust attestation is suspended and
+      the joint checkpoint blocks.
+
+  support_bundle_redaction_incomplete:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Support bundle redaction incomplete; trust posture detail is withheld
+      from export until redaction completes.
+
+  remote_attach_skew_blocked:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Remote attach blocked on helper skew; the remote workspace is not
+      admitted into the trusted boundary and the joint checkpoint blocks.

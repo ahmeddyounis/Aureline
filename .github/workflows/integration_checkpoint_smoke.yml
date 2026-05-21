@@ -1,0 +1,63 @@
+# Cross-subsystem integration-checkpoint smoke gate.
+#
+# Replays the frozen integration-checkpoint corpus and proves the six Beta
+# subsystems (extensions, trust/restricted mode, packaging/update/rollback,
+# enterprise proxy/policy, support bundle, remote attach) degrade honestly
+# together. Pure data: no app build, no display.
+
+name: integration_checkpoint_smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/integration_checkpoint_smoke.yml"
+      - "tests/desktop/integration_checkpoint_smoke/**"
+      - "artifacts/integration/integration_checkpoint_smoke_validation_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-checkpoint-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  integration_checkpoint_smoke:
+    name: Integration checkpoint smoke
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run integration checkpoint smoke
+        run: >
+          python3
+          tests/desktop/integration_checkpoint_smoke/run_integration_checkpoint_smoke.py
+          --repo-root .
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-checkpoint-smoke-${{ github.run_id }}
+          path: artifacts/integration/integration_checkpoint_smoke_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

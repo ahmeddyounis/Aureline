@@ -1,0 +1,72 @@
+# Remote attach — integration-checkpoint input.
+#
+# One posture per corpus case. Degrades only in its own case; in every other
+# degraded case it stays healthy but MUST acknowledge the peer degradation.
+# Its own degradation is a hard block (no_go): attach is refused rather than
+# proceeding across an unsupported helper skew.
+
+schema_version: 1
+subsystem_id: remote_attach
+title: Remote attach
+maturity: beta
+source_module_ref: crates/aureline-runtime/src/{remote_helper_skew_beta,capability_negotiation}
+
+degradation_reason_vocabulary:
+  - remote_helper_skew_blocked
+  - capability_negotiation_failed
+  - attach_handshake_timeout
+
+case_postures:
+  all_healthy_go:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: false
+
+  extension_update_revoked:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Extension update revoked; the remote host reconciles against the admitted
+      baseline and records the revocation in the joint checkpoint.
+
+  workspace_restricted_active:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Workspace restricted mode active; the remote session honors the reduced
+      authority in the joint checkpoint.
+
+  update_rolled_back:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Update rolled back to the prior admitted build; remote capability
+      negotiation is re-run against the rolled-back baseline.
+
+  proxy_policy_unreachable:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Enterprise proxy unreachable; remote attach negotiation is suspended and
+      the joint checkpoint blocks.
+
+  support_bundle_redaction_incomplete:
+    self_health: healthy
+    verdict_contribution: go
+    peer_degradation_observed: true
+    peer_acknowledgement: >-
+      Support bundle redaction incomplete; remote session detail is withheld
+      from export until redaction completes.
+
+  remote_attach_skew_blocked:
+    self_health: degraded
+    degradation_reason: remote_helper_skew_blocked
+    verdict_contribution: no_go
+    peer_degradation_observed: false
+    self_degradation_detail: >-
+      Remote helper version skew is outside the supported window; attach is
+      refused rather than proceeding across an unsupported boundary.

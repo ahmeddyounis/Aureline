@@ -1,0 +1,142 @@
+# Cross-subsystem integration-checkpoint corpus.
+#
+# Every Beta subsystem already has an isolated gate. This corpus proves the
+# integration requirement those isolated gates cannot: that six subsystems
+# degrade *honestly together*. When any one subsystem degrades, the other five
+# must surface it (no silent success) and the joint verdict must be surfaced
+# consistently across every consuming projection.
+#
+# The corpus is frozen and pure data: the runner joins it with no running app.
+# Deleting or stubbing any one of the six subsystem inputs fails the lane,
+# which is what proves the checkpoint actually integrates all six.
+
+schema_version: 1
+corpus_id: aureline.integration_checkpoint_smoke_corpus
+corpus_revision: 1
+status: active
+maturity: beta
+owner_dri: "@ahmeddyounis"
+summary: >-
+  Cross-subsystem integration checkpoint proving the six Beta subsystems
+  degrade honestly together: a single degraded subsystem is surfaced by the
+  other five (no silent success) and the joint verdict is surfaced
+  consistently across every consuming projection.
+
+# The joint verdict vocabulary reuses the existing go/no-go projection
+# vocabulary used by the exit-gate scoreboards:
+#   go             -> all subsystems healthy
+#   conditional_go -> a subsystem degraded but the checkpoint proceeds honestly
+#   no_go          -> a subsystem degraded hard; the checkpoint blocks
+verdict_class_vocabulary:
+  - go
+  - conditional_go
+  - no_go
+
+health_class_vocabulary:
+  - healthy
+  - degraded
+
+# The six Beta subsystems composed by this checkpoint. Each MUST resolve to a
+# subsystem input file. Deleting any input_ref, or stubbing a case posture
+# inside it, fails the lane.
+subsystems:
+  - id: extension_lifecycle
+    title: Extension install / disable / update
+    input_ref: tests/desktop/integration_checkpoint_smoke/corpus/subsystems/extension_lifecycle.yaml
+    source_module_ref: crates/aureline-extensions/src/{runtime,manifest_baseline,revocation}
+  - id: workspace_trust
+    title: Trust / restricted mode
+    input_ref: tests/desktop/integration_checkpoint_smoke/corpus/subsystems/workspace_trust.yaml
+    source_module_ref: crates/aureline-shell/tests/workspace_trust_beta_fixtures.rs + aureline-auth trust modules
+  - id: packaging_update_rollback
+    title: Packaging / update / rollback
+    input_ref: tests/desktop/integration_checkpoint_smoke/corpus/subsystems/packaging_update_rollback.yaml
+    source_module_ref: crates/aureline-install/src/{rollback,topology,repair_verify} + crates/aureline-release/src/release_center_model
+  - id: enterprise_proxy_policy
+    title: Enterprise proxy / policy path
+    input_ref: tests/desktop/integration_checkpoint_smoke/corpus/subsystems/enterprise_proxy_policy.yaml
+    source_module_ref: crates/aureline-auth/src/policy_packs + crates/aureline-policy/src/{authority,simulation}
+  - id: support_bundle
+    title: Support bundle
+    input_ref: tests/desktop/integration_checkpoint_smoke/corpus/subsystems/support_bundle.yaml
+    source_module_ref: crates/aureline-support/src/bundle
+  - id: remote_attach
+    title: Remote attach
+    input_ref: tests/desktop/integration_checkpoint_smoke/corpus/subsystems/remote_attach.yaml
+    source_module_ref: crates/aureline-runtime/src/{remote_helper_skew_beta,capability_negotiation}
+
+# Where the joint verdict is consumed. Every case MUST surface the same joint
+# verdict to each of these projections (consistent surfacing across consumers).
+consuming_projections:
+  - id: release_center_readiness
+    title: Release center readiness summary
+  - id: shell_readiness_chip
+    title: Shell readiness chip
+  - id: support_bundle_summary
+    title: Support bundle integration summary
+
+# One all-green integrated case plus one case per subsystem where that
+# subsystem degrades. `degraded_subsystem: null` is the green case.
+cases:
+  - case_id: all_healthy_go
+    title: All six subsystems healthy
+    degraded_subsystem: null
+    expected_joint_verdict: go
+    projection_verdicts:
+      release_center_readiness: go
+      shell_readiness_chip: go
+      support_bundle_summary: go
+
+  - case_id: extension_update_revoked
+    title: Extension update revoked; other five surface the degradation
+    degraded_subsystem: extension_lifecycle
+    expected_joint_verdict: conditional_go
+    projection_verdicts:
+      release_center_readiness: conditional_go
+      shell_readiness_chip: conditional_go
+      support_bundle_summary: conditional_go
+
+  - case_id: workspace_restricted_active
+    title: Workspace restricted mode; other five surface the degradation
+    degraded_subsystem: workspace_trust
+    expected_joint_verdict: conditional_go
+    projection_verdicts:
+      release_center_readiness: conditional_go
+      shell_readiness_chip: conditional_go
+      support_bundle_summary: conditional_go
+
+  - case_id: update_rolled_back
+    title: Update rolled back to prior admitted build; other five surface it
+    degraded_subsystem: packaging_update_rollback
+    expected_joint_verdict: conditional_go
+    projection_verdicts:
+      release_center_readiness: conditional_go
+      shell_readiness_chip: conditional_go
+      support_bundle_summary: conditional_go
+
+  - case_id: proxy_policy_unreachable
+    title: Enterprise proxy unreachable; checkpoint blocks; other five surface it
+    degraded_subsystem: enterprise_proxy_policy
+    expected_joint_verdict: no_go
+    projection_verdicts:
+      release_center_readiness: no_go
+      shell_readiness_chip: no_go
+      support_bundle_summary: no_go
+
+  - case_id: support_bundle_redaction_incomplete
+    title: Support bundle redaction incomplete; other five surface the degradation
+    degraded_subsystem: support_bundle
+    expected_joint_verdict: conditional_go
+    projection_verdicts:
+      release_center_readiness: conditional_go
+      shell_readiness_chip: conditional_go
+      support_bundle_summary: conditional_go
+
+  - case_id: remote_attach_skew_blocked
+    title: Remote attach blocked on helper skew; checkpoint blocks; other five surface it
+    degraded_subsystem: remote_attach
+    expected_joint_verdict: no_go
+    projection_verdicts:
+      release_center_readiness: no_go
+      shell_readiness_chip: no_go
+      support_bundle_summary: no_go
