@@ -1,0 +1,79 @@
+# Stable claim manifest gate.
+#
+# Validates the checked-in stable claim manifest: each subject publishes exactly
+# one canonical lifecycle label that ingests the stable claim matrix, the stable
+# qualification matrix, and the v1.0 support-class ledger; a subject whose backing
+# narrowed, whose support class thinned, or whose proof packet breached its
+# freshness SLO narrows below the launch cutline; the packet-freshness SLO state
+# is recomputed against the manifest as_of date; waiver expiry is enforced; and
+# the publication verdict agrees with the firing publication rules. The gate runs
+# negative drills and the checked-in fixture cases proving those rejections fire.
+# The typed Rust consumer reads the same manifest, so `cargo test -p aureline-release`
+# enforces the same structural invariants.
+
+name: check_stable_claim_manifest
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_stable_claim_manifest.yml"
+      - "ci/check_stable_claim_manifest.py"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "artifacts/release/captures/stable_claim_manifest_validation_capture.json"
+      - "artifacts/release/stable_claim_matrix.json"
+      - "artifacts/release/stable_qualification_matrix.json"
+      - "artifacts/release/support_class_ledger.json"
+      - "schemas/release/stable_claim_manifest.schema.json"
+      - "docs/release/stable_claim_manifest.md"
+      - "artifacts/release/m4/stable_claim_manifest_proof_packet.md"
+      - "fixtures/release/stable_claim_manifest/**"
+      - "crates/aureline-release/src/stable_claim_manifest/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/stable_claim_manifest.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-stable-claim-manifest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stable_claim_manifest:
+    name: Stable claim manifest
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate stable claim manifest
+        run: |
+          python3 ci/check_stable_claim_manifest.py --repo-root . --check
+
+      - name: Run stable-claim-manifest contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-claim-manifest-${{ github.run_id }}
+          path: artifacts/release/captures/stable_claim_manifest_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

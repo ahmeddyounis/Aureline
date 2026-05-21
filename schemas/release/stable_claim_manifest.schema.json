@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/stable_claim_manifest.schema.json",
+  "title": "Aureline stable claim manifest",
+  "description": "Canonical, machine-readable manifest of the lifecycle label each subject publishes on the stable line. Each entry binds one subject to its backing stable-claim row, qualification rows, and support-class entry, assigns exactly one canonical lifecycle label (reusing the stable claim level vocabulary), and attaches a packet-freshness SLO to its proof packet. A subject whose backing narrowed, whose support class thinned, or whose proof packet breached its freshness SLO narrows below the launch cutline. The manifest is metadata-only: it carries typed states and opaque refs, never raw artifacts, logs, signatures, or credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "manifest_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "claim_matrix_ref",
+    "qualification_matrix_ref",
+    "support_class_ledger_ref",
+    "lifecycle_labels",
+    "freshness_slo_states",
+    "narrowing_reasons",
+    "publication_actions",
+    "launch_cutline",
+    "publication_rules",
+    "entries",
+    "publication",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "stable_claim_manifest" },
+    "manifest_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "claim_matrix_ref": { "$ref": "#/$defs/non_empty_string" },
+    "qualification_matrix_ref": { "$ref": "#/$defs/non_empty_string" },
+    "support_class_ledger_ref": { "$ref": "#/$defs/non_empty_string" },
+    "lifecycle_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lifecycle_label" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "freshness_slo_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/freshness_slo_state" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "narrowing_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/narrowing_reason" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "publication_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/publication_action" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "launch_cutline": { "$ref": "#/$defs/launch_cutline" },
+    "publication_rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/publication_rule" },
+      "minItems": 1
+    },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" },
+      "minItems": 1
+    },
+    "publication": { "$ref": "#/$defs/publication" },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "nullable_date": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ]
+    },
+    "lifecycle_label": {
+      "type": "string",
+      "enum": ["lts", "stable", "beta", "preview", "withdrawn"]
+    },
+    "freshness_slo_state": {
+      "type": "string",
+      "enum": ["current", "due_for_refresh", "breached", "missing"]
+    },
+    "manifest_state": {
+      "type": "string",
+      "enum": [
+        "published",
+        "provisional_on_waiver",
+        "narrowed_unqualified",
+        "narrowed_stale",
+        "narrowed_waiver_expired"
+      ]
+    },
+    "narrowing_reason": {
+      "type": "string",
+      "enum": [
+        "backing_claim_narrowed",
+        "qualification_incomplete",
+        "support_class_thinned",
+        "proof_packet_freshness_breached",
+        "proof_packet_missing",
+        "waiver_expired",
+        "owner_signoff_missing"
+      ]
+    },
+    "publication_action": {
+      "type": "string",
+      "enum": [
+        "hold_publication",
+        "narrow_label",
+        "refresh_proof_packet",
+        "revalidate_backing_claim",
+        "request_owner_signoff"
+      ]
+    },
+    "launch_cutline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cutline_level",
+        "above_cutline_levels",
+        "below_cutline_levels",
+        "description"
+      ],
+      "properties": {
+        "cutline_level": { "type": "string", "const": "stable" },
+        "above_cutline_levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" }
+        },
+        "below_cutline_levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" }
+        },
+        "description": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "publication_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "trigger_reason",
+        "applies_to_labels",
+        "default_action",
+        "blocks_publication",
+        "rationale"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "trigger_reason": { "$ref": "#/$defs/narrowing_reason" },
+        "applies_to_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" },
+          "minItems": 1
+        },
+        "default_action": { "$ref": "#/$defs/publication_action" },
+        "blocks_publication": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "freshness_slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_max_age_days", "warn_within_days", "slo_register_ref"],
+      "properties": {
+        "target_max_age_days": { "type": "integer", "minimum": 1 },
+        "warn_within_days": { "type": "integer", "minimum": 0 },
+        "slo_register_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "proof_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "packet_ref",
+        "proof_index_ref",
+        "captured_at",
+        "freshness_slo",
+        "slo_state",
+        "evidence_refs"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_index_ref": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/nullable_date" },
+        "freshness_slo": { "$ref": "#/$defs/freshness_slo" },
+        "slo_state": { "$ref": "#/$defs/freshness_slo_state" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "waiver": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["waiver_ref", "expires_at", "reason"],
+          "properties": {
+            "waiver_ref": { "$ref": "#/$defs/non_empty_string" },
+            "expires_at": { "type": "string", "format": "date" },
+            "reason": { "$ref": "#/$defs/non_empty_string" }
+          }
+        }
+      ]
+    },
+    "owner_signoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_ref", "signed_off", "signed_at"],
+      "properties": {
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "signed_off": { "type": "boolean" },
+        "signed_at": { "$ref": "#/$defs/nullable_date" }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "title",
+        "subject_family",
+        "claimed_label",
+        "manifest_state",
+        "backing_claim_ref",
+        "qualification_row_refs",
+        "support_class_ref",
+        "proof_packet",
+        "waiver",
+        "owner_signoff",
+        "active_narrowing_reasons",
+        "published_label",
+        "publication_destinations",
+        "rationale"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "subject_family": { "$ref": "#/$defs/non_empty_string" },
+        "claimed_label": { "$ref": "#/$defs/lifecycle_label" },
+        "manifest_state": { "$ref": "#/$defs/manifest_state" },
+        "backing_claim_ref": { "$ref": "#/$defs/non_empty_string" },
+        "qualification_row_refs": { "$ref": "#/$defs/ref_array" },
+        "support_class_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_packet": { "$ref": "#/$defs/proof_packet" },
+        "waiver": { "$ref": "#/$defs/waiver" },
+        "owner_signoff": { "$ref": "#/$defs/owner_signoff" },
+        "active_narrowing_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_reason" },
+          "uniqueItems": true
+        },
+        "published_label": { "$ref": "#/$defs/lifecycle_label" },
+        "publication_destinations": { "$ref": "#/$defs/ref_array" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication_gate",
+        "decision",
+        "blocking_rule_ids",
+        "blocking_entry_ids",
+        "rationale"
+      ],
+      "properties": {
+        "publication_gate": { "$ref": "#/$defs/non_empty_string" },
+        "decision": { "type": "string", "enum": ["proceed", "hold"] },
+        "blocking_rule_ids": { "$ref": "#/$defs/ref_array" },
+        "blocking_entry_ids": { "$ref": "#/$defs/ref_array" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_entries",
+        "entries_published_stable",
+        "entries_narrowed_below_cutline",
+        "entries_on_active_waiver",
+        "packets_current",
+        "packets_due_for_refresh",
+        "packets_breached",
+        "packets_missing",
+        "total_active_narrowing_reasons",
+        "publication_rules_firing"
+      ],
+      "properties": {
+        "total_entries": { "type": "integer", "minimum": 0 },
+        "entries_published_stable": { "type": "integer", "minimum": 0 },
+        "entries_narrowed_below_cutline": { "type": "integer", "minimum": 0 },
+        "entries_on_active_waiver": { "type": "integer", "minimum": 0 },
+        "packets_current": { "type": "integer", "minimum": 0 },
+        "packets_due_for_refresh": { "type": "integer", "minimum": 0 },
+        "packets_breached": { "type": "integer", "minimum": 0 },
+        "packets_missing": { "type": "integer", "minimum": 0 },
+        "total_active_narrowing_reasons": { "type": "integer", "minimum": 0 },
+        "publication_rules_firing": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

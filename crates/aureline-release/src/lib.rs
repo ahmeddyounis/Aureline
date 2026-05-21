@@ -19,11 +19,18 @@
 //! mixed-version section — negotiated fields, supported skew window, upgrade and
 //! rollback order, and unsupported-state behavior — that decides whether the
 //! boundary may inherit a Stable mixed-version claim or is coordinated-upgrade-only.
+//! The stable-claim-manifest module is the publication layer that binds all
+//! three of those records together: it assigns each published subject one
+//! canonical lifecycle label, names the backing claim row, qualification rows, and
+//! support-class entry that label depends on, and attaches a packet-freshness SLO
+//! so a subject whose proof packet has breached its SLO narrows below the launch
+//! cutline automatically before publication.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod release_center_model;
+pub mod stable_claim_manifest;
 pub mod stable_claim_matrix;
 pub mod stable_qualification_matrix;
 pub mod support_class_ledger;
@@ -49,6 +56,15 @@ pub use release_center_model::{
     SemanticChangeClass, SignatureStateClass, TargetMutabilityClass, TargetVisibilityClass,
     VersionBumpProposal, RELEASE_CENTER_OBJECT_MODEL_RECORD_KIND,
     RELEASE_CENTER_OBJECT_MODEL_SCHEMA_VERSION,
+};
+
+pub use stable_claim_manifest::{
+    current_stable_claim_manifest, FreshnessSlo, FreshnessSloState, ManifestEntry,
+    ManifestExportProjection, ManifestExportRow, ManifestPublicationRecord, ManifestState,
+    NarrowingReason, ProofPacket, PublicationAction, PublicationRule, StableClaimManifest,
+    StableClaimManifestSummary, StableClaimManifestViolation, STABLE_CLAIM_MANIFEST_JSON,
+    STABLE_CLAIM_MANIFEST_PATH, STABLE_CLAIM_MANIFEST_RECORD_KIND,
+    STABLE_CLAIM_MANIFEST_SCHEMA_VERSION,
 };
 
 pub use stable_claim_matrix::{
