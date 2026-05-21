@@ -1,0 +1,77 @@
+# Beta rollback drill gate.
+#
+# Matures the alpha synthetic state-root rollback into a beta rehearsal that
+# ties the synthetic restore to the governed beta rollback plan and the
+# release-center rollback/revocation record model. The gate statically resolves
+# whether the prior known-good build can honestly back a rollback, proves the
+# revoked-target fixture resolves to unavailable, and runs the Rust drill that
+# restores a prior build, verifies post-rollback state-root integrity and
+# exact-build install diagnostics, and fails honestly when the prior build is
+# missing or unverifiable.
+
+name: check_beta_rollback_drill
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_rollback_drill.yml"
+      - "ci/check_beta_rollback_drill.py"
+      - "fixtures/install/rollback_drill_beta/**"
+      - "fixtures/install/topology_alpha/**"
+      - "artifacts/release/m3/update_rollback/**"
+      - "crates/aureline-install/src/rollback/**"
+      - "crates/aureline-install/src/lib.rs"
+      - "crates/aureline-install/Cargo.toml"
+      - "crates/aureline-install/tests/rollback_drill_alpha.rs"
+      - "crates/aureline-install/tests/rollback_drill_beta.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-rollback-drill-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rollback_drill:
+    name: Beta rollback drill
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate beta rollback drill fixtures
+        run: |
+          python3 ci/check_beta_rollback_drill.py --repo-root . --check
+
+      - name: Run beta rollback drill contract tests
+        run: |
+          cargo test -p aureline-install --test rollback_drill_beta
+
+      - name: Run alpha rollback drill (must stay green)
+        run: |
+          cargo test -p aureline-install --test rollback_drill_alpha
+
+      - name: Upload rollback drill validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-rollback-drill-${{ github.run_id }}
+          path: artifacts/release/captures/rollback_drill_beta_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
