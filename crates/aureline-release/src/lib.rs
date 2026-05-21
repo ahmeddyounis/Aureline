@@ -6,12 +6,15 @@
 //! publish targets, artifact bundles, promotion steps, and scoped
 //! rollback/revocation records. The correction-train module formalizes the
 //! shared correction-train, hotfix, and backport packet form on top of the
-//! same rollback and release-candidate refs.
+//! same rollback and release-candidate refs. The stable-claim-matrix module
+//! freezes the stable claim matrix, launch cutline, qualification rows, and
+//! shiproom stop rules that decide which surfaces may publish as Stable.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod release_center_model;
+pub mod stable_claim_matrix;
 
 pub use correction_train::{
     BackportDecision, BackportMatrixRow, CorrectionEvidence, CorrectionItem, CorrectionRisk,
@@ -34,4 +37,13 @@ pub use release_center_model::{
     SemanticChangeClass, SignatureStateClass, TargetMutabilityClass, TargetVisibilityClass,
     VersionBumpProposal, RELEASE_CENTER_OBJECT_MODEL_RECORD_KIND,
     RELEASE_CENTER_OBJECT_MODEL_SCHEMA_VERSION,
+};
+
+pub use stable_claim_matrix::{
+    current_stable_claim_matrix, DowngradeReason, LaunchCutline, OwnerSignoff, PromotionDecision,
+    PromotionDecisionRecord, QualificationEvidence, QualificationState, QualificationWaiver,
+    ShiproomStopRule, StableClaimExportProjection, StableClaimExportRow, StableClaimLevel,
+    StableClaimMatrix, StableClaimMatrixSummary, StableClaimMatrixViolation, StableClaimRow,
+    StopAction, STABLE_CLAIM_MATRIX_JSON, STABLE_CLAIM_MATRIX_PATH,
+    STABLE_CLAIM_MATRIX_RECORD_KIND, STABLE_CLAIM_MATRIX_SCHEMA_VERSION,
 };

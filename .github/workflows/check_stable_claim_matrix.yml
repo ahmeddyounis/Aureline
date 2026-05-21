@@ -1,0 +1,71 @@
+# Stable claim matrix gate.
+#
+# Validates the checked-in stable claim matrix: every surface that is not
+# stable-qualified narrows below the launch cutline, a held stable claim carries
+# current, proof-backed, owner-signed qualification, waiver-expiry and evidence
+# freshness are enforced against the matrix as_of date, and the promotion verdict
+# agrees with the firing shiproom stop rules. The gate runs negative drills
+# proving those rejections fire. The typed Rust consumer reads the same matrix,
+# so `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_stable_claim_matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_stable_claim_matrix.yml"
+      - "ci/check_stable_claim_matrix.py"
+      - "artifacts/release/stable_claim_matrix.json"
+      - "artifacts/release/captures/stable_claim_matrix_validation_capture.json"
+      - "schemas/release/stable_claim_matrix.schema.json"
+      - "docs/release/stable_claim_matrix.md"
+      - "crates/aureline-release/src/stable_claim_matrix/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/stable_claim_matrix.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-stable-claim-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stable_claim_matrix:
+    name: Stable claim matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate stable claim matrix
+        run: |
+          python3 ci/check_stable_claim_matrix.py --repo-root . --check
+
+      - name: Run stable-claim-matrix contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-claim-matrix-${{ github.run_id }}
+          path: artifacts/release/captures/stable_claim_matrix_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
