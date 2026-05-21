@@ -1,0 +1,80 @@
+# Stable proof index gate.
+#
+# Validates the checked-in stable proof index: every launch-blocking requirement is
+# bound to the proof packet that proves it, the waiver (if any) holding it
+# provisionally, and the public claim (a stable-claim-manifest entry) whose lifecycle
+# label the proof backs, never wider than the canonical label the stable claim
+# manifest publishes for that entry; a requirement whose proof packet breached its
+# freshness SLO or is missing, whose waiver expired, whose evidence is incomplete, or
+# whose backing public claim is itself below the cutline narrows below the launch
+# cutline; the packet-freshness SLO state is recomputed against the index as_of date;
+# waiver expiry is enforced; the launch-blocking requirement set is fully covered; and
+# the publication verdict and summary agree with the firing proof rules. The gate runs
+# negative drills and the checked-in fixture cases proving those rejections fire. The
+# typed Rust consumer reads the same index, so `cargo test -p aureline-release`
+# enforces the same structural invariants.
+
+name: check_stable_proof_index
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_stable_proof_index.yml"
+      - "ci/check_stable_proof_index.py"
+      - "artifacts/release/stable_proof_index.json"
+      - "artifacts/release/captures/stable_proof_index_validation_capture.json"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "schemas/release/stable_proof_index.schema.json"
+      - "docs/release/stable_proof_index.md"
+      - "artifacts/release/m4/stable_proof_index_proof_packet.md"
+      - "fixtures/release/stable_proof_index/**"
+      - "crates/aureline-release/src/stable_proof_index/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/stable_proof_index.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-stable-proof-index-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stable_proof_index:
+    name: Stable proof index
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate stable proof index
+        run: |
+          python3 ci/check_stable_proof_index.py --repo-root . --check
+
+      - name: Run stable-proof-index contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-proof-index-${{ github.run_id }}
+          path: artifacts/release/captures/stable_proof_index_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

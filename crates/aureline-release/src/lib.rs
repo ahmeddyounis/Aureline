@@ -31,6 +31,15 @@
 //! subject's canonical manifest label — so a value line that lacks a capability,
 //! whose line evidence is incomplete, or whose proof packet aged out narrows below
 //! the cutline before publication while still ingesting the one canonical label.
+//! The stable-proof-index module is the requirement-facing layer that closes the
+//! loop: for every launch-blocking requirement it records one row binding the
+//! requirement to the proof packet that proves it, the waiver (if any) holding it
+//! provisionally, and the public claim (a stable-claim-manifest entry) whose
+//! lifecycle label that proof backs — never wider than the claim's canonical label
+//! — so a requirement whose proof packet aged out or is missing, whose waiver
+//! expired, whose requirement evidence is incomplete, or whose backing public claim
+//! is itself below the cutline narrows below the launch cutline and holds
+//! publication, while the launch-blocking requirement set stays fully covered.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -39,6 +48,7 @@ pub mod release_center_model;
 pub mod stable_boundary_manifest;
 pub mod stable_claim_manifest;
 pub mod stable_claim_matrix;
+pub mod stable_proof_index;
 pub mod stable_qualification_matrix;
 pub mod support_class_ledger;
 
@@ -81,6 +91,13 @@ pub use stable_claim_manifest::{
     StableClaimManifestSummary, StableClaimManifestViolation, STABLE_CLAIM_MANIFEST_JSON,
     STABLE_CLAIM_MANIFEST_PATH, STABLE_CLAIM_MANIFEST_RECORD_KIND,
     STABLE_CLAIM_MANIFEST_SCHEMA_VERSION,
+};
+
+pub use stable_proof_index::{
+    current_stable_proof_index, GapReason, IndexAction, ProofIndexExportProjection,
+    ProofIndexExportRow, ProofPublicationRecord, ProofRow, ProofRule, ProofState, StableProofIndex,
+    StableProofIndexSummary, StableProofIndexViolation, STABLE_PROOF_INDEX_JSON,
+    STABLE_PROOF_INDEX_PATH, STABLE_PROOF_INDEX_RECORD_KIND, STABLE_PROOF_INDEX_SCHEMA_VERSION,
 };
 
 pub use stable_claim_matrix::{
