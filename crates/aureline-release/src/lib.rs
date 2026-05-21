@@ -75,11 +75,25 @@
 //! — while the claim-truth/qualification/public-proof/maintenance panel kinds and the
 //! release-line panel set both stay fully covered, so shiproom and release tooling can
 //! fail promotion directly from the dashboard.
+//! The optional-surface-qualification module is the claim-narrowing automation alongside all
+//! of the above: where the manifest, qualification matrix, and proof index speak for surfaces
+//! meant to ship at the cutline, this register governs the *optional* surfaces — opt-in
+//! capabilities, optional integrations, secondary platforms, and shipped-but-experimental
+//! previews — whose default is *narrowed*. For every optional surface it records one row
+//! binding the surface to the public claim it backs and to its qualification packet as an
+//! optional value, so a surface that lacks a stable qualification packet entirely, whose
+//! packet breached its freshness SLO, whose surface evidence or capability is incomplete,
+//! whose waiver expired, or whose backing public claim is itself below the cutline narrows
+//! below the launch cutline and never inherits an adjacent qualified surface — while the
+//! opt-in/integration/platform/preview surface kinds and the release-relevant surface set
+//! both stay fully covered, so shiproom and release tooling can fail promotion directly from
+//! the register.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod maintenance_control_packet;
+pub mod optional_surface_qualification;
 pub mod release_center_model;
 pub mod shiproom_dashboard;
 pub mod stable_boundary_manifest;
@@ -105,6 +119,15 @@ pub use maintenance_control_packet::{
     MaintenanceExportProjection, MaintenanceExportRow, MaintenanceRow, SupportPosture,
     SupportWindow, MAINTENANCE_CONTROL_PACKET_JSON, MAINTENANCE_CONTROL_PACKET_PATH,
     MAINTENANCE_CONTROL_PACKET_RECORD_KIND, MAINTENANCE_CONTROL_PACKET_SCHEMA_VERSION,
+};
+
+pub use optional_surface_qualification::{
+    current_optional_surface_qualification, NarrowAction, NarrowReason, OptionalSurface,
+    OptionalSurfaceKind, OptionalSurfaceQualification, OptionalSurfaceQualificationSummary,
+    OptionalSurfaceQualificationViolation, SurfaceExportProjection, SurfaceExportRow,
+    SurfacePublicationRecord, SurfaceState, SurfaceStopRule, OPTIONAL_SURFACE_QUALIFICATION_JSON,
+    OPTIONAL_SURFACE_QUALIFICATION_PATH, OPTIONAL_SURFACE_QUALIFICATION_RECORD_KIND,
+    OPTIONAL_SURFACE_QUALIFICATION_SCHEMA_VERSION,
 };
 
 pub use release_center_model::{

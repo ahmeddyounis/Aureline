@@ -24,6 +24,14 @@ rendered by this Help / About card remain the same tokens used by the claim
 manifest and public-proof packets. Its generated report lives at
 `artifacts/docs/m3/public_proof_parity_report.md`.
 
+The optional-surface release attachment adds one more machine source for
+Help / About and support-export rows:
+[`/artifacts/release/optional_surface_qualification.json`](../../artifacts/release/optional_surface_qualification.json).
+When an opt-in capability, optional integration, secondary platform, or preview
+surface lacks its own stable qualification packet, Help / About renders that
+row's `displayed_label` and `active_narrow_reasons` from the register rather
+than inheriting a neighboring Stable claim.
+
 ## What the seed surface guarantees
 
 The surface is a thin projection over upstream truth — no surface in the
