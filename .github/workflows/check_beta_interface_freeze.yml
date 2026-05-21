@@ -1,0 +1,71 @@
+# Beta interface-freeze register gate.
+#
+# Validates the checked-in interface-freeze register: every governed schema
+# family must declare a freeze state, a hard-frozen surface may not change
+# version without a recorded exception from its allowed classes, and every
+# governed-source row's version and schema reference must agree with the
+# governed schema registry. The gate also runs negative drills proving those
+# rejections fire. The typed Rust consumer reads the same register, so
+# `cargo test -p aureline-governance` enforces the same invariants.
+
+name: check_beta_interface_freeze
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_interface_freeze.yml"
+      - "ci/check_beta_interface_freeze.py"
+      - "artifacts/governance/interface_freeze_register_beta.json"
+      - "artifacts/governance/captures/interface_freeze_register_beta_validation_capture.json"
+      - "schemas/governance/interface_freeze_register_beta.schema.json"
+      - "schemas/registry/schema_registry.json"
+      - "docs/governance/interface_freeze_register.md"
+      - "crates/aureline-governance/src/interface_freeze/**"
+      - "crates/aureline-governance/src/lib.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-interface-freeze-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  interface_freeze:
+    name: Beta interface-freeze register
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate beta interface-freeze register
+        run: |
+          python3 ci/check_beta_interface_freeze.py --repo-root . --check
+
+      - name: Run interface-freeze contract tests
+        run: |
+          cargo test -p aureline-governance
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-interface-freeze-${{ github.run_id }}
+          path: artifacts/governance/captures/interface_freeze_register_beta_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
