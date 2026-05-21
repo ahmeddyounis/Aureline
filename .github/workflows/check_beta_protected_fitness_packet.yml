@@ -1,0 +1,65 @@
+# Beta protected-fitness release-candidate packet gate.
+#
+# Validates the frozen beta release-candidate packet against the canonical
+# protected fitness-function catalog and the reused base review packet, and
+# fails when a metric over its release-candidate bar lacks an active waiver,
+# when an over-bar metric's active waiver is not visible, or when an expired
+# waiver still renders the protected function as passing.
+
+name: check_beta_protected_fitness_packet
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_protected_fitness_packet.yml"
+      - "ci/check_beta_protected_fitness_packet.py"
+      - "artifacts/release/protected_fitness_packet_beta.yaml"
+      - "artifacts/release/protected_fitness_packet_alpha.yaml"
+      - "artifacts/bench/fitness_function_catalog.yaml"
+      - "artifacts/governance/fitness_state_rows.yaml"
+      - "crates/aureline-support/src/fitness/**"
+      - "crates/aureline-support/tests/fitness_packet_beta.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-protected-fitness-packet-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  protected_fitness_packet:
+    name: Beta protected-fitness release-candidate packet
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Validate beta release-candidate packet
+        run: |
+          python3 ci/check_beta_protected_fitness_packet.py \
+            --repo-root . \
+            --report artifacts/release/captures/protected_fitness_packet_beta_validation_capture.json
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-protected-fitness-packet-${{ github.run_id }}
+          path: artifacts/release/captures/protected_fitness_packet_beta_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

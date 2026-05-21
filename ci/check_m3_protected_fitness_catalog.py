@@ -37,6 +37,20 @@ DEFAULT_CAPTURE_REL = (
     "protected_fitness_catalog_validation_capture.json"
 )
 
+# Frozen beta release-candidate packet promoted from the protected fitness
+# review packet. This gate consumes the beta record so the governing
+# release-gating control reads the typed beta model, not dashboard prose.
+DEFAULT_BETA_PACKET_REL = "artifacts/release/protected_fitness_packet_beta.yaml"
+BETA_PACKET_RECORD_KIND = "protected_fitness_release_candidate_packet"
+BETA_BASE_PACKET_RECORD_KIND = "protected_fitness_review_packet"
+BETA_BASE_PACKET_REF = "artifacts/release/protected_fitness_packet_alpha.yaml"
+RELEASE_CANDIDATE_COMPARATORS = {
+    "measured_at_or_below_bar",
+    "ratio_at_or_above_floor",
+    "boolean_must_hold",
+    "provisional_bar_pending_council",
+}
+
 
 REQUIRED_PROTECTED_LANES = {
     "startup",
@@ -974,6 +988,275 @@ def write_if_changed(path: Path, content: str, check_only: bool) -> bool:
     return changed
 
 
+def _opt_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value.strip() or None
+    return str(value)
+
+
+def validate_beta_release_candidate_packet(
+    repo_root: Path,
+    canonical_catalog: dict[str, Any],
+    findings: list[Finding],
+) -> None:
+    """Validate the frozen beta release-candidate packet/thresholds.
+
+    The beta packet reuses the alpha review packet verbatim as its base and
+    layers release-candidate thresholds on top. This consumer enforces the
+    coverage, catalog-linkage, over-threshold-without-active-waiver,
+    active-waiver-visibility, and expired-waiver-degradation rules so the M3
+    catalog gate reads the same release-gating control as the typed
+    aureline_support::fitness consumer.
+    """
+    packet_path = repo_root / DEFAULT_BETA_PACKET_REL
+    if not packet_path.exists():
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="beta_release_candidate_packet.missing",
+                message=f"beta release-candidate packet is missing: {DEFAULT_BETA_PACKET_REL}",
+                remediation="Seed artifacts/release/protected_fitness_packet_beta.yaml before running the gate.",
+                ref=DEFAULT_BETA_PACKET_REL,
+            )
+        )
+        return
+
+    packet = ensure_dict(render_yaml_as_json(packet_path), "beta_packet")
+    packet_id = _opt_str(packet.get("packet_id")) or DEFAULT_BETA_PACKET_REL
+
+    if packet.get("schema_version") != 1:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="beta_release_candidate_packet.schema_version",
+                message="beta release-candidate packet schema_version must be 1",
+                remediation="Update the validator in the same change that bumps the schema.",
+                ref=packet_id,
+            )
+        )
+    if _opt_str(packet.get("record_kind")) != BETA_PACKET_RECORD_KIND:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="beta_release_candidate_packet.record_kind",
+                message=f"beta packet record_kind must be {BETA_PACKET_RECORD_KIND}",
+                remediation="Regenerate the beta packet with the correct record kind.",
+                ref=packet_id,
+            )
+        )
+    base_packet_ref = _opt_str(packet.get("base_packet_ref"))
+    if base_packet_ref != BETA_BASE_PACKET_REF:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="beta_release_candidate_packet.base_packet_ref",
+                message="beta packet base_packet_ref must name the checked-in protected fitness packet",
+                remediation=f"Set base_packet_ref to {BETA_BASE_PACKET_REF}.",
+                ref=packet_id,
+            )
+        )
+        return
+
+    base = ensure_dict(
+        render_yaml_as_json(repo_root / base_packet_ref), "beta_base_packet"
+    )
+    if _opt_str(base.get("record_kind")) != BETA_BASE_PACKET_RECORD_KIND:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="beta_release_candidate_packet.base_record_kind",
+                message=f"base packet record_kind must be {BETA_BASE_PACKET_RECORD_KIND}",
+                remediation="Point base_packet_ref at the protected fitness review packet.",
+                ref=base_packet_ref,
+            )
+        )
+
+    catalog_index = index_canonical_rows(canonical_catalog)
+    base_rows = {
+        _opt_str(
+            ensure_dict(row, "beta_base.protected_function_rows[]").get(
+                "protected_function_ref"
+            )
+        ): ensure_dict(row, "beta_base.protected_function_rows[]")
+        for row in ensure_list(
+            base.get("protected_function_rows"),
+            "beta_base.protected_function_rows",
+        )
+    }
+
+    thresholds = ensure_list(
+        packet.get("release_candidate_thresholds"),
+        "beta_packet.release_candidate_thresholds",
+    )
+    threshold_refs = {
+        _opt_str(
+            ensure_dict(t, "release_candidate_thresholds[]").get(
+                "protected_function_ref"
+            )
+        )
+        for t in thresholds
+    }
+
+    for ref, row in base_rows.items():
+        if ref is None:
+            continue
+        if _opt_str(row.get("catalog_row_ref")) and ref not in threshold_refs:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="release_candidate_thresholds.coverage",
+                    message=f"{ref} is catalog-linked but carries no release-candidate threshold",
+                    remediation="Add a release_candidate_thresholds row for this protected function.",
+                    ref=ref,
+                )
+            )
+
+    for raw in thresholds:
+        threshold = ensure_dict(raw, "release_candidate_thresholds[]")
+        ref = (
+            _opt_str(threshold.get("protected_function_ref"))
+            or "<missing protected_function_ref>"
+        )
+        comparator = _opt_str(threshold.get("comparator"))
+        if comparator not in RELEASE_CANDIDATE_COMPARATORS:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="release_candidate_thresholds.comparator",
+                    message=f"{ref} comparator {comparator!r} is not in the release-candidate comparator vocabulary",
+                    remediation="Use one of: "
+                    + ", ".join(sorted(RELEASE_CANDIDATE_COMPARATORS)),
+                    ref=ref,
+                )
+            )
+
+        base_row = base_rows.get(ref)
+        if base_row is None:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="release_candidate_thresholds.unknown_function",
+                    message=f"{ref} does not resolve to a base protected_function_row",
+                    remediation="Bind the threshold to a protected_function_ref present in the base packet.",
+                    ref=ref,
+                )
+            )
+            continue
+
+        threshold_authority = _opt_str(threshold.get("waiver_authority_ref"))
+        catalog_ref = _opt_str(threshold.get("catalog_row_ref"))
+        catalog_row = catalog_index.get(catalog_ref) if catalog_ref else None
+        if catalog_ref is None:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="release_candidate_thresholds.catalog_row_ref",
+                    message=f"{ref} must name a catalog_row_ref",
+                    remediation="Name the catalog row whose bar this threshold mirrors.",
+                    ref=ref,
+                )
+            )
+        elif catalog_row is None:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="release_candidate_thresholds.catalog_row_ref",
+                    message=f"{ref} catalog_row_ref {catalog_ref} does not resolve in the canonical catalog",
+                    remediation="Use an id from artifacts/bench/fitness_function_catalog.yaml#rows.",
+                    ref=ref,
+                )
+            )
+        else:
+            if _opt_str(catalog_row.get("threshold_mode")) != _opt_str(
+                threshold.get("threshold_mode")
+            ):
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="release_candidate_thresholds.threshold_mode",
+                        message=f"{ref} threshold_mode does not match the catalog threshold_mode",
+                        remediation="Copy the catalog row threshold_mode onto the release-candidate threshold.",
+                        ref=ref,
+                    )
+                )
+            if _opt_str(catalog_row.get("waiver_authority")) != threshold_authority:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="release_candidate_thresholds.waiver_authority_ref",
+                        message=f"{ref} waiver_authority_ref does not match the catalog waiver_authority",
+                        remediation="Copy the catalog row waiver_authority onto the release-candidate threshold.",
+                        ref=ref,
+                    )
+                )
+
+        if threshold_authority != _opt_str(base_row.get("waiver_authority_ref")):
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="release_candidate_thresholds.waiver_authority_ref",
+                    message=f"{ref} waiver_authority_ref does not match the base row waiver_authority_ref",
+                    remediation="Align the threshold waiver_authority_ref with the base row.",
+                    ref=ref,
+                )
+            )
+
+        waiver = ensure_dict(base_row.get("waiver", {}), f"{ref}.waiver")
+        waiver_state = _opt_str(waiver.get("waiver_state"))
+        current_result = _opt_str(base_row.get("current_result"))
+        within_bar = bool(threshold.get("within_release_candidate_bar"))
+
+        if not within_bar:
+            if waiver_state == "active_waiver":
+                if not _opt_str(waiver.get("waiver_record_ref")):
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            check_id="release_candidate_thresholds.active_waiver_visibility",
+                            message=f"{ref} is over its bar under an active waiver but carries no visible waiver_record_ref",
+                            remediation="Attach the active waiver record so the held release stays visible.",
+                            ref=ref,
+                        )
+                    )
+                if current_result == "passing":
+                    findings.append(
+                        Finding(
+                            severity="error",
+                            check_id="release_candidate_thresholds.active_waiver_visibility",
+                            message=f"{ref} renders passing while an active waiver holds it over the bar",
+                            remediation="Render the waived state instead of passing.",
+                            ref=ref,
+                        )
+                    )
+            elif current_result in {"passing", "waived"}:
+                findings.append(
+                    Finding(
+                        severity="error",
+                        check_id="release_candidate_thresholds.over_threshold_without_active_waiver",
+                        message=f"{ref} is over its release-candidate bar without an active waiver but renders {current_result}",
+                        remediation="Degrade the protected function or attach an active waiver.",
+                        ref=ref,
+                    )
+                )
+
+        if waiver_state == "expired_waiver" and current_result in {
+            "passing",
+            "warning",
+            "waived",
+        }:
+            findings.append(
+                Finding(
+                    severity="error",
+                    check_id="release_candidate_thresholds.expired_waiver_degrades",
+                    message=f"{ref} has an expired waiver but still renders {current_result}",
+                    remediation="Degrade the protected function once its waiver expires.",
+                    ref=ref,
+                )
+            )
+
+
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
@@ -1023,6 +1306,10 @@ def main() -> int:
         generated_at=generated_at,
         findings=findings,
     )
+
+    # Consume the frozen beta release-candidate packet so the M3 catalog gate
+    # reads the same release-gating control as the typed beta model.
+    validate_beta_release_candidate_packet(repo_root, canonical_catalog, findings)
 
     snapshot_text = json.dumps(snapshot, indent=2, sort_keys=True) + "\n"
 
