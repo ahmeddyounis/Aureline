@@ -1,0 +1,77 @@
+# Support / audit export workset / scope beta gate.
+#
+# Promotes named-workset, sparse-slice, and policy-limited-view scope truth to
+# beta on the support / audit export surface. Runs the Rust drill that replays
+# the frozen corpus through the workspace scope-truth projection (a support/audit
+# export declares the active scope it was produced under, discloses out-of-scope
+# roots and policy-hidden members, and labels policy-limited content rather than
+# silently embedding it), then runs the data gate that re-derives the workspace
+# scope vocabulary and the support redaction vocabulary from crate source and
+# fails closed if the shared 1:1 scope vocabulary, the policy-redaction labels,
+# the corpus labeling, or the required scope-class coverage drift.
+
+name: check_beta_support_workset_scope
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_support_workset_scope.yml"
+      - "ci/check_beta_support_workset_scope.py"
+      - "fixtures/support/workset_scope_export_beta/**"
+      - "crates/aureline-support/tests/workset_scope_export_beta.rs"
+      - "crates/aureline-support/src/bundle/**"
+      - "crates/aureline-workspace/src/worksets/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-support-workset-scope-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  beta_support_workset_scope:
+    name: Beta support workset scope
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Run support workset scope export beta drill
+        run: cargo test -p aureline-support --test workset_scope_export_beta --locked
+
+      - name: Run support workset scope gate
+        run: |
+          python3 ci/check_beta_support_workset_scope.py --repo-root . --report target/beta-support-workset-scope/report.json
+
+      - name: Upload support workset scope gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-support-workset-scope-${{ github.run_id }}
+          path: target/beta-support-workset-scope
+          if-no-files-found: error
+          retention-days: 30
