@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collab/authority_escrow_ticket.schema.json",
+  "title": "Aureline collaboration temporary authority-escrow ticket contract",
+  "description": "Boundary schema for one authority_escrow_ticket_record describing a single temporary-control grant over a claimed M3 shared-control lane: terminal_input, debug_step_control, presenter_handoff, or follow_handoff. The ticket MUST name the originating invite (invite_ref), the scope, the grant-state lifecycle (requested, granted_active, expired, revoked, frozen_pending_reapproval, denied), who requested it (opaque ref + reviewable label), a bounded expiry, a downgrade path, and the explicit context changes that force reapproval. A live grant (requested, granted_active, frozen_pending_reapproval) MUST carry a bounded expiry (never perpetual_no_expiry) and at least one reapproval trigger. A granted_active grant MUST require reapproval on reconnect, device handoff, and restart so it can never silently resume privileged control. Raw URLs, raw email addresses, raw absolute paths, and raw secret material MUST NOT appear; the record carries opaque refs and bounded reviewable summaries only. Adding a new scope, grant state, downgrade path, or reapproval trigger is additive-minor and bumps authority_escrow_ticket_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/authority_escrow_ticket_record",
+  "$defs": {
+    "authority_escrow_ticket_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces and exports. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_ref" }]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Bounded reviewable sentence. Raw URLs, raw payload bytes, raw user identifiers, and raw secrets MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/reviewable_sentence" }]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "authority_scope_class": {
+      "type": "string",
+      "enum": ["terminal_input", "debug_step_control", "presenter_handoff", "follow_handoff"],
+      "description": "Closed authority-scope vocabulary for one temporary-control grant."
+    },
+    "grant_state_class": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "granted_active",
+        "expired",
+        "revoked",
+        "frozen_pending_reapproval",
+        "denied"
+      ],
+      "description": "Closed grant-state lifecycle for a temporary authority grant."
+    },
+    "downgrade_path_class": {
+      "type": "string",
+      "enum": [
+        "revert_to_observer",
+        "revert_to_follow",
+        "revert_to_local_only",
+        "freeze_pending_reapproval"
+      ],
+      "description": "Closed downgrade-path vocabulary: where authority falls back when the grant ends or is interrupted."
+    },
+    "reapproval_trigger_class": {
+      "type": "string",
+      "enum": [
+        "on_reconnect",
+        "on_device_handoff",
+        "on_session_restart",
+        "on_owner_change",
+        "on_scope_change"
+      ],
+      "description": "Closed vocabulary of context changes that force reapproval of a live grant."
+    },
+    "expiry_posture_class": {
+      "type": "string",
+      "enum": [
+        "expires_at_fixed_time",
+        "expires_at_session_end",
+        "expires_on_context_change",
+        "perpetual_no_expiry"
+      ],
+      "description": "Closed expiry-posture vocabulary. Everything except perpetual_no_expiry is bounded."
+    },
+    "expiry_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture_class", "expiry_label"],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/expiry_posture_class" },
+        "expires_at_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "expiry_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "A fixed-time expiry must name the deadline ref it claims to honor.",
+          "if": {
+            "properties": { "posture_class": { "const": "expires_at_fixed_time" } },
+            "required": ["posture_class"]
+          },
+          "then": {
+            "required": ["expires_at_ref"],
+            "properties": { "expires_at_ref": { "$ref": "#/$defs/opaque_ref" } }
+          }
+        }
+      ]
+    },
+
+    "authority_escrow_ticket_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_escrow_ticket_schema_version",
+        "record_kind",
+        "ticket_id",
+        "invite_ref",
+        "authority_scope_class",
+        "grant_state_class",
+        "requested_by_ref",
+        "requested_by_label",
+        "grant_expiry",
+        "downgrade_path_class",
+        "reapproval_required_on",
+        "scope_summary",
+        "headline_label",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "authority_escrow_ticket_schema_version": {
+          "$ref": "#/$defs/authority_escrow_ticket_schema_version"
+        },
+        "record_kind": { "type": "string", "const": "authority_escrow_ticket_record" },
+        "ticket_id": {
+          "type": "string",
+          "pattern": "^authority_escrow:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "invite_ref": {
+          "type": "string",
+          "pattern": "^collab_invite:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "authority_scope_class": { "$ref": "#/$defs/authority_scope_class" },
+        "grant_state_class": { "$ref": "#/$defs/grant_state_class" },
+        "requested_by_ref": { "$ref": "#/$defs/opaque_ref" },
+        "requested_by_label": { "$ref": "#/$defs/reviewable_label" },
+        "grant_expiry": { "$ref": "#/$defs/expiry_window" },
+        "downgrade_path_class": { "$ref": "#/$defs/downgrade_path_class" },
+        "reapproval_required_on": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reapproval_trigger_class" },
+          "uniqueItems": true
+        },
+        "scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "headline_label": { "$ref": "#/$defs/reviewable_label" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/collab/m3/invite_and_authority_escrow.md"
+        },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "A live grant (requested, granted_active, frozen_pending_reapproval) carries a bounded expiry and at least one reapproval trigger.",
+          "if": {
+            "properties": {
+              "grant_state_class": {
+                "enum": ["requested", "granted_active", "frozen_pending_reapproval"]
+              }
+            },
+            "required": ["grant_state_class"]
+          },
+          "then": {
+            "properties": {
+              "grant_expiry": {
+                "properties": {
+                  "posture_class": {
+                    "enum": [
+                      "expires_at_fixed_time",
+                      "expires_at_session_end",
+                      "expires_on_context_change"
+                    ]
+                  }
+                }
+              },
+              "reapproval_required_on": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "A granted_active grant must require reapproval on reconnect, device handoff, and restart so it cannot silently resume.",
+          "if": {
+            "properties": { "grant_state_class": { "const": "granted_active" } },
+            "required": ["grant_state_class"]
+          },
+          "then": {
+            "properties": {
+              "reapproval_required_on": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "const": "on_reconnect" } },
+                  { "contains": { "const": "on_device_handoff" } },
+                  { "contains": { "const": "on_session_restart" } }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

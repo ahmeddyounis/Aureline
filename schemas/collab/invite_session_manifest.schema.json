@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collab/invite_session_manifest.schema.json",
+  "title": "Aureline collaboration invite/join session manifest contract",
+  "description": "Boundary schema for one invite_session_manifest_record read before a user accepts a collaboration invite into a claimed M3 shared-control lane (shared_terminal, shared_debug, presentation_preview). The manifest MUST name the session owner (opaque ref + reviewable label), the lane, the offered role, the client class the invite arrives on, the retention/recording posture, the invite expiry, and the capability accepting confers. Capability is observer-first by construction: the strongest capability an invite may confer on accept is observer_with_control_request — the right to *request* temporary control — never control itself. A driver/presenter candidate role MUST ride observer_with_control_request; a follow viewer needs at least observer_with_follow. An invite that can request control MUST carry a bounded expiry (never perpetual_no_expiry). An untrusted_web client MUST NOT carry session retention/recording beyond live-only. Raw URLs, raw email addresses, raw absolute paths, and raw secret material MUST NOT appear; the record carries opaque refs and bounded reviewable summaries only. Adding a new lane, role, capability, client, retention, or expiry class is additive-minor and bumps invite_session_manifest_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/invite_session_manifest_record",
+  "$defs": {
+    "invite_session_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Current value is 1."
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[^\\s]+$",
+      "not": { "pattern": "://|@" },
+      "description": "Opaque, stable identifier safe for live surfaces and exports. Raw URLs, raw absolute paths, raw email addresses, and raw secret material MUST NOT appear."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_ref" }]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Bounded reviewable sentence. Raw URLs, raw payload bytes, raw user identifiers, and raw secrets MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/reviewable_sentence" }]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "session_lane_class": {
+      "type": "string",
+      "enum": ["shared_terminal", "shared_debug", "presentation_preview"],
+      "description": "Closed vocabulary for the claimed M3 shared-control lanes an invite can scope into."
+    },
+    "offered_role_class": {
+      "type": "string",
+      "enum": ["observer", "follow_viewer", "presenter_candidate", "driver_candidate"],
+      "description": "Closed role vocabulary the invite offers. The candidate roles are not granted on accept; they require a separate authority-escrow request."
+    },
+    "invite_capability_class": {
+      "type": "string",
+      "enum": ["observer_only", "observer_with_follow", "observer_with_control_request"],
+      "description": "Closed capability vocabulary describing what accepting the invite confers. There is deliberately no control_granted value: the strongest capability is the right to request control."
+    },
+    "client_class": {
+      "type": "string",
+      "enum": ["desktop_native", "browser_tab", "mobile_companion", "untrusted_web"],
+      "description": "Closed client-class vocabulary the invite arrives on."
+    },
+    "retention_recording_posture_class": {
+      "type": "string",
+      "enum": [
+        "live_only_no_retention",
+        "no_recording_observer_only",
+        "redacted_session_archive",
+        "recording_with_consent"
+      ],
+      "description": "Closed retention/recording-posture vocabulary disclosed on the invite."
+    },
+    "expiry_posture_class": {
+      "type": "string",
+      "enum": [
+        "expires_at_fixed_time",
+        "expires_at_session_end",
+        "expires_on_context_change",
+        "perpetual_no_expiry"
+      ],
+      "description": "Closed expiry-posture vocabulary. Everything except perpetual_no_expiry is bounded."
+    },
+    "expiry_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["posture_class", "expiry_label"],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/expiry_posture_class" },
+        "expires_at_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "expiry_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "A fixed-time expiry must name the deadline ref it claims to honor.",
+          "if": {
+            "properties": { "posture_class": { "const": "expires_at_fixed_time" } },
+            "required": ["posture_class"]
+          },
+          "then": {
+            "required": ["expires_at_ref"],
+            "properties": { "expires_at_ref": { "$ref": "#/$defs/opaque_ref" } }
+          }
+        }
+      ]
+    },
+
+    "invite_session_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invite_session_manifest_schema_version",
+        "record_kind",
+        "invite_id",
+        "session_owner_ref",
+        "session_owner_label",
+        "session_lane_class",
+        "offered_role_class",
+        "invite_capability_class",
+        "client_class",
+        "retention_recording_posture_class",
+        "invite_expiry",
+        "headline_label",
+        "manifest_summary",
+        "contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "invite_session_manifest_schema_version": {
+          "$ref": "#/$defs/invite_session_manifest_schema_version"
+        },
+        "record_kind": { "type": "string", "const": "invite_session_manifest_record" },
+        "invite_id": {
+          "type": "string",
+          "pattern": "^collab_invite:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "session_owner_ref": { "$ref": "#/$defs/opaque_ref" },
+        "session_owner_label": { "$ref": "#/$defs/reviewable_label" },
+        "session_lane_class": { "$ref": "#/$defs/session_lane_class" },
+        "offered_role_class": { "$ref": "#/$defs/offered_role_class" },
+        "invite_capability_class": { "$ref": "#/$defs/invite_capability_class" },
+        "client_class": { "$ref": "#/$defs/client_class" },
+        "retention_recording_posture_class": {
+          "$ref": "#/$defs/retention_recording_posture_class"
+        },
+        "invite_expiry": { "$ref": "#/$defs/expiry_window" },
+        "headline_label": { "$ref": "#/$defs/reviewable_label" },
+        "manifest_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/collab/m3/invite_and_authority_escrow.md"
+        },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "A driver/presenter candidate role may only ride a control-request-capable invite.",
+          "if": {
+            "properties": {
+              "offered_role_class": { "enum": ["presenter_candidate", "driver_candidate"] }
+            },
+            "required": ["offered_role_class"]
+          },
+          "then": {
+            "properties": {
+              "invite_capability_class": { "const": "observer_with_control_request" }
+            }
+          }
+        },
+        {
+          "description": "A follow viewer needs at least follow capability.",
+          "if": {
+            "properties": { "offered_role_class": { "const": "follow_viewer" } },
+            "required": ["offered_role_class"]
+          },
+          "then": {
+            "properties": {
+              "invite_capability_class": {
+                "enum": ["observer_with_follow", "observer_with_control_request"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A control-request-capable invite must carry a bounded expiry.",
+          "if": {
+            "properties": {
+              "invite_capability_class": { "const": "observer_with_control_request" }
+            },
+            "required": ["invite_capability_class"]
+          },
+          "then": {
+            "properties": {
+              "invite_expiry": {
+                "properties": {
+                  "posture_class": {
+                    "enum": [
+                      "expires_at_fixed_time",
+                      "expires_at_session_end",
+                      "expires_on_context_change"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "An untrusted_web client may not carry session retention/recording beyond live-only.",
+          "if": {
+            "properties": { "client_class": { "const": "untrusted_web" } },
+            "required": ["client_class"]
+          },
+          "then": {
+            "properties": {
+              "retention_recording_posture_class": {
+                "enum": ["live_only_no_retention", "no_recording_observer_only"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
