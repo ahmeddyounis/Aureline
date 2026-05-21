@@ -1,0 +1,73 @@
+# Collaboration moderation & authority-escrow corpus gate.
+#
+# Replays the collaboration moderation & authority-escrow corpus: it proves the
+# claimed shared-control beta/preview rows (shared terminal, shared debug,
+# presentation preview) handle joins, temporary grants, and durable audit history
+# correctly — lobby moderation (admit/deny/defer/decline) agrees with the grant it
+# leaves behind, observer-first joins only confer the right to request control, a
+# revoked/expired/denied grant never displays as active or silently resumes after a
+# reconnect or handoff, an expired or declined invite never still appears active,
+# and the durable audit export preserves stable IDs, actor/owner, scope, reason
+# code, and final resolution without leaking a session secret. Every claimed row
+# maps to exactly one packet with a preview/beta lane status.
+
+name: check_moderation_authority_corpus
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_moderation_authority_corpus.yml"
+      - "scripts/ci/run_collab_authority_corpus.sh"
+      - "ci/check_moderation_authority_corpus.py"
+      - "schemas/collab/invite_session_manifest.schema.json"
+      - "schemas/collab/authority_escrow_ticket.schema.json"
+      - "fixtures/collab/m3/moderation_and_authority_escrow_corpus/**"
+      - "artifacts/collab/m3/moderation_authority_report.md"
+      - "docs/collab/m3/invite_and_authority_escrow.md"
+  schedule:
+    - cron: "47 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-moderation-authority-corpus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  moderation_authority_corpus:
+    name: Collaboration moderation & authority-escrow corpus
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validator dependencies
+        run: python3 -m pip install --upgrade jsonschema
+
+      - name: Run collaboration moderation & authority-escrow corpus
+        run: |
+          scripts/ci/run_collab_authority_corpus.sh \
+            --report-json artifacts/collab/m3/moderation_authority_corpus_report.json
+
+      - name: Upload corpus report and packet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moderation-authority-corpus-${{ github.run_id }}
+          path: |
+            artifacts/collab/m3/moderation_authority_report.md
+            artifacts/collab/m3/moderation_authority_corpus_report.json
+            fixtures/collab/m3/moderation_and_authority_escrow_corpus/corpus_matrix.json
+            fixtures/collab/m3/moderation_and_authority_escrow_corpus/audit_export_parity.json
+          if-no-files-found: warn
+          retention-days: 30
