@@ -1,0 +1,61 @@
+# Beta docs/help browser content gate.
+#
+# Validates the frozen docs-browser content corpus: every docs entry is wired to
+# the release-truth DocsBrowser surface binding (claim manifest / compatibility
+# report / docs_site channel / selected docs claim rows), never claims freshness
+# fresher than the release docs badge or a build match more exact than the
+# running build, and labels every degraded entry. The gate re-derives the label
+# vocabularies from crate source and the binding from the release artifacts, and
+# replays the two acceptance failures in-memory to prove they fire.
+
+name: check_beta_docs_browser_content
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_beta_docs_browser_content.yml"
+      - "ci/check_beta_docs_browser_content.py"
+      - "fixtures/help/docs_browser_content_beta/**"
+      - "crates/aureline-shell/src/docs_browser/**"
+      - "crates/aureline-shell/tests/docs_browser_content_beta.rs"
+      - "artifacts/release/m3/claim_manifest.json"
+      - "artifacts/compat/m3/compatibility_report.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-beta-docs-browser-content-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  docs_browser_content:
+    name: Beta docs browser content
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate beta docs browser content corpus
+        run: |
+          python3 ci/check_beta_docs_browser_content.py \
+            --repo-root . \
+            --report artifacts/docs/captures/docs_browser_content_beta_validation_capture.json
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-docs-browser-content-${{ github.run_id }}
+          path: artifacts/docs/captures/docs_browser_content_beta_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
