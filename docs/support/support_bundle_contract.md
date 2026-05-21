@@ -5,6 +5,13 @@ for local preview, manual export, field handoff, parity audit, and
 future support tooling. It turns support bundles into governed packets
 instead of opaque zip files with ad hoc manifests.
 
+This is a contract layer: it bounds the shape of a support export, not the
+act of capturing one from a live session. A running client producing a real
+support export at runtime is an operational exit condition tracked — with its
+backing contract and its still-missing runtime evidence — in
+[`/docs/release/readiness_lane.md`](../release/readiness_lane.md). A green
+manifest fixture here is not the same as an export captured from live state.
+
 Companion artifacts:
 
 - [`/schemas/support/support_bundle.schema.json`](../../schemas/support/support_bundle.schema.json)

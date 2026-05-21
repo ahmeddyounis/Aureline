@@ -57,3 +57,13 @@ missing, the pack remains visible but promotion stays blocked or the
 public claim narrows. The pack never widens a beta claim from a semantic
 version string, a package file name, or manually reconstructed artifact
 relationships.
+
+## Contract readiness vs operational readiness
+
+A green pack proves the release-control *contracts* are coherent. It does
+not prove the operational exit conditions — rollback, policy/proxy, support
+export, remote attach, and partner cohorts actually running — are done.
+Those conditions are tracked separately, with their backing contracts and
+their still-missing runtime evidence, in
+[`/docs/release/readiness_lane.md`](../readiness_lane.md). Read that lane
+before treating a present contract model as a finished behavior.

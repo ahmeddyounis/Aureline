@@ -262,6 +262,16 @@ Feature proof rows may still be `experimental` or evidence-pending; that is
 intentional. This artifact freezes the claim surface and cohort routing before
 the feature lanes turn those rows green.
 
+Freezing the claim surface is contract work, not operational readiness.
+Several claimed surfaces below close only when a running client or a partner
+program does real work — rollback executing on a real install, policy/proxy
+enforced at runtime, a support export captured from live state, a debugger
+remote-attaching, and partner cohorts running on daily builds. Those
+conditions, their backing contract models, and the runtime evidence still
+required are tracked in
+[`/docs/release/readiness_lane.md`](../../release/readiness_lane.md). A green
+contract row on this page is not a closed operational exit condition.
+
 ## Claimed beta surfaces
 
 | Surface | Lifecycle label | Primary cohort | Support class target at beta exit |
