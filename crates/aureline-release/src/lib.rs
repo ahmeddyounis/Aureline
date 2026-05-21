@@ -40,6 +40,17 @@
 //! expired, whose requirement evidence is incomplete, or whose backing public claim
 //! is itself below the cutline narrows below the launch cutline and holds
 //! publication, while the launch-blocking requirement set stays fully covered.
+//! The stable-version-windows module is the interface-freeze layer alongside that
+//! index: for every public interface surface — a CLI command surface, a wire/state
+//! schema, an API, or a manifest format — it freezes the stable version window
+//! (floor, current, ceiling, compatibility posture) and the deprecation packet that
+//! governs how older versions leave the window, backs each surface against a public
+//! claim whose canonical label is a hard ceiling, and narrows below the cutline any
+//! surface whose freeze packet aged out or is missing, whose deprecation packet is
+//! incomplete or carries an overdue removal, whose waiver expired, whose surface
+//! evidence is incomplete, or whose backing public claim is itself below the cutline
+//! — while the CLI/schema/API/manifest surface kinds and the release-line surface
+//! set both stay fully covered.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -50,6 +61,7 @@ pub mod stable_claim_manifest;
 pub mod stable_claim_matrix;
 pub mod stable_proof_index;
 pub mod stable_qualification_matrix;
+pub mod stable_version_windows;
 pub mod support_class_ledger;
 
 pub use correction_train::{
@@ -119,6 +131,15 @@ pub use stable_qualification_matrix::{
     StableQualificationMatrixViolation, UnsupportedStateBehavior, STABLE_QUALIFICATION_MATRIX_JSON,
     STABLE_QUALIFICATION_MATRIX_PATH, STABLE_QUALIFICATION_MATRIX_RECORD_KIND,
     STABLE_QUALIFICATION_MATRIX_SCHEMA_VERSION,
+};
+
+pub use stable_version_windows::{
+    current_stable_version_windows, CompatibilityPosture, DeprecationNotice, DeprecationPacket,
+    DeprecationStatus, FreezePublicationRecord, FreezeRule, GapReason as VersionWindowGapReason,
+    StableVersionWindows, StableVersionWindowsSummary, StableVersionWindowsViolation, SurfaceKind,
+    VersionWindow, VersionWindowExportProjection, VersionWindowExportRow, WindowAction, WindowRow,
+    WindowState, STABLE_VERSION_WINDOWS_JSON, STABLE_VERSION_WINDOWS_PATH,
+    STABLE_VERSION_WINDOWS_RECORD_KIND, STABLE_VERSION_WINDOWS_SCHEMA_VERSION,
 };
 
 pub use support_class_ledger::{

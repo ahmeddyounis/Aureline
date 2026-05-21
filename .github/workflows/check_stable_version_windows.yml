@@ -1,0 +1,82 @@
+# Stable version-window freeze gate.
+#
+# Validates the checked-in stable version-window freeze: every public interface
+# surface (CLI, schema, API, manifest) pins a stable version window (floor, current,
+# ceiling, compatibility posture) and a deprecation packet, and backs the surface
+# against a public claim (a stable-claim-manifest entry) whose canonical lifecycle
+# label is a hard ceiling; a surface whose freeze packet breached its freshness SLO or
+# is missing, whose deprecation packet is incomplete or carries an overdue removal,
+# whose waiver expired, whose surface evidence is incomplete, or whose backing public
+# claim is itself below the cutline narrows below the launch cutline; the
+# packet-freshness SLO state is recomputed against the freeze as_of date; waiver expiry
+# and deprecation-removal-overdue are enforced; CLI/schema/API/manifest coverage and
+# the release-line surface set are fully covered; and the publication verdict and
+# summary agree with the firing freeze rules. The gate runs negative drills and the
+# checked-in fixture cases proving those rejections fire. The typed Rust consumer reads
+# the same freeze, so `cargo test -p aureline-release` enforces the same structural
+# invariants.
+
+name: check_stable_version_windows
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_stable_version_windows.yml"
+      - "ci/check_stable_version_windows.py"
+      - "artifacts/release/stable_version_windows.json"
+      - "artifacts/release/captures/stable_version_windows_validation_capture.json"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "schemas/release/stable_version_windows.schema.json"
+      - "docs/release/stable_version_windows.md"
+      - "artifacts/release/m4/stable_version_windows_proof_packet.md"
+      - "fixtures/release/stable_version_windows/**"
+      - "crates/aureline-release/src/stable_version_windows/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/stable_version_windows.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-stable-version-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stable_version_windows:
+    name: Stable version-window freeze
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate stable version-window freeze
+        run: |
+          python3 ci/check_stable_version_windows.py --repo-root . --check
+
+      - name: Run stable-version-windows contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-version-windows-${{ github.run_id }}
+          path: artifacts/release/captures/stable_version_windows_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
