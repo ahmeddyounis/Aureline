@@ -88,10 +88,17 @@
 //! opt-in/integration/platform/preview surface kinds and the release-relevant surface set
 //! both stay fully covered, so shiproom and release tooling can fail promotion directly from
 //! the register.
+//! The cohort-scoreboards module is the signoff-loop layer beside those gates: it
+//! finalizes the design-partner, certified-archetype, and stable-cohort
+//! scoreboards as one canonical packet, binds every scoreboard row to a public
+//! claim ceiling and proof packet, and narrows any row whose packet is stale,
+//! metric fails, waiver expires, or required signoff loop is incomplete before the
+//! row can widen release, docs, Help/About, or support-export language.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
+pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod maintenance_control_packet;
 pub mod optional_surface_qualification;
 pub mod release_center_model;
@@ -110,6 +117,15 @@ pub use correction_train::{
     PacketTemplates, ReleaseNotesRefs, SupportProjection, TargetChannelUpdate, TriageLane,
     CORRECTION_TRAIN_PACKET_RECORD_KIND, CORRECTION_TRAIN_PACKET_SCHEMA_VERSION,
     SECURITY_OR_TRUST_ISSUE_CLASSES, SHARED_PACKET_FORM_TERMS, SUPPORTED_LINE_CLASSES,
+};
+
+pub use finalize_design_partner_certified_archetype_and_stable_cohort::{
+    current_cohort_scoreboards, CohortScoreboardRow, CohortScoreboards,
+    CohortScoreboardsExportProjection, CohortScoreboardsExportRow, CohortScoreboardsSummary,
+    CohortScoreboardsViolation, RequiredSignoff, ScoreboardAction, ScoreboardGapReason,
+    ScoreboardLane, ScoreboardMetric, ScoreboardPublicationRecord, ScoreboardRule, ScoreboardState,
+    SignoffLoop, COHORT_SCOREBOARDS_JSON, COHORT_SCOREBOARDS_PATH, COHORT_SCOREBOARDS_RECORD_KIND,
+    COHORT_SCOREBOARDS_SCHEMA_VERSION,
 };
 
 pub use maintenance_control_packet::{
