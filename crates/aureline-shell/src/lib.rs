@@ -170,6 +170,7 @@ pub mod transfer;
 pub mod voice;
 pub mod warm_continuity;
 pub mod wedge_inspector;
+pub mod window_topology_restore_stable;
 pub mod windowing;
 pub mod windows;
 pub mod workset_switcher;
