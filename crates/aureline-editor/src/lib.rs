@@ -20,6 +20,7 @@ pub mod orientation;
 pub mod orientation_aids;
 pub mod outline;
 pub mod paint;
+pub mod recovery_state_lineage;
 pub mod save_fidelity_lineage;
 pub mod selection;
 pub mod text_nav;
@@ -83,6 +84,14 @@ pub use outline::{
     StructuralSnapshotSchemaVersion, StructuralSurfaceState,
 };
 pub use paint::{EditorTextRuntime, ViewportCompositor, ViewportPaintStyle};
+pub use recovery_state_lineage::{
+    project_recovery_state_lineage, recovery_state_lineage_lines, ActorLineageSummary,
+    BufferRecoverySummary, CanonicalPathTruth, CompensationPostureClass, RecoveryNarrowReason,
+    RecoveryStableQualification, RecoveryStateLineageRecord, RestoreSafetyPosture,
+    UndoGroupLineageEntry, UndoGroupObservation, UndoRecoveryClass,
+    RECOVERY_STATE_LINEAGE_RECORD_KIND, RECOVERY_STATE_LINEAGE_SCHEMA_REF,
+    RECOVERY_STATE_LINEAGE_SCHEMA_VERSION,
+};
 pub use save_fidelity_lineage::{
     project_save_fidelity_lineage, save_fidelity_lineage_lines, FixActionClass,
     LineageNarrowReason, LineageStableQualification, PreviewReason, RecoveryActionClass,

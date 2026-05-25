@@ -1,0 +1,447 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/editor/recovery_state_lineage.schema.json",
+  "title": "Aureline recovery-state lineage",
+  "description": "Boundary schema for the governed, export-safe recovery-state lineage record that finalizes piece-tree buffer recovery, undo/redo grouping, and local-history actor lineage into one record per recovery posture. The record is projected from a dirty-buffer autosave journal entry, the observed buffer undo/redo grouping, and the local-history actor-lineage packet. It proves source fidelity (round-trip provable), canonical-path truth (wrong-target write guarded), restore-no-rerun behavior (faithful byte restore under a recovery checkpoint), and lineage/export honesty, and auto-narrows below Stable with a named reason when a claim cannot be proven. Raw source text, raw snapshot bodies, raw patches, and content-addressed body refs are excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "recovery_state_lineage_schema_version",
+    "schema_ref",
+    "lineage_id",
+    "workspace_ref",
+    "buffer_recovery",
+    "canonical_path_truth",
+    "restore_safety",
+    "undo_grouping",
+    "actor_lineage_export_mode",
+    "actor_lineage",
+    "stable_qualification",
+    "raw_payload_excluded",
+    "summary"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": {
+      "const": "recovery_state_lineage_record"
+    },
+    "recovery_state_lineage_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "schema_ref": {
+      "const": "schemas/editor/recovery_state_lineage.schema.json"
+    },
+    "lineage_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "workspace_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "buffer_recovery": {
+      "$ref": "#/$defs/buffer_recovery_summary"
+    },
+    "canonical_path_truth": {
+      "$ref": "#/$defs/canonical_path_truth"
+    },
+    "restore_safety": {
+      "$ref": "#/$defs/restore_safety_posture"
+    },
+    "undo_grouping": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/undo_group_entry"
+      }
+    },
+    "actor_lineage_export_mode": {
+      "$ref": "#/$defs/history_export_mode"
+    },
+    "actor_lineage": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/actor_lineage_summary"
+      }
+    },
+    "stable_qualification": {
+      "$ref": "#/$defs/stable_qualification"
+    },
+    "raw_payload_excluded": {
+      "const": true
+    },
+    "summary": {
+      "$ref": "#/$defs/short_sentence"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 700
+    },
+    "object_class": {
+      "type": "string",
+      "enum": [
+        "canonical_file",
+        "virtual_buffer",
+        "untitled_buffer",
+        "generated_artifact",
+        "managed_mirror",
+        "read_only_file",
+        "notebook_cell",
+        "structured_artifact",
+        "unsupported_object"
+      ]
+    },
+    "capture_mode": {
+      "type": "string",
+      "enum": [
+        "content_addressed_snapshot",
+        "journal_delta_chain",
+        "metadata_plus_reference_only",
+        "group_manifest_only",
+        "evidence_only"
+      ]
+    },
+    "frame_integrity_state": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "checksum_mismatch",
+        "truncated_frame",
+        "schema_incompatible",
+        "missing_frame",
+        "unverifiable"
+      ]
+    },
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "restore_allowed",
+        "restore_requires_review",
+        "inspect_only",
+        "open_without_replay_default",
+        "blocked_generated_requires_source",
+        "blocked_read_only_target",
+        "blocked_managed_mirror",
+        "blocked_policy",
+        "escalate_safe_mode"
+      ]
+    },
+    "guided_choice_class": {
+      "type": "string",
+      "enum": [
+        "restore",
+        "inspect_only",
+        "discard_journal",
+        "open_without_replay",
+        "escalate_to_safe_mode"
+      ]
+    },
+    "downgrade_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_downgraded",
+        "checksum_mismatch",
+        "truncated_frame",
+        "schema_incompatible",
+        "policy_redacted_body",
+        "policy_blocks_body_restore",
+        "incompatible_object_class",
+        "generated_target_requires_source",
+        "read_only_target",
+        "managed_mirror",
+        "same_path_different_object",
+        "base_on_disk_token_mismatch",
+        "current_object_missing",
+        "repeated_crash_loop",
+        "suspect_extension",
+        "user_chose_open_without_replay"
+      ]
+    },
+    "encoding_label": {
+      "type": "string",
+      "enum": [
+        "utf8",
+        "utf8_sig",
+        "utf16_le",
+        "utf16_be",
+        "latin1",
+        "windows1252",
+        "shift_jis",
+        "binary_or_not_text",
+        "unknown"
+      ]
+    },
+    "newline_mode": {
+      "type": "string",
+      "enum": [
+        "lf",
+        "crlf",
+        "cr",
+        "mixed",
+        "binary_or_not_text",
+        "unknown"
+      ]
+    },
+    "final_newline_state": {
+      "type": "string",
+      "enum": [
+        "present",
+        "absent",
+        "mixed_or_unknown",
+        "not_applicable"
+      ]
+    },
+    "decoder_posture": {
+      "type": "string",
+      "enum": [
+        "exact_decode",
+        "lossy_decode_raw_preserved",
+        "binary_snapshot",
+        "metadata_only",
+        "unknown"
+      ]
+    },
+    "identity_relation": {
+      "type": "string",
+      "enum": [
+        "exact_object_identity",
+        "alias_canonical_drift",
+        "same_path_different_object",
+        "current_object_missing",
+        "virtual_only",
+        "identity_unknown"
+      ]
+    },
+    "token_class": {
+      "type": "string",
+      "enum": [
+        "file_id_generation",
+        "inode_mtime_size_hash",
+        "remote_etag_revision",
+        "content_hash_only",
+        "missing_or_not_applicable",
+        "unknown"
+      ]
+    },
+    "token_confidence": {
+      "type": "string",
+      "enum": [
+        "strong",
+        "compatible_fallback",
+        "weak",
+        "unknown"
+      ]
+    },
+    "external_change_state": {
+      "type": "string",
+      "enum": [
+        "no_external_change_known",
+        "external_change_detected",
+        "external_change_unknown",
+        "target_missing",
+        "target_read_only"
+      ]
+    },
+    "history_export_mode": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "entry_refs_only"
+      ]
+    },
+    "compensation_posture": {
+      "type": "string",
+      "enum": [
+        "compensatable",
+        "only_revertible"
+      ]
+    },
+    "undo_recovery_class": {
+      "type": "string",
+      "enum": [
+        "inverse_replay",
+        "snapshot_restore"
+      ]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "source_fidelity_unprovable",
+        "canonical_path_unproven",
+        "restore_would_rerun",
+        "destructive_restore_no_recovery_path",
+        "recovery_integrity_inconsistent",
+        "undo_grouping_contract_violation",
+        "actor_lineage_export_unsafe"
+      ]
+    },
+    "buffer_recovery_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "journal_entry_ref",
+        "journal_ref",
+        "object_class",
+        "capture_mode",
+        "body_available",
+        "frame_integrity_state",
+        "replay_posture_class",
+        "recommended_choice",
+        "downgrade_reasons",
+        "encoding_label",
+        "newline_mode",
+        "final_newline_state",
+        "decoder_posture",
+        "integrity_verified",
+        "round_trip_provable"
+      ],
+      "properties": {
+        "journal_entry_ref": { "$ref": "#/$defs/non_empty_string" },
+        "journal_ref": { "$ref": "#/$defs/non_empty_string" },
+        "object_class": { "$ref": "#/$defs/object_class" },
+        "capture_mode": { "$ref": "#/$defs/capture_mode" },
+        "body_available": { "type": "boolean" },
+        "frame_integrity_state": { "$ref": "#/$defs/frame_integrity_state" },
+        "replay_posture_class": { "$ref": "#/$defs/replay_posture_class" },
+        "recommended_choice": { "$ref": "#/$defs/guided_choice_class" },
+        "downgrade_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_reason_class" }
+        },
+        "encoding_label": { "$ref": "#/$defs/encoding_label" },
+        "newline_mode": { "$ref": "#/$defs/newline_mode" },
+        "final_newline_state": { "$ref": "#/$defs/final_newline_state" },
+        "decoder_posture": { "$ref": "#/$defs/decoder_posture" },
+        "integrity_verified": { "type": "boolean" },
+        "round_trip_provable": { "type": "boolean" }
+      }
+    },
+    "canonical_path_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_relation",
+        "base_on_disk_token_class",
+        "token_confidence",
+        "external_change_state",
+        "compare_before_write_required",
+        "wrong_target_write_guarded"
+      ],
+      "properties": {
+        "identity_relation": { "$ref": "#/$defs/identity_relation" },
+        "base_on_disk_token_class": { "$ref": "#/$defs/token_class" },
+        "token_confidence": { "$ref": "#/$defs/token_confidence" },
+        "external_change_state": { "$ref": "#/$defs/external_change_state" },
+        "compare_before_write_required": { "type": "boolean" },
+        "wrong_target_write_guarded": { "type": "boolean" }
+      }
+    },
+    "restore_safety_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_recommended",
+        "byte_restore_faithful",
+        "restore_creates_new_checkpoint",
+        "open_without_replay_retains_journal",
+        "no_rerun_guaranteed"
+      ],
+      "properties": {
+        "restore_recommended": { "type": "boolean" },
+        "byte_restore_faithful": { "type": "boolean" },
+        "restore_creates_new_checkpoint": { "type": "boolean" },
+        "open_without_replay_retains_journal": { "type": "boolean" },
+        "no_rerun_guaranteed": { "type": "boolean" }
+      }
+    },
+    "undo_group_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "undo_group_id",
+        "class_id",
+        "compensation_posture",
+        "is_named_group",
+        "originator",
+        "operation_count",
+        "redo_survives_divergence",
+        "recovery_action_class",
+        "grouping_integrity_ok"
+      ],
+      "properties": {
+        "undo_group_id": { "type": "integer", "minimum": 0 },
+        "class_id": { "$ref": "#/$defs/non_empty_string" },
+        "compensation_posture": { "$ref": "#/$defs/compensation_posture" },
+        "is_named_group": { "type": "boolean" },
+        "originator": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "operation_count": { "type": "integer", "minimum": 0 },
+        "redo_survives_divergence": { "type": "boolean" },
+        "recovery_action_class": { "$ref": "#/$defs/undo_recovery_class" },
+        "grouping_integrity_ok": { "type": "boolean" }
+      }
+    },
+    "actor_lineage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "display_label",
+        "actor_lineage_class",
+        "actor_class",
+        "source_class",
+        "reversal_class",
+        "redaction_class",
+        "body_available_locally",
+        "checkpoint_refs",
+        "export_safe"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "actor_lineage_class": { "$ref": "#/$defs/non_empty_string" },
+        "actor_class": { "$ref": "#/$defs/non_empty_string" },
+        "source_class": { "$ref": "#/$defs/non_empty_string" },
+        "reversal_class": { "$ref": "#/$defs/non_empty_string" },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "body_available_locally": { "type": "boolean" },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "command_id": { "$ref": "#/$defs/non_empty_string" },
+        "export_safe": { "type": "boolean" }
+      }
+    },
+    "stable_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qualified",
+        "level",
+        "narrow_reasons"
+      ],
+      "properties": {
+        "qualified": { "type": "boolean" },
+        "level": {
+          "type": "string",
+          "enum": ["stable", "narrowed_below_stable"]
+        },
+        "narrow_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
