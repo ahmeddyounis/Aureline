@@ -110,12 +110,26 @@
 //! claim is itself below the cutline — while the known-limit/benchmark/compatibility/
 //! migration publication kinds and the release-line publication set both stay fully
 //! covered, so shiproom and release tooling can fail publication directly from the pack.
+//! The open-paid-boundary-audit module is the governance-fact layer beside those gates:
+//! where the manifest, proof index, and version windows speak for product capabilities and
+//! interface surfaces, this audit governs the governance facts the stable launch rests on —
+//! where the open-source core ends and the paid/managed tier begins, the licensing posture,
+//! the build provenance, and the contribution policy. For every audited subject it records
+//! one row binding the subject to the public claim it backs and to its attestation packet,
+//! its required audit controls, and an owner sign-off, so a subject whose attestation packet
+//! aged out or is missing, whose required audit control is unsatisfied, whose evidence is
+//! incomplete, whose owner sign-off is missing, whose waiver expired, or whose backing public
+//! claim is itself below the cutline narrows below the launch cutline and never inherits an
+//! adjacent attested row — while the open-paid-boundary/licensing/provenance/contribution-
+//! policy domains and the release-line audit set both stay fully covered, so shiproom and
+//! release tooling can fail promotion directly from the audit.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
 pub mod maintenance_control_packet;
+pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
 pub mod release_center_model;
 pub mod shiproom_dashboard;
@@ -152,6 +166,14 @@ pub use maintenance_control_packet::{
     MaintenanceExportProjection, MaintenanceExportRow, MaintenanceRow, SupportPosture,
     SupportWindow, MAINTENANCE_CONTROL_PACKET_JSON, MAINTENANCE_CONTROL_PACKET_PATH,
     MAINTENANCE_CONTROL_PACKET_RECORD_KIND, MAINTENANCE_CONTROL_PACKET_SCHEMA_VERSION,
+};
+
+pub use open_paid_boundary_audit::{
+    current_open_paid_boundary_audit, AuditAction, AuditControl, AuditDomain,
+    AuditExportProjection, AuditExportRow, AuditGapReason, AuditPublicationRecord, AuditRow,
+    AuditRule, AuditState, OpenPaidBoundaryAudit, OpenPaidBoundaryAuditSummary,
+    OpenPaidBoundaryAuditViolation, OPEN_PAID_BOUNDARY_AUDIT_JSON, OPEN_PAID_BOUNDARY_AUDIT_PATH,
+    OPEN_PAID_BOUNDARY_AUDIT_RECORD_KIND, OPEN_PAID_BOUNDARY_AUDIT_SCHEMA_VERSION,
 };
 
 pub use optional_surface_qualification::{

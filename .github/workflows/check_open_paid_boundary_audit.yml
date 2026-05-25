@@ -1,0 +1,80 @@
+# Open/paid boundary audit gate.
+#
+# Validates the checked-in open-versus-paid boundary, licensing, provenance, and
+# contribution-policy audit: every audited governance subject binds an attestation packet
+# and a set of required audit controls, and backs the subject against a public claim (a
+# stable-claim-manifest entry) whose canonical lifecycle label is a hard ceiling; a subject
+# whose attestation packet breached its freshness SLO or is missing, whose required control
+# is unsatisfied, whose evidence is incomplete, whose owner sign-off is missing, whose waiver
+# expired, or whose backing public claim is itself below the cutline narrows below the launch
+# cutline; the packet-freshness SLO state is recomputed against the audit as_of date; waiver
+# expiry is enforced; open-paid-boundary/licensing/provenance/contribution-policy domain
+# coverage and the release-line audit set are fully covered; and the publication verdict and
+# summary agree with the firing audit rules. The gate runs negative drills and the checked-in
+# fixture cases proving those rejections fire. The typed Rust consumer reads the same audit,
+# so `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_open_paid_boundary_audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_open_paid_boundary_audit.yml"
+      - "ci/check_open_paid_boundary_audit.py"
+      - "artifacts/release/open_paid_boundary_audit.json"
+      - "artifacts/release/captures/open_paid_boundary_audit_validation_capture.json"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "schemas/release/open_paid_boundary_audit.schema.json"
+      - "docs/release/open_paid_boundary_audit.md"
+      - "artifacts/release/m4/open_paid_boundary_audit_proof_packet.md"
+      - "fixtures/release/open_paid_boundary_audit/**"
+      - "crates/aureline-release/src/open_paid_boundary_audit/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/open_paid_boundary_audit.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-open-paid-boundary-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  open_paid_boundary_audit:
+    name: Open/paid boundary audit
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate open/paid boundary audit
+        run: |
+          python3 ci/check_open_paid_boundary_audit.py --repo-root . --check
+
+      - name: Run open/paid-boundary-audit contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-paid-boundary-audit-${{ github.run_id }}
+          path: artifacts/release/captures/open_paid_boundary_audit_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30
