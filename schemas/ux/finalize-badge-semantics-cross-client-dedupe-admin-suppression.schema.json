@@ -1,0 +1,412 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/finalize-badge-semantics-cross-client-dedupe-admin-suppression.schema.json",
+  "title": "Aureline badge-aggregate record",
+  "description": "Boundary schema for badge_aggregate_record, the single governed record the activity center, dock/taskbar badge, title bar, status bar, companion fanout, diagnostics, support exports, Help/About, and docs all read for one whole-shell badge snapshot. It is minted by crates/aureline-shell/src/badge_aggregate_stable as a genuine projection of the live attention stack (crates/aureline-shell/src/notifications, crates/aureline-shell/src/attention_router, crates/aureline-shell/src/notification_envelope_corpus) and binds, for one snapshot: (1) typed count classes — every count keyed by an aggregate count class, never by an arbitrary surface; (2) one durable object set — the dock/taskbar, title-bar, in-shell, and companion projections are computed from the same deduped durable objects the activity center reads, and a surface may never inflate a class above the authoritative active count; (3) cross-client / cross-window dedupe — repeated copies of the same underlying object collapse to one durable object and count once per class; (4) export-safe suppression lineage — every admin-suppressed, quiet-hours-muted, or per-class-disabled badge difference carries a lineage entry that preserves the durable object and its reopen target; (5) zero-means-none — a zero active badge means no current durable objects of that class, derived from durable object state; (6) a persistent, inspectable attention summary; (7) a public claim ceiling no snapshot may exceed; and (8) a derived stable-claim verdict that narrows a snapshot which cannot prove a pillar, or whose lowest badge surface marker is below Stable, below Stable with a named reason. Minted refs are opaque aureline://<class>/<id> durable-object refs; upstream projection refs keep their source scheme.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "notice",
+    "shared_contract_ref",
+    "record_id",
+    "as_of",
+    "posture_id",
+    "posture_label",
+    "title",
+    "summary",
+    "surface_lifecycle_marker",
+    "deduped_objects",
+    "class_aggregates",
+    "surface_projections",
+    "cross_client_dedupe",
+    "suppression_lineage",
+    "active_quiet_hours_modes",
+    "summary_digest",
+    "pillars",
+    "claim_ceiling",
+    "stable_qualification",
+    "recovery_routes",
+    "routes",
+    "accessibility",
+    "available_without_account",
+    "available_without_managed_services",
+    "honesty_marker_present",
+    "upstream",
+    "diagnostics_export_ref",
+    "support_export_ref",
+    "evidence_refs",
+    "narrative_refs"
+  ],
+  "properties": {
+    "record_kind": { "const": "badge_aggregate_record" },
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "notice": { "type": "string", "minLength": 1 },
+    "shared_contract_ref": { "const": "shell:badge_aggregate_stable:v1" },
+    "record_id": { "type": "string", "minLength": 1 },
+    "as_of": { "type": "string", "minLength": 1 },
+    "posture_id": { "type": "string", "minLength": 1 },
+    "posture_label": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "surface_lifecycle_marker": { "$ref": "#/$defs/lifecycleMarker" },
+    "deduped_objects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dedupedObject" }
+    },
+    "class_aggregates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/classAggregate" }
+    },
+    "surface_projections": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/surfaceProjection" }
+    },
+    "cross_client_dedupe": { "$ref": "#/$defs/crossClientDedupe" },
+    "suppression_lineage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/suppressionLineageEntry" }
+    },
+    "active_quiet_hours_modes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/quietHoursMode" }
+    },
+    "summary_digest": { "$ref": "#/$defs/persistentSummary" },
+    "pillars": { "$ref": "#/$defs/pillars" },
+    "claim_ceiling": { "$ref": "#/$defs/claimCeiling" },
+    "stable_qualification": { "$ref": "#/$defs/stableQualification" },
+    "recovery_routes": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/recoveryRoute" }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/entryRoute" }
+    },
+    "accessibility": { "$ref": "#/$defs/accessibility" },
+    "available_without_account": { "type": "boolean" },
+    "available_without_managed_services": { "type": "boolean" },
+    "honesty_marker_present": { "type": "boolean" },
+    "upstream": { "$ref": "#/$defs/upstreamRefs" },
+    "diagnostics_export_ref": { "$ref": "#/$defs/canonicalRef" },
+    "support_export_ref": { "$ref": "#/$defs/canonicalRef" },
+    "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/canonicalRef" } },
+    "narrative_refs": { "type": "array", "items": { "$ref": "#/$defs/canonicalRef" } }
+  },
+  "$defs": {
+    "canonicalRef": {
+      "type": "string",
+      "pattern": "^aureline://(?!home/|dashboard/|landing/|index/|overview/|start/|root/)[^/]+/.+$"
+    },
+    "presentRef": { "type": "string", "minLength": 1 },
+    "lifecycleMarker": { "enum": ["preview", "beta", "stable"] },
+    "claimClass": { "enum": ["stable", "beta", "preview", "not_claimed"] },
+    "countClass": {
+      "enum": [
+        "pending_review_approval",
+        "failed_runs",
+        "queued_publish_later",
+        "provider_auth_attention",
+        "managed_advisories",
+        "muted_informational_backlog",
+        "session_requests",
+        "durable_running",
+        "completion_unread"
+      ]
+    },
+    "badgeSurface": {
+      "enum": ["activity_center", "dock_taskbar", "title_bar", "in_shell", "companion"]
+    },
+    "disposition": { "enum": ["active", "held_or_suppressed", "cleared_resolved"] },
+    "clientScope": {
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "dedupeKeyScheme": {
+      "enum": [
+        "canonical_event_id",
+        "canonical_object_target_plus_event_class",
+        "grouped_burst_id",
+        "subsystem_plus_object_plus_phase",
+        "cross_client_canonical_event_id"
+      ]
+    },
+    "sourceSubsystem": {
+      "enum": [
+        "editor", "terminal", "review_and_diff", "palette_and_search",
+        "install_update_attach", "ai_apply", "collaboration", "provider_bearing",
+        "docs_help_service_health", "support_export", "build_system", "test_runner",
+        "debug_session", "task_runner", "indexer", "vfs_save", "sync_mirror",
+        "notebook_kernel", "remote_agent", "extension_host", "workspace_trust",
+        "policy_resolver", "admin_policy", "secret_broker", "runtime_power_manager",
+        "shell"
+      ]
+    },
+    "quietHoursMode": {
+      "enum": [
+        "mode_none", "mode_quiet_hours_user", "mode_do_not_disturb_user",
+        "mode_focus_mode_user", "mode_presentation", "mode_screen_share",
+        "mode_privacy_mode", "mode_reduced_attention_policy", "mode_power_saver_runtime",
+        "mode_admin_suppression"
+      ]
+    },
+    "suppressionReason": {
+      "enum": [
+        "admin_policy_suppression",
+        "quiet_hours_muting",
+        "per_class_badge_disabled",
+        "user_muted"
+      ]
+    },
+    "suppressionScope": { "enum": ["object", "class_wide", "surface_class"] },
+    "narrowingReason": {
+      "enum": [
+        "one_durable_set_not_proven",
+        "cross_client_dedupe_not_class_truthful",
+        "suppression_lineage_not_export_safe",
+        "zero_does_not_mean_no_durable_items",
+        "summary_not_persistent_or_inspectable",
+        "surface_not_yet_stable"
+      ]
+    },
+    "routeSurface": {
+      "enum": ["activity_center", "command_palette", "status_bar", "menu_command"]
+    },
+    "layoutMode": { "enum": ["normal", "high_contrast", "zoomed"] },
+    "recoveryRole": { "enum": ["primary", "recovery", "secondary"] },
+    "dedupedObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_ref", "count_class", "disposition", "label", "owner_subsystem",
+        "appearances", "raw_appearance_count", "durable_object_preserved",
+        "reopen_target_ref", "canonical_event_id", "dedupe_key_scheme", "dedupe_key_ref",
+        "route_outcome_id_ref", "envelope_id_ref"
+      ],
+      "properties": {
+        "object_ref": { "$ref": "#/$defs/canonicalRef" },
+        "count_class": { "$ref": "#/$defs/countClass" },
+        "disposition": { "$ref": "#/$defs/disposition" },
+        "label": { "type": "string", "minLength": 1 },
+        "owner_subsystem": { "$ref": "#/$defs/sourceSubsystem" },
+        "appearances": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/clientScope" } },
+        "raw_appearance_count": { "type": "integer", "minimum": 1 },
+        "durable_object_preserved": { "type": "boolean" },
+        "reopen_target_ref": { "$ref": "#/$defs/presentRef" },
+        "canonical_event_id": { "$ref": "#/$defs/presentRef" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupeKeyScheme" },
+        "dedupe_key_ref": { "type": "string", "minLength": 1 },
+        "route_outcome_id_ref": { "$ref": "#/$defs/presentRef" },
+        "envelope_id_ref": { "$ref": "#/$defs/presentRef" }
+      }
+    },
+    "classAggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count_class", "active_count", "held_or_suppressed_count", "cleared_count",
+        "privacy_safe_summary_label"
+      ],
+      "properties": {
+        "count_class": { "$ref": "#/$defs/countClass" },
+        "active_count": { "type": "integer", "minimum": 0 },
+        "held_or_suppressed_count": { "type": "integer", "minimum": 0 },
+        "cleared_count": { "type": "integer", "minimum": 0 },
+        "privacy_safe_summary_label": { "type": "string", "minLength": 1 }
+      }
+    },
+    "surfaceClassCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count_class", "reported_count"],
+      "properties": {
+        "count_class": { "$ref": "#/$defs/countClass" },
+        "reported_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "surfaceProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface", "surface_marker", "class_counts", "disabled_classes",
+        "total_reported", "matches_durable_set", "inflates_any_class"
+      ],
+      "properties": {
+        "surface": { "$ref": "#/$defs/badgeSurface" },
+        "surface_marker": { "$ref": "#/$defs/lifecycleMarker" },
+        "class_counts": { "type": "array", "items": { "$ref": "#/$defs/surfaceClassCount" } },
+        "disabled_classes": { "type": "array", "items": { "$ref": "#/$defs/countClass" } },
+        "total_reported": { "type": "integer", "minimum": 0 },
+        "matches_durable_set": { "type": "boolean" },
+        "inflates_any_class": { "type": "boolean" }
+      }
+    },
+    "crossClientDedupe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_appearance_count", "deduped_object_count", "cross_client_collapsed",
+        "dedupe_key_scheme", "class_integrity_preserved", "scopes_covered"
+      ],
+      "properties": {
+        "raw_appearance_count": { "type": "integer", "minimum": 0 },
+        "deduped_object_count": { "type": "integer", "minimum": 0 },
+        "cross_client_collapsed": { "type": "integer", "minimum": 0 },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupeKeyScheme" },
+        "class_integrity_preserved": { "type": "boolean" },
+        "scopes_covered": { "type": "array", "items": { "$ref": "#/$defs/clientScope" } }
+      }
+    },
+    "suppressionLineageEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason", "scope", "affected_surfaces", "durable_object_preserved",
+        "reopen_target_preserved", "export_safe_summary"
+      ],
+      "properties": {
+        "reason": { "$ref": "#/$defs/suppressionReason" },
+        "scope": { "$ref": "#/$defs/suppressionScope" },
+        "object_ref": { "$ref": "#/$defs/canonicalRef" },
+        "count_class": { "$ref": "#/$defs/countClass" },
+        "surface": { "$ref": "#/$defs/badgeSurface" },
+        "affected_surfaces": { "type": "array", "items": { "$ref": "#/$defs/badgeSurface" } },
+        "durable_object_preserved": { "const": true },
+        "reopen_target_preserved": { "const": true },
+        "export_safe_summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "persistentSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary_id", "total_active", "total_held_or_suppressed", "per_class",
+        "privacy_safe_summary_label", "durable_and_persistent", "inspectable_in_product"
+      ],
+      "properties": {
+        "summary_id": { "type": "string", "minLength": 1 },
+        "total_active": { "type": "integer", "minimum": 0 },
+        "total_held_or_suppressed": { "type": "integer", "minimum": 0 },
+        "per_class": { "type": "array", "items": { "$ref": "#/$defs/classAggregate" } },
+        "privacy_safe_summary_label": { "type": "string", "minLength": 1 },
+        "durable_and_persistent": { "type": "boolean" },
+        "inspectable_in_product": { "type": "boolean" }
+      }
+    },
+    "pillars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "one_durable_set_holds", "cross_client_dedupe_holds",
+        "suppression_lineage_export_safe", "zero_means_no_durable_items",
+        "summary_persistent_inspectable"
+      ],
+      "properties": {
+        "one_durable_set_holds": { "type": "boolean" },
+        "cross_client_dedupe_holds": { "type": "boolean" },
+        "suppression_lineage_export_safe": { "type": "boolean" },
+        "zero_means_no_durable_items": { "type": "boolean" },
+        "summary_persistent_inspectable": { "type": "boolean" }
+      }
+    },
+    "claimCeiling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asserts_one_durable_set", "asserts_cross_client_dedupe",
+        "asserts_suppression_lineage_export_safe", "asserts_zero_means_no_durable_items",
+        "asserts_summary_persistent_inspectable"
+      ],
+      "properties": {
+        "asserts_one_durable_set": { "type": "boolean" },
+        "asserts_cross_client_dedupe": { "type": "boolean" },
+        "asserts_suppression_lineage_export_safe": { "type": "boolean" },
+        "asserts_zero_means_no_durable_items": { "type": "boolean" },
+        "asserts_summary_persistent_inspectable": { "type": "boolean" }
+      }
+    },
+    "stableQualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_class", "qualifies_stable", "narrowing_reasons"],
+      "properties": {
+        "claim_class": { "$ref": "#/$defs/claimClass" },
+        "qualifies_stable": { "type": "boolean" },
+        "narrowing_reasons": { "type": "array", "items": { "$ref": "#/$defs/narrowingReason" } }
+      }
+    },
+    "recoveryRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "action_label", "action_role", "keyboard_reachable"],
+      "properties": {
+        "action_id": { "type": "string", "minLength": 1 },
+        "action_label": { "type": "string", "minLength": 1 },
+        "action_role": { "$ref": "#/$defs/recoveryRole" },
+        "keyboard_reachable": { "type": "boolean" }
+      }
+    },
+    "entryRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "route_ref", "keyboard_reachable", "activates_same_item"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/routeSurface" },
+        "route_ref": { "$ref": "#/$defs/canonicalRef" },
+        "keyboard_reachable": { "type": "boolean" },
+        "activates_same_item": { "type": "boolean" }
+      }
+    },
+    "layoutModeDisclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "row_narration_available", "recovery_affordances_reachable"],
+      "properties": {
+        "mode": { "$ref": "#/$defs/layoutMode" },
+        "row_narration_available": { "type": "boolean" },
+        "recovery_affordances_reachable": { "type": "boolean" }
+      }
+    },
+    "accessibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus_order_index", "tab_stop_count", "row_narration", "action_labels", "layout_modes"
+      ],
+      "properties": {
+        "focus_order_index": { "type": "integer", "minimum": 0 },
+        "tab_stop_count": { "type": "integer", "minimum": 0 },
+        "row_narration": { "type": "string", "minLength": 1 },
+        "action_labels": { "type": "array", "items": { "type": "string" } },
+        "layout_modes": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/layoutModeDisclosure" }
+        }
+      }
+    },
+    "upstreamRefs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["corpus_packet_ref", "contributing_case_refs", "contributing_route_outcome_refs"],
+      "properties": {
+        "corpus_packet_ref": { "$ref": "#/$defs/presentRef" },
+        "contributing_case_refs": { "type": "array", "items": { "$ref": "#/$defs/presentRef" } },
+        "contributing_route_outcome_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/presentRef" }
+        }
+      }
+    }
+  }
+}

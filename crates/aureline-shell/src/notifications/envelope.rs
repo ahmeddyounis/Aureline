@@ -182,7 +182,7 @@ pub enum SuppressionReason {
 }
 
 /// Client scope the receipt was issued for.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ClientScope {
     DesktopProduct,

@@ -42,6 +42,7 @@ pub mod ai_truth_strip;
 pub mod app_frame;
 pub mod attention_router;
 pub mod background_work_status;
+pub mod badge_aggregate_stable;
 pub mod badges;
 pub mod bootstrap;
 pub mod breadcrumbs;
