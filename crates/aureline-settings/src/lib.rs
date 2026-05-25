@@ -31,6 +31,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-settings/0.0.0")]
 
+pub mod design_token_runtime_stable;
 pub mod experiments;
 pub mod inspector;
 pub mod keybindings;
