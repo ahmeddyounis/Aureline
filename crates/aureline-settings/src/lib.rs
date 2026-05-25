@@ -42,6 +42,7 @@ pub mod resolver;
 pub mod schema;
 pub mod settings_ui_stable;
 pub mod sync;
+pub mod sync_device_registry_stable;
 pub mod ui;
 
 pub use experiments::labs_governance_beta::{
@@ -101,6 +102,13 @@ pub use sync::{
     SyncConflictReviewBetaPage, SyncConflictReviewBetaRequest, SyncConflictReviewBetaRow,
     SyncConflictReviewBetaSupportExport, SyncStateClass, SyncStateSummary,
     SETTINGS_SYNC_BETA_SCHEMA_VERSION, SETTINGS_SYNC_BETA_SHARED_CONTRACT_REF,
+};
+pub use sync_device_registry_stable::{
+    sync_device_registry_corpus, ConflictOutcomeClass, ConflictReviewRow, DeviceParticipationRow,
+    MergeClass, ProfileDurabilityClass, ProfileRoamingSummary, SecretBoundaryRow, SettingCategory,
+    SnapshotClass, SnapshotRow, SurfaceParityRow as SyncSurfaceParityRow,
+    SyncDeviceRegistryCertification, SyncDeviceRegistryScenario,
+    SYNC_DEVICE_REGISTRY_SCHEMA_VERSION, SYNC_DEVICE_REGISTRY_SHARED_CONTRACT_REF,
 };
 pub use ui::{
     inspect_setting_pane, project_inspector_pane, project_page_from_records,
