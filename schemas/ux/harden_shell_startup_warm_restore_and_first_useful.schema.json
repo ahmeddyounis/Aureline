@@ -1,0 +1,435 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/harden_shell_startup_warm_restore_and_first_useful.schema.json",
+  "title": "Aureline warm-startup / warm-restore / first-useful-work record",
+  "description": "Boundary schema for warm_continuity_record, the single governed record the desktop shell, diagnostics, support exports, Help/About, and docs all read for one warm shell cycle (warm relaunch, crash recovery, sleep/resume, display-topology change, missing-extension fallback, expired remote session, or revoked authorization). It is minted by crates/aureline-shell/src/warm_continuity and binds, for one cycle: (1) skeleton-first startup — useful chrome, available command entry, and a stable focus target reached before deep discovery (indexing, remote reconnect, provider hydration) completes; (2) honest restore provenance — what came back exactly, what came back partially, and what now needs review, without implying the live runtime resumed, with every side-effectful surface (terminal, task, debug session, notebook cell, provider mutation, collaboration control, remote action) skeletoned rather than silently rerun and remote/authority-bound surfaces gated behind fresh authorization or review; (3) typed first-useful-work routing — prior active editor, changed-files view, README, review packet, or post-entry handoff card — with the route reason recorded and remembered preferences bounded so they can never widen workspace trust, install packages, apply a workflow bundle, or suppress a required checkpoint; (4) zone-owned truth preservation — breadcrumbs, trust badges, and execution-target cues stay in their owning zones during warm hydration, resize, and fallback; and (5) reachable responsive fallback — collapsed side surfaces keep an explicit, keyboard-reachable reopen route and last meaningful state. Raw paths, raw command lines, raw URLs, raw tokens, raw provider payloads, and raw user content never cross this boundary; the record carries opaque aureline://<class>/<id> refs and short reviewable sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "notice",
+    "record_id",
+    "as_of",
+    "entry_cause",
+    "entry_cause_label",
+    "title",
+    "summary",
+    "startup",
+    "restore",
+    "landing",
+    "zone_identity",
+    "responsive",
+    "honesty_marker_present",
+    "summary_counts",
+    "display_copy",
+    "diagnostics_export_ref",
+    "support_export_ref",
+    "evidence_refs",
+    "narrative_refs"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "warm_continuity_record" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "notice": { "$ref": "#/$defs/reviewable_sentence" },
+    "record_id": { "$ref": "#/$defs/stable_token" },
+    "as_of": { "$ref": "#/$defs/utc_date_time" },
+    "entry_cause": { "$ref": "#/$defs/entry_cause_class" },
+    "entry_cause_label": { "$ref": "#/$defs/non_empty_string" },
+    "title": { "$ref": "#/$defs/reviewable_sentence" },
+    "summary": { "$ref": "#/$defs/reviewable_sentence" },
+    "startup": { "$ref": "#/$defs/startup_trace" },
+    "restore": { "$ref": "#/$defs/restore_provenance" },
+    "landing": { "$ref": "#/$defs/landing_decision" },
+    "zone_identity": { "$ref": "#/$defs/zone_identity" },
+    "responsive": { "$ref": "#/$defs/responsive_fallback" },
+    "honesty_marker_present": { "type": "boolean" },
+    "summary_counts": { "$ref": "#/$defs/summary_counts" },
+    "display_copy": { "$ref": "#/$defs/display_copy" },
+    "diagnostics_export_ref": { "$ref": "#/$defs/canonical_ref" },
+    "support_export_ref": { "$ref": "#/$defs/canonical_ref" },
+    "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/canonical_ref" } },
+    "narrative_refs": { "type": "array", "items": { "$ref": "#/$defs/canonical_ref" } }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "reviewable_sentence": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "stable_token": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "utc_date_time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "canonical_ref": {
+      "type": "string",
+      "description": "Opaque durable-object ref of the form aureline://<class>/<id>; <class> is not a generic landing page.",
+      "pattern": "^aureline://(?!(home|dashboard|landing|index|overview|start|root)/)[^/]+/.+$",
+      "maxLength": 200
+    },
+    "entry_cause_class": {
+      "type": "string",
+      "enum": [
+        "warm_relaunch",
+        "crash_recovery",
+        "sleep_resume",
+        "display_topology_change",
+        "missing_extension_fallback",
+        "expired_remote_session",
+        "revoked_authorization"
+      ]
+    },
+    "startup_milestone_class": {
+      "type": "string",
+      "enum": [
+        "shell_chrome_painted",
+        "command_entry_ready",
+        "stable_focus_target",
+        "layout_skeleton_restored",
+        "prior_frame_preserved",
+        "hydration_continuing",
+        "first_useful_work_routed"
+      ]
+    },
+    "startup_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["milestones"],
+      "properties": {
+        "milestones": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/startup_milestone" }
+        }
+      }
+    },
+    "startup_milestone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "milestone",
+        "ordinal",
+        "reached_before_deep_discovery",
+        "keyboard_reachable",
+        "detail"
+      ],
+      "properties": {
+        "milestone": { "$ref": "#/$defs/startup_milestone_class" },
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "reached_before_deep_discovery": { "type": "boolean" },
+        "keyboard_reachable": { "type": "boolean" },
+        "detail": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "restore_class_token": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ]
+    },
+    "restore_surface_class": {
+      "type": "string",
+      "enum": [
+        "window",
+        "pane_tree",
+        "tab_group",
+        "editor",
+        "status_surface",
+        "layout",
+        "non_mutating_context"
+      ]
+    },
+    "restore_provenance_class": {
+      "type": "string",
+      "enum": ["restored_exactly", "restored_partially", "needs_review"]
+    },
+    "downgrade_trigger_token": {
+      "type": "string",
+      "enum": [
+        "schema_translation_required",
+        "schema_meaning_changed",
+        "missing_extension_dependency",
+        "missing_remote_session",
+        "missing_remote_authority",
+        "unsupported_display_topology",
+        "excluded_secret_material",
+        "excluded_live_handle",
+        "workspace_manifest_conflict",
+        "policy_narrowing",
+        "manual_repair_required"
+      ]
+    },
+    "side_effectful_surface_class": {
+      "type": "string",
+      "enum": [
+        "terminal",
+        "task",
+        "debug_session",
+        "notebook_cell",
+        "provider_mutation",
+        "collaboration_control",
+        "remote_action"
+      ]
+    },
+    "restore_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["restore_class", "items", "no_rerun_surfaces"],
+      "properties": {
+        "restore_class": { "$ref": "#/$defs/restore_class_token" },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/restore_item" } },
+        "no_rerun_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/no_rerun_surface" }
+        }
+      }
+    },
+    "restore_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_ref", "surface_class", "provenance", "detail", "user_authored"],
+      "properties": {
+        "object_ref": { "$ref": "#/$defs/canonical_ref" },
+        "surface_class": { "$ref": "#/$defs/restore_surface_class" },
+        "provenance": { "$ref": "#/$defs/restore_provenance_class" },
+        "downgrade_trigger": { "$ref": "#/$defs/downgrade_trigger_token" },
+        "detail": { "$ref": "#/$defs/reviewable_sentence" },
+        "user_authored": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "description": "Partial and needs-review items must name a downgrade trigger.",
+          "if": {
+            "properties": {
+              "provenance": { "enum": ["restored_partially", "needs_review"] }
+            }
+          },
+          "then": { "required": ["downgrade_trigger"] }
+        }
+      ]
+    },
+    "no_rerun_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "skeleton_ref",
+        "auto_rerun_forbidden",
+        "requires_fresh_authorization",
+        "requires_review",
+        "resume_route_ref",
+        "detail"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/side_effectful_surface_class" },
+        "skeleton_ref": { "$ref": "#/$defs/canonical_ref" },
+        "auto_rerun_forbidden": { "type": "boolean", "const": true },
+        "requires_fresh_authorization": { "type": "boolean" },
+        "requires_review": { "type": "boolean" },
+        "resume_route_ref": { "$ref": "#/$defs/canonical_ref" },
+        "detail": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "landing_route_class": {
+      "type": "string",
+      "enum": [
+        "prior_active_editor",
+        "changed_files_view",
+        "readme",
+        "review_packet",
+        "post_entry_handoff_card"
+      ]
+    },
+    "landing_route_reason_class": {
+      "type": "string",
+      "enum": [
+        "prior_active_editor_present",
+        "changed_files_pending",
+        "first_run_readme",
+        "review_requested",
+        "post_entry_handoff_pending",
+        "remembered_preference",
+        "no_prior_context"
+      ]
+    },
+    "remembered_preference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preference_ref",
+        "influences_routing",
+        "widens_workspace_trust",
+        "installs_packages",
+        "applies_workflow_bundle",
+        "suppresses_required_checkpoint"
+      ],
+      "properties": {
+        "preference_ref": { "$ref": "#/$defs/canonical_ref" },
+        "influences_routing": { "type": "boolean" },
+        "widens_workspace_trust": { "type": "boolean", "const": false },
+        "installs_packages": { "type": "boolean", "const": false },
+        "applies_workflow_bundle": { "type": "boolean", "const": false },
+        "suppresses_required_checkpoint": { "type": "boolean", "const": false }
+      }
+    },
+    "landing_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_route",
+        "route_reason",
+        "target_ref",
+        "keyboard_reachable",
+        "destructive",
+        "candidate_routes",
+        "detail"
+      ],
+      "properties": {
+        "selected_route": { "$ref": "#/$defs/landing_route_class" },
+        "route_reason": { "$ref": "#/$defs/landing_route_reason_class" },
+        "target_ref": { "$ref": "#/$defs/canonical_ref" },
+        "keyboard_reachable": { "type": "boolean", "const": true },
+        "destructive": { "type": "boolean", "const": false },
+        "candidate_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/landing_route_class" }
+        },
+        "remembered_preference": { "$ref": "#/$defs/remembered_preference" },
+        "detail": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "shell_zone_token": {
+      "type": "string",
+      "enum": [
+        "title_context_bar",
+        "activity_rail",
+        "left_sidebar",
+        "main_workspace",
+        "right_inspector",
+        "bottom_panel",
+        "status_bar",
+        "transient_overlay"
+      ]
+    },
+    "zone_owned_cue_class": {
+      "type": "string",
+      "enum": [
+        "breadcrumb",
+        "trust_badge",
+        "execution_target_cue",
+        "workspace_identity",
+        "status_summary"
+      ]
+    },
+    "zone_owned_cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cue", "owning_zone", "rendered_zone", "label_or_placeholder_updated"],
+      "properties": {
+        "cue": { "$ref": "#/$defs/zone_owned_cue_class" },
+        "owning_zone": { "$ref": "#/$defs/shell_zone_token" },
+        "rendered_zone": { "$ref": "#/$defs/shell_zone_token" },
+        "label_or_placeholder_updated": { "type": "boolean" }
+      }
+    },
+    "zone_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cues"],
+      "properties": {
+        "cues": { "type": "array", "items": { "$ref": "#/$defs/zone_owned_cue" } }
+      }
+    },
+    "window_class_token": {
+      "type": "string",
+      "enum": ["compact_desktop", "standard_desktop", "expanded_desktop"]
+    },
+    "collapse_target_class": {
+      "type": "string",
+      "enum": ["sheet", "overlay", "overflow"]
+    },
+    "collapsed_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_ref",
+        "source_zone",
+        "collapsed_to",
+        "reopen_route_ref",
+        "last_meaningful_state_ref",
+        "keyboard_reachable",
+        "approved_to_move"
+      ],
+      "properties": {
+        "surface_ref": { "$ref": "#/$defs/canonical_ref" },
+        "source_zone": { "$ref": "#/$defs/shell_zone_token" },
+        "collapsed_to": { "$ref": "#/$defs/collapse_target_class" },
+        "reopen_route_ref": { "$ref": "#/$defs/canonical_ref" },
+        "last_meaningful_state_ref": { "$ref": "#/$defs/canonical_ref" },
+        "keyboard_reachable": { "type": "boolean", "const": true },
+        "approved_to_move": { "type": "boolean", "const": true }
+      }
+    },
+    "responsive_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_class", "collapsed_surfaces"],
+      "properties": {
+        "window_class": { "$ref": "#/$defs/window_class_token" },
+        "collapsed_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/collapsed_surface" }
+        }
+      }
+    },
+    "summary_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restored_exactly_count",
+        "restored_partially_count",
+        "needs_review_count",
+        "no_rerun_surface_count",
+        "collapsed_surface_count",
+        "candidate_route_count",
+        "user_authored_item_count"
+      ],
+      "properties": {
+        "restored_exactly_count": { "type": "integer", "minimum": 0 },
+        "restored_partially_count": { "type": "integer", "minimum": 0 },
+        "needs_review_count": { "type": "integer", "minimum": 0 },
+        "no_rerun_surface_count": { "type": "integer", "minimum": 0 },
+        "collapsed_surface_count": { "type": "integer", "minimum": 0 },
+        "candidate_route_count": { "type": "integer", "minimum": 0 },
+        "user_authored_item_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "display_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The 'no lie' invariants. Every field must be false on a minted record.",
+      "required": [
+        "full_resumption_implied",
+        "side_effect_rerun_implied",
+        "blank_workspace_on_recoverable_state",
+        "zone_cue_relocated",
+        "collapsed_surface_unreachable",
+        "remembered_preference_widened_trust",
+        "startup_only_chrome_used"
+      ],
+      "properties": {
+        "full_resumption_implied": { "type": "boolean", "const": false },
+        "side_effect_rerun_implied": { "type": "boolean", "const": false },
+        "blank_workspace_on_recoverable_state": { "type": "boolean", "const": false },
+        "zone_cue_relocated": { "type": "boolean", "const": false },
+        "collapsed_surface_unreachable": { "type": "boolean", "const": false },
+        "remembered_preference_widened_trust": { "type": "boolean", "const": false },
+        "startup_only_chrome_used": { "type": "boolean", "const": false }
+      }
+    }
+  }
+}

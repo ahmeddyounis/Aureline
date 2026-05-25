@@ -162,6 +162,7 @@ pub mod test_runner_beta;
 pub mod token_state_audit;
 pub mod transfer;
 pub mod voice;
+pub mod warm_continuity;
 pub mod wedge_inspector;
 pub mod windowing;
 pub mod windows;
