@@ -20,6 +20,7 @@ pub mod orientation;
 pub mod orientation_aids;
 pub mod outline;
 pub mod paint;
+pub mod save_fidelity_lineage;
 pub mod selection;
 pub mod text_nav;
 pub mod undo;
@@ -82,6 +83,13 @@ pub use outline::{
     StructuralSnapshotSchemaVersion, StructuralSurfaceState,
 };
 pub use paint::{EditorTextRuntime, ViewportCompositor, ViewportPaintStyle};
+pub use save_fidelity_lineage::{
+    project_save_fidelity_lineage, save_fidelity_lineage_lines, FixActionClass,
+    LineageNarrowReason, LineageStableQualification, PreviewReason, RecoveryActionClass,
+    SaveFidelityLineageRecord, SaveParticipantLineageEntry, SaveParticipantStage,
+    SourceFidelitySummary, SAVE_FIDELITY_LINEAGE_RECORD_KIND, SAVE_FIDELITY_LINEAGE_SCHEMA_REF,
+    SAVE_FIDELITY_LINEAGE_SCHEMA_VERSION,
+};
 pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
 pub use undo::UndoGroupSummary;
 pub use viewport::{
