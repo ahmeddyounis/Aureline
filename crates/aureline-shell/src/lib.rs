@@ -111,6 +111,7 @@ pub mod network_badges;
 pub mod network_trust_beta;
 pub mod notebook_alpha;
 pub mod notebook_trust_badges;
+pub mod notification_attention_stable;
 pub mod notification_envelope_corpus;
 pub mod notifications;
 pub mod offline_entitlement_beta;
