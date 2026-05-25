@@ -146,6 +146,7 @@ pub mod run_context;
 pub mod run_debug_profiles_beta;
 pub mod runtime;
 pub mod runtime_adaptation;
+pub mod runtime_efficiency_stable;
 pub mod safe_preview_card;
 pub mod save_review;
 pub mod scope_truth;
