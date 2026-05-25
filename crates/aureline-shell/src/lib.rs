@@ -65,6 +65,7 @@ pub mod debugger_host_beta;
 pub mod deeplink;
 pub mod deployment_profile;
 pub mod desktop_continuity_alpha;
+pub mod desktop_handoff_conformance_stable;
 pub mod diagnostics;
 pub mod docs_browser;
 pub mod drift_truth;
