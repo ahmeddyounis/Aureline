@@ -40,6 +40,7 @@ pub mod locale_beta;
 pub mod repair_review;
 pub mod resolver;
 pub mod schema;
+pub mod settings_ui_stable;
 pub mod sync;
 pub mod ui;
 
