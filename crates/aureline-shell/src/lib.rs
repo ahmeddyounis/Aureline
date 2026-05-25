@@ -95,6 +95,7 @@ pub mod interaction_transfer;
 pub mod invite_review;
 pub mod keybindings;
 pub mod layout;
+pub mod learnability_glossary_stable;
 pub mod learning_mode;
 pub mod learning_tour_alpha;
 pub mod locale_pack_beta;
