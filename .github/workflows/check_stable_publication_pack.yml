@@ -1,0 +1,82 @@
+# Stable publication pack gate.
+#
+# Validates the checked-in stable publication pack: every outward-facing publication the
+# release line ships about itself (known-limits, public benchmark, compatibility,
+# migration) binds a proof packet and, for benchmarks, a published p50/p95 budget with
+# corpus metadata and a benchmark-lab trace, and backs the publication against a public
+# claim (a stable-claim-manifest entry) whose canonical lifecycle label is a hard ceiling;
+# a publication whose proof packet breached its freshness SLO or is missing, whose
+# measured numbers regressed beyond the published budget, whose corpus metadata or trace
+# is missing, whose waiver expired, whose evidence is incomplete, or whose backing public
+# claim is itself below the cutline narrows below the launch cutline; the
+# proof-packet-freshness SLO state is recomputed against the pack as_of date; waiver
+# expiry is enforced; known-limit/benchmark/compatibility/migration coverage and the
+# release-line publication set are fully covered; and the publication verdict and summary
+# agree with the firing publication rules. The gate runs negative drills and the
+# checked-in fixture cases proving those rejections fire. The typed Rust consumer reads the
+# same pack, so `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_stable_publication_pack
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_stable_publication_pack.yml"
+      - "ci/check_stable_publication_pack.py"
+      - "artifacts/release/stable_publication_pack.json"
+      - "artifacts/release/captures/stable_publication_pack_validation_capture.json"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "schemas/release/stable_publication_pack.schema.json"
+      - "docs/release/stable_publication_pack.md"
+      - "artifacts/release/m4/stable_publication_pack_proof_packet.md"
+      - "fixtures/release/stable_publication_pack/**"
+      - "crates/aureline-release/src/stable_publication_pack/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/stable_publication_pack.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-stable-publication-pack-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stable_publication_pack:
+    name: Stable publication pack
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate stable publication pack
+        run: |
+          python3 ci/check_stable_publication_pack.py --repo-root . --check
+
+      - name: Run stable-publication-pack contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-publication-pack-${{ github.run_id }}
+          path: artifacts/release/captures/stable_publication_pack_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

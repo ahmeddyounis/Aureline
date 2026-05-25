@@ -1,0 +1,780 @@
+{
+  "schema_version": 1,
+  "record_kind": "stable_publication_pack",
+  "pack_id": "stable_publication_pack:release.v1_0",
+  "status": "published",
+  "overview_page": "docs/release/stable_publication_pack.md",
+  "as_of": "2026-05-24",
+  "claim_manifest_ref": "artifacts/release/stable_claim_manifest.json",
+  "known_limits_register_ref": "artifacts/product/known_limit_classes.yaml",
+  "benchmark_pack_template_ref": "docs/benchmarks/benchmark_publication_pack_template.md",
+  "compatibility_report_template_ref": "docs/release/compatibility_report_template.md",
+  "migration_contract_ref": "docs/release/end_of_support_and_migration_contract.md",
+  "lifecycle_labels": [
+    "lts",
+    "stable",
+    "beta",
+    "preview",
+    "withdrawn"
+  ],
+  "publication_kinds": [
+    "known_limit",
+    "benchmark",
+    "compatibility",
+    "migration"
+  ],
+  "publication_states": [
+    "published",
+    "published_on_waiver",
+    "narrowed_unbacked",
+    "narrowed_claim_narrowed",
+    "narrowed_stale",
+    "narrowed_waiver_expired",
+    "narrowed_budget_regressed"
+  ],
+  "gap_reasons": [
+    "claim_label_narrowed",
+    "surface_capability_absent",
+    "evidence_incomplete",
+    "corpus_metadata_missing",
+    "budget_regressed",
+    "proof_packet_freshness_breached",
+    "proof_packet_missing",
+    "waiver_expired",
+    "owner_signoff_missing"
+  ],
+  "publication_actions": [
+    "hold_publication",
+    "narrow_publication_label",
+    "refresh_proof_packet",
+    "recapture_evidence",
+    "retune_or_waive_budget",
+    "request_owner_signoff"
+  ],
+  "launch_cutline": {
+    "cutline_level": "stable",
+    "above_cutline_levels": [
+      "lts",
+      "stable"
+    ],
+    "below_cutline_levels": [
+      "beta",
+      "preview",
+      "withdrawn"
+    ],
+    "description": "A publication (a known-limits, public benchmark, compatibility, or migration publication) carries a Stable (or LTS) public claim only when its proof packet is within its freshness SLO, any waiver it relies on is unexpired, its benchmark measurements (where it makes a performance claim) are within the published p50/p95 budget with corpus metadata and a benchmark-lab trace, an owner has signed off, and the public claim it backs is itself at or above the cutline. A publication that loses any of those carries a label below the cutline (beta, preview, withdrawn) and never inherits an adjacent publication's published label."
+  },
+  "release_blocking_surface_refs": [
+    "surface:provider_aware_language_intelligence",
+    "surface:repair_and_rollback_safety_known_limits",
+    "surface:export_and_offboarding_known_limits",
+    "surface:editor_open_latency_benchmark",
+    "surface:rollback_completion_latency_benchmark",
+    "surface:provider_completion_throughput_benchmark",
+    "surface:provider_compatibility_report",
+    "surface:rollback_compatibility_report",
+    "surface:export_migration_guide",
+    "surface:rollback_migration_guide"
+  ],
+  "publication_rules": [
+    {
+      "rule_id": "pub_rule:claim_label_narrowed",
+      "title": "Backing public claim narrowed below cutline",
+      "trigger_reason": "claim_label_narrowed",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "narrow_publication_label",
+      "blocks_publication": false,
+      "rationale": "A publication whose backing public claim is already below the stable cutline inherits that ceiling; the stable claim manifest already holds the claim upstream, so this is expected inheritance rather than a publication defect and does not hold publication on its own."
+    },
+    {
+      "rule_id": "pub_rule:surface_capability_absent",
+      "title": "Publication names an unimplemented surface capability",
+      "trigger_reason": "surface_capability_absent",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "recapture_evidence",
+      "blocks_publication": true,
+      "rationale": "A publication that names a surface capability the build does not yet implement cannot carry a Stable public claim; the publication narrows and publication holds until the capability lands and is re-evidenced."
+    },
+    {
+      "rule_id": "pub_rule:evidence_incomplete",
+      "title": "Publication evidence incomplete",
+      "trigger_reason": "evidence_incomplete",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "recapture_evidence",
+      "blocks_publication": true,
+      "rationale": "A publication whose proof packet does not cover the caveat set, report scope, or guide coverage it asserts narrows until the evidence is recaptured; the publication cannot carry Stable on partial evidence."
+    },
+    {
+      "rule_id": "pub_rule:corpus_metadata_missing",
+      "title": "Benchmark corpus metadata or lab trace missing",
+      "trigger_reason": "corpus_metadata_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_proof_packet",
+      "blocks_publication": true,
+      "rationale": "A benchmark publication whose published numbers cannot be traced to a corpus manifest and a benchmark-lab trace narrows until both are attached; an untraceable benchmark cannot carry a Stable public claim."
+    },
+    {
+      "rule_id": "pub_rule:budget_regressed",
+      "title": "Benchmark measured p50/p95 regressed beyond published budget",
+      "trigger_reason": "budget_regressed",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "retune_or_waive_budget",
+      "blocks_publication": true,
+      "rationale": "A benchmark publication whose measured p50/p95 exceeds the published budget narrows until the implementation re-meets the budget, the published numbers are re-published, or a waiver covers an intentionally tightened threshold; a Stable benchmark claim may not be wider than the measured numbers support."
+    },
+    {
+      "rule_id": "pub_rule:proof_packet_freshness_breached",
+      "title": "Proof packet breached its freshness SLO",
+      "trigger_reason": "proof_packet_freshness_breached",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_proof_packet",
+      "blocks_publication": true,
+      "rationale": "A publication whose proof packet aged past its freshness SLO narrows until the packet is refreshed; a stale packet cannot carry a Stable public claim even when the claim it backs is still published Stable upstream."
+    },
+    {
+      "rule_id": "pub_rule:proof_packet_missing",
+      "title": "Proof packet missing",
+      "trigger_reason": "proof_packet_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_proof_packet",
+      "blocks_publication": true,
+      "rationale": "A publication with no captured proof packet narrows until one is captured; an unproven publication cannot carry a Stable public claim."
+    },
+    {
+      "rule_id": "pub_rule:waiver_expired",
+      "title": "Publication waiver expired",
+      "trigger_reason": "waiver_expired",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "narrow_publication_label",
+      "blocks_publication": true,
+      "rationale": "A publication that carried a Stable public claim only under a waiver narrows the moment that waiver expires; publication holds until the underlying gap is closed or a fresh waiver is granted."
+    },
+    {
+      "rule_id": "pub_rule:owner_signoff_missing",
+      "title": "Owner sign-off missing",
+      "trigger_reason": "owner_signoff_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "request_owner_signoff",
+      "blocks_publication": true,
+      "rationale": "A publication carrying a Stable public claim requires an owner sign-off; without it the publication narrows and publication holds until the owner signs off."
+    }
+  ],
+  "rows": [
+    {
+      "entry_id": "pub:provider_known_limits",
+      "title": "Provider-aware language intelligence known-limits publication",
+      "publication_kind": "known_limit",
+      "surface_ref": "surface:provider_aware_language_intelligence",
+      "surface_summary": "The published caveats and unsupported-state notes for provider-aware language intelligence.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "publication_state": "published",
+      "proof_packet": {
+        "packet_id": "proof_packet:provider_known_limits",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:launch_wedge",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/product/known_limit_classes.yaml",
+          "artifacts/feedback/external_alpha_known_limits.md"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "language_intelligence",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The provider-aware language-intelligence known-limits publication is backed by a current proof packet that covers the published caveat set and is owner-signed, so it carries the Stable public claim its manifest entry publishes."
+    },
+    {
+      "entry_id": "pub:rollback_known_limits",
+      "title": "Repair and rollback safety known-limits publication (evidence incomplete)",
+      "publication_kind": "known_limit",
+      "surface_ref": "surface:repair_and_rollback_safety_known_limits",
+      "surface_summary": "The published caveats for repair and rollback safety across supported hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "publication_state": "narrowed_unbacked",
+      "proof_packet": {
+        "packet_id": "proof_packet:rollback_known_limits",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/product/known_limit_classes.yaml"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [
+        "evidence_incomplete"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The rollback known-limits publication does not yet cover the live-hardware caveat set its public claim asserts, so the evidence-completeness automation narrows it to beta even though the claim it backs is still published Stable; the missing caveats must be captured before the publication can carry the claim."
+    },
+    {
+      "entry_id": "pub:export_known_limits",
+      "title": "Export and offboarding known-limits publication (claim narrowed)",
+      "publication_kind": "known_limit",
+      "surface_ref": "surface:export_and_offboarding_known_limits",
+      "surface_summary": "The published caveats for export and offboarding support.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:export_and_offboarding_support",
+      "claim_label": "beta",
+      "publication_state": "narrowed_claim_narrowed",
+      "proof_packet": {
+        "packet_id": "proof_packet:export_known_limits",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/product/known_limit_classes.yaml"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "data_portability",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The export and offboarding public claim is published Beta in the claim manifest, so this known-limits publication inherits the beta ceiling; the publication is current and complete but may never assert wider than the public claim it backs."
+    },
+    {
+      "entry_id": "pub:editor_open_latency_benchmark",
+      "title": "Editor open-latency public benchmark publication",
+      "publication_kind": "benchmark",
+      "surface_ref": "surface:editor_open_latency_benchmark",
+      "surface_summary": "The published p50/p95 open-latency benchmark for the editor on reference hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "publication_state": "published",
+      "proof_packet": {
+        "packet_id": "proof_packet:editor_open_latency_benchmark",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:launch_wedge",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m3/publication_packet/packet.md",
+          "artifacts/perf/latency_budget_ledger.yaml"
+        ]
+      },
+      "benchmark_budget": {
+        "metric_ref": "metric:editor_open_latency_ms",
+        "published_p50_ms": 120,
+        "published_p95_ms": 350,
+        "measured_p50_ms": 96,
+        "measured_p95_ms": 304,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": false
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The editor open-latency benchmark measures within its published p50/p95 budget on a current benchmark-lab trace with attached corpus metadata, owner-signed, so it carries the Stable public claim its manifest entry publishes."
+    },
+    {
+      "entry_id": "pub:rollback_latency_benchmark",
+      "title": "Rollback completion-latency public benchmark publication (budget regressed)",
+      "publication_kind": "benchmark",
+      "surface_ref": "surface:rollback_completion_latency_benchmark",
+      "surface_summary": "The published p50/p95 completion-latency benchmark for a rollback round trip.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "publication_state": "narrowed_budget_regressed",
+      "proof_packet": {
+        "packet_id": "proof_packet:rollback_latency_benchmark",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m3/publication_packet/packet.md",
+          "artifacts/perf/latency_budget_ledger.yaml"
+        ]
+      },
+      "benchmark_budget": {
+        "metric_ref": "metric:rollback_completion_latency_ms",
+        "published_p50_ms": 200,
+        "published_p95_ms": 600,
+        "measured_p50_ms": 244,
+        "measured_p95_ms": 712,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": false
+      },
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [
+        "budget_regressed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The latest benchmark-lab trace measures the rollback completion latency above the published p50/p95 budget, so the budget-protection automation narrows this benchmark to beta even though the claim it backs is still published Stable; the implementation must re-meet the budget or the published numbers must be re-published before the benchmark can carry the claim."
+    },
+    {
+      "entry_id": "pub:provider_completion_throughput_benchmark",
+      "title": "Provider completion-throughput public benchmark publication (tightened budget on waiver)",
+      "publication_kind": "benchmark",
+      "surface_ref": "surface:provider_completion_throughput_benchmark",
+      "surface_summary": "The published p50/p95 completion-latency benchmark for provider completions under a tightened budget.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "publication_state": "published_on_waiver",
+      "proof_packet": {
+        "packet_id": "proof_packet:provider_completion_throughput_benchmark",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:launch_wedge",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/benchmarks/m3/publication_packet/packet.md",
+          "artifacts/perf/protected_path_ledger.yaml"
+        ]
+      },
+      "benchmark_budget": {
+        "metric_ref": "metric:provider_completion_latency_ms",
+        "published_p50_ms": 80,
+        "published_p95_ms": 200,
+        "measured_p50_ms": 88,
+        "measured_p95_ms": 224,
+        "corpus_ref": "fixtures/benchmarks/corpus_manifest.yaml",
+        "trace_ref": "docs/benchmarks/benchmark_lab_run_results.md",
+        "tightened": true
+      },
+      "waiver": {
+        "waiver_ref": "waiver:provider_throughput_tightened_budget",
+        "expires_at": "2026-09-30",
+        "reason": "The published budget was intentionally tightened ahead of the launch; an active waiver covers the still-converging measured numbers while the implementation catches up to the tighter threshold."
+      },
+      "owner_signoff": {
+        "owner_ref": "performance_council",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The provider completion-throughput budget was intentionally tightened below its prior baseline; the measured numbers have not yet caught up, but an active, unexpired waiver covers the tightened threshold so the benchmark carries the Stable public claim provisionally and narrows automatically if the waiver lapses."
+    },
+    {
+      "entry_id": "pub:provider_compatibility",
+      "title": "Provider-aware language intelligence compatibility publication",
+      "publication_kind": "compatibility",
+      "surface_ref": "surface:provider_compatibility_report",
+      "surface_summary": "The published compatibility report for provider-aware language intelligence across supported providers.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "publication_state": "published",
+      "proof_packet": {
+        "packet_id": "proof_packet:provider_compatibility",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:launch_wedge",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/compat/m3/compatibility_report.md",
+          "artifacts/compat/m3/compatibility_report.json"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "compatibility_council",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [],
+      "published_label": "stable",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "release_packet",
+        "support_export"
+      ],
+      "rationale": "The provider compatibility report is backed by a current, owner-signed proof packet whose scope covers the published support matrix, so it carries the Stable public claim its manifest entry publishes."
+    },
+    {
+      "entry_id": "pub:rollback_compatibility",
+      "title": "Repair and rollback compatibility publication (proof stale)",
+      "publication_kind": "compatibility",
+      "surface_ref": "surface:rollback_compatibility_report",
+      "surface_summary": "The published compatibility report for repair and rollback safety across supported hardware.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "publication_state": "narrowed_stale",
+      "proof_packet": {
+        "packet_id": "proof_packet:rollback_compatibility",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-03-15",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "breached",
+        "evidence_refs": [
+          "artifacts/compat/m3/compatibility_report.md"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "compatibility_council",
+        "signed_off": true,
+        "signed_at": "2026-03-16"
+      },
+      "active_gap_reasons": [
+        "proof_packet_freshness_breached"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The rollback compatibility report's proof packet aged past its freshness SLO, so the packet-freshness automation narrows this publication to beta even though the claim it backs is still published Stable; the report must be re-run and the packet refreshed before the publication can carry the claim."
+    },
+    {
+      "entry_id": "pub:regulated_compatibility",
+      "title": "Regulated-environment compatibility publication (claim narrowed)",
+      "publication_kind": "compatibility",
+      "surface_ref": "surface:regulated_compatibility_report",
+      "surface_summary": "The published compatibility report for regulated-environment assurance.",
+      "release_blocking": false,
+      "claim_ref": "manifest_entry:regulated_environment_assurance",
+      "claim_label": "beta",
+      "publication_state": "narrowed_claim_narrowed",
+      "proof_packet": {
+        "packet_id": "proof_packet:regulated_compatibility",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/compat/m3/compatibility_report.md"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "regulated_assurance",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The regulated-environment public claim is published Beta in the claim manifest, so this compatibility publication inherits the beta ceiling; the report is current but may never assert wider than the public claim it backs."
+    },
+    {
+      "entry_id": "pub:export_migration",
+      "title": "Export and offboarding migration publication (claim narrowed)",
+      "publication_kind": "migration",
+      "surface_ref": "surface:export_migration_guide",
+      "surface_summary": "The published migration guide for export and offboarding between supported versions.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:export_and_offboarding_support",
+      "claim_label": "beta",
+      "publication_state": "narrowed_claim_narrowed",
+      "proof_packet": {
+        "packet_id": "proof_packet:export_migration",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/migration/m3/migration_scoreboard.md"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "data_portability",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The export and offboarding public claim is published Beta in the claim manifest, so this migration publication inherits the beta ceiling; the guide is current but may never assert wider than the public claim it backs."
+    },
+    {
+      "entry_id": "pub:rollback_migration",
+      "title": "Repair and rollback migration publication (waiver expired)",
+      "publication_kind": "migration",
+      "surface_ref": "surface:rollback_migration_guide",
+      "surface_summary": "The published migration guide for repair and rollback across supported versions.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "publication_state": "narrowed_waiver_expired",
+      "proof_packet": {
+        "packet_id": "proof_packet:rollback_migration",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-04-27",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "due_for_refresh",
+        "evidence_refs": [
+          "artifacts/migration/m3/migration_scoreboard.md"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": {
+        "waiver_ref": "waiver:rollback_migration_guide_pending",
+        "expires_at": "2026-05-01",
+        "reason": "A waiver covered the still-pending cross-version migration rehearsal; it has since expired without the rehearsal landing."
+      },
+      "owner_signoff": {
+        "owner_ref": "release_council",
+        "signed_off": true,
+        "signed_at": "2026-04-28"
+      },
+      "active_gap_reasons": [
+        "waiver_expired"
+      ],
+      "published_label": "beta",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The rollback migration publication carried its Stable public claim only under a waiver covering the pending cross-version rehearsal; the waiver expired against the pack as-of date, so the waiver-expiry automation narrows the publication to beta until the rehearsal lands or a fresh waiver is granted."
+    },
+    {
+      "entry_id": "pub:localization_migration",
+      "title": "Localization migration publication (claim narrowed)",
+      "publication_kind": "migration",
+      "surface_ref": "surface:localization_migration_guide",
+      "surface_summary": "The published migration guide for localization readiness across supported versions.",
+      "release_blocking": false,
+      "claim_ref": "manifest_entry:localization_readiness",
+      "claim_label": "preview",
+      "publication_state": "narrowed_claim_narrowed",
+      "proof_packet": {
+        "packet_id": "proof_packet:localization_migration",
+        "packet_ref": "artifacts/release/m4/stable_publication_pack_proof_packet.md",
+        "proof_index_ref": "artifacts/milestones/m3/public_proof_index.md#m3_public_proof:exact_build_identity",
+        "captured_at": "2026-05-18",
+        "freshness_slo": {
+          "target_max_age_days": 30,
+          "warn_within_days": 7,
+          "slo_register_ref": "docs/release/stable_publication_pack.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/migration/m3/migration_scoreboard.md"
+        ]
+      },
+      "benchmark_budget": null,
+      "waiver": null,
+      "owner_signoff": {
+        "owner_ref": "localization",
+        "signed_off": true,
+        "signed_at": "2026-05-19"
+      },
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "published_label": "preview",
+      "publication_destinations": [
+        "docs_site",
+        "help_about",
+        "support_export"
+      ],
+      "rationale": "The localization-readiness public claim is published Preview in the claim manifest, so this migration publication inherits the preview ceiling; the guide is current but may never assert wider than the public claim it backs."
+    }
+  ],
+  "publication": {
+    "publication_gate": "ci/check_stable_publication_pack.py",
+    "decision": "hold",
+    "blocking_rule_ids": [
+      "pub_rule:budget_regressed",
+      "pub_rule:evidence_incomplete",
+      "pub_rule:proof_packet_freshness_breached",
+      "pub_rule:waiver_expired"
+    ],
+    "blocking_entry_ids": [
+      "pub:rollback_compatibility",
+      "pub:rollback_known_limits",
+      "pub:rollback_latency_benchmark",
+      "pub:rollback_migration"
+    ],
+    "rationale": "Publication holds: four release-blocking publications under still-Stable public claims are narrowed below the cutline — the rollback known-limits publication on incomplete caveat evidence, the rollback latency benchmark on a budget regression, the rollback compatibility report on a stale proof packet, and the rollback migration guide on an expired waiver. Each must close its gap or re-publish at the narrowed label before publication proceeds."
+  },
+  "summary": {
+    "total_entries": 12,
+    "total_claims": 5,
+    "entries_published_stable": 4,
+    "entries_narrowed_below_cutline": 8,
+    "entries_on_active_waiver": 1,
+    "release_blocking_total": 10,
+    "release_blocking_published_stable": 4,
+    "release_blocking_narrowed": 6,
+    "known_limit_entries": 3,
+    "benchmark_entries": 3,
+    "compatibility_entries": 3,
+    "migration_entries": 3,
+    "benchmark_budgets_within": 1,
+    "benchmark_budgets_regressed": 2,
+    "packets_current": 10,
+    "packets_due_for_refresh": 1,
+    "packets_breached": 1,
+    "packets_missing": 0,
+    "total_active_gap_reasons": 8,
+    "publication_rules_firing": 4
+  }
+}

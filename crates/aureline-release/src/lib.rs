@@ -94,6 +94,22 @@
 //! claim ceiling and proof packet, and narrows any row whose packet is stale,
 //! metric fails, waiver expires, or required signoff loop is incomplete before the
 //! row can widen release, docs, Help/About, or support-export language.
+//! The stable-publication-pack module is the outward-facing publication layer over all of
+//! the above: where the manifest, proof index, version windows, and maintenance packet
+//! govern what the release line *is*, this pack governs what the release line *says about
+//! itself* — its known-limits publications, its public benchmark publications, its
+//! compatibility publications, and its migration publications. For every such publication
+//! it records one row binding the publication to the public claim it backs and to the
+//! proof packet that grounds it (a known-limits register, a benchmark-lab trace, a
+//! compatibility report, or a migration guide), protects each benchmark publication's
+//! published p50/p95 budget against the measured numbers (with corpus metadata, lab
+//! trace, and a waiver hook for intentionally tightened thresholds), and narrows below
+//! the cutline any publication whose proof packet aged out or is missing, whose measured
+//! numbers regressed beyond the published budget, whose corpus metadata or trace is
+//! missing, whose waiver expired, whose evidence is incomplete, or whose backing public
+//! claim is itself below the cutline — while the known-limit/benchmark/compatibility/
+//! migration publication kinds and the release-line publication set both stay fully
+//! covered, so shiproom and release tooling can fail publication directly from the pack.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
@@ -107,6 +123,7 @@ pub mod stable_boundary_manifest;
 pub mod stable_claim_manifest;
 pub mod stable_claim_matrix;
 pub mod stable_proof_index;
+pub mod stable_publication_pack;
 pub mod stable_qualification_matrix;
 pub mod stable_version_windows;
 pub mod support_class_ledger;
@@ -193,6 +210,16 @@ pub use stable_proof_index::{
     ProofIndexExportRow, ProofPublicationRecord, ProofRow, ProofRule, ProofState, StableProofIndex,
     StableProofIndexSummary, StableProofIndexViolation, STABLE_PROOF_INDEX_JSON,
     STABLE_PROOF_INDEX_PATH, STABLE_PROOF_INDEX_RECORD_KIND, STABLE_PROOF_INDEX_SCHEMA_VERSION,
+};
+
+pub use stable_publication_pack::{
+    current_stable_publication_pack, BenchmarkBudget, GapReason as PublicationGapReason,
+    PackPublicationRecord, PublicationAction as PackPublicationAction, PublicationKind,
+    PublicationPackExportProjection, PublicationPackExportRow, PublicationRow,
+    PublicationRule as PackPublicationRule, PublicationState, StablePublicationPack,
+    StablePublicationPackSummary, StablePublicationPackViolation, STABLE_PUBLICATION_PACK_JSON,
+    STABLE_PUBLICATION_PACK_PATH, STABLE_PUBLICATION_PACK_RECORD_KIND,
+    STABLE_PUBLICATION_PACK_SCHEMA_VERSION,
 };
 
 pub use stable_claim_matrix::{
