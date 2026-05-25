@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/go_no_go_rehearsal.schema.json",
+  "title": "Aureline final go/no-go rehearsal with explicit cutline, exception packets, and rollback checkpoints",
+  "description": "Canonical, machine-readable rehearsal of the release train before stable launch: the explicit launch cutline signoff, the promotion publish-step dry run, the rollback-checkpoint drills, and the open-exception-packet review. Each row binds a public claim to a rehearsal packet and required rollback checkpoints, and narrows below Stable to a No-Go unless it carries current proof, verified checkpoints, an unexpired exception packet when relied on, an owner sign-off, and a backing public claim at or above the cutline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "rehearsal_id",
+    "status",
+    "overview_page",
+    "as_of",
+    "claim_manifest_ref",
+    "stable_proof_index_ref",
+    "lifecycle_labels",
+    "stage_kinds",
+    "rehearsal_states",
+    "gap_reasons",
+    "rehearsal_actions",
+    "launch_cutline",
+    "release_blocking_stage_refs",
+    "rules",
+    "rows",
+    "publication",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "go_no_go_rehearsal" },
+    "rehearsal_id": { "$ref": "#/$defs/non_empty_string" },
+    "status": { "$ref": "#/$defs/non_empty_string" },
+    "overview_page": { "$ref": "#/$defs/non_empty_string" },
+    "as_of": { "type": "string", "format": "date" },
+    "claim_manifest_ref": { "$ref": "#/$defs/non_empty_string" },
+    "stable_proof_index_ref": { "$ref": "#/$defs/non_empty_string" },
+    "lifecycle_labels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lifecycle_label" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "stage_kinds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stage_kind" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "rehearsal_states": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rehearsal_state" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "gap_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gap_reason" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "rehearsal_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rehearsal_action" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "launch_cutline": { "$ref": "#/$defs/launch_cutline" },
+    "release_blocking_stage_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" },
+      "minItems": 1
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/row" },
+      "minItems": 1
+    },
+    "publication": { "$ref": "#/$defs/publication" },
+    "summary": { "$ref": "#/$defs/summary" }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "nullable_date": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ]
+    },
+    "lifecycle_label": {
+      "type": "string",
+      "enum": ["lts", "stable", "beta", "preview", "withdrawn"]
+    },
+    "stage_kind": {
+      "type": "string",
+      "enum": ["cutline_review", "promotion_step", "rollback_checkpoint", "exception_review"]
+    },
+    "rehearsal_state": {
+      "type": "string",
+      "enum": [
+        "go_rehearsed",
+        "go_on_exception",
+        "no_go_unrehearsed",
+        "no_go_claim_narrowed",
+        "no_go_stale",
+        "no_go_exception_expired"
+      ]
+    },
+    "gap_reason": {
+      "type": "string",
+      "enum": [
+        "claim_label_narrowed",
+        "rehearsal_evidence_incomplete",
+        "rehearsal_packet_freshness_breached",
+        "rehearsal_packet_missing",
+        "exception_expired",
+        "owner_signoff_missing",
+        "rollback_checkpoint_unverified"
+      ]
+    },
+    "rehearsal_action": {
+      "type": "string",
+      "enum": [
+        "hold_go_no_go",
+        "narrow_rehearsal_label",
+        "refresh_rehearsal_packet",
+        "verify_rollback_checkpoint",
+        "recapture_rehearsal_evidence",
+        "request_owner_signoff"
+      ]
+    },
+    "freshness_slo_state": {
+      "type": "string",
+      "enum": ["current", "due_for_refresh", "breached", "missing"]
+    },
+    "launch_cutline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cutline_level",
+        "above_cutline_levels",
+        "below_cutline_levels",
+        "description"
+      ],
+      "properties": {
+        "cutline_level": { "type": "string", "const": "stable" },
+        "above_cutline_levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" }
+        },
+        "below_cutline_levels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" }
+        },
+        "description": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "title",
+        "trigger_reason",
+        "applies_to_labels",
+        "default_action",
+        "blocks_go_no_go",
+        "rationale"
+      ],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "trigger_reason": { "$ref": "#/$defs/gap_reason" },
+        "applies_to_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle_label" },
+          "minItems": 1
+        },
+        "default_action": { "$ref": "#/$defs/rehearsal_action" },
+        "blocks_go_no_go": { "type": "boolean" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "freshness_slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_max_age_days", "warn_within_days", "slo_register_ref"],
+      "properties": {
+        "target_max_age_days": { "type": "integer", "minimum": 1 },
+        "warn_within_days": { "type": "integer", "minimum": 0 },
+        "slo_register_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rehearsal_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_id",
+        "packet_ref",
+        "proof_index_ref",
+        "captured_at",
+        "freshness_slo",
+        "slo_state",
+        "evidence_refs"
+      ],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "packet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "proof_index_ref": { "$ref": "#/$defs/non_empty_string" },
+        "captured_at": { "$ref": "#/$defs/nullable_date" },
+        "freshness_slo": { "$ref": "#/$defs/freshness_slo" },
+        "slo_state": { "$ref": "#/$defs/freshness_slo_state" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "exception_packet": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["waiver_ref", "expires_at", "reason"],
+          "properties": {
+            "waiver_ref": { "$ref": "#/$defs/non_empty_string" },
+            "expires_at": { "type": "string", "format": "date" },
+            "reason": { "$ref": "#/$defs/non_empty_string" }
+          }
+        }
+      ]
+    },
+    "owner_signoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_ref", "signed_off", "signed_at"],
+      "properties": {
+        "owner_ref": { "$ref": "#/$defs/non_empty_string" },
+        "signed_off": { "type": "boolean" },
+        "signed_at": { "$ref": "#/$defs/nullable_date" }
+      }
+    },
+    "rollback_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_id", "title", "restore_point_ref", "verified"],
+      "properties": {
+        "checkpoint_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "restore_point_ref": { "$ref": "#/$defs/non_empty_string" },
+        "verified": { "type": "boolean" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "title",
+        "stage_kind",
+        "subject_ref",
+        "subject_summary",
+        "release_blocking",
+        "claim_ref",
+        "claim_label",
+        "rehearsal_state",
+        "rehearsal_packet",
+        "owner_signoff",
+        "rollback_checkpoints",
+        "active_gap_reasons",
+        "effective_label",
+        "publication_destinations",
+        "rationale"
+      ],
+      "properties": {
+        "entry_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "stage_kind": { "$ref": "#/$defs/stage_kind" },
+        "subject_ref": { "$ref": "#/$defs/non_empty_string" },
+        "subject_summary": { "$ref": "#/$defs/non_empty_string" },
+        "release_blocking": { "type": "boolean" },
+        "claim_ref": { "$ref": "#/$defs/non_empty_string" },
+        "claim_label": { "$ref": "#/$defs/lifecycle_label" },
+        "rehearsal_state": { "$ref": "#/$defs/rehearsal_state" },
+        "rehearsal_packet": { "$ref": "#/$defs/rehearsal_packet" },
+        "exception_packet": { "$ref": "#/$defs/exception_packet" },
+        "owner_signoff": { "$ref": "#/$defs/owner_signoff" },
+        "rollback_checkpoints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rollback_checkpoint" },
+          "minItems": 1
+        },
+        "active_gap_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/gap_reason" },
+          "uniqueItems": true
+        },
+        "effective_label": { "$ref": "#/$defs/lifecycle_label" },
+        "publication_destinations": { "$ref": "#/$defs/ref_array" },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publication_gate",
+        "decision",
+        "blocking_rule_ids",
+        "blocking_entry_ids",
+        "rationale"
+      ],
+      "properties": {
+        "publication_gate": { "$ref": "#/$defs/non_empty_string" },
+        "decision": { "type": "string", "enum": ["proceed", "hold"] },
+        "blocking_rule_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "blocking_entry_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "rationale": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "total_claims",
+        "rows_go",
+        "rows_no_go_below_cutline",
+        "release_blocking_total",
+        "release_blocking_go",
+        "release_blocking_no_go",
+        "rows_on_active_exception",
+        "packets_current",
+        "packets_due_for_refresh",
+        "packets_breached",
+        "packets_missing",
+        "total_checkpoints",
+        "checkpoints_verified",
+        "checkpoints_unverified",
+        "total_active_gap_reasons",
+        "rules_firing"
+      ],
+      "properties": {
+        "total_rows": { "type": "integer", "minimum": 0 },
+        "total_claims": { "type": "integer", "minimum": 0 },
+        "rows_go": { "type": "integer", "minimum": 0 },
+        "rows_no_go_below_cutline": { "type": "integer", "minimum": 0 },
+        "release_blocking_total": { "type": "integer", "minimum": 0 },
+        "release_blocking_go": { "type": "integer", "minimum": 0 },
+        "release_blocking_no_go": { "type": "integer", "minimum": 0 },
+        "rows_on_active_exception": { "type": "integer", "minimum": 0 },
+        "packets_current": { "type": "integer", "minimum": 0 },
+        "packets_due_for_refresh": { "type": "integer", "minimum": 0 },
+        "packets_breached": { "type": "integer", "minimum": 0 },
+        "packets_missing": { "type": "integer", "minimum": 0 },
+        "total_checkpoints": { "type": "integer", "minimum": 0 },
+        "checkpoints_verified": { "type": "integer", "minimum": 0 },
+        "checkpoints_unverified": { "type": "integer", "minimum": 0 },
+        "total_active_gap_reasons": { "type": "integer", "minimum": 0 },
+        "rules_firing": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

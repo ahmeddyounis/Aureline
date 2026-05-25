@@ -1,0 +1,81 @@
+# Final go/no-go rehearsal gate.
+#
+# Validates the checked-in final go/no-go rehearsal with explicit cutline, exception
+# packets, and rollback checkpoints: every rehearsal stage binds a rehearsal packet and a
+# set of required rollback checkpoints, and backs the stage against a public claim (a
+# stable-claim-manifest entry) whose canonical lifecycle label is a hard ceiling; a stage
+# whose rehearsal packet breached its freshness SLO or is missing, whose rollback checkpoint
+# is unverified, whose evidence is incomplete, whose owner sign-off is missing, whose
+# exception packet expired, or whose backing public claim is itself below the cutline narrows
+# below the launch cutline to a No-Go; the packet-freshness SLO state is recomputed against
+# the rehearsal as_of date; exception expiry is enforced; cutline-review/promotion-step/
+# rollback-checkpoint/exception-review stage-kind coverage and the release-line rehearsal set
+# are fully covered; and the go/no-go verdict and summary agree with the firing rehearsal
+# rules. The gate runs negative drills and the checked-in fixture cases proving those
+# rejections fire. The typed Rust consumer reads the same rehearsal, so
+# `cargo test -p aureline-release` enforces the same structural invariants.
+
+name: check_go_no_go_rehearsal
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_go_no_go_rehearsal.yml"
+      - "ci/check_go_no_go_rehearsal.py"
+      - "artifacts/release/go_no_go_rehearsal.json"
+      - "artifacts/release/captures/go_no_go_rehearsal_validation_capture.json"
+      - "artifacts/release/stable_claim_manifest.json"
+      - "schemas/release/go_no_go_rehearsal.schema.json"
+      - "docs/release/go_no_go_rehearsal.md"
+      - "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md"
+      - "fixtures/release/go_no_go_rehearsal/**"
+      - "crates/aureline-release/src/go_no_go_rehearsal/**"
+      - "crates/aureline-release/src/lib.rs"
+      - "crates/aureline-release/tests/go_no_go_rehearsal.rs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-go-no-go-rehearsal-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  go_no_go_rehearsal:
+    name: Final go/no-go rehearsal
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          rustflags: ""
+
+      - name: Validate go/no-go rehearsal
+        run: |
+          python3 ci/check_go_no_go_rehearsal.py --repo-root . --check
+
+      - name: Run go/no-go-rehearsal contract tests
+        run: |
+          cargo test -p aureline-release
+
+      - name: Upload validation capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-no-go-rehearsal-${{ github.run_id }}
+          path: artifacts/release/captures/go_no_go_rehearsal_validation_capture.json
+          if-no-files-found: error
+          retention-days: 30

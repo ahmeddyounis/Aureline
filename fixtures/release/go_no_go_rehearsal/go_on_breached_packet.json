@@ -1,0 +1,598 @@
+{
+  "schema_version": 1,
+  "record_kind": "go_no_go_rehearsal",
+  "rehearsal_id": "go_no_go_rehearsal:release.v1_0",
+  "status": "frozen",
+  "overview_page": "docs/release/go_no_go_rehearsal.md",
+  "as_of": "2026-05-24",
+  "claim_manifest_ref": "artifacts/release/stable_claim_manifest.json",
+  "stable_proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+  "lifecycle_labels": [
+    "lts",
+    "stable",
+    "beta",
+    "preview",
+    "withdrawn"
+  ],
+  "stage_kinds": [
+    "cutline_review",
+    "promotion_step",
+    "rollback_checkpoint",
+    "exception_review"
+  ],
+  "rehearsal_states": [
+    "go_rehearsed",
+    "go_on_exception",
+    "no_go_unrehearsed",
+    "no_go_claim_narrowed",
+    "no_go_stale",
+    "no_go_exception_expired"
+  ],
+  "gap_reasons": [
+    "claim_label_narrowed",
+    "rehearsal_evidence_incomplete",
+    "rehearsal_packet_freshness_breached",
+    "rehearsal_packet_missing",
+    "exception_expired",
+    "owner_signoff_missing",
+    "rollback_checkpoint_unverified"
+  ],
+  "rehearsal_actions": [
+    "hold_go_no_go",
+    "narrow_rehearsal_label",
+    "refresh_rehearsal_packet",
+    "verify_rollback_checkpoint",
+    "recapture_rehearsal_evidence",
+    "request_owner_signoff"
+  ],
+  "launch_cutline": {
+    "cutline_level": "stable",
+    "above_cutline_levels": [
+      "lts",
+      "stable"
+    ],
+    "below_cutline_levels": [
+      "beta",
+      "preview",
+      "withdrawn"
+    ],
+    "description": "A go/no-go rehearsal stage renders a Go verdict for a Stable (or LTS) public claim only when it was rehearsed end-to-end behind a captured, within-freshness-SLO rehearsal packet, every required rollback checkpoint was verified to a restore point, the stage owner has signed, any exception packet it relies on is unexpired, and the public claim it backs is itself at or above the cutline. A stage whose rehearsal packet breached its freshness SLO or is missing, whose rollback checkpoint is unverified, whose evidence is incomplete, whose owner sign-off is missing, whose exception packet expired, or whose backing public claim is below the cutline narrows to a No-Go below the cutline (beta, preview, withdrawn) and never inherits an adjacent rehearsed stage's verdict."
+  },
+  "release_blocking_stage_refs": [
+    "rehearsal:cutline_go_no_go_signoff",
+    "rehearsal:promotion_step_dry_run",
+    "rehearsal:rollback_live_hardware_checkpoint",
+    "rehearsal:rollback_state_integrity_checkpoint",
+    "rehearsal:promotion_step_rollforward",
+    "rehearsal:exception_packet_review"
+  ],
+  "rules": [
+    {
+      "rule_id": "rehearsal_rule:claim_label_narrowed",
+      "title": "Backing public claim narrowed below cutline",
+      "trigger_reason": "claim_label_narrowed",
+      "applies_to_labels": [
+        "beta",
+        "preview",
+        "withdrawn"
+      ],
+      "default_action": "narrow_rehearsal_label",
+      "blocks_go_no_go": false,
+      "rationale": "A rehearsal stage whose backing public claim is already below the stable cutline inherits that ceiling; the stable claim manifest holds the claim upstream, so this is expected inheritance rather than a rehearsal failure and does not hold the go/no-go on its own."
+    },
+    {
+      "rule_id": "rehearsal_rule:rehearsal_evidence_incomplete",
+      "title": "Rehearsal evidence incomplete",
+      "trigger_reason": "rehearsal_evidence_incomplete",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "recapture_rehearsal_evidence",
+      "blocks_go_no_go": true,
+      "rationale": "A rehearsal stage whose dress-rehearsal evidence is incomplete cannot return a Go for a Stable public claim; it narrows and the go/no-go holds until the evidence is recaptured."
+    },
+    {
+      "rule_id": "rehearsal_rule:rehearsal_packet_freshness_breached",
+      "title": "Rehearsal packet breached its freshness SLO",
+      "trigger_reason": "rehearsal_packet_freshness_breached",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_rehearsal_packet",
+      "blocks_go_no_go": true,
+      "rationale": "A rehearsal stage whose rehearsal packet has aged past its freshness SLO no longer proves the stage was exercised on the current build; it narrows and the go/no-go holds until the packet is refreshed within its SLO."
+    },
+    {
+      "rule_id": "rehearsal_rule:rehearsal_packet_missing",
+      "title": "Rehearsal packet missing",
+      "trigger_reason": "rehearsal_packet_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "refresh_rehearsal_packet",
+      "blocks_go_no_go": true,
+      "rationale": "A rehearsal stage with no captured rehearsal packet cannot return a Go for a Stable public claim by riding an adjacent rehearsed stage; it narrows and the go/no-go holds until a packet is captured and signed off."
+    },
+    {
+      "rule_id": "rehearsal_rule:exception_expired",
+      "title": "Relied-on exception packet expired",
+      "trigger_reason": "exception_expired",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "hold_go_no_go",
+      "blocks_go_no_go": true,
+      "rationale": "A rehearsal stage that returned Go only because of an exception packet loses that authorization once the exception expires; it narrows and the go/no-go holds until the underlying gap is closed or a fresh exception packet is granted."
+    },
+    {
+      "rule_id": "rehearsal_rule:owner_signoff_missing",
+      "title": "Stage owner signoff missing",
+      "trigger_reason": "owner_signoff_missing",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "request_owner_signoff",
+      "blocks_go_no_go": true,
+      "rationale": "A rehearsal stage cannot return a Go for a Stable public claim without the stage owner's signoff; it narrows and the go/no-go holds until the owner signs."
+    },
+    {
+      "rule_id": "rehearsal_rule:rollback_checkpoint_unverified",
+      "title": "Required rollback checkpoint unverified",
+      "trigger_reason": "rollback_checkpoint_unverified",
+      "applies_to_labels": [
+        "lts",
+        "stable"
+      ],
+      "default_action": "verify_rollback_checkpoint",
+      "blocks_go_no_go": true,
+      "rationale": "A rehearsal stage with a required rollback checkpoint that was not verified to a restore point cannot return a Go for a Stable public claim; it narrows and the go/no-go holds until the checkpoint is verified."
+    }
+  ],
+  "rows": [
+    {
+      "entry_id": "rehearsal:cutline_go_no_go_signoff",
+      "title": "Explicit launch-cutline go/no-go signoff",
+      "stage_kind": "cutline_review",
+      "subject_ref": "artifacts/release/stable_claim_manifest.json",
+      "subject_summary": "The final review that fixes the explicit launch cutline and confirms which surfaces sit at or above Stable versus narrowed below it before the train is allowed to promote.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "rehearsal_state": "go_rehearsed",
+      "rehearsal_packet": {
+        "packet_id": "rehearsal_packet:cutline_go_no_go_signoff",
+        "packet_ref": "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2026-05-12",
+        "freshness_slo": {
+          "target_max_age_days": 90,
+          "warn_within_days": 30,
+          "slo_register_ref": "docs/release/go_no_go_rehearsal.md#packet-freshness-slo"
+        },
+        "slo_state": "breached",
+        "evidence_refs": [
+          "artifacts/release/stable_claim_manifest.json",
+          "artifacts/release/promotion_checklist.yaml"
+        ]
+      },
+      "owner_signoff": {
+        "owner_ref": "team:release_shiproom",
+        "signed_off": true,
+        "signed_at": "2026-05-13"
+      },
+      "rollback_checkpoints": [
+        {
+          "checkpoint_id": "checkpoint:cutline_frozen",
+          "title": "Launch cutline frozen and reviewed",
+          "restore_point_ref": "artifacts/release/promotion_checklist.yaml",
+          "verified": true
+        },
+        {
+          "checkpoint_id": "checkpoint:narrowed_surfaces_confirmed",
+          "title": "Surfaces below the cutline confirmed narrowed",
+          "restore_point_ref": "artifacts/release/stable_claim_manifest.json",
+          "verified": true
+        }
+      ],
+      "active_gap_reasons": [],
+      "effective_label": "stable",
+      "publication_destinations": [
+        "docs/release/go_no_go_rehearsal.md",
+        "docs/release/shiproom_runbook.md"
+      ],
+      "rationale": "A captured, within-SLO rehearsal packet, a frozen cutline checkpoint, and a confirmed narrowed-surfaces checkpoint back the explicit launch-cutline signoff at the repair claim's Stable label."
+    },
+    {
+      "entry_id": "rehearsal:promotion_step_dry_run",
+      "title": "Promotion publish-step dry run",
+      "stage_kind": "promotion_step",
+      "subject_ref": "artifacts/release/promotion_gate_map.yaml",
+      "subject_summary": "The end-to-end dry run of the promotion publish step from the release candidate through the publish targets, with the gate map exercised against the live train.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "rehearsal_state": "go_rehearsed",
+      "rehearsal_packet": {
+        "packet_id": "rehearsal_packet:promotion_step_dry_run",
+        "packet_ref": "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2026-05-10",
+        "freshness_slo": {
+          "target_max_age_days": 90,
+          "warn_within_days": 30,
+          "slo_register_ref": "docs/release/go_no_go_rehearsal.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "artifacts/release/promotion_gate_map.yaml",
+          "artifacts/release/promotion_checklist.yaml"
+        ]
+      },
+      "owner_signoff": {
+        "owner_ref": "team:release_engineering",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "rollback_checkpoints": [
+        {
+          "checkpoint_id": "checkpoint:promotion_dry_run_clean",
+          "title": "Promotion dry run completed against the live train",
+          "restore_point_ref": "artifacts/release/promotion_gate_map.yaml",
+          "verified": true
+        }
+      ],
+      "active_gap_reasons": [],
+      "effective_label": "stable",
+      "publication_destinations": [
+        "docs/release/go_no_go_rehearsal.md",
+        "docs/release/shiproom_runbook.md"
+      ],
+      "rationale": "The promotion publish-step dry run rides a fresh packet, a verified dry-run checkpoint, and an owner sign-off, so it returns Go for the provider claim's Stable label."
+    },
+    {
+      "entry_id": "rehearsal:rollback_live_hardware_checkpoint",
+      "title": "Live-hardware rollback checkpoint drill",
+      "stage_kind": "rollback_checkpoint",
+      "subject_ref": "docs/release/update_verification_and_rollback_sequence.md",
+      "subject_summary": "The live-hardware rollback drill that restores the previous build from a verified rollback checkpoint and confirms the workspace returns to a clean known-good state.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "rehearsal_state": "go_on_exception",
+      "rehearsal_packet": {
+        "packet_id": "rehearsal_packet:rollback_live_hardware_checkpoint",
+        "packet_ref": "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2026-05-11",
+        "freshness_slo": {
+          "target_max_age_days": 90,
+          "warn_within_days": 30,
+          "slo_register_ref": "docs/release/go_no_go_rehearsal.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "docs/release/update_verification_and_rollback_sequence.md",
+          "artifacts/release/update_rollback_sequence.yaml"
+        ]
+      },
+      "exception_packet": {
+        "waiver_ref": "exception:rollback_secondary_target_parity",
+        "expires_at": "2026-09-01",
+        "reason": "The live-hardware rollback drill restored the primary target from a verified checkpoint; an active exception packet authorizes the stage to return Go at the repair claim's Stable label while the same drill on one secondary hardware target is still being captured."
+      },
+      "owner_signoff": {
+        "owner_ref": "team:recovery",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "rollback_checkpoints": [
+        {
+          "checkpoint_id": "checkpoint:previous_build_restored",
+          "title": "Previous build restored from a verified checkpoint",
+          "restore_point_ref": "artifacts/release/update_rollback_sequence.yaml",
+          "verified": true
+        },
+        {
+          "checkpoint_id": "checkpoint:workspace_known_good",
+          "title": "Workspace returned to a clean known-good state",
+          "restore_point_ref": "docs/release/update_verification_and_rollback_sequence.md",
+          "verified": true
+        }
+      ],
+      "active_gap_reasons": [],
+      "effective_label": "stable",
+      "publication_destinations": [
+        "docs/release/go_no_go_rehearsal.md",
+        "docs/release/shiproom_runbook.md"
+      ],
+      "rationale": "The live-hardware rollback drill restored the primary target from a verified checkpoint and rides a fresh packet; an active, unexpired exception packet covers the secondary-target drill, so the stage returns Go at the repair claim's Stable label on exception."
+    },
+    {
+      "entry_id": "rehearsal:rollback_state_integrity_checkpoint",
+      "title": "Rollback state-integrity checkpoint drill",
+      "stage_kind": "rollback_checkpoint",
+      "subject_ref": "docs/release/update_and_rollback_contract.md",
+      "subject_summary": "The drill that proves a rollback preserves on-disk state and history integrity, restoring the project state to the pre-update checkpoint without data loss.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "rehearsal_state": "no_go_unrehearsed",
+      "rehearsal_packet": {
+        "packet_id": "rehearsal_packet:rollback_state_integrity_checkpoint",
+        "packet_ref": "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2026-05-09",
+        "freshness_slo": {
+          "target_max_age_days": 90,
+          "warn_within_days": 30,
+          "slo_register_ref": "docs/release/go_no_go_rehearsal.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "docs/release/update_and_rollback_contract.md"
+        ]
+      },
+      "owner_signoff": {
+        "owner_ref": "team:recovery",
+        "signed_off": true,
+        "signed_at": "2026-05-12"
+      },
+      "rollback_checkpoints": [
+        {
+          "checkpoint_id": "checkpoint:state_restored_no_loss",
+          "title": "Project state restored to the pre-update checkpoint without loss",
+          "restore_point_ref": "docs/release/update_and_rollback_contract.md",
+          "verified": true
+        },
+        {
+          "checkpoint_id": "checkpoint:history_integrity_preserved",
+          "title": "History integrity preserved across the rollback",
+          "restore_point_ref": "artifacts/release/update_rollback_sequence.yaml",
+          "verified": false
+        }
+      ],
+      "active_gap_reasons": [
+        "rollback_checkpoint_unverified"
+      ],
+      "effective_label": "beta",
+      "publication_destinations": [
+        "docs/release/go_no_go_rehearsal.md"
+      ],
+      "rationale": "The state-integrity drill rides a fresh packet, but the history-integrity rollback checkpoint was not verified, so the checkpoint automation narrows the stage to a No-Go at beta and holds the go/no-go until the checkpoint is verified."
+    },
+    {
+      "entry_id": "rehearsal:promotion_step_rollforward",
+      "title": "Promotion roll-forward recovery rehearsal",
+      "stage_kind": "promotion_step",
+      "subject_ref": "docs/release/silent_deployment_contract.md",
+      "subject_summary": "The rehearsal of the roll-forward path that recovers a stalled promotion by re-driving the publish step rather than rolling back, exercised against the live train.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:provider_aware_language_intelligence",
+      "claim_label": "stable",
+      "rehearsal_state": "no_go_stale",
+      "rehearsal_packet": {
+        "packet_id": "rehearsal_packet:promotion_step_rollforward",
+        "packet_ref": "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2025-12-01",
+        "freshness_slo": {
+          "target_max_age_days": 90,
+          "warn_within_days": 30,
+          "slo_register_ref": "docs/release/go_no_go_rehearsal.md#packet-freshness-slo"
+        },
+        "slo_state": "breached",
+        "evidence_refs": [
+          "docs/release/silent_deployment_contract.md",
+          "artifacts/release/silent_deployment_seed.yaml"
+        ]
+      },
+      "owner_signoff": {
+        "owner_ref": "team:release_engineering",
+        "signed_off": true,
+        "signed_at": "2025-12-02"
+      },
+      "rollback_checkpoints": [
+        {
+          "checkpoint_id": "checkpoint:rollforward_redrive_clean",
+          "title": "Stalled promotion recovered by re-driving the publish step",
+          "restore_point_ref": "artifacts/release/silent_deployment_seed.yaml",
+          "verified": true
+        }
+      ],
+      "active_gap_reasons": [
+        "rehearsal_packet_freshness_breached"
+      ],
+      "effective_label": "beta",
+      "publication_destinations": [
+        "docs/release/go_no_go_rehearsal.md"
+      ],
+      "rationale": "The roll-forward recovery rehearsal aged past its freshness SLO against as_of, so it no longer proves the path works on the current build; it narrows to a No-Go at beta and holds the go/no-go until the rehearsal is re-run even though its checkpoint still held."
+    },
+    {
+      "entry_id": "rehearsal:exception_packet_review",
+      "title": "Open exception-packet review",
+      "stage_kind": "exception_review",
+      "subject_ref": "docs/release/readiness_lane.md",
+      "subject_summary": "The review that confirms every open launch exception packet is recorded, owner-attributed, time-boxed with an expiry, and tied to a tracked closure plan before the go/no-go.",
+      "release_blocking": true,
+      "claim_ref": "manifest_entry:repair_and_rollback_safety",
+      "claim_label": "stable",
+      "rehearsal_state": "no_go_exception_expired",
+      "rehearsal_packet": {
+        "packet_id": "rehearsal_packet:exception_packet_review",
+        "packet_ref": "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:rollback_live_hardware_drill",
+        "captured_at": "2026-05-08",
+        "freshness_slo": {
+          "target_max_age_days": 90,
+          "warn_within_days": 30,
+          "slo_register_ref": "docs/release/go_no_go_rehearsal.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "docs/release/readiness_lane.md",
+          "artifacts/release/promotion_checklist.yaml"
+        ]
+      },
+      "exception_packet": {
+        "waiver_ref": "exception:readiness_lane_residual_gap",
+        "expires_at": "2026-03-01",
+        "reason": "An exception packet authorized returning Go while one residual readiness-lane gap was being closed; the exception packet has since expired against as_of."
+      },
+      "owner_signoff": {
+        "owner_ref": "team:release_shiproom",
+        "signed_off": true,
+        "signed_at": "2026-02-10"
+      },
+      "rollback_checkpoints": [
+        {
+          "checkpoint_id": "checkpoint:exceptions_time_boxed",
+          "title": "Every open exception packet recorded and time-boxed",
+          "restore_point_ref": "docs/release/readiness_lane.md",
+          "verified": true
+        }
+      ],
+      "active_gap_reasons": [
+        "exception_expired"
+      ],
+      "effective_label": "beta",
+      "publication_destinations": [
+        "docs/release/go_no_go_rehearsal.md"
+      ],
+      "rationale": "The exception-packet review returned Go at Stable only on an exception packet that has expired against as_of; the exception-expiry automation narrows it to a No-Go at beta and holds the go/no-go until the residual gap is closed without an exception."
+    },
+    {
+      "entry_id": "rehearsal:export_offboarding_dry_run",
+      "title": "Export and offboarding promotion dry run",
+      "stage_kind": "promotion_step",
+      "subject_ref": "docs/release/update_ready_review_contract.md",
+      "subject_summary": "The dry run that rehearses promoting and offboarding an export bundle to the open-source build, validating the export path end to end.",
+      "release_blocking": false,
+      "claim_ref": "manifest_entry:export_and_offboarding_support",
+      "claim_label": "beta",
+      "rehearsal_state": "no_go_claim_narrowed",
+      "rehearsal_packet": {
+        "packet_id": "rehearsal_packet:export_offboarding_dry_run",
+        "packet_ref": "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:export_offboarding_fidelity",
+        "captured_at": "2026-05-07",
+        "freshness_slo": {
+          "target_max_age_days": 90,
+          "warn_within_days": 30,
+          "slo_register_ref": "docs/release/go_no_go_rehearsal.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "docs/release/update_ready_review_contract.md"
+        ]
+      },
+      "owner_signoff": {
+        "owner_ref": "team:release_engineering",
+        "signed_off": true,
+        "signed_at": "2026-05-08"
+      },
+      "rollback_checkpoints": [
+        {
+          "checkpoint_id": "checkpoint:export_path_validated",
+          "title": "Export and offboarding path validated end to end",
+          "restore_point_ref": "docs/release/update_ready_review_contract.md",
+          "verified": true
+        }
+      ],
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "effective_label": "beta",
+      "publication_destinations": [
+        "docs/release/go_no_go_rehearsal.md"
+      ],
+      "rationale": "The export and offboarding promotion dry run rides a fresh packet, a verified checkpoint, and an owner sign-off, but its backing public claim is published beta, so it inherits that ceiling and renders a beta verdict rather than widening to Stable."
+    },
+    {
+      "entry_id": "rehearsal:regulated_assurance_exception_review",
+      "title": "Regulated-environment exception review",
+      "stage_kind": "exception_review",
+      "subject_ref": "docs/release/end_of_support_and_migration_contract.md",
+      "subject_summary": "The review of the open exception packets governing regulated-environment assurance claims before the go/no-go.",
+      "release_blocking": false,
+      "claim_ref": "manifest_entry:regulated_environment_assurance",
+      "claim_label": "beta",
+      "rehearsal_state": "no_go_claim_narrowed",
+      "rehearsal_packet": {
+        "packet_id": "rehearsal_packet:regulated_assurance_exception_review",
+        "packet_ref": "artifacts/release/m4/go_no_go_rehearsal_proof_packet.md",
+        "proof_index_ref": "artifacts/release/stable_proof_index.json#proof:regulated_sovereign_evidence",
+        "captured_at": "2026-05-06",
+        "freshness_slo": {
+          "target_max_age_days": 90,
+          "warn_within_days": 30,
+          "slo_register_ref": "docs/release/go_no_go_rehearsal.md#packet-freshness-slo"
+        },
+        "slo_state": "current",
+        "evidence_refs": [
+          "docs/release/end_of_support_and_migration_contract.md"
+        ]
+      },
+      "owner_signoff": {
+        "owner_ref": "team:release_shiproom",
+        "signed_off": true,
+        "signed_at": "2026-05-07"
+      },
+      "rollback_checkpoints": [
+        {
+          "checkpoint_id": "checkpoint:regulated_exceptions_recorded",
+          "title": "Regulated-environment exception packets recorded and time-boxed",
+          "restore_point_ref": "docs/release/end_of_support_and_migration_contract.md",
+          "verified": true
+        }
+      ],
+      "active_gap_reasons": [
+        "claim_label_narrowed"
+      ],
+      "effective_label": "beta",
+      "publication_destinations": [
+        "docs/release/go_no_go_rehearsal.md"
+      ],
+      "rationale": "The regulated-environment exception review carries a fresh, signed-off packet with a verified checkpoint, but its backing public claim is published beta, so it inherits that ceiling and renders a beta verdict rather than widening to Stable."
+    }
+  ],
+  "publication": {
+    "publication_gate": "release.shiproom.go_no_go_rehearsal",
+    "decision": "hold",
+    "blocking_rule_ids": [
+      "rehearsal_rule:exception_expired",
+      "rehearsal_rule:rehearsal_packet_freshness_breached",
+      "rehearsal_rule:rollback_checkpoint_unverified"
+    ],
+    "blocking_entry_ids": [
+      "rehearsal:exception_packet_review",
+      "rehearsal:promotion_step_rollforward",
+      "rehearsal:rollback_state_integrity_checkpoint"
+    ],
+    "rationale": "Go/no-go holds: a rollback state-integrity stage with an unverified history-integrity checkpoint, a roll-forward recovery rehearsal whose packet breached its freshness SLO, and an exception-packet review whose exception expired all narrow to No-Go below the cutline under public claims that are still published Stable."
+  },
+  "summary": {
+    "total_rows": 8,
+    "total_claims": 4,
+    "rows_go": 3,
+    "rows_no_go_below_cutline": 5,
+    "release_blocking_total": 6,
+    "release_blocking_go": 3,
+    "release_blocking_no_go": 3,
+    "rows_on_active_exception": 1,
+    "packets_current": 6,
+    "packets_due_for_refresh": 0,
+    "packets_breached": 2,
+    "packets_missing": 0,
+    "total_checkpoints": 11,
+    "checkpoints_verified": 10,
+    "checkpoints_unverified": 1,
+    "total_active_gap_reasons": 5,
+    "rules_firing": 4
+  }
+}

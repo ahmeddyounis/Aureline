@@ -123,11 +123,27 @@
 //! adjacent attested row — while the open-paid-boundary/licensing/provenance/contribution-
 //! policy domains and the release-line audit set both stay fully covered, so shiproom and
 //! release tooling can fail promotion directly from the audit.
+//! The go-no-go-rehearsal module is the launch-rehearsal layer that closes the loop over all
+//! of the above: where the manifest, proof index, version windows, and audit govern what the
+//! release line *is*, this rehearsal governs whether the release train was actually
+//! *exercised* before the go/no-go — the explicit launch cutline signed off, the promotion
+//! publish step dry-run, each rollback checkpoint verified to a restore point, and every open
+//! exception packet reviewed. For every rehearsal stage it records one row binding the stage
+//! to the public claim it backs and to its rehearsal packet, its required rollback
+//! checkpoints, an exception packet (if any) holding it provisionally, and an owner sign-off,
+//! so a stage whose rehearsal packet aged out or is missing, whose rollback checkpoint is
+//! unverified, whose evidence is incomplete, whose owner sign-off is missing, whose exception
+//! packet expired, or whose backing public claim is itself below the cutline narrows to a
+//! No-Go below the launch cutline and never inherits an adjacent rehearsed stage — while the
+//! cutline-review/promotion-step/rollback-checkpoint/exception-review stage kinds and the
+//! release-line rehearsal set both stay fully covered, so shiproom and release tooling can
+//! fail the go/no-go directly from the rehearsal.
 
 #![doc(html_root_url = "https://docs.rs/aureline-release/0.0.0")]
 
 pub mod correction_train;
 pub mod finalize_design_partner_certified_archetype_and_stable_cohort;
+pub mod go_no_go_rehearsal;
 pub mod maintenance_control_packet;
 pub mod open_paid_boundary_audit;
 pub mod optional_surface_qualification;
@@ -157,6 +173,14 @@ pub use finalize_design_partner_certified_archetype_and_stable_cohort::{
     ScoreboardLane, ScoreboardMetric, ScoreboardPublicationRecord, ScoreboardRule, ScoreboardState,
     SignoffLoop, COHORT_SCOREBOARDS_JSON, COHORT_SCOREBOARDS_PATH, COHORT_SCOREBOARDS_RECORD_KIND,
     COHORT_SCOREBOARDS_SCHEMA_VERSION,
+};
+
+pub use go_no_go_rehearsal::{
+    current_go_no_go_rehearsal, GoNoGoRehearsal, GoNoGoRehearsalSummary, GoNoGoRehearsalViolation,
+    RehearsalAction, RehearsalExportProjection, RehearsalExportRow, RehearsalGapReason,
+    RehearsalPublicationRecord, RehearsalRule, RehearsalStageRow, RehearsalState, RollbackCheckpoint,
+    StageKind, GO_NO_GO_REHEARSAL_JSON, GO_NO_GO_REHEARSAL_PATH, GO_NO_GO_REHEARSAL_RECORD_KIND,
+    GO_NO_GO_REHEARSAL_SCHEMA_VERSION,
 };
 
 pub use maintenance_control_packet::{
