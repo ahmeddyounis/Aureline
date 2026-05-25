@@ -154,6 +154,7 @@ pub mod scope_truth;
 pub mod search;
 pub mod secret_broker_beta;
 pub mod service_health;
+pub mod shell_safe_preview_stable;
 pub mod start_center;
 pub mod start_center_stable;
 pub mod state_cards;
