@@ -103,6 +103,7 @@ pub mod managed_boundary;
 pub mod managed_truth;
 pub mod managed_workspace_labels;
 pub mod migration_center;
+pub mod migration_center_stable;
 pub mod migration_corpus;
 pub mod migration_wizard;
 pub mod network_badges;
