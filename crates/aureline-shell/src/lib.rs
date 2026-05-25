@@ -147,6 +147,7 @@ pub mod search;
 pub mod secret_broker_beta;
 pub mod service_health;
 pub mod start_center;
+pub mod start_center_stable;
 pub mod state_cards;
 pub mod status;
 pub mod status_bar;
