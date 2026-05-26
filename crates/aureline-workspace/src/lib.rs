@@ -24,6 +24,7 @@ pub mod generated_artifacts;
 pub mod generated_projects;
 pub mod history;
 pub mod lifecycle;
+pub mod mutation_and_generated_artifact_lineage;
 pub mod mutation_journal;
 pub mod portable_state_lineage;
 pub mod prebuilds;
@@ -447,6 +448,27 @@ pub use prebuilds::{
     REQUIRED_REVALIDATION_CLASSES, REUSE_OUTCOME_CLASSES, ROUTE_DEPENDENCY_CLASSES,
     SIGNER_POSTURE_CLASSES, SOURCE_MATERIALIZATION_CLASSES, SUPPORT_EXPORT_POSTURES,
     SUPPORT_PACKET_INCLUSION_CLASSES, TRUST_STATES,
+};
+
+pub use mutation_and_generated_artifact_lineage::{
+    default_mutation_and_generated_artifact_inspection_hooks,
+    mutation_and_generated_artifact_lineage_lines,
+    project_mutation_and_generated_artifact_lineage,
+    project_mutation_and_generated_artifact_lineage_with_hooks, CanonicalLineageTruthSummary,
+    DefaultEditPostureClass, DriftStateClass, DriftTruthSummary, EditPostureHonestySummary,
+    GeneratedArtifactCoverageSummary, GeneratedArtifactKind, GeneratedArtifactObservation,
+    GeneratedArtifactRow, LabelingSurfaceCoverageSummary, LabelingSurfaceKind,
+    MutationAndGeneratedArtifactInputs, MutationAndGeneratedArtifactInspectionHook,
+    MutationAndGeneratedArtifactInspectionHookClass,
+    MutationAndGeneratedArtifactLineageNarrowReason,
+    MutationAndGeneratedArtifactLineageQualification, MutationAndGeneratedArtifactLineageRecord,
+    MutationAndGeneratedArtifactProducerAttributionSummary, MutationNoRerunHonestySummary,
+    MutationNoRerunPosture, MutationPathCoverageSummary, MutationPathKind, MutationPathObservation,
+    MutationPathRow, MutationSupportExportHonestySummary, MutationSupportExportInputs,
+    MutationSupportExportPosture, MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_RECORD_KIND,
+    MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_SCHEMA_REF,
+    MUTATION_AND_GENERATED_ARTIFACT_LINEAGE_SCHEMA_VERSION,
+    REQUIRED_GENERATED_ARTIFACT_CLASSES, REQUIRED_LABELING_SURFACES, REQUIRED_MUTATION_PATHS,
 };
 
 pub use mutation_journal::{
