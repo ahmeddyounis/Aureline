@@ -57,6 +57,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-search/0.0.0")]
 
+pub mod collection_portability_truth;
 pub mod collections;
 pub mod counts;
 pub mod deep_link_navigation_truth;
@@ -79,6 +80,21 @@ pub mod result_truth_packet;
 pub mod results;
 pub mod scope;
 pub mod session_ledger;
+
+pub use collection_portability_truth::{
+    current_stable_collection_portability_truth_packet, CollectionPortabilityColumnPreset,
+    CollectionPortabilityConsumerProjection, CollectionPortabilityConsumerSurface,
+    CollectionPortabilityFindingKind, CollectionPortabilityFindingSeverity,
+    CollectionPortabilityPromotionState, CollectionPortabilityReopenState,
+    CollectionPortabilityRow, CollectionPortabilityTruthArtifactError,
+    CollectionPortabilityTruthPacket, CollectionPortabilityTruthPacketInput,
+    CollectionPortabilityTruthSupportExport, CollectionPortabilityValidationFinding,
+    COLLECTION_PORTABILITY_TRUTH_ARTIFACT_DOC_REF, COLLECTION_PORTABILITY_TRUTH_DOC_REF,
+    COLLECTION_PORTABILITY_TRUTH_FIXTURE_DIR, COLLECTION_PORTABILITY_TRUTH_PACKET_ARTIFACT_REF,
+    COLLECTION_PORTABILITY_TRUTH_PACKET_RECORD_KIND, COLLECTION_PORTABILITY_TRUTH_SCHEMA_REF,
+    COLLECTION_PORTABILITY_TRUTH_SCHEMA_VERSION,
+    COLLECTION_PORTABILITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 
 pub use collections::{
     consumed_scope_counts_schema_version, BatchActionClass, BatchAftermathSummary,
