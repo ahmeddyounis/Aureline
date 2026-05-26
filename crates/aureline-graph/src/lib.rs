@@ -15,6 +15,7 @@ pub mod journey_budget;
 pub mod knowledge_evidence_packet;
 mod query;
 pub mod readiness;
+pub mod scope_provenance_truth_packet;
 mod store;
 
 pub use drift_packets::{
@@ -94,6 +95,25 @@ pub use readiness::beta::{
 pub use readiness::{
     GraphCueActionPosture, GraphCueSurface, GraphFactCue, GraphFactCuePacket, GraphFactTruthLane,
     GRAPH_FACT_CUE_PACKET_RECORD_KIND, GRAPH_FACT_CUE_SCHEMA_VERSION,
+};
+pub use scope_provenance_truth_packet::{
+    current_stable_scope_provenance_truth_packet, ArchivedContext,
+    ConfidenceClass as ScopeProvenanceConfidenceClass, ConsumerSurface as ScopeProvenanceConsumerSurface,
+    DowngradeState as ScopeProvenanceDowngradeState, FindingKind as ScopeProvenanceFindingKind,
+    FindingSeverity as ScopeProvenanceFindingSeverity,
+    FreshnessClass as ScopeProvenanceFreshnessClass, HiddenScopeContext,
+    ImportedMapping, ImportedOutcomeLabel, ItemClass as ScopeProvenanceItemClass,
+    PartialScopeContext, PromotionState as ScopeProvenancePromotionState,
+    ProvenanceClass as ScopeProvenanceProvenanceClass,
+    ScopeProvenanceConsumerProjection, ScopeProvenanceRow, ScopeProvenanceTruthArtifactError,
+    ScopeProvenanceTruthPacket, ScopeProvenanceTruthPacketInput,
+    ScopeProvenanceTruthSupportExport, SurfaceClass as ScopeProvenanceSurfaceClass,
+    ValidationFinding as ScopeProvenanceValidationFinding,
+    SCOPE_PROVENANCE_TRUTH_ARTIFACT_DOC_REF, SCOPE_PROVENANCE_TRUTH_DOC_REF,
+    SCOPE_PROVENANCE_TRUTH_FIXTURE_DIR, SCOPE_PROVENANCE_TRUTH_PACKET_ARTIFACT_REF,
+    SCOPE_PROVENANCE_TRUTH_PACKET_RECORD_KIND, SCOPE_PROVENANCE_TRUTH_SCHEMA_REF,
+    SCOPE_PROVENANCE_TRUTH_SCHEMA_VERSION,
+    SCOPE_PROVENANCE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use store::{GraphStore, GraphStoreError};
 
