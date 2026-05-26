@@ -34,6 +34,7 @@ pub mod save;
 pub mod scaffold;
 pub mod scope_propagation;
 pub mod serialization;
+pub mod portable_state_lineage;
 pub mod state_packages;
 pub mod templates;
 pub mod workset_switcher;
@@ -234,6 +235,17 @@ pub use entry_hardening_lineage::{
     FailureRepairTruth, SideEffectPosture, SurfaceParityTruth, TargetKindTruthSummary,
     VerbTruthSummary, ENTRY_HARDENING_LINEAGE_RECORD_KIND, ENTRY_HARDENING_LINEAGE_SCHEMA_REF,
     ENTRY_HARDENING_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use portable_state_lineage::{
+    default_portable_state_inspection_hooks, portable_state_lineage_lines,
+    project_portable_state_lineage, project_portable_state_lineage_with_hooks,
+    ExclusionHonestySummary, NoRerunHonestySummary, PortableStateInspectionHook,
+    PortableStateInspectionHookClass, PortableStateLineageClassRow,
+    PortableStateLineageNarrowReason, PortableStateLineageQualification, PortableStateLineageRecord,
+    ProducerAttributionSummary, RestoreFidelityClass, RestoreProvenanceSummary,
+    StateClassSeparationSummary, PORTABLE_STATE_LINEAGE_RECORD_KIND,
+    PORTABLE_STATE_LINEAGE_SCHEMA_REF, PORTABLE_STATE_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use canonical_identity_lineage::{
