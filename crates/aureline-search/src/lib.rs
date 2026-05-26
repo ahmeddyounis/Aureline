@@ -79,6 +79,7 @@ pub mod result_id;
 pub mod result_truth_packet;
 pub mod results;
 pub mod scope;
+pub mod search_benchmark_corpus_truth;
 pub mod session_ledger;
 
 pub use collection_portability_truth::{
@@ -286,6 +287,22 @@ pub use results::{
 pub use scope::{
     glob_matches_relative_path, ScopeFilterOutcome, ScopePatternKind, ScopePatternRecord,
     ScopePresentationState, WorkspaceSearchScope, WorkspaceSearchScopeMetadata,
+};
+
+pub use search_benchmark_corpus_truth::{
+    current_stable_search_benchmark_corpus_truth_packet, BenchmarkCorpusClass,
+    BenchmarkCorpusDefinition, CertifiedArchetypePackRow, CorpusConfidenceClass,
+    CorpusConsumerProjection, CorpusConsumerSurface, CorpusFindingKind, CorpusFindingSeverity,
+    CorpusPromotionState, CorpusValidationFinding, EvaluationDowngradeState, ProvenanceClass,
+    QueryPackClass, RankingMetricClass, RankingMetricObservation, RetentionPolicyClass,
+    SearchBenchmarkCorpusTruthArtifactError, SearchBenchmarkCorpusTruthPacket,
+    SearchBenchmarkCorpusTruthPacketInput, SearchBenchmarkCorpusTruthSupportExport,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_ARTIFACT_DOC_REF, SEARCH_BENCHMARK_CORPUS_TRUTH_DOC_REF,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_FIXTURE_DIR,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_PACKET_ARTIFACT_REF,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_PACKET_RECORD_KIND, SEARCH_BENCHMARK_CORPUS_TRUTH_SCHEMA_REF,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_SCHEMA_VERSION,
+    SEARCH_BENCHMARK_CORPUS_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use session_ledger::{
