@@ -38,6 +38,7 @@ pub mod scope_propagation;
 pub mod serialization;
 pub mod state_packages;
 pub mod templates;
+pub mod trust_gating_lineage;
 pub mod workset_switcher;
 pub mod worksets;
 
@@ -267,6 +268,20 @@ pub use reactive_state_lineage::{
     REACTIVE_STATE_LINEAGE_RECORD_KIND, REACTIVE_STATE_LINEAGE_SCHEMA_REF,
     REACTIVE_STATE_LINEAGE_SCHEMA_VERSION, REQUIRED_CONSUMER_SURFACES,
     REQUIRED_VIEW_CLASSES as REQUIRED_REACTIVE_VIEW_CLASSES,
+};
+
+pub use trust_gating_lineage::{
+    default_trust_gating_inspection_hooks, project_trust_gating_lineage,
+    project_trust_gating_lineage_with_hooks, trust_gating_lineage_lines, GateDecisionClass,
+    GateDecisionTruthSummary, OverrideRouteClass, OverrideRouteHonestySummary,
+    SilentExecutionHonestySummary, SilentExecutionPosture, TrustGatingInputs,
+    TrustGatingLineageNarrowReason, TrustGatingLineageQualification, TrustGatingLineageRecord,
+    TrustGatingSurfaceRow, TrustInspectionHook, TrustInspectionHookClass,
+    TrustProducerAttributionSummary, TrustSupportExportHonestySummary, TrustSupportExportInputs,
+    TrustSupportExportPosture, TrustSurfaceCoverageSummary, TrustSurfaceKind,
+    TrustSurfaceObservation, WorkspaceTrustPosture, REQUIRED_TRUST_SURFACES,
+    TRUST_GATING_LINEAGE_RECORD_KIND, TRUST_GATING_LINEAGE_SCHEMA_REF,
+    TRUST_GATING_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use canonical_identity_lineage::{
