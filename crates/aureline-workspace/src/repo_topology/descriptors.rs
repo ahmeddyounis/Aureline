@@ -265,7 +265,11 @@ pub struct RepoTopologyExportSupportRequirements {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RepoRootDescriptor {
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture: Option<FixtureMetadata>,
     pub record_kind: RepoRootDescriptorRecordKind,
     pub repo_root_descriptor_schema_version: u32,
@@ -395,7 +399,11 @@ pub struct FetchPosture {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FetchDepthDescriptor {
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture: Option<FixtureMetadata>,
     pub record_kind: FetchDepthDescriptorRecordKind,
     pub fetch_depth_descriptor_schema_version: u32,
@@ -542,7 +550,11 @@ pub struct ParentMutationPosture {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SubmoduleLink {
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture: Option<FixtureMetadata>,
     pub record_kind: SubmoduleLinkRecordKind,
     pub submodule_link_schema_version: u32,
@@ -706,7 +718,11 @@ pub struct PreviewExportPosture {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LfsHydrationDescriptor {
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture: Option<FixtureMetadata>,
     pub record_kind: LfsHydrationDescriptorRecordKind,
     pub lfs_hydration_descriptor_schema_version: u32,

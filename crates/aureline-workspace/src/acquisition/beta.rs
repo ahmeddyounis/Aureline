@@ -568,16 +568,20 @@ impl RepositoryAcquisitionBetaProjection {
                 });
             }
             if item.source_locator_ref != locator_id {
-                return Err(RepositoryAcquisitionBetaError::BootstrapItemLocatorMismatch {
-                    bootstrap_item_id: item.bootstrap_item_id.clone(),
-                    expected_source_locator_id: locator_id.to_owned(),
-                    observed: item.source_locator_ref.clone(),
-                });
+                return Err(
+                    RepositoryAcquisitionBetaError::BootstrapItemLocatorMismatch {
+                        bootstrap_item_id: item.bootstrap_item_id.clone(),
+                        expected_source_locator_id: locator_id.to_owned(),
+                        observed: item.source_locator_ref.clone(),
+                    },
+                );
             }
             if item.attributable_evidence.is_empty() {
-                return Err(RepositoryAcquisitionBetaError::BootstrapItemEvidenceMissing {
-                    bootstrap_item_id: item.bootstrap_item_id.clone(),
-                });
+                return Err(
+                    RepositoryAcquisitionBetaError::BootstrapItemEvidenceMissing {
+                        bootstrap_item_id: item.bootstrap_item_id.clone(),
+                    },
+                );
             }
         }
 
@@ -589,8 +593,12 @@ impl RepositoryAcquisitionBetaProjection {
         let credential_posture = resolve_credential_posture(locator, plan, bootstrap_items);
         let interrupted_recovery = resolve_interrupted_recovery(plan);
         let manual_followups = resolve_manual_followups(bootstrap_items);
-        let evidence_packet =
-            resolve_evidence_packet(locator, plan, bootstrap_items, manual_followups.len() as u64);
+        let evidence_packet = resolve_evidence_packet(
+            locator,
+            plan,
+            bootstrap_items,
+            manual_followups.len() as u64,
+        );
         let honesty_labels = resolve_honesty_labels(locator, plan, &checkout_shape);
         let guardrails = resolve_guardrails(
             locator,
@@ -669,7 +677,9 @@ fn resolve_acquisition_verb(locator: &SourceLocatorRecord) -> AcquisitionVerb {
         LocatorClass::Template | LocatorClass::PrebuildSnapshot => {
             AcquisitionVerb::OpenTemplateOrPrebuild
         }
-        LocatorClass::LiveResumeTarget | LocatorClass::RecoveryCheckpoint => AcquisitionVerb::Resume,
+        LocatorClass::LiveResumeTarget | LocatorClass::RecoveryCheckpoint => {
+            AcquisitionVerb::Resume
+        }
         LocatorClass::ReviewOrWorkItemDeepLink => AcquisitionVerb::OpenDeepLink,
     }
 }
@@ -722,7 +732,10 @@ fn resolve_checkout_shape(
 
     let mode = if matches!(locator.locator_class, LocatorClass::LiveResumeTarget) {
         CheckoutModeClass::LiveAttach
-    } else if matches!(locator.locator_class, LocatorClass::ReviewOrWorkItemDeepLink) {
+    } else if matches!(
+        locator.locator_class,
+        LocatorClass::ReviewOrWorkItemDeepLink
+    ) {
         CheckoutModeClass::NotApplicable
     } else if matches!(
         locator.locator_class,
@@ -773,12 +786,16 @@ fn resolve_cost_band(
     }
 
     let any_network_item = bootstrap_items.iter().any(|item| {
-        matches!(item.execution_class, BootstrapExecutionClass::NetworkRequired)
-            && item.state.is_remaining()
+        matches!(
+            item.execution_class,
+            BootstrapExecutionClass::NetworkRequired
+        ) && item.state.is_remaining()
     });
     let any_large_hydrate = matches!(
         shape.lfs_policy,
-        LfsPolicyClass::PointerOnly | LfsPolicyClass::HydratePending | LfsPolicyClass::HydratePartial
+        LfsPolicyClass::PointerOnly
+            | LfsPolicyClass::HydratePending
+            | LfsPolicyClass::HydratePartial
     ) || matches!(shape.mode, CheckoutModeClass::PartialClone);
 
     if any_large_hydrate || (any_network_item && shape.partial_or_sparse) {
@@ -821,7 +838,10 @@ fn resolve_cost_band(
         return ExpectedCostBand::MeteredFetch;
     }
 
-    if matches!(locator.acquisition_posture, AcquisitionPosture::AlreadyOnDisk) {
+    if matches!(
+        locator.acquisition_posture,
+        AcquisitionPosture::AlreadyOnDisk
+    ) {
         return ExpectedCostBand::LocalNoFetch;
     }
 
@@ -914,11 +934,19 @@ fn resolve_interrupted_recovery(plan: &CheckoutPlanRecord) -> Option<Interrupted
     let mut branches: Vec<InterruptedRecoveryBranch> = Vec::new();
     for hook in &plan.next_step_decision_hooks {
         let branch = match hook {
-            NextStepDecisionHook::ResumeAcquisition => Some(InterruptedRecoveryBranch::ResumeAcquisition),
-            NextStepDecisionHook::DiscardAndRestart => Some(InterruptedRecoveryBranch::DiscardAndRestart),
-            NextStepDecisionHook::OpenReadOnlyPartial => Some(InterruptedRecoveryBranch::OpenReadOnlyPartial),
+            NextStepDecisionHook::ResumeAcquisition => {
+                Some(InterruptedRecoveryBranch::ResumeAcquisition)
+            }
+            NextStepDecisionHook::DiscardAndRestart => {
+                Some(InterruptedRecoveryBranch::DiscardAndRestart)
+            }
+            NextStepDecisionHook::OpenReadOnlyPartial => {
+                Some(InterruptedRecoveryBranch::OpenReadOnlyPartial)
+            }
             NextStepDecisionHook::RefreshMirror => Some(InterruptedRecoveryBranch::RefreshMirror),
-            NextStepDecisionHook::SwitchToLiveOrigin => Some(InterruptedRecoveryBranch::SwitchToLiveOrigin),
+            NextStepDecisionHook::SwitchToLiveOrigin => {
+                Some(InterruptedRecoveryBranch::SwitchToLiveOrigin)
+            }
             _ => None,
         };
         if let Some(branch) = branch {
@@ -943,7 +971,10 @@ fn resolve_interrupted_recovery(plan: &CheckoutPlanRecord) -> Option<Interrupted
         }
     }
     if open_read_only_available {
-        push_unique(&mut branches, InterruptedRecoveryBranch::OpenReadOnlyPartial);
+        push_unique(
+            &mut branches,
+            InterruptedRecoveryBranch::OpenReadOnlyPartial,
+        );
     }
 
     Some(InterruptedRecovery {
@@ -1031,17 +1062,18 @@ fn resolve_honesty_labels(
         .and_then(|m| m.upstream_delta_class)
         == Some(UpstreamDeltaClass::DeltaOutsideDeclaredSkew)
     {
-        push_unique(&mut labels, AcquisitionHonestyLabel::UpstreamDeltaOutsideSkew);
+        push_unique(
+            &mut labels,
+            AcquisitionHonestyLabel::UpstreamDeltaOutsideSkew,
+        );
     }
 
     match locator.signer_continuity_class {
         SignerContinuityClass::SignerChangedReviewRequired
-        | SignerContinuityClass::SignatureMismatch => {
-            push_unique(
-                &mut labels,
-                AcquisitionHonestyLabel::SignerChangedReviewRequired,
-            )
-        }
+        | SignerContinuityClass::SignatureMismatch => push_unique(
+            &mut labels,
+            AcquisitionHonestyLabel::SignerChangedReviewRequired,
+        ),
         SignerContinuityClass::NewSignerFirstSeen
         | SignerContinuityClass::SignerChangedTrustOnFirstUse => {
             push_unique(&mut labels, AcquisitionHonestyLabel::SignerFirstSeen)
@@ -1123,8 +1155,9 @@ fn resolve_guardrails(
                 )
         })
     };
-    let no_implicit_repo_code_execution =
-        plan_blocks_repo_code && no_premature_side_effect && !plan.blocked_execution_paths.is_empty();
+    let no_implicit_repo_code_execution = plan_blocks_repo_code
+        && no_premature_side_effect
+        && !plan.blocked_execution_paths.is_empty();
 
     let bootstrap_items_attributed =
         bootstrap_items.is_empty() || evidence_packet.every_item_attributed;
@@ -1229,15 +1262,15 @@ fn push_unique<T: PartialEq>(slot: &mut Vec<T>, value: T) {
 #[cfg(test)]
 mod tests {
     use super::super::descriptors::{
-        AttributableEvidence, AttributableEvidenceClass, AuthModeClass, BlockedExecutionPathClass,
-        BootstrapExecutionClass, BootstrapItemClass, BootstrapItemState, BootstrapQueueItemRecord,
-        BootstrapQueueItemRecordKind, BrowseSafeActionClass, CheckoutPlanRecord,
-        CheckoutPlanRecordKind, CheckoutTrustStage, CheckoutTrustState, DeclaredFreshnessClass,
-        DiscardPosture, HostEndpointDescriptor, MirrorFreshnessClass, MirrorFreshnessEvidence,
-        NextStepDecisionHook, ResumableAcquisitionState, SignerContinuityClass,
-        SignerContinuityEvidence, SourceLocatorRecord, SourceLocatorRecordKind, TopologyMarker,
-        TopologyMarkerClass, TransportClass, UpstreamDeltaClass, AcquisitionResumeState,
-        AbsenceClass, LocatorEntryVerbHint, BOOTSTRAP_QUEUE_ITEM_SCHEMA_VERSION,
+        AbsenceClass, AcquisitionResumeState, AttributableEvidence, AttributableEvidenceClass,
+        AuthModeClass, BlockedExecutionPathClass, BootstrapExecutionClass, BootstrapItemClass,
+        BootstrapItemState, BootstrapQueueItemRecord, BootstrapQueueItemRecordKind,
+        BrowseSafeActionClass, CheckoutPlanRecord, CheckoutPlanRecordKind, CheckoutTrustStage,
+        CheckoutTrustState, DeclaredFreshnessClass, DiscardPosture, HostEndpointDescriptor,
+        LocatorEntryVerbHint, MirrorFreshnessClass, MirrorFreshnessEvidence, NextStepDecisionHook,
+        ResumableAcquisitionState, SignerContinuityClass, SignerContinuityEvidence,
+        SourceLocatorRecord, SourceLocatorRecordKind, TopologyMarker, TopologyMarkerClass,
+        TransportClass, UpstreamDeltaClass, BOOTSTRAP_QUEUE_ITEM_SCHEMA_VERSION,
         CHECKOUT_PLAN_SCHEMA_VERSION, SOURCE_LOCATOR_SCHEMA_VERSION,
     };
     use super::*;
@@ -1393,20 +1426,28 @@ mod tests {
             AbsenceClass::NotYetFetched,
         )];
 
-        let projection = RepositoryAcquisitionBetaProjection::project(
-            RepositoryAcquisitionBetaInputs {
+        let projection =
+            RepositoryAcquisitionBetaProjection::project(RepositoryAcquisitionBetaInputs {
                 locator: &locator,
                 plan: &plan,
                 bootstrap_items: &items,
                 surface: AcquisitionSurface::StartCenter,
-            },
-        )
-        .expect("must project");
+            })
+            .expect("must project");
 
         assert_eq!(projection.acquisition_verb, AcquisitionVerb::Clone);
-        assert_eq!(projection.checkout_shape.submodule_policy, SubmodulePolicyClass::InitPending);
-        assert_eq!(projection.checkout_shape.lfs_policy, LfsPolicyClass::PointerOnly);
-        assert_eq!(projection.expected_cost_band, ExpectedCostBand::LargeFetchOrHydrate);
+        assert_eq!(
+            projection.checkout_shape.submodule_policy,
+            SubmodulePolicyClass::InitPending
+        );
+        assert_eq!(
+            projection.checkout_shape.lfs_policy,
+            LfsPolicyClass::PointerOnly
+        );
+        assert_eq!(
+            projection.expected_cost_band,
+            ExpectedCostBand::LargeFetchOrHydrate
+        );
         assert_eq!(projection.manual_followups.len(), 1);
         assert!(projection.guardrails.all_hold());
         assert!(projection.surface_must_disclose_acquisition());
@@ -1443,15 +1484,14 @@ mod tests {
         // Declares live origin while served by a mirror: dishonest.
         locator.declared_freshness_class = DeclaredFreshnessClass::LiveOrigin;
         let plan = clone_plan();
-        let projection = RepositoryAcquisitionBetaProjection::project(
-            RepositoryAcquisitionBetaInputs {
+        let projection =
+            RepositoryAcquisitionBetaProjection::project(RepositoryAcquisitionBetaInputs {
                 locator: &locator,
                 plan: &plan,
                 bootstrap_items: &[],
                 surface: AcquisitionSurface::StartCenter,
-            },
-        )
-        .expect("must project");
+            })
+            .expect("must project");
         assert!(!projection.guardrails.mirror_not_masquerading_as_live);
     }
 
@@ -1473,15 +1513,14 @@ mod tests {
             mirror_label: None,
             measured_at: None,
         });
-        let projection = RepositoryAcquisitionBetaProjection::project(
-            RepositoryAcquisitionBetaInputs {
+        let projection =
+            RepositoryAcquisitionBetaProjection::project(RepositoryAcquisitionBetaInputs {
                 locator: &locator,
                 plan: &plan,
                 bootstrap_items: &[],
                 surface: AcquisitionSurface::StartCenter,
-            },
-        )
-        .expect("must project");
+            })
+            .expect("must project");
         assert!(projection.guardrails.mirror_not_masquerading_as_live);
         assert!(projection
             .honesty_labels
@@ -1511,16 +1550,17 @@ mod tests {
             NextStepDecisionHook::OpenReadOnlyPartial,
             NextStepDecisionHook::DiscardAndRestart,
         ];
-        let projection = RepositoryAcquisitionBetaProjection::project(
-            RepositoryAcquisitionBetaInputs {
+        let projection =
+            RepositoryAcquisitionBetaProjection::project(RepositoryAcquisitionBetaInputs {
                 locator: &locator,
                 plan: &plan,
                 bootstrap_items: &[],
                 surface: AcquisitionSurface::StartCenter,
-            },
-        )
-        .expect("must project");
-        let recovery = projection.interrupted_recovery.expect("must be interrupted");
+            })
+            .expect("must project");
+        let recovery = projection
+            .interrupted_recovery
+            .expect("must be interrupted");
         assert!(recovery.open_read_only_available);
         assert!(recovery
             .branches

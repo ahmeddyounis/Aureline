@@ -86,7 +86,10 @@ fn every_fixture_is_support_export_safe_and_well_formed() {
             "fixture {name} excludes raw payload"
         );
         assert!(
-            !record.identity_references.filesystem_identity_ref.is_empty(),
+            !record
+                .identity_references
+                .filesystem_identity_ref
+                .is_empty(),
             "fixture {name} must carry an identity ref"
         );
 

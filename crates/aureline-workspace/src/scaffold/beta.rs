@@ -599,8 +599,9 @@ fn resolve_guardrails(
 
     // Generated output remains plain workspace content: no hidden project
     // database is the authoritative result of generation.
-    let generated_output_is_plain_workspace_content =
-        run.map_or(true, |r| r.plain_file_authority && r.no_hidden_project_database);
+    let generated_output_is_plain_workspace_content = run.map_or(true, |r| {
+        r.plain_file_authority && r.no_hidden_project_database
+    });
 
     // A rollback / delete-generated boundary is visible, and any run carries
     // an attributable rollback state.
@@ -627,7 +628,9 @@ fn resolve_guardrails(
     let actor_ai_extension = run.is_some_and(|r| r.actor.class.is_ai_or_extension());
     let ai_extension_uses_governed_surface = if provider_ai_extension || actor_ai_extension {
         plan.review_state.no_writes_before_review
-            && run.map_or(true, |r| r.undeclared_actions_blocked && r.no_writes_before_review)
+            && run.map_or(true, |r| {
+                r.undeclared_actions_blocked && r.no_writes_before_review
+            })
     } else {
         true
     };

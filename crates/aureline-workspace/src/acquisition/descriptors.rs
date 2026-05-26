@@ -478,7 +478,11 @@ pub struct DeepLinkDescriptor {
 pub struct SourceLocatorRecord {
     #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
     pub schema: Option<String>,
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture: Option<FixtureMetadata>,
 
     pub record_kind: SourceLocatorRecordKind,
@@ -1079,7 +1083,11 @@ impl NextStepDecisionHook {
 pub struct CheckoutPlanRecord {
     #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
     pub schema: Option<String>,
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture: Option<FixtureMetadata>,
 
     pub record_kind: CheckoutPlanRecordKind,
@@ -1570,7 +1578,11 @@ impl RepairHookClass {
 pub struct BootstrapQueueItemRecord {
     #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
     pub schema: Option<String>,
-    #[serde(rename = "__fixture__", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "__fixture__",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub fixture: Option<FixtureMetadata>,
 
     pub record_kind: BootstrapQueueItemRecordKind,

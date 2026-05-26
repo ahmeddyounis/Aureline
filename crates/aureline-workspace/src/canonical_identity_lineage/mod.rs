@@ -216,7 +216,11 @@ impl CanonicalIdentityObservation {
             display_label: identity.presentation_path.display_label.clone(),
             root_badge: identity.presentation_path.root_badge.clone(),
             presentation_uri: identity.presentation_path.uri.as_str().to_owned(),
-            logical_uri: identity.logical_workspace_identity.logical_uri.as_str().to_owned(),
+            logical_uri: identity
+                .logical_workspace_identity
+                .logical_uri
+                .as_str()
+                .to_owned(),
             canonical_uri: identity
                 .canonical_filesystem_object
                 .canonical_uri
@@ -229,7 +233,10 @@ impl CanonicalIdentityObservation {
             ),
             strongest_identity_token: IdentityTokenObservation {
                 kind: strongest_identity_token_kind_token(
-                    identity.canonical_filesystem_object.strongest_identity_token.kind,
+                    identity
+                        .canonical_filesystem_object
+                        .strongest_identity_token
+                        .kind,
                 ),
                 value: identity
                     .canonical_filesystem_object
@@ -256,10 +263,7 @@ impl CanonicalIdentityObservation {
             atomic_write_mode: atomic_write_mode_token(token.atomic_write_mode),
             compare_before_write_generation_token: CompareBeforeWriteObservation {
                 kind: generation_token_kind_token(token.compare_before_write_generation_token.kind),
-                value: token
-                    .compare_before_write_generation_token
-                    .value
-                    .clone(),
+                value: token.compare_before_write_generation_token.value.clone(),
                 observed_at: token
                     .compare_before_write_generation_token
                     .observed_at
@@ -1020,7 +1024,8 @@ fn project_wrong_target_prevention(
     let compare_before_write_pinned =
         !token.value.trim().is_empty() && !token.observed_at.trim().is_empty();
 
-    let divergent_unknown_alias_guarded = canonical_identity.path_truth_class != "divergent_unknown"
+    let divergent_unknown_alias_guarded = canonical_identity.path_truth_class
+        != "divergent_unknown"
         || save_target_review
             .blockers
             .iter()
@@ -1085,12 +1090,7 @@ fn hook_available(hooks: &[InspectionHook], class: InspectionHookClass) -> bool 
         .unwrap_or(false)
 }
 
-fn path_truth_summary(
-    class: &str,
-    label: &str,
-    trust_state: &str,
-    alias_count: usize,
-) -> String {
+fn path_truth_summary(class: &str, label: &str, trust_state: &str, alias_count: usize) -> String {
     let trust_suffix = match trust_state {
         "trusted" => "",
         "restricted" => " (restricted workspace)",
@@ -1215,9 +1215,7 @@ fn build_summary(
 /// This is the shared projection consumed by the workspace canonical-identity
 /// status surface, the headless CLI emitter, Help/About, and support export,
 /// so they never clone status text from each other.
-pub fn canonical_identity_lineage_lines(
-    record: &CanonicalIdentityLineageRecord,
-) -> Vec<String> {
+pub fn canonical_identity_lineage_lines(record: &CanonicalIdentityLineageRecord) -> Vec<String> {
     let mut lines = Vec::new();
     lines.push(format!(
         "Canonical filesystem identity lineage — {} ({})",

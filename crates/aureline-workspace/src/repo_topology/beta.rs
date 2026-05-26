@@ -290,8 +290,7 @@ impl RepoTopologyBetaProjection {
             repo_topology_state_ref: repo_root.repo_topology_state_ref.clone(),
             repo_root_descriptor_ref: repo_root.repo_root_descriptor_id.clone(),
             repo_root_kind: repo_root.root_kind,
-            fetch_depth_descriptor_ref: fetch_depth
-                .map(|fd| fd.fetch_depth_descriptor_id.clone()),
+            fetch_depth_descriptor_ref: fetch_depth.map(|fd| fd.fetch_depth_descriptor_id.clone()),
             submodule_link_refs: submodule_links
                 .iter()
                 .map(|link| link.submodule_link_id.clone())
@@ -519,7 +518,10 @@ fn resolve_mutation_target(
         }
     }
 
-    if matches!(repo_root.root_kind, RepoRootKind::Submodule | RepoRootKind::Nested) {
+    if matches!(
+        repo_root.root_kind,
+        RepoRootKind::Submodule | RepoRootKind::Nested
+    ) {
         return MutationTarget::ChildRoot;
     }
 
@@ -593,19 +595,18 @@ mod tests {
     use super::super::descriptors::{
         AssetBucket, AssetClass, ChildDirtyClass, ChildDirtyState, CompletenessState,
         CompletenessStateClass, DeepenPolicyClass, DriftClass, DriftState, EditTargetClass,
-        ExportBodyClass, ExportSurfaceClass, FetchDepthDescriptor,
-        FetchDepthDescriptorRecordKind, FetchPolicyClass, FetchPosture, HistoryDepth,
-        HistoryDepthState, HydratePosture, HydrationSummaryClass, InitClass, InitPolicyClass,
-        InitState, LfsHydratePolicyClass, LfsHydrationDescriptor,
-        LfsHydrationDescriptorRecordKind, LfsLockPostureClass, NetworkCostBand, ParentLink,
-        ParentLinkageClass, PartialCloneFilter, PartialCloneFilterClass, PinnedByClass,
+        ExportBodyClass, ExportSurfaceClass, FetchDepthDescriptor, FetchDepthDescriptorRecordKind,
+        FetchPolicyClass, FetchPosture, HistoryDepth, HistoryDepthState, HydratePosture,
+        HydrationSummaryClass, InitClass, InitPolicyClass, InitState, LfsHydratePolicyClass,
+        LfsHydrationDescriptor, LfsHydrationDescriptorRecordKind, LfsLockPostureClass,
+        NetworkCostBand, ParentLink, ParentLinkageClass, ParentMutationPosture,
+        ParentMutationPostureClass, PartialCloneFilter, PartialCloneFilterClass, PinnedByClass,
         PolicyClass, PolicyPosture, PreviewExportPosture, PreviewTargetClass, PromisorClass,
-        PromisorState, ReachabilityClass, ReconstructionField, RedactionPosture,
-        RemoteSummary, RepoIdentity, RepoRootDescriptor, RepoRootDescriptorRecordKind,
-        RepoRootKind, RepoTopologyExportSupportRequirements, SizeBand, SubmoduleDenialReason,
-        SubmoduleLink, SubmoduleLinkRecordKind, SubmodulePinnedCommit, TrustClass, TrustPosture,
-        VcsProviderClass, WorktreeIdentity, WorktreeKindClass, ParentMutationPosture,
-        ParentMutationPostureClass, FETCH_DEPTH_DESCRIPTOR_SCHEMA_VERSION,
+        PromisorState, ReachabilityClass, ReconstructionField, RedactionPosture, RemoteSummary,
+        RepoIdentity, RepoRootDescriptor, RepoRootDescriptorRecordKind, RepoRootKind,
+        RepoTopologyExportSupportRequirements, SizeBand, SubmoduleDenialReason, SubmoduleLink,
+        SubmoduleLinkRecordKind, SubmodulePinnedCommit, TrustClass, TrustPosture, VcsProviderClass,
+        WorktreeIdentity, WorktreeKindClass, FETCH_DEPTH_DESCRIPTOR_SCHEMA_VERSION,
         LFS_HYDRATION_DESCRIPTOR_SCHEMA_VERSION, REPO_ROOT_DESCRIPTOR_SCHEMA_VERSION,
         SUBMODULE_LINK_SCHEMA_VERSION,
     };
@@ -742,7 +743,10 @@ mod tests {
         assert!(projection.may_claim_full_coverage);
         assert!(projection.full_coverage_blockers.is_empty());
         assert!(!surface_must_downgrade_claim(&projection));
-        assert!(matches!(projection.mutation_target, MutationTarget::ParentRoot));
+        assert!(matches!(
+            projection.mutation_target,
+            MutationTarget::ParentRoot
+        ));
     }
 
     #[test]
@@ -855,9 +859,7 @@ mod tests {
                 edit_target_class: EditTargetClass::PointerOnly,
                 preview_target_class: PreviewTargetClass::PointerMetadataOnly,
                 export_body_class: ExportBodyClass::PointerMetadataOnly,
-                denial_reason: Some(
-                    super::super::descriptors::LfsPreviewExportDenial::PointerOnly,
-                ),
+                denial_reason: Some(super::super::descriptors::LfsPreviewExportDenial::PointerOnly),
             },
             allowed_affordances: vec![TopologyAffordanceClass::HydrateLfsObjects],
             freshness_class: FreshnessClass::AuthoritativeLive,

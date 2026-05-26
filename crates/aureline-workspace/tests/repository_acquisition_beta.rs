@@ -127,15 +127,16 @@ fn every_scenario_projects_to_expected_beta_truth() {
 
     for (path, fixture) in &fixtures {
         let surface = surface_from_token(&fixture.surface);
-        let projection = RepositoryAcquisitionBetaProjection::project(
-            RepositoryAcquisitionBetaInputs {
+        let projection =
+            RepositoryAcquisitionBetaProjection::project(RepositoryAcquisitionBetaInputs {
                 locator: &fixture.locator,
                 plan: &fixture.plan,
                 bootstrap_items: &fixture.bootstrap_items,
                 surface,
-            },
-        )
-        .unwrap_or_else(|err| panic!("fixture {} failed to project: {err}", fixture.fixture.name));
+            })
+            .unwrap_or_else(|err| {
+                panic!("fixture {} failed to project: {err}", fixture.fixture.name)
+            });
 
         assert!(
             !fixture.fixture.scenario.is_empty(),
@@ -149,24 +150,65 @@ fn every_scenario_projects_to_expected_beta_truth() {
         let name = &fixture.fixture.name;
         let e = &fixture.expect;
 
-        assert_eq!(verb_token(projection.acquisition_verb), e.acquisition_verb, "{name}: acquisition_verb");
-        assert_eq!(mode_token(projection.checkout_shape.mode), e.checkout_mode, "{name}: checkout_mode");
-        assert_eq!(projection.checkout_shape.partial_or_sparse, e.partial_or_sparse, "{name}: partial_or_sparse");
-        assert_eq!(submodule_token(projection.checkout_shape.submodule_policy), e.submodule_policy, "{name}: submodule_policy");
-        assert_eq!(lfs_token(projection.checkout_shape.lfs_policy), e.lfs_policy, "{name}: lfs_policy");
-        assert_eq!(cost_token(projection.expected_cost_band), e.expected_cost_band, "{name}: expected_cost_band");
-        assert_eq!(credential_token(projection.credential_posture.posture_class), e.credential_posture, "{name}: credential_posture");
-        assert_eq!(projection.credential_posture.reauth_required, e.credential_reauth_required, "{name}: credential_reauth_required");
+        assert_eq!(
+            verb_token(projection.acquisition_verb),
+            e.acquisition_verb,
+            "{name}: acquisition_verb"
+        );
+        assert_eq!(
+            mode_token(projection.checkout_shape.mode),
+            e.checkout_mode,
+            "{name}: checkout_mode"
+        );
+        assert_eq!(
+            projection.checkout_shape.partial_or_sparse, e.partial_or_sparse,
+            "{name}: partial_or_sparse"
+        );
+        assert_eq!(
+            submodule_token(projection.checkout_shape.submodule_policy),
+            e.submodule_policy,
+            "{name}: submodule_policy"
+        );
+        assert_eq!(
+            lfs_token(projection.checkout_shape.lfs_policy),
+            e.lfs_policy,
+            "{name}: lfs_policy"
+        );
+        assert_eq!(
+            cost_token(projection.expected_cost_band),
+            e.expected_cost_band,
+            "{name}: expected_cost_band"
+        );
+        assert_eq!(
+            credential_token(projection.credential_posture.posture_class),
+            e.credential_posture,
+            "{name}: credential_posture"
+        );
+        assert_eq!(
+            projection.credential_posture.reauth_required, e.credential_reauth_required,
+            "{name}: credential_reauth_required"
+        );
 
-        assert_eq!(projection.interrupted_recovery.is_some(), e.interrupted, "{name}: interrupted");
+        assert_eq!(
+            projection.interrupted_recovery.is_some(),
+            e.interrupted,
+            "{name}: interrupted"
+        );
         let observed_branches: Vec<String> = projection
             .interrupted_recovery
             .as_ref()
             .map(|r| r.branches.iter().map(|b| b.as_str().to_string()).collect())
             .unwrap_or_default();
-        assert_eq!(observed_branches, e.interrupted_branches, "{name}: interrupted_branches");
+        assert_eq!(
+            observed_branches, e.interrupted_branches,
+            "{name}: interrupted_branches"
+        );
 
-        assert_eq!(projection.manual_followups.len(), e.manual_followup_count, "{name}: manual_followup_count");
+        assert_eq!(
+            projection.manual_followups.len(),
+            e.manual_followup_count,
+            "{name}: manual_followup_count"
+        );
 
         let observed_labels: Vec<String> = projection
             .honesty_labels
@@ -175,15 +217,35 @@ fn every_scenario_projects_to_expected_beta_truth() {
             .collect();
         assert_eq!(observed_labels, e.honesty_labels, "{name}: honesty_labels");
 
-        assert_eq!(projection.guardrails.all_hold(), e.guardrails_all_hold, "{name}: guardrails_all_hold");
-        assert_eq!(projection.surface_must_disclose_acquisition(), e.surface_must_disclose, "{name}: surface_must_disclose");
+        assert_eq!(
+            projection.guardrails.all_hold(),
+            e.guardrails_all_hold,
+            "{name}: guardrails_all_hold"
+        );
+        assert_eq!(
+            projection.surface_must_disclose_acquisition(),
+            e.surface_must_disclose,
+            "{name}: surface_must_disclose"
+        );
 
         // The evidence packet always joins locator + plan and stays
         // export-safe, and every enqueued item is attributed.
-        assert_eq!(projection.evidence_packet.source_locator_ref, fixture.locator.source_locator_id, "{name}: evidence locator ref");
-        assert_eq!(projection.evidence_packet.checkout_plan_ref, fixture.plan.checkout_plan_id, "{name}: evidence plan ref");
-        assert!(projection.evidence_packet.export_safe, "{name}: evidence export_safe");
-        assert!(projection.evidence_packet.every_item_attributed, "{name}: every_item_attributed");
+        assert_eq!(
+            projection.evidence_packet.source_locator_ref, fixture.locator.source_locator_id,
+            "{name}: evidence locator ref"
+        );
+        assert_eq!(
+            projection.evidence_packet.checkout_plan_ref, fixture.plan.checkout_plan_id,
+            "{name}: evidence plan ref"
+        );
+        assert!(
+            projection.evidence_packet.export_safe,
+            "{name}: evidence export_safe"
+        );
+        assert!(
+            projection.evidence_packet.every_item_attributed,
+            "{name}: every_item_attributed"
+        );
 
         // The projection round-trips through its serialized shape.
         let round_trip = serde_json::to_value(&projection)
@@ -205,7 +267,10 @@ fn every_scenario_projects_to_expected_beta_truth() {
                 .and_then(serde_json::from_value::<BootstrapQueueItemRecord>)
                 .expect("bootstrap item must round-trip");
             assert_eq!(&rt_item, item, "{name}: bootstrap item round-trip");
-            assert!(item.is_well_formed_blocked_item(), "{name}: bootstrap item blocker/repair contract");
+            assert!(
+                item.is_well_formed_blocked_item(),
+                "{name}: bootstrap item blocker/repair contract"
+            );
         }
     }
 }
@@ -229,7 +294,8 @@ fn distinct_verbs_are_all_represented() {
 
 #[test]
 fn descriptors_round_trip_the_frozen_bootstrap_case_fixtures() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/workspace/bootstrap_cases");
+    let dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/workspace/bootstrap_cases");
     let entries = std::fs::read_dir(&dir).expect("bootstrap_cases dir must exist");
     let mut locators = 0usize;
     let mut plans = 0usize;
@@ -276,7 +342,16 @@ fn descriptors_round_trip_the_frozen_bootstrap_case_fixtures() {
         }
     }
 
-    assert!(locators >= 5, "expected the frozen locator fixtures (found {locators})");
-    assert!(plans >= 5, "expected the frozen plan fixtures (found {plans})");
-    assert!(items >= 5, "expected the frozen bootstrap-item fixtures (found {items})");
+    assert!(
+        locators >= 5,
+        "expected the frozen locator fixtures (found {locators})"
+    );
+    assert!(
+        plans >= 5,
+        "expected the frozen plan fixtures (found {plans})"
+    );
+    assert!(
+        items >= 5,
+        "expected the frozen bootstrap-item fixtures (found {items})"
+    );
 }

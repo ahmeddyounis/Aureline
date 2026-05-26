@@ -63,8 +63,7 @@ fn symlink_observation() -> CanonicalIdentityObservation {
 
 #[test]
 fn direct_trusted_open_is_stable_and_export_safe() {
-    let record =
-        project_canonical_identity_lineage("posture.direct.clean", &clean_observation());
+    let record = project_canonical_identity_lineage("posture.direct.clean", &clean_observation());
 
     assert!(record.is_stable_qualified());
     assert!(record.is_support_export_safe());
@@ -116,9 +115,7 @@ fn divergent_unknown_alias_must_be_guarded_or_narrow() {
         .blockers
         .iter()
         .any(|b| b == "divergent_unknown_alias"));
-    assert!(record
-        .alias_inspector
-        .presentation_alias_missing);
+    assert!(record.alias_inspector.presentation_alias_missing);
     // The contract is working as designed: divergent unknown alias is blocked
     // by the save-target review, AND the presentation_alias_missing fires
     // because the projection auto-narrows it as a degraded state worth
@@ -170,7 +167,10 @@ fn read_only_root_collects_blockers_but_stays_stable() {
     // Read-only is a protective posture, not a gap: blockers fire but the
     // record stays Stable when canonical, compare token, identity refs, and
     // alias state all hold.
-    assert!(record.save_target_review.blockers.contains(&"read_only".to_owned()));
+    assert!(record
+        .save_target_review
+        .blockers
+        .contains(&"read_only".to_owned()));
     assert!(record
         .save_target_review
         .blockers
@@ -236,8 +236,7 @@ fn empty_workspace_ref_narrows_export_safety() {
 
 #[test]
 fn lines_render_every_pillar() {
-    let record =
-        project_canonical_identity_lineage("posture.lines", &symlink_observation());
+    let record = project_canonical_identity_lineage("posture.lines", &symlink_observation());
     let lines = canonical_identity_lineage_lines(&record);
 
     assert!(lines
@@ -249,15 +248,12 @@ fn lines_render_every_pillar() {
         .any(|l| l.contains("Save-target review blockers:")));
     assert!(lines.iter().any(|l| l.contains("Inspection hooks:")));
     assert!(lines.iter().any(|l| l.contains("symlink")));
-    assert!(lines
-        .iter()
-        .any(|l| l.contains("writes_to_canonical_uri=")));
+    assert!(lines.iter().any(|l| l.contains("writes_to_canonical_uri=")));
 }
 
 #[test]
 fn record_round_trips_through_json() {
-    let record =
-        project_canonical_identity_lineage("posture.json", &clean_observation());
+    let record = project_canonical_identity_lineage("posture.json", &clean_observation());
     let json = serde_json::to_string(&record).expect("record serializes");
     let restored: CanonicalIdentityLineageRecord =
         serde_json::from_str(&json).expect("record deserializes");

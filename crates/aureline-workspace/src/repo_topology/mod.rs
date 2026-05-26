@@ -25,8 +25,7 @@ pub mod shared;
 
 pub use beta::{
     surface_must_downgrade_claim, BodyExportPosture, FullCoverageBlocker, MutationTarget,
-    RepoTopologyBetaError, RepoTopologyBetaInputs, RepoTopologyBetaProjection,
-    RepoTopologySurface,
+    RepoTopologyBetaError, RepoTopologyBetaInputs, RepoTopologyBetaProjection, RepoTopologySurface,
 };
 
 pub use descriptors::{
@@ -37,18 +36,17 @@ pub use descriptors::{
     HistoryDepthState, HydratePosture, HydrationSummaryClass, InitClass, InitPolicyClass,
     InitState, LfsHydratePolicyClass, LfsHydrationDescriptor, LfsHydrationDescriptorRecordKind,
     LfsLockPostureClass, LfsPreviewExportDenial, NetworkCostBand, ParentLink, ParentLinkageClass,
-    ParentMutationPosture, ParentMutationPostureClass, PartialCloneFilter,
-    PartialCloneFilterClass, PinnedByClass, PolicyClass, PolicyPosture, PreviewExportPosture,
-    PreviewTargetClass, PromisorClass, PromisorState, ReachabilityClass, ReconstructionField,
-    RedactionPosture, RemoteRoleClass, RemoteSummary, RemoteSummaryEntry, RepoIdentity,
-    RepoRootDescriptor, RepoRootDescriptorRecordKind, RepoRootKind,
-    RepoTopologyExportSupportRequirements, SizeBand, SubmoduleDenialReason, SubmoduleLink,
-    SubmoduleLinkRecordKind, SubmodulePinnedCommit, TrustClass, TrustPosture, VcsProviderClass,
-    WorktreeIdentity, WorktreeKindClass, FETCH_DEPTH_DESCRIPTOR_RECORD_KIND,
-    FETCH_DEPTH_DESCRIPTOR_SCHEMA_VERSION, LFS_HYDRATION_DESCRIPTOR_RECORD_KIND,
-    LFS_HYDRATION_DESCRIPTOR_SCHEMA_VERSION, REPO_ROOT_DESCRIPTOR_RECORD_KIND,
-    REPO_ROOT_DESCRIPTOR_SCHEMA_VERSION, SUBMODULE_LINK_RECORD_KIND,
-    SUBMODULE_LINK_SCHEMA_VERSION,
+    ParentMutationPosture, ParentMutationPostureClass, PartialCloneFilter, PartialCloneFilterClass,
+    PinnedByClass, PolicyClass, PolicyPosture, PreviewExportPosture, PreviewTargetClass,
+    PromisorClass, PromisorState, ReachabilityClass, ReconstructionField, RedactionPosture,
+    RemoteRoleClass, RemoteSummary, RemoteSummaryEntry, RepoIdentity, RepoRootDescriptor,
+    RepoRootDescriptorRecordKind, RepoRootKind, RepoTopologyExportSupportRequirements, SizeBand,
+    SubmoduleDenialReason, SubmoduleLink, SubmoduleLinkRecordKind, SubmodulePinnedCommit,
+    TrustClass, TrustPosture, VcsProviderClass, WorktreeIdentity, WorktreeKindClass,
+    FETCH_DEPTH_DESCRIPTOR_RECORD_KIND, FETCH_DEPTH_DESCRIPTOR_SCHEMA_VERSION,
+    LFS_HYDRATION_DESCRIPTOR_RECORD_KIND, LFS_HYDRATION_DESCRIPTOR_SCHEMA_VERSION,
+    REPO_ROOT_DESCRIPTOR_RECORD_KIND, REPO_ROOT_DESCRIPTOR_SCHEMA_VERSION,
+    SUBMODULE_LINK_RECORD_KIND, SUBMODULE_LINK_SCHEMA_VERSION,
 };
 
 pub use shared::{

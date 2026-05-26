@@ -231,7 +231,9 @@ fn search_surface_with_partial_coverage_must_downgrade() {
     .expect("must project");
 
     assert!(!projection.may_claim_full_coverage);
-    assert!(aureline_workspace::surface_must_downgrade_claim(&projection));
+    assert!(aureline_workspace::surface_must_downgrade_claim(
+        &projection
+    ));
 }
 
 #[test]
@@ -252,5 +254,7 @@ fn primary_full_local_truth_search_does_not_downgrade() {
     .expect("must project");
 
     assert!(projection.may_claim_full_coverage);
-    assert!(!aureline_workspace::surface_must_downgrade_claim(&projection));
+    assert!(!aureline_workspace::surface_must_downgrade_claim(
+        &projection
+    ));
 }
