@@ -18,6 +18,7 @@ mod query;
 pub mod readiness;
 pub mod scope_provenance_truth_packet;
 mod store;
+pub mod support_export_parity_truth_packet;
 
 pub use drift_packets::{
     current_graph_drift_corpus, current_graph_drift_fixture_refs, load_graph_drift_packet,
@@ -142,6 +143,29 @@ pub use scope_provenance_truth_packet::{
     SCOPE_PROVENANCE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use store::{GraphStore, GraphStoreError};
+pub use support_export_parity_truth_packet::{
+    current_stable_support_export_parity_truth_packet,
+    ConfidenceClass as SupportExportParityConfidenceClass,
+    ConsumerSurface as SupportExportParityConsumerSurface, CountSummary,
+    DeepLinkScopeBinding, DowngradeState as SupportExportParityDowngradeState,
+    ExportPacketClass, FindingKind as SupportExportParityFindingKind,
+    FindingSeverity as SupportExportParityFindingSeverity,
+    LaneClass as SupportExportParityLaneClass,
+    LiveVsCapturedClass as SupportExportParityLiveVsCapturedClass,
+    OperatorReconstructionProof,
+    PromotionState as SupportExportParityPromotionState,
+    RedactionClass as SupportExportParityRedactionClass,
+    SupportExportParityConsumerProjection, SupportExportParityRow,
+    SupportExportParityTruthArtifactError, SupportExportParityTruthPacket,
+    SupportExportParityTruthPacketInput, SupportExportParityTruthSupportExport,
+    ValidationFinding as SupportExportParityValidationFinding,
+    SUPPORT_EXPORT_PARITY_TRUTH_ARTIFACT_DOC_REF, SUPPORT_EXPORT_PARITY_TRUTH_DOC_REF,
+    SUPPORT_EXPORT_PARITY_TRUTH_FIXTURE_DIR,
+    SUPPORT_EXPORT_PARITY_TRUTH_PACKET_ARTIFACT_REF,
+    SUPPORT_EXPORT_PARITY_TRUTH_PACKET_RECORD_KIND, SUPPORT_EXPORT_PARITY_TRUTH_SCHEMA_REF,
+    SUPPORT_EXPORT_PARITY_TRUTH_SCHEMA_VERSION,
+    SUPPORT_EXPORT_PARITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 
 pub use aureline_graph_proto::{
     ConfidenceLevel, EdgeClass, EdgeEvidenceState, Freshness, FreshnessFrame, GraphEdge, GraphNode,
