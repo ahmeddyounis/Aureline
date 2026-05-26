@@ -8,6 +8,7 @@
 //! [`aureline_navigation::target_model`] for relation, proof, freshness,
 //! ambiguity, and scope-completeness truth.
 
+pub mod audit_topology_explainer_companion_truth_packet;
 pub mod drift_packets;
 pub mod explainers;
 pub mod freshness_propagation_packet;
@@ -20,6 +21,25 @@ pub mod scope_provenance_truth_packet;
 mod store;
 pub mod support_export_parity_truth_packet;
 
+pub use audit_topology_explainer_companion_truth_packet::{
+    current_stable_audit_topology_explainer_companion_truth_packet,
+    AuditConfidenceClass, AuditConsumerProjection, AuditConsumerSurface, AuditFindingKind,
+    AuditFindingSeverity, AuditPillar, AuditPromotionState, AuditRow, AuditRowClass,
+    AuditSurfaceClass, AuditTopologyExplainerCompanionTruthArtifactError,
+    AuditTopologyExplainerCompanionTruthPacket,
+    AuditTopologyExplainerCompanionTruthPacketInput,
+    AuditTopologyExplainerCompanionTruthSupportExport, AuditValidationFinding,
+    DowngradeStateDisclosureClass, FreshnessDisclosureClass, ProvenanceDisclosureClass,
+    QualificationState, ScopeDisclosureClass,
+    AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_ARTIFACT_DOC_REF,
+    AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_DOC_REF,
+    AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_FIXTURE_DIR,
+    AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_PACKET_ARTIFACT_REF,
+    AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_PACKET_RECORD_KIND,
+    AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_SCHEMA_REF,
+    AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_SCHEMA_VERSION,
+    AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use drift_packets::{
     current_graph_drift_corpus, current_graph_drift_fixture_refs, load_graph_drift_packet,
     DataLaneLineage, DriftConsumerSurface, DriftConsumerSurfaceSummaryRow, DriftDowngradeLabel,
