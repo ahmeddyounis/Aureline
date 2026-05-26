@@ -17,6 +17,7 @@ pub mod diagnostics;
 pub mod django_advanced_workflow_pack_truth_packet;
 pub mod go_daily_driver_quality_truth_packet;
 pub mod invalidation;
+pub mod java_and_kotlin_daily_driver_quality_truth_packet;
 pub mod lsp_router;
 pub mod next_js_expert_workflow_pack_truth_packet;
 pub mod node_and_express_advanced_workflow_pack_truth_packet;
@@ -139,6 +140,34 @@ pub use invalidation::{
     EditOperationRecord, EditWorkloadClass, IncrementalParseBuffer,
     IncrementalParseInvalidationRecord, IncrementalParseUpdate, InvalidationBenchmarkSample,
     InvalidationDecisionClass, InvalidationError, ParseInvalidationSchemaVersion, TextEdit,
+};
+pub use java_and_kotlin_daily_driver_quality_truth_packet::{
+    current_stable_java_and_kotlin_daily_driver_quality_truth_packet,
+    ConsumerSurface as JavaAndKotlinDailyDriverConsumerSurface,
+    DailyDriverConfidenceClass as JavaAndKotlinDailyDriverConfidenceClass,
+    DailyDriverRowClass as JavaAndKotlinDailyDriverQualityRowClass,
+    DailyLoopStepClass as JavaAndKotlinDailyDriverStepClass,
+    DowngradeAutomationClass as JavaAndKotlinDailyDriverDowngradeAutomationClass,
+    EvidenceClass as JavaAndKotlinDailyDriverEvidenceClass,
+    FindingKind as JavaAndKotlinDailyDriverQualityFindingKind,
+    FindingSeverity as JavaAndKotlinDailyDriverQualityFindingSeverity,
+    JavaAndKotlinDailyDriverQualityConsumerProjection, JavaAndKotlinDailyDriverQualityRow,
+    JavaAndKotlinDailyDriverQualityTruthArtifactError,
+    JavaAndKotlinDailyDriverQualityTruthPacket, JavaAndKotlinDailyDriverQualityTruthPacketInput,
+    JavaAndKotlinDailyDriverQualityTruthSupportExport,
+    KnownLimitClass as JavaAndKotlinDailyDriverKnownLimitClass,
+    LanguageLaneClass as JavaAndKotlinDailyDriverLanguageLaneClass,
+    PromotionState as JavaAndKotlinDailyDriverQualityPromotionState,
+    SupportClass as JavaAndKotlinDailyDriverSupportClass,
+    ValidationFinding as JavaAndKotlinDailyDriverQualityValidationFinding,
+    JAVA_AND_KOTLIN_DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF,
+    JAVA_AND_KOTLIN_DAILY_DRIVER_QUALITY_TRUTH_DOC_REF,
+    JAVA_AND_KOTLIN_DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR,
+    JAVA_AND_KOTLIN_DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
+    JAVA_AND_KOTLIN_DAILY_DRIVER_QUALITY_TRUTH_PACKET_RECORD_KIND,
+    JAVA_AND_KOTLIN_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
+    JAVA_AND_KOTLIN_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
+    JAVA_AND_KOTLIN_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use lsp_router::{
     CapabilityClass as RouterCapabilityClass, CompletenessClass as RouterCompletenessClass,
