@@ -12,6 +12,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-language/0.0.0")]
 
 pub mod code_actions;
+pub mod daily_driver_quality_truth_packet;
 pub mod diagnostics;
 pub mod invalidation;
 pub mod lsp_router;
@@ -24,6 +25,27 @@ pub mod target_model;
 pub mod tree_sitter;
 pub mod tsjs;
 
+pub use daily_driver_quality_truth_packet::{
+    current_stable_daily_driver_quality_truth_packet,
+    ConsumerSurface as DailyDriverQualityConsumerSurface,
+    DailyDriverConfidenceClass,
+    DailyDriverQualityConsumerProjection, DailyDriverQualityRow,
+    DailyDriverQualityTruthArtifactError, DailyDriverQualityTruthPacket,
+    DailyDriverQualityTruthPacketInput, DailyDriverQualityTruthSupportExport,
+    DailyDriverRowClass, DailyLoopStepClass,
+    DowngradeAutomationClass as DailyDriverDowngradeAutomationClass,
+    EvidenceClass as DailyDriverEvidenceClass,
+    FindingKind as DailyDriverQualityFindingKind,
+    FindingSeverity as DailyDriverQualityFindingSeverity,
+    KnownLimitClass as DailyDriverKnownLimitClass, LanguageLaneClass,
+    PromotionState as DailyDriverQualityPromotionState, SupportClass as DailyDriverSupportClass,
+    ValidationFinding as DailyDriverQualityValidationFinding,
+    DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF, DAILY_DRIVER_QUALITY_TRUTH_DOC_REF,
+    DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR, DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
+    DAILY_DRIVER_QUALITY_TRUTH_PACKET_RECORD_KIND, DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
+    DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
+    DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use code_actions::{
     ActionClass as CodeActionClass, ApplyPostureClass as CodeActionApplyPostureClass,
     BlockingReasonClass as CodeActionBlockingReasonClass, CodeActionAdmissionRecord,
