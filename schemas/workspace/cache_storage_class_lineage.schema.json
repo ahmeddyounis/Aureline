@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/cache_storage_class_lineage.schema.json",
+  "title": "Aureline cache / storage-class governance lineage",
+  "description": "Boundary schema for the governed, export-safe cache / storage-class lineage record. The record finalizes how Aureline manages caches, derived stores, and durable workspace state — proving that the eviction rules and cleanup surfaces never lose user state silently. It is projected verbatim from the live CacheStorageClassInputs envelope. It proves storage-class coverage (ephemeral_memory_cache / local_disk_cache / derived_index / durable_workspace_state / recovery_checkpoint / local_history at minimum, plus prebuild_artifact_cache / support_export_staging), eviction-policy truth (the declared durability tier matches the worst-case tier re-derived from the user-state class and eviction class), user-state governance (user-state-bearing storage classes declare safe eviction, silent_clear_blocked, requires_pre_action_inspection, preserve_on_quota_pressure, and at least one cleanup surface), cleanup-surface coverage (settings_panel / command_palette / support_cleanup_tool / help_about / headless_cli are reachable), and support-export honesty (cache / storage fields preserved; raw cache content / raw secrets / approval tickets / delegated credentials / live authority handles redacted). Raw payload bytes are excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "cache_storage_class_lineage_schema_version",
+    "schema_ref",
+    "posture_id",
+    "workspace_ref",
+    "corpus_ref",
+    "producer_attribution",
+    "storage_class_coverage",
+    "eviction_policy_truth",
+    "user_state_governance",
+    "cleanup_surface_coverage",
+    "support_export_honesty",
+    "inspection_hooks",
+    "stable_qualification",
+    "raw_payload_excluded",
+    "summary"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": { "const": "cache_storage_class_lineage_record" },
+    "cache_storage_class_lineage_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/workspace/cache_storage_class_lineage.schema.json" },
+    "posture_id": { "$ref": "#/$defs/non_empty_string" },
+    "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+    "corpus_ref": { "$ref": "#/$defs/non_empty_string" },
+    "producer_attribution": { "$ref": "#/$defs/producer_attribution_summary" },
+    "storage_class_coverage": { "$ref": "#/$defs/storage_class_coverage_summary" },
+    "eviction_policy_truth": { "$ref": "#/$defs/eviction_policy_truth_summary" },
+    "user_state_governance": { "$ref": "#/$defs/user_state_governance_summary" },
+    "cleanup_surface_coverage": { "$ref": "#/$defs/cleanup_surface_coverage_summary" },
+    "support_export_honesty": { "$ref": "#/$defs/support_export_honesty_summary" },
+    "inspection_hooks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/inspection_hook" }
+    },
+    "stable_qualification": { "$ref": "#/$defs/stable_qualification" },
+    "raw_payload_excluded": { "const": true },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 700 }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "storage_class_kind": {
+      "type": "string",
+      "enum": [
+        "ephemeral_memory_cache",
+        "local_disk_cache",
+        "derived_index",
+        "durable_workspace_state",
+        "recovery_checkpoint",
+        "local_history",
+        "prebuild_artifact_cache",
+        "support_export_staging"
+      ]
+    },
+    "user_state_class": {
+      "type": "string",
+      "enum": [
+        "no_user_state",
+        "regenerable_with_cost",
+        "user_authored",
+        "user_derived"
+      ]
+    },
+    "eviction_policy_class": {
+      "type": "string",
+      "enum": [
+        "never",
+        "manual_only",
+        "manual_after_export",
+        "lru",
+        "ttl_age",
+        "quota_pressure",
+        "restart_drop"
+      ]
+    },
+    "cleanup_surface_kind": {
+      "type": "string",
+      "enum": [
+        "settings_panel",
+        "command_palette",
+        "support_cleanup_tool",
+        "help_about",
+        "headless_cli",
+        "crash_recovery_panel"
+      ]
+    },
+    "claimed_durability_tier": {
+      "type": "string",
+      "enum": [
+        "stable_durable_user_state",
+        "stable_regenerable_cache",
+        "stable_ephemeral_cache",
+        "narrowed_below_stable"
+      ]
+    },
+    "support_export_posture": {
+      "type": "string",
+      "enum": ["local_only", "metadata_safe_export", "held_record"]
+    },
+    "inspection_hook_class": {
+      "type": "string",
+      "enum": [
+        "inspect_cache",
+        "compare_before_clear",
+        "export_before_clear",
+        "rollback_clear",
+        "export",
+        "repair"
+      ]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "corpus_empty",
+        "required_storage_class_missing",
+        "required_cleanup_surface_missing",
+        "user_state_with_unsafe_eviction",
+        "user_state_cleanup_not_blocked",
+        "user_state_inspection_not_required",
+        "user_state_quota_pressure_unsafe",
+        "user_state_cleanup_surface_missing",
+        "durability_tier_mismatch_derived",
+        "inspection_hook_unavailable",
+        "support_export_fields_dropped",
+        "support_export_redaction_unsafe",
+        "support_export_posture_unsafe",
+        "producer_attribution_incomplete",
+        "lineage_export_unsafe"
+      ]
+    },
+    "producer_attribution_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_ref",
+        "schema_version",
+        "integrity_hash",
+        "captured_at",
+        "producer_attribution_complete"
+      ],
+      "properties": {
+        "producer_ref": { "type": "string" },
+        "schema_version": { "type": "integer" },
+        "integrity_hash": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "producer_attribution_complete": { "type": "boolean" }
+      }
+    },
+    "cache_storage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storage_id",
+        "title",
+        "storage_class",
+        "user_state_class",
+        "eviction_policy",
+        "declared_durability_tier",
+        "derived_durability_tier",
+        "tier_matches",
+        "cleanup_surfaces",
+        "silent_clear_blocked",
+        "requires_pre_action_inspection",
+        "preserve_on_quota_pressure",
+        "carries_user_state",
+        "support_export_posture"
+      ],
+      "properties": {
+        "storage_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "type": "string" },
+        "storage_class": { "$ref": "#/$defs/storage_class_kind" },
+        "user_state_class": { "$ref": "#/$defs/user_state_class" },
+        "eviction_policy": { "$ref": "#/$defs/eviction_policy_class" },
+        "declared_durability_tier": { "$ref": "#/$defs/claimed_durability_tier" },
+        "derived_durability_tier": { "$ref": "#/$defs/claimed_durability_tier" },
+        "tier_matches": { "type": "boolean" },
+        "cleanup_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cleanup_surface_kind" }
+        },
+        "silent_clear_blocked": { "type": "boolean" },
+        "requires_pre_action_inspection": { "type": "boolean" },
+        "preserve_on_quota_pressure": { "type": "boolean" },
+        "carries_user_state": { "type": "boolean" },
+        "support_export_posture": { "$ref": "#/$defs/support_export_posture" }
+      }
+    },
+    "storage_class_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storage_rows", "all_required_storage_classes_present"],
+      "properties": {
+        "storage_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cache_storage_row" }
+        },
+        "all_required_storage_classes_present": { "type": "boolean" }
+      }
+    },
+    "eviction_policy_truth_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["all_tiers_match_derived", "distinct_eviction_policies"],
+      "properties": {
+        "all_tiers_match_derived": { "type": "boolean" },
+        "distinct_eviction_policies": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "user_state_governance_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_state_row_count",
+        "all_user_state_rows_have_safe_eviction",
+        "all_user_state_rows_block_silent_clear",
+        "all_user_state_rows_require_inspection",
+        "all_user_state_rows_preserve_on_quota_pressure",
+        "all_user_state_rows_have_cleanup_surface"
+      ],
+      "properties": {
+        "user_state_row_count": { "type": "integer", "minimum": 0 },
+        "all_user_state_rows_have_safe_eviction": { "type": "boolean" },
+        "all_user_state_rows_block_silent_clear": { "type": "boolean" },
+        "all_user_state_rows_require_inspection": { "type": "boolean" },
+        "all_user_state_rows_preserve_on_quota_pressure": { "type": "boolean" },
+        "all_user_state_rows_have_cleanup_surface": { "type": "boolean" }
+      }
+    },
+    "cleanup_surface_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed_cleanup_surfaces", "all_required_cleanup_surfaces_present"],
+      "properties": {
+        "observed_cleanup_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cleanup_surface_kind" }
+        },
+        "all_required_cleanup_surfaces_present": { "type": "boolean" }
+      }
+    },
+    "support_export_honesty_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "all_rows_preserve_fields",
+        "all_rows_exclude_raw_cache_content",
+        "all_rows_redact_raw_secrets",
+        "all_rows_exclude_approval_tickets",
+        "all_rows_exclude_delegated_credentials",
+        "all_rows_exclude_live_authority_handles",
+        "all_user_state_rows_have_safe_posture"
+      ],
+      "properties": {
+        "all_rows_preserve_fields": { "type": "boolean" },
+        "all_rows_exclude_raw_cache_content": { "type": "boolean" },
+        "all_rows_redact_raw_secrets": { "type": "boolean" },
+        "all_rows_exclude_approval_tickets": { "type": "boolean" },
+        "all_rows_exclude_delegated_credentials": { "type": "boolean" },
+        "all_rows_exclude_live_authority_handles": { "type": "boolean" },
+        "all_user_state_rows_have_safe_posture": { "type": "boolean" }
+      }
+    },
+    "inspection_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_class", "action_id", "label", "available", "disclosure"],
+      "properties": {
+        "hook_class": { "$ref": "#/$defs/inspection_hook_class" },
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "available": { "type": "boolean" },
+        "disclosure": { "type": "string" }
+      }
+    },
+    "stable_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["qualified", "level", "narrow_reasons"],
+      "properties": {
+        "qualified": { "type": "boolean" },
+        "level": {
+          "type": "string",
+          "enum": ["stable", "narrowed_below_stable"]
+        },
+        "narrow_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        }
+      }
+    }
+  }
+}

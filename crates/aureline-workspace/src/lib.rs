@@ -15,6 +15,7 @@ pub mod admission;
 pub mod archetype_detection;
 pub mod archetypes;
 pub mod bundles;
+pub mod cache_storage_class_lineage;
 pub mod canonical_identity_lineage;
 pub mod entry;
 pub mod entry_flows;
@@ -300,6 +301,21 @@ pub use restricted_mode_ux_lineage::{
     RestrictedModeUxLineageRecord, RestrictionReasonClass, REQUIRED_ACCESSIBILITY_POSTURES,
     REQUIRED_RESTRICTED_MODE_SURFACES, RESTRICTED_MODE_UX_LINEAGE_RECORD_KIND,
     RESTRICTED_MODE_UX_LINEAGE_SCHEMA_REF, RESTRICTED_MODE_UX_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use cache_storage_class_lineage::{
+    cache_storage_class_lineage_lines, default_cache_storage_inspection_hooks,
+    project_cache_storage_class_lineage, project_cache_storage_class_lineage_with_hooks,
+    CacheStorageClassInputs, CacheStorageClassLineageNarrowReason,
+    CacheStorageClassLineageQualification, CacheStorageClassLineageRecord, CacheStorageInspectionHook,
+    CacheStorageInspectionHookClass, CacheStorageObservation,
+    CacheStorageProducerAttributionSummary, CacheStorageRow, CacheSupportExportHonestySummary,
+    CacheSupportExportInputs, CacheSupportExportPosture, ClaimedDurabilityTier,
+    CleanupSurfaceCoverageSummary, CleanupSurfaceKind, EvictionPolicyClass,
+    EvictionPolicyTruthSummary, StorageClassCoverageSummary, StorageClassKind,
+    UserStateClass, UserStateGovernanceSummary, CACHE_STORAGE_CLASS_LINEAGE_RECORD_KIND,
+    CACHE_STORAGE_CLASS_LINEAGE_SCHEMA_REF, CACHE_STORAGE_CLASS_LINEAGE_SCHEMA_VERSION,
+    REQUIRED_CLEANUP_SURFACES, REQUIRED_STORAGE_CLASSES,
 };
 
 pub use canonical_identity_lineage::{
