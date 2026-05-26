@@ -28,6 +28,7 @@ pub mod python_daily_driver_quality_truth_packet;
 pub mod react_expert_workflow_pack_truth_packet;
 pub mod refactor_preview;
 pub mod rust_daily_driver_quality_truth_packet;
+pub mod spring_boot_expert_workflow_pack_truth_packet;
 pub mod symbol_snapshot;
 pub mod target_model;
 pub mod tree_sitter;
@@ -407,6 +408,35 @@ pub use rust_daily_driver_quality_truth_packet::{
     RUST_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
     RUST_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
     RUST_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use spring_boot_expert_workflow_pack_truth_packet::{
+    current_stable_spring_boot_expert_workflow_pack_truth_packet,
+    ConsumerSurface as SpringBootExpertWorkflowPackConsumerSurface,
+    DowngradeAutomationClass as SpringBootExpertWorkflowPackDowngradeAutomationClass,
+    EvidenceClass as SpringBootExpertWorkflowPackEvidenceClass,
+    FindingKind as SpringBootExpertWorkflowPackFindingKind,
+    FindingSeverity as SpringBootExpertWorkflowPackFindingSeverity,
+    KnownLimitClass as SpringBootExpertWorkflowPackKnownLimitClass,
+    PromotionState as SpringBootExpertWorkflowPackPromotionState,
+    SpringBootExpertWorkflowPackConsumerProjection,
+    SpringBootExpertWorkflowPackTruthArtifactError, SpringBootExpertWorkflowPackTruthPacket,
+    SpringBootExpertWorkflowPackTruthPacketInput,
+    SpringBootExpertWorkflowPackTruthSupportExport,
+    SupportClass as SpringBootExpertWorkflowPackSupportClass,
+    ValidationFinding as SpringBootExpertWorkflowPackValidationFinding,
+    WorkflowLoopClass as SpringBootExpertWorkflowLoopClass,
+    WorkflowPackClass as SpringBootExpertWorkflowPackClass,
+    WorkflowPackConfidenceClass as SpringBootExpertWorkflowPackConfidenceClass,
+    WorkflowPackRow as SpringBootExpertWorkflowPackRow,
+    WorkflowPackRowClass as SpringBootExpertWorkflowPackRowClass,
+    SPRING_BOOT_EXPERT_WORKFLOW_PACK_TRUTH_ARTIFACT_DOC_REF,
+    SPRING_BOOT_EXPERT_WORKFLOW_PACK_TRUTH_DOC_REF,
+    SPRING_BOOT_EXPERT_WORKFLOW_PACK_TRUTH_FIXTURE_DIR,
+    SPRING_BOOT_EXPERT_WORKFLOW_PACK_TRUTH_PACKET_ARTIFACT_REF,
+    SPRING_BOOT_EXPERT_WORKFLOW_PACK_TRUTH_PACKET_RECORD_KIND,
+    SPRING_BOOT_EXPERT_WORKFLOW_PACK_TRUTH_SCHEMA_REF,
+    SPRING_BOOT_EXPERT_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
+    SPRING_BOOT_EXPERT_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use symbol_snapshot::{
     SourcePoint, SourceRange, SymbolKindClass, SymbolProviderClass, SymbolRecord,
