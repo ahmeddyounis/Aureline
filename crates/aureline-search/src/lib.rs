@@ -73,6 +73,7 @@ pub mod ranking_reason;
 pub mod readiness;
 pub mod remap;
 pub mod result_id;
+pub mod result_truth_packet;
 pub mod results;
 pub mod scope;
 pub mod session_ledger;
@@ -214,6 +215,22 @@ pub use remap::{
 pub use result_id::{
     build_lexical_result_id, build_planned_result_id, build_surface_result_id,
     normalize_result_id_part, StableResultKind, LEXICAL_RESULT_ID_SCHEME,
+};
+
+pub use result_truth_packet::{
+    current_stable_search_result_truth_packet, ActionFallbackModeClass, CapturedVsLiveClass,
+    ConfidenceClass, DedupeContributor, FactLabelClass, FreshnessClass, HistoryPolicyClass,
+    RankingReason, RankingSignalClass, ResultKindClass, ScopeCounters, SearchActionBinding,
+    SearchResultRef, SearchResultTruthArtifactError, SearchResultTruthConsumerProjection,
+    SearchResultTruthConsumerSurface, SearchResultTruthFindingKind,
+    SearchResultTruthFindingSeverity, SearchResultTruthPacket, SearchResultTruthPacketInput,
+    SearchResultTruthPacketSupportExport, SearchResultTruthPromotionState, SearchResultTruthRow,
+    SearchResultTruthValidationFinding, SourceStratumClass, TieBreakClass,
+    SEARCH_RESULT_TRUTH_PACKET_ARTIFACT_DOC_REF, SEARCH_RESULT_TRUTH_PACKET_ARTIFACT_REF,
+    SEARCH_RESULT_TRUTH_PACKET_DOC_REF, SEARCH_RESULT_TRUTH_PACKET_FIXTURE_DIR,
+    SEARCH_RESULT_TRUTH_PACKET_RECORD_KIND, SEARCH_RESULT_TRUTH_PACKET_SCHEMA_REF,
+    SEARCH_RESULT_TRUTH_PACKET_SCHEMA_VERSION,
+    SEARCH_RESULT_TRUTH_PACKET_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use results::{
