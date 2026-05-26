@@ -19,6 +19,7 @@ pub mod lsp_router;
 pub mod packs;
 pub mod provider_arbitration;
 pub mod python;
+pub mod react_expert_workflow_pack_truth_packet;
 pub mod refactor_preview;
 pub mod symbol_snapshot;
 pub mod target_model;
@@ -143,6 +144,27 @@ pub use provider_arbitration::{
     PROVIDER_ARBITRATION_PROOF_CORPUS_DIR, PROVIDER_ARBITRATION_PROOF_REPORT_ARTIFACT_REF,
     PROVIDER_ARBITRATION_PROOF_REPORT_RECORD_KIND, PROVIDER_HEALTH_STATE_RECORD_KIND,
     PROVIDER_HEALTH_STATE_SCHEMA_REF, PROVIDER_HEALTH_STATE_SCHEMA_VERSION,
+};
+pub use react_expert_workflow_pack_truth_packet::{
+    current_stable_react_expert_workflow_pack_truth_packet,
+    ConsumerSurface as ReactExpertWorkflowPackConsumerSurface,
+    DowngradeAutomationClass as ReactExpertWorkflowPackDowngradeAutomationClass,
+    EvidenceClass as ReactExpertWorkflowPackEvidenceClass,
+    FindingKind as ReactExpertWorkflowPackFindingKind,
+    FindingSeverity as ReactExpertWorkflowPackFindingSeverity,
+    KnownLimitClass as ReactExpertWorkflowPackKnownLimitClass,
+    PromotionState as ReactExpertWorkflowPackPromotionState,
+    ReactExpertWorkflowPackConsumerProjection, ReactExpertWorkflowPackTruthArtifactError,
+    ReactExpertWorkflowPackTruthPacket, ReactExpertWorkflowPackTruthPacketInput,
+    ReactExpertWorkflowPackTruthSupportExport, SupportClass as ReactExpertWorkflowPackSupportClass,
+    ValidationFinding as ReactExpertWorkflowPackValidationFinding, WorkflowLoopClass,
+    WorkflowPackClass, WorkflowPackConfidenceClass, WorkflowPackRow, WorkflowPackRowClass,
+    REACT_EXPERT_WORKFLOW_PACK_TRUTH_ARTIFACT_DOC_REF,
+    REACT_EXPERT_WORKFLOW_PACK_TRUTH_DOC_REF, REACT_EXPERT_WORKFLOW_PACK_TRUTH_FIXTURE_DIR,
+    REACT_EXPERT_WORKFLOW_PACK_TRUTH_PACKET_ARTIFACT_REF,
+    REACT_EXPERT_WORKFLOW_PACK_TRUTH_PACKET_RECORD_KIND,
+    REACT_EXPERT_WORKFLOW_PACK_TRUTH_SCHEMA_REF, REACT_EXPERT_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
+    REACT_EXPERT_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use python::{
     PythonAccessKindClass, PythonAmbiguityDescriptor, PythonAnchorRef, PythonAnswerLayerClass,
