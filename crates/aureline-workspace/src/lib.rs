@@ -39,6 +39,7 @@ pub mod restricted_mode_ux_lineage;
 pub mod roots;
 pub mod save;
 pub mod scaffold;
+pub mod schema_migration_and_repair_lineage;
 pub mod scope_propagation;
 pub mod serialization;
 pub mod state_packages;
@@ -492,6 +493,26 @@ pub use local_history_export_replay_lineage::{
     REQUIRED_REPLAY_PATH_KINDS, LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_RECORD_KIND,
     LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_SCHEMA_REF,
     LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use schema_migration_and_repair_lineage::{
+    default_schema_migration_inspection_hooks, project_schema_migration_and_repair_lineage,
+    project_schema_migration_and_repair_lineage_with_hooks,
+    schema_migration_and_repair_lineage_lines, ArtifactClassCoverageSummary, ArtifactClassKind,
+    MigrationObservation, MigrationOutcome, MigrationRow, NoSilentRerunSummary as SchemaMigrationNoSilentRerunSummary,
+    OutcomeHonestySummary, PreservationSummary, RedactionClass, RepairFlowCoverageSummary,
+    RepairFlowKind, RepairFlowObservation, RepairFlowRow, RepairOutcome,
+    RepairTransactionPinningSummary, RerunPosture as SchemaMigrationRerunPosture,
+    SchemaCompatibilityClass, SchemaMigrationAndRepairInputs,
+    SchemaMigrationAndRepairLineageNarrowReason, SchemaMigrationAndRepairLineageQualification,
+    SchemaMigrationAndRepairLineageRecord, SchemaMigrationInspectionHook,
+    SchemaMigrationInspectionHookClass, SchemaMigrationProducerAttributionSummary,
+    SchemaMigrationSupportExportHonestySummary, SchemaMigrationSupportExportInputs,
+    SchemaMigrationSupportExportPosture, SchemaVersionPinningSummary,
+    REQUIRED_ARTIFACT_CLASSES, REQUIRED_REPAIR_FLOW_KINDS,
+    SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_RECORD_KIND,
+    SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_SCHEMA_REF,
+    SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use mutation_and_generated_artifact_lineage::{
