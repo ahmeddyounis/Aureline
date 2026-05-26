@@ -13,6 +13,7 @@ pub mod explainers;
 pub mod freshness_propagation_packet;
 pub mod journey_budget;
 pub mod knowledge_evidence_packet;
+pub mod navigation_target_truth_packet;
 mod query;
 pub mod readiness;
 pub mod scope_provenance_truth_packet;
@@ -71,6 +72,31 @@ pub use knowledge_evidence_packet::{
     KNOWLEDGE_EVIDENCE_PACKET_FIXTURE_DIR, KNOWLEDGE_EVIDENCE_PACKET_RECORD_KIND,
     KNOWLEDGE_EVIDENCE_PACKET_SCHEMA_REF, KNOWLEDGE_EVIDENCE_PACKET_SCHEMA_VERSION,
     KNOWLEDGE_EVIDENCE_PACKET_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use navigation_target_truth_packet::{
+    current_stable_navigation_target_truth_packet, AccessKind as NavigationAccessKind,
+    AliasingContext as NavigationAliasingContext, AmbiguityClass as NavigationAmbiguityClass,
+    ConfidenceClass as NavigationTargetConfidenceClass,
+    ConsumerSurface as NavigationTargetConsumerSurface,
+    DowngradeState as NavigationTargetDowngradeState,
+    FindingKind as NavigationTargetFindingKind,
+    FindingSeverity as NavigationTargetFindingSeverity,
+    FreshnessClass as NavigationTargetFreshnessClass,
+    HierarchyEdgeContext as NavigationHierarchyEdgeContext,
+    HierarchyEdgeKind as NavigationHierarchyEdgeKind,
+    NavigationTargetConsumerProjection, NavigationTargetRow, NavigationTargetTruthArtifactError,
+    NavigationTargetTruthPacket, NavigationTargetTruthPacketInput,
+    NavigationTargetTruthSupportExport, ProviderClass as NavigationTargetProviderClass,
+    PromotionState as NavigationTargetPromotionState,
+    ReferenceContext as NavigationReferenceContext, RelationKind as NavigationRelationKind,
+    RenameBlockedReason as NavigationRenameBlockedReason,
+    RenamePreviewContext as NavigationRenamePreviewContext, RowClass as NavigationTargetRowClass,
+    ScopeCompleteness as NavigationTargetScopeCompleteness,
+    ValidationFinding as NavigationTargetValidationFinding,
+    NAVIGATION_TARGET_TRUTH_ARTIFACT_DOC_REF, NAVIGATION_TARGET_TRUTH_DOC_REF,
+    NAVIGATION_TARGET_TRUTH_FIXTURE_DIR, NAVIGATION_TARGET_TRUTH_PACKET_ARTIFACT_REF,
+    NAVIGATION_TARGET_TRUTH_PACKET_RECORD_KIND, NAVIGATION_TARGET_TRUTH_SCHEMA_REF,
+    NAVIGATION_TARGET_TRUTH_SCHEMA_VERSION, NAVIGATION_TARGET_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use query::{
     result_partiality_for_readiness, GraphAlphaQueryClass, GraphPartialTruthCause,
