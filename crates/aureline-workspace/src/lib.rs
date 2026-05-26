@@ -43,6 +43,7 @@ pub mod schema_migration_and_repair_lineage;
 pub mod scope_propagation;
 pub mod serialization;
 pub mod state_packages;
+pub mod state_root_certification_lineage;
 pub mod templates;
 pub mod trust_gating_lineage;
 pub mod workset_scope_ux_lineage;
@@ -513,6 +514,26 @@ pub use schema_migration_and_repair_lineage::{
     SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_RECORD_KIND,
     SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_SCHEMA_REF,
     SCHEMA_MIGRATION_AND_REPAIR_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use state_root_certification_lineage::{
+    default_state_root_inspection_hooks, project_state_root_certification_lineage,
+    project_state_root_certification_lineage_with_hooks,
+    state_root_certification_lineage_lines, AuditFindingClass, AuditHonestySummary,
+    AuditRedactionClass, AuditRerunPosture, AuditSurfaceCoverageSummary, AuditSurfaceKind,
+    AuditSurfaceObservation, AuditSurfaceReachabilitySummary, AuditSurfaceRow,
+    AuditTransactionPinningSummary, ClaimedStableProfile,
+    NoSilentRerunSummary as StateRootCertificationNoSilentRerunSummary,
+    PreservationSummary as StateRootCertificationPreservationSummary,
+    ResourceAuditObservation, ResourceAuditRow, ResourceClassCoverageSummary,
+    StateRootCertificationInputs, StateRootCertificationLineageNarrowReason,
+    StateRootCertificationLineageQualification, StateRootCertificationLineageRecord,
+    StateRootInspectionHook, StateRootInspectionHookClass,
+    StateRootProducerAttributionSummary, StateRootResourceKind,
+    StateRootSupportExportHonestySummary, StateRootSupportExportInputs,
+    StateRootSupportExportPosture, REQUIRED_AUDIT_SURFACES, REQUIRED_STATE_ROOT_RESOURCES,
+    STATE_ROOT_CERTIFICATION_LINEAGE_RECORD_KIND, STATE_ROOT_CERTIFICATION_LINEAGE_SCHEMA_REF,
+    STATE_ROOT_CERTIFICATION_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use mutation_and_generated_artifact_lineage::{
