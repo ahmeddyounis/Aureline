@@ -43,6 +43,7 @@ pub mod serialization;
 pub mod state_packages;
 pub mod templates;
 pub mod trust_gating_lineage;
+pub mod workset_scope_ux_lineage;
 pub mod workset_switcher;
 pub mod worksets;
 
@@ -448,6 +449,25 @@ pub use prebuilds::{
     REQUIRED_REVALIDATION_CLASSES, REUSE_OUTCOME_CLASSES, ROUTE_DEPENDENCY_CLASSES,
     SIGNER_POSTURE_CLASSES, SOURCE_MATERIALIZATION_CLASSES, SUPPORT_EXPORT_POSTURES,
     SUPPORT_PACKET_INCLUSION_CLASSES, TRUST_STATES,
+};
+
+pub use workset_scope_ux_lineage::{
+    default_workset_scope_ux_inspection_hooks, project_workset_scope_ux_lineage,
+    project_workset_scope_ux_lineage_with_hooks, workset_scope_ux_lineage_lines,
+    HiddenResultDisclosureSummary, NarrowingCause as WorksetScopeUxNarrowingCause,
+    OutsideMarkerHonestySummary, PolicyLimitedDisclosureSummary,
+    ReadinessState as WorksetScopeUxReadinessState, ReadinessTruthSummary, ScopeCoverageSummary,
+    ScopeKind, ScopeObservation, ScopeRow, SliceRefPropagationSummary, SupportExportPosture,
+    SurfaceCoverageSummary, SurfaceKind as WorksetScopeUxSurfaceKind, SurfaceObservation,
+    SurfaceRow as WorksetScopeUxSurfaceRow, WidenActionClass, WidenPreservationPosture,
+    WidenPreservationTruthSummary, WidenPreviewObservation, WidenPreviewRow,
+    WidenPreviewTruthSummary, WorksetScopeUxInputs, WorksetScopeUxInspectionHook,
+    WorksetScopeUxInspectionHookClass, WorksetScopeUxLineageNarrowReason,
+    WorksetScopeUxLineageQualification, WorksetScopeUxLineageRecord,
+    WorksetScopeUxProducerAttributionSummary, WorksetScopeUxSupportExportHonestySummary,
+    WorksetScopeUxSupportExportInputs, REQUIRED_SCOPE_CLASSES, REQUIRED_SURFACE_KINDS,
+    WORKSET_SCOPE_UX_LINEAGE_RECORD_KIND, WORKSET_SCOPE_UX_LINEAGE_SCHEMA_REF,
+    WORKSET_SCOPE_UX_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use mutation_and_generated_artifact_lineage::{
