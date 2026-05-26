@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/canonical_identity_lineage.schema.json",
+  "title": "Aureline canonical filesystem identity lineage",
+  "description": "Boundary schema for the governed, export-safe canonical filesystem identity lineage record. The record finalizes canonical filesystem identity, the alias inspector, save-target review, and wrong-target prevention into one record per posture. It is projected verbatim from the live VFS identity record and save-target token. It proves canonical-path truth (canonical write target resolved), alias-inspector honesty (every alias entry carries its kind and resolution chain), save-target review (blockers are surfaced before any byte moves), wrong-target prevention (compare-before-write generation token pinned, divergent-unknown alias guarded, untrusted workspace guarded), and lineage/export honesty (shared identity references consistent, no raw bytes). Raw source bytes are excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "canonical_identity_lineage_schema_version",
+    "schema_ref",
+    "posture_id",
+    "workspace_ref",
+    "root_ref",
+    "identity_references",
+    "canonical_identity",
+    "alias_inspector",
+    "save_target_review",
+    "wrong_target_prevention",
+    "inspection_hooks",
+    "stable_qualification",
+    "raw_payload_excluded",
+    "summary"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": {
+      "const": "canonical_identity_lineage_record"
+    },
+    "canonical_identity_lineage_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "schema_ref": {
+      "const": "schemas/workspace/canonical_identity_lineage.schema.json"
+    },
+    "posture_id": { "$ref": "#/$defs/non_empty_string" },
+    "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+    "root_ref": { "$ref": "#/$defs/non_empty_string" },
+    "identity_references": { "$ref": "#/$defs/shared_identity_references" },
+    "canonical_identity": { "$ref": "#/$defs/canonical_identity_summary" },
+    "alias_inspector": { "$ref": "#/$defs/alias_inspector_lineage" },
+    "save_target_review": { "$ref": "#/$defs/save_target_review_summary" },
+    "wrong_target_prevention": { "$ref": "#/$defs/wrong_target_prevention_posture" },
+    "inspection_hooks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/inspection_hook" }
+    },
+    "stable_qualification": { "$ref": "#/$defs/stable_qualification" },
+    "raw_payload_excluded": { "const": true },
+    "summary": { "$ref": "#/$defs/short_sentence" }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 700
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"]
+    },
+    "normalization_form": {
+      "type": "string",
+      "enum": ["none", "nfc", "nfd", "mixed_observed"]
+    },
+    "path_truth_class": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "direct_with_known_aliases",
+        "via_symlink",
+        "via_junction",
+        "via_hardlink_sibling",
+        "via_case_only_variant",
+        "via_unicode_normalization_variant",
+        "via_remote_alias",
+        "via_bind_mount_alias",
+        "via_container_mount_alias",
+        "via_archive_inner_alias",
+        "divergent_unknown"
+      ]
+    },
+    "alias_kind": {
+      "type": "string",
+      "enum": [
+        "symlink",
+        "junction",
+        "hardlink_sibling",
+        "case_only_variant",
+        "unicode_normalization_variant",
+        "remote_alias",
+        "bind_mount_alias",
+        "container_mount_alias",
+        "archive_inner_alias"
+      ]
+    },
+    "atomic_write_mode": {
+      "type": "string",
+      "enum": [
+        "atomic_replace",
+        "in_place_write",
+        "conditional_remote_write",
+        "blocked"
+      ]
+    },
+    "generation_token_kind": {
+      "type": "string",
+      "enum": [
+        "file_id_generation",
+        "device_inode_generation",
+        "windows_object_id",
+        "provider_object_id_revision",
+        "inode_mtime_size",
+        "remote_revision_token",
+        "content_hash"
+      ]
+    },
+    "strongest_identity_token_kind": {
+      "type": "string",
+      "enum": [
+        "file_id_generation",
+        "device_inode_generation",
+        "windows_object_id",
+        "provider_object_id_revision",
+        "logical_document_id_source_refs",
+        "content_hash_only"
+      ]
+    },
+    "save_target_blocker": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "policy_constrained",
+        "review_required_before_save",
+        "review_required_before_rename",
+        "not_writable_per_snapshot",
+        "atomic_write_mode_blocked",
+        "divergent_unknown_alias",
+        "untrusted_workspace"
+      ]
+    },
+    "inspection_hook_class": {
+      "type": "string",
+      "enum": [
+        "alias_inspect",
+        "save_target_review",
+        "compare_before_write",
+        "export",
+        "repair"
+      ]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "canonical_target_unresolved",
+        "presentation_alias_missing",
+        "divergent_unknown_alias_unguarded",
+        "compare_before_write_not_pinned",
+        "save_target_misaddressed",
+        "untrusted_workspace_save_unguarded",
+        "identity_reference_inconsistent",
+        "destructive_action_no_compare_hook",
+        "lineage_export_unsafe"
+      ]
+    },
+    "shared_identity_references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filesystem_identity_ref",
+        "editor_file_identity_ref",
+        "git_file_identity_ref",
+        "restore_file_identity_ref",
+        "mutation_file_identity_ref"
+      ],
+      "properties": {
+        "filesystem_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "editor_file_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "git_file_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "restore_file_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "mutation_file_identity_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "canonical_identity_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presentation_uri",
+        "logical_uri",
+        "canonical_uri",
+        "path_truth_class",
+        "canonical_target_resolved",
+        "presentation_equals_canonical",
+        "save_redirects_target",
+        "trust_state",
+        "normalization_form",
+        "strongest_identity_token_kind",
+        "summary"
+      ],
+      "properties": {
+        "presentation_uri": { "type": "string" },
+        "logical_uri": { "type": "string" },
+        "canonical_uri": { "type": "string" },
+        "path_truth_class": { "$ref": "#/$defs/path_truth_class" },
+        "canonical_target_resolved": { "type": "boolean" },
+        "presentation_equals_canonical": { "type": "boolean" },
+        "save_redirects_target": { "type": "boolean" },
+        "opens_via_alias_kind": { "$ref": "#/$defs/alias_kind" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "normalization_form": { "$ref": "#/$defs/normalization_form" },
+        "strongest_identity_token_kind": {
+          "$ref": "#/$defs/strongest_identity_token_kind"
+        },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "alias_inspector_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alias_uri",
+        "alias_kind",
+        "resolution_chain",
+        "is_canonical",
+        "is_presentation"
+      ],
+      "properties": {
+        "alias_uri": { "type": "string" },
+        "alias_kind": { "$ref": "#/$defs/alias_kind" },
+        "resolution_chain": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "is_canonical": { "type": "boolean" },
+        "is_presentation": { "type": "boolean" }
+      }
+    },
+    "alias_inspector_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entries",
+        "distinct_alias_kinds",
+        "presentation_alias_missing"
+      ],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/alias_inspector_entry" }
+        },
+        "distinct_alias_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/alias_kind" },
+          "uniqueItems": true
+        },
+        "presentation_alias_missing": { "type": "boolean" }
+      }
+    },
+    "permission_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["writable", "mode"],
+      "properties": {
+        "writable": { "type": "boolean" },
+        "mode": { "type": "string" },
+        "owner": { "type": "string" },
+        "group": { "type": "string" }
+      }
+    },
+    "save_target_review_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "writes_to_canonical_uri",
+        "atomic_write_mode",
+        "pinned_generation_token_kind",
+        "pinned_generation_token_value",
+        "permission_summary",
+        "blockers",
+        "review_required_before_save",
+        "review_required_before_rename",
+        "target_matches_canonical",
+        "explainers"
+      ],
+      "properties": {
+        "writes_to_canonical_uri": { "type": "string" },
+        "atomic_write_mode": { "$ref": "#/$defs/atomic_write_mode" },
+        "pinned_generation_token_kind": { "$ref": "#/$defs/generation_token_kind" },
+        "pinned_generation_token_value": { "type": "string" },
+        "permission_summary": { "$ref": "#/$defs/permission_observation" },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/save_target_blocker" }
+        },
+        "review_required_before_save": { "type": "boolean" },
+        "review_required_before_rename": { "type": "boolean" },
+        "target_matches_canonical": { "type": "boolean" },
+        "explainers": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "wrong_target_prevention_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compare_before_write_pinned",
+        "divergent_unknown_alias_guarded",
+        "untrusted_workspace_guarded",
+        "wrong_target_write_prevented"
+      ],
+      "properties": {
+        "compare_before_write_pinned": { "type": "boolean" },
+        "divergent_unknown_alias_guarded": { "type": "boolean" },
+        "untrusted_workspace_guarded": { "type": "boolean" },
+        "wrong_target_write_prevented": { "type": "boolean" }
+      }
+    },
+    "inspection_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_class", "action_id", "label", "available", "disclosure"],
+      "properties": {
+        "hook_class": { "$ref": "#/$defs/inspection_hook_class" },
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "available": { "type": "boolean" },
+        "disclosure": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "stable_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["qualified", "level", "narrow_reasons"],
+      "properties": {
+        "qualified": { "type": "boolean" },
+        "level": {
+          "type": "string",
+          "enum": ["stable", "narrowed_below_stable"]
+        },
+        "narrow_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

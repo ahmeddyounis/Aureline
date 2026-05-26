@@ -15,6 +15,7 @@ pub mod admission;
 pub mod archetype_detection;
 pub mod archetypes;
 pub mod bundles;
+pub mod canonical_identity_lineage;
 pub mod entry;
 pub mod entry_flows;
 pub mod generated_artifacts;
@@ -222,6 +223,19 @@ pub use bundles::{
 pub use save::{
     SaveParticipant, SaveParticipantError, SaveResult, StagedSaveCoordinator, StagedSaveRequest,
     WriteStrategy,
+};
+
+pub use canonical_identity_lineage::{
+    canonical_identity_lineage_lines, default_canonical_identity_inspection_hooks,
+    project_canonical_identity_lineage, project_canonical_identity_lineage_with_hooks,
+    project_from_save_target_token, AliasInspectorEntry, AliasInspectorLineage, AliasObservation,
+    CanonicalIdentityLineageRecord, CanonicalIdentityNarrowReason, CanonicalIdentityObservation,
+    CanonicalIdentityQualification, CanonicalIdentitySummary, CapabilityObservation,
+    CompareBeforeWriteObservation, IdentityTokenObservation, InspectionHook as CanonicalIdentityInspectionHook,
+    InspectionHookClass as CanonicalIdentityInspectionHookClass, PermissionObservation,
+    SaveTargetReviewSummary, SharedIdentityReferences, WrongTargetPreventionPosture,
+    CANONICAL_IDENTITY_LINEAGE_RECORD_KIND, CANONICAL_IDENTITY_LINEAGE_SCHEMA_REF,
+    CANONICAL_IDENTITY_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use scaffold::{
