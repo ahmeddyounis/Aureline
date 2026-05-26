@@ -1,0 +1,469 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/deep_link_navigation_truth_packet.schema.json",
+  "title": "Aureline deep-link / navigation-continuity stable truth packet",
+  "description": "Boundary schema for the stable deep-link remap and navigation-continuity packet shared by the search shell, navigation history, docs/help, AI context inspector, CLI/headless, support export, and release proof index.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "workflow_or_surface_id",
+    "query_session_id_ref",
+    "generated_at",
+    "covered_outcomes",
+    "covered_drift_states",
+    "rows",
+    "consumer_projections",
+    "promotion_state",
+    "validation_findings"
+  ],
+  "properties": {
+    "record_kind": { "const": "deep_link_navigation_truth_stable_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+    "query_session_id_ref": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "covered_outcomes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/outcome_class" }
+    },
+    "covered_drift_states": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/drift_state" }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 7,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "source_contract_refs": { "$ref": "#/$defs/ref_array" },
+    "promotion_state": { "$ref": "#/$defs/promotion_state" },
+    "validation_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_finding" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "outcome_class": {
+      "enum": [
+        "resolved_exact",
+        "remapped",
+        "recoverable_placeholder",
+        "failed_explicit_reason"
+      ]
+    },
+    "drift_state": {
+      "enum": [
+        "resolved_exact",
+        "resolved_remapped",
+        "resolved_ambiguous",
+        "target_missing",
+        "target_moved",
+        "target_renamed",
+        "target_branch_drifted",
+        "target_policy_blocked",
+        "target_scope_excluded",
+        "index_not_ready_for_target",
+        "unresolvable"
+      ]
+    },
+    "target_kind": {
+      "enum": [
+        "workspace_file",
+        "buffer_anchor",
+        "graph_symbol",
+        "graph_edge",
+        "docs_page_anchor",
+        "bookmark",
+        "recent_location"
+      ]
+    },
+    "confidence_class": {
+      "enum": [
+        "exact_identity",
+        "high_semantic",
+        "structural",
+        "heuristic",
+        "insufficient",
+        "unavailable"
+      ]
+    },
+    "evidence_class": {
+      "enum": [
+        "filesystem_identity",
+        "rename_move_history",
+        "symbol_stable_id",
+        "graph_remap_edge",
+        "planner_result_identity",
+        "user_curated_alias",
+        "path_similarity",
+        "indexed_candidate"
+      ]
+    },
+    "failure_reason": {
+      "enum": [
+        "target_missing",
+        "target_scope_excluded",
+        "target_policy_blocked",
+        "root_unavailable",
+        "ambiguous_candidates",
+        "index_not_ready",
+        "workspace_mismatch",
+        "confidence_too_low",
+        "unsupported_target_kind"
+      ]
+    },
+    "navigation_surface": {
+      "enum": [
+        "peek",
+        "preview",
+        "split",
+        "open_in_new_pane",
+        "back_navigation",
+        "primary_open"
+      ]
+    },
+    "navigation_recovery_action": {
+      "enum": [
+        "open_remapped_target",
+        "preview_remapped_target",
+        "widen_scope",
+        "open_target_root",
+        "keep_current_scope",
+        "locate_missing_target",
+        "rebuild_index",
+        "inspect_remap_packet",
+        "remove_artifact",
+        "retry_after_index_ready"
+      ]
+    },
+    "navigation_artifact_kind": {
+      "enum": ["bookmark", "navigation_history_entry"]
+    },
+    "navigation_origin_class": {
+      "enum": [
+        "search_result_open",
+        "deep_link_resolution",
+        "bookmark_restore",
+        "session_restore",
+        "back_forward",
+        "quick_open_recent",
+        "symbol_jump"
+      ]
+    },
+    "navigation_continuity_state": {
+      "enum": ["remapped", "recoverable_placeholder", "failed_explicit_reason"]
+    },
+    "consumer_surface": {
+      "enum": [
+        "search_shell",
+        "navigation_history",
+        "docs_help",
+        "ai_context_inspector",
+        "cli_headless",
+        "support_export",
+        "release_proof_index"
+      ]
+    },
+    "promotion_state": {
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_severity": { "enum": ["info", "warning", "blocker"] },
+    "scope_class": {
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ]
+    },
+    "scope_mode": { "enum": ["full", "sparse"] },
+    "remap_target": {
+      "type": "object",
+      "required": ["target_kind", "target_ref", "workspace_id_ref"],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "root_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "root_label": { "$ref": "#/$defs/non_empty_string" },
+        "stable_result_key": { "$ref": "#/$defs/non_empty_string" },
+        "path_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "symbol_anchor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "graph_node_ref": { "$ref": "#/$defs/non_empty_string" },
+        "revision_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "remap_scope_packet": {
+      "type": "object",
+      "required": [
+        "originating_workspace_id_ref",
+        "active_workspace_id_ref",
+        "stable_scope_id_ref",
+        "scope_class",
+        "scope_mode",
+        "destination_in_active_scope"
+      ],
+      "properties": {
+        "originating_workspace_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "active_workspace_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "stable_scope_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_mode": { "$ref": "#/$defs/scope_mode" },
+        "workset_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workset_name": { "$ref": "#/$defs/non_empty_string" },
+        "active_root_refs": { "$ref": "#/$defs/ref_array" },
+        "destination_workspace_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "destination_root_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "destination_root_label": { "$ref": "#/$defs/non_empty_string" },
+        "destination_in_active_scope": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "remap_confidence": {
+      "type": "object",
+      "required": ["confidence_class"],
+      "properties": {
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "confidence_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "evidence_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_class" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "destination_visibility_row": {
+      "type": "object",
+      "required": [
+        "surface_class",
+        "target_root_id_ref",
+        "target_root_label",
+        "destination_repo_visible"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/navigation_surface" },
+        "target_root_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_root_label": { "$ref": "#/$defs/non_empty_string" },
+        "destination_repo_visible": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "remap_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "deep_link_remap_packet_schema_version",
+        "remap_packet_id",
+        "deep_link_id_ref",
+        "deep_link_drift_state",
+        "outcome_class",
+        "old_target",
+        "scope",
+        "confidence",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "deep_link_remap_packet_record" },
+        "deep_link_remap_packet_schema_version": { "const": 1 },
+        "remap_packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "deep_link_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "deep_link_drift_state": { "$ref": "#/$defs/drift_state" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "old_target": { "$ref": "#/$defs/remap_target" },
+        "new_target": { "$ref": "#/$defs/remap_target" },
+        "scope": { "$ref": "#/$defs/remap_scope_packet" },
+        "confidence": { "$ref": "#/$defs/remap_confidence" },
+        "remap_chain_refs": { "$ref": "#/$defs/ref_array" },
+        "destination_visibility": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/destination_visibility_row" }
+        },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/navigation_recovery_action" }
+        },
+        "failure_reason": { "$ref": "#/$defs/failure_reason" },
+        "emitted_at": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "navigation_scope_identity": {
+      "type": "object",
+      "required": [
+        "workspace_id_ref",
+        "stable_scope_id_ref",
+        "scope_class",
+        "scope_mode"
+      ],
+      "properties": {
+        "workspace_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "stable_scope_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_mode": { "$ref": "#/$defs/scope_mode" },
+        "workset_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "workset_name": { "$ref": "#/$defs/non_empty_string" },
+        "active_root_refs": { "$ref": "#/$defs/ref_array" },
+        "target_workspace_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_root_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_root_label": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "continuity_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "navigation_continuity_schema_version",
+        "continuity_id",
+        "artifact_kind",
+        "artifact_id_ref",
+        "continuity_state",
+        "origin_class",
+        "scope_identity",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "navigation_continuity_record" },
+        "navigation_continuity_schema_version": { "const": 1 },
+        "continuity_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_kind": { "$ref": "#/$defs/navigation_artifact_kind" },
+        "artifact_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "deep_link_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "remap_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "continuity_state": { "$ref": "#/$defs/navigation_continuity_state" },
+        "origin_class": { "$ref": "#/$defs/navigation_origin_class" },
+        "scope_identity": { "$ref": "#/$defs/navigation_scope_identity" },
+        "destination_visibility": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/destination_visibility_row" }
+        },
+        "recovery_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/navigation_recovery_action" }
+        },
+        "failure_reason": { "$ref": "#/$defs/failure_reason" },
+        "placeholder_ref": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_at": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "row": {
+      "type": "object",
+      "required": [
+        "row_id",
+        "artifact_class",
+        "origin_class",
+        "remap_packet",
+        "continuity_record",
+        "display_title",
+        "raw_boundary_material_excluded",
+        "captured_at"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_class": { "$ref": "#/$defs/navigation_artifact_kind" },
+        "origin_class": { "$ref": "#/$defs/navigation_origin_class" },
+        "remap_packet": { "$ref": "#/$defs/remap_packet" },
+        "continuity_record": { "$ref": "#/$defs/continuity_record" },
+        "display_title": { "$ref": "#/$defs/non_empty_string" },
+        "raw_boundary_material_excluded": { "type": "boolean" },
+        "captured_at": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "consumer_projection": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "projection_ref",
+        "export_packet_id_ref",
+        "rendered_at",
+        "preserves_same_packet",
+        "preserves_remap_truth",
+        "preserves_continuity_truth",
+        "preserves_destination_visibility",
+        "preserves_drift_state_vocabulary",
+        "preserves_recovery_action_vocabulary",
+        "preserves_confidence_and_evidence",
+        "supports_json_export",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded"
+      ],
+      "properties": {
+        "consumer_surface": { "$ref": "#/$defs/consumer_surface" },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "export_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rendered_at": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_same_packet": { "type": "boolean" },
+        "preserves_remap_truth": { "type": "boolean" },
+        "preserves_continuity_truth": { "type": "boolean" },
+        "preserves_destination_visibility": { "type": "boolean" },
+        "preserves_drift_state_vocabulary": { "type": "boolean" },
+        "preserves_recovery_action_vocabulary": { "type": "boolean" },
+        "preserves_confidence_and_evidence": { "type": "boolean" },
+        "supports_json_export": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" },
+        "ambient_authority_excluded": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "validation_finding": {
+      "type": "object",
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": {
+          "enum": [
+            "wrong_record_kind",
+            "wrong_schema_version",
+            "missing_identity",
+            "invalid_remap_packet",
+            "invalid_continuity_record",
+            "continuity_remap_packet_mismatch",
+            "continuity_action_drift",
+            "destination_visibility_drift",
+            "destination_visibility_dropped",
+            "drift_state_dropped",
+            "recovery_action_vocabulary_dropped",
+            "evidence_class_dropped",
+            "raw_boundary_material_present",
+            "outcome_coverage_dropped",
+            "drift_state_coverage_dropped",
+            "outcome_coverage_over_declared",
+            "drift_state_coverage_over_declared",
+            "missing_consumer_projection",
+            "consumer_projection_drift",
+            "projection_drift_state_dropped",
+            "projection_recovery_action_dropped",
+            "projection_confidence_evidence_dropped",
+            "projection_destination_visibility_dropped",
+            "promotion_state_mismatch"
+          ]
+        },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -59,6 +59,7 @@
 
 pub mod collections;
 pub mod counts;
+pub mod deep_link_navigation_truth;
 pub mod docs_linking;
 pub mod hot_set;
 pub mod hybrid_retrieval;
@@ -94,6 +95,20 @@ pub use collections::{
     COLLECTION_VIEW_ALPHA_SCHEMA_VERSION, FILTER_AST_ALPHA_SCHEMA_VERSION,
     SAVED_COLLECTION_VIEW_RECORD_KIND, SAVED_VIEW_ALPHA_SCHEMA_VERSION,
 };
+pub use deep_link_navigation_truth::{
+    current_stable_deep_link_navigation_truth_packet, DeepLinkNavigationTruthArtifactError,
+    DeepLinkNavigationTruthConsumerProjection, DeepLinkNavigationTruthConsumerSurface,
+    DeepLinkNavigationTruthFindingKind, DeepLinkNavigationTruthFindingSeverity,
+    DeepLinkNavigationTruthPacket, DeepLinkNavigationTruthPacketInput,
+    DeepLinkNavigationTruthPromotionState, DeepLinkNavigationTruthRow,
+    DeepLinkNavigationTruthSupportExport, DeepLinkNavigationTruthValidationFinding,
+    DEEP_LINK_NAVIGATION_TRUTH_ARTIFACT_DOC_REF, DEEP_LINK_NAVIGATION_TRUTH_DOC_REF,
+    DEEP_LINK_NAVIGATION_TRUTH_FIXTURE_DIR, DEEP_LINK_NAVIGATION_TRUTH_PACKET_ARTIFACT_REF,
+    DEEP_LINK_NAVIGATION_TRUTH_PACKET_RECORD_KIND, DEEP_LINK_NAVIGATION_TRUTH_SCHEMA_REF,
+    DEEP_LINK_NAVIGATION_TRUTH_SCHEMA_VERSION,
+    DEEP_LINK_NAVIGATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+
 pub use counts::{
     HiddenScopeDisclosure, HiddenScopeReason, ScopeCandidateTruthRecord, ScopeTruthLabel,
     ScopeTruthSurface, ScopeWarningKind, ScopeWarningRecord, SearchNoResultsState,
