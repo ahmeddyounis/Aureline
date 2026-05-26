@@ -12,6 +12,7 @@ pub mod drift_packets;
 pub mod explainers;
 pub mod freshness_propagation_packet;
 pub mod journey_budget;
+pub mod knowledge_evidence_packet;
 mod query;
 pub mod readiness;
 mod store;
@@ -29,8 +30,17 @@ pub use drift_packets::{
     GRAPH_DRIFT_PACKET_SCHEMA_VERSION, GRAPH_DRIFT_REPORT_RECORD_KIND, REQUIRED_DATA_LANE_LINEAGES,
     REQUIRED_DRIFT_CONSUMER_SURFACES,
 };
+pub use explainers::{
+    EvidenceCard, EvidenceCitation, ExplainerSourceKind, GraphExplainerError,
+    ImpactEdgeEvidenceClass, ImpactExplainerPacket, ImpactSummary, IndexCoverage,
+    NonCanvasTopologyFallback, OpenDetailAction, OpenDetailActionClass, TopologyEdgeProjection,
+    TopologyFallbackRow, TopologyNodeProjection, VisualTopologyProjection, WorksetScopeDescriptor,
+    WorksetScopeMode, WorksetScopeSource, GRAPH_IMPACT_EXPLAINER_PACKET_RECORD_KIND,
+    GRAPH_IMPACT_EXPLAINER_PACKET_SCHEMA_VERSION,
+};
 pub use freshness_propagation_packet::{
-    current_stable_freshness_propagation_packet, CapturedVsLiveClass as PropagationCapturedVsLiveClass,
+    current_stable_freshness_propagation_packet,
+    CapturedVsLiveClass as PropagationCapturedVsLiveClass,
     ConfidenceClass as PropagationConfidenceClass, EpochLabel,
     FreshnessClass as PropagationFreshnessClass, FreshnessPropagationArtifactError,
     FreshnessPropagationConsumerProjection, FreshnessPropagationConsumerSurface,
@@ -46,15 +56,21 @@ pub use freshness_propagation_packet::{
     FRESHNESS_PROPAGATION_PACKET_RECORD_KIND, FRESHNESS_PROPAGATION_PACKET_SCHEMA_VERSION,
     FRESHNESS_PROPAGATION_PACKET_SUPPORT_EXPORT_RECORD_KIND,
 };
-pub use explainers::{
-    EvidenceCard, EvidenceCitation, ExplainerSourceKind, GraphExplainerError,
-    ImpactEdgeEvidenceClass, ImpactExplainerPacket, ImpactSummary, IndexCoverage,
-    NonCanvasTopologyFallback, OpenDetailAction, OpenDetailActionClass, TopologyEdgeProjection,
-    TopologyFallbackRow, TopologyNodeProjection, VisualTopologyProjection, WorksetScopeDescriptor,
-    WorksetScopeMode, WorksetScopeSource, GRAPH_IMPACT_EXPLAINER_PACKET_RECORD_KIND,
-    GRAPH_IMPACT_EXPLAINER_PACKET_SCHEMA_VERSION,
-};
 pub use journey_budget::{BudgetOverrun, BudgetUnit, ConsumedRecord, JourneyId, LedgerRollup};
+pub use knowledge_evidence_packet::{
+    current_stable_knowledge_evidence_packet, EvidenceOpeningAction, EvidenceOpeningActionClass,
+    ExplainerCitation, ExplainerSnapshot, ExplainerSourceClass, ImpactCard,
+    KnowledgeConsumerProjection, KnowledgeConsumerSurface, KnowledgeEvidenceArtifactError,
+    KnowledgeEvidencePacket, KnowledgeEvidencePacketInput, KnowledgeEvidencePacketSupportExport,
+    KnowledgeFindingKind, KnowledgeFindingSeverity, KnowledgePromotionState,
+    KnowledgeValidationFinding, NoImpactState, OwnershipCard, OwnershipClass, SharedIdentityModel,
+    TopologyEdge as KnowledgeTopologyEdge, TopologyNode as KnowledgeTopologyNode,
+    TopologyView as KnowledgeTopologyView, KNOWLEDGE_EVIDENCE_PACKET_ARTIFACT_DOC_REF,
+    KNOWLEDGE_EVIDENCE_PACKET_ARTIFACT_REF, KNOWLEDGE_EVIDENCE_PACKET_DOC_REF,
+    KNOWLEDGE_EVIDENCE_PACKET_FIXTURE_DIR, KNOWLEDGE_EVIDENCE_PACKET_RECORD_KIND,
+    KNOWLEDGE_EVIDENCE_PACKET_SCHEMA_REF, KNOWLEDGE_EVIDENCE_PACKET_SCHEMA_VERSION,
+    KNOWLEDGE_EVIDENCE_PACKET_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use query::{
     result_partiality_for_readiness, GraphAlphaQueryClass, GraphPartialTruthCause,
     GraphQueryDowngradeReason, GraphQueryEnvelope, GraphQueryFamilyDescriptor, GraphQueryReadiness,
