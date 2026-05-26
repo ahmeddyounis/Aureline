@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/monorepo_hot_set_truth.schema.json",
+  "title": "Aureline monorepo hot-set indexing, warming-state, and graceful-degradation truth packet",
+  "description": "Boundary schema for the stable monorepo hot-set indexing, warming-state, and graceful-degradation truth packet shared by search shell, docs/help, CLI/headless, support export, and the release proof index.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "workflow_or_surface_id",
+    "generated_at",
+    "covered_archetypes",
+    "covered_lanes",
+    "rows",
+    "consumer_projections",
+    "promotion_state",
+    "validation_findings"
+  ],
+  "properties": {
+    "record_kind": { "const": "monorepo_hot_set_truth_stable_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "covered_archetypes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/monorepo_archetype" }
+    },
+    "covered_lanes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/indexing_lane" }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/truth_row" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "source_contract_refs": { "$ref": "#/$defs/ref_array" },
+    "promotion_state": { "$ref": "#/$defs/promotion_state" },
+    "validation_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_finding" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "monorepo_archetype": {
+      "enum": [
+        "small_single_root",
+        "medium_single_root",
+        "large_single_root",
+        "polyglot_multi_root",
+        "generated_artifact_dominant",
+        "very_large_monorepo"
+      ]
+    },
+    "indexing_lane": {
+      "enum": ["filename_index", "path_index", "symbol_index", "text_index"]
+    },
+    "search_readiness_state": {
+      "enum": [
+        "not_indexed",
+        "hot_set_ready",
+        "partial_index",
+        "warm_index",
+        "fully_indexed",
+        "stale_index",
+        "reindexing",
+        "index_unavailable"
+      ]
+    },
+    "graceful_degradation": {
+      "enum": [
+        "no_degradation",
+        "hot_set_only",
+        "partial_index_declared",
+        "stale_shard_served",
+        "known_paths_fallback",
+        "paused_for_resource_pressure",
+        "index_unavailable_disclosed"
+      ]
+    },
+    "promotion_state": {
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_severity": { "enum": ["info", "warning", "blocker"] },
+    "finding_kind": {
+      "enum": [
+        "wrong_record_kind",
+        "wrong_schema_version",
+        "missing_identity",
+        "missing_archetype_or_lane_row",
+        "missing_warming_transition",
+        "degradation_not_labeled",
+        "degradation_readiness_mismatch",
+        "edit_input_blocked_by_warmup",
+        "first_useful_row_budget_missed",
+        "hot_set_coverage_over_declared",
+        "lane_identity_drift",
+        "missing_consumer_projection",
+        "consumer_projection_drift",
+        "readiness_vocabulary_collapsed",
+        "degradation_vocabulary_dropped",
+        "raw_boundary_material_present",
+        "promotion_state_mismatch"
+      ]
+    },
+    "warming_transition": {
+      "type": "object",
+      "required": ["from_state", "to_state", "elapsed_ms", "emits_first_useful_row"],
+      "properties": {
+        "from_state": { "$ref": "#/$defs/search_readiness_state" },
+        "to_state": { "$ref": "#/$defs/search_readiness_state" },
+        "elapsed_ms": { "type": "integer", "minimum": 0 },
+        "emits_first_useful_row": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "responsiveness_invariants": {
+      "type": "object",
+      "required": [
+        "edit_input_unblocked",
+        "quick_open_first_useful_within_budget",
+        "full_index_deferred_with_disclosure",
+        "first_useful_row_ms_observed",
+        "first_useful_row_ms_budget"
+      ],
+      "properties": {
+        "edit_input_unblocked": { "type": "boolean" },
+        "quick_open_first_useful_within_budget": { "type": "boolean" },
+        "full_index_deferred_with_disclosure": { "type": "boolean" },
+        "first_useful_row_ms_observed": { "type": "integer", "minimum": 0 },
+        "first_useful_row_ms_budget": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "hot_set_coverage": {
+      "type": "object",
+      "required": [
+        "hot_set_file_count",
+        "declared_scope_file_count",
+        "deferred_cold_path_count"
+      ],
+      "properties": {
+        "hot_set_file_count": { "type": "integer", "minimum": 0 },
+        "declared_scope_file_count": { "type": "integer", "minimum": 0 },
+        "deferred_cold_path_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "truth_row": {
+      "type": "object",
+      "required": [
+        "row_id",
+        "archetype",
+        "lane",
+        "workspace_id",
+        "planner_version",
+        "scope_ref",
+        "readiness_state",
+        "degradation",
+        "hot_set_coverage",
+        "responsiveness",
+        "raw_boundary_material_excluded",
+        "captured_at"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "archetype": { "$ref": "#/$defs/monorepo_archetype" },
+        "lane": { "$ref": "#/$defs/indexing_lane" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "planner_version": { "$ref": "#/$defs/non_empty_string" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "readiness_state": { "$ref": "#/$defs/search_readiness_state" },
+        "degradation": { "$ref": "#/$defs/graceful_degradation" },
+        "degradation_disclosure_ref": { "$ref": "#/$defs/non_empty_string" },
+        "warming_transitions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/warming_transition" }
+        },
+        "hot_set_coverage": { "$ref": "#/$defs/hot_set_coverage" },
+        "responsiveness": { "$ref": "#/$defs/responsiveness_invariants" },
+        "raw_boundary_material_excluded": { "type": "boolean" },
+        "captured_at": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "consumer_projection": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "projection_ref",
+        "monorepo_packet_id_ref",
+        "rendered_at",
+        "preserves_same_packet",
+        "preserves_lane_identity",
+        "preserves_readiness_vocabulary",
+        "preserves_degradation_labels",
+        "preserves_responsiveness_invariants",
+        "supports_json_export",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded"
+      ],
+      "properties": {
+        "consumer_surface": {
+          "enum": [
+            "search_shell",
+            "docs_help",
+            "cli_headless",
+            "support_export",
+            "release_proof_index"
+          ]
+        },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "monorepo_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rendered_at": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_same_packet": { "type": "boolean" },
+        "preserves_lane_identity": { "type": "boolean" },
+        "preserves_readiness_vocabulary": { "type": "boolean" },
+        "preserves_degradation_labels": { "type": "boolean" },
+        "preserves_responsiveness_invariants": { "type": "boolean" },
+        "supports_json_export": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" },
+        "ambient_authority_excluded": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "validation_finding": {
+      "type": "object",
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

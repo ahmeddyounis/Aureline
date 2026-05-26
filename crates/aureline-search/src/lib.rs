@@ -66,6 +66,7 @@ pub mod hybrid_retrieval;
 pub mod index_scheduler;
 pub mod infrastructure_intelligence;
 pub mod lexical;
+pub mod monorepo_hot_set_truth;
 pub mod planner;
 pub mod query_artifacts;
 pub mod query_session;
@@ -158,6 +159,19 @@ pub use lexical::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalSearchResults, LexicalShell,
     LexicalShellSnapshot, MatchKind, ReadinessClass, ResultGroup, ResultRow, ScopeClass,
     SourceClass, MAX_RESULTS_PER_GROUP,
+};
+
+pub use monorepo_hot_set_truth::{
+    current_stable_monorepo_hot_set_truth_packet, GracefulDegradationClass,
+    HotSetCoverageEstimate, IndexingLaneClass, MonorepoArchetypeClass,
+    MonorepoConsumerProjection, MonorepoConsumerSurface, MonorepoHotSetTruthArtifactError,
+    MonorepoHotSetTruthPacket, MonorepoHotSetTruthPacketInput, MonorepoHotSetTruthSupportExport,
+    MonorepoTruthFindingKind, MonorepoTruthFindingSeverity, MonorepoTruthPromotionState,
+    MonorepoTruthRow, MonorepoTruthValidationFinding, ResponsivenessInvariants,
+    WarmingTransition, MONOREPO_HOT_SET_TRUTH_ARTIFACT_DOC_REF, MONOREPO_HOT_SET_TRUTH_DOC_REF,
+    MONOREPO_HOT_SET_TRUTH_FIXTURE_DIR, MONOREPO_HOT_SET_TRUTH_PACKET_ARTIFACT_REF,
+    MONOREPO_HOT_SET_TRUTH_PACKET_RECORD_KIND, MONOREPO_HOT_SET_TRUTH_SCHEMA_REF,
+    MONOREPO_HOT_SET_TRUTH_SCHEMA_VERSION, MONOREPO_HOT_SET_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use planner::{
