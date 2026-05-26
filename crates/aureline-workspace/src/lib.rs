@@ -24,6 +24,7 @@ pub mod generated_artifacts;
 pub mod generated_projects;
 pub mod history;
 pub mod lifecycle;
+pub mod local_history_export_replay_lineage;
 pub mod mutation_and_generated_artifact_lineage;
 pub mod mutation_journal;
 pub mod portable_state_lineage;
@@ -468,6 +469,29 @@ pub use workset_scope_ux_lineage::{
     WorksetScopeUxSupportExportInputs, REQUIRED_SCOPE_CLASSES, REQUIRED_SURFACE_KINDS,
     WORKSET_SCOPE_UX_LINEAGE_RECORD_KIND, WORKSET_SCOPE_UX_LINEAGE_SCHEMA_REF,
     WORKSET_SCOPE_UX_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use local_history_export_replay_lineage::{
+    default_local_history_export_replay_inspection_hooks,
+    local_history_export_replay_lineage_lines,
+    project_local_history_export_replay_lineage,
+    project_local_history_export_replay_lineage_with_hooks, BodyAvailabilityClass,
+    BodyExportSafetySummary, CompareToDiskHonestySummary, CompareToDiskState,
+    EncodingFidelityClass, EncodingFidelitySummary, ExportPacketKind,
+    IntegrityHashPinningSummary, LocalHistoryExportReplayInputs,
+    LocalHistoryExportReplayInspectionHook, LocalHistoryExportReplayInspectionHookClass,
+    LocalHistoryExportReplayLineageNarrowReason, LocalHistoryExportReplayLineageQualification,
+    LocalHistoryExportReplayLineageRecord, LocalHistoryExportReplayProducerAttributionSummary,
+    LocalHistoryExportReplaySupportExportHonestySummary,
+    LocalHistoryExportReplaySupportExportInputs, LocalHistoryExportReplaySupportExportPosture,
+    NoSilentRerunSummary, PacketCoverageSummary, PacketObservation, PacketRow,
+    ReplayPathCoverageSummary, ReplayPathKind, ReplayPathObservation, ReplayPathRow,
+    ReplayRerunPosture,
+    RestoreProvenanceSummary as LocalHistoryExportReplayRestoreProvenanceSummary,
+    REQUIRED_EXPORT_PACKET_KINDS,
+    REQUIRED_REPLAY_PATH_KINDS, LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_RECORD_KIND,
+    LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_SCHEMA_REF,
+    LOCAL_HISTORY_EXPORT_REPLAY_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use mutation_and_generated_artifact_lineage::{
