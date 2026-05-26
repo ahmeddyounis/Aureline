@@ -26,6 +26,7 @@ pub mod symbol_snapshot;
 pub mod target_model;
 pub mod tree_sitter;
 pub mod tsjs;
+pub mod vue_advanced_workflow_pack_truth_packet;
 
 pub use daily_driver_quality_truth_packet::{
     current_stable_daily_driver_quality_truth_packet,
@@ -267,6 +268,33 @@ pub use tsjs::{
     TsJsSemanticResultRecord, TsJsSemanticResultSchemaVersion, TsJsSourceAnchor,
     TsJsSourceAnchorKindClass, TsJsSymbolKindClass, TsJsSymbolSeed, TsJsWorkspaceContext,
     TSJS_NAV_ALPHA_SCHEMA_VERSION, TSJS_QUALITY_ALPHA_SCHEMA_VERSION,
+};
+
+pub use vue_advanced_workflow_pack_truth_packet::{
+    current_stable_vue_advanced_workflow_pack_truth_packet,
+    ConsumerSurface as VueAdvancedWorkflowPackConsumerSurface,
+    DowngradeAutomationClass as VueAdvancedWorkflowPackDowngradeAutomationClass,
+    EvidenceClass as VueAdvancedWorkflowPackEvidenceClass,
+    FindingKind as VueAdvancedWorkflowPackFindingKind,
+    FindingSeverity as VueAdvancedWorkflowPackFindingSeverity,
+    KnownLimitClass as VueAdvancedWorkflowPackKnownLimitClass,
+    PromotionState as VueAdvancedWorkflowPackPromotionState,
+    SupportClass as VueAdvancedWorkflowPackSupportClass,
+    ValidationFinding as VueAdvancedWorkflowPackValidationFinding,
+    VueAdvancedWorkflowPackConsumerProjection, VueAdvancedWorkflowPackTruthArtifactError,
+    VueAdvancedWorkflowPackTruthPacket, VueAdvancedWorkflowPackTruthPacketInput,
+    VueAdvancedWorkflowPackTruthSupportExport,
+    WorkflowLoopClass as VueAdvancedWorkflowLoopClass,
+    WorkflowPackClass as VueAdvancedWorkflowPackClass,
+    WorkflowPackConfidenceClass as VueAdvancedWorkflowPackConfidenceClass,
+    WorkflowPackRow as VueAdvancedWorkflowPackRow,
+    WorkflowPackRowClass as VueAdvancedWorkflowPackRowClass,
+    VUE_ADVANCED_WORKFLOW_PACK_TRUTH_ARTIFACT_DOC_REF,
+    VUE_ADVANCED_WORKFLOW_PACK_TRUTH_DOC_REF, VUE_ADVANCED_WORKFLOW_PACK_TRUTH_FIXTURE_DIR,
+    VUE_ADVANCED_WORKFLOW_PACK_TRUTH_PACKET_ARTIFACT_REF,
+    VUE_ADVANCED_WORKFLOW_PACK_TRUTH_PACKET_RECORD_KIND,
+    VUE_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_REF, VUE_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
+    VUE_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use aureline_navigation::target_model as navigation_target_model;
