@@ -11,28 +11,13 @@
 
 pub mod citations;
 pub mod docs_browser_truth_packet;
+pub mod docs_pack_truth_packet;
 pub mod evidence_model;
 pub mod index;
 pub mod locale_overlay;
 pub mod maintenance;
 pub mod pack;
 
-pub use docs_browser_truth_packet::{
-    current_stable_docs_browser_truth_packet, seeded_stable_docs_browser_truth_packet_input,
-    DocsBrowserCapturedVsLive, DocsBrowserCitationAnchor,
-    DocsBrowserConsumerProjection, DocsBrowserConsumerSurface, DocsBrowserFindingKind,
-    DocsBrowserFindingSeverity, DocsBrowserFreshnessState, DocsBrowserHandoffCapability,
-    DocsBrowserPromotionState, DocsBrowserResultObject, DocsBrowserSourceClass,
-    DocsBrowserSourceDescriptor, DocsBrowserSymbolFlow, DocsBrowserSymbolFlowStep,
-    DocsBrowserSymbolLinkClass, DocsBrowserSymbolRef, DocsBrowserTrustClass,
-    DocsBrowserTruthArtifactError, DocsBrowserTruthPacket, DocsBrowserTruthPacketInput,
-    DocsBrowserTruthSupportExport, DocsBrowserValidationFinding, DocsBrowserVersionMatchState,
-    DOCS_BROWSER_TRUTH_PACKET_ARTIFACT_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_ARTIFACT_REF,
-    DOCS_BROWSER_TRUTH_PACKET_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_FIXTURE_DIR,
-    DOCS_BROWSER_TRUTH_PACKET_MILESTONE_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_RECORD_KIND,
-    DOCS_BROWSER_TRUTH_PACKET_SCHEMA_REF, DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
-    DOCS_BROWSER_TRUTH_PACKET_SUPPORT_EXPORT_RECORD_KIND,
-};
 pub use citations::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
     CitationConfidenceClass, CitationDrawerEvidenceView, CitationDrawerEvidenceViewInput,
@@ -43,6 +28,37 @@ pub use citations::{
     CITATION_ANCHOR_ALPHA_RECORD_KIND, CITATION_DRAWER_ALPHA_RECORD_KIND,
     CITATION_EVIDENCE_EXPORT_ALPHA_RECORD_KIND, DOCS_CITATION_ALPHA_SCHEMA_VERSION,
     DOCS_NODE_ALPHA_RECORD_KIND,
+};
+pub use docs_browser_truth_packet::{
+    current_stable_docs_browser_truth_packet, seeded_stable_docs_browser_truth_packet_input,
+    DocsBrowserCapturedVsLive, DocsBrowserCitationAnchor, DocsBrowserConsumerProjection,
+    DocsBrowserConsumerSurface, DocsBrowserFindingKind, DocsBrowserFindingSeverity,
+    DocsBrowserFreshnessState, DocsBrowserHandoffCapability, DocsBrowserPromotionState,
+    DocsBrowserResultObject, DocsBrowserSourceClass, DocsBrowserSourceDescriptor,
+    DocsBrowserSymbolFlow, DocsBrowserSymbolFlowStep, DocsBrowserSymbolLinkClass,
+    DocsBrowserSymbolRef, DocsBrowserTrustClass, DocsBrowserTruthArtifactError,
+    DocsBrowserTruthPacket, DocsBrowserTruthPacketInput, DocsBrowserTruthSupportExport,
+    DocsBrowserValidationFinding, DocsBrowserVersionMatchState,
+    DOCS_BROWSER_TRUTH_PACKET_ARTIFACT_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_ARTIFACT_REF,
+    DOCS_BROWSER_TRUTH_PACKET_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_FIXTURE_DIR,
+    DOCS_BROWSER_TRUTH_PACKET_MILESTONE_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_RECORD_KIND,
+    DOCS_BROWSER_TRUTH_PACKET_SCHEMA_REF, DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
+    DOCS_BROWSER_TRUTH_PACKET_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use docs_pack_truth_packet::{
+    current_stable_docs_pack_truth_packet, seeded_stable_docs_pack_truth_packet_input,
+    CitationSetExport, DocsPackChannel, DocsPackConsumerProjection, DocsPackConsumerSurface,
+    DocsPackFindingKind, DocsPackFindingSeverity, DocsPackLocalAvailability, DocsPackManifest,
+    DocsPackMirrorLineage, DocsPackMirrorState, DocsPackPinState, DocsPackPromotionState,
+    DocsPackPublishableState, DocsPackRefreshState, DocsPackSignatureStatus, DocsPackSignerClass,
+    DocsPackSigningBlock, DocsPackSourceClass, DocsPackTruthArtifactError, DocsPackTruthPacket,
+    DocsPackTruthPacketInput, DocsPackTruthSupportExport, DocsPackValidationFinding,
+    DocsPackVersionRange, DocsRenderMode, DocsValidationResultClass, StaleExampleFinding,
+    StaleExampleFindingClass, StaleExampleSuppression, DOCS_PACK_TRUTH_PACKET_ARTIFACT_DOC_REF,
+    DOCS_PACK_TRUTH_PACKET_ARTIFACT_REF, DOCS_PACK_TRUTH_PACKET_DOC_REF,
+    DOCS_PACK_TRUTH_PACKET_FIXTURE_DIR, DOCS_PACK_TRUTH_PACKET_MILESTONE_DOC_REF,
+    DOCS_PACK_TRUTH_PACKET_RECORD_KIND, DOCS_PACK_TRUTH_PACKET_SCHEMA_REF,
+    DOCS_PACK_TRUTH_PACKET_SCHEMA_VERSION, DOCS_PACK_TRUTH_PACKET_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use evidence_model::{
     DocsDerivedClaimKind, DocsDerivedExplanation, DocsDerivedExplanationClaim,
@@ -66,17 +82,17 @@ pub use locale_overlay::{
     seeded_translated_pack_locale_overlay_contract,
     seeded_translated_pack_locale_overlay_support_export,
     seeded_translated_pack_locale_overlay_surface_projection,
-    validate_seeded_translated_pack_locale_overlay, LocaleOverlayBadgeClass,
-    LocaleOverlayContract, LocaleOverlayCoverage, LocaleOverlayCoverageState,
-    LocaleOverlayFinding, LocaleOverlayMirrorOfflinePosture, LocaleOverlayPackKind,
-    LocaleOverlayRecord, LocaleOverlaySkewState, LocaleOverlaySourceLanguageAction,
-    LocaleOverlaySupportExport, LocaleOverlaySupportExportPolicy, LocaleOverlaySupportRow,
-    LocaleOverlaySurfaceProjection, LocaleOverlaySurfaceRow, LOCALE_OVERLAY_CONTRACT_RECORD_KIND,
-    LOCALE_OVERLAY_FIXTURE_REF, LOCALE_OVERLAY_RECORD_KIND, LOCALE_OVERLAY_SCHEMA_REF,
-    LOCALE_OVERLAY_SCHEMA_VERSION, LOCALE_OVERLAY_SUPPORT_EXPORT_FIXTURE_REF,
-    LOCALE_OVERLAY_SUPPORT_EXPORT_RECORD_KIND, LOCALE_OVERLAY_SURFACE_FIXTURE_REF,
-    LOCALE_OVERLAY_SURFACE_PROJECTION_RECORD_KIND, OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL,
-    TRANSLATED_PACK_LOCALE_OVERLAY_CONTRACT_ID, TRANSLATED_PACK_LOCALE_OVERLAY_VERSION_REF,
+    validate_seeded_translated_pack_locale_overlay, LocaleOverlayBadgeClass, LocaleOverlayContract,
+    LocaleOverlayCoverage, LocaleOverlayCoverageState, LocaleOverlayFinding,
+    LocaleOverlayMirrorOfflinePosture, LocaleOverlayPackKind, LocaleOverlayRecord,
+    LocaleOverlaySkewState, LocaleOverlaySourceLanguageAction, LocaleOverlaySupportExport,
+    LocaleOverlaySupportExportPolicy, LocaleOverlaySupportRow, LocaleOverlaySurfaceProjection,
+    LocaleOverlaySurfaceRow, LOCALE_OVERLAY_CONTRACT_RECORD_KIND, LOCALE_OVERLAY_FIXTURE_REF,
+    LOCALE_OVERLAY_RECORD_KIND, LOCALE_OVERLAY_SCHEMA_REF, LOCALE_OVERLAY_SCHEMA_VERSION,
+    LOCALE_OVERLAY_SUPPORT_EXPORT_FIXTURE_REF, LOCALE_OVERLAY_SUPPORT_EXPORT_RECORD_KIND,
+    LOCALE_OVERLAY_SURFACE_FIXTURE_REF, LOCALE_OVERLAY_SURFACE_PROJECTION_RECORD_KIND,
+    OPEN_IN_SOURCE_LANGUAGE_ACTION_LABEL, TRANSLATED_PACK_LOCALE_OVERLAY_CONTRACT_ID,
+    TRANSLATED_PACK_LOCALE_OVERLAY_VERSION_REF,
 };
 pub use maintenance::{
     seeded_docs_preview_and_maintenance_contract,
@@ -85,17 +101,17 @@ pub use maintenance::{
     validate_seeded_docs_preview_and_maintenance, DocsArtifactKind, DocsAudienceScope,
     DocsExampleFindingRow, DocsExampleValidationMode, DocsFindingClass, DocsFindingDetectionState,
     DocsFindingSuppression, DocsFindingSuppressionState, DocsHandoffBanner, DocsMaintenanceAction,
-    DocsMaintenanceContract,
-    DocsMaintenanceCoverage, DocsMaintenanceFinding, DocsMaintenanceReviewPacket, DocsMaintenanceRow,
-    DocsMaintenanceSurfaceProjection, DocsPreviewHeader, DocsPreviewMode,
-    DocsPreviewSanitizationState, DocsPublishBoundaryState, DocsPublishScope,
-    DocsSourceVersionBadge, DocsSuggestionApplyPosture, DocsSuggestionCard, DocsSuggestionTrigger,
-    DOCS_EXAMPLE_FINDING_ROW_RECORD_KIND, DOCS_MAINTENANCE_CONTRACT_RECORD_KIND,
-    DOCS_MAINTENANCE_REVIEW_PACKET_RECORD_KIND, DOCS_MAINTENANCE_ROW_RECORD_KIND,
-    DOCS_MAINTENANCE_ROW_SCHEMA_REF, DOCS_MAINTENANCE_SCHEMA_VERSION,
-    DOCS_MAINTENANCE_SURFACE_PROJECTION_RECORD_KIND, DOCS_PREVIEW_AND_MAINTENANCE_CONTRACT_ID,
-    DOCS_PREVIEW_AND_MAINTENANCE_VERSION_REF, DOCS_PREVIEW_HEADER_RECORD_KIND,
-    DOCS_SUGGESTION_CARD_RECORD_KIND, DOCS_SUGGESTION_CARD_SCHEMA_REF,
+    DocsMaintenanceContract, DocsMaintenanceCoverage, DocsMaintenanceFinding,
+    DocsMaintenanceReviewPacket, DocsMaintenanceRow, DocsMaintenanceSurfaceProjection,
+    DocsPreviewHeader, DocsPreviewMode, DocsPreviewSanitizationState, DocsPublishBoundaryState,
+    DocsPublishScope, DocsSourceVersionBadge, DocsSuggestionApplyPosture, DocsSuggestionCard,
+    DocsSuggestionTrigger, DOCS_EXAMPLE_FINDING_ROW_RECORD_KIND,
+    DOCS_MAINTENANCE_CONTRACT_RECORD_KIND, DOCS_MAINTENANCE_REVIEW_PACKET_RECORD_KIND,
+    DOCS_MAINTENANCE_ROW_RECORD_KIND, DOCS_MAINTENANCE_ROW_SCHEMA_REF,
+    DOCS_MAINTENANCE_SCHEMA_VERSION, DOCS_MAINTENANCE_SURFACE_PROJECTION_RECORD_KIND,
+    DOCS_PREVIEW_AND_MAINTENANCE_CONTRACT_ID, DOCS_PREVIEW_AND_MAINTENANCE_VERSION_REF,
+    DOCS_PREVIEW_HEADER_RECORD_KIND, DOCS_SUGGESTION_CARD_RECORD_KIND,
+    DOCS_SUGGESTION_CARD_SCHEMA_REF,
 };
 pub use pack::{
     DocsPack, DocsPackLoadError, DocsPackNode, DocsPackSourceTruth, DOCS_PACK_ALPHA_RECORD_KIND,
