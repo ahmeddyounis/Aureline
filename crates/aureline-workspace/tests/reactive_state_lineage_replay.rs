@@ -1,35 +1,35 @@
-//! Replay gate for the portable-state lineage record.
+//! Replay gate for the reactive-state lineage record.
 //!
-//! Each fixture under `fixtures/workspace/m4/portable_state_lineage/` carries
-//! the posture input (a `PortableStateAlphaPackage` plus the inspection-hook
-//! set) and the `expected` projected lineage record. This gate re-projects
+//! Each fixture under `fixtures/workspace/m4/reactive_state_lineage/` carries
+//! the posture input (a [`ReactiveStateInputs`] envelope plus the inspection-
+//! hook set) and the expected projected lineage record. This gate re-projects
 //! each input and asserts the result equals the checked-in `expected`, so the
 //! projection cannot drift from the canonical checked-in record without
 //! failing CI. It also proves every fixture stays support-export safe and
-//! that the corpus covers Stable, the four controlled fidelity classes
-//! (Exact / Compatible / LayoutOnly / EvidenceOnly), and narrowed-below-
-//! Stable postures.
+//! that the corpus covers Stable plus the four controlled epoch-parity
+//! states (Aligned / DriftDetected / AwaitingResync / TerminalUnavailable)
+//! and the narrowed-below-Stable posture.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use aureline_workspace::{
-    portable_state_lineage_lines, project_portable_state_lineage_with_hooks,
-    PortableStateAlphaPackage, PortableStateInspectionHook, PortableStateLineageRecord,
-    RestoreFidelityClass, PORTABLE_STATE_LINEAGE_RECORD_KIND, PORTABLE_STATE_LINEAGE_SCHEMA_REF,
+    project_reactive_state_lineage_with_hooks, reactive_state_lineage_lines, EpochParityState,
+    ReactiveStateInputs, ReactiveStateInspectionHook, ReactiveStateLineageRecord,
+    REACTIVE_STATE_LINEAGE_RECORD_KIND, REACTIVE_STATE_LINEAGE_SCHEMA_REF,
 };
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 struct LineageFixture {
     posture_id: String,
-    package: PortableStateAlphaPackage,
-    inspection_hooks: Vec<PortableStateInspectionHook>,
-    expected: PortableStateLineageRecord,
+    inputs: ReactiveStateInputs,
+    inspection_hooks: Vec<ReactiveStateInspectionHook>,
+    expected: ReactiveStateLineageRecord,
 }
 
 fn fixtures_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/workspace/m4/portable_state_lineage")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/workspace/m4/reactive_state_lineage")
 }
 
 fn load_fixtures() -> Vec<(String, LineageFixture)> {
@@ -54,9 +54,9 @@ fn load_fixtures() -> Vec<(String, LineageFixture)> {
 #[test]
 fn projection_replays_each_fixture_exactly() {
     for (name, fixture) in load_fixtures() {
-        let projected = project_portable_state_lineage_with_hooks(
+        let projected = project_reactive_state_lineage_with_hooks(
             fixture.posture_id.clone(),
-            &fixture.package,
+            &fixture.inputs,
             fixture.inspection_hooks.clone(),
         );
         assert_eq!(
@@ -64,7 +64,7 @@ fn projection_replays_each_fixture_exactly() {
             "projection drifted from checked-in record for fixture {name}"
         );
 
-        let roundtrip: PortableStateLineageRecord =
+        let roundtrip: ReactiveStateLineageRecord =
             serde_json::from_str(&serde_json::to_string(&projected).expect("record serializes"))
                 .expect("record round-trips");
         assert_eq!(roundtrip, projected, "record must round-trip for {name}");
@@ -79,44 +79,46 @@ fn every_fixture_is_support_export_safe_and_well_formed() {
             record.is_support_export_safe(),
             "fixture {name} must be support-export safe"
         );
-        assert_eq!(record.record_kind, PORTABLE_STATE_LINEAGE_RECORD_KIND);
-        assert_eq!(record.schema_ref, PORTABLE_STATE_LINEAGE_SCHEMA_REF);
+        assert_eq!(record.record_kind, REACTIVE_STATE_LINEAGE_RECORD_KIND);
+        assert_eq!(record.schema_ref, REACTIVE_STATE_LINEAGE_SCHEMA_REF);
         assert!(
             record.raw_payload_excluded,
             "fixture {name} excludes raw payload"
         );
         assert!(
-            !record.package_ref.is_empty(),
-            "fixture {name} must carry a package ref"
+            !record.workspace_ref.is_empty(),
+            "fixture {name} must carry a workspace ref"
         );
         assert!(
-            !record.manifest_ref.is_empty(),
-            "fixture {name} must carry a manifest ref"
+            !record.corpus_ref.is_empty(),
+            "fixture {name} must carry a corpus ref"
         );
 
-        let lines = portable_state_lineage_lines(record);
+        let lines = reactive_state_lineage_lines(record);
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("Portable-state lineage")),
+                .any(|line| line.contains("Reactive-state lineage")),
             "fixture {name} must render the header line"
         );
         assert!(
-            lines.iter().any(|line| line.contains("State class rows:")),
-            "fixture {name} must render state-class rows"
+            lines.iter().any(|line| line == "View rows:"),
+            "fixture {name} must render view rows"
         );
         assert!(
             lines
                 .iter()
-                .any(|line| line.contains("Restore provenance:")),
-            "fixture {name} must render restore provenance"
+                .any(|line| line.contains("Stale-view downgrade")),
+            "fixture {name} must render stale-view downgrade"
         );
         assert!(
-            lines.iter().any(|line| line.contains("Exclusion honesty:")),
-            "fixture {name} must render exclusion honesty"
+            lines
+                .iter()
+                .any(|line| line.contains("Support-export honesty")),
+            "fixture {name} must render support-export honesty"
         );
         assert!(
-            lines.iter().any(|line| line.contains("Inspection hooks:")),
+            lines.iter().any(|line| line == "Inspection hooks:"),
             "fixture {name} must render inspection hooks"
         );
     }
@@ -139,28 +141,28 @@ fn corpus_covers_stable_and_narrowed_postures() {
 }
 
 #[test]
-fn corpus_covers_required_fidelity_classes() {
+fn corpus_covers_all_controlled_parity_states() {
     let fixtures = load_fixtures();
-    let observed: BTreeSet<_> = fixtures
+    let observed: BTreeSet<&'static str> = fixtures
         .iter()
-        .map(|(_, fixture)| {
+        .flat_map(|(_, fixture)| {
             fixture
                 .expected
-                .restore_provenance
-                .restore_fidelity_class
-                .as_str()
+                .view_class_coverage
+                .view_rows
+                .iter()
+                .map(|row| row.declared_parity_state.as_str())
         })
         .collect();
-    // The corpus must cover the controlled fidelity classes M4 anchors on.
     for required in [
-        RestoreFidelityClass::Exact,
-        RestoreFidelityClass::Compatible,
-        RestoreFidelityClass::LayoutOnly,
-        RestoreFidelityClass::EvidenceOnly,
+        EpochParityState::Aligned,
+        EpochParityState::DriftDetected,
+        EpochParityState::AwaitingResync,
+        EpochParityState::TerminalUnavailable,
     ] {
         assert!(
             observed.contains(required.as_str()),
-            "corpus must include a {} posture",
+            "corpus must include a {} parity state",
             required.as_str()
         );
     }

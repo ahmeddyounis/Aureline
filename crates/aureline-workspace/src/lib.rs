@@ -24,8 +24,10 @@ pub mod generated_projects;
 pub mod history;
 pub mod lifecycle;
 pub mod mutation_journal;
+pub mod portable_state_lineage;
 pub mod prebuilds;
 pub mod profiles;
+pub mod reactive_state_lineage;
 pub mod recent_work;
 pub mod repo_topology;
 pub mod restore_hydrator;
@@ -34,7 +36,6 @@ pub mod save;
 pub mod scaffold;
 pub mod scope_propagation;
 pub mod serialization;
-pub mod portable_state_lineage;
 pub mod state_packages;
 pub mod templates;
 pub mod workset_switcher;
@@ -242,10 +243,30 @@ pub use portable_state_lineage::{
     project_portable_state_lineage, project_portable_state_lineage_with_hooks,
     ExclusionHonestySummary, NoRerunHonestySummary, PortableStateInspectionHook,
     PortableStateInspectionHookClass, PortableStateLineageClassRow,
-    PortableStateLineageNarrowReason, PortableStateLineageQualification, PortableStateLineageRecord,
-    ProducerAttributionSummary, RestoreFidelityClass, RestoreProvenanceSummary,
-    StateClassSeparationSummary, PORTABLE_STATE_LINEAGE_RECORD_KIND,
+    PortableStateLineageNarrowReason, PortableStateLineageQualification,
+    PortableStateLineageRecord, ProducerAttributionSummary, RestoreFidelityClass,
+    RestoreProvenanceSummary, StateClassSeparationSummary, PORTABLE_STATE_LINEAGE_RECORD_KIND,
     PORTABLE_STATE_LINEAGE_SCHEMA_REF, PORTABLE_STATE_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use reactive_state_lineage::{
+    default_reactive_state_inspection_hooks, project_reactive_state_lineage,
+    project_reactive_state_lineage_with_hooks, reactive_state_lineage_lines,
+    AuthorityLabel as ReactiveAuthorityLabel, ConsumerSurfaceKind, EpochParityHonestySummary,
+    EpochParityState, InvalidationCauseClass as ReactiveInvalidationCauseClass,
+    MaterializedViewClass as ReactiveMaterializedViewClass, MaterializedViewObservation,
+    OpenGapClass as ReactiveOpenGapClass, OpenGapEntry as ReactiveOpenGapEntry,
+    ReactiveDowngradeLabel, ReactiveProducerAttributionSummary, ReactiveStateInputs,
+    ReactiveStateInspectionHook, ReactiveStateInspectionHookClass,
+    ReactiveStateLineageNarrowReason, ReactiveStateLineageQualification,
+    ReactiveStateLineageRecord, ReactiveSupportExportSummary, ReactiveViewLineageRow,
+    StaleViewDowngradeSummary, SubscriberEpochObservation,
+    SubscriberFreshness as ReactiveSubscriberFreshness,
+    SupportExportInputs as ReactiveSupportExportInputs,
+    SupportExportPosture as ReactiveSupportExportPosture, ViewClassCoverageSummary,
+    REACTIVE_STATE_LINEAGE_RECORD_KIND, REACTIVE_STATE_LINEAGE_SCHEMA_REF,
+    REACTIVE_STATE_LINEAGE_SCHEMA_VERSION, REQUIRED_CONSUMER_SURFACES,
+    REQUIRED_VIEW_CLASSES as REQUIRED_REACTIVE_VIEW_CLASSES,
 };
 
 pub use canonical_identity_lineage::{

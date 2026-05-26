@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/reactive_state_lineage.schema.json",
+  "title": "Aureline reactive-state lineage",
+  "description": "Boundary schema for the governed, export-safe reactive-state lineage record. The record hardens reactive-state and materialized-view invalidation with truthful stale-view downgrade behavior, projected verbatim from the live ReactiveStateInputs envelope. It proves view-class coverage (ephemeral / durable / exportable / managed), stale-view downgrade truth (non-aligned views carry a non-none downgrade label and at least one open-gap row), epoch-parity honesty (declared parity state matches the re-derived parity state; no subscriber's observed epoch exceeds the authority epoch), and support-export honesty (epoch-state preserved, no raw private material, no ambient authority). Raw payload bytes are excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "reactive_state_lineage_schema_version",
+    "schema_ref",
+    "posture_id",
+    "workspace_ref",
+    "corpus_ref",
+    "producer_attribution",
+    "view_class_coverage",
+    "stale_view_downgrade",
+    "epoch_parity_honesty",
+    "support_export_honesty",
+    "inspection_hooks",
+    "stable_qualification",
+    "raw_payload_excluded",
+    "summary"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": { "const": "reactive_state_lineage_record" },
+    "reactive_state_lineage_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/workspace/reactive_state_lineage.schema.json" },
+    "posture_id": { "$ref": "#/$defs/non_empty_string" },
+    "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+    "corpus_ref": { "$ref": "#/$defs/non_empty_string" },
+    "producer_attribution": { "$ref": "#/$defs/producer_attribution_summary" },
+    "view_class_coverage": { "$ref": "#/$defs/view_class_coverage_summary" },
+    "stale_view_downgrade": { "$ref": "#/$defs/stale_view_downgrade_summary" },
+    "epoch_parity_honesty": { "$ref": "#/$defs/epoch_parity_honesty_summary" },
+    "support_export_honesty": { "$ref": "#/$defs/support_export_honesty_summary" },
+    "inspection_hooks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/inspection_hook" }
+    },
+    "stable_qualification": { "$ref": "#/$defs/stable_qualification" },
+    "raw_payload_excluded": { "const": true },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 700 }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "materialized_view_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_projection",
+        "durable_local_materialization",
+        "exportable_snapshot",
+        "managed_replicated_view"
+      ]
+    },
+    "authority_label": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ]
+    },
+    "epoch_parity_state": {
+      "type": "string",
+      "enum": [
+        "aligned",
+        "drift_detected",
+        "awaiting_resync",
+        "terminal_unavailable"
+      ]
+    },
+    "reactive_downgrade_label": {
+      "type": "string",
+      "enum": [
+        "none",
+        "red_blocks_stable_row",
+        "yellow_surface_partial",
+        "yellow_authority_skew",
+        "degraded_to_authority_only",
+        "stale_corpus_blocks_release_candidate"
+      ]
+    },
+    "open_gap_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "subscriber_pending",
+        "replication_pending",
+        "support_export_pending",
+        "drift_recovery_manual"
+      ]
+    },
+    "support_export_posture": {
+      "type": "string",
+      "enum": ["local_only", "metadata_safe_export", "held_record"]
+    },
+    "inspection_hook_class": {
+      "type": "string",
+      "enum": [
+        "inspect_drift",
+        "compare_epochs",
+        "resync_review",
+        "rollback_checkpoint",
+        "export",
+        "repair"
+      ]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "corpus_empty",
+        "required_view_class_missing",
+        "required_consumer_surface_missing",
+        "subscriber_epoch_exceeds_authority",
+        "aligned_parity_not_proven",
+        "drift_without_epoch_lag",
+        "awaiting_resync_without_signal",
+        "terminal_unavailable_without_signal",
+        "non_aligned_missing_downgrade",
+        "aligned_carries_downgrade",
+        "downgraded_without_open_gap",
+        "aligned_carries_open_gap",
+        "support_export_epoch_fields_dropped",
+        "support_export_posture_unsafe",
+        "support_export_redaction_unsafe",
+        "inspection_hook_unavailable",
+        "producer_attribution_incomplete",
+        "lineage_export_unsafe"
+      ]
+    },
+    "producer_attribution_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_ref",
+        "schema_version",
+        "integrity_hash",
+        "captured_at",
+        "producer_attribution_complete"
+      ],
+      "properties": {
+        "producer_ref": { "type": "string" },
+        "schema_version": { "type": "integer" },
+        "integrity_hash": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "producer_attribution_complete": { "type": "boolean" }
+      }
+    },
+    "reactive_view_lineage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_id",
+        "title",
+        "view_class",
+        "authority_label",
+        "authority_epoch",
+        "derived_parity_state",
+        "declared_parity_state",
+        "parity_state_matches",
+        "min_subscriber_epoch",
+        "max_subscriber_epoch",
+        "subscriber_count",
+        "subscribers_lagging_count",
+        "any_unavailable",
+        "any_resync_required",
+        "downgrade_label",
+        "open_gap_classes",
+        "support_export_posture"
+      ],
+      "properties": {
+        "view_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "type": "string" },
+        "view_class": { "$ref": "#/$defs/materialized_view_class" },
+        "authority_label": { "$ref": "#/$defs/authority_label" },
+        "authority_epoch": { "type": "integer", "minimum": 0 },
+        "derived_parity_state": { "$ref": "#/$defs/epoch_parity_state" },
+        "declared_parity_state": { "$ref": "#/$defs/epoch_parity_state" },
+        "parity_state_matches": { "type": "boolean" },
+        "min_subscriber_epoch": { "type": "integer", "minimum": 0 },
+        "max_subscriber_epoch": { "type": "integer", "minimum": 0 },
+        "subscriber_count": { "type": "integer", "minimum": 0 },
+        "subscribers_lagging_count": { "type": "integer", "minimum": 0 },
+        "any_unavailable": { "type": "boolean" },
+        "any_resync_required": { "type": "boolean" },
+        "downgrade_label": { "$ref": "#/$defs/reactive_downgrade_label" },
+        "open_gap_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_gap_class" }
+        },
+        "support_export_posture": { "$ref": "#/$defs/support_export_posture" }
+      }
+    },
+    "view_class_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_rows",
+        "all_required_view_classes_present",
+        "all_required_consumer_surfaces_present",
+        "no_subscriber_epoch_exceeds_authority"
+      ],
+      "properties": {
+        "view_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reactive_view_lineage_row" }
+        },
+        "all_required_view_classes_present": { "type": "boolean" },
+        "all_required_consumer_surfaces_present": { "type": "boolean" },
+        "no_subscriber_epoch_exceeds_authority": { "type": "boolean" }
+      }
+    },
+    "stale_view_downgrade_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aligned_count",
+        "drift_detected_count",
+        "awaiting_resync_count",
+        "terminal_unavailable_count",
+        "all_non_aligned_views_carry_downgrade",
+        "all_aligned_views_carry_none",
+        "all_downgraded_views_record_open_gap",
+        "all_aligned_views_record_no_open_gap"
+      ],
+      "properties": {
+        "aligned_count": { "type": "integer", "minimum": 0 },
+        "drift_detected_count": { "type": "integer", "minimum": 0 },
+        "awaiting_resync_count": { "type": "integer", "minimum": 0 },
+        "terminal_unavailable_count": { "type": "integer", "minimum": 0 },
+        "all_non_aligned_views_carry_downgrade": { "type": "boolean" },
+        "all_aligned_views_carry_none": { "type": "boolean" },
+        "all_downgraded_views_record_open_gap": { "type": "boolean" },
+        "all_aligned_views_record_no_open_gap": { "type": "boolean" }
+      }
+    },
+    "epoch_parity_honesty_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "all_views_declared_parity_matches_observation",
+        "all_drift_views_have_epoch_lag",
+        "all_awaiting_resync_views_have_signal",
+        "all_terminal_unavailable_views_have_signal"
+      ],
+      "properties": {
+        "all_views_declared_parity_matches_observation": { "type": "boolean" },
+        "all_drift_views_have_epoch_lag": { "type": "boolean" },
+        "all_awaiting_resync_views_have_signal": { "type": "boolean" },
+        "all_terminal_unavailable_views_have_signal": { "type": "boolean" }
+      }
+    },
+    "support_export_honesty_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "all_views_preserve_epoch_state",
+        "all_views_redact_raw_private_material",
+        "all_views_exclude_ambient_authority",
+        "all_views_preserve_user_authored_files",
+        "all_exportable_or_replicated_views_have_safe_posture"
+      ],
+      "properties": {
+        "all_views_preserve_epoch_state": { "type": "boolean" },
+        "all_views_redact_raw_private_material": { "type": "boolean" },
+        "all_views_exclude_ambient_authority": { "type": "boolean" },
+        "all_views_preserve_user_authored_files": { "type": "boolean" },
+        "all_exportable_or_replicated_views_have_safe_posture": { "type": "boolean" }
+      }
+    },
+    "inspection_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_class", "action_id", "label", "available", "disclosure"],
+      "properties": {
+        "hook_class": { "$ref": "#/$defs/inspection_hook_class" },
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "available": { "type": "boolean" },
+        "disclosure": { "type": "string" }
+      }
+    },
+    "stable_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["qualified", "level", "narrow_reasons"],
+      "properties": {
+        "qualified": { "type": "boolean" },
+        "level": {
+          "type": "string",
+          "enum": ["stable", "narrowed_below_stable"]
+        },
+        "narrow_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        }
+      }
+    }
+  }
+}

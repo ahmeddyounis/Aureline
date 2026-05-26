@@ -8,8 +8,10 @@
 use std::path::{Path, PathBuf};
 
 use aureline_workspace::{
-    default_portable_state_inspection_hooks, profiles::ArtifactPortabilityLabel,
-    profiles::PortableArtifactClass, project_portable_state_lineage_with_hooks,
+    default_portable_state_inspection_hooks,
+    profiles::ArtifactPortabilityLabel,
+    profiles::PortableArtifactClass,
+    project_portable_state_lineage_with_hooks,
     state_packages::{
         DisplayAdjustmentClass, ExclusionSubstituteClass, ExportMode, LinkedProfileArtifactRef,
         MachineLocalExclusion, MachineLocalExclusionReason, NoRerunGuardrail, PaneRestorePosture,
@@ -25,8 +27,7 @@ use aureline_workspace::{
 use serde::Serialize;
 
 fn fixtures_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/workspace/m4/portable_state_lineage")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/workspace/m4/portable_state_lineage")
 }
 
 fn standard_redaction_manifest() -> RedactionManifest {
@@ -212,12 +213,14 @@ fn build_pane(seed: PaneSeed) -> PaneRestorePosture {
         surface_role: seed.role.to_owned(),
         surface_class: seed.class.to_owned(),
         restore_posture: seed.posture,
-        placeholder_card: seed.placeholder.map(|(reason, label, actions)| PlaceholderCard {
-            reason,
-            safe_actions: actions,
-            evidence_retained: true,
-            last_known_label: Some(label.to_owned()),
-        }),
+        placeholder_card: seed
+            .placeholder
+            .map(|(reason, label, actions)| PlaceholderCard {
+                reason,
+                safe_actions: actions,
+                evidence_retained: true,
+                last_known_label: Some(label.to_owned()),
+            }),
         no_rerun_guardrails: seed.guardrails,
         last_written_at: seed.timestamp.to_owned(),
     }
@@ -445,11 +448,8 @@ fn write_fixture(
     package: PortableStateAlphaPackage,
     inspection_hooks: Vec<PortableStateInspectionHook>,
 ) {
-    let record = project_portable_state_lineage_with_hooks(
-        posture_id,
-        &package,
-        inspection_hooks.clone(),
-    );
+    let record =
+        project_portable_state_lineage_with_hooks(posture_id, &package, inspection_hooks.clone());
     let envelope = FixtureEnvelope {
         posture_id,
         package: &package,
@@ -464,7 +464,11 @@ fn write_fixture(
 
 #[test]
 fn generate_fixtures() {
-    if std::env::var("PORTABLE_STATE_LINEAGE_GEN_FIXTURES").ok().as_deref() != Some("1") {
+    if std::env::var("PORTABLE_STATE_LINEAGE_GEN_FIXTURES")
+        .ok()
+        .as_deref()
+        != Some("1")
+    {
         return;
     }
     std::fs::create_dir_all(fixtures_dir()).expect("ensure fixture dir");

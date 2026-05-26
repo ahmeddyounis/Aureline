@@ -1,17 +1,17 @@
-//! Headless emitter for the portable-state lineage record.
+//! Headless emitter for the reactive-state lineage record.
 //!
-//! Reads a JSON envelope carrying the portable-state package (and optional
-//! inspection hooks) and prints the governed, export-safe portable-state
+//! Reads a JSON envelope carrying the reactive-state inputs (and optional
+//! inspection hooks) and prints the governed, export-safe reactive-state
 //! lineage record. This is the CLI / replay surface that proves the same
-//! projection the workspace portable-state status surface consumes.
+//! projection the workspace reactive-state status surface consumes.
 //!
 //! Input envelope (stdin, or a single file-path argument):
 //!
 //! ```json
 //! {
 //!   "posture_id": "posture:example",
-//!   "package": { ...PortableStateAlphaPackage... },
-//!   "inspection_hooks": [ ...PortableStateInspectionHook... ]
+//!   "inputs": { ...ReactiveStateInputs... },
+//!   "inspection_hooks": [ ...ReactiveStateInspectionHook... ]
 //! }
 //! ```
 //!
@@ -21,18 +21,18 @@
 use std::io::{self, Read};
 
 use aureline_workspace::{
-    default_portable_state_inspection_hooks, portable_state_lineage_lines,
-    project_portable_state_lineage_with_hooks, PortableStateAlphaPackage,
-    PortableStateInspectionHook, PortableStateLineageRecord,
+    default_reactive_state_inspection_hooks, project_reactive_state_lineage_with_hooks,
+    reactive_state_lineage_lines, ReactiveStateInputs, ReactiveStateInspectionHook,
+    ReactiveStateLineageRecord,
 };
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 struct LineageEmitterEnvelope {
     posture_id: String,
-    package: PortableStateAlphaPackage,
+    inputs: ReactiveStateInputs,
     #[serde(default)]
-    inspection_hooks: Option<Vec<PortableStateInspectionHook>>,
+    inspection_hooks: Option<Vec<ReactiveStateInspectionHook>>,
 }
 
 fn main() {
@@ -43,7 +43,7 @@ fn main() {
             "--lines" => want_lines = true,
             "--help" | "-h" => {
                 eprintln!(
-                    "usage: aureline_portable_state_lineage [--lines] [envelope.json]\n\
+                    "usage: aureline_reactive_state_lineage [--lines] [envelope.json]\n\
                      reads the lineage envelope from stdin when no path is given."
                 );
                 return;
@@ -73,13 +73,13 @@ fn main() {
 
     let hooks = envelope
         .inspection_hooks
-        .unwrap_or_else(default_portable_state_inspection_hooks);
+        .unwrap_or_else(default_reactive_state_inspection_hooks);
 
-    let record: PortableStateLineageRecord =
-        project_portable_state_lineage_with_hooks(envelope.posture_id, &envelope.package, hooks);
+    let record: ReactiveStateLineageRecord =
+        project_reactive_state_lineage_with_hooks(envelope.posture_id, &envelope.inputs, hooks);
 
     if want_lines {
-        for line in portable_state_lineage_lines(&record) {
+        for line in reactive_state_lineage_lines(&record) {
             println!("{line}");
         }
     } else {

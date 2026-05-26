@@ -327,9 +327,11 @@ fn clean_package_projects_stable_compatible_fidelity() {
     assert!(record.no_rerun_honesty.remembered_state_actions_complete);
     assert!(record.exclusion_honesty.redaction_rules_complete);
     assert!(record.exclusion_honesty.paths_and_hosts_excluded);
-    assert!(record
-        .exclusion_honesty
-        .machine_local_exclusion_reasons_complete);
+    assert!(
+        record
+            .exclusion_honesty
+            .machine_local_exclusion_reasons_complete
+    );
     assert_eq!(record.inspection_hooks.len(), 7);
     assert!(record
         .producer_attribution

@@ -552,8 +552,7 @@ pub fn project_portable_state_lineage_with_hooks(
         narrow_reasons.push(PortableStateLineageNarrowReason::MachineLocalExclusionsNotReviewed);
     }
     if !exclusion_honesty.machine_local_exclusion_reasons_complete {
-        narrow_reasons
-            .push(PortableStateLineageNarrowReason::MachineLocalExclusionReasonMissing);
+        narrow_reasons.push(PortableStateLineageNarrowReason::MachineLocalExclusionReasonMissing);
     }
 
     if restore_provenance.topology_adjustments_recorded
@@ -817,11 +816,7 @@ fn project_no_rerun_honesty(package: &PortableStateAlphaPackage) -> NoRerunHones
         );
     }
 
-    let action_kinds: BTreeSet<_> = package
-        .actions
-        .iter()
-        .map(|action| action.action)
-        .collect();
+    let action_kinds: BTreeSet<_> = package.actions.iter().map(|action| action.action).collect();
     let remembered_state_actions_complete = [
         RememberedStateActionKind::Inspect,
         RememberedStateActionKind::Export,
@@ -859,9 +854,7 @@ fn check_pane_guardrails(
     }
 }
 
-fn project_producer_attribution(
-    package: &PortableStateAlphaPackage,
-) -> ProducerAttributionSummary {
+fn project_producer_attribution(package: &PortableStateAlphaPackage) -> ProducerAttributionSummary {
     let integrity_hash = compute_integrity_hash(package);
     let producer_attribution_complete = !package.producer_ref.trim().is_empty()
         && !package.created_at.trim().is_empty()
