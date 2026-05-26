@@ -171,7 +171,10 @@ impl AuditRowClass {
                 | (Self::CompanionAction, AuditSurfaceClass::CompanionNavigator)
                 | (Self::CompanionFilterRow, AuditSurfaceClass::CompanionFilter)
                 | (Self::CompanionExportRow, AuditSurfaceClass::CompanionExport)
-                | (Self::CompanionHistoryRow, AuditSurfaceClass::CompanionHistory)
+                | (
+                    Self::CompanionHistoryRow,
+                    AuditSurfaceClass::CompanionHistory
+                )
         )
     }
 }
@@ -867,8 +870,8 @@ impl AuditTopologyExplainerCompanionTruthPacket {
         exported_at: impl Into<String>,
     ) -> AuditTopologyExplainerCompanionTruthSupportExport {
         AuditTopologyExplainerCompanionTruthSupportExport {
-            record_kind:
-                AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_SUPPORT_EXPORT_RECORD_KIND.to_owned(),
+            record_kind: AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_SUPPORT_EXPORT_RECORD_KIND
+                .to_owned(),
             schema_version: AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_SCHEMA_VERSION,
             export_id: export_id.into(),
             audit_packet_id_ref: self.packet_id.clone(),
@@ -1016,9 +1019,7 @@ impl AuditTopologyExplainerCompanionTruthPacket {
                 ));
             }
 
-            if row
-                .provenance_disclosure
-                .requires_explicit_disclosure()
+            if row.provenance_disclosure.requires_explicit_disclosure()
                 && row.provenance_disclosure_ref.is_none()
             {
                 findings.push(AuditValidationFinding::new(
@@ -1233,8 +1234,7 @@ impl Error for AuditTopologyExplainerCompanionTruthArtifactError {}
 /// # Errors
 ///
 /// Returns an artifact error if the checked-in packet does not parse or validate.
-pub fn current_stable_audit_topology_explainer_companion_truth_packet(
-) -> Result<
+pub fn current_stable_audit_topology_explainer_companion_truth_packet() -> Result<
     AuditTopologyExplainerCompanionTruthPacket,
     AuditTopologyExplainerCompanionTruthArtifactError,
 > {
@@ -1256,11 +1256,7 @@ pub fn current_stable_audit_topology_explainer_companion_truth_packet(
 mod tests {
     use super::*;
 
-    fn sample_row(
-        row_id: &str,
-        surface: AuditSurfaceClass,
-        row_class: AuditRowClass,
-    ) -> AuditRow {
+    fn sample_row(row_id: &str, surface: AuditSurfaceClass, row_class: AuditRowClass) -> AuditRow {
         AuditRow {
             row_id: row_id.to_owned(),
             surface_class: surface,
@@ -1299,8 +1295,7 @@ mod tests {
     fn sample_input() -> AuditTopologyExplainerCompanionTruthPacketInput {
         AuditTopologyExplainerCompanionTruthPacketInput {
             packet_id: "packet:m4:audit_topology_explainer_companion".to_owned(),
-            workflow_or_surface_id: "workflow.graph.audit_topology_explainer_companion"
-                .to_owned(),
+            workflow_or_surface_id: "workflow.graph.audit_topology_explainer_companion".to_owned(),
             generated_at: "2026-05-26T12:00:00Z".to_owned(),
             covered_surfaces: AuditSurfaceClass::REQUIRED.to_vec(),
             rows: vec![
@@ -1350,9 +1345,7 @@ mod tests {
                 .copied()
                 .map(sample_projection)
                 .collect(),
-            source_contract_refs: vec![
-                AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_DOC_REF.to_owned(),
-            ],
+            source_contract_refs: vec![AUDIT_TOPOLOGY_EXPLAINER_COMPANION_TRUTH_DOC_REF.to_owned()],
         }
     }
 
@@ -1447,9 +1440,9 @@ mod tests {
     #[test]
     fn projection_drop_blocks_promotion() {
         let mut input = sample_input();
-        input
-            .consumer_projections
-            .retain(|projection| projection.consumer_surface != AuditConsumerSurface::SupportExport);
+        input.consumer_projections.retain(|projection| {
+            projection.consumer_surface != AuditConsumerSurface::SupportExport
+        });
         let packet = AuditTopologyExplainerCompanionTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, AuditPromotionState::BlocksStable);
         assert!(packet

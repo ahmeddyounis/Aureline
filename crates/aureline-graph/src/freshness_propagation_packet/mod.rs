@@ -649,7 +649,10 @@ pub struct InvalidationScope {
 
 impl InvalidationScope {
     fn requires_subgraph_refs(&self) -> bool {
-        matches!(self.invalidation_class, InvalidationScopeClass::SmallestSubgraph)
+        matches!(
+            self.invalidation_class,
+            InvalidationScopeClass::SmallestSubgraph
+        )
     }
 
     fn requires_full_rebuild_reason(&self) -> bool {
@@ -955,9 +958,7 @@ impl FreshnessPropagationPacket {
     ) -> Vec<FreshnessPropagationValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != FRESHNESS_PROPAGATION_PACKET_RECORD_KIND
-        {
+        if include_record_fields && self.record_kind != FRESHNESS_PROPAGATION_PACKET_RECORD_KIND {
             findings.push(FreshnessPropagationValidationFinding::new(
                 FreshnessPropagationFindingKind::WrongRecordKind,
                 FreshnessPropagationFindingSeverity::Blocker,
@@ -1071,9 +1072,7 @@ impl FreshnessPropagationPacket {
                     ),
                 ));
             }
-            if matches!(row.retention, RetentionClass::Withheld)
-                && row.partiality_note.is_none()
-            {
+            if matches!(row.retention, RetentionClass::Withheld) && row.partiality_note.is_none() {
                 findings.push(FreshnessPropagationValidationFinding::new(
                     FreshnessPropagationFindingKind::MissingRetentionClass,
                     FreshnessPropagationFindingSeverity::Blocker,
@@ -1135,8 +1134,7 @@ impl FreshnessPropagationPacket {
                     ),
                 ));
             }
-            if matches!(row.confidence, ConfidenceClass::Withheld)
-                && row.partiality_note.is_none()
+            if matches!(row.confidence, ConfidenceClass::Withheld) && row.partiality_note.is_none()
             {
                 findings.push(FreshnessPropagationValidationFinding::new(
                     FreshnessPropagationFindingKind::ConfidenceCollapsed,
@@ -1469,7 +1467,10 @@ mod tests {
             InvalidationScopeClass::FullRebuildSchemaBoundary.as_str(),
             "full_rebuild_schema_boundary"
         );
-        assert_eq!(ConfidenceClass::ImportedAuthoritative.as_str(), "imported_authoritative");
+        assert_eq!(
+            ConfidenceClass::ImportedAuthoritative.as_str(),
+            "imported_authoritative"
+        );
         assert_eq!(
             HiddenGraphDependencyState::HiddenDependencyUndisclosed.as_str(),
             "hidden_dependency_undisclosed"

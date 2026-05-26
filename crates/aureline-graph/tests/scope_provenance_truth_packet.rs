@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 use aureline_graph::{
     current_stable_scope_provenance_truth_packet, ScopeProvenanceConsumerSurface,
     ScopeProvenanceDowngradeState, ScopeProvenanceFindingKind, ScopeProvenanceItemClass,
-    ScopeProvenancePromotionState, ScopeProvenanceTruthPacket,
-    ScopeProvenanceTruthPacketInput, SCOPE_PROVENANCE_TRUTH_ARTIFACT_DOC_REF,
-    SCOPE_PROVENANCE_TRUTH_DOC_REF, SCOPE_PROVENANCE_TRUTH_FIXTURE_DIR,
-    SCOPE_PROVENANCE_TRUTH_PACKET_ARTIFACT_REF, SCOPE_PROVENANCE_TRUTH_SCHEMA_REF,
+    ScopeProvenancePromotionState, ScopeProvenanceTruthPacket, ScopeProvenanceTruthPacketInput,
+    SCOPE_PROVENANCE_TRUTH_ARTIFACT_DOC_REF, SCOPE_PROVENANCE_TRUTH_DOC_REF,
+    SCOPE_PROVENANCE_TRUTH_FIXTURE_DIR, SCOPE_PROVENANCE_TRUTH_PACKET_ARTIFACT_REF,
+    SCOPE_PROVENANCE_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -219,10 +219,7 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_item_class() {
     assert!(packet.validate().is_empty());
     for required in ScopeProvenanceItemClass::REQUIRED {
         assert!(
-            packet
-                .rows
-                .iter()
-                .any(|row| row.item_class == required),
+            packet.rows.iter().any(|row| row.item_class == required),
             "stable packet must include row for item class {}",
             required.as_str()
         );

@@ -29,8 +29,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 /// Stable record-kind tag for [`ScopeProvenanceTruthPacket`].
-pub const SCOPE_PROVENANCE_TRUTH_PACKET_RECORD_KIND: &str =
-    "scope_provenance_truth_stable_packet";
+pub const SCOPE_PROVENANCE_TRUTH_PACKET_RECORD_KIND: &str = "scope_provenance_truth_stable_packet";
 
 /// Stable record-kind tag for [`ScopeProvenanceTruthSupportExport`].
 pub const SCOPE_PROVENANCE_TRUTH_SUPPORT_EXPORT_RECORD_KIND: &str =
@@ -52,8 +51,7 @@ pub const SCOPE_PROVENANCE_TRUTH_ARTIFACT_DOC_REF: &str =
     "artifacts/search/m4/certify-hidden-scope-partial-scope-archived-item-and.md";
 
 /// Repo-relative path of the protected fixture corpus directory.
-pub const SCOPE_PROVENANCE_TRUTH_FIXTURE_DIR: &str =
-    "fixtures/search/m4/scope_provenance_truth";
+pub const SCOPE_PROVENANCE_TRUTH_FIXTURE_DIR: &str = "fixtures/search/m4/scope_provenance_truth";
 
 /// Repo-relative path of the checked-in stable scope/provenance truth packet.
 pub const SCOPE_PROVENANCE_TRUTH_PACKET_ARTIFACT_REF: &str =
@@ -148,12 +146,13 @@ impl ProvenanceClass {
     fn matches_item_class(self, item: ItemClass) -> bool {
         matches!(
             (item, self),
-            (ItemClass::HiddenScope, Self::WorkspaceCanonical | Self::PartialIndexInferred)
-                | (
-                    ItemClass::PartialScope,
-                    Self::PartialIndexInferred | Self::HeuristicDerived,
-                )
-                | (ItemClass::ArchivedItem, Self::ArchivePreserved)
+            (
+                ItemClass::HiddenScope,
+                Self::WorkspaceCanonical | Self::PartialIndexInferred
+            ) | (
+                ItemClass::PartialScope,
+                Self::PartialIndexInferred | Self::HeuristicDerived,
+            ) | (ItemClass::ArchivedItem, Self::ArchivePreserved)
                 | (
                     ItemClass::ImportedProvider,
                     Self::ImportedProviderDerived | Self::HeuristicDerived,
@@ -768,17 +767,14 @@ impl ScopeProvenanceTruthPacket {
     fn derived_findings(&self, include_record_fields: bool) -> Vec<ValidationFinding> {
         let mut findings = Vec::new();
 
-        if include_record_fields
-            && self.record_kind != SCOPE_PROVENANCE_TRUTH_PACKET_RECORD_KIND
-        {
+        if include_record_fields && self.record_kind != SCOPE_PROVENANCE_TRUTH_PACKET_RECORD_KIND {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongRecordKind,
                 FindingSeverity::Blocker,
                 "scope/provenance truth packet has the wrong record kind",
             ));
         }
-        if include_record_fields && self.schema_version != SCOPE_PROVENANCE_TRUTH_SCHEMA_VERSION
-        {
+        if include_record_fields && self.schema_version != SCOPE_PROVENANCE_TRUTH_SCHEMA_VERSION {
             findings.push(ValidationFinding::new(
                 FindingKind::WrongSchemaVersion,
                 FindingSeverity::Blocker,
@@ -928,10 +924,7 @@ impl ScopeProvenanceTruthPacket {
                             findings.push(ValidationFinding::new(
                                 FindingKind::ImportedMissingMapping,
                                 FindingSeverity::Blocker,
-                                format!(
-                                    "row {} imported mapping drops provider id",
-                                    row.row_id
-                                ),
+                                format!("row {} imported mapping drops provider id", row.row_id),
                             ));
                         }
                         if mapping.rollback_checkpoint_ref.trim().is_empty() {
@@ -1320,7 +1313,10 @@ mod tests {
             ProvenanceClass::ImportedProviderDerived.as_str(),
             "imported_provider_derived"
         );
-        assert_eq!(DowngradeState::ArchivedDisclosed.as_str(), "archived_disclosed");
+        assert_eq!(
+            DowngradeState::ArchivedDisclosed.as_str(),
+            "archived_disclosed"
+        );
         assert_eq!(ImportedOutcomeLabel::Unsupported.as_str(), "unsupported");
         assert_eq!(
             FindingKind::NonCanonicalPresentedAsCanonical.as_str(),
@@ -1390,7 +1386,9 @@ mod tests {
     #[test]
     fn missing_required_item_class_blocks_stable() {
         let mut input = baseline_input();
-        input.rows.retain(|row| row.item_class != ItemClass::ImportedProvider);
+        input
+            .rows
+            .retain(|row| row.item_class != ItemClass::ImportedProvider);
         input
             .covered_item_classes
             .retain(|class| *class != ItemClass::ImportedProvider);
@@ -1405,8 +1403,7 @@ mod tests {
     #[test]
     fn missing_consumer_projection_blocks_stable() {
         let mut input = baseline_input();
-        input.consumer_projections =
-            vec![sample_projection(ConsumerSurface::SearchShell)];
+        input.consumer_projections = vec![sample_projection(ConsumerSurface::SearchShell)];
         let packet = ScopeProvenanceTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
         assert!(packet
@@ -1439,8 +1436,7 @@ mod tests {
     #[test]
     fn support_export_is_export_safe_when_packet_is_stable() {
         let packet = ScopeProvenanceTruthPacket::materialize(baseline_input());
-        let export =
-            packet.support_export("export:test", "2026-05-26T12:00:10Z");
+        let export = packet.support_export("export:test", "2026-05-26T12:00:10Z");
         assert!(export.is_export_safe());
     }
 }

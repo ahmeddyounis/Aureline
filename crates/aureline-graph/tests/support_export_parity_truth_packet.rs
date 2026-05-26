@@ -11,8 +11,7 @@ use aureline_graph::{
     SupportExportParityPromotionState, SupportExportParityTruthPacket,
     SupportExportParityTruthPacketInput, SUPPORT_EXPORT_PARITY_TRUTH_ARTIFACT_DOC_REF,
     SUPPORT_EXPORT_PARITY_TRUTH_DOC_REF, SUPPORT_EXPORT_PARITY_TRUTH_FIXTURE_DIR,
-    SUPPORT_EXPORT_PARITY_TRUTH_PACKET_ARTIFACT_REF,
-    SUPPORT_EXPORT_PARITY_TRUTH_SCHEMA_REF,
+    SUPPORT_EXPORT_PARITY_TRUTH_PACKET_ARTIFACT_REF, SUPPORT_EXPORT_PARITY_TRUTH_SCHEMA_REF,
 };
 use serde::Deserialize;
 
@@ -223,8 +222,8 @@ fn deep_link_freezes_certainty_fixture_blocks_stable() {
 
 #[test]
 fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
-    let packet = current_stable_support_export_parity_truth_packet()
-        .expect("checked-in packet validates");
+    let packet =
+        current_stable_support_export_parity_truth_packet().expect("checked-in packet validates");
     assert_eq!(
         packet.promotion_state,
         SupportExportParityPromotionState::Stable
@@ -232,10 +231,7 @@ fn checked_in_artifact_packet_validates_and_covers_every_required_lane() {
     assert!(packet.validate().is_empty());
     for required in SupportExportParityLaneClass::REQUIRED {
         assert!(
-            packet
-                .rows
-                .iter()
-                .any(|row| row.lane_class == required),
+            packet.rows.iter().any(|row| row.lane_class == required),
             "stable packet must include row for lane class {}",
             required.as_str()
         );

@@ -590,16 +590,10 @@ impl FindingKind {
             Self::MissingEvidenceRefs => "missing_evidence_refs",
             Self::MissingDisclosureRef => "missing_disclosure_ref",
             Self::InvalidCountSummary => "invalid_count_summary",
-            Self::OperatorTruthMissingReconstruction => {
-                "operator_truth_missing_reconstruction"
-            }
-            Self::QuerySessionMissingDeepLinkBinding => {
-                "query_session_missing_deep_link_binding"
-            }
+            Self::OperatorTruthMissingReconstruction => "operator_truth_missing_reconstruction",
+            Self::QuerySessionMissingDeepLinkBinding => "query_session_missing_deep_link_binding",
             Self::DeepLinkDropsScopeMetadata => "deep_link_drops_scope_metadata",
-            Self::DeepLinkFreezesRecipientCertainty => {
-                "deep_link_freezes_recipient_certainty"
-            }
+            Self::DeepLinkFreezesRecipientCertainty => "deep_link_freezes_recipient_certainty",
             Self::RawQueryTextPresent => "raw_query_text_present",
             Self::SecretsPresent => "secrets_present",
             Self::AmbientAuthorityPresent => "ambient_authority_present",
@@ -612,9 +606,7 @@ impl FindingKind {
                 "export_packet_class_vocabulary_collapsed"
             }
             Self::RedactionVocabularyCollapsed => "redaction_vocabulary_collapsed",
-            Self::LiveVsCapturedVocabularyCollapsed => {
-                "live_vs_captured_vocabulary_collapsed"
-            }
+            Self::LiveVsCapturedVocabularyCollapsed => "live_vs_captured_vocabulary_collapsed",
             Self::DowngradeVocabularyCollapsed => "downgrade_vocabulary_collapsed",
             Self::QuerySessionRefsDropped => "query_session_refs_dropped",
             Self::PromotionStateMismatch => "promotion_state_mismatch",
@@ -880,7 +872,10 @@ impl SupportExportParityTruthPacket {
                 ));
             }
             if row.evidence_refs.is_empty()
-                || row.evidence_refs.iter().any(|reference| reference.trim().is_empty())
+                || row
+                    .evidence_refs
+                    .iter()
+                    .any(|reference| reference.trim().is_empty())
             {
                 findings.push(ValidationFinding::new(
                     FindingKind::MissingEvidenceRefs,
@@ -892,7 +887,10 @@ impl SupportExportParityTruthPacket {
                 findings.push(ValidationFinding::new(
                     FindingKind::InvalidCountSummary,
                     FindingSeverity::Blocker,
-                    format!("row {} count summary is internally inconsistent", row.row_id),
+                    format!(
+                        "row {} count summary is internally inconsistent",
+                        row.row_id
+                    ),
                 ));
             }
             if !row.export_packet_class.matches_lane(row.lane_class) {
@@ -942,13 +940,16 @@ impl SupportExportParityTruthPacket {
 
             match row.lane_class {
                 LaneClass::OperatorTruthInspector => {
-                    let proof_ok = row.operator_reconstruction_proof.as_ref().is_some_and(|proof| {
-                        !proof.reconstruction_id.trim().is_empty()
-                            && !proof.why_row_existed_ref.trim().is_empty()
-                            && !proof.what_was_hidden_ref.trim().is_empty()
-                            && !proof.approximate_count_disclosure_ref.trim().is_empty()
-                            && proof.raw_query_text_excluded
-                    });
+                    let proof_ok =
+                        row.operator_reconstruction_proof
+                            .as_ref()
+                            .is_some_and(|proof| {
+                                !proof.reconstruction_id.trim().is_empty()
+                                    && !proof.why_row_existed_ref.trim().is_empty()
+                                    && !proof.what_was_hidden_ref.trim().is_empty()
+                                    && !proof.approximate_count_disclosure_ref.trim().is_empty()
+                                    && proof.raw_query_text_excluded
+                            });
                     if !proof_ok {
                         findings.push(ValidationFinding::new(
                             FindingKind::OperatorTruthMissingReconstruction,
@@ -1316,23 +1317,34 @@ mod tests {
     fn baseline_input() -> SupportExportParityTruthPacketInput {
         SupportExportParityTruthPacketInput {
             packet_id: "packet:m4:support_export_parity:baseline".to_owned(),
-            workflow_or_surface_id: "workflow.search_graph_docs.support_export_parity"
-                .to_owned(),
+            workflow_or_surface_id: "workflow.search_graph_docs.support_export_parity".to_owned(),
             generated_at: "2026-05-26T12:00:00Z".to_owned(),
             covered_lane_classes: LaneClass::REQUIRED.to_vec(),
             rows: vec![
-                sample_row(LaneClass::SearchExport, ExportPacketClass::SearchCollectionSnapshot),
+                sample_row(
+                    LaneClass::SearchExport,
+                    ExportPacketClass::SearchCollectionSnapshot,
+                ),
                 sample_row(
                     LaneClass::GraphTopologyExport,
                     ExportPacketClass::GraphTopologySnapshot,
                 ),
-                sample_row(LaneClass::DocsHandoffExport, ExportPacketClass::DocsHandoffPacket),
+                sample_row(
+                    LaneClass::DocsHandoffExport,
+                    ExportPacketClass::DocsHandoffPacket,
+                ),
                 sample_row(
                     LaneClass::OperatorTruthInspector,
                     ExportPacketClass::OperatorTruthPacket,
                 ),
-                sample_row(LaneClass::RetrievalDebug, ExportPacketClass::RetrievalInspectorPacket),
-                sample_row(LaneClass::QuerySessionExport, ExportPacketClass::QuerySessionPacket),
+                sample_row(
+                    LaneClass::RetrievalDebug,
+                    ExportPacketClass::RetrievalInspectorPacket,
+                ),
+                sample_row(
+                    LaneClass::QuerySessionExport,
+                    ExportPacketClass::QuerySessionPacket,
+                ),
             ],
             consumer_projections: ConsumerSurface::REQUIRED
                 .iter()
@@ -1396,9 +1408,10 @@ mod tests {
         input.rows[0].redaction_class = RedactionClass::LiteralLocalOnly;
         let packet = SupportExportParityTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
-        assert!(packet.validation_findings.iter().any(|finding| {
-            finding.finding_kind == FindingKind::DefaultExportTooPermissive
-        }));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| { finding.finding_kind == FindingKind::DefaultExportTooPermissive }));
     }
 
     #[test]
@@ -1441,7 +1454,9 @@ mod tests {
     #[test]
     fn missing_lane_coverage_blocks_stable() {
         let mut input = baseline_input();
-        input.rows.retain(|row| row.lane_class != LaneClass::RetrievalDebug);
+        input
+            .rows
+            .retain(|row| row.lane_class != LaneClass::RetrievalDebug);
         input
             .covered_lane_classes
             .retain(|lane| *lane != LaneClass::RetrievalDebug);
@@ -1481,9 +1496,10 @@ mod tests {
             .collect();
         let packet = SupportExportParityTruthPacket::materialize(input);
         assert_eq!(packet.promotion_state, PromotionState::BlocksStable);
-        assert!(packet.validation_findings.iter().any(|finding| {
-            finding.finding_kind == FindingKind::RedactionVocabularyCollapsed
-        }));
+        assert!(packet
+            .validation_findings
+            .iter()
+            .any(|finding| { finding.finding_kind == FindingKind::RedactionVocabularyCollapsed }));
     }
 
     #[test]
