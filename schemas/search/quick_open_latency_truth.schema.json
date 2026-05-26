@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/quick_open_latency_truth.schema.json",
+  "title": "Aureline quick-open latency-truth stable packet",
+  "description": "Boundary schema for the stable quick-open / file / symbol / command-palette latency and partial-index truth packet shared by search shell, docs/help, CLI/headless, support export, and the release proof index.",
+  "type": "object",
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "workflow_or_surface_id",
+    "generated_at",
+    "covered_archetypes",
+    "covered_surfaces",
+    "rows",
+    "consumer_projections",
+    "promotion_state",
+    "validation_findings"
+  ],
+  "properties": {
+    "record_kind": { "const": "quick_open_latency_truth_stable_packet" },
+    "schema_version": { "const": 1 },
+    "packet_id": { "$ref": "#/$defs/non_empty_string" },
+    "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+    "generated_at": { "$ref": "#/$defs/non_empty_string" },
+    "covered_archetypes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/certified_archetype" }
+    },
+    "covered_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/latency_surface" }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/latency_row" }
+    },
+    "consumer_projections": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/consumer_projection" }
+    },
+    "source_contract_refs": { "$ref": "#/$defs/ref_array" },
+    "promotion_state": { "$ref": "#/$defs/promotion_state" },
+    "validation_findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/validation_finding" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "certified_archetype": {
+      "enum": [
+        "typescript_javascript_web",
+        "python_service_or_data_app",
+        "rust_workspace",
+        "go_service_or_monorepo_slice",
+        "java_or_kotlin_service",
+        "c_or_cpp_native_project"
+      ]
+    },
+    "latency_surface": {
+      "enum": ["quick_open", "file_search", "symbol_search", "command_palette"]
+    },
+    "session_readiness_state": {
+      "enum": [
+        "ready",
+        "hot_set_ready",
+        "warming",
+        "partial",
+        "blocked",
+        "withheld",
+        "provider_limited",
+        "policy_limited"
+      ]
+    },
+    "partial_index_truth": {
+      "enum": [
+        "fully_indexed",
+        "hot_set_only",
+        "partial_index",
+        "stale_shard",
+        "index_unavailable"
+      ]
+    },
+    "promotion_state": {
+      "enum": ["stable", "narrowed_below_stable", "blocks_stable"]
+    },
+    "finding_severity": { "enum": ["info", "warning", "blocker"] },
+    "finding_kind": {
+      "enum": [
+        "wrong_record_kind",
+        "wrong_schema_version",
+        "missing_identity",
+        "missing_archetype_or_surface_row",
+        "observed_p50_exceeded_budget",
+        "observed_p95_exceeded_budget",
+        "missing_published_budget",
+        "missing_observed_latency",
+        "missing_benchmark_capture_ref",
+        "waiver_without_ref",
+        "partial_index_not_labeled",
+        "missing_readiness_transition",
+        "session_state_collapsed",
+        "session_id_not_propagated",
+        "missing_consumer_projection",
+        "consumer_projection_drift",
+        "raw_boundary_material_present",
+        "promotion_state_mismatch"
+      ]
+    },
+    "latency_budget": {
+      "type": "object",
+      "required": ["p50_ms_budget", "p95_ms_budget"],
+      "properties": {
+        "p50_ms_budget": { "type": "integer", "minimum": 1 },
+        "p95_ms_budget": { "type": "integer", "minimum": 1 },
+        "waiver_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "latency_observation": {
+      "type": "object",
+      "required": [
+        "p50_ms_observed",
+        "p95_ms_observed",
+        "benchmark_capture_ref",
+        "sample_size"
+      ],
+      "properties": {
+        "p50_ms_observed": { "type": "integer", "minimum": 0 },
+        "p95_ms_observed": { "type": "integer", "minimum": 0 },
+        "benchmark_capture_ref": { "$ref": "#/$defs/non_empty_string" },
+        "sample_size": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "readiness_transition": {
+      "type": "object",
+      "required": [
+        "from_state",
+        "to_state",
+        "elapsed_ms",
+        "first_useful_row_emitted"
+      ],
+      "properties": {
+        "from_state": { "$ref": "#/$defs/session_readiness_state" },
+        "to_state": { "$ref": "#/$defs/session_readiness_state" },
+        "elapsed_ms": { "type": "integer", "minimum": 0 },
+        "first_useful_row_emitted": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "latency_row": {
+      "type": "object",
+      "required": [
+        "row_id",
+        "archetype",
+        "surface",
+        "query_session_id",
+        "planner_version",
+        "scope_ref",
+        "budget",
+        "observation",
+        "partial_index_truth",
+        "raw_boundary_material_excluded",
+        "captured_at"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "archetype": { "$ref": "#/$defs/certified_archetype" },
+        "surface": { "$ref": "#/$defs/latency_surface" },
+        "query_session_id": { "$ref": "#/$defs/non_empty_string" },
+        "planner_version": { "$ref": "#/$defs/non_empty_string" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "budget": { "$ref": "#/$defs/latency_budget" },
+        "observation": { "$ref": "#/$defs/latency_observation" },
+        "visible_readiness_states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/session_readiness_state" }
+        },
+        "readiness_transitions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/readiness_transition" }
+        },
+        "partial_index_truth": { "$ref": "#/$defs/partial_index_truth" },
+        "partial_index_disclosure_ref": { "$ref": "#/$defs/non_empty_string" },
+        "raw_boundary_material_excluded": { "type": "boolean" },
+        "captured_at": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    },
+    "consumer_projection": {
+      "type": "object",
+      "required": [
+        "consumer_surface",
+        "projection_ref",
+        "latency_packet_id_ref",
+        "rendered_at",
+        "preserves_same_packet",
+        "preserves_query_session_ids",
+        "preserves_readiness_states",
+        "preserves_partial_index_labels",
+        "supports_json_export",
+        "raw_private_material_excluded",
+        "ambient_authority_excluded"
+      ],
+      "properties": {
+        "consumer_surface": {
+          "enum": [
+            "search_shell",
+            "docs_help",
+            "cli_headless",
+            "support_export",
+            "release_proof_index"
+          ]
+        },
+        "projection_ref": { "$ref": "#/$defs/non_empty_string" },
+        "latency_packet_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rendered_at": { "$ref": "#/$defs/non_empty_string" },
+        "preserves_same_packet": { "type": "boolean" },
+        "preserves_query_session_ids": { "type": "boolean" },
+        "preserves_readiness_states": { "type": "boolean" },
+        "preserves_partial_index_labels": { "type": "boolean" },
+        "supports_json_export": { "type": "boolean" },
+        "raw_private_material_excluded": { "type": "boolean" },
+        "ambient_authority_excluded": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "validation_finding": {
+      "type": "object",
+      "required": ["finding_kind", "severity", "summary"],
+      "properties": {
+        "finding_kind": { "$ref": "#/$defs/finding_kind" },
+        "severity": { "$ref": "#/$defs/finding_severity" },
+        "summary": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

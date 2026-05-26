@@ -68,6 +68,7 @@ pub mod lexical;
 pub mod planner;
 pub mod query_artifacts;
 pub mod query_session;
+pub mod quick_open_latency_truth;
 pub mod ranking_reason;
 pub mod readiness;
 pub mod remap;
@@ -154,6 +155,21 @@ pub use planner::{
 pub use query_session::{
     stable_query_hash, QueryTextMode, SearchQuerySession, SearchSurface,
     SEARCH_QUERY_SESSION_SCHEMA_VERSION,
+};
+
+pub use quick_open_latency_truth::{
+    current_stable_quick_open_latency_truth_packet, CertifiedArchetypeClass,
+    LatencyBudget, LatencyConsumerProjection, LatencyConsumerSurface, LatencyFindingKind,
+    LatencyFindingSeverity, LatencyObservation, LatencyPromotionState, LatencySurface,
+    LatencyTruthRow, LatencyValidationFinding, PartialIndexTruthClass,
+    QuickOpenLatencyTruthArtifactError, QuickOpenLatencyTruthPacket,
+    QuickOpenLatencyTruthPacketInput, QuickOpenLatencyTruthSupportExport,
+    SessionReadinessState, SessionReadinessTransition,
+    QUICK_OPEN_LATENCY_TRUTH_ARTIFACT_DOC_REF, QUICK_OPEN_LATENCY_TRUTH_DOC_REF,
+    QUICK_OPEN_LATENCY_TRUTH_FIXTURE_DIR, QUICK_OPEN_LATENCY_TRUTH_PACKET_ARTIFACT_REF,
+    QUICK_OPEN_LATENCY_TRUTH_PACKET_RECORD_KIND, QUICK_OPEN_LATENCY_TRUTH_SCHEMA_REF,
+    QUICK_OPEN_LATENCY_TRUTH_SCHEMA_VERSION,
+    QUICK_OPEN_LATENCY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 
 pub use query_artifacts::{
