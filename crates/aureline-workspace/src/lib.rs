@@ -31,6 +31,7 @@ pub mod reactive_state_lineage;
 pub mod recent_work;
 pub mod repo_topology;
 pub mod restore_hydrator;
+pub mod restricted_mode_ux_lineage;
 pub mod roots;
 pub mod save;
 pub mod scaffold;
@@ -282,6 +283,23 @@ pub use trust_gating_lineage::{
     TrustSurfaceObservation, WorkspaceTrustPosture, REQUIRED_TRUST_SURFACES,
     TRUST_GATING_LINEAGE_RECORD_KIND, TRUST_GATING_LINEAGE_SCHEMA_REF,
     TRUST_GATING_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use restricted_mode_ux_lineage::{
+    default_restricted_mode_ux_inspection_hooks, project_restricted_mode_ux_lineage,
+    project_restricted_mode_ux_lineage_with_hooks, restricted_mode_ux_lineage_lines,
+    AccessibilityPostureClass, AccessibilityTruthSummary, ClaimedStableTier,
+    ClaimedTierTruthSummary, EscapePathClass, EscapePathHonestySummary, ExplainabilityTruthSummary,
+    ReadOnlyAffordanceTruthSummary, RestrictedAffordanceClass, RestrictedModeInspectionHook,
+    RestrictedModeInspectionHookClass, RestrictedModePosture,
+    RestrictedModeProducerAttributionSummary, RestrictedModeSupportExportHonestySummary,
+    RestrictedModeSupportExportInputs, RestrictedModeSupportExportPosture,
+    RestrictedModeSurfaceCoverageSummary, RestrictedModeSurfaceKind,
+    RestrictedModeSurfaceObservation, RestrictedModeSurfaceRow, RestrictedModeUxInputs,
+    RestrictedModeUxLineageNarrowReason, RestrictedModeUxLineageQualification,
+    RestrictedModeUxLineageRecord, RestrictionReasonClass, REQUIRED_ACCESSIBILITY_POSTURES,
+    REQUIRED_RESTRICTED_MODE_SURFACES, RESTRICTED_MODE_UX_LINEAGE_RECORD_KIND,
+    RESTRICTED_MODE_UX_LINEAGE_SCHEMA_REF, RESTRICTED_MODE_UX_LINEAGE_SCHEMA_VERSION,
 };
 
 pub use canonical_identity_lineage::{
