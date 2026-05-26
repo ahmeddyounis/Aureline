@@ -17,6 +17,7 @@ pub mod index;
 pub mod locale_overlay;
 pub mod maintenance;
 pub mod pack;
+pub mod semantic_recall_boundary_truth_packet;
 
 pub use citations::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
@@ -116,4 +117,27 @@ pub use maintenance::{
 pub use pack::{
     DocsPack, DocsPackLoadError, DocsPackNode, DocsPackSourceTruth, DOCS_PACK_ALPHA_RECORD_KIND,
     DOCS_PACK_ALPHA_SCHEMA_VERSION,
+};
+pub use semantic_recall_boundary_truth_packet::{
+    current_stable_semantic_recall_boundary_truth_packet,
+    ConfidenceClass as SemanticRecallBoundaryConfidenceClass,
+    ConsumerSurface as SemanticRecallBoundaryConsumerSurface,
+    DowngradeState as SemanticRecallBoundaryDowngradeState, EmbedderIdentity,
+    FindingKind as SemanticRecallBoundaryFindingKind,
+    FindingSeverity as SemanticRecallBoundaryFindingSeverity, LaneParticipation,
+    LocalityClass as SemanticRecallBoundaryLocalityClass, PackSignature, PackSignatureState,
+    PromotionState as SemanticRecallBoundaryPromotionState,
+    RecallLaneClass as SemanticRecallBoundaryLaneClass,
+    RetrievalEpochState as SemanticRecallBoundaryEpochState,
+    SemanticRecallBoundaryConsumerProjection, SemanticRecallBoundaryRow,
+    SemanticRecallBoundaryTruthArtifactError, SemanticRecallBoundaryTruthPacket,
+    SemanticRecallBoundaryTruthPacketInput, SemanticRecallBoundaryTruthSupportExport,
+    SurfaceTrack as SemanticRecallBoundarySurfaceTrack,
+    ValidationFinding as SemanticRecallBoundaryValidationFinding,
+    SEMANTIC_RECALL_BOUNDARY_TRUTH_ARTIFACT_DOC_REF, SEMANTIC_RECALL_BOUNDARY_TRUTH_DOC_REF,
+    SEMANTIC_RECALL_BOUNDARY_TRUTH_FIXTURE_DIR, SEMANTIC_RECALL_BOUNDARY_TRUTH_MILESTONE_DOC_REF,
+    SEMANTIC_RECALL_BOUNDARY_TRUTH_PACKET_ARTIFACT_REF,
+    SEMANTIC_RECALL_BOUNDARY_TRUTH_PACKET_RECORD_KIND, SEMANTIC_RECALL_BOUNDARY_TRUTH_SCHEMA_REF,
+    SEMANTIC_RECALL_BOUNDARY_TRUTH_SCHEMA_VERSION,
+    SEMANTIC_RECALL_BOUNDARY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
