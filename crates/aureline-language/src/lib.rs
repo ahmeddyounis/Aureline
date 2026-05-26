@@ -26,6 +26,7 @@ pub mod python;
 pub mod python_daily_driver_quality_truth_packet;
 pub mod react_expert_workflow_pack_truth_packet;
 pub mod refactor_preview;
+pub mod rust_daily_driver_quality_truth_packet;
 pub mod symbol_snapshot;
 pub mod target_model;
 pub mod tree_sitter;
@@ -351,6 +352,32 @@ pub use refactor_preview::{
     REFACTOR_PREVIEW_RECORD_KIND, REFACTOR_PREVIEW_SCHEMA_REF, REFACTOR_PREVIEW_SCHEMA_VERSION,
     REFACTOR_VALIDATION_RESULT_RECORD_KIND, REFACTOR_VALIDATION_RESULT_SCHEMA_REF,
     REFACTOR_VALIDATION_RESULT_SCHEMA_VERSION,
+};
+pub use rust_daily_driver_quality_truth_packet::{
+    current_stable_rust_daily_driver_quality_truth_packet,
+    ConsumerSurface as RustDailyDriverConsumerSurface,
+    DailyDriverConfidenceClass as RustDailyDriverConfidenceClass,
+    DailyDriverRowClass as RustDailyDriverQualityRowClass,
+    DailyLoopStepClass as RustDailyDriverStepClass,
+    DowngradeAutomationClass as RustDailyDriverDowngradeAutomationClass,
+    EvidenceClass as RustDailyDriverEvidenceClass,
+    FindingKind as RustDailyDriverQualityFindingKind,
+    FindingSeverity as RustDailyDriverQualityFindingSeverity,
+    KnownLimitClass as RustDailyDriverKnownLimitClass,
+    LanguageLaneClass as RustDailyDriverLanguageLaneClass,
+    PromotionState as RustDailyDriverQualityPromotionState,
+    RustDailyDriverQualityConsumerProjection, RustDailyDriverQualityRow,
+    RustDailyDriverQualityTruthArtifactError, RustDailyDriverQualityTruthPacket,
+    RustDailyDriverQualityTruthPacketInput, RustDailyDriverQualityTruthSupportExport,
+    SupportClass as RustDailyDriverSupportClass,
+    ValidationFinding as RustDailyDriverQualityValidationFinding,
+    RUST_DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF, RUST_DAILY_DRIVER_QUALITY_TRUTH_DOC_REF,
+    RUST_DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR,
+    RUST_DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
+    RUST_DAILY_DRIVER_QUALITY_TRUTH_PACKET_RECORD_KIND,
+    RUST_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
+    RUST_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
+    RUST_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use symbol_snapshot::{
     SourcePoint, SourceRange, SymbolKindClass, SymbolProviderClass, SymbolRecord,
