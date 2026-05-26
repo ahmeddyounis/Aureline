@@ -16,6 +16,7 @@ pub mod daily_driver_quality_truth_packet;
 pub mod diagnostics;
 pub mod invalidation;
 pub mod lsp_router;
+pub mod next_js_expert_workflow_pack_truth_packet;
 pub mod packs;
 pub mod provider_arbitration;
 pub mod python;
@@ -144,6 +145,34 @@ pub use provider_arbitration::{
     PROVIDER_ARBITRATION_PROOF_CORPUS_DIR, PROVIDER_ARBITRATION_PROOF_REPORT_ARTIFACT_REF,
     PROVIDER_ARBITRATION_PROOF_REPORT_RECORD_KIND, PROVIDER_HEALTH_STATE_RECORD_KIND,
     PROVIDER_HEALTH_STATE_SCHEMA_REF, PROVIDER_HEALTH_STATE_SCHEMA_VERSION,
+};
+pub use next_js_expert_workflow_pack_truth_packet::{
+    current_stable_next_js_expert_workflow_pack_truth_packet,
+    ConsumerSurface as NextJsExpertWorkflowPackConsumerSurface,
+    DowngradeAutomationClass as NextJsExpertWorkflowPackDowngradeAutomationClass,
+    EvidenceClass as NextJsExpertWorkflowPackEvidenceClass,
+    FindingKind as NextJsExpertWorkflowPackFindingKind,
+    FindingSeverity as NextJsExpertWorkflowPackFindingSeverity,
+    KnownLimitClass as NextJsExpertWorkflowPackKnownLimitClass,
+    NextJsExpertWorkflowPackConsumerProjection, NextJsExpertWorkflowPackTruthArtifactError,
+    NextJsExpertWorkflowPackTruthPacket, NextJsExpertWorkflowPackTruthPacketInput,
+    NextJsExpertWorkflowPackTruthSupportExport,
+    PromotionState as NextJsExpertWorkflowPackPromotionState,
+    SupportClass as NextJsExpertWorkflowPackSupportClass,
+    ValidationFinding as NextJsExpertWorkflowPackValidationFinding,
+    WorkflowLoopClass as NextJsExpertWorkflowLoopClass,
+    WorkflowPackClass as NextJsExpertWorkflowPackClass,
+    WorkflowPackConfidenceClass as NextJsExpertWorkflowPackConfidenceClass,
+    WorkflowPackRow as NextJsExpertWorkflowPackRow,
+    WorkflowPackRowClass as NextJsExpertWorkflowPackRowClass,
+    NEXT_JS_EXPERT_WORKFLOW_PACK_TRUTH_ARTIFACT_DOC_REF,
+    NEXT_JS_EXPERT_WORKFLOW_PACK_TRUTH_DOC_REF,
+    NEXT_JS_EXPERT_WORKFLOW_PACK_TRUTH_FIXTURE_DIR,
+    NEXT_JS_EXPERT_WORKFLOW_PACK_TRUTH_PACKET_ARTIFACT_REF,
+    NEXT_JS_EXPERT_WORKFLOW_PACK_TRUTH_PACKET_RECORD_KIND,
+    NEXT_JS_EXPERT_WORKFLOW_PACK_TRUTH_SCHEMA_REF,
+    NEXT_JS_EXPERT_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
+    NEXT_JS_EXPERT_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use react_expert_workflow_pack_truth_packet::{
     current_stable_react_expert_workflow_pack_truth_packet,
