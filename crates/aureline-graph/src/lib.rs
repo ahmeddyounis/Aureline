@@ -10,6 +10,7 @@
 
 pub mod drift_packets;
 pub mod explainers;
+pub mod freshness_propagation_packet;
 pub mod journey_budget;
 mod query;
 pub mod readiness;
@@ -27,6 +28,23 @@ pub use drift_packets::{
     GRAPH_DRIFT_PACKET_RECORD_KIND, GRAPH_DRIFT_PACKET_REPORT_REF, GRAPH_DRIFT_PACKET_SCHEMA_REF,
     GRAPH_DRIFT_PACKET_SCHEMA_VERSION, GRAPH_DRIFT_REPORT_RECORD_KIND, REQUIRED_DATA_LANE_LINEAGES,
     REQUIRED_DRIFT_CONSUMER_SURFACES,
+};
+pub use freshness_propagation_packet::{
+    current_stable_freshness_propagation_packet, CapturedVsLiveClass as PropagationCapturedVsLiveClass,
+    ConfidenceClass as PropagationConfidenceClass, EpochLabel,
+    FreshnessClass as PropagationFreshnessClass, FreshnessPropagationArtifactError,
+    FreshnessPropagationConsumerProjection, FreshnessPropagationConsumerSurface,
+    FreshnessPropagationFindingKind, FreshnessPropagationFindingSeverity,
+    FreshnessPropagationPacket, FreshnessPropagationPacketInput,
+    FreshnessPropagationPacketSupportExport, FreshnessPropagationPromotionState,
+    FreshnessPropagationRow, FreshnessPropagationValidationFinding, GraphEpochClass, GraphHandle,
+    GraphHandleClass, HiddenGraphDependencyDisclosure, HiddenGraphDependencyState,
+    InvalidationScope, InvalidationScopeClass, MixedEpochDisclosure,
+    RetentionClass as PropagationRetentionClass, VisibilityScopeClass,
+    FRESHNESS_PROPAGATION_PACKET_ARTIFACT_DOC_REF, FRESHNESS_PROPAGATION_PACKET_ARTIFACT_REF,
+    FRESHNESS_PROPAGATION_PACKET_DOC_REF, FRESHNESS_PROPAGATION_PACKET_FIXTURE_DIR,
+    FRESHNESS_PROPAGATION_PACKET_RECORD_KIND, FRESHNESS_PROPAGATION_PACKET_SCHEMA_VERSION,
+    FRESHNESS_PROPAGATION_PACKET_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use explainers::{
     EvidenceCard, EvidenceCitation, ExplainerSourceKind, GraphExplainerError,
