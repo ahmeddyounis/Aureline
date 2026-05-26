@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/recovery_ladder_lineage.schema.json",
+  "title": "Aureline recovery-ladder sequencing lineage",
+  "description": "Boundary schema for the governed, export-safe recovery-ladder lineage record. The record hardens how Aureline walks through crash-loop safe mode, suspect-extension quarantine, open-without-restore, cache/index repair, restricted reopen, and (optionally) typed repair and support-export handoff. It is projected verbatim from the live RecoveryLadderInputs envelope. It proves rung coverage (crash_loop_safe_mode / safe_mode_quarantine / open_without_restore / cache_index_repair / restricted_reopen at minimum, plus typed_repair_flow / support_export_handoff), sequence truth (canonical step ordinals match the declared ordinals), no-rerun honesty (rungs that touch privileged surfaces declare explicit_user_action_required or terminal_no_further_run with action + disclosure ids), user-state preservation truth (lossy rungs reference an export_before_repair disclosure), reversibility truth (checkpointed rungs reference a rollback checkpoint and irreversible rungs reference an irreversibility disclosure), and support-export honesty (recovery-ladder fields preserved; raw secrets / approval tickets / delegated credentials / live authority handles redacted). Raw payload bytes are excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "recovery_ladder_lineage_schema_version",
+    "schema_ref",
+    "posture_id",
+    "workspace_ref",
+    "corpus_ref",
+    "producer_attribution",
+    "rung_sequence_coverage",
+    "trigger_disclosure",
+    "no_rerun_honesty",
+    "user_state_preservation",
+    "reversibility_truth",
+    "support_export_honesty",
+    "inspection_hooks",
+    "stable_qualification",
+    "raw_payload_excluded",
+    "summary"
+  ],
+  "properties": {
+    "__fixture__": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "record_kind": { "const": "recovery_ladder_lineage_record" },
+    "recovery_ladder_lineage_schema_version": { "type": "integer", "const": 1 },
+    "schema_ref": { "const": "schemas/workspace/recovery_ladder_lineage.schema.json" },
+    "posture_id": { "$ref": "#/$defs/non_empty_string" },
+    "workspace_ref": { "$ref": "#/$defs/non_empty_string" },
+    "corpus_ref": { "$ref": "#/$defs/non_empty_string" },
+    "producer_attribution": { "$ref": "#/$defs/producer_attribution_summary" },
+    "rung_sequence_coverage": { "$ref": "#/$defs/rung_sequence_coverage_summary" },
+    "trigger_disclosure": { "$ref": "#/$defs/trigger_disclosure_summary" },
+    "no_rerun_honesty": { "$ref": "#/$defs/no_rerun_honesty_summary" },
+    "user_state_preservation": { "$ref": "#/$defs/user_state_preservation_summary" },
+    "reversibility_truth": { "$ref": "#/$defs/reversibility_truth_summary" },
+    "support_export_honesty": { "$ref": "#/$defs/support_export_honesty_summary" },
+    "inspection_hooks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/inspection_hook" }
+    },
+    "stable_qualification": { "$ref": "#/$defs/stable_qualification" },
+    "raw_payload_excluded": { "const": true },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 700 }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "recovery_rung_kind": {
+      "type": "string",
+      "enum": [
+        "crash_loop_safe_mode",
+        "safe_mode_quarantine",
+        "open_without_restore",
+        "cache_index_repair",
+        "restricted_reopen",
+        "typed_repair_flow",
+        "support_export_handoff"
+      ]
+    },
+    "rung_trigger_class": {
+      "type": "string",
+      "enum": [
+        "repeated_crash_loop",
+        "extension_regression_suspected",
+        "resume_state_unsafe",
+        "derived_store_inconsistent",
+        "trust_posture_unverified",
+        "typed_repair_requested",
+        "support_escalation_initiated"
+      ]
+    },
+    "no_rerun_posture": {
+      "type": "string",
+      "enum": [
+        "explicit_user_action_required",
+        "auto_continue_after_checkpoint",
+        "terminal_no_further_run"
+      ]
+    },
+    "user_state_preservation_posture": {
+      "type": "string",
+      "enum": [
+        "preserved",
+        "preserved_after_export_prompt",
+        "dropped_with_disclosure"
+      ]
+    },
+    "reversibility_class": {
+      "type": "string",
+      "enum": [
+        "reversible",
+        "reversible_with_checkpoint",
+        "irreversible_with_disclosure"
+      ]
+    },
+    "recovery_support_export_posture": {
+      "type": "string",
+      "enum": ["metadata_safe_export", "held_record"]
+    },
+    "inspection_hook_class": {
+      "type": "string",
+      "enum": [
+        "inspect_ladder_state",
+        "compare_before_action",
+        "export_before_repair",
+        "rollback_checkpoint",
+        "export",
+        "repair"
+      ]
+    },
+    "narrow_reason": {
+      "type": "string",
+      "enum": [
+        "corpus_empty",
+        "required_rung_missing",
+        "rung_sequence_unordered",
+        "rung_trigger_missing_disclosure",
+        "no_rerun_posture_unsafe",
+        "explicit_action_metadata_missing",
+        "user_state_loss_undisclosed",
+        "reversibility_checkpoint_missing",
+        "irreversible_rung_missing_disclosure",
+        "inspection_hook_unavailable",
+        "support_export_fields_dropped",
+        "support_export_redaction_unsafe",
+        "producer_attribution_incomplete",
+        "lineage_export_unsafe"
+      ]
+    },
+    "producer_attribution_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_ref",
+        "schema_version",
+        "integrity_hash",
+        "captured_at",
+        "producer_attribution_complete"
+      ],
+      "properties": {
+        "producer_ref": { "type": "string" },
+        "schema_version": { "type": "integer" },
+        "integrity_hash": { "type": "string" },
+        "captured_at": { "type": "string" },
+        "producer_attribution_complete": { "type": "boolean" }
+      }
+    },
+    "recovery_rung_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rung_id",
+        "title",
+        "rung_kind",
+        "declared_step_ordinal",
+        "canonical_step_ordinal",
+        "step_ordinal_matches",
+        "trigger_class",
+        "trigger_disclosure_id",
+        "no_rerun_posture",
+        "commit_action_id",
+        "commit_disclosure_id",
+        "touches_privileged_surface",
+        "user_state_preservation",
+        "export_before_repair_disclosure_id",
+        "reversibility",
+        "rollback_checkpoint_id",
+        "irreversibility_disclosure_id",
+        "support_export_posture",
+        "is_required"
+      ],
+      "properties": {
+        "rung_id": { "$ref": "#/$defs/non_empty_string" },
+        "title": { "type": "string" },
+        "rung_kind": { "$ref": "#/$defs/recovery_rung_kind" },
+        "declared_step_ordinal": { "type": "integer", "minimum": 1 },
+        "canonical_step_ordinal": { "type": "integer", "minimum": 1 },
+        "step_ordinal_matches": { "type": "boolean" },
+        "trigger_class": { "$ref": "#/$defs/rung_trigger_class" },
+        "trigger_disclosure_id": { "type": "string" },
+        "no_rerun_posture": { "$ref": "#/$defs/no_rerun_posture" },
+        "commit_action_id": { "type": "string" },
+        "commit_disclosure_id": { "type": "string" },
+        "touches_privileged_surface": { "type": "boolean" },
+        "user_state_preservation": { "$ref": "#/$defs/user_state_preservation_posture" },
+        "export_before_repair_disclosure_id": { "type": "string" },
+        "reversibility": { "$ref": "#/$defs/reversibility_class" },
+        "rollback_checkpoint_id": { "type": "string" },
+        "irreversibility_disclosure_id": { "type": "string" },
+        "support_export_posture": { "$ref": "#/$defs/recovery_support_export_posture" },
+        "is_required": { "type": "boolean" }
+      }
+    },
+    "rung_sequence_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rung_rows",
+        "all_required_rungs_present",
+        "all_required_steps_ordered"
+      ],
+      "properties": {
+        "rung_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_rung_row" }
+        },
+        "all_required_rungs_present": { "type": "boolean" },
+        "all_required_steps_ordered": { "type": "boolean" }
+      }
+    },
+    "trigger_disclosure_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["all_rungs_have_trigger_disclosure"],
+      "properties": {
+        "all_rungs_have_trigger_disclosure": { "type": "boolean" }
+      }
+    },
+    "no_rerun_honesty_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["all_privileged_rungs_safe", "all_explicit_rungs_have_metadata"],
+      "properties": {
+        "all_privileged_rungs_safe": { "type": "boolean" },
+        "all_explicit_rungs_have_metadata": { "type": "boolean" }
+      }
+    },
+    "user_state_preservation_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_state_lossy_rung_count",
+        "all_lossy_rungs_have_export_disclosure"
+      ],
+      "properties": {
+        "user_state_lossy_rung_count": { "type": "integer", "minimum": 0 },
+        "all_lossy_rungs_have_export_disclosure": { "type": "boolean" }
+      }
+    },
+    "reversibility_truth_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpointed_rung_count",
+        "all_checkpointed_rungs_have_checkpoint_id",
+        "irreversible_rung_count",
+        "all_irreversible_rungs_have_disclosure_id"
+      ],
+      "properties": {
+        "checkpointed_rung_count": { "type": "integer", "minimum": 0 },
+        "all_checkpointed_rungs_have_checkpoint_id": { "type": "boolean" },
+        "irreversible_rung_count": { "type": "integer", "minimum": 0 },
+        "all_irreversible_rungs_have_disclosure_id": { "type": "boolean" }
+      }
+    },
+    "support_export_honesty_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "all_rungs_preserve_fields",
+        "all_rungs_redact_raw_secrets",
+        "all_rungs_exclude_approval_tickets",
+        "all_rungs_exclude_delegated_credentials",
+        "all_rungs_exclude_live_authority_handles"
+      ],
+      "properties": {
+        "all_rungs_preserve_fields": { "type": "boolean" },
+        "all_rungs_redact_raw_secrets": { "type": "boolean" },
+        "all_rungs_exclude_approval_tickets": { "type": "boolean" },
+        "all_rungs_exclude_delegated_credentials": { "type": "boolean" },
+        "all_rungs_exclude_live_authority_handles": { "type": "boolean" }
+      }
+    },
+    "inspection_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook_class", "action_id", "label", "available", "disclosure"],
+      "properties": {
+        "hook_class": { "$ref": "#/$defs/inspection_hook_class" },
+        "action_id": { "$ref": "#/$defs/non_empty_string" },
+        "label": { "$ref": "#/$defs/non_empty_string" },
+        "available": { "type": "boolean" },
+        "disclosure": { "type": "string" }
+      }
+    },
+    "stable_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["qualified", "level", "narrow_reasons"],
+      "properties": {
+        "qualified": { "type": "boolean" },
+        "level": {
+          "type": "string",
+          "enum": ["stable", "narrowed_below_stable"]
+        },
+        "narrow_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrow_reason" }
+        }
+      }
+    }
+  }
+}

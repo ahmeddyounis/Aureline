@@ -30,6 +30,7 @@ pub mod prebuilds;
 pub mod profiles;
 pub mod reactive_state_lineage;
 pub mod recent_work;
+pub mod recovery_ladder_lineage;
 pub mod repo_topology;
 pub mod restore_hydrator;
 pub mod restricted_mode_ux_lineage;
@@ -301,6 +302,22 @@ pub use restricted_mode_ux_lineage::{
     RestrictedModeUxLineageRecord, RestrictionReasonClass, REQUIRED_ACCESSIBILITY_POSTURES,
     REQUIRED_RESTRICTED_MODE_SURFACES, RESTRICTED_MODE_UX_LINEAGE_RECORD_KIND,
     RESTRICTED_MODE_UX_LINEAGE_SCHEMA_REF, RESTRICTED_MODE_UX_LINEAGE_SCHEMA_VERSION,
+};
+
+pub use recovery_ladder_lineage::{
+    default_recovery_ladder_inspection_hooks, project_recovery_ladder_lineage,
+    project_recovery_ladder_lineage_with_hooks, recovery_ladder_lineage_lines,
+    NoRerunHonestySummary as RecoveryLadderNoRerunHonestySummary, NoRerunPosture,
+    RecoveryLadderInputs, RecoveryLadderInspectionHook, RecoveryLadderInspectionHookClass,
+    RecoveryLadderLineageNarrowReason, RecoveryLadderLineageQualification,
+    RecoveryLadderLineageRecord, RecoveryLadderProducerAttributionSummary,
+    RecoveryRungKind, RecoveryRungObservation, RecoveryRungRow,
+    RecoverySupportExportHonestySummary, RecoverySupportExportInputs,
+    RecoverySupportExportPosture, ReversibilityClass, ReversibilityTruthSummary,
+    RungSequenceCoverageSummary, RungTriggerClass, TriggerDisclosureSummary,
+    UserStatePreservationPosture, UserStatePreservationSummary, RECOVERY_LADDER_LINEAGE_RECORD_KIND,
+    RECOVERY_LADDER_LINEAGE_SCHEMA_REF, RECOVERY_LADDER_LINEAGE_SCHEMA_VERSION,
+    REQUIRED_RECOVERY_RUNGS,
 };
 
 pub use cache_storage_class_lineage::{
