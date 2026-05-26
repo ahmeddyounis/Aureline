@@ -21,6 +21,7 @@ pub mod node_and_express_advanced_workflow_pack_truth_packet;
 pub mod packs;
 pub mod provider_arbitration;
 pub mod python;
+pub mod python_daily_driver_quality_truth_packet;
 pub mod react_expert_workflow_pack_truth_packet;
 pub mod refactor_preview;
 pub mod symbol_snapshot;
@@ -249,6 +250,32 @@ pub use python::{
     PythonSemanticResultSchemaVersion, PythonSourceAnchor, PythonSourceAnchorKindClass,
     PythonSymbolKindClass, PythonSymbolSeed, PythonWorkspaceContext,
     PYTHON_NAV_ALPHA_SCHEMA_VERSION, PYTHON_QUALITY_ALPHA_SCHEMA_VERSION,
+};
+pub use python_daily_driver_quality_truth_packet::{
+    current_stable_python_daily_driver_quality_truth_packet,
+    ConsumerSurface as PythonDailyDriverConsumerSurface,
+    DailyDriverConfidenceClass as PythonDailyDriverConfidenceClass,
+    DailyDriverRowClass as PythonDailyDriverQualityRowClass,
+    DailyLoopStepClass as PythonDailyDriverStepClass,
+    DowngradeAutomationClass as PythonDailyDriverDowngradeAutomationClass,
+    EvidenceClass as PythonDailyDriverEvidenceClass,
+    FindingKind as PythonDailyDriverQualityFindingKind,
+    FindingSeverity as PythonDailyDriverQualityFindingSeverity,
+    KnownLimitClass as PythonDailyDriverKnownLimitClass,
+    LanguageLaneClass as PythonDailyDriverLanguageLaneClass,
+    PromotionState as PythonDailyDriverQualityPromotionState,
+    PythonDailyDriverQualityConsumerProjection, PythonDailyDriverQualityRow,
+    PythonDailyDriverQualityTruthArtifactError, PythonDailyDriverQualityTruthPacket,
+    PythonDailyDriverQualityTruthPacketInput, PythonDailyDriverQualityTruthSupportExport,
+    SupportClass as PythonDailyDriverSupportClass,
+    ValidationFinding as PythonDailyDriverQualityValidationFinding,
+    PYTHON_DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF,
+    PYTHON_DAILY_DRIVER_QUALITY_TRUTH_DOC_REF, PYTHON_DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR,
+    PYTHON_DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
+    PYTHON_DAILY_DRIVER_QUALITY_TRUTH_PACKET_RECORD_KIND,
+    PYTHON_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
+    PYTHON_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
+    PYTHON_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use refactor_preview::{
     current_refactor_preview_corpus, current_refactor_preview_fixture_refs,
