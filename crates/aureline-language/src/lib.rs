@@ -15,6 +15,7 @@ pub mod code_actions;
 pub mod daily_driver_quality_truth_packet;
 pub mod diagnostics;
 pub mod django_advanced_workflow_pack_truth_packet;
+pub mod go_daily_driver_quality_truth_packet;
 pub mod invalidation;
 pub mod lsp_router;
 pub mod next_js_expert_workflow_pack_truth_packet;
@@ -108,6 +109,30 @@ pub use django_advanced_workflow_pack_truth_packet::{
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_REF,
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use go_daily_driver_quality_truth_packet::{
+    current_stable_go_daily_driver_quality_truth_packet,
+    ConsumerSurface as GoDailyDriverConsumerSurface,
+    DailyDriverConfidenceClass as GoDailyDriverConfidenceClass,
+    DailyDriverRowClass as GoDailyDriverQualityRowClass,
+    DailyLoopStepClass as GoDailyDriverStepClass,
+    DowngradeAutomationClass as GoDailyDriverDowngradeAutomationClass,
+    EvidenceClass as GoDailyDriverEvidenceClass,
+    FindingKind as GoDailyDriverQualityFindingKind,
+    FindingSeverity as GoDailyDriverQualityFindingSeverity,
+    GoDailyDriverQualityConsumerProjection, GoDailyDriverQualityRow,
+    GoDailyDriverQualityTruthArtifactError, GoDailyDriverQualityTruthPacket,
+    GoDailyDriverQualityTruthPacketInput, GoDailyDriverQualityTruthSupportExport,
+    KnownLimitClass as GoDailyDriverKnownLimitClass,
+    LanguageLaneClass as GoDailyDriverLanguageLaneClass,
+    PromotionState as GoDailyDriverQualityPromotionState,
+    SupportClass as GoDailyDriverSupportClass,
+    ValidationFinding as GoDailyDriverQualityValidationFinding,
+    GO_DAILY_DRIVER_QUALITY_TRUTH_ARTIFACT_DOC_REF, GO_DAILY_DRIVER_QUALITY_TRUTH_DOC_REF,
+    GO_DAILY_DRIVER_QUALITY_TRUTH_FIXTURE_DIR, GO_DAILY_DRIVER_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
+    GO_DAILY_DRIVER_QUALITY_TRUTH_PACKET_RECORD_KIND, GO_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_REF,
+    GO_DAILY_DRIVER_QUALITY_TRUTH_SCHEMA_VERSION,
+    GO_DAILY_DRIVER_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use invalidation::{
     EditOperationRecord, EditWorkloadClass, IncrementalParseBuffer,
