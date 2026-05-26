@@ -15,6 +15,7 @@ pub mod find_replace;
 pub mod highlight;
 pub mod large_file;
 pub mod large_file_mode;
+pub mod large_file_posture;
 pub mod modes;
 pub mod orientation;
 pub mod orientation_aids;
@@ -57,6 +58,14 @@ pub use large_file_mode::{
     LimitedModeCapabilityState, LimitedModeEditPolicyClass, LimitedModeFileRecord,
     LimitedModeOverrideAction, LimitedModeSafePreviewClass, LimitedModeWritePolicyClass,
     LIMITED_MODE_FILE_RECORD_KIND, LIMITED_MODE_FILE_SCHEMA_REF, LIMITED_MODE_FILE_SCHEMA_VERSION,
+};
+pub use large_file_posture::{
+    default_large_file_inspection_hooks, large_file_posture_lines, project_large_file_posture,
+    project_large_file_posture_with_hooks, InspectionHook, InspectionHookClass,
+    LargeFileActivationSummary, LargeFileClassificationObservation, LargeFilePostureNarrowReason,
+    LargeFilePostureQualification, LargeFilePostureRecord, PreviewFidelitySummary,
+    RestrictedWritePosture, LARGE_FILE_POSTURE_RECORD_KIND, LARGE_FILE_POSTURE_SCHEMA_REF,
+    LARGE_FILE_POSTURE_SCHEMA_VERSION,
 };
 pub use modes::{
     build_alpha_mode_state_record, AlphaModeStateInput, EditorModeClass, EditorModeStateRecord,
