@@ -14,6 +14,7 @@
 pub mod code_actions;
 pub mod daily_driver_quality_truth_packet;
 pub mod diagnostics;
+pub mod django_advanced_workflow_pack_truth_packet;
 pub mod invalidation;
 pub mod lsp_router;
 pub mod next_js_expert_workflow_pack_truth_packet;
@@ -79,6 +80,34 @@ pub use diagnostics::{
     DiagnosticOriginClass, DiagnosticProviderAvailabilityRow, DiagnosticScope,
     DiagnosticSeverityClass, DiagnosticSourceDescriptor, DiagnosticSourceFamily,
     DiagnosticSurfaceClass, DiagnosticSurfaceProjection, DIAGNOSTIC_BUS_SCHEMA_VERSION,
+};
+pub use django_advanced_workflow_pack_truth_packet::{
+    current_stable_django_advanced_workflow_pack_truth_packet,
+    ConsumerSurface as DjangoAdvancedWorkflowPackConsumerSurface,
+    DjangoAdvancedWorkflowPackConsumerProjection, DjangoAdvancedWorkflowPackTruthArtifactError,
+    DjangoAdvancedWorkflowPackTruthPacket, DjangoAdvancedWorkflowPackTruthPacketInput,
+    DjangoAdvancedWorkflowPackTruthSupportExport,
+    DowngradeAutomationClass as DjangoAdvancedWorkflowPackDowngradeAutomationClass,
+    EvidenceClass as DjangoAdvancedWorkflowPackEvidenceClass,
+    FindingKind as DjangoAdvancedWorkflowPackFindingKind,
+    FindingSeverity as DjangoAdvancedWorkflowPackFindingSeverity,
+    KnownLimitClass as DjangoAdvancedWorkflowPackKnownLimitClass,
+    PromotionState as DjangoAdvancedWorkflowPackPromotionState,
+    SupportClass as DjangoAdvancedWorkflowPackSupportClass,
+    ValidationFinding as DjangoAdvancedWorkflowPackValidationFinding,
+    WorkflowLoopClass as DjangoAdvancedWorkflowLoopClass,
+    WorkflowPackClass as DjangoAdvancedWorkflowPackClass,
+    WorkflowPackConfidenceClass as DjangoAdvancedWorkflowPackConfidenceClass,
+    WorkflowPackRow as DjangoAdvancedWorkflowPackRow,
+    WorkflowPackRowClass as DjangoAdvancedWorkflowPackRowClass,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_ARTIFACT_DOC_REF,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_DOC_REF,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_FIXTURE_DIR,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_PACKET_ARTIFACT_REF,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_PACKET_RECORD_KIND,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_REF,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
+    DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use invalidation::{
     EditOperationRecord, EditWorkloadClass, IncrementalParseBuffer,
