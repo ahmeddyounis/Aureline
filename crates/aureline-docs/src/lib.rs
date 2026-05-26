@@ -10,12 +10,29 @@
 #![doc(html_root_url = "https://docs.rs/aureline-docs/0.0.0")]
 
 pub mod citations;
+pub mod docs_browser_truth_packet;
 pub mod evidence_model;
 pub mod index;
 pub mod locale_overlay;
 pub mod maintenance;
 pub mod pack;
 
+pub use docs_browser_truth_packet::{
+    current_stable_docs_browser_truth_packet, seeded_stable_docs_browser_truth_packet_input,
+    DocsBrowserCapturedVsLive, DocsBrowserCitationAnchor,
+    DocsBrowserConsumerProjection, DocsBrowserConsumerSurface, DocsBrowserFindingKind,
+    DocsBrowserFindingSeverity, DocsBrowserFreshnessState, DocsBrowserHandoffCapability,
+    DocsBrowserPromotionState, DocsBrowserResultObject, DocsBrowserSourceClass,
+    DocsBrowserSourceDescriptor, DocsBrowserSymbolFlow, DocsBrowserSymbolFlowStep,
+    DocsBrowserSymbolLinkClass, DocsBrowserSymbolRef, DocsBrowserTrustClass,
+    DocsBrowserTruthArtifactError, DocsBrowserTruthPacket, DocsBrowserTruthPacketInput,
+    DocsBrowserTruthSupportExport, DocsBrowserValidationFinding, DocsBrowserVersionMatchState,
+    DOCS_BROWSER_TRUTH_PACKET_ARTIFACT_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_ARTIFACT_REF,
+    DOCS_BROWSER_TRUTH_PACKET_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_FIXTURE_DIR,
+    DOCS_BROWSER_TRUTH_PACKET_MILESTONE_DOC_REF, DOCS_BROWSER_TRUTH_PACKET_RECORD_KIND,
+    DOCS_BROWSER_TRUTH_PACKET_SCHEMA_REF, DOCS_BROWSER_TRUTH_PACKET_SCHEMA_VERSION,
+    DOCS_BROWSER_TRUTH_PACKET_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use citations::{
     CitationAnchorAlpha, CitationAnchorAlphaInput, CitationAnchorAvailability,
     CitationConfidenceClass, CitationDrawerEvidenceView, CitationDrawerEvidenceViewInput,
