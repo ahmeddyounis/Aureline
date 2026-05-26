@@ -17,6 +17,7 @@ pub mod diagnostics;
 pub mod invalidation;
 pub mod lsp_router;
 pub mod next_js_expert_workflow_pack_truth_packet;
+pub mod node_and_express_advanced_workflow_pack_truth_packet;
 pub mod packs;
 pub mod provider_arbitration;
 pub mod python;
@@ -195,6 +196,36 @@ pub use react_expert_workflow_pack_truth_packet::{
     REACT_EXPERT_WORKFLOW_PACK_TRUTH_PACKET_RECORD_KIND,
     REACT_EXPERT_WORKFLOW_PACK_TRUTH_SCHEMA_REF, REACT_EXPERT_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
     REACT_EXPERT_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use node_and_express_advanced_workflow_pack_truth_packet::{
+    current_stable_node_and_express_advanced_workflow_pack_truth_packet,
+    ConsumerSurface as NodeAndExpressAdvancedWorkflowPackConsumerSurface,
+    DowngradeAutomationClass as NodeAndExpressAdvancedWorkflowPackDowngradeAutomationClass,
+    EvidenceClass as NodeAndExpressAdvancedWorkflowPackEvidenceClass,
+    FindingKind as NodeAndExpressAdvancedWorkflowPackFindingKind,
+    FindingSeverity as NodeAndExpressAdvancedWorkflowPackFindingSeverity,
+    KnownLimitClass as NodeAndExpressAdvancedWorkflowPackKnownLimitClass,
+    NodeAndExpressAdvancedWorkflowPackConsumerProjection,
+    NodeAndExpressAdvancedWorkflowPackTruthArtifactError,
+    NodeAndExpressAdvancedWorkflowPackTruthPacket,
+    NodeAndExpressAdvancedWorkflowPackTruthPacketInput,
+    NodeAndExpressAdvancedWorkflowPackTruthSupportExport,
+    PromotionState as NodeAndExpressAdvancedWorkflowPackPromotionState,
+    SupportClass as NodeAndExpressAdvancedWorkflowPackSupportClass,
+    ValidationFinding as NodeAndExpressAdvancedWorkflowPackValidationFinding,
+    WorkflowLoopClass as NodeAndExpressAdvancedWorkflowLoopClass,
+    WorkflowPackClass as NodeAndExpressAdvancedWorkflowPackClass,
+    WorkflowPackConfidenceClass as NodeAndExpressAdvancedWorkflowPackConfidenceClass,
+    WorkflowPackRow as NodeAndExpressAdvancedWorkflowPackRow,
+    WorkflowPackRowClass as NodeAndExpressAdvancedWorkflowPackRowClass,
+    NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_ARTIFACT_DOC_REF,
+    NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_DOC_REF,
+    NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_FIXTURE_DIR,
+    NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_PACKET_ARTIFACT_REF,
+    NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_PACKET_RECORD_KIND,
+    NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_REF,
+    NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
+    NODE_AND_EXPRESS_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use python::{
     PythonAccessKindClass, PythonAmbiguityDescriptor, PythonAnchorRef, PythonAnswerLayerClass,
