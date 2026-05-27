@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/harden_keymap_theme_settings_snippet_task_and_launch.schema.json",
+  "title": "Aureline artifact-import hardening packet (review lane)",
+  "description": "Boundary schema for the hardened keymap, theme, settings, snippet, task, and launch import contract. Every imported item from VS Code / Code-OSS, JetBrains family, Vim / Neovim, and Emacs maps to an Aureline-native record with an explicit outcome label: exact, translated, partial, shimmed, or unsupported. Rollback checkpoints and diagnostics are preserved when mapping fails.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "migration_session_ref",
+    "source_editor",
+    "artifact_records",
+    "rollback_checkpoint",
+    "commands",
+    "support_export",
+    "inspection",
+    "consumer_surfaces"
+  ],
+  "properties": {
+    "record_kind": { "const": "review_artifact_import_hardening_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "migration_session_ref": { "type": "string", "minLength": 1 },
+    "source_editor": {
+      "type": "string",
+      "enum": ["vs_code_code_oss", "jetbrains_family", "vim_neovim", "emacs"]
+    },
+    "artifact_records": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifact_import_hardening_record" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact_import_diagnostic_record" }
+    },
+    "rollback_checkpoint": { "$ref": "#/$defs/artifact_import_rollback_checkpoint" },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/command_record" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export_packet" },
+    "inspection": { "$ref": "#/$defs/inspection_record" },
+    "consumer_surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "enum": ["migration_center", "entry_surface", "first_run_wizard", "support_export", "audit_lane", "cli_inspector"] }
+    }
+  },
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "artifact_type": {
+      "type": "string",
+      "enum": ["keymap", "theme", "settings", "snippet", "task", "launch"]
+    },
+    "source_editor": {
+      "type": "string",
+      "enum": ["vs_code_code_oss", "jetbrains_family", "vim_neovim", "emacs"]
+    },
+    "outcome_label": {
+      "type": "string",
+      "enum": ["exact", "translated", "partial", "shimmed", "unsupported"]
+    },
+    "checkpoint_state": {
+      "type": "string",
+      "enum": ["none_required", "captured_ready", "captured_pending", "restored", "expired", "missing_blocks_apply"]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": ["preview", "approve", "capture_checkpoint", "apply", "validate", "rollback", "abort", "review_diagnostics"]
+    },
+    "diagnostic_reason_class": {
+      "type": "string",
+      "enum": ["no_semantic_equivalent", "ambiguous_mapping", "secret_material_excluded", "policy_locked", "capability_missing", "version_mismatch", "corrupted_source", "partial_schema_match"]
+    },
+    "diagnostic_action_class": {
+      "type": "string",
+      "enum": ["manual_review", "use_bridge", "use_native_alternative", "skip_and_continue", "rollback_and_repair", "contact_support"]
+    },
+    "artifact_import_outcome_breakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact_count", "translated_count", "partial_count", "shimmed_count", "unsupported_count", "total_count"],
+      "properties": {
+        "exact_count": { "type": "integer", "minimum": 0 },
+        "translated_count": { "type": "integer", "minimum": 0 },
+        "partial_count": { "type": "integer", "minimum": 0 },
+        "shimmed_count": { "type": "integer", "minimum": 0 },
+        "unsupported_count": { "type": "integer", "minimum": 0 },
+        "total_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "artifact_import_hardening_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_id", "artifact_type", "source_editor", "overall_outcome", "outcome_breakdown", "rollback_checkpoint_ref", "requires_manual_review", "actionable"],
+      "properties": {
+        "record_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_type": { "$ref": "#/$defs/artifact_type" },
+        "source_editor": { "$ref": "#/$defs/source_editor" },
+        "overall_outcome": { "$ref": "#/$defs/outcome_label" },
+        "outcome_breakdown": { "$ref": "#/$defs/artifact_import_outcome_breakdown" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "requires_manual_review": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "validation_state": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
+        }
+      }
+    },
+    "artifact_import_diagnostic_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnostic_id", "source_editor", "artifact_type", "source_item_id", "outcome_label", "message", "fallback_available"],
+      "properties": {
+        "diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "source_editor": { "$ref": "#/$defs/source_editor" },
+        "artifact_type": { "$ref": "#/$defs/artifact_type" },
+        "source_item_id": { "$ref": "#/$defs/non_empty_string" },
+        "outcome_label": { "$ref": "#/$defs/outcome_label" },
+        "reason_class": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/diagnostic_reason_class" }]
+        },
+        "message": { "$ref": "#/$defs/reviewable_sentence" },
+        "suggested_action": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/diagnostic_action_class" }]
+        },
+        "fallback_available": { "type": "boolean" },
+        "compatibility_scorecard_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        }
+      }
+    },
+    "artifact_import_rollback_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_id", "checkpoint_state", "source_editor", "auto_restore_available"],
+      "properties": {
+        "checkpoint_id": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_state": { "$ref": "#/$defs/checkpoint_state" },
+        "source_editor": { "$ref": "#/$defs/source_editor" },
+        "captured_at": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "format": "date-time" }]
+        },
+        "expires_at": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "format": "date-time" }]
+        },
+        "checkpoint_artifact_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "auto_restore_available": { "type": "boolean" }
+      }
+    },
+    "command_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "command_class", "target", "available"],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "target": { "$ref": "#/$defs/non_empty_string" },
+        "available": { "type": "boolean" },
+        "unavailable_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/reviewable_sentence" }]
+        },
+        "side_effects": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "artifact_import_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_type", "artifact_label", "overall_outcome", "diagnostic_count", "manual_review_count", "checkpoint_state"],
+      "properties": {
+        "artifact_type": { "$ref": "#/$defs/artifact_type" },
+        "artifact_label": { "$ref": "#/$defs/non_empty_string" },
+        "overall_outcome": { "$ref": "#/$defs/non_empty_string" },
+        "diagnostic_count": { "type": "integer", "minimum": 0 },
+        "manual_review_count": { "type": "integer", "minimum": 0 },
+        "checkpoint_state": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "support_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "record_kind", "packet_id", "generated_at", "artifact_summaries", "overall_outcome_summary", "consumer_surfaces", "raw_source_profile_paths_export_allowed", "raw_source_profile_bodies_export_allowed", "secret_bearing_values_export_allowed"],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "record_kind": { "const": "review_artifact_import_hardening_support_export_packet" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "artifact_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_import_summary" }
+        },
+        "overall_outcome_summary": { "$ref": "#/$defs/non_empty_string" },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "raw_source_profile_paths_export_allowed": { "type": "boolean", "const": false },
+        "raw_source_profile_bodies_export_allowed": { "type": "boolean", "const": false },
+        "secret_bearing_values_export_allowed": { "type": "boolean", "const": false }
+      }
+    },
+    "inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet_id", "previewable", "checkpoint_ready", "applied", "validated", "rolled_back", "aborted", "manual_review_required", "unsupported_encountered", "partial_encountered", "shimmed_encountered", "artifact_record_count", "available_command_count", "diagnostic_count", "consumer_surfaces"],
+      "properties": {
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "previewable": { "type": "boolean" },
+        "checkpoint_ready": { "type": "boolean" },
+        "applied": { "type": "boolean" },
+        "validated": { "type": "boolean" },
+        "rolled_back": { "type": "boolean" },
+        "aborted": { "type": "boolean" },
+        "manual_review_required": { "type": "boolean" },
+        "unsupported_encountered": { "type": "boolean" },
+        "partial_encountered": { "type": "boolean" },
+        "shimmed_encountered": { "type": "boolean" },
+        "artifact_record_count": { "type": "integer", "minimum": 0 },
+        "available_command_count": { "type": "integer", "minimum": 0 },
+        "diagnostic_count": { "type": "integer", "minimum": 0 },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

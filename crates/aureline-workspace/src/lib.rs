@@ -46,6 +46,7 @@ pub mod state_packages;
 pub mod state_root_certification_lineage;
 pub mod templates;
 pub mod trust_gating_lineage;
+pub mod harden_keymap_theme_settings_snippet_task_and_launch;
 pub mod stabilize_migration_wizard_import_fidelity_for_editor_launch_paths;
 pub mod workset_scope_ux_lineage;
 pub mod workset_switcher;
@@ -596,6 +597,25 @@ pub use scope_propagation::{
     SCOPE_PROPAGATION_ALPHA_RECORD_KIND, SCOPE_PROPAGATION_ALPHA_SCHEMA_VERSION,
     SCOPE_PROPAGATION_ALPHA_SHARED_CONTRACT_REF,
     SCOPE_PROPAGATION_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
+};
+
+pub use harden_keymap_theme_settings_snippet_task_and_launch::{
+    project_artifact_import_hardening_packet, ArtifactImportDiagnosticRecord,
+    ArtifactImportHardeningCommandClass, ArtifactImportHardeningCommandRecord,
+    ArtifactImportHardeningError, ArtifactImportHardeningInput,
+    ArtifactImportHardeningInspectionRecord, ArtifactImportHardeningPacket,
+    ArtifactImportHardeningProjection, ArtifactImportHardeningRecord,
+    ArtifactImportHardeningSupportExportPacket, ArtifactImportOutcomeBreakdown,
+    ArtifactImportRollbackCheckpoint, ArtifactImportRollbackCheckpointState,
+    ArtifactImportSummary, ArtifactType,
+    ARTIFACT_IMPORT_DIAGNOSTIC_ACTION_CLASSES, ARTIFACT_IMPORT_DIAGNOSTIC_REASON_CLASSES,
+    ARTIFACT_IMPORT_HARDENING_COMMAND_CLASSES, ARTIFACT_IMPORT_HARDENING_COMMAND_RECORD_KIND,
+    ARTIFACT_IMPORT_HARDENING_CONSUMER_SURFACES, ARTIFACT_IMPORT_HARDENING_INSPECTION_RECORD_KIND,
+    ARTIFACT_IMPORT_HARDENING_INVALIDATION_REASONS, ARTIFACT_IMPORT_HARDENING_PACKET_RECORD_KIND,
+    ARTIFACT_IMPORT_HARDENING_RECORD_KIND, ARTIFACT_IMPORT_HARDENING_SCHEMA_VERSION,
+    ARTIFACT_IMPORT_HARDENING_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    ARTIFACT_IMPORT_ROLLBACK_CHECKPOINT_RECORD_KIND, ARTIFACT_IMPORT_ROLLBACK_CHECKPOINT_STATES,
+    ARTIFACT_TYPES, SOURCE_EDITOR_ECOSYSTEMS as ARTIFACT_SOURCE_EDITOR_ECOSYSTEMS,
 };
 
 pub use stabilize_migration_wizard_import_fidelity_for_editor_launch_paths::{
