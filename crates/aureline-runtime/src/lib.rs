@@ -54,6 +54,7 @@ pub mod managed_workspace_lifecycle_beta;
 pub mod packages;
 pub mod preview_drift;
 pub mod provenance;
+pub mod publish_execution_plane_certification_packets_for_local_remote;
 pub mod quality;
 pub mod recipes;
 pub mod remote_helper_skew_beta;
@@ -465,6 +466,31 @@ pub use provenance::{
     ExecutionProvenanceEventClass, ExecutionProvenanceInputDecision,
     ExecutionProvenanceRedactionClass, EXECUTION_EVENT_PROVENANCE_RECORD_KIND,
     EXECUTION_EVENT_PROVENANCE_SCHEMA_VERSION, EXECUTION_PROVENANCE_EVENT_RECORD_KIND,
+};
+pub use publish_execution_plane_certification_packets_for_local_remote::{
+    current_stable_execution_plane_truth_packet, ConfidenceClass as ExecutionPlaneConfidenceClass,
+    ConsumerSurface as ExecutionPlaneConsumerSurface,
+    DegradedHelperStateClass as ExecutionPlaneDegradedHelperStateClass,
+    DowngradeAutomationClass as ExecutionPlaneDowngradeAutomationClass,
+    EvidenceClass as ExecutionPlaneEvidenceClass,
+    ExecutionPlaneCertificationRow, ExecutionPlaneConsumerProjection,
+    ExecutionPlaneLaneClass, ExecutionPlaneRowClass,
+    ExecutionPlaneTruthArtifactError, ExecutionPlaneTruthPacket, ExecutionPlaneTruthPacketInput,
+    ExecutionPlaneTruthSupportExport,
+    FindingKind as ExecutionPlaneFindingKind,
+    FindingSeverity as ExecutionPlaneFindingSeverity,
+    KnownLimitClass as ExecutionPlaneKnownLimitClass,
+    PromotionState as ExecutionPlanePromotionState,
+    ReconnectStateClass as ExecutionPlaneReconnectStateClass,
+    RouteStateClass as ExecutionPlaneRouteStateClass,
+    SupportClass as ExecutionPlaneSupportClass,
+    SurfaceBindingClass as ExecutionPlaneSurfaceBindingClass,
+    ValidationFinding as ExecutionPlaneValidationFinding,
+    ArtifactProvenanceStateClass as ExecutionPlaneArtifactProvenanceStateClass,
+    EXECUTION_PLANE_TRUTH_ARTIFACT_DOC_REF, EXECUTION_PLANE_TRUTH_DOC_REF,
+    EXECUTION_PLANE_TRUTH_FIXTURE_DIR, EXECUTION_PLANE_TRUTH_PACKET_ARTIFACT_REF,
+    EXECUTION_PLANE_TRUTH_PACKET_RECORD_KIND, EXECUTION_PLANE_TRUTH_SCHEMA_REF,
+    EXECUTION_PLANE_TRUTH_SCHEMA_VERSION, EXECUTION_PLANE_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use quality::{
     BaselineCompatibilityStateClass, BaselineRecord, BaselineRecordRequest,
