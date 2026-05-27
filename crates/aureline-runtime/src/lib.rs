@@ -41,6 +41,7 @@ pub mod drift_repair;
 pub mod env_inspect;
 pub mod execution_context;
 pub mod finalize_environment_and_toolchain_manager_parity_across_ui;
+pub mod harden_breakpoint_call_stack_variables_watch_evaluate_and;
 pub mod harden_environment_capsule_resolution;
 pub mod host_boundary;
 pub mod language_hosts;
@@ -230,6 +231,26 @@ pub use finalize_environment_and_toolchain_manager_parity_across_ui::{
     INSPECTOR_PARITY_TRUTH_FIXTURE_DIR, INSPECTOR_PARITY_TRUTH_PACKET_ARTIFACT_REF,
     INSPECTOR_PARITY_TRUTH_PACKET_RECORD_KIND, INSPECTOR_PARITY_TRUTH_SCHEMA_REF,
     INSPECTOR_PARITY_TRUTH_SCHEMA_VERSION, INSPECTOR_PARITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use harden_breakpoint_call_stack_variables_watch_evaluate_and::{
+    current_stable_debug_fidelity_truth_packet,
+    ConsumerSurface as DebugFidelityConsumerSurface, DebugFidelityConfidenceClass,
+    DebugFidelityConsumerProjection, DebugFidelityLaneClass, DebugFidelityRow,
+    DebugFidelityRowClass, DebugFidelityTruthArtifactError, DebugFidelityTruthPacket,
+    DebugFidelityTruthPacketInput, DebugFidelityTruthSupportExport,
+    DowngradeAutomationClass as DebugFidelityDowngradeAutomationClass,
+    EvidenceClass as DebugFidelityEvidenceClass, FindingKind as DebugFidelityFindingKind,
+    FindingSeverity as DebugFidelityFindingSeverity, InspectorStateClass as DebugFidelityInspectorStateClass,
+    InspectorSurfaceClass as DebugFidelityInspectorSurfaceClass,
+    KnownLimitClass as DebugFidelityKnownLimitClass,
+    MappingFidelityBadgeClass as DebugFidelityMappingFidelityBadgeClass,
+    PromotionState as DebugFidelityPromotionState, SupportClass as DebugFidelitySupportClass,
+    ValidationFinding as DebugFidelityValidationFinding,
+    WedgeClass as DebugFidelityWedgeClass, DEBUG_FIDELITY_TRUTH_ARTIFACT_DOC_REF,
+    DEBUG_FIDELITY_TRUTH_DOC_REF, DEBUG_FIDELITY_TRUTH_FIXTURE_DIR,
+    DEBUG_FIDELITY_TRUTH_PACKET_ARTIFACT_REF, DEBUG_FIDELITY_TRUTH_PACKET_RECORD_KIND,
+    DEBUG_FIDELITY_TRUTH_SCHEMA_REF, DEBUG_FIDELITY_TRUTH_SCHEMA_VERSION,
+    DEBUG_FIDELITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use harden_environment_capsule_resolution::{
     current_stable_capsule_resolution_truth_packet, CapsuleFieldClass,
