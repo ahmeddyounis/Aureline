@@ -82,7 +82,27 @@ pub mod testing_triage;
 pub mod tests;
 pub mod topology_inspector;
 pub mod trace_replay_alpha;
+pub mod harden_the_stable_profiler_and_tracing_hooks_needed;
 
+pub use harden_the_stable_profiler_and_tracing_hooks_needed::{
+    current_stable_profiler_truth_packet, ConfidenceClass as ProfilerConfidenceClass,
+    ConsumerProjectionSurface as ProfilerConsumerProjectionSurface,
+    DowngradeAutomationClass as ProfilerDowngradeAutomationClass,
+    EvidenceClass as ProfilerEvidenceClass, FindingKind as ProfilerFindingKind,
+    FindingSeverity as ProfilerFindingSeverity, KnownLimitClass as ProfilerKnownLimitClass,
+    ProfilerConsumerProjection, ProfilerLaneClass, ProfilerRow, ProfilerRowClass,
+    ProfilerSurfaceClass, ProfilerTruthArtifactError, ProfilerTruthPacket,
+    ProfilerTruthPacketInput, ProfilerTruthSupportExport, PromotionState as ProfilerPromotionState,
+    SupportClass as ProfilerSupportClass, ValidationFinding as ProfilerValidationFinding,
+    WedgeClass as ProfilerWedgeClass, CaptureStateClass as ProfilerCaptureStateClass,
+    OriginClass as ProfilerOriginClass, BuildModeClass as ProfilerBuildModeClass,
+    RunClassClass as ProfilerRunClassClass, ConfounderClass as ProfilerConfounderClass,
+    ReplayStateClass as ProfilerReplayStateClass,
+    PROFILER_TRUTH_ARTIFACT_DOC_REF, PROFILER_TRUTH_DOC_REF, PROFILER_TRUTH_FIXTURE_DIR,
+    PROFILER_TRUTH_PACKET_ARTIFACT_REF, PROFILER_TRUTH_PACKET_RECORD_KIND,
+    PROFILER_TRUTH_SCHEMA_REF, PROFILER_TRUTH_SCHEMA_VERSION,
+    PROFILER_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use build_intelligence::{
     AdapterHealthReason, AdapterHealthState, AdapterHealthStrip, AdapterIdentity,
     ArtifactSourceClass, BuildIntelligenceAction, BuildIntelligenceActionClass,
