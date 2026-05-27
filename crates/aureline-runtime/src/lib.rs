@@ -40,6 +40,7 @@ pub mod discovery;
 pub mod drift_repair;
 pub mod env_inspect;
 pub mod execution_context;
+pub mod finalize_environment_and_toolchain_manager_parity_across_ui;
 pub mod host_boundary;
 pub mod language_hosts;
 pub mod launch_profiles;
@@ -212,6 +213,21 @@ pub use execution_context::{
     ResolverInputField, ResolverInputSource, ScopeClass, SurfaceClass, TargetClass,
     TargetConfidence, TargetConfidenceReason, TargetIdentity, ToolchainClass, ToolchainIdentity,
     TrustState, EXECUTION_CONTEXT_RECORD_KIND, EXECUTION_CONTEXT_SCHEMA_VERSION,
+};
+pub use finalize_environment_and_toolchain_manager_parity_across_ui::{
+    current_stable_inspector_parity_truth_packet, InspectorFieldClass,
+    InspectorParityConfidenceClass, InspectorParityConsumerProjection,
+    InspectorParityConsumerSurface, InspectorParityDowngradeAutomationClass,
+    InspectorParityEvidenceClass, InspectorParityFindingKind, InspectorParityFindingSeverity,
+    InspectorParityKnownLimitClass, InspectorParityLaneClass, InspectorParityPromotionState,
+    InspectorParityRow, InspectorParityRowClass, InspectorParitySupportClass,
+    InspectorParityTruthArtifactError, InspectorParityTruthPacket,
+    InspectorParityTruthPacketInput, InspectorParityTruthSupportExport,
+    InspectorParityValidationFinding, ParitySurfaceClass, RecoveryStateClass,
+    INSPECTOR_PARITY_TRUTH_ARTIFACT_DOC_REF, INSPECTOR_PARITY_TRUTH_DOC_REF,
+    INSPECTOR_PARITY_TRUTH_FIXTURE_DIR, INSPECTOR_PARITY_TRUTH_PACKET_ARTIFACT_REF,
+    INSPECTOR_PARITY_TRUTH_PACKET_RECORD_KIND, INSPECTOR_PARITY_TRUTH_SCHEMA_REF,
+    INSPECTOR_PARITY_TRUTH_SCHEMA_VERSION, INSPECTOR_PARITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use host_boundary::{
     evaluate_host_boundary_reapproval, ActionExposureClass, ActionOriginClass, ActionRouteClass,
