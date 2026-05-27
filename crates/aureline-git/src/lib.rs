@@ -15,6 +15,7 @@ pub mod conflicts;
 pub mod history_rewrite;
 pub mod mutations;
 pub mod publish;
+pub mod stabilize_the_daily_git_loop_status_diff_stage;
 pub mod status;
 
 pub use branches::{
@@ -97,6 +98,21 @@ pub use publish::{
     GIT_PUBLISH_FAILURE_RECOVERY_RECORD_KIND, GIT_PUBLISH_JOURNAL_RECORD_KIND,
     GIT_PUBLISH_PREVIEW_RECORD_KIND, GIT_PUBLISH_RESULT_RECORD_KIND,
     GIT_PUBLISH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stabilize_the_daily_git_loop_status_diff_stage::{
+    BlameLineRecord, DailyLoopActivityRecord, DailyLoopBackendError, DailyLoopBackendErrorClass,
+    DailyLoopCommandOutput, DailyLoopCommitPreview, DailyLoopDiffFile, DailyLoopDiffHunk,
+    DailyLoopDiffLine, DailyLoopDiffLineKind, DailyLoopFileChangeKind, DailyLoopJournalRecord,
+    DailyLoopOperationKind, DailyLoopOutcomeState, DailyLoopPathChangeKind, DailyLoopPathStatus,
+    DailyLoopPreview, DailyLoopPreviewState, DailyLoopRequest, DailyLoopResult,
+    DailyLoopService, DailyLoopSnapshot, DailyLoopSnapshotState, DailyLoopSupportExportRecord,
+    DailyLoopTarget, HistoryCommitRecord, RepoTarget, StashShelfEntry, SystemDailyLoopBackend,
+    WorktreeTarget, BLAME_LINE_RECORD_KIND, CONTENT_AVAILABILITY_CLASSES,
+    DAILY_LOOP_ACTIVITY_RECORD_KIND, DAILY_LOOP_JOURNAL_RECORD_KIND,
+    DAILY_LOOP_OPERATION_KINDS, DAILY_LOOP_OUTCOME_STATES, DAILY_LOOP_PREVIEW_RECORD_KIND,
+    DAILY_LOOP_PREVIEW_STATES, DAILY_LOOP_RESULT_RECORD_KIND, DAILY_LOOP_SNAPSHOT_RECORD_KIND,
+    DAILY_LOOP_SUPPORT_EXPORT_RECORD_KIND, HISTORY_COMMIT_RECORD_KIND,
+    STASH_COMMAND_CLASSES, STASH_SHELF_ENTRY_LIFECYCLE_STATES, STASH_SHELF_ENTRY_RECORD_KIND,
 };
 pub use status::{
     BranchState, ChangeDiscovery, ChangeKind, ChangeSummary, ConsumerProjectionBundle,
