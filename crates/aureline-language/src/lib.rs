@@ -11,6 +11,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-language/0.0.0")]
 
+pub mod adapter_stability_truth_packet;
 pub mod assistant_surface_hardening_truth_packet;
 pub mod c_and_cpp_daily_driver_quality_truth_packet;
 pub mod code_actions;
@@ -39,6 +40,31 @@ pub mod tree_sitter;
 pub mod tsjs;
 pub mod vue_advanced_workflow_pack_truth_packet;
 
+pub use adapter_stability_truth_packet::{
+    current_stable_adapter_stability_truth_packet,
+    AdapterCapabilityClass as AdapterStabilityCapabilityClass,
+    AdapterLaneClass, AdapterOutcomeClass as AdapterStabilityOutcomeClass,
+    AdapterStabilityConfidenceClass, AdapterStabilityConsumerProjection,
+    AdapterStabilityRow, AdapterStabilityRowClass, AdapterStabilityTruthArtifactError,
+    AdapterStabilityTruthPacket, AdapterStabilityTruthPacketInput,
+    AdapterStabilityTruthSupportExport,
+    ConsumerSurface as AdapterStabilityConsumerSurface,
+    DegradedProviderClass as AdapterStabilityDegradedProviderClass,
+    DowngradeAutomationClass as AdapterStabilityDowngradeAutomationClass,
+    EvidenceClass as AdapterStabilityEvidenceClass,
+    FindingKind as AdapterStabilityFindingKind,
+    FindingSeverity as AdapterStabilityFindingSeverity,
+    KnownLimitClass as AdapterStabilityKnownLimitClass,
+    LaunchWedgeClass as AdapterStabilityLaunchWedgeClass,
+    PromotionState as AdapterStabilityPromotionState,
+    SupportClass as AdapterStabilitySupportClass,
+    ValidationFinding as AdapterStabilityValidationFinding,
+    ADAPTER_STABILITY_TRUTH_ARTIFACT_DOC_REF, ADAPTER_STABILITY_TRUTH_DOC_REF,
+    ADAPTER_STABILITY_TRUTH_FIXTURE_DIR, ADAPTER_STABILITY_TRUTH_PACKET_ARTIFACT_REF,
+    ADAPTER_STABILITY_TRUTH_PACKET_RECORD_KIND, ADAPTER_STABILITY_TRUTH_SCHEMA_REF,
+    ADAPTER_STABILITY_TRUTH_SCHEMA_VERSION,
+    ADAPTER_STABILITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use assistant_surface_hardening_truth_packet::{
     current_stable_assistant_surface_hardening_truth_packet,
     AssistantSurfaceConfidenceClass, AssistantSurfaceHardeningConsumerProjection,
