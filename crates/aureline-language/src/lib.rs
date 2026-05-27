@@ -18,6 +18,7 @@ pub mod code_actions;
 pub mod daily_driver_quality_truth_packet;
 pub mod diagnostics;
 pub mod django_advanced_workflow_pack_truth_packet;
+pub mod framework_migration_import_truth_packet;
 pub mod go_daily_driver_quality_truth_packet;
 pub mod invalidation;
 pub mod java_and_kotlin_daily_driver_quality_truth_packet;
@@ -199,6 +200,34 @@ pub use django_advanced_workflow_pack_truth_packet::{
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_REF,
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SCHEMA_VERSION,
     DJANGO_ADVANCED_WORKFLOW_PACK_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use framework_migration_import_truth_packet::{
+    current_stable_framework_migration_import_truth_packet,
+    ConsumerSurface as FrameworkMigrationImportConsumerSurface,
+    DiagnosticPreservationClass as FrameworkMigrationDiagnosticPreservationClass,
+    DowngradeAutomationClass as FrameworkMigrationDowngradeAutomationClass,
+    EvidenceClass as FrameworkMigrationEvidenceClass,
+    FindingKind as FrameworkMigrationImportFindingKind,
+    FindingSeverity as FrameworkMigrationImportFindingSeverity,
+    FrameworkMigrationConfidenceClass,
+    FrameworkMigrationImportConsumerProjection, FrameworkMigrationImportRow,
+    FrameworkMigrationImportTruthArtifactError, FrameworkMigrationImportTruthPacket,
+    FrameworkMigrationImportTruthPacketInput, FrameworkMigrationImportTruthSupportExport,
+    FrameworkMigrationRowClass, KnownLimitClass as FrameworkMigrationKnownLimitClass,
+    LaunchBundleClass as FrameworkMigrationLaunchBundleClass, MigrationLaneClass,
+    OutcomeLabelClass as FrameworkMigrationOutcomeLabelClass,
+    PromotionState as FrameworkMigrationImportPromotionState,
+    RollbackCheckpointClass as FrameworkMigrationRollbackCheckpointClass,
+    SupportClass as FrameworkMigrationImportSupportClass,
+    ValidationFinding as FrameworkMigrationImportValidationFinding,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_ARTIFACT_DOC_REF,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_DOC_REF,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_FIXTURE_DIR,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_PACKET_ARTIFACT_REF,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_PACKET_RECORD_KIND,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_SCHEMA_REF,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_SCHEMA_VERSION,
+    FRAMEWORK_MIGRATION_IMPORT_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use go_daily_driver_quality_truth_packet::{
     current_stable_go_daily_driver_quality_truth_packet,
