@@ -23,6 +23,7 @@ pub mod landing;
 pub mod review_pack_dsl;
 pub mod review_pack_parity_harness;
 pub mod stabilize_review_workspace_anchors_stale_base_labels_approval;
+pub mod stabilize_provider_linked_object_models_snapshot_freshness_and;
 pub mod stabilize_worktree_patch_stack_and_explicit_change_object;
 pub mod workspace;
 
@@ -202,6 +203,25 @@ pub use stabilize_review_workspace_anchors_stale_base_labels_approval::{
     REVIEW_STABILIZATION_PACKET_RECORD_KIND, REVIEW_STABILIZATION_RECORD_KIND,
     REVIEW_STABILIZATION_SCHEMA_VERSION, REVIEW_STABILIZATION_SUPPORT_EXPORT_PACKET_RECORD_KIND,
     STALE_BASE_LABEL_CLASSES, STALE_BASE_LABEL_RECORD_KIND, STABILIZATION_STATES,
+};
+pub use stabilize_provider_linked_object_models_snapshot_freshness_and::{
+    project_provider_linked_review_stabilization_packet, ActorTargetIdentityInput,
+    ActorTargetIdentityRecord, DeferredIntentInput, DeferredIntentRecord,
+    FreshnessSnapshotInput, FreshnessSnapshotRecord, ProviderLinkedCommandInput,
+    ProviderLinkedCommandRecord, ProviderLinkedInspectionRecord,
+    ProviderLinkedObjectRowInput, ProviderLinkedObjectRowRecord,
+    ProviderLinkedReviewStabilizationError, ProviderLinkedReviewStabilizationInput,
+    ProviderLinkedReviewStabilizationPacket, ProviderLinkedReviewStabilizationProjection,
+    ProviderLinkedReviewStabilizationRecord, ProviderLinkedReviewStabilizationValidationError,
+    ProviderLinkedSupportExportInput, ProviderLinkedSupportExportPacket,
+    ACTOR_TARGET_IDENTITY_RECORD_KIND, DEFERRED_INTENT_RECORD_KIND,
+    FRESHNESS_DEGRADATION_CLASSES, FRESHNESS_SNAPSHOT_RECORD_KIND,
+    MUTATION_MODE_CLASSES, PROVIDER_LINKED_COMMAND_CLASSES, PROVIDER_LINKED_COMMAND_RECORD_KIND,
+    PROVIDER_LINKED_CONSUMER_SURFACES, PROVIDER_LINKED_INSPECTION_RECORD_KIND,
+    PROVIDER_LINKED_INVALIDATION_REASONS, PROVIDER_LINKED_OBJECT_ROW_RECORD_KIND,
+    PROVIDER_LINKED_REVIEW_STATES, PROVIDER_LINKED_REVIEW_STABILIZATION_PACKET_RECORD_KIND,
+    PROVIDER_LINKED_REVIEW_STABILIZATION_RECORD_KIND, PROVIDER_LINKED_REVIEW_STABILIZATION_SCHEMA_VERSION,
+    PROVIDER_LINKED_SUPPORT_EXPORT_PACKET_RECORD_KIND, REPLAY_SAFETY_CLASSES,
 };
 pub use stabilize_worktree_patch_stack_and_explicit_change_object::{
     project_change_object_orchestration_packet, ChangeObjectCommandInput, ChangeObjectCommandRecord,
