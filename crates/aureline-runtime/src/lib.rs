@@ -62,6 +62,7 @@ pub mod scanner_import;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
 pub mod stabilize_execution_context_resolver;
+pub mod stabilize_task_discovery_launch_profiles_rerun_last_behavior;
 pub mod support_matrix_beta;
 pub mod target_discovery;
 pub mod targets;
@@ -222,10 +223,9 @@ pub use finalize_environment_and_toolchain_manager_parity_across_ui::{
     InspectorParityEvidenceClass, InspectorParityFindingKind, InspectorParityFindingSeverity,
     InspectorParityKnownLimitClass, InspectorParityLaneClass, InspectorParityPromotionState,
     InspectorParityRow, InspectorParityRowClass, InspectorParitySupportClass,
-    InspectorParityTruthArtifactError, InspectorParityTruthPacket,
-    InspectorParityTruthPacketInput, InspectorParityTruthSupportExport,
-    InspectorParityValidationFinding, ParitySurfaceClass, RecoveryStateClass,
-    INSPECTOR_PARITY_TRUTH_ARTIFACT_DOC_REF, INSPECTOR_PARITY_TRUTH_DOC_REF,
+    InspectorParityTruthArtifactError, InspectorParityTruthPacket, InspectorParityTruthPacketInput,
+    InspectorParityTruthSupportExport, InspectorParityValidationFinding, ParitySurfaceClass,
+    RecoveryStateClass, INSPECTOR_PARITY_TRUTH_ARTIFACT_DOC_REF, INSPECTOR_PARITY_TRUTH_DOC_REF,
     INSPECTOR_PARITY_TRUTH_FIXTURE_DIR, INSPECTOR_PARITY_TRUTH_PACKET_ARTIFACT_REF,
     INSPECTOR_PARITY_TRUTH_PACKET_RECORD_KIND, INSPECTOR_PARITY_TRUTH_SCHEMA_REF,
     INSPECTOR_PARITY_TRUTH_SCHEMA_VERSION, INSPECTOR_PARITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
@@ -234,17 +234,17 @@ pub use harden_environment_capsule_resolution::{
     current_stable_capsule_resolution_truth_packet, CapsuleFieldClass,
     CapsuleResolutionConfidenceClass, CapsuleResolutionConsumerProjection,
     CapsuleResolutionConsumerSurface, CapsuleResolutionDowngradeAutomationClass,
-    CapsuleResolutionEvidenceClass, CapsuleResolutionFindingKind,
-    CapsuleResolutionFindingSeverity, CapsuleResolutionKnownLimitClass,
-    CapsuleResolutionLaneClass, CapsuleResolutionPromotionState, CapsuleResolutionRow,
-    CapsuleResolutionRowClass, CapsuleResolutionSupportClass, CapsuleResolutionTruthArtifactError,
-    CapsuleResolutionTruthPacket, CapsuleResolutionTruthPacketInput,
-    CapsuleResolutionTruthSupportExport, CapsuleResolutionValidationFinding,
-    InvalidationReasonClass, PrebuildFingerprintComponentClass, ProjectDoctorFindingClass,
-    CAPSULE_RESOLUTION_TRUTH_ARTIFACT_DOC_REF, CAPSULE_RESOLUTION_TRUTH_DOC_REF,
-    CAPSULE_RESOLUTION_TRUTH_FIXTURE_DIR, CAPSULE_RESOLUTION_TRUTH_PACKET_ARTIFACT_REF,
-    CAPSULE_RESOLUTION_TRUTH_PACKET_RECORD_KIND, CAPSULE_RESOLUTION_TRUTH_SCHEMA_REF,
-    CAPSULE_RESOLUTION_TRUTH_SCHEMA_VERSION, CAPSULE_RESOLUTION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+    CapsuleResolutionEvidenceClass, CapsuleResolutionFindingKind, CapsuleResolutionFindingSeverity,
+    CapsuleResolutionKnownLimitClass, CapsuleResolutionLaneClass, CapsuleResolutionPromotionState,
+    CapsuleResolutionRow, CapsuleResolutionRowClass, CapsuleResolutionSupportClass,
+    CapsuleResolutionTruthArtifactError, CapsuleResolutionTruthPacket,
+    CapsuleResolutionTruthPacketInput, CapsuleResolutionTruthSupportExport,
+    CapsuleResolutionValidationFinding, InvalidationReasonClass, PrebuildFingerprintComponentClass,
+    ProjectDoctorFindingClass, CAPSULE_RESOLUTION_TRUTH_ARTIFACT_DOC_REF,
+    CAPSULE_RESOLUTION_TRUTH_DOC_REF, CAPSULE_RESOLUTION_TRUTH_FIXTURE_DIR,
+    CAPSULE_RESOLUTION_TRUTH_PACKET_ARTIFACT_REF, CAPSULE_RESOLUTION_TRUTH_PACKET_RECORD_KIND,
+    CAPSULE_RESOLUTION_TRUTH_SCHEMA_REF, CAPSULE_RESOLUTION_TRUTH_SCHEMA_VERSION,
+    CAPSULE_RESOLUTION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use host_boundary::{
     evaluate_host_boundary_reapproval, ActionExposureClass, ActionOriginClass, ActionRouteClass,
@@ -479,8 +479,8 @@ pub use stabilize_execution_context_resolver::{
     KnownLimitClass as StabilizeExecutionContextResolverKnownLimitClass,
     PromotionState as StabilizeExecutionContextResolverPromotionState,
     ResolverStateClass as StabilizeExecutionContextResolverStateClass,
-    StabilizeExecutionContextResolverConsumerProjection,
-    StabilizeExecutionContextResolverRow, StabilizeExecutionContextResolverTruthArtifactError,
+    StabilizeExecutionContextResolverConsumerProjection, StabilizeExecutionContextResolverRow,
+    StabilizeExecutionContextResolverTruthArtifactError,
     StabilizeExecutionContextResolverTruthPacket,
     StabilizeExecutionContextResolverTruthPacketInput,
     StabilizeExecutionContextResolverTruthSupportExport,
@@ -495,6 +495,24 @@ pub use stabilize_execution_context_resolver::{
     STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SCHEMA_REF,
     STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SCHEMA_VERSION,
     STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stabilize_task_discovery_launch_profiles_rerun_last_behavior::{
+    current_stable_task_event_truth_packet, ConsumerSurface as TaskEventTruthConsumerSurface,
+    DowngradeAutomationClass as TaskEventTruthDowngradeAutomationClass,
+    DownstreamSurfaceClass as TaskEventTruthDownstreamSurfaceClass,
+    EnvelopeFieldClass as TaskEventTruthEnvelopeFieldClass,
+    EvidenceClass as TaskEventTruthEvidenceClass, FindingKind as TaskEventTruthFindingKind,
+    FindingSeverity as TaskEventTruthFindingSeverity,
+    KnownLimitClass as TaskEventTruthKnownLimitClass,
+    PromotionState as TaskEventTruthPromotionState, SupportClass as TaskEventTruthSupportClass,
+    TaskEventTruthArtifactError, TaskEventTruthConfidenceClass, TaskEventTruthConsumerProjection,
+    TaskEventTruthLaneClass, TaskEventTruthPacket, TaskEventTruthPacketInput, TaskEventTruthRow,
+    TaskEventTruthRowClass, TaskEventTruthSupportExport,
+    ValidationFinding as TaskEventTruthValidationFinding, WedgeClass as TaskEventTruthWedgeClass,
+    TASK_EVENT_TRUTH_ARTIFACT_DOC_REF, TASK_EVENT_TRUTH_DOC_REF, TASK_EVENT_TRUTH_FIXTURE_DIR,
+    TASK_EVENT_TRUTH_PACKET_ARTIFACT_REF, TASK_EVENT_TRUTH_PACKET_RECORD_KIND,
+    TASK_EVENT_TRUTH_SCHEMA_REF, TASK_EVENT_TRUTH_SCHEMA_VERSION,
+    TASK_EVENT_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use support_matrix_beta::{
     SupportMatrixAttachSupport, SupportMatrixBetaManifest, SupportMatrixBetaSupportExport,
