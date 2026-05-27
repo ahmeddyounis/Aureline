@@ -25,6 +25,7 @@ pub mod review_pack_dsl;
 pub mod review_pack_parity_harness;
 pub mod stabilize_review_workspace_anchors_stale_base_labels_approval;
 pub mod stabilize_provider_linked_object_models_snapshot_freshness_and;
+pub mod stabilize_review_side_ai_evidence_attachment_and_safe;
 pub mod stabilize_worktree_patch_stack_and_explicit_change_object;
 pub mod workspace;
 
@@ -242,6 +243,22 @@ pub use stabilize_provider_linked_object_models_snapshot_freshness_and::{
     PROVIDER_LINKED_REVIEW_STATES, PROVIDER_LINKED_REVIEW_STABILIZATION_PACKET_RECORD_KIND,
     PROVIDER_LINKED_REVIEW_STABILIZATION_RECORD_KIND, PROVIDER_LINKED_REVIEW_STABILIZATION_SCHEMA_VERSION,
     PROVIDER_LINKED_SUPPORT_EXPORT_PACKET_RECORD_KIND, REPLAY_SAFETY_CLASSES,
+};
+pub use stabilize_review_side_ai_evidence_attachment_and_safe::{
+    project_ai_review_evidence_packet, AiEvidenceAttachmentInput, AiEvidenceAttachmentRecord,
+    AiEvidenceCommandInput, AiEvidenceCommandRecord, AiEvidenceInspectionRecord,
+    AiEvidenceSupportExportInput, AiEvidenceSupportExportPacket, AiReviewEvidenceError,
+    AiReviewEvidenceInput, AiReviewEvidencePacket, AiReviewEvidenceProjection,
+    AiReviewEvidenceRecord, AiReviewEvidenceValidationError, SafeSuggestionApplyInput,
+    SafeSuggestionApplyRecord, SuggestionApplyCheckpointInput, SuggestionApplyCheckpointRecord,
+    AI_EVIDENCE_ATTACHMENT_RECORD_KIND, AI_EVIDENCE_COMMAND_CLASSES,
+    AI_EVIDENCE_COMMAND_RECORD_KIND, AI_EVIDENCE_CONSUMER_SURFACES,
+    AI_EVIDENCE_INSPECTION_RECORD_KIND, AI_EVIDENCE_INVALIDATION_REASONS,
+    AI_EVIDENCE_SOURCE_CLASSES, AI_EVIDENCE_STATES, AI_EVIDENCE_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    AI_REVIEW_EVIDENCE_PACKET_RECORD_KIND, AI_REVIEW_EVIDENCE_RECORD_KIND,
+    AI_REVIEW_EVIDENCE_SCHEMA_VERSION, CHECKPOINT_STATES, SAFE_SUGGESTION_APPLY_RECORD_KIND,
+    SUGGESTION_APPLY_STATES, SUGGESTION_APPLY_CHECKPOINT_RECORD_KIND,
+    SUGGESTION_AUTHORITY_CLASSES,
 };
 pub use stabilize_worktree_patch_stack_and_explicit_change_object::{
     project_change_object_orchestration_packet, ChangeObjectCommandInput, ChangeObjectCommandRecord,

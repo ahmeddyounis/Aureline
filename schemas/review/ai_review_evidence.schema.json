@@ -1,0 +1,710 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/ai_review_evidence.schema.json",
+  "title": "Aureline AI review evidence packet",
+  "description": "Boundary schema for the AI review evidence packet emitted by crates/aureline-review. One packet binds a review_workspace_record summary, an ai_review_evidence_record, ai_evidence_attachment_records, safe_suggestion_apply_records, suggestion_apply_checkpoint_records, command-graph operation records, and a metadata-safe support/export packet. Raw URLs and raw provider payloads do not cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/ai_review_evidence_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "browser_companion"
+      ]
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": [
+        "attached_current",
+        "attached_stale",
+        "detached_invalidated",
+        "pending_verification"
+      ]
+    },
+    "evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "ai_model_local",
+        "ai_model_provider",
+        "ai_model_hybrid",
+        "human_curated_ai"
+      ]
+    },
+    "suggestion_apply_state": {
+      "type": "string",
+      "enum": [
+        "preview_ready",
+        "applied_with_checkpoint",
+        "reverted",
+        "blocked_pending_review",
+        "blocked_scope_exceeded"
+      ]
+    },
+    "suggestion_authority_class": {
+      "type": "string",
+      "enum": [
+        "advisory_only",
+        "previewable_local_apply",
+        "checkpointed_reversible",
+        "blocked_requires_human_approval"
+      ]
+    },
+    "checkpoint_state": {
+      "type": "string",
+      "enum": [
+        "checkpoint_created",
+        "checkpoint_applied",
+        "checkpoint_reverted",
+        "checkpoint_failed"
+      ]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "preview_suggestion",
+        "apply_suggestion",
+        "revert_suggestion",
+        "detach_evidence",
+        "refresh_evidence",
+        "export_evidence"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "evidence_stale",
+        "source_model_changed",
+        "actor_scope_changed",
+        "target_row_changed",
+        "suggestion_conflicts_with_local",
+        "authority_exceeded",
+        "human_review_required"
+      ]
+    },
+    "ai_review_evidence_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "review_workspace",
+        "evidence",
+        "evidence_attachments",
+        "suggestion_applies",
+        "checkpoints",
+        "commands",
+        "support_export",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "ai_review_evidence_packet"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "review_workspace": {
+          "$ref": "#/$defs/review_workspace_record"
+        },
+        "evidence": {
+          "$ref": "#/$defs/ai_review_evidence_record"
+        },
+        "evidence_attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ai_evidence_attachment_record"
+          }
+        },
+        "suggestion_applies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/safe_suggestion_apply_record"
+          }
+        },
+        "checkpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/suggestion_apply_checkpoint_record"
+          }
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ai_evidence_command_record"
+          }
+        },
+        "support_export": {
+          "$ref": "#/$defs/ai_evidence_support_export_packet"
+        },
+        "inspection": {
+          "$ref": "#/$defs/ai_evidence_inspection_record"
+        }
+      }
+    },
+    "review_workspace_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "review_workspace_schema_version",
+        "review_workspace_id"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "review_workspace_record"
+        },
+        "review_workspace_schema_version": {
+          "type": "integer"
+        },
+        "review_workspace_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_workspace_source_class": {
+          "type": "string"
+        },
+        "provider_authority_class": {
+          "type": "string"
+        },
+        "review_workspace_lifecycle_state": {
+          "type": "string"
+        },
+        "freshness_class": {
+          "type": "string"
+        }
+      }
+    },
+    "ai_review_evidence_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evidence_id",
+        "review_workspace_id_ref",
+        "evidence_state",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "ai_review_evidence_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "evidence_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "evidence_state": {
+          "$ref": "#/$defs/evidence_state"
+        },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/invalidation_reason"
+          }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actionable": {
+          "type": "boolean"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "ai_evidence_attachment_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evidence_id_ref",
+        "attachment_id",
+        "review_row_ref",
+        "evidence_source_class",
+        "model_run_ref",
+        "actor_ref",
+        "generated_at",
+        "freshness_class",
+        "human_verified",
+        "replayable_offline",
+        "return_path_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "ai_evidence_attachment_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "evidence_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "attachment_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_row_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "evidence_source_class": {
+          "$ref": "#/$defs/evidence_source_class"
+        },
+        "model_run_ref": {
+          "type": "string"
+        },
+        "actor_ref": {
+          "type": "string"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "freshness_class": {
+          "type": "string"
+        },
+        "human_verified": {
+          "type": "boolean"
+        },
+        "replayable_offline": {
+          "type": "boolean"
+        },
+        "return_path_ref": {
+          "type": "string"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "safe_suggestion_apply_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evidence_id_ref",
+        "suggestion_apply_id",
+        "review_row_ref",
+        "source_evidence_ref",
+        "apply_state",
+        "suggestion_authority_class",
+        "preview_supported",
+        "checkpoint_before_apply",
+        "reversible_after_apply",
+        "would_broaden_authority",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "safe_suggestion_apply_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "evidence_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "suggestion_apply_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_row_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "source_evidence_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "apply_state": {
+          "$ref": "#/$defs/suggestion_apply_state"
+        },
+        "suggestion_authority_class": {
+          "$ref": "#/$defs/suggestion_authority_class"
+        },
+        "preview_supported": {
+          "type": "boolean"
+        },
+        "checkpoint_before_apply": {
+          "type": "boolean"
+        },
+        "reversible_after_apply": {
+          "type": "boolean"
+        },
+        "would_broaden_authority": {
+          "type": "boolean"
+        },
+        "checkpoint_ref": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "suggestion_apply_checkpoint_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evidence_id_ref",
+        "checkpoint_id",
+        "suggestion_apply_ref",
+        "checkpoint_state",
+        "base_revision_ref",
+        "head_revision_ref",
+        "worktree_state_hash",
+        "created_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "suggestion_apply_checkpoint_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "evidence_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "checkpoint_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "suggestion_apply_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "checkpoint_state": {
+          "$ref": "#/$defs/checkpoint_state"
+        },
+        "base_revision_ref": {
+          "type": "string"
+        },
+        "head_revision_ref": {
+          "type": "string"
+        },
+        "worktree_state_hash": {
+          "type": "string"
+        },
+        "created_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "ai_evidence_command_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "evidence_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "ai_evidence_command_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "command_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "evidence_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "command_class": {
+          "$ref": "#/$defs/command_class"
+        },
+        "target_object_ref": {
+          "type": "string"
+        },
+        "target_object_kind": {
+          "type": "string"
+        },
+        "preview_supported": {
+          "type": "boolean"
+        },
+        "emits_audit_event": {
+          "type": "boolean"
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actionable": {
+          "type": "boolean"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "ai_evidence_support_export_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "evidence_id_ref",
+        "review_workspace_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "ai_evidence_support_export_packet"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "support_export_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "evidence_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "reopen_context_ref": {
+          "type": "string"
+        },
+        "reopen_command_id_ref": {
+          "type": "string"
+        },
+        "command_id_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/consumer_surface"
+          }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "raw_url_export_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "raw_provider_payload_export_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    },
+    "ai_evidence_inspection_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "evidence_id_ref",
+        "review_workspace_id_ref",
+        "evidence_state_attached_current",
+        "evidence_state_attached_stale",
+        "evidence_state_detached_invalidated",
+        "evidence_state_pending_verification",
+        "ai_model_source_present",
+        "human_curated_source_present",
+        "suggestion_preview_ready",
+        "suggestion_applied_with_checkpoint",
+        "suggestion_reverted",
+        "suggestion_blocked_pending_review",
+        "suggestion_blocked_scope_exceeded",
+        "suggestion_would_broaden_authority",
+        "all_applied_have_checkpoints",
+        "all_checkpoints_recoverable",
+        "actionable",
+        "invalidated",
+        "evidence_attachment_count",
+        "suggestion_apply_count",
+        "checkpoint_count",
+        "command_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "ai_evidence_inspection_record"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "evidence_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "evidence_state_attached_current": {
+          "type": "boolean"
+        },
+        "evidence_state_attached_stale": {
+          "type": "boolean"
+        },
+        "evidence_state_detached_invalidated": {
+          "type": "boolean"
+        },
+        "evidence_state_pending_verification": {
+          "type": "boolean"
+        },
+        "ai_model_source_present": {
+          "type": "boolean"
+        },
+        "human_curated_source_present": {
+          "type": "boolean"
+        },
+        "suggestion_preview_ready": {
+          "type": "boolean"
+        },
+        "suggestion_applied_with_checkpoint": {
+          "type": "boolean"
+        },
+        "suggestion_reverted": {
+          "type": "boolean"
+        },
+        "suggestion_blocked_pending_review": {
+          "type": "boolean"
+        },
+        "suggestion_blocked_scope_exceeded": {
+          "type": "boolean"
+        },
+        "suggestion_would_broaden_authority": {
+          "type": "boolean"
+        },
+        "all_applied_have_checkpoints": {
+          "type": "boolean"
+        },
+        "all_checkpoints_recoverable": {
+          "type": "boolean"
+        },
+        "actionable": {
+          "type": "boolean"
+        },
+        "invalidated": {
+          "type": "boolean"
+        },
+        "evidence_attachment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suggestion_apply_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checkpoint_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "command_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "preview_capable": {
+          "type": "boolean"
+        },
+        "support_export_reopenable": {
+          "type": "boolean"
+        },
+        "summary_label": {
+          "$ref": "#/$defs/reviewable_label"
+        }
+      }
+    }
+  }
+}
