@@ -1,0 +1,15 @@
+# stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export fixture corpus
+
+Fixture corpus for the M4 stable integrated-terminal stabilization truth packet (`schemas/runtime/stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export_truth.schema.json`).
+
+Each fixture is a `TerminalStabilizationTruthPacketInput` with an `expect` block that pins the materialized packet's promotion state, finding count, lane and row-class token sets, support-class, wedge, host-boundary-field, clipboard-posture, transcript-export-field, known-limit, downgrade-automation, and evidence-class tokens, and the support-export safety verdict. Tests in `crates/aureline-terminal/tests/stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export_truth_packet.rs` load each case and assert that `TerminalStabilizationTruthPacket::materialize` agrees.
+
+Cases:
+
+- `baseline_stable.json` — All four terminal-session lanes (local, remote_helper, container, restored) carry one `terminal_stabilization_quality` row at `launch_stable` plus the full four-wedge admission coverage (host_boundary_chip, clipboard_posture, transcript_export, restore_no_rerun), the full five host-boundary field bindings (host_or_session_identity, route_cue, trust_state, restore_state, target_or_cwd_hint), the full five clipboard-posture surface bindings (clipboard_route_local_vs_remote, bracketed_paste_state, multiline_paste_guardrail, admin_suppression, high_risk_paste_review), the full three transcript-export field bindings (transcript_versus_live_session, host_session_boundary_cue, redaction_state), a restore_no_rerun_attestation row attesting `attests_no_silent_rerun: true`, and a lineage_admission row binding `execution_context_id`. All nine required consumer projections preserve the packet verbatim.
+- `launch_stable_with_unbound_evidence_blocks_stable.json` — The local lane's quality row claims `launch_stable` while its evidence is `evidence_unbound`; the packet blocks the stable claim.
+- `missing_clipboard_posture_for_launch_stable_blocks_stable.json` — The local lane claims `launch_stable` but the `high_risk_paste_review` clipboard-posture binding is missing; the packet blocks the stable claim.
+- `restore_admits_silent_rerun_blocks_stable.json` — The restored lane's restore_no_rerun_attestation row stops attesting `attests_no_silent_rerun: true`; the packet blocks the stable claim because restored sessions must be transcript-only and never silently rerun.
+- `narrowed_row_missing_disclosure_ref_blocks_stable.json` — The local lane's quality row narrows to `launch_stable_below` but drops its disclosure ref; the packet blocks the stable claim.
+- `projection_collapses_clipboard_posture_vocabulary_blocks_stable.json` — The `help_about` consumer projection drops the clipboard-posture vocabulary; the packet blocks the stable claim.
+- `raw_source_material_blocks_stable.json` — The local lane's quality row admits raw command lines, env bytes, or scrollback bodies past the boundary; the packet blocks the stable claim because raw runtime material must never leak through the terminal-stabilization boundary.

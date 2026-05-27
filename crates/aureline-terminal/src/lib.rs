@@ -29,6 +29,10 @@ pub mod restore;
 /// Bounded, redaction-aware scrollback ring used by transcript restore and
 /// support / export bundles.
 pub mod scrollback;
+/// Stable M4 terminal-stabilization truth packet binding host-boundary
+/// chips, clipboard posture, transcript export, and restore-no-rerun
+/// semantics into one boundary truth.
+pub mod stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export;
 
 pub use headers::{
     TerminalHeaderChip, TerminalHeaderChipKind, TerminalHeaderChipState, TerminalHeaderRecord,
@@ -80,4 +84,29 @@ pub use scrollback::{
     ScrollbackBound, ScrollbackLineRecord, ScrollbackRedactionClass, TerminalScrollback,
     TerminalScrollbackSnapshot, DEFAULT_SCROLLBACK_LINE_BOUND, SCROLLBACK_LINE_RECORD_KIND,
     SCROLLBACK_SCHEMA_VERSION, SCROLLBACK_SNAPSHOT_RECORD_KIND,
+};
+pub use stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export::{
+    current_stable_terminal_stabilization_truth_packet,
+    ClipboardPostureClass as TerminalStabilizationClipboardPostureClass,
+    ConsumerSurface as TerminalStabilizationConsumerSurface,
+    DowngradeAutomationClass as TerminalStabilizationDowngradeAutomationClass,
+    EvidenceClass as TerminalStabilizationEvidenceClass,
+    FindingKind as TerminalStabilizationFindingKind,
+    FindingSeverity as TerminalStabilizationFindingSeverity,
+    HostBoundaryFieldClass as TerminalStabilizationHostBoundaryFieldClass,
+    KnownLimitClass as TerminalStabilizationKnownLimitClass,
+    PromotionState as TerminalStabilizationPromotionState,
+    SupportClass as TerminalStabilizationSupportClass, TerminalStabilizationConfidenceClass,
+    TerminalStabilizationConsumerProjection, TerminalStabilizationLaneClass,
+    TerminalStabilizationRow, TerminalStabilizationRowClass,
+    TerminalStabilizationTruthArtifactError, TerminalStabilizationTruthPacket,
+    TerminalStabilizationTruthPacketInput, TerminalStabilizationTruthSupportExport,
+    TranscriptExportFieldClass as TerminalStabilizationTranscriptExportFieldClass,
+    ValidationFinding as TerminalStabilizationValidationFinding,
+    WedgeClass as TerminalStabilizationWedgeClass,
+    TERMINAL_STABILIZATION_TRUTH_ARTIFACT_DOC_REF, TERMINAL_STABILIZATION_TRUTH_DOC_REF,
+    TERMINAL_STABILIZATION_TRUTH_FIXTURE_DIR, TERMINAL_STABILIZATION_TRUTH_PACKET_ARTIFACT_REF,
+    TERMINAL_STABILIZATION_TRUTH_PACKET_RECORD_KIND, TERMINAL_STABILIZATION_TRUTH_SCHEMA_REF,
+    TERMINAL_STABILIZATION_TRUTH_SCHEMA_VERSION,
+    TERMINAL_STABILIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
