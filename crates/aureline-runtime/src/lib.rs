@@ -61,6 +61,7 @@ pub mod run_lineage;
 pub mod scanner_import;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
+pub mod stabilize_debugger_host_and_adapter_negotiation;
 pub mod stabilize_execution_context_resolver;
 pub mod stabilize_task_discovery_launch_profiles_rerun_last_behavior;
 pub mod support_matrix_beta;
@@ -465,6 +466,32 @@ pub use shared_terminal_alpha::{
     SHARED_TERMINAL_ALPHA_PRESENTER_HANDOFF_RECORD_KIND, SHARED_TERMINAL_ALPHA_SCHEMA_VERSION,
     SHARED_TERMINAL_ALPHA_SHARED_CONTRACT_REF, SHARED_TERMINAL_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
     SHARED_TERMINAL_ALPHA_VALIDATION_REPORT_RECORD_KIND,
+};
+pub use stabilize_debugger_host_and_adapter_negotiation::{
+    current_stable_debugger_stabilization_truth_packet,
+    AdapterDescriptorFieldClass as DebuggerStabilizationAdapterDescriptorFieldClass,
+    AttachLaunchParitySurfaceClass as DebuggerStabilizationAttachLaunchParitySurfaceClass,
+    AttachLaunchPostureClass as DebuggerStabilizationAttachLaunchPostureClass,
+    ConsumerSurface as DebuggerStabilizationConsumerSurface,
+    CrashIsolationAssertionClass as DebuggerStabilizationCrashIsolationAssertionClass,
+    DebuggerStabilizationConfidenceClass, DebuggerStabilizationConsumerProjection,
+    DebuggerStabilizationLaneClass, DebuggerStabilizationRow, DebuggerStabilizationRowClass,
+    DebuggerStabilizationTruthArtifactError, DebuggerStabilizationTruthPacket,
+    DebuggerStabilizationTruthPacketInput, DebuggerStabilizationTruthSupportExport,
+    DowngradeAutomationClass as DebuggerStabilizationDowngradeAutomationClass,
+    EvidenceClass as DebuggerStabilizationEvidenceClass,
+    FindingKind as DebuggerStabilizationFindingKind,
+    FindingSeverity as DebuggerStabilizationFindingSeverity,
+    KnownLimitClass as DebuggerStabilizationKnownLimitClass,
+    PromotionState as DebuggerStabilizationPromotionState,
+    SupportClass as DebuggerStabilizationSupportClass,
+    ValidationFinding as DebuggerStabilizationValidationFinding,
+    WedgeClass as DebuggerStabilizationWedgeClass,
+    DEBUGGER_STABILIZATION_TRUTH_ARTIFACT_DOC_REF, DEBUGGER_STABILIZATION_TRUTH_DOC_REF,
+    DEBUGGER_STABILIZATION_TRUTH_FIXTURE_DIR, DEBUGGER_STABILIZATION_TRUTH_PACKET_ARTIFACT_REF,
+    DEBUGGER_STABILIZATION_TRUTH_PACKET_RECORD_KIND, DEBUGGER_STABILIZATION_TRUTH_SCHEMA_REF,
+    DEBUGGER_STABILIZATION_TRUTH_SCHEMA_VERSION,
+    DEBUGGER_STABILIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use stabilize_execution_context_resolver::{
     current_stable_stabilize_execution_context_resolver_truth_packet,
