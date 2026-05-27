@@ -1,0 +1,682 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/harden_merge_queue_ci_status_and_browser_handoff.schema.json",
+  "title": "Aureline merge-queue/CI-status/browser-handoff audit packet",
+  "description": "Audit schema for the merge-queue/CI-status/browser-handoff packet emitted by crates/aureline-review. One packet binds a review_workspace_record summary, a landing_candidate_record summary, a review_stabilization_record summary, a review_boundary_hardening_record summary, a provider_linked_review_stabilization_record summary, an optional review_pack_parity_harness_record, a merge_queue_audit_record, ci_check_audit_records, pipeline_overlay_audit_records, run_control_audit_records, browser_handoff_audit_records, command-graph operation records, and a metadata-safe support/export packet. Provider overlays are normalized run/check objects with fetched-at freshness, provider/source class, artifact-link trust class, and explicit read-only versus run-control subset labeling. Any rerun, cancel, queue, or similar upstream-mutation affordance uses an auditable inline review or short confirm sheet naming provider scope, actor mode, target run identity, and browser-handoff fallback. Cached provider metadata never implies control authority.",
+  "type": "object",
+  "$ref": "#/$defs/merge_queue_ci_status_browser_handoff_audit_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "review_landing_strip",
+        "merge_queue_inspector",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "browser_companion"
+      ]
+    },
+    "audit_state": {
+      "type": "string",
+      "enum": [
+        "audit_passed",
+        "audit_degraded_merge_queue_divergence",
+        "audit_degraded_ci_check_stale",
+        "audit_degraded_pipeline_overlay_unqualified",
+        "audit_degraded_browser_handoff_untyped",
+        "audit_degraded_hidden_authority",
+        "audit_failed_provider_claim_unsupported"
+      ]
+    },
+    "merge_queue_audit_state": {
+      "type": "string",
+      "enum": [
+        "merge_queue_authoritative",
+        "merge_queue_diverged_from_provider",
+        "merge_queue_stale_local_estimate",
+        "merge_queue_downgraded_to_inspect_only"
+      ]
+    },
+    "ci_check_freshness_class": {
+      "type": "string",
+      "enum": [
+        "check_fresh",
+        "check_stale_within_grace",
+        "check_stale_blocks_mutation",
+        "check_freshness_unknown"
+      ]
+    },
+    "ci_check_divergence_class": {
+      "type": "string",
+      "enum": [
+        "no_divergence",
+        "local_ci_disagree",
+        "local_provider_disagree",
+        "ci_provider_disagree",
+        "ai_review_disagrees",
+        "all_three_disagree"
+      ]
+    },
+    "pipeline_overlay_subset_class": {
+      "type": "string",
+      "enum": [
+        "read_only_inspect",
+        "run_control_subset",
+        "run_control_full",
+        "subset_unqualified_downgraded"
+      ]
+    },
+    "run_control_mutation_mode": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "provider_controlled",
+        "auditable_in_product"
+      ]
+    },
+    "browser_handoff_audit_class": {
+      "type": "string",
+      "enum": [
+        "handoff_audited_reversible",
+        "handoff_audited_no_return_path",
+        "handoff_downgraded_untyped",
+        "handoff_not_required"
+      ]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "preview_audit",
+        "approve_audit",
+        "refresh_provider_overlay",
+        "invalidate_audit",
+        "request_browser_handoff",
+        "rerun_control",
+        "cancel_control",
+        "retry_control",
+        "export_evidence"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "merge_queue_diverged",
+        "ci_check_stale",
+        "pipeline_overlay_unqualified",
+        "browser_handoff_untyped",
+        "hidden_authority_detected",
+        "provider_claim_unsupported",
+        "stale_pack_invalidated",
+        "review_pack_digest_mismatch"
+      ]
+    },
+    "review_workspace_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "review_workspace_schema_version",
+        "review_workspace_id",
+        "review_workspace_source_class",
+        "provider_authority_class",
+        "review_workspace_lifecycle_state",
+        "freshness_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_workspace_record" },
+        "review_workspace_schema_version": { "type": "integer", "const": 1 },
+        "review_workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_source_class": { "$ref": "#/$defs/opaque_id" },
+        "provider_authority_class": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_lifecycle_state": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "landing_candidate_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "landing_candidate_id",
+        "review_workspace_id_ref",
+        "target_branch_ref",
+        "base_revision_ref",
+        "head_revision_ref",
+        "mergeable_state",
+        "stale_base_state",
+        "checks_freshness_state",
+        "approval_state",
+        "policy_block_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_landing_candidate_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "landing_candidate_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_branch_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "mergeable_state": { "type": "string" },
+        "stale_base_state": { "type": "string" },
+        "checks_freshness_state": { "type": "string" },
+        "approval_state": { "type": "string" },
+        "policy_block_state": { "type": "string" }
+      }
+    },
+    "review_stabilization_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id",
+        "review_workspace_id_ref",
+        "stabilization_state",
+        "review_pack_digest_ref",
+        "base_revision_ref",
+        "head_revision_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_stabilization_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "stabilization_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_state": { "type": "string" },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "review_boundary_hardening_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "boundary_hardening_id",
+        "review_workspace_id_ref",
+        "stabilization_id_ref",
+        "boundary_hardening_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_boundary_hardening_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "boundary_hardening_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "boundary_hardening_state": { "type": "string" }
+      }
+    },
+    "provider_linked_review_stabilization_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id",
+        "review_workspace_id_ref",
+        "review_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_linked_review_stabilization_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "stabilization_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_state": { "type": "string" }
+      }
+    },
+    "merge_queue_audit_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_id_ref",
+        "merge_queue_entry_id_ref",
+        "queue_authority_class",
+        "queue_state",
+        "provider_freshness_class",
+        "local_git_truth_preserved",
+        "stale_base_blocks_queue",
+        "checks_stale_blocks_queue",
+        "divergence_from_local_detected",
+        "explicit_downgrade_required",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "merge_queue_audit_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "audit_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "merge_queue_entry_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "queue_authority_class": { "$ref": "#/$defs/merge_queue_audit_state" },
+        "queue_state": { "type": "string" },
+        "provider_freshness_class": { "type": "string" },
+        "local_git_truth_preserved": { "type": "boolean" },
+        "stale_base_blocks_queue": { "type": "boolean" },
+        "checks_stale_blocks_queue": { "type": "boolean" },
+        "divergence_from_local_detected": { "type": "boolean" },
+        "explicit_downgrade_required": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "ci_check_audit_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_id_ref",
+        "check_audit_id",
+        "check_id_ref",
+        "required_check",
+        "check_name",
+        "provider_source_class",
+        "fetched_at",
+        "freshness_class",
+        "local_outcome_class",
+        "ci_outcome_class",
+        "ai_review_outcome_class",
+        "provider_outcome_class",
+        "divergence_label_class",
+        "inspect_only",
+        "run_control_permitted",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "ci_check_audit_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "audit_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "check_audit_id": { "$ref": "#/$defs/opaque_id" },
+        "check_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "required_check": { "type": "boolean" },
+        "check_name": { "type": "string" },
+        "provider_source_class": { "type": "string" },
+        "fetched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "freshness_class": { "$ref": "#/$defs/ci_check_freshness_class" },
+        "local_outcome_class": { "type": "string" },
+        "ci_outcome_class": { "type": "string" },
+        "ai_review_outcome_class": { "type": "string" },
+        "provider_outcome_class": { "type": "string" },
+        "divergence_label_class": { "$ref": "#/$defs/ci_check_divergence_class" },
+        "inspect_only": { "type": "boolean" },
+        "run_control_permitted": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "pipeline_overlay_audit_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_id_ref",
+        "overlay_audit_id",
+        "provider_descriptor_ref",
+        "overlay_kind",
+        "fetched_at",
+        "provider_source_class",
+        "artifact_trust_class",
+        "read_only_subset_label",
+        "run_control_subset_label",
+        "mutation_mode_disclosure",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "pipeline_overlay_audit_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "audit_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_audit_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_descriptor_ref": { "$ref": "#/$defs/opaque_id" },
+        "overlay_kind": { "type": "string" },
+        "fetched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "provider_source_class": { "type": "string" },
+        "artifact_trust_class": { "type": "string" },
+        "read_only_subset_label": { "type": "boolean" },
+        "run_control_subset_label": { "type": "boolean" },
+        "mutation_mode_disclosure": { "type": "string" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "run_control_audit_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_id_ref",
+        "run_control_audit_id",
+        "run_control_id_ref",
+        "control_class",
+        "mutation_mode",
+        "provider_scope_disclosure",
+        "actor_mode_disclosure",
+        "target_run_identity",
+        "browser_handoff_fallback_present",
+        "review_pack_digest_ref",
+        "base_revision_ref",
+        "head_revision_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_control_audit_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "audit_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "run_control_audit_id": { "$ref": "#/$defs/opaque_id" },
+        "run_control_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "control_class": { "type": "string" },
+        "mutation_mode": { "$ref": "#/$defs/run_control_mutation_mode" },
+        "provider_scope_disclosure": { "type": "string" },
+        "actor_mode_disclosure": { "type": "string" },
+        "target_run_identity": { "type": "string" },
+        "browser_handoff_fallback_present": { "type": "boolean" },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "browser_handoff_audit_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_id_ref",
+        "handoff_audit_id",
+        "boundary_hardening_id_ref",
+        "handoff_boundary_class",
+        "provider_class",
+        "target_object_ref",
+        "reason_code",
+        "return_path_present",
+        "reversible",
+        "actor_ref",
+        "scope_disclosure",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "browser_handoff_audit_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "audit_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "handoff_audit_id": { "$ref": "#/$defs/opaque_id" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "handoff_boundary_class": { "$ref": "#/$defs/browser_handoff_audit_class" },
+        "provider_class": { "type": "string" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "reason_code": { "type": "string" },
+        "return_path_present": { "type": "boolean" },
+        "reversible": { "type": "boolean" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_disclosure": { "type": "string" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "audit_command_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "audit_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "audit_command_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_kind": { "type": "string" },
+        "preview_supported": { "type": "boolean" },
+        "emits_audit_event": { "type": "boolean" },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "audit_support_export_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "audit_id_ref",
+        "review_workspace_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "audit_support_export_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "raw_url_export_allowed": { "type": "boolean" },
+        "raw_provider_payload_export_allowed": { "type": "boolean" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "audit_inspection_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_id_ref",
+        "review_workspace_id_ref",
+        "merge_queue_audited",
+        "ci_checks_audited",
+        "pipeline_overlays_audited",
+        "run_controls_audited",
+        "browser_handoffs_audited",
+        "all_provider_rows_claimed_stable",
+        "any_provider_row_downgraded",
+        "hidden_authority_detected",
+        "stale_overlay_present",
+        "inspect_only_controls_present",
+        "provider_controlled_controls_present",
+        "auditable_in_product_controls_present",
+        "divergence_labels_present",
+        "actionable",
+        "invalidated",
+        "ci_check_audit_count",
+        "pipeline_overlay_audit_count",
+        "run_control_audit_count",
+        "browser_handoff_audit_count",
+        "command_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "audit_inspection_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "audit_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "merge_queue_audited": { "type": "boolean" },
+        "ci_checks_audited": { "type": "boolean" },
+        "pipeline_overlays_audited": { "type": "boolean" },
+        "run_controls_audited": { "type": "boolean" },
+        "browser_handoffs_audited": { "type": "boolean" },
+        "all_provider_rows_claimed_stable": { "type": "boolean" },
+        "any_provider_row_downgraded": { "type": "boolean" },
+        "hidden_authority_detected": { "type": "boolean" },
+        "stale_overlay_present": { "type": "boolean" },
+        "inspect_only_controls_present": { "type": "boolean" },
+        "provider_controlled_controls_present": { "type": "boolean" },
+        "auditable_in_product_controls_present": { "type": "boolean" },
+        "divergence_labels_present": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "invalidated": { "type": "boolean" },
+        "ci_check_audit_count": { "type": "integer", "minimum": 0 },
+        "pipeline_overlay_audit_count": { "type": "integer", "minimum": 0 },
+        "run_control_audit_count": { "type": "integer", "minimum": 0 },
+        "browser_handoff_audit_count": { "type": "integer", "minimum": 0 },
+        "command_count": { "type": "integer", "minimum": 0 },
+        "preview_capable": { "type": "boolean" },
+        "support_export_reopenable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "merge_queue_ci_status_browser_handoff_audit_record": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "audit_id",
+        "review_workspace_id_ref",
+        "landing_candidate_id_ref",
+        "stabilization_id_ref",
+        "boundary_hardening_id_ref",
+        "provider_linked_stabilization_id_ref",
+        "audit_state",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "merge_queue_ci_status_browser_handoff_audit_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "audit_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "boundary_hardening_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "provider_linked_stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_state": { "$ref": "#/$defs/audit_state" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "merge_queue_ci_status_browser_handoff_audit_packet": {
+      "type": "object",
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "review_workspace",
+        "landing_candidate",
+        "stabilization",
+        "boundary_hardening",
+        "provider_linked_stabilization",
+        "audit",
+        "merge_queue_audit",
+        "ci_check_audits",
+        "pipeline_overlay_audits",
+        "run_control_audits",
+        "browser_handoff_audits",
+        "commands",
+        "support_export",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "merge_queue_ci_status_browser_handoff_audit_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "review_workspace": { "$ref": "#/$defs/review_workspace_record_summary" },
+        "landing_candidate": { "$ref": "#/$defs/landing_candidate_record_summary" },
+        "stabilization": { "$ref": "#/$defs/review_stabilization_record_summary" },
+        "boundary_hardening": { "$ref": "#/$defs/review_boundary_hardening_record_summary" },
+        "provider_linked_stabilization": { "$ref": "#/$defs/provider_linked_review_stabilization_record_summary" },
+        "parity_harness": {
+          "type": "object",
+          "description": "Optional review-pack parity harness record."
+        },
+        "audit": { "$ref": "#/$defs/merge_queue_ci_status_browser_handoff_audit_record" },
+        "merge_queue_audit": { "$ref": "#/$defs/merge_queue_audit_record" },
+        "ci_check_audits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ci_check_audit_record" }
+        },
+        "pipeline_overlay_audits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pipeline_overlay_audit_record" }
+        },
+        "run_control_audits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/run_control_audit_record" }
+        },
+        "browser_handoff_audits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/browser_handoff_audit_record" }
+        },
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/audit_command_record" }
+        },
+        "support_export": { "$ref": "#/$defs/audit_support_export_packet" },
+        "inspection": { "$ref": "#/$defs/audit_inspection_record" }
+      }
+    }
+  }
+}

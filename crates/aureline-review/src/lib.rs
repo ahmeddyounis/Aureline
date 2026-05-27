@@ -17,6 +17,7 @@ pub mod diff;
 pub mod finalize_issue_and_work_item_linkage_with_branch;
 pub mod finalize_migration_rollback_checkpoints_diff_review_and_retained;
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
+pub mod harden_merge_queue_ci_status_and_browser_handoff;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
 pub mod infrastructure_intelligence;
 pub mod landing;
@@ -125,6 +126,25 @@ pub use harden_browser_handoff_and_in_product_review_boundaries::{
     PROVIDER_SOURCE_IDENTITY_RECORD_KIND, RETURN_PATH_CLASSES, RETURN_PATH_RECORD_KIND,
     REVIEW_BOUNDARY_HARDENING_PACKET_RECORD_KIND, REVIEW_BOUNDARY_HARDENING_RECORD_KIND,
     REVIEW_BOUNDARY_HARDENING_SCHEMA_VERSION,
+};
+pub use harden_merge_queue_ci_status_and_browser_handoff::{
+    project_merge_queue_ci_status_browser_handoff_audit_packet, AuditCommandInput,
+    AuditCommandRecord, AuditError, AuditInspectionRecord, AuditSupportExportInput,
+    AuditSupportExportPacket, AuditValidationError, BrowserHandoffAuditInput,
+    BrowserHandoffAuditRecord, CiCheckAuditInput, CiCheckAuditRecord,
+    MergeQueueAuditInput, MergeQueueAuditRecord, MergeQueueCiStatusBrowserHandoffAuditInput,
+    MergeQueueCiStatusBrowserHandoffAuditPacket, MergeQueueCiStatusBrowserHandoffAuditProjection,
+    MergeQueueCiStatusBrowserHandoffAuditRecord, PipelineOverlayAuditInput,
+    PipelineOverlayAuditRecord, RunControlAuditInput, RunControlAuditRecord,
+    AUDIT_COMMAND_CLASSES, AUDIT_COMMAND_RECORD_KIND, AUDIT_CONSUMER_SURFACES,
+    AUDIT_INSPECTION_RECORD_KIND, AUDIT_INVALIDATION_REASONS, AUDIT_STATES,
+    AUDIT_SUPPORT_EXPORT_PACKET_RECORD_KIND, BROWSER_HANDOFF_AUDIT_CLASSES,
+    BROWSER_HANDOFF_AUDIT_RECORD_KIND, CI_CHECK_AUDIT_RECORD_KIND, CI_CHECK_DIVERGENCE_CLASSES,
+    CI_CHECK_FRESHNESS_CLASSES, MERGE_QUEUE_AUDIT_RECORD_KIND, MERGE_QUEUE_AUDIT_STATES,
+    MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_PACKET_RECORD_KIND,
+    MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_RECORD_KIND,
+    MERGE_QUEUE_CI_STATUS_BROWSER_HANDOFF_AUDIT_SCHEMA_VERSION, PIPELINE_OVERLAY_AUDIT_RECORD_KIND,
+    PIPELINE_OVERLAY_SUBSET_CLASSES, RUN_CONTROL_AUDIT_RECORD_KIND, RUN_CONTROL_MUTATION_MODES,
 };
 pub use diff::{
     DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,
