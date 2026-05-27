@@ -41,6 +41,7 @@ pub mod drift_repair;
 pub mod env_inspect;
 pub mod execution_context;
 pub mod finalize_environment_and_toolchain_manager_parity_across_ui;
+pub mod harden_environment_capsule_resolution;
 pub mod host_boundary;
 pub mod language_hosts;
 pub mod launch_profiles;
@@ -228,6 +229,22 @@ pub use finalize_environment_and_toolchain_manager_parity_across_ui::{
     INSPECTOR_PARITY_TRUTH_FIXTURE_DIR, INSPECTOR_PARITY_TRUTH_PACKET_ARTIFACT_REF,
     INSPECTOR_PARITY_TRUTH_PACKET_RECORD_KIND, INSPECTOR_PARITY_TRUTH_SCHEMA_REF,
     INSPECTOR_PARITY_TRUTH_SCHEMA_VERSION, INSPECTOR_PARITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use harden_environment_capsule_resolution::{
+    current_stable_capsule_resolution_truth_packet, CapsuleFieldClass,
+    CapsuleResolutionConfidenceClass, CapsuleResolutionConsumerProjection,
+    CapsuleResolutionConsumerSurface, CapsuleResolutionDowngradeAutomationClass,
+    CapsuleResolutionEvidenceClass, CapsuleResolutionFindingKind,
+    CapsuleResolutionFindingSeverity, CapsuleResolutionKnownLimitClass,
+    CapsuleResolutionLaneClass, CapsuleResolutionPromotionState, CapsuleResolutionRow,
+    CapsuleResolutionRowClass, CapsuleResolutionSupportClass, CapsuleResolutionTruthArtifactError,
+    CapsuleResolutionTruthPacket, CapsuleResolutionTruthPacketInput,
+    CapsuleResolutionTruthSupportExport, CapsuleResolutionValidationFinding,
+    InvalidationReasonClass, PrebuildFingerprintComponentClass, ProjectDoctorFindingClass,
+    CAPSULE_RESOLUTION_TRUTH_ARTIFACT_DOC_REF, CAPSULE_RESOLUTION_TRUTH_DOC_REF,
+    CAPSULE_RESOLUTION_TRUTH_FIXTURE_DIR, CAPSULE_RESOLUTION_TRUTH_PACKET_ARTIFACT_REF,
+    CAPSULE_RESOLUTION_TRUTH_PACKET_RECORD_KIND, CAPSULE_RESOLUTION_TRUTH_SCHEMA_REF,
+    CAPSULE_RESOLUTION_TRUTH_SCHEMA_VERSION, CAPSULE_RESOLUTION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use host_boundary::{
     evaluate_host_boundary_reapproval, ActionExposureClass, ActionOriginClass, ActionRouteClass,
