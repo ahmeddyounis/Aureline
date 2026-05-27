@@ -37,6 +37,10 @@ pub mod scrollback;
 /// chips, clipboard posture, transcript export, and restore-no-rerun
 /// semantics into one boundary truth.
 pub mod stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export;
+/// Stable M4 support-export-parity truth packet certifying terminal, task,
+/// test, and debug surfaces with equivalent export capability, diagnosis
+/// packets, repair hooks, and recovery posture.
+pub mod finalize_terminal_task_test_and_debug_support_export_parity;
 
 pub use harden_task_test_debug_and_terminal_event_normalization::{
     current_stable_event_normalization_truth_packet,
@@ -112,6 +116,24 @@ pub use scrollback::{
     ScrollbackBound, ScrollbackLineRecord, ScrollbackRedactionClass, TerminalScrollback,
     TerminalScrollbackSnapshot, DEFAULT_SCROLLBACK_LINE_BOUND, SCROLLBACK_LINE_RECORD_KIND,
     SCROLLBACK_SCHEMA_VERSION, SCROLLBACK_SNAPSHOT_RECORD_KIND,
+};
+pub use finalize_terminal_task_test_and_debug_support_export_parity::{
+    current_stable_support_export_parity_truth_packet,
+    ConsumerSurface as SupportExportParityConsumerSurface,
+    DiagnosisPacketFieldClass, DowngradeAutomationClass as SupportExportParityDowngradeAutomationClass,
+    EvidenceClass as SupportExportParityEvidenceClass, ExportFieldClass,
+    FindingKind as SupportExportParityFindingKind, FindingSeverity as SupportExportParityFindingSeverity,
+    KnownLimitClass as SupportExportParityKnownLimitClass, PromotionState as SupportExportParityPromotionState,
+    RecoveryPostureClass, RepairHookFieldClass, SupportClass as SupportExportParitySupportClass,
+    SupportExportParityConfidenceClass, SupportExportParityConsumerProjection,
+    SupportExportParityLaneClass, SupportExportParityRow, SupportExportParityRowClass,
+    SupportExportParityTruthArtifactError, SupportExportParityTruthPacket,
+    SupportExportParityTruthPacketInput, SupportExportParityTruthSupportExport,
+    ValidationFinding as SupportExportParityValidationFinding, WedgeClass as SupportExportParityWedgeClass,
+    SUPPORT_EXPORT_PARITY_TRUTH_ARTIFACT_DOC_REF, SUPPORT_EXPORT_PARITY_TRUTH_DOC_REF,
+    SUPPORT_EXPORT_PARITY_TRUTH_FIXTURE_DIR, SUPPORT_EXPORT_PARITY_TRUTH_PACKET_ARTIFACT_REF,
+    SUPPORT_EXPORT_PARITY_TRUTH_PACKET_RECORD_KIND, SUPPORT_EXPORT_PARITY_TRUTH_SCHEMA_REF,
+    SUPPORT_EXPORT_PARITY_TRUTH_SCHEMA_VERSION, SUPPORT_EXPORT_PARITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use stabilize_integrated_terminal_boundaries_clipboard_posture_transcript_export::{
     current_stable_terminal_stabilization_truth_packet,
