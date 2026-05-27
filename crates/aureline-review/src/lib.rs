@@ -19,6 +19,7 @@ pub mod infrastructure_intelligence;
 pub mod landing;
 pub mod review_pack_dsl;
 pub mod review_pack_parity_harness;
+pub mod stabilize_worktree_patch_stack_and_explicit_change_object;
 pub mod workspace;
 
 pub use aureline_navigation::target_model as navigation_target_model;
@@ -111,6 +112,26 @@ pub use review_pack_parity_harness::{
     REVIEW_PACK_PARITY_HARNESS_OVERALL_VERDICT_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_PARITY_FINDING_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_ROW_DOWNGRADE_CLASSES,
+};
+pub use stabilize_worktree_patch_stack_and_explicit_change_object::{
+    project_change_object_orchestration_packet, ChangeObjectCommandInput, ChangeObjectCommandRecord,
+    ChangeObjectOrchestrationError, ChangeObjectOrchestrationInput,
+    ChangeObjectOrchestrationInspectionRecord, ChangeObjectOrchestrationPacket,
+    ChangeObjectOrchestrationProjection, ChangeObjectOrchestrationRecord,
+    ChangeObjectOrchestrationRestartSnapshot, ChangeObjectOrchestrationSupportExportInput,
+    ChangeObjectOrchestrationSupportExportPacket, ChangeObjectOrchestrationValidationError,
+    MutationCheckpointInput, MutationCheckpointRecord, PatchStackOperationInput,
+    PatchStackOrchestrationRecord, PublishProposalInput, PublishProposalRecord,
+    WorktreeOperationInput, WorktreeOrchestrationRecord,
+    CHANGE_OBJECT_ORCHESTRATION_COMMAND_CLASSES, CHANGE_OBJECT_ORCHESTRATION_CONSUMER_SURFACES,
+    CHANGE_OBJECT_ORCHESTRATION_FLOW_STATES, CHANGE_OBJECT_ORCHESTRATION_INVALIDATION_REASONS,
+    CHANGE_OBJECT_ORCHESTRATION_OPERATION_KINDS, CHANGE_OBJECT_ORCHESTRATION_PACKET_RECORD_KIND,
+    CHANGE_OBJECT_ORCHESTRATION_RECORD_KIND, CHANGE_OBJECT_ORCHESTRATION_SCHEMA_VERSION,
+    CHANGE_OBJECT_ORCHESTRATION_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    CHANGE_OBJECT_COMMAND_RECORD_KIND, MUTATION_CHECKPOINT_RECORD_KIND, MUTATION_CHECKPOINT_STATES,
+    PATCH_STACK_ORCHESTRATION_RECORD_KIND, POINTER_BACKED_ASSET_POSTURES,
+    PUBLISH_PROPOSAL_RECORD_KIND, PUBLISH_READINESS_CLASSES, REPO_TOPOLOGY_CLASSES,
+    WORKTREE_ORCHESTRATION_RECORD_KIND,
 };
 pub use workspace::{
     project_review_workspace_beta_packet, ReviewAnchorIdAlphaRecord, ReviewLocalLocator,

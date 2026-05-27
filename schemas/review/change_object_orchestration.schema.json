@@ -1,0 +1,554 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/change_object_orchestration.schema.json",
+  "title": "Aureline change-object orchestration packet (review lane)",
+  "description": "Boundary schema for the stabilized worktree, patch-stack, and explicit change-object orchestration contracts. Every mutation is previewable or checkpointed. Worktree operations, patch-stack mutations, and change-object orchestration carry repo-root identity, submodule or nested-repo boundary, shallow/partial state, and pointer-backed asset posture so preview and recovery never target the wrong root. Provider-linked browser handoff is explicit about source, freshness, actor, target, and return path.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "review_workspace",
+    "orchestration",
+    "mutation_checkpoint",
+    "commands",
+    "support_export",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "review_change_object_orchestration_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "review_workspace": { "$ref": "#/$defs/review_workspace_record" },
+    "orchestration": { "$ref": "#/$defs/orchestration_record" },
+    "worktree_operation": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/worktree_orchestration_record" }]
+    },
+    "patch_stack_operation": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/patch_stack_orchestration_record" }]
+    },
+    "publish_proposal": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/publish_proposal_record" }]
+    },
+    "mutation_checkpoint": { "$ref": "#/$defs/mutation_checkpoint_record" },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/command_record" }
+    },
+    "support_export": { "$ref": "#/$defs/support_export_packet" },
+    "inspection": { "$ref": "#/$defs/inspection_record" }
+  },
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "reviewable_sentence": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "operation_kind": {
+      "type": "string",
+      "enum": [
+        "worktree_switch",
+        "worktree_create",
+        "worktree_remove",
+        "patch_stack_reorder",
+        "patch_stack_rebase",
+        "patch_stack_publish",
+        "change_object_publish",
+        "change_object_merge",
+        "change_object_apply"
+      ]
+    },
+    "flow_state": {
+      "type": "string",
+      "enum": [
+        "preview_pending",
+        "preview_approved",
+        "checkpoint_pending",
+        "checkpoint_captured",
+        "executing",
+        "completed",
+        "failed",
+        "rolled_back",
+        "aborted"
+      ]
+    },
+    "checkpoint_state": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "captured_ready",
+        "captured_pending",
+        "restored",
+        "expired",
+        "missing_blocks_apply"
+      ]
+    },
+    "repo_topology_class": {
+      "type": "string",
+      "enum": [
+        "current_repo_root",
+        "worktree_root",
+        "submodule_root",
+        "nested_independent_repo_root",
+        "shallow_history_root",
+        "partial_clone_promisor_root",
+        "lfs_hydration_boundary"
+      ]
+    },
+    "pointer_backed_asset_posture": {
+      "type": "string",
+      "enum": [
+        "no_pointer_assets",
+        "lfs_pointer_present",
+        "submodule_gitlink_present",
+        "promisor_partial_object_present",
+        "mixed_pointer_assets"
+      ]
+    },
+    "publish_readiness_class": {
+      "type": "string",
+      "enum": [
+        "ready_to_publish",
+        "ready_to_merge",
+        "ready_to_apply",
+        "blocked_by_conflicts",
+        "blocked_by_authority",
+        "blocked_by_review_required",
+        "not_applicable_inspect_only",
+        "readiness_unknown_requires_review"
+      ]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "preview_mutation",
+        "approve_preview",
+        "reject_preview",
+        "capture_checkpoint",
+        "restore_checkpoint",
+        "apply_mutation",
+        "rollback_mutation",
+        "abort_flow",
+        "request_external_handoff",
+        "continue_after_resolve"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "change_object_inspector",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "browser_companion"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "stale_base",
+        "worktree_scope_changed",
+        "provider_overlay_stale",
+        "repo_topology_changed",
+        "submodule_state_changed",
+        "nested_repo_boundary_changed",
+        "shallow_boundary_changed",
+        "pointer_asset_changed",
+        "approval_invalidated",
+        "checks_stale"
+      ]
+    },
+    "review_workspace_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_workspace_id"],
+      "properties": {
+        "review_workspace_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "orchestration_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "orchestration_id",
+        "review_workspace_id_ref",
+        "operation_kind",
+        "flow_state",
+        "change_object_ref",
+        "change_object_kind",
+        "repo_root_ref",
+        "repo_topology_classes",
+        "pointer_backed_asset_posture",
+        "review_pack_digest_ref",
+        "environment_capsule_digest_ref",
+        "approval_state",
+        "checks_freshness_state",
+        "restart_session_ref",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_change_object_orchestration_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "orchestration_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "operation_kind": { "$ref": "#/$defs/operation_kind" },
+        "flow_state": { "$ref": "#/$defs/flow_state" },
+        "change_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "change_object_kind": { "$ref": "#/$defs/non_empty_string" },
+        "repo_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "repo_topology_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/repo_topology_class" }
+        },
+        "parent_repo_root_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "submodule_boundary_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "nested_repo_boundary_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "shallow_history_boundary_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "pointer_backed_asset_posture": { "$ref": "#/$defs/pointer_backed_asset_posture" },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_capsule_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_state": { "$ref": "#/$defs/non_empty_string" },
+        "checks_freshness_state": { "$ref": "#/$defs/non_empty_string" },
+        "restart_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidation_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "actionable": { "type": "boolean" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "worktree_orchestration_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "orchestration_id_ref",
+        "source_worktree_ref",
+        "target_worktree_ref",
+        "worktree_kind_class",
+        "worktree_attachment_class",
+        "checked_out_ref_label",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_worktree_orchestration_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "orchestration_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_worktree_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_worktree_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_kind_class": { "$ref": "#/$defs/non_empty_string" },
+        "worktree_attachment_class": { "$ref": "#/$defs/non_empty_string" },
+        "checked_out_ref_label": { "$ref": "#/$defs/opaque_id" },
+        "linked_branch_ref_label": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "patch_stack_orchestration_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "orchestration_id_ref",
+        "patch_stack_target_class",
+        "patch_state_class",
+        "patch_count",
+        "top_patch_label",
+        "affected_patch_refs",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_patch_stack_orchestration_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "orchestration_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "patch_stack_target_class": { "$ref": "#/$defs/non_empty_string" },
+        "patch_state_class": { "$ref": "#/$defs/non_empty_string" },
+        "patch_count": { "type": "integer", "minimum": 0 },
+        "top_patch_label": { "$ref": "#/$defs/opaque_id" },
+        "affected_patch_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "review_class": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "publish_proposal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "orchestration_id_ref",
+        "proposal_id",
+        "provider_object_identity_ref",
+        "publish_readiness_class",
+        "provider_publish_posture",
+        "target_provider_class",
+        "requires_browser_handoff",
+        "handoff_origin_class",
+        "handoff_destination_class",
+        "return_anchor_ref",
+        "freshness_class",
+        "actor_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_publish_proposal_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "orchestration_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "proposal_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_object_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "publish_readiness_class": { "$ref": "#/$defs/publish_readiness_class" },
+        "provider_publish_posture": { "$ref": "#/$defs/non_empty_string" },
+        "target_provider_class": { "$ref": "#/$defs/non_empty_string" },
+        "requires_browser_handoff": { "type": "boolean" },
+        "handoff_origin_class": { "$ref": "#/$defs/non_empty_string" },
+        "handoff_destination_class": { "$ref": "#/$defs/non_empty_string" },
+        "return_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/non_empty_string" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "mutation_checkpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "orchestration_id_ref",
+        "checkpoint_state",
+        "disclosure_label",
+        "restorable_offline",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_mutation_checkpoint_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "orchestration_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_state": { "$ref": "#/$defs/checkpoint_state" },
+        "checkpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "restore_command_id": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "disclosure_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "restorable_offline": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "command_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "orchestration_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_change_object_command_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "orchestration_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_kind": { "$ref": "#/$defs/non_empty_string" },
+        "preview_supported": { "type": "boolean" },
+        "emits_audit_event": { "type": "boolean" },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "actionable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "support_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "orchestration_id_ref",
+        "review_workspace_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "raw_path_export_allowed",
+        "raw_branch_name_export_allowed",
+        "raw_patch_body_export_allowed",
+        "redaction_class",
+        "restart_snapshot",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_change_object_orchestration_support_export_packet" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "orchestration_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "raw_url_export_allowed": { "const": false },
+        "raw_provider_payload_export_allowed": { "const": false },
+        "raw_path_export_allowed": { "const": false },
+        "raw_branch_name_export_allowed": { "const": false },
+        "raw_patch_body_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "restart_snapshot": { "$ref": "#/$defs/restart_snapshot" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "restart_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_state",
+        "operation_kind",
+        "checkpoint_state",
+        "repo_root_ref",
+        "restart_session_ref",
+        "invalidation_reasons",
+        "blocked_reasons"
+      ],
+      "properties": {
+        "flow_state": { "$ref": "#/$defs/flow_state" },
+        "operation_kind": { "$ref": "#/$defs/operation_kind" },
+        "checkpoint_state": { "$ref": "#/$defs/checkpoint_state" },
+        "repo_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "restart_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidation_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+    "inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "orchestration_id_ref",
+        "review_workspace_id_ref",
+        "preview_approved",
+        "preview_pending",
+        "preview_rejected",
+        "checkpoint_ready",
+        "executing",
+        "completed",
+        "failed",
+        "rolled_back",
+        "aborted",
+        "approval_invalidated",
+        "checks_stale_blocks_apply",
+        "actionable",
+        "restartable",
+        "requires_browser_handoff",
+        "handoff_reversible",
+        "command_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "submodule_boundary_present",
+        "nested_repo_boundary_present",
+        "shallow_boundary_present",
+        "pointer_backed_assets_present",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_change_object_orchestration_inspection_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "orchestration_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_approved": { "type": "boolean" },
+        "preview_pending": { "type": "boolean" },
+        "preview_rejected": { "type": "boolean" },
+        "checkpoint_ready": { "type": "boolean" },
+        "executing": { "type": "boolean" },
+        "completed": { "type": "boolean" },
+        "failed": { "type": "boolean" },
+        "rolled_back": { "type": "boolean" },
+        "aborted": { "type": "boolean" },
+        "approval_invalidated": { "type": "boolean" },
+        "checks_stale_blocks_apply": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "restartable": { "type": "boolean" },
+        "requires_browser_handoff": { "type": "boolean" },
+        "handoff_reversible": { "type": "boolean" },
+        "command_count": { "type": "integer", "minimum": 0 },
+        "preview_capable": { "type": "boolean" },
+        "support_export_reopenable": { "type": "boolean" },
+        "submodule_boundary_present": { "type": "boolean" },
+        "nested_repo_boundary_present": { "type": "boolean" },
+        "shallow_boundary_present": { "type": "boolean" },
+        "pointer_backed_assets_present": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}
