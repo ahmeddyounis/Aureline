@@ -42,6 +42,7 @@ pub mod env_inspect;
 pub mod execution_context;
 pub mod finalize_environment_and_toolchain_manager_parity_across_ui;
 pub mod harden_breakpoint_call_stack_variables_watch_evaluate_and;
+pub mod harden_coverage_flaky_test_snapshot_golden_and_baseline;
 pub mod harden_environment_capsule_resolution;
 pub mod host_boundary;
 pub mod language_hosts;
@@ -252,6 +253,33 @@ pub use harden_breakpoint_call_stack_variables_watch_evaluate_and::{
     DEBUG_FIDELITY_TRUTH_PACKET_ARTIFACT_REF, DEBUG_FIDELITY_TRUTH_PACKET_RECORD_KIND,
     DEBUG_FIDELITY_TRUTH_SCHEMA_REF, DEBUG_FIDELITY_TRUTH_SCHEMA_VERSION,
     DEBUG_FIDELITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use harden_coverage_flaky_test_snapshot_golden_and_baseline::{
+    current_stable_coverage_quality_truth_packet,
+    CandidateLineageClass as CoverageQualityCandidateLineageClass,
+    ConsumerSurface as CoverageQualityConsumerSurface,
+    ConsumerSurfaceBindingClass as CoverageQualityConsumerSurfaceBindingClass,
+    CoverageImpactClass as CoverageQualityCoverageImpactClass,
+    CoverageQualityConfidenceClass, CoverageQualityConsumerProjection,
+    CoverageQualityLaneClass, CoverageQualityRow, CoverageQualityRowClass,
+    CoverageQualityTruthArtifactError, CoverageQualityTruthPacket,
+    CoverageQualityTruthPacketInput, CoverageQualityTruthSupportExport,
+    DowngradeAutomationClass as CoverageQualityDowngradeAutomationClass,
+    EvidenceClass as CoverageQualityEvidenceClass,
+    FindingKind as CoverageQualityFindingKind,
+    FindingSeverity as CoverageQualityFindingSeverity,
+    KnownLimitClass as CoverageQualityKnownLimitClass,
+    PromotionState as CoverageQualityPromotionState,
+    QuarantineMuteStateClass as CoverageQualityQuarantineMuteStateClass,
+    StabilityVerdictClass as CoverageQualityStabilityVerdictClass,
+    SupportClass as CoverageQualitySupportClass,
+    TestSourceClass as CoverageQualityTestSourceClass,
+    ValidationFinding as CoverageQualityValidationFinding,
+    WedgeClass as CoverageQualityWedgeClass,
+    COVERAGE_QUALITY_TRUTH_ARTIFACT_DOC_REF, COVERAGE_QUALITY_TRUTH_DOC_REF,
+    COVERAGE_QUALITY_TRUTH_FIXTURE_DIR, COVERAGE_QUALITY_TRUTH_PACKET_ARTIFACT_REF,
+    COVERAGE_QUALITY_TRUTH_PACKET_RECORD_KIND, COVERAGE_QUALITY_TRUTH_SCHEMA_REF,
+    COVERAGE_QUALITY_TRUTH_SCHEMA_VERSION, COVERAGE_QUALITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use harden_environment_capsule_resolution::{
     current_stable_capsule_resolution_truth_packet, CapsuleFieldClass,
