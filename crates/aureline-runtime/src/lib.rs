@@ -65,6 +65,7 @@ pub mod shared_terminal_alpha;
 pub mod stabilize_debugger_host_and_adapter_negotiation;
 pub mod stabilize_execution_context_resolver;
 pub mod stabilize_task_discovery_launch_profiles_rerun_last_behavior;
+pub mod stabilize_the_test_explorer_inline_results_watch_mode;
 pub mod support_matrix_beta;
 pub mod target_discovery;
 pub mod targets;
@@ -561,6 +562,39 @@ pub use stabilize_task_discovery_launch_profiles_rerun_last_behavior::{
     TASK_EVENT_TRUTH_PACKET_ARTIFACT_REF, TASK_EVENT_TRUTH_PACKET_RECORD_KIND,
     TASK_EVENT_TRUTH_SCHEMA_REF, TASK_EVENT_TRUTH_SCHEMA_VERSION,
     TASK_EVENT_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use stabilize_the_test_explorer_inline_results_watch_mode::{
+    current_stable_test_explorer_stabilization_truth_packet,
+    ConsumerSurface as TestExplorerStabilizationConsumerSurface,
+    ConsumerSurfaceBindingClass as TestExplorerStabilizationConsumerSurfaceBindingClass,
+    DiscoveryPostureClass as TestExplorerStabilizationDiscoveryPostureClass,
+    DowngradeAutomationClass as TestExplorerStabilizationDowngradeAutomationClass,
+    EvidenceClass as TestExplorerStabilizationEvidenceClass,
+    FindingKind as TestExplorerStabilizationFindingKind,
+    FindingSeverity as TestExplorerStabilizationFindingSeverity,
+    KnownLimitClass as TestExplorerStabilizationKnownLimitClass,
+    PromotionState as TestExplorerStabilizationPromotionState,
+    SelectorDurabilityClass as TestExplorerStabilizationSelectorDurabilityClass,
+    SupportClass as TestExplorerStabilizationSupportClass,
+    TestExplorerConfidenceClass as TestExplorerStabilizationConfidenceClass,
+    TestExplorerConsumerProjection as TestExplorerStabilizationConsumerProjection,
+    TestExplorerLaneClass as TestExplorerStabilizationLaneClass,
+    TestExplorerRow as TestExplorerStabilizationRow,
+    TestExplorerRowClass as TestExplorerStabilizationRowClass,
+    TestExplorerStabilizationTruthArtifactError, TestExplorerStabilizationTruthPacket,
+    TestExplorerStabilizationTruthPacketInput, TestExplorerStabilizationTruthSupportExport,
+    TestIdentityClass as TestExplorerStabilizationTestIdentityClass,
+    ValidationFinding as TestExplorerStabilizationValidationFinding,
+    WatchModeSupportClass as TestExplorerStabilizationWatchModeSupportClass,
+    WedgeClass as TestExplorerStabilizationWedgeClass,
+    TEST_EXPLORER_STABILIZATION_TRUTH_ARTIFACT_DOC_REF,
+    TEST_EXPLORER_STABILIZATION_TRUTH_DOC_REF,
+    TEST_EXPLORER_STABILIZATION_TRUTH_FIXTURE_DIR,
+    TEST_EXPLORER_STABILIZATION_TRUTH_PACKET_ARTIFACT_REF,
+    TEST_EXPLORER_STABILIZATION_TRUTH_PACKET_RECORD_KIND,
+    TEST_EXPLORER_STABILIZATION_TRUTH_SCHEMA_REF,
+    TEST_EXPLORER_STABILIZATION_TRUTH_SCHEMA_VERSION,
+    TEST_EXPLORER_STABILIZATION_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use support_matrix_beta::{
     SupportMatrixAttachSupport, SupportMatrixBetaManifest, SupportMatrixBetaSupportExport,
