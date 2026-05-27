@@ -43,6 +43,7 @@ pub mod execution_context;
 pub mod finalize_environment_and_toolchain_manager_parity_across_ui;
 pub mod finalize_request_workspace_and_api_request_execution_context;
 pub mod harden_breakpoint_call_stack_variables_watch_evaluate_and;
+pub mod harden_build_target_discovery_adapter_confidence_labels_and;
 pub mod harden_coverage_flaky_test_snapshot_golden_and_baseline;
 pub mod harden_environment_capsule_resolution;
 pub mod host_boundary;
@@ -283,6 +284,34 @@ pub use harden_breakpoint_call_stack_variables_watch_evaluate_and::{
     DEBUG_FIDELITY_TRUTH_PACKET_ARTIFACT_REF, DEBUG_FIDELITY_TRUTH_PACKET_RECORD_KIND,
     DEBUG_FIDELITY_TRUTH_SCHEMA_REF, DEBUG_FIDELITY_TRUTH_SCHEMA_VERSION,
     DEBUG_FIDELITY_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
+pub use harden_build_target_discovery_adapter_confidence_labels_and::{
+    current_stable_build_target_hardening_truth_packet,
+    AdapterConfidenceLabelClass as BuildTargetHardeningAdapterConfidenceLabelClass,
+    BuildTargetHardeningLaneClass, BuildTargetHardeningRow, BuildTargetHardeningRowClass,
+    BuildTargetHardeningTruthArtifactError, BuildTargetHardeningTruthPacket,
+    BuildTargetHardeningTruthPacketInput, BuildTargetHardeningTruthSupportExport,
+    ConfidenceClass as BuildTargetHardeningConfidenceClass,
+    ConsumerProjection as BuildTargetHardeningConsumerProjection,
+    ConsumerProjectionSurface as BuildTargetHardeningConsumerProjectionSurface,
+    ConsumerSurfaceClass as BuildTargetHardeningConsumerSurfaceClass,
+    DiscoveryFreshnessClass as BuildTargetHardeningDiscoveryFreshnessClass,
+    DiscoverySourceClass as BuildTargetHardeningDiscoverySourceClass,
+    DowngradeAutomationClass as BuildTargetHardeningDowngradeAutomationClass,
+    EvidenceClass as BuildTargetHardeningEvidenceClass,
+    FindingKind as BuildTargetHardeningFindingKind,
+    FindingSeverity as BuildTargetHardeningFindingSeverity,
+    KnownLimitClass as BuildTargetHardeningKnownLimitClass,
+    PromotionState as BuildTargetHardeningPromotionState,
+    BuildTargetHardeningSupportClass,
+    TargetGraphSnapshotClass as BuildTargetHardeningTargetGraphSnapshotClass,
+    ValidationFinding as BuildTargetHardeningValidationFinding,
+    WedgeClass as BuildTargetHardeningWedgeClass,
+    BUILD_TARGET_HARDENING_TRUTH_ARTIFACT_DOC_REF, BUILD_TARGET_HARDENING_TRUTH_DOC_REF,
+    BUILD_TARGET_HARDENING_TRUTH_FIXTURE_DIR, BUILD_TARGET_HARDENING_TRUTH_PACKET_ARTIFACT_REF,
+    BUILD_TARGET_HARDENING_TRUTH_PACKET_RECORD_KIND, BUILD_TARGET_HARDENING_TRUTH_SCHEMA_REF,
+    BUILD_TARGET_HARDENING_TRUTH_SCHEMA_VERSION,
+    BUILD_TARGET_HARDENING_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use harden_coverage_flaky_test_snapshot_golden_and_baseline::{
     current_stable_coverage_quality_truth_packet,
