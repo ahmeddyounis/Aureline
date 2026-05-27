@@ -1,0 +1,506 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/diff_first_rewrite_flow.schema.json",
+  "title": "Aureline diff-first rewrite-flow packet (review lane)",
+  "description": "Boundary schema for the diff-first review and recovery-checkpoint contracts that harden merge, rebase, cherry-pick, revert, and reset flows. Every mutation is previewable or checkpointed. Risky rewrite flows are modeled as durable sequence-edit and ref-update proposal objects with stable IDs, ordered operations, protected-branch posture, local/remote divergence summaries, approval/check invalidation state, rollback hints, and checkpoint refs across UI, CLI, and support/export paths.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "review_workspace",
+    "rewrite_flow",
+    "diff_first_review",
+    "recovery_checkpoint_summary",
+    "commands",
+    "support_export",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "review_diff_first_rewrite_flow_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "review_workspace": { "$ref": "#/$defs/review_workspace_record" },
+    "rewrite_flow": { "$ref": "#/$defs/rewrite_flow_record" },
+    "diff_first_review": { "$ref": "#/$defs/diff_first_review_record" },
+    "sequence_edit_proposal": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sequence_edit_proposal_record" }]
+    },
+    "recovery_checkpoint_summary": { "$ref": "#/$defs/recovery_checkpoint_summary_record" },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rewrite_flow_command_record" }
+    },
+    "support_export": { "$ref": "#/$defs/rewrite_flow_support_export_packet" },
+    "inspection": { "$ref": "#/$defs/rewrite_flow_inspection_record" }
+  },
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "operation_kind": {
+      "type": "string",
+      "enum": ["merge", "rebase", "interactive_rebase", "cherry_pick", "revert", "reset"]
+    },
+    "flow_state": {
+      "type": "string",
+      "enum": [
+        "diff_pending_review",
+        "diff_review_approved",
+        "diff_review_rejected",
+        "checkpoint_pending",
+        "checkpoint_captured",
+        "executing",
+        "paused_conflict",
+        "completed",
+        "aborted_rolled_back",
+        "failed_no_changes_made"
+      ]
+    },
+    "diff_review_state": {
+      "type": "string",
+      "enum": ["pending", "approved_with_checkpoints", "rejected", "requires_manual_review"]
+    },
+    "checkpoint_summary_state": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "captured_ready",
+        "captured_pending",
+        "restored",
+        "expired",
+        "reflog_only_acknowledged",
+        "missing_blocks_apply"
+      ]
+    },
+    "divergence_class": {
+      "type": "string",
+      "enum": [
+        "no_divergence",
+        "local_ahead",
+        "remote_ahead",
+        "diverged_requires_rebase",
+        "diverged_requires_merge"
+      ]
+    },
+    "protected_branch_posture": {
+      "type": "string",
+      "enum": [
+        "no_protected_refs",
+        "protected_branch_readonly",
+        "protected_branch_blocked",
+        "policy_lock_active"
+      ]
+    },
+    "approval_state": {
+      "type": "string",
+      "enum": [
+        "approval_not_required_by_policy",
+        "approval_required_outstanding",
+        "approved_current",
+        "approval_invalidated_by_changes"
+      ]
+    },
+    "checks_freshness_state": {
+      "type": "string",
+      "enum": ["checks_current", "checks_stale_within_grace", "checks_stale_blocks_apply"]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "preview_diff",
+        "approve_diff",
+        "reject_diff",
+        "capture_checkpoint",
+        "restore_checkpoint",
+        "apply_proposal",
+        "abort_flow",
+        "continue_after_resolve",
+        "skip_conflicted_step",
+        "open_sequence_editor",
+        "request_external_handoff"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "desktop_conflict_resolver",
+        "desktop_sequence_editor"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "stale_base",
+        "checks_stale",
+        "approval_invalidated",
+        "policy_blocked",
+        "worktree_scope_changed",
+        "environment_capsule_changed",
+        "provider_overlay_stale",
+        "sequence_edit_modified",
+        "conflict_session_aborted"
+      ]
+    },
+    "review_workspace_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_workspace_id"],
+      "properties": {
+        "review_workspace_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "rewrite_flow_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rewrite_flow_id",
+        "review_workspace_id_ref",
+        "operation_kind",
+        "flow_state",
+        "source_ref",
+        "target_ref",
+        "base_ref",
+        "worktree_identity_ref",
+        "review_pack_digest_ref",
+        "environment_capsule_digest_ref",
+        "protected_branch_posture",
+        "divergence_class",
+        "approval_state",
+        "checks_freshness_state",
+        "restart_session_ref",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_rewrite_flow_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "rewrite_flow_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "operation_kind": { "$ref": "#/$defs/operation_kind" },
+        "flow_state": { "$ref": "#/$defs/flow_state" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_ref": { "$ref": "#/$defs/opaque_id" },
+        "worktree_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_capsule_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "protected_branch_posture": { "$ref": "#/$defs/protected_branch_posture" },
+        "divergence_class": { "$ref": "#/$defs/divergence_class" },
+        "approval_state": { "$ref": "#/$defs/approval_state" },
+        "checks_freshness_state": { "$ref": "#/$defs/checks_freshness_state" },
+        "restart_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "actionable": { "type": "boolean" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "diff_first_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rewrite_flow_id_ref",
+        "diff_review_state",
+        "diff_preview_ref",
+        "suspicious_content_flagged",
+        "suspicious_content_reviewed",
+        "checkpoint_required_before_apply",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_diff_first_review_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "rewrite_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "diff_review_state": { "$ref": "#/$defs/diff_review_state" },
+        "diff_preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "suspicious_content_flagged": { "type": "boolean" },
+        "suspicious_content_reviewed": { "type": "boolean" },
+        "checkpoint_required_before_apply": { "type": "boolean" },
+        "manual_review_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "sequence_edit_proposal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rewrite_flow_id_ref",
+        "proposal_id",
+        "ordered_operations",
+        "protected_branch_blocked",
+        "invalidation_state",
+        "remaining_step_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_sequence_edit_proposal_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "rewrite_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "proposal_id": { "$ref": "#/$defs/opaque_id" },
+        "ordered_operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/sequence_edit_operation_record" }
+        },
+        "protected_branch_blocked": { "type": "boolean" },
+        "invalidation_state": { "$ref": "#/$defs/non_empty_string" },
+        "remaining_step_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "sequence_edit_operation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinal",
+        "verb",
+        "target_ref",
+        "display_label",
+        "current_step",
+        "completed"
+      ],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "verb": { "$ref": "#/$defs/non_empty_string" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "current_step": { "type": "boolean" },
+        "completed": { "type": "boolean" },
+        "conflict_session_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        }
+      }
+    },
+    "recovery_checkpoint_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rewrite_flow_id_ref",
+        "checkpoint_state",
+        "disclosure_label",
+        "restorable_offline",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_recovery_checkpoint_summary_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "rewrite_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_state": { "$ref": "#/$defs/checkpoint_summary_state" },
+        "checkpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "restore_command_id": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "disclosure_label": { "$ref": "#/$defs/non_empty_string" },
+        "restorable_offline": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rewrite_flow_command_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "rewrite_flow_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_rewrite_flow_command_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "rewrite_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_kind": { "$ref": "#/$defs/non_empty_string" },
+        "preview_supported": { "type": "boolean" },
+        "emits_audit_event": { "type": "boolean" },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "actionable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rewrite_flow_support_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "rewrite_flow_id_ref",
+        "review_workspace_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "raw_path_export_allowed",
+        "raw_branch_name_export_allowed",
+        "raw_patch_body_export_allowed",
+        "redaction_class",
+        "restart_snapshot",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_rewrite_flow_support_export_packet" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "rewrite_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "allOf": [
+            { "contains": { "const": "support_export" } },
+            { "contains": { "const": "audit_lane" } }
+          ]
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "raw_url_export_allowed": { "const": false },
+        "raw_provider_payload_export_allowed": { "const": false },
+        "raw_path_export_allowed": { "const": false },
+        "raw_branch_name_export_allowed": { "const": false },
+        "raw_patch_body_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "restart_snapshot": { "$ref": "#/$defs/restart_snapshot" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "restart_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_state",
+        "diff_review_state",
+        "checkpoint_state",
+        "operation_kind",
+        "restart_session_ref",
+        "invalidation_reasons",
+        "blocked_reasons"
+      ],
+      "properties": {
+        "flow_state": { "$ref": "#/$defs/flow_state" },
+        "diff_review_state": { "$ref": "#/$defs/diff_review_state" },
+        "checkpoint_state": { "$ref": "#/$defs/checkpoint_summary_state" },
+        "operation_kind": { "$ref": "#/$defs/operation_kind" },
+        "restart_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "rewrite_flow_inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "rewrite_flow_id_ref",
+        "review_workspace_id_ref",
+        "diff_approved",
+        "diff_pending",
+        "diff_rejected",
+        "checkpoint_ready",
+        "executing",
+        "paused_conflict",
+        "completed",
+        "aborted",
+        "protected_branch_blocked",
+        "policy_blocks_apply",
+        "approval_invalidated",
+        "checks_stale_blocks_apply",
+        "actionable",
+        "restartable",
+        "command_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "suspicious_content_unreviewed",
+        "remaining_step_count",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_rewrite_flow_inspection_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "rewrite_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "diff_approved": { "type": "boolean" },
+        "diff_pending": { "type": "boolean" },
+        "diff_rejected": { "type": "boolean" },
+        "checkpoint_ready": { "type": "boolean" },
+        "executing": { "type": "boolean" },
+        "paused_conflict": { "type": "boolean" },
+        "completed": { "type": "boolean" },
+        "aborted": { "type": "boolean" },
+        "protected_branch_blocked": { "type": "boolean" },
+        "policy_blocks_apply": { "type": "boolean" },
+        "approval_invalidated": { "type": "boolean" },
+        "checks_stale_blocks_apply": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "restartable": { "type": "boolean" },
+        "command_count": { "type": "integer", "minimum": 0 },
+        "preview_capable": { "type": "boolean" },
+        "support_export_reopenable": { "type": "boolean" },
+        "suspicious_content_unreviewed": { "type": "boolean" },
+        "remaining_step_count": { "type": "integer", "minimum": 0 },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

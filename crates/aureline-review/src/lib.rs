@@ -14,6 +14,7 @@
 pub mod change_inspector;
 pub mod collections;
 pub mod diff;
+pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
 pub mod infrastructure_intelligence;
 pub mod landing;
 pub mod review_pack_dsl;
@@ -37,6 +38,24 @@ pub use change_inspector::{
 pub use collections::{
     ReviewCollectionAlphaInput, ReviewCollectionAlphaPacket,
     REVIEW_COLLECTION_ALPHA_PACKET_RECORD_KIND, REVIEW_COLLECTION_ALPHA_SCHEMA_VERSION,
+};
+pub use harden_merge_rebase_cherry_pick_revert_and_reset::{
+    project_diff_first_rewrite_flow_packet, DiffFirstRewriteFlowPacket,
+    DiffFirstRewriteFlowProjection, DiffFirstReviewInput, DiffFirstReviewRecord,
+    RecoveryCheckpointSummaryInput, RecoveryCheckpointSummaryRecord,
+    RewriteFlowCommandInput, RewriteFlowCommandRecord, RewriteFlowError,
+    RewriteFlowInput, RewriteFlowInspectionRecord, RewriteFlowSupportExportInput,
+    RewriteFlowSupportExportPacket, RewriteFlowValidationError, SequenceEditOperationInput,
+    SequenceEditOperationRecord, SequenceEditProposalInput, SequenceEditProposalRecord,
+    CHECKPOINT_SUMMARY_STATES, DIFF_FIRST_REWRITE_FLOW_PACKET_RECORD_KIND,
+    DIFF_FIRST_REWRITE_FLOW_SCHEMA_VERSION, DIFF_FIRST_REVIEW_RECORD_KIND,
+    DIFF_FIRST_REVIEW_STATES, DIVERGENCE_CLASSES, PROTECTED_BRANCH_POSTURES,
+    RECOVERY_CHECKPOINT_SUMMARY_RECORD_KIND, REWRITE_FLOW_APPROVAL_STATES,
+    REWRITE_FLOW_CHECKS_FRESHNESS_STATES, REWRITE_FLOW_COMMAND_CLASSES,
+    REWRITE_FLOW_COMMAND_RECORD_KIND, REWRITE_FLOW_CONSUMER_SURFACES,
+    REWRITE_FLOW_INSPECTION_RECORD_KIND, REWRITE_FLOW_INVALIDATION_REASONS,
+    REWRITE_FLOW_OPERATION_KINDS, REWRITE_FLOW_RECORD_KIND, REWRITE_FLOW_STATES,
+    REWRITE_FLOW_SUPPORT_EXPORT_PACKET_RECORD_KIND,
 };
 pub use diff::{
     DiffClosedSessionRecord, DiffCompareTarget, DiffCompareTargetKind, DiffCopyAction,
