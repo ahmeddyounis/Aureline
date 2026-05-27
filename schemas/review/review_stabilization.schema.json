@@ -1,0 +1,740 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/review_stabilization.schema.json",
+  "title": "Aureline review stabilization packet",
+  "description": "Boundary schema for the review-stabilization packet emitted by crates/aureline-review. One packet binds a review_workspace_record summary, a review_landing_candidate_record summary, a review_stabilization_record, review_anchor_stability_records, a review_stale_base_label_record, an optional review_approval_invalidation_record, a review_mergeability_truth_record, review_ownership_signal_records, optional review_bundle_export_record, optional review_bundle_import_record, optional review_offline_handoff_record, command-graph operation records, and a metadata-safe support/export packet. Raw URLs and raw provider payloads do not cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/review_stabilization_packet",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in support/export packets."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "review_landing_strip",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane",
+        "browser_companion",
+        "offline_handoff"
+      ]
+    },
+    "stabilization_state": {
+      "type": "string",
+      "enum": [
+        "stabilized_current",
+        "stabilized_stale_pack",
+        "stabilized_partial_scope",
+        "stabilized_slice_omitted",
+        "stabilized_diverged_requires_review"
+      ]
+    },
+    "anchor_stability_class": {
+      "type": "string",
+      "enum": [
+        "anchor_bound_exact",
+        "anchor_bound_stale_pack",
+        "anchor_bound_partial_scope",
+        "anchor_drifted_requires_review"
+      ]
+    },
+    "stale_base_label_class": {
+      "type": "string",
+      "enum": [
+        "base_current",
+        "base_stale_within_grace",
+        "base_stale_blocks_landing",
+        "base_diverged_requires_rebase",
+        "base_diverged_requires_merge"
+      ]
+    },
+    "approval_invalidation_trigger_class": {
+      "type": "string",
+      "enum": [
+        "head_changed_after_approval",
+        "base_changed_after_approval",
+        "review_pack_changed_after_approval",
+        "check_failure_after_approval",
+        "manual_invalidation_by_reviewer"
+      ]
+    },
+    "mergeability_truth_class": {
+      "type": "string",
+      "enum": [
+        "mergeable",
+        "not_mergeable_blocking",
+        "mergeable_pending_eligibility",
+        "mergeability_unknown_requires_review"
+      ]
+    },
+    "ownership_signal_class": {
+      "type": "string",
+      "enum": [
+        "advisory_graph_derived",
+        "enforceable_codeowners_policy",
+        "enforceable_provider_policy",
+        "advisory_and_enforceable_match",
+        "advisory_and_enforceable_conflict"
+      ]
+    },
+    "bundle_export_state": {
+      "type": "string",
+      "enum": [
+        "export_ready",
+        "export_in_progress",
+        "export_completed",
+        "export_failed"
+      ]
+    },
+    "bundle_import_state": {
+      "type": "string",
+      "enum": [
+        "import_ready",
+        "import_in_progress",
+        "import_completed",
+        "import_failed",
+        "import_rejected_version_mismatch"
+      ]
+    },
+    "offline_handoff_state": {
+      "type": "string",
+      "enum": [
+        "handoff_ready",
+        "handoff_transferred",
+        "handoff_received",
+        "handoff_replay_verified"
+      ]
+    },
+    "replay_evidence_class": {
+      "type": "string",
+      "enum": [
+        "local_ci_evidence",
+        "ai_review_evidence",
+        "human_review_evidence",
+        "provider_check_evidence"
+      ]
+    },
+    "divergence_label_class": {
+      "type": "string",
+      "enum": [
+        "no_divergence",
+        "local_ahead",
+        "remote_ahead",
+        "diverged_requires_rebase",
+        "diverged_requires_merge"
+      ]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "preview_stabilization",
+        "approve_stabilization",
+        "invalidate_anchors",
+        "refresh_base_truth",
+        "refresh_mergeability",
+        "export_review_bundle",
+        "import_review_bundle",
+        "request_offline_handoff",
+        "replay_evidence",
+        "publish_to_provider"
+      ]
+    },
+    "review_workspace_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "review_workspace_schema_version",
+        "review_workspace_id",
+        "review_workspace_source_class",
+        "provider_authority_class",
+        "review_workspace_lifecycle_state",
+        "freshness_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_workspace_record" },
+        "review_workspace_schema_version": { "type": "integer", "const": 1 },
+        "review_workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_source_class": { "$ref": "#/$defs/opaque_id" },
+        "provider_authority_class": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_lifecycle_state": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "landing_candidate_record_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "landing_candidate_id",
+        "review_workspace_id_ref",
+        "target_branch_ref",
+        "base_revision_ref",
+        "head_revision_ref",
+        "mergeable_state",
+        "eligibility_state",
+        "stale_base_state",
+        "checks_freshness_state",
+        "approval_state",
+        "policy_block_state"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_landing_candidate_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "landing_candidate_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_branch_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "mergeable_state": { "$ref": "#/$defs/mergeability_truth_class" },
+        "eligibility_state": { "type": "string", "enum": ["queue_eligible", "queue_not_eligible"] },
+        "stale_base_state": { "$ref": "#/$defs/stale_base_label_class" },
+        "checks_freshness_state": { "type": "string", "enum": ["checks_current", "checks_stale_within_grace", "checks_stale_blocks_landing"] },
+        "approval_state": { "type": "string", "enum": ["approval_not_required_by_policy", "approval_required_outstanding", "approved_current", "approval_invalidated_by_changes"] },
+        "policy_block_state": { "type": "string", "enum": ["policy_clear", "policy_blocked"] }
+      }
+    },
+    "review_stabilization_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id",
+        "review_workspace_id_ref",
+        "landing_candidate_id_ref",
+        "stabilization_state",
+        "review_pack_digest_ref",
+        "base_revision_ref",
+        "head_revision_ref",
+        "required_check_ids",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_stabilization_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_state": { "$ref": "#/$defs/stabilization_state" },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "required_check_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_anchor_stability_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "anchor_id_ref",
+        "anchor_stability_class",
+        "bound_review_pack_digest_ref",
+        "bound_base_revision_ref",
+        "bound_head_revision_ref",
+        "bound_required_check_ids",
+        "provider_excluded_from_anchor_hash",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_anchor_stability_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_stability_class": { "$ref": "#/$defs/anchor_stability_class" },
+        "bound_review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "bound_required_check_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "provider_excluded_from_anchor_hash": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_stale_base_label_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "stale_base_label_class",
+        "base_revision_ref",
+        "head_revision_ref",
+        "divergence_label_class",
+        "blocks_landing",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_stale_base_label_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stale_base_label_class": { "$ref": "#/$defs/stale_base_label_class" },
+        "base_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "head_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "divergence_label_class": { "$ref": "#/$defs/divergence_label_class" },
+        "blocks_landing": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_approval_invalidation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "invalidation_trigger_class",
+        "actor_ref",
+        "invalidated_at",
+        "replay_evidence_refs",
+        "replay_evidence_classes",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_approval_invalidation_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidation_trigger_class": { "$ref": "#/$defs/approval_invalidation_trigger_class" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "replay_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "replay_evidence_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/replay_evidence_class" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_mergeability_truth_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "mergeability_truth_class",
+        "required_check_ids",
+        "checks_freshness_state",
+        "provider_authoritative",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_mergeability_truth_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "mergeability_truth_class": { "$ref": "#/$defs/mergeability_truth_class" },
+        "required_check_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "checks_freshness_state": { "type": "string", "enum": ["checks_current", "checks_stale_within_grace", "checks_stale_blocks_landing"] },
+        "provider_authoritative": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_ownership_signal_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "ownership_signal_class",
+        "scope_pattern",
+        "owner_ref",
+        "enforceable",
+        "advisory",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_ownership_signal_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "ownership_signal_class": { "$ref": "#/$defs/ownership_signal_class" },
+        "scope_pattern": { "type": "string" },
+        "owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "enforceable": { "type": "boolean" },
+        "advisory": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_bundle_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "bundle_export_id",
+        "export_state",
+        "review_pack_version",
+        "divergence_labels",
+        "replay_evidence_refs",
+        "consumer_surfaces",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_bundle_export_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_export_id": { "$ref": "#/$defs/opaque_id" },
+        "export_state": { "$ref": "#/$defs/bundle_export_state" },
+        "review_pack_version": { "$ref": "#/$defs/opaque_id" },
+        "divergence_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/divergence_label_class" }
+        },
+        "replay_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_bundle_import_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "bundle_import_id",
+        "import_state",
+        "expected_review_pack_version",
+        "expected_divergence_labels",
+        "consumer_surfaces",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_bundle_import_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_import_id": { "$ref": "#/$defs/opaque_id" },
+        "import_state": { "$ref": "#/$defs/bundle_import_state" },
+        "expected_review_pack_version": { "$ref": "#/$defs/opaque_id" },
+        "expected_divergence_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/divergence_label_class" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_offline_handoff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "handoff_id",
+        "handoff_state",
+        "freshness_class",
+        "actor_ref",
+        "return_anchor_ref",
+        "review_pack_version",
+        "divergence_labels",
+        "replay_evidence_refs",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_offline_handoff_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "handoff_id": { "$ref": "#/$defs/opaque_id" },
+        "handoff_state": { "$ref": "#/$defs/offline_handoff_state" },
+        "freshness_class": { "$ref": "#/$defs/opaque_id" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "return_anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_pack_version": { "$ref": "#/$defs/opaque_id" },
+        "divergence_labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/divergence_label_class" }
+        },
+        "replay_evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_stabilization_command_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "stabilization_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_stabilization_command_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_kind": { "$ref": "#/$defs/opaque_id" },
+        "preview_supported": { "type": "boolean" },
+        "emits_audit_event": { "type": "boolean" },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_stabilization_support_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "stabilization_id_ref",
+        "review_workspace_id_ref",
+        "landing_candidate_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_stabilization_support_export_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "landing_candidate_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer_surface" }
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "raw_url_export_allowed": { "const": false },
+        "raw_provider_payload_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_stabilization_inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "stabilization_id_ref",
+        "review_workspace_id_ref",
+        "stabilized_current",
+        "stabilized_stale_pack",
+        "stabilized_partial_scope",
+        "stabilized_slice_omitted",
+        "stabilized_diverged_requires_review",
+        "all_anchors_bound_exact",
+        "any_anchor_drifted",
+        "stale_base_blocks_landing",
+        "approval_invalidated",
+        "mergeability_blocking",
+        "mergeability_provider_authoritative",
+        "enforceable_ownership_present",
+        "advisory_ownership_present",
+        "ownership_conflict_present",
+        "bundle_export_present",
+        "bundle_import_present",
+        "offline_handoff_present",
+        "actionable",
+        "invalidated",
+        "command_count",
+        "anchor_stability_count",
+        "ownership_signal_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_stabilization_inspection_record" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "stabilization_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "stabilized_current": { "type": "boolean" },
+        "stabilized_stale_pack": { "type": "boolean" },
+        "stabilized_partial_scope": { "type": "boolean" },
+        "stabilized_slice_omitted": { "type": "boolean" },
+        "stabilized_diverged_requires_review": { "type": "boolean" },
+        "all_anchors_bound_exact": { "type": "boolean" },
+        "any_anchor_drifted": { "type": "boolean" },
+        "stale_base_blocks_landing": { "type": "boolean" },
+        "approval_invalidated": { "type": "boolean" },
+        "mergeability_blocking": { "type": "boolean" },
+        "mergeability_provider_authoritative": { "type": "boolean" },
+        "enforceable_ownership_present": { "type": "boolean" },
+        "advisory_ownership_present": { "type": "boolean" },
+        "ownership_conflict_present": { "type": "boolean" },
+        "bundle_export_present": { "type": "boolean" },
+        "bundle_import_present": { "type": "boolean" },
+        "offline_handoff_present": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "invalidated": { "type": "boolean" },
+        "command_count": { "type": "integer", "minimum": 0 },
+        "anchor_stability_count": { "type": "integer", "minimum": 0 },
+        "ownership_signal_count": { "type": "integer", "minimum": 0 },
+        "preview_capable": { "type": "boolean" },
+        "support_export_reopenable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+    "review_stabilization_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "packet_id",
+        "generated_at",
+        "review_workspace",
+        "landing_candidate",
+        "stabilization",
+        "anchor_stabilities",
+        "stale_base_label",
+        "mergeability_truth",
+        "ownership_signals",
+        "commands",
+        "support_export",
+        "inspection"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_stabilization_packet" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "review_workspace": { "$ref": "#/$defs/review_workspace_record_summary" },
+        "landing_candidate": { "$ref": "#/$defs/landing_candidate_record_summary" },
+        "stabilization": { "$ref": "#/$defs/review_stabilization_record" },
+        "anchor_stabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_anchor_stability_record" }
+        },
+        "stale_base_label": { "$ref": "#/$defs/review_stale_base_label_record" },
+        "approval_invalidation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_approval_invalidation_record" }
+          ]
+        },
+        "mergeability_truth": { "$ref": "#/$defs/review_mergeability_truth_record" },
+        "ownership_signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_ownership_signal_record" }
+        },
+        "bundle_export": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_bundle_export_record" }
+          ]
+        },
+        "bundle_import": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_bundle_import_record" }
+          ]
+        },
+        "offline_handoff": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_offline_handoff_record" }
+          ]
+        },
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_stabilization_command_record" }
+        },
+        "support_export": { "$ref": "#/$defs/review_stabilization_support_export_packet" },
+        "inspection": { "$ref": "#/$defs/review_stabilization_inspection_record" }
+      }
+    }
+  }
+}

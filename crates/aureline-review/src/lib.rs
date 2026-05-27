@@ -19,6 +19,7 @@ pub mod infrastructure_intelligence;
 pub mod landing;
 pub mod review_pack_dsl;
 pub mod review_pack_parity_harness;
+pub mod stabilize_review_workspace_anchors_stale_base_labels_approval;
 pub mod stabilize_worktree_patch_stack_and_explicit_change_object;
 pub mod workspace;
 
@@ -112,6 +113,29 @@ pub use review_pack_parity_harness::{
     REVIEW_PACK_PARITY_HARNESS_OVERALL_VERDICT_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_PARITY_FINDING_CLASSES,
     REVIEW_PACK_PARITY_HARNESS_ROW_DOWNGRADE_CLASSES,
+};
+pub use stabilize_review_workspace_anchors_stale_base_labels_approval::{
+    project_review_stabilization_packet, ApprovalInvalidationInput, ApprovalInvalidationRecord,
+    MergeabilityTruthInput, MergeabilityTruthRecord, OfflineHandoffInput, OfflineHandoffRecord,
+    OwnershipSignalInput, OwnershipSignalRecord, ReviewAnchorStabilityInput,
+    ReviewAnchorStabilityRecord, ReviewBundleExportInput, ReviewBundleExportRecord,
+    ReviewBundleImportInput, ReviewBundleImportRecord, ReviewStabilizationCommandInput,
+    ReviewStabilizationCommandRecord, ReviewStabilizationError, ReviewStabilizationInput,
+    ReviewStabilizationInspectionRecord, ReviewStabilizationPacket, ReviewStabilizationProjection,
+    ReviewStabilizationRecord, ReviewStabilizationSupportExportInput,
+    ReviewStabilizationSupportExportPacket, ReviewStabilizationValidationError,
+    StaleBaseLabelInput, StaleBaseLabelRecord,
+    ANCHOR_STABILITY_CLASSES, APPROVAL_INVALIDATION_RECORD_KIND, APPROVAL_INVALIDATION_TRIGGER_CLASSES,
+    BUNDLE_EXPORT_STATES, BUNDLE_IMPORT_STATES, DIVERGENCE_LABEL_CLASSES,
+    MERGEABILITY_TRUTH_CLASSES, MERGEABILITY_TRUTH_RECORD_KIND, OFFLINE_HANDOFF_RECORD_KIND,
+    OFFLINE_HANDOFF_STATES, OWNERSHIP_SIGNAL_CLASSES, OWNERSHIP_SIGNAL_RECORD_KIND,
+    REPLAY_EVIDENCE_CLASSES, REVIEW_ANCHOR_STABILITY_RECORD_KIND, REVIEW_BUNDLE_EXPORT_RECORD_KIND,
+    REVIEW_BUNDLE_IMPORT_RECORD_KIND, REVIEW_STABILIZATION_COMMAND_CLASSES,
+    REVIEW_STABILIZATION_COMMAND_RECORD_KIND, REVIEW_STABILIZATION_CONSUMER_SURFACES,
+    REVIEW_STABILIZATION_INSPECTION_RECORD_KIND, REVIEW_STABILIZATION_INVALIDATION_REASONS,
+    REVIEW_STABILIZATION_PACKET_RECORD_KIND, REVIEW_STABILIZATION_RECORD_KIND,
+    REVIEW_STABILIZATION_SCHEMA_VERSION, REVIEW_STABILIZATION_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    STALE_BASE_LABEL_CLASSES, STALE_BASE_LABEL_RECORD_KIND, STABILIZATION_STATES,
 };
 pub use stabilize_worktree_patch_stack_and_explicit_change_object::{
     project_change_object_orchestration_packet, ChangeObjectCommandInput, ChangeObjectCommandRecord,
