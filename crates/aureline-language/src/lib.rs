@@ -28,6 +28,7 @@ pub mod next_js_expert_workflow_pack_truth_packet;
 pub mod node_and_express_advanced_workflow_pack_truth_packet;
 pub mod packs;
 pub mod provider_arbitration;
+pub mod publish_launch_language_conformance_packs_truth_packet;
 pub mod python;
 pub mod python_daily_driver_quality_truth_packet;
 pub mod react_expert_workflow_pack_truth_packet;
@@ -373,6 +374,38 @@ pub use provider_arbitration::{
     PROVIDER_ARBITRATION_PROOF_CORPUS_DIR, PROVIDER_ARBITRATION_PROOF_REPORT_ARTIFACT_REF,
     PROVIDER_ARBITRATION_PROOF_REPORT_RECORD_KIND, PROVIDER_HEALTH_STATE_RECORD_KIND,
     PROVIDER_HEALTH_STATE_SCHEMA_REF, PROVIDER_HEALTH_STATE_SCHEMA_VERSION,
+};
+pub use publish_launch_language_conformance_packs_truth_packet::{
+    current_stable_publish_launch_language_conformance_packs_truth_packet,
+    ConformancePackConfidenceClass,
+    ConformancePackRowClass,
+    ConsumerSurface as PublishLaunchLanguageConformancePacksConsumerSurface,
+    DailyLoopStepClass as PublishLaunchLanguageConformancePacksDailyLoopStepClass,
+    DowngradeAutomationClass as PublishLaunchLanguageConformancePacksDowngradeAutomationClass,
+    DowngradeRuleClass,
+    EvidenceClass as PublishLaunchLanguageConformancePacksEvidenceClass,
+    FindingKind as PublishLaunchLanguageConformancePacksFindingKind,
+    FindingSeverity as PublishLaunchLanguageConformancePacksFindingSeverity,
+    KnownLimitClass as PublishLaunchLanguageConformancePacksKnownLimitClass,
+    LaunchLanguageLaneClass,
+    PromotionState as PublishLaunchLanguageConformancePacksPromotionState,
+    PublishLaunchLanguageConformancePacksConsumerProjection,
+    PublishLaunchLanguageConformancePacksRow,
+    PublishLaunchLanguageConformancePacksTruthArtifactError,
+    PublishLaunchLanguageConformancePacksTruthPacket,
+    PublishLaunchLanguageConformancePacksTruthPacketInput,
+    PublishLaunchLanguageConformancePacksTruthSupportExport,
+    SupportClass as PublishLaunchLanguageConformancePacksSupportClass,
+    SupportClassEvidenceClass,
+    ValidationFinding as PublishLaunchLanguageConformancePacksValidationFinding,
+    PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_ARTIFACT_DOC_REF,
+    PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_DOC_REF,
+    PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_FIXTURE_DIR,
+    PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_PACKET_ARTIFACT_REF,
+    PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_PACKET_RECORD_KIND,
+    PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_SCHEMA_REF,
+    PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_SCHEMA_VERSION,
+    PUBLISH_LAUNCH_LANGUAGE_CONFORMANCE_PACKS_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use next_js_expert_workflow_pack_truth_packet::{
     current_stable_next_js_expert_workflow_pack_truth_packet,
