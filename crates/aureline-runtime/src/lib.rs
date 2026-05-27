@@ -59,6 +59,7 @@ pub mod run_lineage;
 pub mod scanner_import;
 pub mod shared_debug_alpha;
 pub mod shared_terminal_alpha;
+pub mod stabilize_execution_context_resolver;
 pub mod support_matrix_beta;
 pub mod target_discovery;
 pub mod targets;
@@ -431,6 +432,36 @@ pub use shared_terminal_alpha::{
     SHARED_TERMINAL_ALPHA_PRESENTER_HANDOFF_RECORD_KIND, SHARED_TERMINAL_ALPHA_SCHEMA_VERSION,
     SHARED_TERMINAL_ALPHA_SHARED_CONTRACT_REF, SHARED_TERMINAL_ALPHA_SUPPORT_EXPORT_RECORD_KIND,
     SHARED_TERMINAL_ALPHA_VALIDATION_REPORT_RECORD_KIND,
+};
+pub use stabilize_execution_context_resolver::{
+    current_stable_stabilize_execution_context_resolver_truth_packet,
+    ConsumerSurface as StabilizeExecutionContextResolverConsumerSurface,
+    DowngradeAutomationClass as StabilizeExecutionContextResolverDowngradeAutomationClass,
+    EvidenceClass as StabilizeExecutionContextResolverEvidenceClass,
+    ExecutionContextConfidenceClass as StabilizeExecutionContextResolverConfidenceClass,
+    ExecutionContextRowClass as StabilizeExecutionContextResolverRowClass,
+    ExecutionLaneClass as StabilizeExecutionContextResolverLaneClass,
+    FindingKind as StabilizeExecutionContextResolverFindingKind,
+    FindingSeverity as StabilizeExecutionContextResolverFindingSeverity,
+    KnownLimitClass as StabilizeExecutionContextResolverKnownLimitClass,
+    PromotionState as StabilizeExecutionContextResolverPromotionState,
+    ResolverStateClass as StabilizeExecutionContextResolverStateClass,
+    StabilizeExecutionContextResolverConsumerProjection,
+    StabilizeExecutionContextResolverRow, StabilizeExecutionContextResolverTruthArtifactError,
+    StabilizeExecutionContextResolverTruthPacket,
+    StabilizeExecutionContextResolverTruthPacketInput,
+    StabilizeExecutionContextResolverTruthSupportExport,
+    SupportClass as StabilizeExecutionContextResolverSupportClass,
+    SurfaceBindingClass as StabilizeExecutionContextResolverSurfaceBindingClass,
+    ValidationFinding as StabilizeExecutionContextResolverValidationFinding,
+    STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_ARTIFACT_DOC_REF,
+    STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_DOC_REF,
+    STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_FIXTURE_DIR,
+    STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_PACKET_ARTIFACT_REF,
+    STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_PACKET_RECORD_KIND,
+    STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SCHEMA_REF,
+    STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SCHEMA_VERSION,
+    STABILIZE_EXECUTION_CONTEXT_RESOLVER_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
 };
 pub use support_matrix_beta::{
     SupportMatrixAttachSupport, SupportMatrixBetaManifest, SupportMatrixBetaSupportExport,
