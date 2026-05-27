@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/review/migration_rollback_diff_review.schema.json",
+  "title": "Aureline migration rollback diff-review packet (review lane)",
+  "description": "Boundary schema for the migration rollback checkpoint, diff review, and retained diagnostic contracts that harden settings, keymap, snippet, theme, task, launch config, workspace metadata, and extension manifest import flows. Every destructive import is previewable or checkpointed. Failed imports retain diagnostics with reason classes, suggested actions, and fallback posture. Support/export records keep every raw_*_export_allowed flag false.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "schema_version",
+    "packet_id",
+    "generated_at",
+    "review_workspace",
+    "migration_flow",
+    "diff_review",
+    "rollback_checkpoint",
+    "commands",
+    "support_export",
+    "inspection"
+  ],
+  "properties": {
+    "record_kind": { "const": "review_migration_rollback_diff_review_packet" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "review_workspace": { "$ref": "#/$defs/review_workspace_record" },
+    "migration_flow": { "$ref": "#/$defs/migration_flow_record" },
+    "diff_review": { "$ref": "#/$defs/diff_review_record" },
+    "rollback_checkpoint": { "$ref": "#/$defs/rollback_checkpoint_record" },
+    "retained_diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/retained_diagnostic_record" }
+    },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/migration_command_record" }
+    },
+    "support_export": { "$ref": "#/$defs/migration_support_export_packet" },
+    "inspection": { "$ref": "#/$defs/migration_inspection_record" }
+  },
+  "$defs": {
+    "opaque_id": { "type": "string", "minLength": 1 },
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "operation_kind": {
+      "type": "string",
+      "enum": [
+        "settings_import",
+        "keymap_import",
+        "snippet_import",
+        "theme_import",
+        "task_import",
+        "launch_config_import",
+        "workspace_metadata_import",
+        "extension_manifest_import"
+      ]
+    },
+    "flow_state": {
+      "type": "string",
+      "enum": [
+        "preview_pending",
+        "diff_pending_review",
+        "diff_review_approved",
+        "checkpoint_pending",
+        "checkpoint_captured",
+        "applying",
+        "applied",
+        "validation_failed",
+        "rolled_back",
+        "aborted"
+      ]
+    },
+    "diff_review_state": {
+      "type": "string",
+      "enum": ["pending", "approved_with_checkpoints", "rejected", "requires_manual_review"]
+    },
+    "checkpoint_summary_state": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "captured_ready",
+        "captured_pending",
+        "restored",
+        "expired",
+        "missing_blocks_apply"
+      ]
+    },
+    "diagnostic_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_semantic_equivalent",
+        "ambiguous_mapping",
+        "secret_material_excluded",
+        "policy_locked",
+        "capability_missing",
+        "version_mismatch",
+        "corrupted_source",
+        "partial_schema_match"
+      ]
+    },
+    "diagnostic_action_class": {
+      "type": "string",
+      "enum": [
+        "manual_review",
+        "use_bridge",
+        "use_native_alternative",
+        "skip_and_continue",
+        "rollback_and_repair",
+        "contact_support"
+      ]
+    },
+    "command_class": {
+      "type": "string",
+      "enum": [
+        "preview_diff",
+        "approve_diff",
+        "reject_diff",
+        "capture_checkpoint",
+        "restore_checkpoint",
+        "apply_migration",
+        "rollback_migration",
+        "abort_flow",
+        "review_diagnostics",
+        "continue_after_resolve"
+      ]
+    },
+    "consumer_surface": {
+      "type": "string",
+      "enum": [
+        "review_workspace_inspector",
+        "migration_center",
+        "cli_headless_entry",
+        "support_export",
+        "audit_lane"
+      ]
+    },
+    "invalidation_reason": {
+      "type": "string",
+      "enum": [
+        "source_profile_changed",
+        "checkpoint_expired",
+        "validation_failed",
+        "user_aborted",
+        "policy_blocked",
+        "downgrade_required",
+        "provider_overlay_stale"
+      ]
+    },
+    "review_workspace_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_workspace_id"],
+      "properties": {
+        "review_workspace_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "migration_flow_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "migration_flow_id",
+        "review_workspace_id_ref",
+        "operation_kind",
+        "flow_state",
+        "source_editor",
+        "migration_session_ref",
+        "target_family_refs",
+        "review_pack_digest_ref",
+        "environment_capsule_digest_ref",
+        "restart_session_ref",
+        "invalidation_reasons",
+        "blocked_reasons",
+        "actionable",
+        "generated_at",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_migration_rollback_diff_review_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "migration_flow_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "operation_kind": { "$ref": "#/$defs/operation_kind" },
+        "flow_state": { "$ref": "#/$defs/flow_state" },
+        "source_editor": { "$ref": "#/$defs/non_empty_string" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_family_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "review_pack_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_capsule_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "restart_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "actionable": { "type": "boolean" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "diff_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "migration_flow_id_ref",
+        "diff_review_state",
+        "diff_preview_ref",
+        "suspicious_content_flagged",
+        "suspicious_content_reviewed",
+        "checkpoint_required_before_apply",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_migration_diff_review_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "migration_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "diff_review_state": { "$ref": "#/$defs/diff_review_state" },
+        "diff_preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "suspicious_content_flagged": { "type": "boolean" },
+        "suspicious_content_reviewed": { "type": "boolean" },
+        "checkpoint_required_before_apply": { "type": "boolean" },
+        "manual_review_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "rollback_checkpoint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "migration_flow_id_ref",
+        "checkpoint_state",
+        "disclosure_label",
+        "restorable_offline",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_migration_rollback_checkpoint_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "migration_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "checkpoint_state": { "$ref": "#/$defs/checkpoint_summary_state" },
+        "checkpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "restore_command_id": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }]
+        },
+        "disclosure_label": { "$ref": "#/$defs/non_empty_string" },
+        "restorable_offline": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "retained_diagnostic_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "migration_flow_id_ref",
+        "diagnostic_id",
+        "source_editor",
+        "import_target_family",
+        "source_item_id",
+        "reason_class",
+        "message",
+        "suggested_action",
+        "fallback_available",
+        "retained_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_retained_diagnostic_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "migration_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "diagnostic_id": { "$ref": "#/$defs/opaque_id" },
+        "source_editor": { "$ref": "#/$defs/non_empty_string" },
+        "import_target_family": { "$ref": "#/$defs/non_empty_string" },
+        "source_item_id": { "$ref": "#/$defs/non_empty_string" },
+        "reason_class": { "$ref": "#/$defs/diagnostic_reason_class" },
+        "message": { "$ref": "#/$defs/non_empty_string" },
+        "suggested_action": { "$ref": "#/$defs/diagnostic_action_class" },
+        "fallback_available": { "type": "boolean" },
+        "retained_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "migration_command_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "command_id",
+        "migration_flow_id_ref",
+        "command_class",
+        "target_object_ref",
+        "target_object_kind",
+        "preview_supported",
+        "emits_audit_event",
+        "blocked_reasons",
+        "actionable",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_migration_command_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_class": { "$ref": "#/$defs/command_class" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_object_kind": { "$ref": "#/$defs/non_empty_string" },
+        "preview_supported": { "type": "boolean" },
+        "emits_audit_event": { "type": "boolean" },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "actionable": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "migration_support_export_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "support_export_id",
+        "migration_flow_id_ref",
+        "review_workspace_id_ref",
+        "reopen_context_ref",
+        "reopen_command_id_ref",
+        "command_id_refs",
+        "consumer_surfaces",
+        "source_schema_refs",
+        "raw_url_export_allowed",
+        "raw_provider_payload_export_allowed",
+        "raw_path_export_allowed",
+        "raw_branch_name_export_allowed",
+        "raw_patch_body_export_allowed",
+        "redaction_class",
+        "restart_snapshot",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_migration_support_export_packet" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "support_export_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_context_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_command_id_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface" },
+          "allOf": [
+            { "contains": { "const": "support_export" } },
+            { "contains": { "const": "audit_lane" } }
+          ]
+        },
+        "source_schema_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "raw_url_export_allowed": { "const": false },
+        "raw_provider_payload_export_allowed": { "const": false },
+        "raw_path_export_allowed": { "const": false },
+        "raw_branch_name_export_allowed": { "const": false },
+        "raw_patch_body_export_allowed": { "const": false },
+        "redaction_class": { "$ref": "#/$defs/non_empty_string" },
+        "restart_snapshot": { "$ref": "#/$defs/restart_snapshot" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "restart_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "flow_state",
+        "diff_review_state",
+        "checkpoint_state",
+        "operation_kind",
+        "restart_session_ref",
+        "invalidation_reasons",
+        "blocked_reasons"
+      ],
+      "properties": {
+        "flow_state": { "$ref": "#/$defs/flow_state" },
+        "diff_review_state": { "$ref": "#/$defs/diff_review_state" },
+        "checkpoint_state": { "$ref": "#/$defs/checkpoint_summary_state" },
+        "operation_kind": { "$ref": "#/$defs/operation_kind" },
+        "restart_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "invalidation_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalidation_reason" }
+        },
+        "blocked_reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "migration_inspection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "migration_flow_id_ref",
+        "review_workspace_id_ref",
+        "diff_approved",
+        "diff_pending",
+        "diff_rejected",
+        "checkpoint_ready",
+        "applying",
+        "completed",
+        "validation_failed",
+        "rolled_back",
+        "aborted",
+        "approval_invalidated",
+        "checks_stale_blocks_apply",
+        "actionable",
+        "restartable",
+        "command_count",
+        "preview_capable",
+        "support_export_reopenable",
+        "suspicious_content_unreviewed",
+        "retained_diagnostic_count",
+        "retained_diagnostic_fallback_available",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_migration_inspection_record" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "migration_flow_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "diff_approved": { "type": "boolean" },
+        "diff_pending": { "type": "boolean" },
+        "diff_rejected": { "type": "boolean" },
+        "checkpoint_ready": { "type": "boolean" },
+        "applying": { "type": "boolean" },
+        "completed": { "type": "boolean" },
+        "validation_failed": { "type": "boolean" },
+        "rolled_back": { "type": "boolean" },
+        "aborted": { "type": "boolean" },
+        "approval_invalidated": { "type": "boolean" },
+        "checks_stale_blocks_apply": { "type": "boolean" },
+        "actionable": { "type": "boolean" },
+        "restartable": { "type": "boolean" },
+        "command_count": { "type": "integer", "minimum": 0 },
+        "preview_capable": { "type": "boolean" },
+        "support_export_reopenable": { "type": "boolean" },
+        "suspicious_content_unreviewed": { "type": "boolean" },
+        "retained_diagnostic_count": { "type": "integer", "minimum": 0 },
+        "retained_diagnostic_fallback_available": { "type": "boolean" },
+        "summary_label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}

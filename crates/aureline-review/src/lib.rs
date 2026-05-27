@@ -15,6 +15,7 @@ pub mod change_inspector;
 pub mod collections;
 pub mod diff;
 pub mod finalize_issue_and_work_item_linkage_with_branch;
+pub mod finalize_migration_rollback_checkpoints_diff_review_and_retained;
 pub mod harden_browser_handoff_and_in_product_review_boundaries;
 pub mod harden_merge_rebase_cherry_pick_revert_and_reset;
 pub mod infrastructure_intelligence;
@@ -65,6 +66,24 @@ pub use finalize_issue_and_work_item_linkage_with_branch::{
     WORK_ITEM_LINKAGE_INSPECTION_RECORD_KIND, WORK_ITEM_LINKAGE_INVALIDATION_REASONS,
     WORK_ITEM_LINKAGE_SUPPORT_EXPORT_PACKET_RECORD_KIND, WORK_ITEM_REVIEW_LINK_RECORD_KIND,
     WRITE_MODE_DISCLOSURE_CLASSES,
+};
+pub use finalize_migration_rollback_checkpoints_diff_review_and_retained::{
+    project_migration_rollback_diff_review_packet, MigrationCommandInput, MigrationCommandRecord,
+    MigrationDiffReviewInput, MigrationDiffReviewRecord, MigrationInspectionRecord,
+    MigrationRestartSnapshot, MigrationRollbackCheckpointInput, MigrationRollbackCheckpointRecord,
+    MigrationRollbackDiffReviewError, MigrationRollbackDiffReviewInput,
+    MigrationRollbackDiffReviewPacket, MigrationRollbackDiffReviewProjection,
+    MigrationRollbackDiffReviewRecord, MigrationRollbackDiffReviewValidationError,
+    MigrationSupportExportInput, MigrationSupportExportPacket, RetainedDiagnosticInput,
+    RetainedDiagnosticRecord, MIGRATION_CHECKPOINT_STATES, MIGRATION_COMMAND_CLASSES,
+    MIGRATION_COMMAND_RECORD_KIND, MIGRATION_CONSUMER_SURFACES, MIGRATION_DIFF_REVIEW_RECORD_KIND,
+    MIGRATION_DIFF_REVIEW_STATES, MIGRATION_DIAGNOSTIC_ACTION_CLASSES,
+    MIGRATION_DIAGNOSTIC_REASON_CLASSES, MIGRATION_FLOW_STATES,
+    MIGRATION_INVALIDATION_REASONS, MIGRATION_OPERATION_KINDS,
+    MIGRATION_ROLLBACK_CHECKPOINT_RECORD_KIND, MIGRATION_ROLLBACK_DIFF_REVIEW_PACKET_RECORD_KIND,
+    MIGRATION_ROLLBACK_DIFF_REVIEW_RECORD_KIND, MIGRATION_ROLLBACK_DIFF_REVIEW_SCHEMA_VERSION,
+    MIGRATION_INSPECTION_RECORD_KIND, MIGRATION_SUPPORT_EXPORT_PACKET_RECORD_KIND,
+    RETAINED_DIAGNOSTIC_RECORD_KIND,
 };
 pub use harden_merge_rebase_cherry_pick_revert_and_reset::{
     project_diff_first_rewrite_flow_packet, DiffFirstRewriteFlowPacket,
