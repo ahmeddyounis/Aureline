@@ -11,6 +11,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-language/0.0.0")]
 
+pub mod assistant_surface_hardening_truth_packet;
 pub mod c_and_cpp_daily_driver_quality_truth_packet;
 pub mod code_actions;
 pub mod daily_driver_quality_truth_packet;
@@ -37,6 +38,36 @@ pub mod tree_sitter;
 pub mod tsjs;
 pub mod vue_advanced_workflow_pack_truth_packet;
 
+pub use assistant_surface_hardening_truth_packet::{
+    current_stable_assistant_surface_hardening_truth_packet,
+    AssistantSurfaceConfidenceClass, AssistantSurfaceHardeningConsumerProjection,
+    AssistantSurfaceHardeningRow, AssistantSurfaceHardeningTruthArtifactError,
+    AssistantSurfaceHardeningTruthPacket, AssistantSurfaceHardeningTruthPacketInput,
+    AssistantSurfaceHardeningTruthSupportExport, AssistantSurfaceLaneClass,
+    AssistantSurfaceRowClass, CodeActionFieldClass as AssistantSurfaceCodeActionFieldClass,
+    ConsumerSurface as AssistantSurfaceHardeningConsumerSurface,
+    CrossCutConditionClass as AssistantSurfaceCrossCutConditionClass,
+    DowngradeAutomationClass as AssistantSurfaceDowngradeAutomationClass,
+    EvidenceClass as AssistantSurfaceEvidenceClass,
+    FindingKind as AssistantSurfaceHardeningFindingKind,
+    FindingSeverity as AssistantSurfaceHardeningFindingSeverity,
+    KnownLimitClass as AssistantSurfaceKnownLimitClass,
+    PreviewRequirementClass as AssistantSurfacePreviewRequirementClass,
+    PromotionState as AssistantSurfaceHardeningPromotionState,
+    ProviderSourceClass as AssistantSurfaceProviderSourceClass,
+    SideEffectClass as AssistantSurfaceSideEffectClass,
+    SnippetSessionFieldClass as AssistantSurfaceSnippetSessionFieldClass,
+    SupportClass as AssistantSurfaceSupportClass,
+    ValidationFinding as AssistantSurfaceHardeningValidationFinding,
+    ASSISTANT_SURFACE_HARDENING_TRUTH_ARTIFACT_DOC_REF,
+    ASSISTANT_SURFACE_HARDENING_TRUTH_DOC_REF,
+    ASSISTANT_SURFACE_HARDENING_TRUTH_FIXTURE_DIR,
+    ASSISTANT_SURFACE_HARDENING_TRUTH_PACKET_ARTIFACT_REF,
+    ASSISTANT_SURFACE_HARDENING_TRUTH_PACKET_RECORD_KIND,
+    ASSISTANT_SURFACE_HARDENING_TRUTH_SCHEMA_REF,
+    ASSISTANT_SURFACE_HARDENING_TRUTH_SCHEMA_VERSION,
+    ASSISTANT_SURFACE_HARDENING_TRUTH_SUPPORT_EXPORT_RECORD_KIND,
+};
 pub use c_and_cpp_daily_driver_quality_truth_packet::{
     current_stable_c_and_cpp_daily_driver_quality_truth_packet,
     CAndCppDailyDriverQualityConsumerProjection, CAndCppDailyDriverQualityRow,
